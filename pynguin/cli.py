@@ -17,8 +17,45 @@
 This module provides the main entry location for the program execution from the command
 line.
 """
+import logging
+import os
 import sys
-from typing import List
+from typing import List, Union
+
+
+def _setup_logging(
+    verbose: bool = False, quiet: bool = False, log_file: Union[str, os.PathLike] = None
+) -> logging.Logger:
+    logger = logging.getLogger("pynguin")
+    logger.setLevel(logging.DEBUG)
+    if verbose:
+        level = logging.DEBUG
+    elif quiet:
+        level = logging.NOTSET
+    else:
+        level = logging.INFO
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d: "
+                "%(message)s"
+            )
+        )
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+
+    if not quiet:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_handler.setFormatter(
+            logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
+        )
+        logger.addHandler(console_handler)
+    else:
+        logger.addHandler(logging.NullHandler())
+
+    return logger
 
 
 def main(argv: List[str] = None) -> int:
