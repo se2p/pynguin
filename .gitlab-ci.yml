@@ -28,17 +28,27 @@ unit-tests:python-3.8:
   variables:
     PYTHON_VERSION: '3.8-rc-buster'
 
-nightly-tests:
-  image: python:3.7
+.nightly-tests:
   only:
     - schedules
   stage: test
   before_script:
+    - python --version
     - pip install poetry
     - poetry install
     - poetry add --dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov-branch --random-order --random-order-bucket=global ; done
+
+nightly-tests:python-3.7:
+  extends: .nightly-tests
+  variables:
+    PYTHON_VERSION: '3.7'
+
+nightly-tests:python-3.8:
+  extends: .nightly-tests
+  variables:
+    PYTHON_VERSION: '3.8-rc-buster'
 
 flake8:
   stage: build
