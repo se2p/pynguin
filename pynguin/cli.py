@@ -17,10 +17,15 @@
 This module provides the main entry location for the program execution from the command
 line.
 """
+import argparse
 import logging
 import os
 import sys
 from typing import List, Union
+
+import configargparse  # type: ignore
+
+from pynguin import __version__
 
 
 def _setup_logging(
@@ -56,6 +61,45 @@ def _setup_logging(
         logger.addHandler(logging.NullHandler())
 
     return logger
+
+
+def _create_argument_parser() -> argparse.ArgumentParser:
+    parser = configargparse.ArgParser(
+        default_config_files=["pynguin.conf"],
+        description="""
+        Pynguin is an automatic random unit test generation framework for Python.
+        """,
+    )
+
+    parser.add_argument(
+        "-c", "--config", is_config_file=True, help="Path to an optional config file."
+    )
+
+    parser.add_argument(
+        "--version", action="version", version="%(prog)s " + __version__
+    )
+
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        help="Make the output more verbose",
+        action="store_true",
+    )
+    output.add_argument(
+        "-q",
+        "--quiet",
+        dest="quiet",
+        help="Omit all output from the shell.",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--log-file", dest="log_file", help="Path to store the log file."
+    )
+
+    return parser
 
 
 def main(argv: List[str] = None) -> int:

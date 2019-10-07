@@ -12,12 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import argparse
 import importlib
 import logging
 import os
 import tempfile
 
-from pynguin.cli import main, _setup_logging
+from pynguin.cli import main, _setup_logging, _create_argument_parser
 
 
 def test_main_empty_argv():
@@ -59,3 +60,8 @@ def test__setup_logging_quiet_without_log_file():
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
     importlib.reload(logging)
+
+
+def test__create_argument_parser():
+    parser = _create_argument_parser()
+    assert isinstance(parser, argparse.ArgumentParser)
