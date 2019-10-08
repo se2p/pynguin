@@ -87,7 +87,7 @@ pages:
   script:
     - mv cov_html/ public/
     - cp -R public pynguincoverage
-    - scp -r pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
+    - scp -r -P 9418 pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
   artifacts:
     paths:
       - public
