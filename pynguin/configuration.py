@@ -28,7 +28,7 @@ class Configuration:
     quiet: bool = False
     log_file: Union[str, os.PathLike] = ""
     seed: int = 42
-    project_path: Union[str, os.PathLike] = ""
+    project_path: str = ""
     module_names: List[str] = dataclasses.field(default_factory=list)
     measure_coverage: bool = False
     coverage_filename: Union[str, os.PathLike] = ""
@@ -45,7 +45,7 @@ class ConfigurationBuilder:
         self._quiet: bool = False
         self._log_file: Union[str, os.PathLike] = ""
         self._seed: int = 42
-        self._project_path: Union[str, os.PathLike] = ""
+        self._project_path: str = ""
         self._module_names: List[str] = []
         self._measure_coverage: bool = False
         self._coverage_filename: Union[str, os.PathLike] = ""
@@ -96,9 +96,7 @@ class ConfigurationBuilder:
         self._seed = seed
         return self
 
-    def set_project_path(
-        self, project_path: Union[str, os.PathLike]
-    ) -> "ConfigurationBuilder":
+    def set_project_path(self, project_path: str) -> "ConfigurationBuilder":
         """Sets the path to the project for which tests should be generated"""
         self._project_path = project_path
         return self
