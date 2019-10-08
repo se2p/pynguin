@@ -23,7 +23,7 @@ from pynguin.configuration import Configuration, ConfigurationBuilder
 from pynguin.utils.exceptions import ConfigurationException
 
 
-class TestGenerator:
+class Pynguin:
     """The basic interface of the test generator."""
 
     def __init__(

@@ -19,13 +19,13 @@ from pynguin.cli import main, _create_argument_parser
 
 
 def test_main_empty_argv():
-    with mock.patch("pynguin.cli.TestGenerator") as generator_mock:
+    with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         generator_mock.return_value.run.return_value = 0
         assert main() == 0
 
 
 def test_main_with_argv():
-    with mock.patch("pynguin.cli.TestGenerator") as generator_mock:
+    with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         generator_mock.return_value.run.return_value = 0
         assert main(["--help"]) == 0
 

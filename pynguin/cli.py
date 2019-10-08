@@ -24,7 +24,7 @@ from typing import List
 import configargparse  # type: ignore
 
 from pynguin import __version__
-from pynguin.generator import TestGenerator
+from pynguin.generator import Pynguin
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -78,7 +78,7 @@ def main(argv: List[str] = None) -> int:
     if len(argv) <= 1:
         argv.append("--help")
     parser = _create_argument_parser()
-    generator = TestGenerator(parser)
+    generator = Pynguin(parser)
     generator.setup()
     return generator.run()
 

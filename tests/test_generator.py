@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pynguin.configuration import Configuration
-from pynguin.generator import TestGenerator
+from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
 
 
@@ -31,7 +31,7 @@ def test__setup_logging_standard_with_log_file():
     _, log_file = tempfile.mkstemp()
     logging.shutdown()
     importlib.reload(logging)
-    logger = TestGenerator._setup_logging(log_file=log_file)
+    logger = Pynguin._setup_logging(log_file=log_file)
     assert isinstance(logger, logging.Logger)
     assert logger.level == logging.DEBUG
     assert len(logger.handlers) == 2
@@ -43,7 +43,7 @@ def test__setup_logging_standard_with_log_file():
 def test__setup_logging_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = TestGenerator._setup_logging(verbose=True)
+    logger = Pynguin._setup_logging(verbose=True)
     assert len(logger.handlers) == 1
     assert logger.handlers[0].level == logging.DEBUG
     logging.shutdown()
@@ -53,7 +53,7 @@ def test__setup_logging_verbose_without_log_file():
 def test__setup_logging_quiet_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = TestGenerator._setup_logging(quiet=True)
+    logger = Pynguin._setup_logging(quiet=True)
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
@@ -62,13 +62,13 @@ def test__setup_logging_quiet_without_log_file():
 
 def test_init_with_configuration():
     configuration = MagicMock(Configuration)
-    generator = TestGenerator(configuration=configuration)
+    generator = Pynguin(configuration=configuration)
     assert generator._configuration == configuration
 
 
 def test_init_without_params():
     with pytest.raises(ConfigurationException) as exception:
-        TestGenerator()
+        Pynguin()
     assert (
         exception.value.args[0] == "Cannot initialise test generator without "
         "proper configuration."
@@ -82,10 +82,10 @@ def test_init_with_cli_arguments():
         "pynguin.generator.ConfigurationBuilder.build_from_cli_arguments"
     ) as builder_mock:
         builder_mock.return_value = 42
-        generator = TestGenerator(argument_parser=parser, arguments=args)
+        generator = Pynguin(argument_parser=parser, arguments=args)
         assert generator._configuration == 42
 
 
 def test_run():
-    generator = TestGenerator(configuration=MagicMock(Configuration))
+    generator = Pynguin(configuration=MagicMock(Configuration))
     assert generator.run() == 1
