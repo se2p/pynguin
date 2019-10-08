@@ -79,8 +79,15 @@ pages:
     PYTHON_VERSION: '3.7'
   dependencies:
     - unit-tests:python-3.7
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo -e "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\tIdentityFile ~/.ssh/id_ed25519\n\n" > ~/.ssh/config
   script:
     - mv cov_html/ public/
+    - cp -R public pynguincoverage
+    - scp -r pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
   artifacts:
     paths:
       - public
