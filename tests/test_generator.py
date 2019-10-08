@@ -92,7 +92,7 @@ def test_init_with_cli_arguments(configuration):
 
 def test_run(configuration):
     generator = Pynguin(configuration=configuration)
-    assert generator.run() == 1
+    assert generator.run() == 0
 
 
 def test_run_without_logger(configuration):

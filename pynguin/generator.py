@@ -14,13 +14,23 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Entry"""
 import argparse
+import importlib
 import logging
 import os
+import sys
 
-from typing import Union, List
+from typing import Union, List, Type
+
+from coverage import Coverage  # type: ignore
 
 from pynguin.configuration import Configuration, ConfigurationBuilder
+from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
+from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
+from pynguin.generation.executor import Executor
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.recorder import CoverageRecorder
+from pynguin.utils.statements import Sequence
+from pynguin.utils.string import String
 
 
 # pylint: disable=too-few-public-methods
@@ -68,9 +78,80 @@ class Pynguin:
 
         try:
             self._logger.info("Start Pynguin Test Generation…")
-            return 1
+            return self._run_execution()
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
+
+    def _run_execution(self) -> int:
+        exit_status = 0
+
+        sys.path.insert(0, self._configuration.project_path)
+        executor = Executor(
+            self._configuration.module_names,
+            measure_coverage=self._configuration.measure_coverage,
+        )
+
+        objects_under_test: List[Type] = []
+        coverage_filename = f"{self._configuration.seed}.csv"
+        coverage_recorder = CoverageRecorder(
+            modules=[],
+            store=True,
+            file_name=coverage_filename,
+            folder=os.path.join(self._configuration.output_folder, "coverage_total"),
+        )
+        for module in self._configuration.module_names:
+            imported_module = importlib.import_module(module)
+            objects_under_test.append(imported_module)  # type: ignore
+            coverage_recorder.add_module(imported_module)  # type: ignore
+
+        algorithm: GenerationAlgorithm = RandomGenerationAlgorithm(
+            recorder=coverage_recorder,
+            executor=executor,
+            configuration=self._configuration,
+        )
+        sequences, error_sequences = algorithm.generate_sequences(
+            self._configuration.budget, objects_under_test
+        )
+
+        if self._configuration.measure_coverage:
+            self._store_all_coverage_data(
+                coverage_recorder, coverage_filename, sequences, error_sequences
+            )
+
+        self._store_symbol_table(algorithm)
+        self._print_results(sequences, error_sequences, executor.accumulated_coverage)
+
+        strings_filename = os.path.join(
+            self._configuration.output_folder,
+            "string",
+            f"{self._configuration.seed}.txt",
+        )
+        os.makedirs(os.path.dirname(strings_filename), exist_ok=True)
+        with open(strings_filename, mode="w") as out_file:
+            for string in String.observed:
+                out_file.write(f"{string}\n")
+
+        return exit_status
+
+    def _store_all_coverage_data(
+        self,
+        coverage_recorder: CoverageRecorder,
+        coverage_filename: str,
+        sequences: List[Sequence],
+        error_sequences: List[Sequence],
+    ) -> None:
+        pass
+
+    def _store_symbol_table(self, algorithm: GenerationAlgorithm) -> None:
+        pass
+
+    def _print_results(
+        self,
+        sequences: List[Sequence],
+        error_sequences: List[Sequence],
+        coverage: Coverage,
+    ) -> None:
+        pass
 
     @staticmethod
     def _setup_logging(
