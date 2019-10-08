@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides classes to record coverage for executed sequences during test generation."""
+import csv
 import dataclasses
 import datetime
 import os
 import sys
 from typing import List, Type, Union, Dict
 
-from coverage import Coverage  # type: ignore
+from coverage import Coverage, CoverageException  # type: ignore
 
 
 class CoverageRecorder:
@@ -56,18 +57,45 @@ class CoverageRecorder:
 
         :param module: The type of the module to add for recording.
         """
+        self._modules.append(module)
+        self._records[module.__name__] = []
 
     def record_data(self, data: Coverage = None) -> None:
         """Records coverage data.
 
         :param data: A coverage object containing the collected coverage
         """
+        if not data:
+            return
+
+        timestamp = datetime.datetime.now().timestamp()
+        for module in self._modules:
+            try:
+                with HiddenPrints():
+                    report = data.report(morfs=[module], file=None)
+                record = Record(
+                    module=module.__name__, coverage=report, timestamp=timestamp
+                )
+                self._records[module.__name__].append(record)
+            except CoverageException:
+                pass  # No Coverage Data so we ignore this module
 
     def save(self, folder: Union[str, os.PathLike] = None) -> None:
         """Saves the recorded data to a CSV file.
 
         :param folder:  An optional path to an output folder
         """
+        if not folder:
+            folder = self._folder
+
+        file_name = os.path.join(folder, self._file_name)
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        with open(file_name, mode="w") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(("module", "coverage", "timestamp"))
+            for _, value in self._records.items():
+                for record in value:
+                    writer.writerow((record.module, record.coverage, record.timestamp))
 
 
 @dataclasses.dataclass
