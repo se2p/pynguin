@@ -27,6 +27,11 @@ from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
 
 
+@pytest.fixture
+def configuration():
+    return Configuration(verbose=False, quiet=True, log_file="")
+
+
 def test__setup_logging_standard_with_log_file():
     _, log_file = tempfile.mkstemp()
     logging.shutdown()
@@ -60,8 +65,7 @@ def test__setup_logging_quiet_without_log_file():
     importlib.reload(logging)
 
 
-def test_init_with_configuration():
-    configuration = MagicMock(Configuration)
+def test_init_with_configuration(configuration):
     generator = Pynguin(configuration=configuration)
     assert generator._configuration == configuration
 
@@ -75,17 +79,24 @@ def test_init_without_params():
     )
 
 
-def test_init_with_cli_arguments():
+def test_init_with_cli_arguments(configuration):
     parser = MagicMock(ArgumentParser)
     args = [""]
     with mock.patch(
         "pynguin.generator.ConfigurationBuilder.build_from_cli_arguments"
     ) as builder_mock:
-        builder_mock.return_value = 42
+        builder_mock.return_value = configuration
         generator = Pynguin(argument_parser=parser, arguments=args)
-        assert generator._configuration == 42
+        assert generator._configuration == configuration
 
 
-def test_run():
-    generator = Pynguin(configuration=MagicMock(Configuration))
+def test_run(configuration):
+    generator = Pynguin(configuration=configuration)
     assert generator.run() == 1
+
+
+def test_run_without_logger(configuration):
+    generator = Pynguin(configuration=configuration)
+    generator._logger = None
+    with pytest.raises(ConfigurationException):
+        generator.run()

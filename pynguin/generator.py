@@ -23,6 +23,7 @@ from pynguin.configuration import Configuration, ConfigurationBuilder
 from pynguin.utils.exceptions import ConfigurationException
 
 
+# pylint: disable=too-few-public-methods
 class Pynguin:
     """The basic interface of the test generator."""
 
@@ -54,14 +55,22 @@ class Pynguin:
             raise ConfigurationException(
                 "Cannot initialise test generator without proper configuration."
             )
+        self._logger = self._setup_logging(
+            self._configuration.verbose,
+            self._configuration.quiet,
+            self._configuration.log_file,
+        )
 
-    def setup(self) -> None:
-        """Setup"""
-
-    @staticmethod
-    def run() -> int:
+    def run(self) -> int:
         """Run"""
-        return 1
+        if not self._logger:
+            raise ConfigurationException()
+
+        try:
+            self._logger.info("Start Pynguin Test Generation…")
+            return 1
+        finally:
+            self._logger.info("Stop Pynguin Test Generation…")
 
     @staticmethod
     def _setup_logging(
