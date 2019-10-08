@@ -30,6 +30,7 @@ def test_builder():
         .set_measure_coverage()
         .set_coverage_filename(os.path.join("tmp", "coverage"))
         .set_budget(23)
+        .set_output_folder(os.path.join("tmp", "output"))
     )
     configuration = builder.build()
     assert configuration.verbose
@@ -41,6 +42,7 @@ def test_builder():
     assert configuration.measure_coverage
     assert configuration.coverage_filename == os.path.join("tmp", "coverage")
     assert configuration.budget == 23
+    assert configuration.output_folder == os.path.join("tmp", "output")
 
 
 def test_build_from_cli():

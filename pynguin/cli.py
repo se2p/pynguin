@@ -101,6 +101,9 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         type=int,
         help="Time budget (in seconds) that can be used for generating tests.",
     )
+    rtg_group.add_argument(
+        "--output-folder", dest="output_folder", help="Folder to store the output in."
+    )
 
     return parser
 

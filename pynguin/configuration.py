@@ -33,6 +33,7 @@ class Configuration:
     measure_coverage: bool = False
     coverage_filename: Union[str, os.PathLike] = ""
     budget: int = 0
+    output_folder: Union[str, os.PathLike] = ""
 
 
 # pylint: disable=too-many-instance-attributes
@@ -49,6 +50,7 @@ class ConfigurationBuilder:
         self._measure_coverage: bool = False
         self._coverage_filename: Union[str, os.PathLike] = ""
         self._budget: int = 0
+        self._output_folder: Union[str, os.PathLike] = ""
 
     @staticmethod
     def build_from_cli_arguments(
@@ -71,6 +73,7 @@ class ConfigurationBuilder:
             measure_coverage=config.measure_coverage,
             coverage_filename=config.coverage_filename,
             budget=config.budget,
+            output_folder=config.output_folder,
         )
 
     def set_verbose(self) -> "ConfigurationBuilder":
@@ -122,6 +125,13 @@ class ConfigurationBuilder:
         self._budget = budget
         return self
 
+    def set_output_folder(
+        self, output_folder: Union[str, os.PathLike]
+    ) -> "ConfigurationBuilder":
+        """Sets the output folder."""
+        self._output_folder = output_folder
+        return self
+
     def build(self) -> Configuration:
         """Builds the configuration."""
         return Configuration(
@@ -134,4 +144,5 @@ class ConfigurationBuilder:
             measure_coverage=self._measure_coverage,
             coverage_filename=self._coverage_filename,
             budget=self._budget,
+            output_folder=self._output_folder,
         )
