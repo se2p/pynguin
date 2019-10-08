@@ -24,11 +24,23 @@ def test_builder():
         .set_quiet()
         .set_verbose()
         .set_log_file(os.path.join("tmp", "foo"))
+        .set_seed(42)
+        .set_project_path(os.path.join("tmp", "project"))
+        .set_module_names(["foo", "bar"])
+        .set_measure_coverage()
+        .set_coverage_filename(os.path.join("tmp", "coverage"))
+        .set_budget(23)
     )
     configuration = builder.build()
     assert configuration.verbose
     assert configuration.quiet
     assert configuration.log_file == os.path.join("tmp", "foo")
+    assert configuration.seed == 42
+    assert configuration.project_path == os.path.join("tmp", "project")
+    assert configuration.module_names == ["foo", "bar"]
+    assert configuration.measure_coverage
+    assert configuration.coverage_filename == os.path.join("tmp", "coverage")
+    assert configuration.budget == 23
 
 
 def test_build_from_cli():

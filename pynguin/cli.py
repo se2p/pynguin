@@ -63,6 +63,45 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--log-file", dest="log_file", help="Path to store the log file."
     )
 
+    rtg_group = parser.add_argument_group(
+        title="Random Test Generator",
+        description="Parameters for the random test generation algorithm.",
+    )
+    rtg_group.add_argument(
+        "--seed",
+        type=int,
+        dest="seed",
+        help="A predefined seed value for the random number generator that is used.",
+    )
+    rtg_group.add_argument(
+        "--project-path",
+        dest="project_path",
+        help="Path to the project the generator shall create tests for.",
+    )
+    rtg_group.add_argument(
+        "--module_names",
+        dest="module_names",
+        action="append",
+        help="A list of module names for that the generator shall create tests for.",
+    )
+    rtg_group.add_argument(
+        "--measure-coverage",
+        dest="measure_coverage",
+        action="store_true",
+        help="If set the achieved coverage will be measured during test generation.",
+    )
+    rtg_group.add_argument(
+        "--coverage-filename",
+        dest="coverage_filename",
+        help="File name for storing the coverage information.",
+    )
+    rtg_group.add_argument(
+        "--budget",
+        dest="budget",
+        type=int,
+        help="Time budget (in seconds) that can be used for generating tests.",
+    )
+
     return parser
 
 
