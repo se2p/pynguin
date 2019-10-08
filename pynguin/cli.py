@@ -79,7 +79,6 @@ def main(argv: List[str] = None) -> int:
         argv.append("--help")
     parser = _create_argument_parser()
     generator = Pynguin(parser)
-    generator.setup()
     return generator.run()
 
 
