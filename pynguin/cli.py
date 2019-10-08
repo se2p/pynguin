@@ -18,49 +18,13 @@ This module provides the main entry location for the program execution from the 
 line.
 """
 import argparse
-import logging
-import os
 import sys
-from typing import List, Union
+from typing import List
 
 import configargparse  # type: ignore
 
 from pynguin import __version__
-
-
-def _setup_logging(
-    verbose: bool = False, quiet: bool = False, log_file: Union[str, os.PathLike] = None
-) -> logging.Logger:
-    logger = logging.getLogger("pynguin")
-    logger.setLevel(logging.DEBUG)
-    if verbose:
-        level = logging.DEBUG
-    elif quiet:
-        level = logging.NOTSET
-    else:
-        level = logging.INFO
-    if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d: "
-                "%(message)s"
-            )
-        )
-        file_handler.setLevel(logging.DEBUG)
-        logger.addHandler(file_handler)
-
-    if not quiet:
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(level)
-        console_handler.setFormatter(
-            logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
-        )
-        logger.addHandler(console_handler)
-    else:
-        logger.addHandler(logging.NullHandler())
-
-    return logger
+from pynguin.generator import TestGenerator
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -113,8 +77,10 @@ def main(argv: List[str] = None) -> int:
         argv = sys.argv
     if len(argv) <= 1:
         argv.append("--help")
-
-    return 0
+    parser = _create_argument_parser()
+    generator = TestGenerator(parser)
+    generator.setup()
+    return generator.run()
 
 
 if __name__ == "__main__":
