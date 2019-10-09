@@ -12,18 +12,35 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from coverage import Coverage
 
 from pynguin.generation.executor import Executor
+from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.proxy import MagicProxy
-from pynguin.utils.statements import Sequence, Call, Expression, Assignment, Name
+from pynguin.utils.statements import (
+    Sequence,
+    Call,
+    Expression,
+    Assignment,
+    Name,
+    Attribute,
+)
 
 
 class _Dummy:
     _hasError = False
+
+    def baz(self, a, b):
+        return a + b if not self._hasError else -1
+
+
+def _dummy():
+    return 42
 
 
 def test_accumulated_coverage():
@@ -139,3 +156,54 @@ def test__get_argument_list_proxy():
     arguments = [MagicProxy(Name(identifier="_Dummy"))]
     result = executor._get_argument_list(arguments, {"_Dummy": 42}, [_Dummy])
     assert result == [42]
+
+
+def test__exec_call_without_call_function():
+    executor = Executor([])
+    call = Call(function=MagicMock(Expression), arguments=[])
+    with pytest.raises(NotImplementedError) as error:
+        executor._exec_call(call, {}, [])
+    assert "No execution implemented for type" in error.value.args[0]
+
+
+def test__exec_call_with_name_function():
+    executor = Executor([])
+    call = Call(function=Name(identifier="_dummy"), arguments=[])
+    with mock.patch("pynguin.generation.executor.inspect.signature") as mocking:
+        mocking.return_value.parameters.return_value = []
+        cbl, inputs = executor._exec_call(call, {"_dummy": 42}, [])
+        assert inputs == {}
+        assert isinstance(cbl, Callable)
+
+
+def test__exec_call_with_incomplete_attribute():
+    executor = Executor([])
+    call = Call(
+        function=Attribute(owner=Name(identifier=None), attribute_name=""), arguments=[]
+    )
+    with pytest.raises(GenerationException) as exception:
+        executor._exec_call(call, {}, [])
+    assert "Cannot call methods on None" == exception.value.args[0]
+
+
+def test__exec_call_with_attribute():
+    executor = Executor([])
+    call = Call(
+        function=Attribute(owner=Name(identifier="_Dummy"), attribute_name="baz"),
+        arguments=[int, int],
+    )
+    with mock.patch("pynguin.generation.executor.inspect.signature") as mocking:
+        mocking.return_value.parameters.return_value = [int, int]
+        cbl, inputs = executor._exec_call(call, {"a": 42, "b": 23}, [_Dummy])
+        assert inputs == {}
+        assert isinstance(cbl, Callable)
+
+
+def test__get_arcs_for_classes_without_coverage():
+    executor = Executor([])
+    assert not executor._get_arcs_for_classes([])
+
+
+def test__get_arcs_for_classes_with_coverage():
+    executor = Executor([], measure_coverage=True)
+    assert executor._get_arcs_for_classes([_Dummy]) == []
