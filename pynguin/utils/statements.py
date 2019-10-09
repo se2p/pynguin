@@ -14,11 +14,47 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides various types of statements, similar to an AST."""
 # pylint: disable=too-few-public-methods
+from dataclasses import dataclass
 from typing import List, Dict, Any, Union, Iterator
 
 
 class Statement:
     """A simple program statement."""
+
+
+class Expression(Statement):
+    """An expression statement."""
+
+
+@dataclass(init=True)
+class Name(Expression):
+    """Represents a name as an expression."""
+
+    identifier: str
+
+
+@dataclass(init=True)
+class Attribute(Expression):
+    """Represents an attribute of a `Name` as an expression."""
+
+    owner: Name
+    attribute_name: str
+
+
+@dataclass(init=True)
+class Call(Expression):
+    """Represents a function-call expression."""
+
+    function: Expression
+    arguments: List[Any]
+
+
+@dataclass(init=True)
+class Assignment(Expression):
+    """Represents an assignment."""
+
+    lhs: Expression
+    rhs: Expression
 
 
 class Sequence:
