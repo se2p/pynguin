@@ -15,6 +15,7 @@
 import importlib
 import logging
 import os
+import shutil
 import tempfile
 from argparse import ArgumentParser
 from unittest import mock
@@ -91,8 +92,11 @@ def test_init_with_cli_arguments(configuration):
 
 
 def test_run(configuration):
+    tmp_dir = tempfile.mkdtemp()
+    configuration.output_folder = tmp_dir
     generator = Pynguin(configuration=configuration)
     assert generator.run() == 0
+    shutil.rmtree(tmp_dir)
 
 
 def test_run_without_logger(configuration):
