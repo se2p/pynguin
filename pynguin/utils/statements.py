@@ -30,11 +30,12 @@ class Sequence:
         self._output_values: Dict[str, Any] = {}
         self._counter: int = 0
 
-    def append(self, statement: Statement) -> None:
+    def append(self, statement: Any) -> None:
         """Appends a statement object to the sequence.
 
         :param statement: The statement object to append
         """
+        assert isinstance(statement, Statement)
         self._statements.append(statement)
 
     def pop(self) -> Statement:
