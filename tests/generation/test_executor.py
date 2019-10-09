@@ -15,7 +15,6 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
 from coverage import Coverage
 
 from pynguin.generation.executor import Executor
@@ -135,7 +134,6 @@ def test__get_argument_list_name():
     assert result == [42]
 
 
-@pytest.mark.skip(reason="Skipped until proxy functionality is fully implemented")
 def test__get_argument_list_proxy():
     executor = Executor([])
     arguments = [MagicProxy(Name(identifier="_Dummy"))]
