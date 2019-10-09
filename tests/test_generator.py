@@ -26,6 +26,7 @@ import pytest
 from pynguin.configuration import Configuration
 from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.string import String
 
 
 @pytest.fixture
@@ -91,11 +92,55 @@ def test_init_with_cli_arguments(configuration):
         assert generator._configuration == configuration
 
 
-def test_run(configuration):
+@mock.patch("pynguin.generator.Executor")
+@mock.patch("pynguin.generator.CoverageRecorder")
+@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
+def test_run(algorithm, __, ___):
+    algorithm.return_value.generate_sequences.return_value = ([], [])
+
     tmp_dir = tempfile.mkdtemp()
-    configuration.output_folder = tmp_dir
+    configuration = Configuration(output_folder=tmp_dir)
     generator = Pynguin(configuration=configuration)
     assert generator.run() == 0
+    shutil.rmtree(tmp_dir)
+
+
+@mock.patch("pynguin.generator.Executor")
+@mock.patch("pynguin.generator.CoverageRecorder")
+@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
+def test_run_with_module_names_and_coverage(algorithm, _, __):
+    algorithm.return_value.generate_sequences.return_value = ([], [])
+
+    tmp_dir = tempfile.mkdtemp()
+    configuration = Configuration(
+        output_folder=tmp_dir, module_names=["foo"], measure_coverage=True
+    )
+    generator = Pynguin(configuration=configuration)
+    with mock.patch("pynguin.generator.importlib.import_module") as import_mock:
+        import_mock.return_value = "bar"
+        generator.run()
+
+    shutil.rmtree(tmp_dir)
+
+
+@mock.patch("pynguin.generator.Executor")
+@mock.patch("pynguin.generator.CoverageRecorder")
+@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
+def test_run_with_observed_string(algorithm, _, __):
+    algorithm.return_value.generate_sequences.return_value = ([], [])
+    String.observed.append("foo")
+    String.observed.append("bar")
+
+    tmp_dir = tempfile.mkdtemp()
+    configuration = Configuration(output_folder=tmp_dir)
+    generator = Pynguin(configuration=configuration)
+    generator.run()
+
+    with open(os.path.join(tmp_dir, "string", "42.txt")) as f:
+        lines = f.readlines()
+        assert lines[0].strip() == "foo"
+        assert lines[1].strip() == "bar"
+
     shutil.rmtree(tmp_dir)
 
 
