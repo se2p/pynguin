@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import sys
 from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
@@ -166,6 +167,10 @@ def test__exec_call_without_call_function():
     assert "No execution implemented for type" in error.value.args[0]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 8),
+    reason="Errors with recursion depth exceeding on Python 3.8",
+)
 def test__exec_call_with_name_function():
     executor = Executor([])
     call = Call(function=Name(identifier="_dummy"), arguments=[])
@@ -186,6 +191,10 @@ def test__exec_call_with_incomplete_attribute():
     assert "Cannot call methods on None" == exception.value.args[0]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 8),
+    reason="Errors with recursion depth exceeding on Python 3.8",
+)
 def test__exec_call_with_attribute():
     executor = Executor([])
     call = Call(
