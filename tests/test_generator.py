@@ -138,8 +138,8 @@ def test_run_with_observed_string(algorithm, _, __):
 
     with open(os.path.join(tmp_dir, "string", "42.txt")) as f:
         lines = f.readlines()
-        assert lines[0].strip() == "foo"
-        assert lines[1].strip() == "bar"
+        assert "foo\n" in lines
+        assert "bar\n" in lines
 
     shutil.rmtree(tmp_dir)
 
