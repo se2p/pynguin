@@ -13,11 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a proxy that wraps objects to inspect them."""
+import logging
 import operator
 from typing import Any, TypeVar, Iterator
 
 Num = TypeVar("Num", int, float, complex)
 T = TypeVar("T")  # pylint: disable=invalid-name
+
+LOGGER = logging.getLogger(__name__)
 
 
 def mark_error():
@@ -47,6 +50,10 @@ def mark_error():
             except ValueError as error:
                 # TODO(sl) check this, in the handling of int() and float() because
                 # the result seems to be very strange
+                LOGGER.debug(
+                    "Reached: TODO(sl) check this, in the handling of int() and float()"
+                    " because the result seems to be very strange"
+                )
                 object.__setattr__(args[0], "_hasError", True)
                 raise TypeError(error)
 

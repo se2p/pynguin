@@ -104,7 +104,9 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                 if self._has_type_violations(violations):
                     if self._configuration.record_types:
                         # TODO(sl) implement type constraint recording
-                        pass
+                        LOGGER.debug(
+                            "Reached: TODO(sl) Implement type constraint recording"
+                        )
                 elif violations:
                     if new_sequence not in error_sequences:
                         error_sequences.append(new_sequence)
@@ -258,6 +260,10 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                         # pylint: disable=unused-variable
                         for value in return_tuple:
                             # TODO(sl) what shall we do with this?
+                            LOGGER.debug(
+                                "Reached: TODO(sl) what shall we do with this? %s",
+                                repr(value),
+                            )
                             raise GenerationException("Not implemented handling")
                 elif isinstance(statement, Assignment) and isinstance(
                     statement.rhs, Call

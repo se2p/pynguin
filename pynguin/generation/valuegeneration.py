@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides methods for input value generation."""
+import logging
 import random
 from enum import Enum
 from functools import singledispatch, wraps
@@ -21,6 +22,8 @@ from typing import Optional, Any, List
 
 from pynguin.utils.statements import Sequence, Assignment, Attribute, Call, Name
 from pynguin.utils.string import String
+
+LOGGER = logging.getLogger(__name__)
 
 
 def value_dispatch(func):
@@ -63,8 +66,8 @@ def init_value(type_: Any, sequences: List[Sequence]) -> Optional[Any]:
                 assert isinstance(statement.rhs, Call)
                 if isinstance(statement.rhs.function, Attribute):
                     # call on variable
-                    # TODO(sl) use one we record return values
-                    pass
+                    # TODO(sl) use once we record return values
+                    LOGGER.debug("Reached: TODO(sl) use once we record return values")
                 elif (
                     hasattr(type_, "__name__")
                     and isinstance(statement.rhs.function, Name)
@@ -72,6 +75,10 @@ def init_value(type_: Any, sequences: List[Sequence]) -> Optional[Any]:
                 ):
                     # constructor or direct function call
                     # TODO(sl) this way we loose tuples and other builtin composita.
+                    LOGGER.debug(
+                        "Reached: TODO(sl) this way we loose tuples and other builtin "
+                        "composita"
+                    )
                     targets.append(statement.lhs)
 
     if targets:

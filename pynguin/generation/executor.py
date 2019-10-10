@@ -16,6 +16,7 @@
 import contextlib
 import importlib
 import inspect
+import logging
 from typing import List, Any, Tuple, Dict, Type, Callable, Union
 
 from coverage import Coverage  # type: ignore
@@ -24,6 +25,8 @@ from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.proxy import MagicProxy
 from pynguin.utils.statements import Sequence, Call, Assignment, Name, Attribute
 from pynguin.utils.utils import get_members_from_module
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _recording_isinstance(
@@ -97,6 +100,7 @@ class Executor:
             module = importlib.import_module(path)
             modules.append(module)
             module.isinstance = _recording_isinstance  # type: ignore  # TODO(sl)
+            LOGGER.debug("Reached: TODO(sl)")
 
         if reload:
             for module in modules:
