@@ -150,7 +150,7 @@ def main(argv: List[str] = None) -> int:
     if len(argv) <= 1:
         argv.append("--help")
     parser = _create_argument_parser()
-    generator = Pynguin(parser)
+    generator = Pynguin(parser, argv[1:])
     return generator.run()
 
 
