@@ -20,6 +20,7 @@ from pynguin import Configuration
 from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.utils.recorder import CoverageRecorder
+from pynguin.utils.statements import Sequence
 
 
 @pytest.fixture
@@ -40,3 +41,55 @@ def executor_mock():
 def test_generate_sequences(configuration, recorder_mock, executor_mock):
     generator = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
     assert generator.generate_sequences(0, []) == ([], [])
+
+
+def test__has_type_violations_empty_list():
+    assert not RandomGenerationAlgorithm._has_type_violations([])
+
+
+def test__has_type_violations_no():
+    assert not RandomGenerationAlgorithm._has_type_violations([Exception()])
+
+
+def test__has_type_violations():
+    assert RandomGenerationAlgorithm._has_type_violations(
+        [TypeError(), AttributeError()]
+    )
+
+
+def test__mark_original_sequences_empty_list():
+    RandomGenerationAlgorithm._mark_original_sequences([])
+
+
+def test__mark_original_sequences():
+    sequence = Sequence()
+    assert sequence.counter == 0
+    RandomGenerationAlgorithm._mark_original_sequences([sequence])
+    assert sequence.counter == 1
+
+
+def test__purge_sequences_no_counter(configuration, recorder_mock, executor_mock):
+    algorithm = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
+    purged, remaining = algorithm._purge_sequences([])
+    assert purged == []
+    assert remaining == []
+
+
+def test__purge_sequences_empty_sequence(configuration, recorder_mock, executor_mock):
+    configuration.counter_threshold = 1
+    algorithm = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
+    purged, remaining = algorithm._purge_sequences([])
+    assert purged == []
+    assert remaining == []
+
+
+def test__purge_sequences(configuration, recorder_mock, executor_mock):
+    configuration.counter_threshold = 1
+    sequence_1 = Sequence()
+    sequence_1.counter = 2
+    sequence_2 = Sequence()
+    sequence_2.counter = 0
+    algorithm = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
+    purged, remaining = algorithm._purge_sequences([sequence_1, sequence_2])
+    assert purged == [sequence_1]
+    assert remaining == [sequence_2]
