@@ -23,6 +23,7 @@ classifiers = [
 python = "^3.7"
 coverage = "^4.5"
 configargparse = "^0.14"
+astor = "^0.8.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.0"

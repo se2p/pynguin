@@ -27,6 +27,7 @@ from pynguin.configuration import Configuration, ConfigurationBuilder
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
 from pynguin.generation.executor import Executor
+from pynguin.generation.exporter import export_sequences
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.recorder import CoverageRecorder
 from pynguin.utils.statements import Sequence
@@ -131,6 +132,15 @@ class Pynguin:
             for string in String.observed:
                 out_file.write(f"{string}\n")
 
+        if self._configuration.tests_output:
+            export_sequences(
+                sequences,
+                self._configuration.module_names,
+                path=os.path.join(
+                    self._configuration.tests_output, f"{self._configuration.seed}.py"
+                ),
+            )
+
         return exit_status
 
     def _store_all_coverage_data(
@@ -151,7 +161,20 @@ class Pynguin:
         error_sequences: List[Sequence],
         coverage: Coverage,
     ) -> None:
-        pass
+        result_string = (
+            "Results:\n"
+            "Sequence   \t \t Number\n"
+            "----------------------------------------------------------\n"
+            "Seqs       \t \t " + str(len(sequences)) + "\n"
+            "Error seqs \t \t " + str(len(error_sequences)) + "\n"
+            "----------------------------------------------------------\n"
+            "\n"
+            "Observed Strings:\n"
+            + str(String.observed)
+            + "----------------------------------------------------------\n"
+            "Coverage: " + str(coverage.get_data())
+        )
+        self._logger.info(result_string)
 
     @staticmethod
     def _setup_logging(

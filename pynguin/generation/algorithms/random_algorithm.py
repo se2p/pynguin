@@ -35,6 +35,7 @@ from pynguin.utils.statements import (
     Assignment,
     Attribute,
     Call,
+    FunctionSignature,
 )
 from pynguin.utils.utils import get_members_from_module
 
@@ -179,7 +180,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         public_members = [
             m[1]
             for m in members
-            if not m[0][0] == "_" and not m[1].__name__ == "recording_isinstance"
+            if not m[0][0] == "_" and not m[1].__name__ == "_recording_isinstance"
         ]
 
         if not public_members:
@@ -223,7 +224,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         if method not in self._symbol_table:
             self._symbol_table.add_callable(method)
 
-        all_solutions = self._symbol_table[method]
+        all_solutions = [self._symbol_table[method]]
 
         if not all_solutions:
             raise GenerationException(
@@ -232,11 +233,17 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
 
         solution = random.choice(all_solutions)
 
-        unsorted_args = {}
-        for key, value in solution.items():
-            initialised_value = init_value(value, sequences)
-            unsorted_args[key] = MagicProxy(initialised_value)
-        return sort_arguments()
+        if isinstance(solution, FunctionSignature) and solution.inputs == []:
+            return {}
+        if isinstance(solution, FunctionSignature):
+            unsorted_args = {}
+            for item in solution.inputs:
+                type_ = random.choice(list(SymbolTable.get_default_domain()))
+                initialised_value = init_value(type_, sequences)
+                unsorted_args[item] = MagicProxy(initialised_value)
+            return sort_arguments()
+        LOGGER.debug("Unhandled value creation instance.")
+        return {}
 
     # pylint: disable=too-many-locals
     def _extend(
@@ -288,7 +295,10 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         attribute: Expression = None  # type: ignore
         if not self._symbol_table[method].class_name:
             signature = self._symbol_table[method]
-            attribute = Name(signature.module_name + "." + signature.function_name)
+            if signature.module_name:
+                attribute = Name(signature.module_name + "." + signature.method_name)
+            else:
+                attribute = Name(signature.method_name)
             is_constructor = True
         else:
             callee = find_callee_for_method(method, new_sequence)

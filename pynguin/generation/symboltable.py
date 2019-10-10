@@ -101,7 +101,7 @@ class SymbolTable(Mapping):
         function_signature = FunctionSignature(
             module, cls, method_name, parameter_names
         )
-        self[method_name] = function_signature
+        self[method] = function_signature
 
     # pylint: disable=no-self-use
     def add_constraint(self, method: Callable, constraint) -> None:
