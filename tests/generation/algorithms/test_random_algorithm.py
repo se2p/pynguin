@@ -15,6 +15,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import sys
 
 from pynguin import Configuration
 from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
@@ -93,3 +94,29 @@ def test__purge_sequences(configuration, recorder_mock, executor_mock):
     purged, remaining = algorithm._purge_sequences([sequence_1, sequence_2])
     assert purged == [sequence_1]
     assert remaining == [sequence_2]
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 8), reason="Recursion break in Python 3.8")
+def test__choose_random_sequences_no_max_sequence_length(
+    configuration, recorder_mock, executor_mock
+):
+    algorithm = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
+    sequence = MagicMock(Sequence)
+    sequence.return_value.__len__.return_value = 0
+    result = algorithm._choose_random_sequences([sequence])
+    assert len(result) >= 0
+    assert len(result) <= 1
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 8), reason="Recursion break in Python 3.8")
+def test__chose_random_sequences(configuration, recorder_mock, executor_mock):
+    configuration.max_sequence_length = 1
+    configuration.max_sequences_combined = 2
+    algorithm = RandomGenerationAlgorithm(recorder_mock, executor_mock, configuration)
+    sequence_1 = MagicMock(Sequence)
+    sequence_1.return_value.__len__.return_value = 1
+    sequence_2 = MagicMock(Sequence)
+    sequence_2.return_value.__len__.return_value = 1
+    result = algorithm._choose_random_sequences([sequence_1, sequence_2])
+    assert len(result) >= 0
+    assert len(result) <= 2
