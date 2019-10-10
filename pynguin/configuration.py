@@ -39,6 +39,7 @@ class Configuration:
     max_sequence_length: int = 0
     max_sequences_combined: int = 0
     counter_threshold: int = 0
+    tests_output: Union[str, os.PathLike] = ""
 
 
 # pylint: disable=too-many-instance-attributes
@@ -61,6 +62,7 @@ class ConfigurationBuilder:
         self._max_sequence_length: int = 0
         self._max_sequences_combined: int = 0
         self._counter_threshold: int = 0
+        self._tests_output: Union[str, os.PathLike] = ""
 
     @staticmethod
     def build_from_cli_arguments(
@@ -89,6 +91,7 @@ class ConfigurationBuilder:
             max_sequence_length=config.max_sequence_length,
             max_sequences_combined=config.max_sequences_combined,
             counter_threshold=config.counter_threshold,
+            tests_output=config.tests_output,
         )
 
     def set_verbose(self) -> "ConfigurationBuilder":
@@ -170,6 +173,13 @@ class ConfigurationBuilder:
         self._counter_threshold = threshold
         return self
 
+    def set_tests_output(
+        self, tests_output: Union[str, os.PathLike]
+    ) -> "ConfigurationBuilder":
+        """Sets the test output folder."""
+        self._tests_output = tests_output
+        return self
+
     def build(self) -> Configuration:
         """Builds the configuration."""
         return Configuration(
@@ -188,4 +198,5 @@ class ConfigurationBuilder:
             max_sequence_length=self._max_sequence_length,
             max_sequences_combined=self._max_sequences_combined,
             counter_threshold=self._counter_threshold,
+            tests_output=self._tests_output,
         )

@@ -144,6 +144,11 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         default=10,
         help="The counter threshold for puring sequences, 0 means infinite.",
     )
+    rtg_group.add_argument(
+        "--tests-output",
+        dest="tests_output",
+        help="Path to an output folder for the generated test cases.",
+    )
 
     return parser
 
