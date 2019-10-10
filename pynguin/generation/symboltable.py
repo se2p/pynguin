@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a symbol table."""
-
+import inspect
 from collections.abc import Mapping
 from typing import Set, Type, Dict, Union, Callable, Any, Iterator
 
+from pynguin.utils.exceptions import GenerationException
+from pynguin.utils.statements import FunctionSignature
 from pynguin.utils.string import String
 
 
@@ -62,13 +64,44 @@ class SymbolTable(Mapping):
         """
         return SymbolTable._default_domain.copy()
 
-    # pylint: disable=no-self-use
     def add_callable(self, method: Callable) -> None:
         """Adds a callable to the symbol table.
 
         :param method: The callable to add
         """
-        raise Exception("Adding callable not implemented for " + str(method))
+        try:
+            signature = inspect.signature(method)
+        except (TypeError, ValueError):
+            raise GenerationException(
+                "Could not inspect built-in type.  Skip callable " + method.__name__
+            )
+
+        parameters = [param for _, param in signature.parameters.items()]
+        primitive_domain = self._default_domain.copy()
+        domains = {}
+        for parameter in parameters.copy():
+            if parameter.name == "self":
+                parameters.remove(parameter)
+            domains[parameter.name] = primitive_domain.copy()
+
+        parameter_names = [param.name for param in parameters]
+
+        cls = None
+        names = method.__qualname__.split(".")
+        if len(names) > 1:
+            cls = names[0]
+            method_name = names[1]
+        else:
+            method_name = names[0]
+
+        module = None
+        if hasattr(method_name, "__module__"):
+            module = method_name.__module__
+
+        function_signature = FunctionSignature(
+            module, cls, method_name, parameter_names
+        )
+        self[method_name] = function_signature
 
     # pylint: disable=no-self-use
     def add_constraint(self, method: Callable, constraint) -> None:

@@ -14,8 +14,8 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides various types of statements, similar to an AST."""
 # pylint: disable=too-few-public-methods
-from dataclasses import dataclass
-from typing import List, Dict, Any, Union, Iterator
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Union, Iterator, Optional, Type
 
 
 class Statement:
@@ -55,6 +55,19 @@ class Assignment(Expression):
 
     lhs: Expression
     rhs: Expression
+
+
+@dataclass(init=True, repr=True, eq=True)
+class FunctionSignature:
+    """Represents a function signature."""
+
+    module_name: Optional[str]
+    class_name: Optional[str]
+    method_name: str
+    inputs: List[str]
+    yield_type: Optional[Type] = None
+    return_type: Optional[Type] = None
+    instance_check_types: Dict[str, Type] = field(default_factory=dict)
 
 
 class Sequence:
