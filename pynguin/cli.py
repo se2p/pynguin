@@ -104,6 +104,36 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     rtg_group.add_argument(
         "--output-folder", dest="output_folder", help="Folder to store the output in."
     )
+    rtg_group.add_argument(
+        "--use-type-hints",
+        dest="use_type_hints",
+        action="store_true",
+        help="Use type hints for test generation.",
+    )
+    rtg_group.add_argument(
+        "--record-types",
+        dest="record_types",
+        action="store_true",
+        help="Record the types seen during test generation.",
+    )
+    rtg_group.add_argument(
+        "--max-sequence-length",
+        dest="max_sequence_length",
+        type=int,
+        help="The maximum length of sequences that are generated, 0 means infinite.",
+    )
+    rtg_group.add_argument(
+        "--max-sequences-combined",
+        dest="max_sequences_combined",
+        type=int,
+        help="The maximum number of combined sequences, 0 means infinite.",
+    )
+    rtg_group.add_argument(
+        "--counter-threshold",
+        dest="counter_threshold",
+        type=int,
+        help="The counter threshold for puring sequences, 0 means infinite.",
+    )
 
     return parser
 

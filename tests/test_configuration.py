@@ -31,6 +31,11 @@ def test_builder():
         .set_coverage_filename(os.path.join("tmp", "coverage"))
         .set_budget(23)
         .set_output_folder(os.path.join("tmp", "output"))
+        .use_type_hints()
+        .record_types()
+        .set_max_sequence_length(42)
+        .set_max_sequences_combined(42)
+        .set_counter_threshold(42)
     )
     configuration = builder.build()
     assert configuration.verbose
@@ -43,6 +48,11 @@ def test_builder():
     assert configuration.coverage_filename == os.path.join("tmp", "coverage")
     assert configuration.budget == 23
     assert configuration.output_folder == os.path.join("tmp", "output")
+    assert configuration.use_type_hints
+    assert configuration.record_types
+    assert configuration.max_sequence_length == 42
+    assert configuration.max_sequences_combined == 42
+    assert configuration.counter_threshold == 42
 
 
 def test_build_from_cli():

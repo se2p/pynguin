@@ -34,6 +34,11 @@ class Configuration:
     coverage_filename: Union[str, os.PathLike] = ""
     budget: int = 0
     output_folder: Union[str, os.PathLike] = ""
+    use_type_hints: bool = False
+    record_types: bool = False
+    max_sequence_length: int = 0
+    max_sequences_combined: int = 0
+    counter_threshold: int = 0
 
 
 # pylint: disable=too-many-instance-attributes
@@ -51,6 +56,11 @@ class ConfigurationBuilder:
         self._coverage_filename: Union[str, os.PathLike] = ""
         self._budget: int = 0
         self._output_folder: Union[str, os.PathLike] = ""
+        self._use_type_hints: bool = False
+        self._record_types: bool = False
+        self._max_sequence_length: int = 0
+        self._max_sequences_combined: int = 0
+        self._counter_threshold: int = 0
 
     @staticmethod
     def build_from_cli_arguments(
@@ -74,6 +84,11 @@ class ConfigurationBuilder:
             coverage_filename=config.coverage_filename,
             budget=config.budget,
             output_folder=config.output_folder,
+            use_type_hints=config.use_type_hints,
+            record_types=config.record_types,
+            max_sequence_length=config.max_sequence_length,
+            max_sequences_combined=config.max_sequences_combined,
+            counter_threshold=config.counter_threshold,
         )
 
     def set_verbose(self) -> "ConfigurationBuilder":
@@ -130,6 +145,31 @@ class ConfigurationBuilder:
         self._output_folder = output_folder
         return self
 
+    def use_type_hints(self) -> "ConfigurationBuilder":
+        """Use type hints for test generation."""
+        self._use_type_hints = True
+        return self
+
+    def record_types(self) -> "ConfigurationBuilder":
+        """Record types during test generation."""
+        self._record_types = True
+        return self
+
+    def set_max_sequence_length(self, length: int) -> "ConfigurationBuilder":
+        """Sets the maximum length of generated sequences."""
+        self._max_sequence_length = length
+        return self
+
+    def set_max_sequences_combined(self, number: int) -> "ConfigurationBuilder":
+        """Sets the maximum number of combined sequences."""
+        self._max_sequences_combined = number
+        return self
+
+    def set_counter_threshold(self, threshold: int) -> "ConfigurationBuilder":
+        """Sets the counter threshold."""
+        self._counter_threshold = threshold
+        return self
+
     def build(self) -> Configuration:
         """Builds the configuration."""
         return Configuration(
@@ -143,4 +183,9 @@ class ConfigurationBuilder:
             coverage_filename=self._coverage_filename,
             budget=self._budget,
             output_folder=self._output_folder,
+            use_type_hints=self._use_type_hints,
+            record_types=self._record_types,
+            max_sequence_length=self._max_sequence_length,
+            max_sequences_combined=self._max_sequences_combined,
+            counter_threshold=self._counter_threshold,
         )
