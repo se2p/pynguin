@@ -57,7 +57,17 @@ def test_builder():
 
 def test_build_from_cli():
     parser = _create_argument_parser()
-    args = ["--verbose", "--log-file", "/tmp/foo"]
+    args = [
+        "--verbose",
+        "--log-file",
+        "/tmp/foo",
+        "--project-path",
+        "/tmp/bar",
+        "--module-names",
+        "baz",
+        "--output-folder",
+        "/tmp/output",
+    ]
     configuration = ConfigurationBuilder.build_from_cli_arguments(parser, args)
     assert configuration.verbose
     assert not configuration.quiet

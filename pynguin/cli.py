@@ -76,12 +76,14 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     rtg_group.add_argument(
         "--project-path",
         dest="project_path",
+        required=True,
         help="Path to the project the generator shall create tests for.",
     )
     rtg_group.add_argument(
-        "--module_names",
+        "--module-names",
         dest="module_names",
         action="append",
+        required=True,
         help="A list of module names for that the generator shall create tests for.",
     )
     rtg_group.add_argument(
@@ -99,10 +101,15 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--budget",
         dest="budget",
         type=int,
-        help="Time budget (in seconds) that can be used for generating tests.",
+        default=600,
+        help="Time budget (in seconds) that can be used for generating tests. "
+        "The default value is 600s",
     )
     rtg_group.add_argument(
-        "--output-folder", dest="output_folder", help="Folder to store the output in."
+        "--output-folder",
+        dest="output_folder",
+        help="Folder to store the output in.",
+        required=True,
     )
     rtg_group.add_argument(
         "--use-type-hints",
@@ -120,18 +127,21 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--max-sequence-length",
         dest="max_sequence_length",
         type=int,
+        default=10,
         help="The maximum length of sequences that are generated, 0 means infinite.",
     )
     rtg_group.add_argument(
         "--max-sequences-combined",
         dest="max_sequences_combined",
         type=int,
+        default=10,
         help="The maximum number of combined sequences, 0 means infinite.",
     )
     rtg_group.add_argument(
         "--counter-threshold",
         dest="counter_threshold",
         type=int,
+        default=10,
         help="The counter threshold for puring sequences, 0 means infinite.",
     )
 
