@@ -14,16 +14,74 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides various types of statements, similar to an AST."""
 # pylint: disable=too-few-public-methods
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Union, Iterator, Optional, Type
+from typing import List, Dict, Any, Union, Iterator, Optional, Type, TypeVar
+
+# pylint: disable=invalid-name
+T = TypeVar("T")
 
 
-class Statement:
+class StatementVisitor(metaclass=ABCMeta):
+    """An abstract visitor for statements."""
+
+    @abstractmethod
+    def visit_expression(self, expression: "Expression") -> T:
+        """Visits an expression.
+
+        :param expression: The expression to visit
+        :return: A generic return type T
+        """
+
+    @abstractmethod
+    def visit_name(self, name: "Name") -> T:
+        """Visits a name.
+
+        :param name: The name to visit
+        :return: A generic return type T
+        """
+
+    @abstractmethod
+    def visit_attribute(self, attribute: "Attribute") -> T:
+        """Visits an attribute.
+
+        :param attribute: The attribute to visit
+        :return: A generic return type T
+        """
+
+    @abstractmethod
+    def visit_call(self, call: "Call") -> T:
+        """Visits a call.
+
+        :param call: The call to visit
+        :return: A generic return type T
+        """
+
+    @abstractmethod
+    def visit_assignment(self, assignment: "Assignment") -> T:
+        """Visits an assignment.
+
+        :param assignment: The assignment to visit
+        :return: A generic return type T
+        """
+
+
+class Statement(metaclass=ABCMeta):
     """A simple program statement."""
+
+    @abstractmethod
+    def accept(self, visitor: StatementVisitor) -> None:
+        """Accepts a statement visitor to visit the statement.
+
+        :param visitor: The visitor
+        """
 
 
 class Expression(Statement):
     """An expression statement."""
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_expression(self)
 
 
 @dataclass(init=True)
@@ -31,6 +89,9 @@ class Name(Expression):
     """Represents a name as an expression."""
 
     identifier: str
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_name(self)
 
 
 @dataclass(init=True)
@@ -40,6 +101,9 @@ class Attribute(Expression):
     owner: Name
     attribute_name: str
 
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_attribute(self)
+
 
 @dataclass(init=True)
 class Call(Expression):
@@ -48,6 +112,9 @@ class Call(Expression):
     function: Expression
     arguments: List[Any]
 
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_call(self)
+
 
 @dataclass(init=True)
 class Assignment(Expression):
@@ -55,6 +122,9 @@ class Assignment(Expression):
 
     lhs: Expression
     rhs: Expression
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_assignment(self)
 
 
 @dataclass(init=True, repr=True, eq=True)

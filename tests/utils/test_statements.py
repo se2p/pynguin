@@ -26,11 +26,6 @@ def sequence():
     return Sequence()
 
 
-def test_statement():
-    statement = Statement()
-    assert isinstance(statement, Statement)
-
-
 def test_sequence_append(sequence):
     statement = MagicMock(Statement)
     assert len(sequence) == 0
