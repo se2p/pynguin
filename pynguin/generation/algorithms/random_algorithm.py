@@ -277,6 +277,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                 ):
                     call_expression = statement.rhs
                     assert isinstance(call_expression.function, Name)
+                    # TODO(sl) this assertion is wrong, it can also be an Attribute!
                     if (
                         function_signature.class_name
                         in call_expression.function.identifier
