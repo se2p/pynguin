@@ -18,7 +18,6 @@ import importlib
 import logging
 import os
 import sys
-
 from typing import Union, List, Type
 
 from coverage import Coverage  # type: ignore
@@ -27,7 +26,7 @@ from pynguin.configuration import Configuration, ConfigurationBuilder
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
 from pynguin.generation.executor import Executor
-from pynguin.generation.exporter import export_sequences
+from pynguin.generation.export.exporter import Exporter
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.recorder import CoverageRecorder
 from pynguin.utils.statements import Sequence
@@ -133,13 +132,8 @@ class Pynguin:
                 out_file.write(f"{string}\n")
 
         if self._configuration.tests_output:
-            export_sequences(
-                sequences,
-                self._configuration.module_names,
-                path=os.path.join(
-                    self._configuration.tests_output, f"{self._configuration.seed}.py"
-                ),
-            )
+            exporter = Exporter(self._configuration)
+            exporter.export_sequences(sequences)
 
         return exit_status
 

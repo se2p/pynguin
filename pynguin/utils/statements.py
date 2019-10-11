@@ -16,13 +16,13 @@
 # pylint: disable=too-few-public-methods
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Union, Iterator, Optional, Type, TypeVar
+from typing import List, Dict, Any, Union, Iterator, Optional, Type, TypeVar, Generic
 
 # pylint: disable=invalid-name
 T = TypeVar("T")
 
 
-class StatementVisitor(metaclass=ABCMeta):
+class StatementVisitor(Generic[T], metaclass=ABCMeta):
     """An abstract visitor for statements."""
 
     @abstractmethod
@@ -66,11 +66,11 @@ class StatementVisitor(metaclass=ABCMeta):
         """
 
 
-class Statement(metaclass=ABCMeta):
+class Statement(Generic[T], metaclass=ABCMeta):
     """A simple program statement."""
 
     @abstractmethod
-    def accept(self, visitor: StatementVisitor) -> None:
+    def accept(self, visitor: StatementVisitor) -> T:
         """Accepts a statement visitor to visit the statement.
 
         :param visitor: The visitor
@@ -80,8 +80,8 @@ class Statement(metaclass=ABCMeta):
 class Expression(Statement):
     """An expression statement."""
 
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_expression(self)
+    def accept(self, visitor: StatementVisitor) -> T:
+        return visitor.visit_expression(self)
 
 
 @dataclass(init=True)
@@ -90,8 +90,8 @@ class Name(Expression):
 
     identifier: str
 
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_name(self)
+    def accept(self, visitor: StatementVisitor) -> T:
+        return visitor.visit_name(self)
 
 
 @dataclass(init=True)
@@ -101,8 +101,8 @@ class Attribute(Expression):
     owner: Name
     attribute_name: str
 
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_attribute(self)
+    def accept(self, visitor: StatementVisitor) -> T:
+        return visitor.visit_attribute(self)
 
 
 @dataclass(init=True)
@@ -112,8 +112,8 @@ class Call(Expression):
     function: Expression
     arguments: List[Any]
 
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_call(self)
+    def accept(self, visitor: StatementVisitor) -> T:
+        return visitor.visit_call(self)
 
 
 @dataclass(init=True)
@@ -123,8 +123,8 @@ class Assignment(Expression):
     lhs: Expression
     rhs: Expression
 
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_assignment(self)
+    def accept(self, visitor: StatementVisitor) -> T:
+        return visitor.visit_assignment(self)
 
 
 @dataclass(init=True, repr=True, eq=True)

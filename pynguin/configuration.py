@@ -16,7 +16,7 @@
 import argparse
 import dataclasses
 import os
-from typing import Union, List
+from typing import Union, List, Any
 
 
 # pylint: disable=too-many-instance-attributes
@@ -40,6 +40,7 @@ class Configuration:
     max_sequences_combined: int = 0
     counter_threshold: int = 0
     tests_output: Union[str, os.PathLike] = ""
+    export_strategy: Any = None
 
 
 # pylint: disable=too-many-instance-attributes
@@ -63,6 +64,7 @@ class ConfigurationBuilder:
         self._max_sequences_combined: int = 0
         self._counter_threshold: int = 0
         self._tests_output: Union[str, os.PathLike] = ""
+        self._export_strategy = None
 
     @staticmethod
     def build_from_cli_arguments(
@@ -75,7 +77,7 @@ class ConfigurationBuilder:
         :return: The configuration of the CLI arguments
         """
         config = argument_parser.parse_args(argv)
-        return Configuration(
+        return Configuration(  # type: ignore
             verbose=config.verbose,
             quiet=config.quiet,
             log_file=config.log_file,
@@ -92,6 +94,7 @@ class ConfigurationBuilder:
             max_sequences_combined=config.max_sequences_combined,
             counter_threshold=config.counter_threshold,
             tests_output=config.tests_output,
+            export_strategy=config.export_strategy,
         )
 
     def set_verbose(self) -> "ConfigurationBuilder":
@@ -180,9 +183,14 @@ class ConfigurationBuilder:
         self._tests_output = tests_output
         return self
 
+    def set_export_strategy(self, strategy) -> "ConfigurationBuilder":
+        """Defines the export strategy to export tests cases."""
+        self._export_strategy = strategy
+        return self
+
     def build(self) -> Configuration:
         """Builds the configuration."""
-        return Configuration(
+        return Configuration(  # type: ignore
             verbose=self._verbose,
             quiet=self._quiet,
             log_file=self._log_file,
@@ -199,4 +207,5 @@ class ConfigurationBuilder:
             max_sequences_combined=self._max_sequences_combined,
             counter_threshold=self._counter_threshold,
             tests_output=self._tests_output,
+            export_strategy=self._export_strategy,
         )

@@ -149,6 +149,14 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         dest="tests_output",
         help="Path to an output folder for the generated test cases.",
     )
+    rtg_group.add_argument(
+        "--export-strategy",
+        dest="export_strategy",
+        help="The export strategy determines for which test-runner system the "
+        "generated tests should fit.",
+        choices=list("PYTEST_EXPORTER"),
+        default="PYTEST_EXPORTER",
+    )
 
     return parser
 
