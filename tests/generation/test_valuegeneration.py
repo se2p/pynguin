@@ -18,7 +18,7 @@ from pynguin.utils.string import String
 
 def test_init_value_int():
     result = init_value(int, [])
-    assert result in range(-100, 100)
+    assert result in range(-100, 101)
 
 
 def test_init_value_string():
@@ -43,8 +43,8 @@ def test_init_value_bool():
 def test_init_value_complex():
     result = init_value(complex, [])
     assert isinstance(result, complex)
-    assert result.real in range(-100, 100)
-    assert result.imag in range(-100, 100)
+    assert result.real in range(-100, 101)
+    assert result.imag in range(-100, 101)
 
 
 def test_init_value_float():
