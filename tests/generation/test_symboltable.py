@@ -14,9 +14,11 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Iterator
 
+import black
 import pytest
 
 from pynguin.generation.symboltable import SymbolTable
+from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.string import String
 
 
@@ -51,11 +53,34 @@ def test_iter():
     assert isinstance(table.__iter__(), Iterator)
 
 
-@pytest.mark.skip(reason="Implementation does not match any more, need to fix this")
 def test_add_callable():
+    def foo():
+        return 42
+
     table = SymbolTable(None)
-    with pytest.raises(Exception):
-        table.add_callable(test_delitem)
+    table.add_callable(foo)
+
+
+def test_add_class_callable():
+    class Dummy:
+        x = 0
+
+        def set_x(self, x):
+            self.x = x
+
+    table = SymbolTable(None)
+    table.add_callable(Dummy.set_x)
+
+
+def test_add_crap_callable():
+    table = SymbolTable(None)
+    with pytest.raises(GenerationException):
+        table.add_callable(int)
+
+
+def test_add_path_callable():
+    table = SymbolTable(None)
+    table.add_callable(black.BracketTracker)
 
 
 def test_add_constraint():
