@@ -13,12 +13,23 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import ast
+import os
 from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.generation.export.pytestexporter import _PyTestExportStatementVisitor
-from pynguin.utils.statements import Expression, Name, Attribute, Call, Assignment
+from pynguin.generation.export.pytestexporter import (
+    _PyTestExportStatementVisitor,
+    PyTestExporter,
+)
+from pynguin.utils.statements import (
+    Expression,
+    Name,
+    Attribute,
+    Call,
+    Assignment,
+    Sequence,
+)
 
 
 @pytest.fixture
@@ -92,3 +103,66 @@ def test__visit_function_arguments_with_exception(visitor):
     with pytest.raises(Exception) as exception:
         visitor._visit_function_arguments(arguments)
     assert "Missing case of argument" in exception.value.args[0]
+
+
+def test__create_statement_nodes_empty_sequence():
+    sequence = Sequence()
+    result = PyTestExporter._create_statement_nodes(sequence)
+    assert len(result) == 0
+
+
+def test__create_statement_nodes():
+    sequence = Sequence()
+    sequence.append(Name(identifier="foo"))
+    result = PyTestExporter._create_statement_nodes(sequence)
+    assert len(result) == 1
+
+
+def test__create_function_node():
+    result = PyTestExporter._create_function_node("foo", [])
+    assert result.name == "test_foo"
+
+
+def test__create_functions_empty_sequences():
+    exporter = PyTestExporter([], "")
+    result = exporter._create_functions([])
+    assert len(result) == 0
+
+
+def test__create_functions():
+    sequence = Sequence()
+    sequence.append(Name(identifier="foo"))
+    exporter = PyTestExporter([], "")
+    result = exporter._create_functions([sequence])
+    assert len(result) == 1
+
+
+def test_export_sequences_without_path():
+    exporter = PyTestExporter(["foo.bar"], "")
+    sequence = Sequence()
+    sequence.append(Name(identifier="baz"))
+    result = exporter.export_sequences([sequence])
+    assert len(result.body) == 2
+
+
+def test_export_sequences_without_path_and_imports():
+    exporter = PyTestExporter([], "")
+    sequence = Sequence()
+    sequence.append(Name(identifier="baz"))
+    result = exporter.export_sequences([sequence])
+    assert len(result.body) == 2
+
+
+def test_save_ast_to_file(tmp_path):
+    path = os.path.join(tmp_path, "foo.py")
+    exporter = PyTestExporter([], path)
+    sequence = Sequence()
+    sequence.append(Name(identifier="baz"))
+    exporter.export_sequences([sequence])
+
+
+def test_save_ast_to_file_without_path():
+    exporter = PyTestExporter([], "")
+    sequence = Sequence()
+    sequence.append(Name(identifier="baz"))
+    exporter.save_ast_to_file(exporter.export_sequences([sequence]))
