@@ -15,7 +15,7 @@
 """A generic exporter that selects its export strategy based on configuration."""
 import ast
 import os
-from enum import Enum, auto
+from enum import Enum
 from typing import List
 
 from pynguin.configuration import Configuration
@@ -27,8 +27,8 @@ from pynguin.utils.statements import Sequence
 class ExportStrategy(Enum):
     """Contains all available export strategies."""
 
-    PYTEST_EXPORTER = auto()
-    NONE = auto()
+    PYTEST_EXPORTER = "PYTEST_EXPORTER"
+    NONE = "NONE"
 
     def __str__(self) -> str:
         return self.value
