@@ -13,17 +13,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an executor that executes generated sequences."""
-import contextlib
 import importlib
 import inspect
 import logging
-from typing import List, Any, Tuple, Dict, Type, Callable, Union
+from typing import List, Any, Tuple, Dict, Type, Union
 
 from coverage import Coverage  # type: ignore
 
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.proxy import MagicProxy
-from pynguin.utils.statements import Sequence, Call, Assignment, Name, Attribute
+from pynguin.utils.statements import Sequence
 from pynguin.utils.utils import get_members_from_module
 
 LOGGER = logging.getLogger(__name__)
@@ -74,7 +73,8 @@ class Executor:
         classes = self._classes
         try:
             self._reset_error_flags(sequence)
-            result = self._exec(sequence, classes)
+            result = ({}, {}, [], Sequence())  # type: ignore
+            # self._exec(sequence, classes)
         except Exception as exception:
             # Any error we get here must have happened outside our execution
             raise GenerationException(exception)
@@ -130,67 +130,67 @@ class Executor:
 
         return arcs_per_file
 
-    def _exec(
-        self, sequence: Sequence, classes: List[Type]
-    ) -> Tuple[Dict[str, Any], Dict[str, Any], List[Exception], Sequence]:
-        values: Dict[str, Any] = {}
-        exceptions: List[Exception] = []
-        inputs: Dict[str, Any] = {}
+    # def _exec(
+    #     self, sequence: Sequence, classes: List[Type]
+    # ) -> Tuple[Dict[str, Any], Dict[str, Any], List[Exception], Sequence]:
+    # values: Dict[str, Any] = {}
+    # exceptions: List[Exception] = []
+    # inputs: Dict[str, Any] = {}
 
-        with open("/dev/null", mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
-                executed_sequence = Sequence()
-                try:
-                    for statement in sequence:
-                        if isinstance(statement, Call):
-                            func, inputs = self._exec_call(statement, values, classes)
-                            executed_sequence.append(statement)
-                            func()
-                        elif isinstance(statement, Assignment):
-                            assert isinstance(statement.rhs, Call)
-                            func, inputs = self._exec_call(
-                                statement.rhs, values, classes
-                            )
-                            executed_sequence.append(statement)
-                            result = func()
-                            if isinstance(statement.lhs, Name):
-                                values[statement.lhs.identifier] = MagicProxy(result)
-                            elif isinstance(statement.lhs, Attribute):
-                                values[
-                                    statement.lhs.owner.identifier
-                                    + statement.lhs.attribute_name
-                                ] = MagicProxy(result)
-                            else:
-                                raise TypeError(
-                                    "Unexpected LHS type " + str(statement.lhs)
-                                )
-                except Exception as exception:  # pylint: disable=broad-except
-                    exceptions.append(exception)
-                return values, inputs, exceptions, executed_sequence
+    # with open("/dev/null", mode="w") as null_file:
+    #     with contextlib.redirect_stdout(null_file):
+    #         executed_sequence = Sequence()
+    #         try:
+    #             for statement in sequence:
+    #                   if isinstance(statement, Call):
+    #                       func, inputs = self._exec_call(statement, values, classes)
+    #                       executed_sequence.append(statement)
+    #                       func()
+    #                   elif isinstance(statement, Assignment):
+    #                       assert isinstance(statement.rhs, Call)
+    #                       func, inputs = self._exec_call(
+    #                           statement.rhs, values, classes
+    #                       )
+    #                       executed_sequence.append(statement)
+    #                       result = func()
+    #                       if isinstance(statement.lhs, Name):
+    #                           values[statement.lhs.identifier] = MagicProxy(result)
+    #                       elif isinstance(statement.lhs, Attribute):
+    #                           values[
+    #                               statement.lhs.owner.identifier
+    #                               + statement.lhs.attribute_name
+    #                           ] = MagicProxy(result)
+    #                       else:
+    #                           raise TypeError(
+    #                               "Unexpected LHS type " + str(statement.lhs)
+    #                           )
+    #         except Exception as exception:  # pylint: disable=broad-except
+    #             exceptions.append(exception)
+    # return values, inputs, exceptions, executed_sequence
 
-    def _exec_call(
-        self, statement: Call, values: Dict[str, Any], classes: List[Type]
-    ) -> Tuple[Callable, Dict[str, Any]]:
-        func = statement.function
-        arguments = self._get_argument_list(statement.arguments, values, classes)
-        if isinstance(func, Name):
-            # Call without callee, ref is the function
-            ref = self._get_ref(func.identifier, values, classes)
-            parameter_names = list(inspect.signature(ref).parameters)
-            inputs = dict(zip(parameter_names, arguments))
-            return self._get_call_wrapper(ref, arguments), inputs
-        elif isinstance(func, Attribute):
-            # Call with callee ref and function attributes
-            if not func.owner.identifier:
-                raise GenerationException("Cannot call methods on None")
-
-            ref = self._get_ref(func.owner.identifier, values, classes)
-            attribute = getattr(ref, func.attribute_name)
-            parameter_names = list(inspect.signature(attribute).parameters)
-            inputs = dict(zip(parameter_names, arguments))
-            return self._get_call_wrapper(attribute, arguments), inputs
-
-        raise NotImplementedError("No execution implemented for type " + str(func))
+    #     def _exec_call(
+    #         self, statement: Call, values: Dict[str, Any], classes: List[Type]
+    #     ) -> Tuple[Callable, Dict[str, Any]]:
+    #         func = statement.function
+    #         arguments = self._get_argument_list(statement.arguments, values, classes)
+    #         if isinstance(func, Name):
+    #             # Call without callee, ref is the function
+    #             ref = self._get_ref(func.identifier, values, classes)
+    #             parameter_names = list(inspect.signature(ref).parameters)
+    #             inputs = dict(zip(parameter_names, arguments))
+    #             return self._get_call_wrapper(ref, arguments), inputs
+    #         elif isinstance(func, Attribute):
+    #             # Call with callee ref and function attributes
+    #             if not func.owner.identifier:
+    #                 raise GenerationException("Cannot call methods on None")
+    #
+    #             ref = self._get_ref(func.owner.identifier, values, classes)
+    #             attribute = getattr(ref, func.attribute_name)
+    #             parameter_names = list(inspect.signature(attribute).parameters)
+    #             inputs = dict(zip(parameter_names, arguments))
+    #             return self._get_call_wrapper(attribute, arguments), inputs
+    #
+    #         raise NotImplementedError("No execution implemented for type " + str(func))
 
     def _get_argument_list(
         self,
@@ -203,8 +203,8 @@ class Executor:
         for argument in statement_arguments:
             if (
                 isinstance(argument, MagicProxy)
-                and isinstance(argument._obj, Name)  # type: ignore
-                or isinstance(argument, Name)
+                # and isinstance(argument._obj, Name)  # type: ignore
+                # or isinstance(argument, Name)
             ):
                 # There is no need to wrap refs in magic proxies, since this is done
                 # when they are added to the value list
@@ -246,13 +246,14 @@ class Executor:
 
     @staticmethod
     def _reset_error_flags(sequence: Sequence) -> None:
-        def reset(var: Any) -> Any:
-            if hasattr(var, "_hasError"):
-                var._hasError = False
-            return var
+        pass
+        # def reset(var: Any) -> Any:
+        #     if hasattr(var, "_hasError"):
+        #         var._hasError = False
+        #     return var
 
-        for statement in sequence:
-            if isinstance(statement, Call):
-                statement.arguments = list(map(reset, statement.arguments))
-            elif isinstance(statement, Assignment) and isinstance(statement.rhs, Call):
-                statement.rhs.arguments = list(map(reset, statement.rhs.arguments))
+        # for statement in sequence:
+        #     if isinstance(statement, Call):
+        #         statement.arguments = list(map(reset, statement.arguments))
+        #     elif isinstance(statement, Assignment) and isinstance(statement.rhs, Call):
+        #         statement.rhs.arguments = list(map(reset, statement.rhs.arguments))

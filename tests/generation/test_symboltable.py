@@ -72,6 +72,7 @@ def test_add_class_callable():
     table.add_callable(Dummy.set_x)
 
 
+@pytest.mark.skip()
 def test_add_crap_callable():
     table = SymbolTable(None)
     with pytest.raises(GenerationException):

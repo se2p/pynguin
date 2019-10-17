@@ -12,25 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-import sys
-from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
 from coverage import Coverage
 
 from pynguin.generation.executor import Executor
-from pynguin.utils.exceptions import GenerationException
-from pynguin.utils.proxy import MagicProxy
-from pynguin.utils.statements import (
-    Sequence,
-    Call,
-    Expression,
-    Assignment,
-    Name,
-    Attribute,
-)
+from pynguin.utils.statements import Sequence
 
 
 class _Dummy:
@@ -58,27 +46,6 @@ def test_load_modules():
 def test_execute():
     executor = Executor([])
     executor.execute(MagicMock(Sequence))
-
-
-def test__reset_error_flags():
-    sequence = Sequence()
-    arg_1 = object()
-    arg_2 = _Dummy()
-    arg_2._hasError = True
-    arg_3 = _Dummy()
-    arg_3._hasError = True
-    call_1 = Call(function=MagicMock(Expression), arguments=[arg_1, arg_2])
-    call_2 = Call(function=MagicMock(Expression), arguments=[arg_1, arg_3])
-    assignment_1 = Assignment(lhs=MagicMock(Expression), rhs=call_2)
-    assignment_2 = Assignment(lhs=MagicMock(Expression), rhs=MagicMock(Expression))
-    sequence.append(call_1)
-    sequence.append(assignment_1)
-    sequence.append(assignment_2)
-
-    Executor._reset_error_flags(sequence)
-
-    assert not arg_2._hasError
-    assert not arg_3._hasError
 
 
 def test__get_call_wrapper_without_arguments():
@@ -142,70 +109,6 @@ def test__get_argument_list_string():
     executor = Executor([])
     result = executor._get_argument_list(["foo"], {}, [])
     assert result == ["foo"]
-
-
-def test__get_argument_list_name():
-    executor = Executor([])
-    result = executor._get_argument_list(
-        [Name(identifier="_Dummy")], {"_Dummy": 42}, [_Dummy]
-    )
-    assert result == [42]
-
-
-def test__get_argument_list_proxy():
-    executor = Executor([])
-    arguments = [MagicProxy(Name(identifier="_Dummy"))]
-    result = executor._get_argument_list(arguments, {"_Dummy": 42}, [_Dummy])
-    assert result == [42]
-
-
-def test__exec_call_without_call_function():
-    executor = Executor([])
-    call = Call(function=MagicMock(Expression), arguments=[])
-    with pytest.raises(NotImplementedError) as error:
-        executor._exec_call(call, {}, [])
-    assert "No execution implemented for type" in error.value.args[0]
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 8),
-    reason="Errors with recursion depth exceeding on Python 3.8",
-)
-def test__exec_call_with_name_function():
-    executor = Executor([])
-    call = Call(function=Name(identifier="_dummy"), arguments=[])
-    with mock.patch("pynguin.generation.executor.inspect.signature") as mocking:
-        mocking.return_value.parameters.return_value = []
-        cbl, inputs = executor._exec_call(call, {"_dummy": 42}, [])
-        assert inputs == {}
-        assert isinstance(cbl, Callable)
-
-
-def test__exec_call_with_incomplete_attribute():
-    executor = Executor([])
-    call = Call(
-        function=Attribute(owner=Name(identifier=None), attribute_name=""), arguments=[]
-    )
-    with pytest.raises(GenerationException) as exception:
-        executor._exec_call(call, {}, [])
-    assert "Cannot call methods on None" == exception.value.args[0]
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 8),
-    reason="Errors with recursion depth exceeding on Python 3.8",
-)
-def test__exec_call_with_attribute():
-    executor = Executor([])
-    call = Call(
-        function=Attribute(owner=Name(identifier="_Dummy"), attribute_name="baz"),
-        arguments=[int, int],
-    )
-    with mock.patch("pynguin.generation.executor.inspect.signature") as mocking:
-        mocking.return_value.parameters.return_value = [int, int]
-        cbl, inputs = executor._exec_call(call, {"a": 42, "b": 23}, [_Dummy])
-        assert inputs == {}
-        assert isinstance(cbl, Callable)
 
 
 def test__get_arcs_for_classes_without_coverage():

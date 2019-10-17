@@ -17,26 +17,15 @@ import datetime
 import inspect
 import logging
 import random
-import string
 from typing import List, Type, Tuple, Set, Callable, Any, Dict
 
 from pynguin.configuration import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
-from pynguin.generation.valuegeneration import init_value
 from pynguin.utils.exceptions import GenerationException
-from pynguin.utils.proxy import MagicProxy
 from pynguin.utils.recorder import CoverageRecorder
-from pynguin.utils.statements import (
-    Sequence,
-    Name,
-    Expression,
-    Assignment,
-    Attribute,
-    Call,
-    FunctionSignature,
-)
+from pynguin.utils.statements import Sequence
 from pynguin.utils.utils import get_members_from_module
 
 LOGGER = logging.getLogger(__name__)
@@ -89,6 +78,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                 methods = self._choose_random_public_method(objects_under_test)
 
                 sequences = self._choose_random_sequences(non_error_sequences)
+                # pylint: disable=assignment-from-no-return
                 values = self._choose_random_values(methods, sequences)
                 new_sequence = self._extend(methods, sequences, values)
 
@@ -212,112 +202,114 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
     def _choose_random_values(
         self, method: Callable, sequences: List[Sequence]
     ) -> Dict[str, Any]:
-        def sort_arguments():
-            signature = inspect.signature(method)
-            parameters = [p.name for _, p in signature.parameters.items()]
-            for parameter in parameters.copy():
-                if parameter == "self":
-                    parameters.remove(parameter)
-            sorted_args = {el: unsorted_args[el] for el in parameters}
-            return sorted_args
+        pass
+        # def sort_arguments():
+        #     signature = inspect.signature(method)
+        #     parameters = [p.name for _, p in signature.parameters.items()]
+        #     for parameter in parameters.copy():
+        #         if parameter == "self":
+        #             parameters.remove(parameter)
+        #     sorted_args = {el: unsorted_args[el] for el in parameters}
+        #     return sorted_args
 
-        if method not in self._symbol_table:
-            self._symbol_table.add_callable(method)
+        # if method not in self._symbol_table:
+        #     self._symbol_table.add_callable(method)
 
-        all_solutions = [self._symbol_table[method]]
+        # all_solutions = [self._symbol_table[method]]
 
-        if not all_solutions:
-            raise GenerationException(
-                "Could not find any candidate types for " + method.__name__
-            )
+        # if not all_solutions:
+        #     raise GenerationException(
+        #         "Could not find any candidate types for " + method.__name__
+        #     )
 
-        solution = random.choice(all_solutions)
+        # solution = random.choice(all_solutions)
 
-        if isinstance(solution, FunctionSignature) and solution.inputs == []:
-            return {}
-        if isinstance(solution, FunctionSignature):
-            unsorted_args = {}
-            for item in solution.inputs:
-                type_ = random.choice(list(SymbolTable.get_default_domain()))
-                initialised_value = init_value(type_, sequences)
-                unsorted_args[item] = MagicProxy(initialised_value)
-            return sort_arguments()
-        LOGGER.debug("Unhandled value creation instance.")
-        return {}
+        # if isinstance(solution, FunctionSignature) and solution.inputs == []:
+        #     return {}
+        # if isinstance(solution, FunctionSignature):
+        #     unsorted_args = {}
+        #     for item in solution.inputs:
+        #         type_ = random.choice(list(SymbolTable.get_default_domain()))
+        #         initialised_value = init_value(type_, sequences)
+        #         unsorted_args[item] = MagicProxy(initialised_value)
+        #     return sort_arguments()
+        # LOGGER.debug("Unhandled value creation instance.")
+        # return {}
 
     # pylint: disable=too-many-locals
     def _extend(
         self, method: Callable, sequences: List[Sequence], values: Dict[str, Any]
     ) -> Sequence:
-        def contains_explicit_return(func: Callable) -> bool:
-            try:
-                lines, _ = inspect.getsourcelines(func)
-                return any("return" in line for line in lines)
-            except TypeError as error:
-                raise GenerationException(error)
+        pass
+        # def contains_explicit_return(func: Callable) -> bool:
+        #     try:
+        #         lines, _ = inspect.getsourcelines(func)
+        #         return any("return" in line for line in lines)
+        #     except TypeError as error:
+        #         raise GenerationException(error)
 
-        def find_callee_for_method(func: Callable, new_sequence: Sequence) -> Name:
-            overwritten: List[Expression] = []
-            function_signature = self._symbol_table[func]
-            for statement in reversed(new_sequence):
-                if isinstance(statement, Assignment) and isinstance(
-                    statement.rhs, Attribute
-                ):
-                    for return_tuple in function_signature.return_value:
-                        # pylint: disable=unused-variable
-                        for value in return_tuple:
-                            # TODO(sl) what shall we do with this?
-                            LOGGER.debug(
-                                "Reached: TODO(sl) what shall we do with this? %s",
-                                repr(value),
-                            )
-                            raise GenerationException("Not implemented handling")
-                elif isinstance(statement, Assignment) and isinstance(
-                    statement.rhs, Call
-                ):
-                    call_expression = statement.rhs
-                    assert isinstance(call_expression.function, Name)
-                    # TODO(sl) this assertion is wrong, it can also be an Attribute!
-                    if (
-                        function_signature.class_name
-                        in call_expression.function.identifier
-                        and statement.lhs not in overwritten
-                    ):
-                        assert isinstance(statement.lhs, Name)
-                        return statement.lhs
-                    overwritten.append(statement.lhs)
-            return Name(identifier="")
+        # def find_callee_for_method(func: Callable, new_sequence: Sequence) -> Name:
+        #     overwritten: List[Expression] = []
+        #     function_signature = self._symbol_table[func]
+        #     for statement in reversed(new_sequence):
+        #         if isinstance(statement, Assignment) and isinstance(
+        #             statement.rhs, Attribute
+        #         ):
+        #             for return_tuple in function_signature.return_value:
+        #                 # pylint: disable=unused-variable
+        #                 for value in return_tuple:
+        #                     # TODO(sl) what shall we do with this?
+        #                     LOGGER.debug(
+        #                         "Reached: TODO(sl) what shall we do with this? %s",
+        #                         repr(value),
+        #                     )
+        #                     raise GenerationException("Not implemented handling")
+        #         elif isinstance(statement, Assignment) and isinstance(
+        #             statement.rhs, Call
+        #         ):
+        #             call_expression = statement.rhs
+        #             assert isinstance(call_expression.function, Name)
+        #             # TODO(sl) this assertion is wrong, it can also be an Attribute!
+        #             if (
+        #                 function_signature.class_name
+        #                 in call_expression.function.identifier
+        #                 and statement.lhs not in overwritten
+        #             ):
+        #                 assert isinstance(statement.lhs, Name)
+        #                 return statement.lhs
+        #             overwritten.append(statement.lhs)
+        #     return Name(identifier="")
 
-        new_sequence = Sequence()
-        for sequence in sequences:
-            new_sequence = new_sequence + sequence
+        # new_sequence = Sequence()
+        # for sequence in sequences:
+        #     new_sequence = new_sequence + sequence
 
-        is_constructor = False
-        attribute: Expression = None  # type: ignore
-        if not self._symbol_table[method].class_name:
-            signature = self._symbol_table[method]
-            if signature.module_name:
-                attribute = Name(signature.module_name + "." + signature.method_name)
-            else:
-                attribute = Name(signature.method_name)
-            is_constructor = True
-        else:
-            callee = find_callee_for_method(method, new_sequence)
-            if self._symbol_table[method].class_name:
-                attribute = Attribute(callee, method.__name__)
-            else:
-                attribute = Name(method.__name__)
+        # is_constructor = False
+        # attribute: Expression = None  # type: ignore
+        # if not self._symbol_table[method].class_name:
+        #     signature = self._symbol_table[method]
+        #     if signature.module_name:
+        #         attribute = Name(signature.module_name + "." + signature.method_name)
+        #     else:
+        #         attribute = Name(signature.method_name)
+        #     is_constructor = True
+        # else:
+        #     callee = find_callee_for_method(method, new_sequence)
+        #     if self._symbol_table[method].class_name:
+        #         attribute = Attribute(callee, method.__name__)
+        #     else:
+        #         attribute = Name(method.__name__)
 
-        call = Call(attribute, list(values.values()))
-        if is_constructor or contains_explicit_return(method):
-            letter = random.choice(string.ascii_lowercase)
-            identifier = Name(letter + str(len(new_sequence) + 1))
-            assignment = Assignment(identifier, call)
-            new_sequence.append(assignment)
-        else:
-            new_sequence.append(call)
+        # call = Call(attribute, list(values.values()))
+        # if is_constructor or contains_explicit_return(method):
+        #     letter = random.choice(string.ascii_lowercase)
+        #     identifier = Name(letter + str(len(new_sequence) + 1))
+        #     assignment = Assignment(identifier, call)
+        #     new_sequence.append(assignment)
+        # else:
+        #     new_sequence.append(call)
 
-        return new_sequence
+        # return new_sequence
 
     @staticmethod
     def _record_exception_statistic(
