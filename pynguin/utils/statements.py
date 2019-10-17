@@ -13,131 +13,23 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides various types of statements, similar to an AST."""
-# pylint: disable=too-few-public-methods
-from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Union, Iterator, Optional, Type, TypeVar, Generic
-
-# pylint: disable=invalid-name
-T = TypeVar("T")
+from ast import AST
+from dataclasses import dataclass
+from typing import List, Dict, Any, Union, Iterator, Type, Optional
 
 
-class StatementVisitor(Generic[T], metaclass=ABCMeta):
-    """An abstract visitor for statements."""
+@dataclass(repr=True, eq=True)
+class Statement:
+    """A simple program statement.
 
-    @abstractmethod
-    def visit_expression(self, expression: "Expression") -> T:
-        """Visits an expression.
+    A statement is basically just a wrapper around a Python AST node.  It furthermore
+    contains information about variable names and their data types that are input and
+    output of the statement
+    """
 
-        :param expression: The expression to visit
-        :return: A generic return type T
-        """
-
-    @abstractmethod
-    def visit_name(self, name: "Name") -> T:
-        """Visits a name.
-
-        :param name: The name to visit
-        :return: A generic return type T
-        """
-
-    @abstractmethod
-    def visit_attribute(self, attribute: "Attribute") -> T:
-        """Visits an attribute.
-
-        :param attribute: The attribute to visit
-        :return: A generic return type T
-        """
-
-    @abstractmethod
-    def visit_call(self, call: "Call") -> T:
-        """Visits a call.
-
-        :param call: The call to visit
-        :return: A generic return type T
-        """
-
-    @abstractmethod
-    def visit_assignment(self, assignment: "Assignment") -> T:
-        """Visits an assignment.
-
-        :param assignment: The assignment to visit
-        :return: A generic return type T
-        """
-
-
-class Statement(Generic[T], metaclass=ABCMeta):
-    """A simple program statement."""
-
-    @abstractmethod
-    def accept(self, visitor: StatementVisitor) -> T:
-        """Accepts a statement visitor to visit the statement.
-
-        :param visitor: The visitor
-        """
-
-
-class Expression(Statement):
-    """An expression statement."""
-
-    def accept(self, visitor: StatementVisitor) -> T:
-        return visitor.visit_expression(self)
-
-
-@dataclass(init=True)
-class Name(Expression):
-    """Represents a name as an expression."""
-
-    identifier: str
-
-    def accept(self, visitor: StatementVisitor) -> T:
-        return visitor.visit_name(self)
-
-
-@dataclass(init=True)
-class Attribute(Expression):
-    """Represents an attribute of a `Name` as an expression."""
-
-    owner: Name
-    attribute_name: str
-
-    def accept(self, visitor: StatementVisitor) -> T:
-        return visitor.visit_attribute(self)
-
-
-@dataclass(init=True)
-class Call(Expression):
-    """Represents a function-call expression."""
-
-    function: Expression
-    arguments: List[Any]
-
-    def accept(self, visitor: StatementVisitor) -> T:
-        return visitor.visit_call(self)
-
-
-@dataclass(init=True)
-class Assignment(Expression):
-    """Represents an assignment."""
-
-    lhs: Expression
-    rhs: Expression
-
-    def accept(self, visitor: StatementVisitor) -> T:
-        return visitor.visit_assignment(self)
-
-
-@dataclass(init=True, repr=True, eq=True)
-class FunctionSignature:
-    """Represents a function signature."""
-
-    module_name: Optional[str]
-    class_name: Optional[str]
-    method_name: str
-    inputs: List[str]
-    yield_type: Optional[Type] = None
-    return_type: Optional[Type] = None
-    instance_check_types: Dict[str, Type] = field(default_factory=dict)
+    in_types: Dict[str, Optional[Type]]
+    out_types: Dict[str, Optional[Type]]
+    node: AST
 
 
 class Sequence:
