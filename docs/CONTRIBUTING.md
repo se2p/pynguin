@@ -54,3 +54,9 @@ The target `make test` executes `pytest` with the appropriate parameters.
 To combine all analysis tools and the test execution
 we provide the target `make check`,
 which executes all of them in a row.
+
+We automatically deploy the coverage report (HTML version) from the CI chain
+to [an external server](https://pagedeploy.lukasczyk.me/pynguincoverage/) (only for
+the `master` branch).
+It is necessary to test code!
+Untested code cannot be accepted—or only under rare conditions.
