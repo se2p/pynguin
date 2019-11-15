@@ -246,7 +246,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         return {}
 
     # pylint: disable=too-many-locals
-    def _extend(
+    def _extend(  # noqa: C901
         self, method: Callable, sequences: List[Sequence], values: Dict[str, Any]
     ) -> Sequence:
         def contains_explicit_return(func: Callable) -> bool:
@@ -276,15 +276,24 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                     statement.rhs, Call
                 ):
                     call_expression = statement.rhs
-                    assert isinstance(call_expression.function, Name)
-                    # TODO(sl) this assertion is wrong, it can also be an Attribute!
-                    if (
-                        function_signature.class_name
-                        in call_expression.function.identifier
-                        and statement.lhs not in overwritten
-                    ):
-                        assert isinstance(statement.lhs, Name)
-                        return statement.lhs
+                    if isinstance(call_expression.function, Name):
+                        if (
+                            function_signature.class_name
+                            in call_expression.function.identifier
+                            and statement.lhs not in overwritten
+                        ):
+                            assert isinstance(statement.lhs, Name)
+                            return statement.lhs
+                    elif isinstance(call_expression.function, Attribute):
+                        if (
+                            function_signature.class_name
+                            in call_expression.function.owner.identifier
+                            and statement.lhs not in overwritten
+                        ):
+                            assert isinstance(statement.lhs, Name)
+                            return statement.lhs
+                    else:
+                        raise GenerationException("Not implemented handling")
                     overwritten.append(statement.lhs)
             return Name(identifier="")
 
