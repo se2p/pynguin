@@ -22,16 +22,16 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.7"
 coverage = "^4.5"
-configargparse = "^0.14"
+configargparse = "^0.15"
 astor = "^0.8.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.0"
-black = {version = "^19.3b0", allows-prereleases = true}
+pytest = "^5.3"
+black = {version = "^19.10b0", allows-prereleases = true}
 flake8 = "^3.7"
-pytest-cov = "^2.7"
-mypy = "^0.720"
-pylint = "^2.3"
+pytest-cov = "^2.8"
+mypy = "^0.740"
+pylint = "^2.4"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
