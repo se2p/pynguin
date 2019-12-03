@@ -93,6 +93,12 @@ class Name(Expression):
     def accept(self, visitor: StatementVisitor) -> T:
         return visitor.visit_name(self)
 
+    def __str__(self) -> str:
+        return self.identifier
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 @dataclass(init=True)
 class Attribute(Expression):
@@ -103,6 +109,12 @@ class Attribute(Expression):
 
     def accept(self, visitor: StatementVisitor) -> T:
         return visitor.visit_attribute(self)
+
+    def __str__(self) -> str:
+        return "{}.{}".format(str(self.owner), self.attribute_name)
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 @dataclass(init=True)
@@ -115,6 +127,14 @@ class Call(Expression):
     def accept(self, visitor: StatementVisitor) -> T:
         return visitor.visit_call(self)
 
+    def __str__(self) -> str:
+        return "{}({})".format(
+            str(self.function), ", ".join([str(a) for a in self.arguments])
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 @dataclass(init=True)
 class Assignment(Expression):
@@ -125,6 +145,12 @@ class Assignment(Expression):
 
     def accept(self, visitor: StatementVisitor) -> T:
         return visitor.visit_assignment(self)
+
+    def __str__(self) -> str:
+        return "{} = {}".format(str(self.lhs), str(self.rhs))
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 @dataclass(init=True, repr=True, eq=True)
