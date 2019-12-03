@@ -115,7 +115,12 @@ class Pynguin:
 
         if self._configuration.measure_coverage:
             self._store_all_coverage_data(
-                coverage_recorder, coverage_filename, sequences, error_sequences
+                coverage_recorder,
+                executor,
+                coverage_filename,
+                sequences,
+                error_sequences,
+                self._configuration.seed,
             )
 
         self._store_symbol_table(algorithm)
@@ -137,14 +142,62 @@ class Pynguin:
 
         return exit_status
 
+    # pylint: disable=too-many-arguments
     def _store_all_coverage_data(
         self,
         coverage_recorder: CoverageRecorder,
+        executor: Executor,
         coverage_filename: str,
         sequences: List[Sequence],
         error_sequences: List[Sequence],
+        seed: int,
     ) -> None:
-        pass
+        coverage_recorder.save()
+        self._store_coverage(
+            executor.load_coverage,
+            os.path.join(self._configuration.output_folder, "coverage_base"),
+            coverage_filename,
+        )
+
+        executor.load_coverage.html_report(
+            directory=os.path.join(
+                self._configuration.coverage_filename, str(seed), "base",
+            ),
+        )
+        executor.accumulated_coverage.html_report(
+            directory=os.path.join(self._configuration.coverage_filename, str(seed))
+        )
+
+        coverage = self._re_execute_sequences(sequences)
+        self._store_coverage(
+            coverage,
+            os.path.join(self._configuration.output_folder, "coverage"),
+            coverage_filename,
+        )
+
+        error_coverage = self._re_execute_sequences(error_sequences)
+        self._store_coverage(
+            error_coverage,
+            os.path.join(self._configuration.output_folder, "coverage_error"),
+            coverage_filename,
+        )
+
+    def _re_execute_sequences(self, sequences: List[Sequence],) -> Coverage:
+        executor = Executor(self._configuration.module_names, measure_coverage=True)
+        executor.load_modules(reload=True)
+        for sequence in sequences:
+            executor.execute(sequence)
+        return executor.accumulated_coverage
+
+    @staticmethod
+    def _store_coverage(
+        coverage: Coverage, path: Union[str, os.PathLike], file_name: str,
+    ):
+        recorder = CoverageRecorder(
+            store=True, file_name=file_name, folder=path, modules=[]
+        )
+        recorder.record_data(coverage)
+        recorder.save()
 
     def _store_symbol_table(self, algorithm: GenerationAlgorithm) -> None:
         pass
