@@ -37,7 +37,7 @@ astor = "^0.8.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
-black = {version = "^19.10b0", allows-prereleases = true}
+black = {version = "^19.10b0", allow-prereleases = true}
 flake8 = "^3.7"
 pytest-cov = "^2.8"
 mypy = "^0.750"
