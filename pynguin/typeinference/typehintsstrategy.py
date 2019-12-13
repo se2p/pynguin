@@ -47,7 +47,7 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
         return InferredMethodType(
             method_signature=method_signature,
             parameters=parameters if parameters else None,
-            return_types=return_types if return_types else None,
+            return_type=return_types if return_types else None,
         )
 
     def _infer_type_info_for_constructor(self, method: Callable) -> InferredMethodType:
@@ -61,7 +61,7 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
         return InferredMethodType(
             method_signature=method_signature,
             parameters=parameters if parameters else None,
-            return_types=None,
+            return_type=None,
         )
 
     @staticmethod

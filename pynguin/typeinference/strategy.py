@@ -24,9 +24,9 @@ from typing import Callable, Dict, Optional
 class InferredMethodType:
     """Encapsulates the types inferred for a method"""
 
-    method_signature: Signature
+    method_signature: Optional[Signature] = None
     parameters: Optional[Dict[str, Optional[type]]] = None
-    return_types: Optional[type] = None
+    return_type: Optional[type] = None
 
 
 # pylint: disable=too-few-public-methods

@@ -75,4 +75,4 @@ def test_infer_type_info(method, expected_parameters, expected_return_types):
     strategy = TypeHintsInferenceStrategy()
     result = strategy.infer_type_info(method)
     assert result.parameters == expected_parameters
-    assert result.return_types == expected_return_types
+    assert result.return_type == expected_return_types
