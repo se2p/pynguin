@@ -12,21 +12,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""
-Provides iterators that are more Java-esque.
-"""
+"""Provides iterators that are more Java-esque."""
 from typing import List, Any
 
 
-class ModifyingIterator:
-    """
-    Small iterator that allows to modify the underlying list while iterating over it.
-    """
+class ListIterator:
+    """Small iterator that allows to modify the underlying list while iterating over it."""
 
-    def __init__(self, elements: List[Any]):
-        """
-        Initialize iterator with the given list.
-        """
+    def __init__(self, elements: List[Any]) -> None:
+        """Initialize iterator with the given list."""
 
         assert isinstance(elements, list), "Only works on lists"
         self.elements: List[Any] = elements
@@ -34,7 +28,7 @@ class ModifyingIterator:
 
     def next(self):
         """
-        Checks if there is a next element. If so, returns True and set current to the next element.
+        Checks if there is a next element. If so, returns True and sets current to the next element.
         Otherwise False is returned.
         """
         if self.idx + 1 < len(self.elements):
@@ -43,25 +37,19 @@ class ModifyingIterator:
         return False
 
     def current(self):
-        """
-        Get the current element.
-        """
+        """Get the current element."""
         return self.elements[self.idx]
 
     def has_previous(self):
-        """
-        Check if there is a previous element.
-        """
+        """Check if there is a previous element."""
         return self.idx > 0
 
     def previous(self):
-        """
-        Get the previous element.
-        """
+        """Get the previous element."""
         assert self.has_previous(), "No previous element"
         return self.elements[self.idx - 1]
 
-    def insert_before(self, insert: List[Any], offset=0):
+    def insert_before(self, insert: List[Any], offset: int = 0):
         """
         Insert another list before the current element.
         Offset can be used to insert the list earlier in the list.
