@@ -79,6 +79,14 @@ typed-ast = ">=1.4.0"
 d = ["aiohttp (>=3.3.2)", "aiohttp-cors"]
 
 [[package]]
+category = "main"
+description = "Python module to generate and modify bytecode"
+name = "bytecode"
+optional = false
+python-versions = "*"
+version = "0.9.0"
+
+[[package]]
 category = "dev"
 description = "Composable command line interface toolkit"
 name = "click"
@@ -383,7 +391,7 @@ description = "Alternative regular expression module, to replace re."
 name = "regex"
 optional = false
 python-versions = "*"
-version = "2019.12.9"
+version = "2019.12.17"
 
 [[package]]
 category = "dev"
@@ -442,7 +450,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "74d814446f15565b5971f7cbe0b2376a0b35ffec0cd7f1154f31b7592573ed92"
+content-hash = "52148c7a4cd4dfab57b75b3e7759d79c20ce5261d04a04dbbebb36fa08f419a6"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -473,6 +481,10 @@ attrs = [
 black = [
     {file = "black-19.10b0-py36-none-any.whl", hash = "sha256:1b30e59be925fafc1ee4565e5e08abef6b03fe455102883820fe5ee2e4734e0b"},
     {file = "black-19.10b0.tar.gz", hash = "sha256:c2edb73a08e9e0e6f65a0e6af18b059b8b1cdd5bef997d7a0b181df93dc81539"},
+]
+bytecode = [
+    {file = "bytecode-0.9.0-py3-none-any.whl", hash = "sha256:08eab84ca01bc16e7f5c2f6f7550ab9a98ea5a5839cba8be589e16ffedfe9c96"},
+    {file = "bytecode-0.9.0.tar.gz", hash = "sha256:eaf65fde702a8740c67c9470168c0e095925db269af3cb4dfe78cba73d47fd63"},
 ]
 click = [
     {file = "Click-7.0-py2.py3-none-any.whl", hash = "sha256:2335065e6395b9e67ca716de5f7526736bfa6ceead690adf616d925bdc622b13"},
@@ -641,17 +653,27 @@ pytest-xdist = [
     {file = "pytest_xdist-1.30.0-py2.py3-none-any.whl", hash = "sha256:a8569b027db70112b290911ce2ed732121876632fb3f40b1d39cd2f72f58b147"},
 ]
 regex = [
-    {file = "regex-2019.12.9-cp27-none-win32.whl", hash = "sha256:40b7d1291a56897927e08bb973f8c186c2feb14c7f708bfe7aaee09483e85a20"},
-    {file = "regex-2019.12.9-cp27-none-win_amd64.whl", hash = "sha256:c203c9ee755e9656d0af8fab82754d5a664ebaf707b3f883c7eff6a3dd5151cf"},
-    {file = "regex-2019.12.9-cp35-none-win32.whl", hash = "sha256:719978a9145d59fc78509ea1d1bb74243f93583ef2a34dcc5623cf8118ae9726"},
-    {file = "regex-2019.12.9-cp35-none-win_amd64.whl", hash = "sha256:75cf3796f89f75f83207a5c6a6e14eaf57e0369ef0ffff8e22bf36bbcfa0f1de"},
-    {file = "regex-2019.12.9-cp36-none-win32.whl", hash = "sha256:3dbd8333fd2ebd50977ac8747385a73aa1f546eb6b16fcd83d274470fe11f243"},
-    {file = "regex-2019.12.9-cp36-none-win_amd64.whl", hash = "sha256:ad9e3c7260809c0d1ded100269f78ea0217c0704f1eaaf40a382008461848b45"},
-    {file = "regex-2019.12.9-cp37-none-win32.whl", hash = "sha256:91235c98283d2bddf1a588f0fbc2da8afa37959294bbd18b76297bdf316ba4d6"},
-    {file = "regex-2019.12.9-cp37-none-win_amd64.whl", hash = "sha256:aaffd68c4c1ed891366d5c390081f4bf6337595e76a157baf453603d8e53fbcb"},
-    {file = "regex-2019.12.9-cp38-none-win32.whl", hash = "sha256:e865bc508e316a3a09d36c8621596e6599a203bc54f1cd41020a127ccdac468a"},
-    {file = "regex-2019.12.9-cp38-none-win_amd64.whl", hash = "sha256:77396cf80be8b2a35db863cca4c1a902d88ceeb183adab328b81184e71a5eafe"},
-    {file = "regex-2019.12.9.tar.gz", hash = "sha256:77a3799152951d6d14ae5720ca162c97c64f85d4755da585418eac216b736cad"},
+    {file = "regex-2019.12.17-cp27-cp27m-win32.whl", hash = "sha256:ab0b9e583f9c99755344e7cfa72ba77d8827f04f0f12640ce831b6b0354a8287"},
+    {file = "regex-2019.12.17-cp27-cp27m-win_amd64.whl", hash = "sha256:2e1435c8a9f6b1e5ddfc24daa2cead026cd508e996fca8643c82669c47aa4798"},
+    {file = "regex-2019.12.17-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:d54623291098592bb28ba463d657355e6191c513c0a311098557da71801a46ca"},
+    {file = "regex-2019.12.17-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:dcd2f329f0bff958ca3f97c54a0679e56827944d5e5576b45b41bb2f8441530f"},
+    {file = "regex-2019.12.17-cp36-cp36m-manylinux2010_i686.whl", hash = "sha256:9d11e6f7947afbb51731ad66880723024133af4ff25402df3ada93a3eb348fa5"},
+    {file = "regex-2019.12.17-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:9fe2fc04d4f62469b194bd8f7da41211de3891be3c2520e54892c650ef784c59"},
+    {file = "regex-2019.12.17-cp36-cp36m-win32.whl", hash = "sha256:259b6cd28bcb6a383a5ee5ad2e2b4ff18f817569251bc507ba03347e561d0a68"},
+    {file = "regex-2019.12.17-cp36-cp36m-win_amd64.whl", hash = "sha256:5107bff3ed7643802044667adf34c502ff4f09da4de9817b0212038995e4db73"},
+    {file = "regex-2019.12.17-cp37-cp37m-manylinux1_i686.whl", hash = "sha256:604b2d5ccf1a1bafa0b5494609ba6504608fab40a1cf2c73515cf4b56e017e76"},
+    {file = "regex-2019.12.17-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:753e74c20f99e1852b1d7d495d9ee792828d9ef227090d3f32951066afeca285"},
+    {file = "regex-2019.12.17-cp37-cp37m-manylinux2010_i686.whl", hash = "sha256:d079575ad9325842eada7fc96dc606447bd734eed68a27090a66766d31749eb6"},
+    {file = "regex-2019.12.17-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:f2f458cf79cff09ef1e52013410c8e1ab81bb18c0589d1b76d87589cf2cadbd0"},
+    {file = "regex-2019.12.17-cp37-cp37m-win32.whl", hash = "sha256:1dfa7483f7ca19bce2c1a6ba4dadcb76c44d50c7571998bf947ca64f3bf19953"},
+    {file = "regex-2019.12.17-cp37-cp37m-win_amd64.whl", hash = "sha256:2208314a61b839fd2c692f31dbce589368cd98c5060fd01aa0cc0acb438e8624"},
+    {file = "regex-2019.12.17-cp38-cp38-manylinux1_i686.whl", hash = "sha256:38d7e6f85eaa500cb00dbfd32c1ac771bac108cfcdf8b8943809762582152f01"},
+    {file = "regex-2019.12.17-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:e0ab27c056b272be3394ad93f4e9a72b7b874130a0834c38ab60d26f92416d36"},
+    {file = "regex-2019.12.17-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:d2f51acb2fe1416f542a3110f4523b4fa68f06e0ffb1ea840051f6ceeadc9c15"},
+    {file = "regex-2019.12.17-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:e100698de57d7c6cddf5a1ddc0371c1745fbce5483148b22ada2a411e7806498"},
+    {file = "regex-2019.12.17-cp38-cp38-win32.whl", hash = "sha256:3ae9d4bf8b10a79540d73e8875152bf3a85acf7d329b3ff4ca34cad18c731859"},
+    {file = "regex-2019.12.17-cp38-cp38-win_amd64.whl", hash = "sha256:00b7761f9c3827e72286d8ac8a3c06dedde5a64b472ff248a82e524fa35f8edc"},
+    {file = "regex-2019.12.17.tar.gz", hash = "sha256:e13f8441d3dc50c9e5d5b0e8067609c90f74797c0e7e05a296afb3dc8851f681"},
 ]
 six = [
     {file = "six-1.13.0-py2.py3-none-any.whl", hash = "sha256:1f1b7d42e254082a9db6279deae68afb421ceba6158efa6131de7b3003ee93fd"},

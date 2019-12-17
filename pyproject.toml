@@ -20,7 +20,7 @@ classifiers = [
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
-    "Operating System : MacOS :: MacOS X",
+    "Operating System :: MacOS :: MacOS X",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.8",
     "Topic :: Education :: Testing",
@@ -34,6 +34,7 @@ python = "^3.8"
 coverage = "^4.5"
 configargparse = "^0.15"
 astor = "^0.8.1"
+bytecode = "^0.9.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
