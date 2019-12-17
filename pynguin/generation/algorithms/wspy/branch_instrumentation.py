@@ -12,44 +12,42 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""
-Provides capabilities to perform branch instrumentation
-"""
+"""Provides capabilities to perform branch instrumentation."""
 import inspect
+from types import FunctionType
+from typing import Set
 
 from bytecode import Instr, Bytecode  # type: ignore
 
 from pynguin.generation.algorithms.wspy.tracking import ExecutionTracer
-from pynguin.utils.iterator import ModifyingIterator
+from pynguin.utils.iterator import ListIterator
 
 
 class BranchInstrumentation:
-    """
-    Instruments modules/classes/methods to enable branch distance tracking.
-    """
+    """Instruments modules/classes/methods to enable branch distance tracking."""
 
-    def __init__(self, tracer: ExecutionTracer):
+    _INSTRUMENTED_FLAG: str = "instrumented"
+
+    def __init__(self, tracer: ExecutionTracer) -> None:
         self._predicate_id: int = 0
         self._method_id: int = 0
         self._tracer = tracer
 
-    def instrument_method(self, to_instrument):
-        """
-        Adds branch distance instrumentation to the given method.
-        """
+    def instrument_method(self, to_instrument: FunctionType) -> None:
+        """Adds branch distance instrumentation to the given method."""
         # Prevent multiple instrumentation
         assert not hasattr(
-            to_instrument, "instrumented"
+            to_instrument, BranchInstrumentation._INSTRUMENTED_FLAG
         ), "Method is already instrumented"
-        setattr(to_instrument, "instrumented", True)
+        setattr(to_instrument, BranchInstrumentation._INSTRUMENTED_FLAG, True)
 
         to_instrument.__globals__["tracer"] = self._tracer
         instructions = Bytecode.from_code(to_instrument.__code__)
-        code_iter: ModifyingIterator = ModifyingIterator(instructions)
+        code_iter: ListIterator = ListIterator(instructions)
         method_inserted = False
         while code_iter.next():
             if not method_inserted:
-                self._add_method_entered(code_iter, self._tracer)
+                self._add_method_entered(code_iter)
                 method_inserted = True
             current = code_iter.current()
             if isinstance(current, Instr) and current.is_cond_jump():
@@ -63,7 +61,7 @@ class BranchInstrumentation:
                     self._add_bool_predicate(code_iter)
         to_instrument.__code__ = instructions.to_code()
 
-    def _add_bool_predicate(self, iterator):
+    def _add_bool_predicate(self, iterator: ListIterator) -> None:
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
             Instr("DUP_TOP"),
@@ -78,7 +76,7 @@ class BranchInstrumentation:
         iterator.insert_before(stmts)
         self._predicate_id += 1
 
-    def _add_cmp_predicate(self, iterator):
+    def _add_cmp_predicate(self, iterator: ListIterator) -> None:
         cmp_op = iterator.previous()
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
@@ -95,8 +93,8 @@ class BranchInstrumentation:
         iterator.insert_before(stmts, 1)
         self._predicate_id += 1
 
-    def _add_method_entered(self, iterator: ModifyingIterator, tracer):
-        tracer.method_exists(self._method_id)
+    def _add_method_entered(self, iterator: ListIterator) -> None:
+        self._tracer.method_exists(self._method_id)
         stmts = [
             Instr("LOAD_GLOBAL", "tracer"),
             Instr("LOAD_METHOD", "entered_method"),
@@ -107,16 +105,17 @@ class BranchInstrumentation:
         iterator.insert_before(stmts)
         self._method_id += 1
 
-    def instrument(self, obj, seen=None):
+    def instrument(self, obj, seen: Set = None) -> None:
         """
         Recursively instruments the given object and all methods/classes within it.
         """
-        if seen is None:
+        if not seen:
             seen = set()
-        if obj not in seen:
-            seen.add(obj)
-        else:
+
+        if obj in seen:
             return
+        seen.add(obj)
+
         members = inspect.getmembers(obj)
         for (_, value) in members:
             if inspect.isfunction(value):

@@ -12,82 +12,63 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""
-Provides capabilities to track branch distances.
-"""
+"""Provides capabilities to track branch distances."""
+import numbers
 from typing import Set, Dict
 from math import inf
 from bytecode import Compare  # type: ignore
 
 
 class ExecutionTracer:
-    """
-    Tracks branch distances during execution.
-    """
+    """Tracks branch distances during execution."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._existing_predicates: Set[int] = set()
         self._existing_methods: Set[int] = set()
         self._init_tracking()
 
-    def clear_tracking(self):
-        """
-        Remove gathered data. Does not delete known predicates or methods.
-        """
+    def clear_tracking(self) -> None:
+        """Remove gathered data. Does not delete known predicates or methods."""
         self._init_tracking()
 
-    def _init_tracking(self):
+    def _init_tracking(self) -> None:
         self._covered_methods: Set[int] = set()
-        self._covered_predicates: Dict[int, int] = dict()
-        self._true_distances: Dict[int, float] = dict()
-        self._false_distances: Dict[int, float] = dict()
+        self._covered_predicates: Dict[int, int] = {}
+        self._true_distances: Dict[int, float] = {}
+        self._false_distances: Dict[int, float] = {}
 
     @property
-    def existing_predicates(self):
-        """
-        Get existing predicates.
-        """
+    def existing_predicates(self) -> Set[int]:
+        """Get existing predicates."""
         return set(self._existing_predicates)
 
     @property
-    def existing_methods(self):
-        """
-        Get existing methods.
-        """
+    def existing_methods(self) -> Set[int]:
+        """Get existing methods."""
         return set(self._existing_methods)
 
     @property
-    def covered_methods(self):
-        """
-        Get covered methods.
-        """
+    def covered_methods(self) -> Set[int]:
+        """Get covered methods."""
         return set(self._covered_methods)
 
     @property
-    def covered_predicates(self):
-        """
-        Get covered predicates and how often they were executed.
-        """
+    def covered_predicates(self) -> Dict[int, int]:
+        """Get covered predicates and how often they were executed."""
         return dict(self._covered_predicates)
 
     @property
-    def true_distances(self):
-        """
-        Get the minimum distances from "True" per predicate.
-        """
+    def true_distances(self) -> Dict[int, float]:
+        """Get the minimum distances from "True" per predicate."""
         return dict(self._true_distances)
 
     @property
-    def false_distances(self):
-        """
-        Get the minimum distances from "False" per predicate.
-        """
+    def false_distances(self) -> Dict[int, float]:
+        """Get the minimum distances from "False" per predicate."""
         return dict(self._false_distances)
 
     def get_fitness(self) -> float:
-        """
-        Get the fitness of a test suite that generated the tracked data.
-        """
+        """Get the fitness of a test suite that generated the tracked data."""
         fit: float = len(self._existing_methods) - len(self._covered_methods)
         assert fit >= 0.0, "Amount of non covered methods cannot be negative"
         for predicate in self._existing_predicates:
@@ -113,31 +94,23 @@ class ExecutionTracer:
         assert normalize >= 0.0, "Can only normalize non negative values"
         return normalize / (normalize + 1.0)
 
-    def method_exists(self, method: int):
-        """
-        Declare that a methods exists.
-        """
+    def method_exists(self, method: int) -> None:
+        """Declare that a methods exists."""
         assert method not in self._existing_methods, "Method is already known"
         self._existing_methods.add(method)
 
-    def entered_method(self, method: int):
-        """
-        Mark a methods as covered. This means, that the methods was at least entered once.
-        """
+    def entered_method(self, method: int) -> None:
+        """Mark a methods as covered. This means, that the methods was at least entered once."""
         assert method in self._existing_methods, "Cannot trace unknown method"
         self._covered_methods.add(method)
 
-    def predicate_exists(self, predicate: int):
-        """
-        Declare that a predicate exists.
-        """
+    def predicate_exists(self, predicate: int) -> None:
+        """Declare that a predicate exists."""
         assert predicate not in self._existing_predicates, "Predicate is already known"
         self._existing_predicates.add(predicate)
 
-    def passed_cmp_predicate(self, value1, value2, predicate: int, cmp_op):
-        """
-        A predicate that is based on a comparision was passed.
-        """
+    def passed_cmp_predicate(self, value1, value2, predicate: int, cmp_op: Compare):
+        """A predicate that is based on a comparision was passed."""
         assert predicate in self._existing_predicates, "Cannot trace unknown predicate"
         distance_true = 0.0
         distance_false = 0.0
@@ -198,10 +171,8 @@ class ExecutionTracer:
 
         self._update_metrics(distance_false, distance_true, predicate)
 
-    def passed_bool_predicate(self, value, predicate):
-        """
-        A predicate that is based on a boolean value was passed.
-        """
+    def passed_bool_predicate(self, value, predicate: int):
+        """A predicate that is based on a boolean value was passed."""
         assert predicate in self._existing_predicates, "Cannot trace unknown predicate"
         distance_true = 0.0
         distance_false = 0.0
@@ -212,7 +183,12 @@ class ExecutionTracer:
 
         self._update_metrics(distance_false, distance_true, predicate)
 
-    def _update_metrics(self, distance_false, distance_true, predicate):
+    def _update_metrics(
+        self, distance_false: float, distance_true: float, predicate: int
+    ):
+        assert predicate in self._existing_predicates, "Cannot update unknown predicate"
+        assert distance_true >= 0.0, "True distance cannot be negative"
+        assert distance_false >= 0.0, "False distance cannot be negative"
         self._covered_predicates[predicate] = (
             self._covered_predicates.get(predicate, 0) + 1
         )
@@ -224,14 +200,20 @@ class ExecutionTracer:
         )
 
     @staticmethod
+    def _is_numeric(value):
+        return isinstance(value, numbers.Number)
+
+    @staticmethod
     def _eq(val1, val2):
-        if abs(val1 - val2) == 0:
+        if val1 == val2:
             return 0.0
-        return abs(val1 - val2)
+        if ExecutionTracer._is_numeric(val1) and ExecutionTracer._is_numeric(val2):
+            return abs(val1 - val2)
+        return 1.0
 
     @staticmethod
     def _neq(val1, val2):
-        if abs(val1 - val2) != 0:
+        if val1 != val2:
             return 0.0
         return 1.0
 
