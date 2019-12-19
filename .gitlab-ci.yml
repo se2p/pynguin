@@ -23,11 +23,6 @@ unit-tests:python-3.8:
   variables:
     PYTHON_VERSION: '3.8-buster'
 
-unit-tests:python-3.9:
-  <<: *unit-tests
-  variables:
-    PYTHON_VERSION: '3.9-rc-buster'
-
 .nightly-tests:
   only:
     - schedules
@@ -44,11 +39,6 @@ nightly-tests:python-3.8:
   extends: .nightly-tests
   variables:
     PYTHON_VERSION: '3.8-buster'
-
-nightly-tests:python-3.9:
-  extends: .nightly-tests
-  variables:
-    PYTHON_VERSION: '3.9-rc-buster'
 
 flake8:
   stage: build
