@@ -189,6 +189,9 @@ class ExecutionTracer:
         assert predicate in self._existing_predicates, "Cannot update unknown predicate"
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
+        assert (distance_true == 0.0 and distance_false > 0.0) or (
+            distance_false == 0.0 and distance_true > 0.0
+        ), "Exactly one distance must be 0.0"
         self._covered_predicates[predicate] = (
             self._covered_predicates.get(predicate, 0) + 1
         )
