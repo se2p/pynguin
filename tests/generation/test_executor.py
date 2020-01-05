@@ -15,6 +15,7 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from coverage import Coverage
 
 from pynguin.generation.executor import Executor
