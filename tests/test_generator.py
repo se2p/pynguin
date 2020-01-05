@@ -35,15 +35,16 @@ def configuration():
 
 
 def test__setup_logging_standard_with_log_file():
-    _, log_file = tempfile.mkstemp()
+    log_fd, log_file = tempfile.mkstemp()
     logging.shutdown()
     importlib.reload(logging)
     logger = Pynguin._setup_logging(log_file=log_file)
     assert isinstance(logger, logging.Logger)
     assert logger.level == logging.DEBUG
     assert len(logger.handlers) == 2
-    os.remove(log_file)
     logging.shutdown()
+    os.close(log_fd)
+    os.remove(log_file)
     importlib.reload(logging)
 
 

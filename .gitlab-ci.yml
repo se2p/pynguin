@@ -18,11 +18,6 @@ before_script:
     paths:
       - cov_html
 
-unit-tests:python-3.7:
-  <<: *unit-tests
-  variables:
-    PYTHON_VERSION: '3.7'
-
 unit-tests:python-3.8:
   <<: *unit-tests
   variables:
@@ -40,11 +35,6 @@ unit-tests:python-3.8:
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov-branch --random-order --random-order-bucket=global ; done
 
-nightly-tests:python-3.7:
-  extends: .nightly-tests
-  variables:
-    PYTHON_VERSION: '3.7'
-
 nightly-tests:python-3.8:
   extends: .nightly-tests
   variables:
@@ -52,33 +42,33 @@ nightly-tests:python-3.8:
 
 flake8:
   stage: build
-  image: python:3.7
+  image: python:3.8
   script:
     - poetry run flake8 .
 mypy:
   stage: build
-  image: python:3.7
+  image: python:3.8
   script:
     - poetry run mypy pynguin
 
 pylint:
   stage: build
-  image: python:3.7
+  image: python:3.8
   script:
     - poetry run pylint pynguin
 
 black:
   stage: build
-  image: python:3.7
+  image: python:3.8
   script:
     - poetry run black --check .
 
 pages:
   stage: deploy
   variables:
-    PYTHON_VERSION: '3.7'
+    PYTHON_VERSION: '3.8'
   dependencies:
-    - unit-tests:python-3.7
+    - unit-tests:python-3.8
   before_script:
     - mkdir -p ~/.ssh
     - echo -e "$DEPLOY_KEY" > ~/.ssh/id_ed25519

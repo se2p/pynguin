@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 .idea
 cov_html/
+.dmypy.json

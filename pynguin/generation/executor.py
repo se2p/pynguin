@@ -55,6 +55,11 @@ class Executor:
         """Provides access to the accumulated coverage property."""
         return self._accumulated_coverage
 
+    @property
+    def load_coverage(self) -> Coverage:
+        """Provides access to the load coverage property."""
+        return self._load_coverage
+
     def execute(
         self, sequence: Sequence
     ) -> Tuple[Dict[str, Any], Dict[str, Any], List[Exception], Sequence]:
