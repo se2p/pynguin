@@ -17,6 +17,7 @@ import contextlib
 import importlib
 import inspect
 import logging
+import os
 from typing import List, Any, Tuple, Dict, Type, Callable, Union
 
 from coverage import Coverage  # type: ignore
@@ -142,7 +143,7 @@ class Executor:
         exceptions: List[Exception] = []
         inputs: Dict[str, Any] = {}
 
-        with open("/dev/null", mode="w") as null_file:
+        with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 executed_sequence = Sequence()
                 try:
