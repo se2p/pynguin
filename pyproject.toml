@@ -72,6 +72,22 @@ exclude = '''
 )
 '''
 
+[tool.coverage.run]
+branch = true
+source = ["pynguin", "tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]
+
+[tool.coverage.html]
+directory = "cov_html"
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
