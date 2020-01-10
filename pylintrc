@@ -62,6 +62,7 @@ confidence=
 # --disable=W".
 disable=print-statement,
         bad-continuation,
+        protected-access,
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,
