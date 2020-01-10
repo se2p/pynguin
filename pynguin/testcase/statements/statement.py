@@ -23,9 +23,7 @@ from pynguin.testcase.variable.variablereference import VariableReference
 class Statement(metaclass=ABCMeta):
     """An abstract base class of a statement representation."""
 
-    def __init__(
-        self, return_value: VariableReference, return_type: Type,
-    ) -> None:
+    def __init__(self, return_value: VariableReference, return_type: Type,) -> None:
         self._return_value = return_value
         self._return_type = return_type
         self._logger = logging.getLogger(__name__)
