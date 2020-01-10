@@ -14,10 +14,14 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a base implementation of a variable in a test case."""
 from abc import ABCMeta, abstractmethod
+from typing import Type
 
 
 class VariableReference(metaclass=ABCMeta):
     """Represents a variable in a test case."""
+
+    def __init__(self, variable_type: Type) -> None:
+        self._variable_type = variable_type
 
     @abstractmethod
     def clone(self) -> "VariableReference":
@@ -25,3 +29,19 @@ class VariableReference(metaclass=ABCMeta):
 
         :return: A deep copy of the current variable
         """
+
+    @property
+    def variable_type(self) -> Type:
+        """Provides the type of this variable.
+
+        :return: The type of this variable
+        """
+        return self._variable_type
+
+    @variable_type.setter
+    def variable_type(self, variable_type: Type) -> None:
+        """Allows to set the type of this variable.
+
+        :param variable_type: The new type of this variable
+        """
+        self._variable_type = variable_type
