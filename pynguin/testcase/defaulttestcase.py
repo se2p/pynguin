@@ -14,7 +14,6 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a default implementation of a test case."""
 import logging
-from functools import reduce
 from typing import List, Any
 
 from pynguin.testcase.statements.statement import Statement

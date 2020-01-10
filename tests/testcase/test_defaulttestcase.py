@@ -151,7 +151,7 @@ def test_hash(default_test_case):
     [
         pytest.param(get_default_test_case(), None, False),
         pytest.param(get_default_test_case(), "Foo", False),
-    ]
+    ],
 )
 def test_eq_parameterized(test_case, other, result):
     assert test_case.__eq__(other) == result
@@ -188,3 +188,14 @@ def test_eq_statements_4(default_test_case):
     other._statements = statements
     assert default_test_case.__eq__(other)
 
+
+def test_clone(default_test_case):
+    stmt = MagicMock(Statement)
+    ref = MagicMock(VariableReference)
+    stmt.clone.return_value = stmt
+    stmt.return_value.clone.return_value = ref
+    default_test_case._statements = [stmt]
+    result = default_test_case.clone()
+    assert result.id == 2
+    assert result.size() == 1
+    assert result.get_statement(0) == stmt
