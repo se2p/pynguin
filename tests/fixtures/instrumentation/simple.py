@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 
 
-def simple_method(a):
+def simple_function(a):
     return a
 
 
