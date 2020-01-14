@@ -23,12 +23,12 @@ def test_default_fitness():
     assert tracer.get_fitness() == 0.0
 
 
-def test_fitness_method_diff():
+def test_fitness_function_diff():
     tracer = ExecutionTracer()
-    tracer.method_exists(0)
-    tracer.method_exists(1)
-    tracer.method_exists(2)
-    tracer.entered_method(0)
+    tracer.function_exists(0)
+    tracer.function_exists(1)
+    tracer.function_exists(2)
+    tracer.entered_function(0)
     assert tracer.get_fitness() == 2.0
 
 
@@ -71,8 +71,8 @@ def test_fitness_normalized():
 
 def test_clear_tracking():
     tracer = ExecutionTracer()
-    tracer.method_exists(0)
-    tracer.entered_method(0)
+    tracer.function_exists(0)
+    tracer.entered_function(0)
     tracer.predicate_exists(0)
     tracer.passed_bool_predicate(True, 0)
     assert tracer.get_fitness() == 1.0
@@ -80,17 +80,17 @@ def test_clear_tracking():
     assert tracer.get_fitness() == 3.0
 
 
-def test_method_exists():
+def test_functions_exists():
     tracer = ExecutionTracer()
-    tracer.method_exists(0)
-    assert 0 in tracer.existing_methods
+    tracer.function_exists(0)
+    assert 0 in tracer.existing_functions
 
 
-def test_entered_method():
+def test_entered_function():
     tracer = ExecutionTracer()
-    tracer.method_exists(0)
-    tracer.entered_method(0)
-    assert 0 in tracer.covered_methods
+    tracer.function_exists(0)
+    tracer.entered_function(0)
+    assert 0 in tracer.covered_functions
 
 
 def test_predicate_exists():
@@ -170,7 +170,7 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
 def test_unknown_comp():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
-    with pytest.raises(AssertionError):
+    with pytest.raises(Exception):
         tracer.passed_cmp_predicate(1, 1, 0, Compare.EXC_MATCH)
 
 

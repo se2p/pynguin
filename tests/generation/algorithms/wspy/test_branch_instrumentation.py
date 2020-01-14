@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 
 import importlib
+import asyncio
 import pytest
 from unittest.mock import Mock, call
 from pynguin.generation.algorithms.wspy.branch_instrumentation import (
@@ -28,19 +29,19 @@ def simple_module():
     return simple
 
 
-def test_entered_method(simple_module):
+def test_entered_function(simple_module):
     tracer = Mock()
     instr = BranchInstrumentation(tracer)
-    instr.instrument_method(simple_module.simple_method)
-    simple_module.simple_method(1)
-    tracer.method_exists.assert_called_once()
-    tracer.entered_method.assert_called_once()
+    instr.instrument_function(simple_module.simple_function)
+    simple_module.simple_function(1)
+    tracer.function_exists.assert_called_once()
+    tracer.entered_function.assert_called_once()
 
 
 def test_add_bool_predicate(simple_module):
     tracer = Mock()
     instr = BranchInstrumentation(tracer)
-    instr.instrument_method(simple_module.bool_predicate)
+    instr.instrument_function(simple_module.bool_predicate)
     simple_module.bool_predicate(True)
     tracer.predicate_exists.assert_called_once()
     tracer.passed_bool_predicate.assert_called_once()
@@ -49,13 +50,22 @@ def test_add_bool_predicate(simple_module):
 def test_add_cmp_predicate(simple_module):
     tracer = Mock()
     instr = BranchInstrumentation(tracer)
-    instr.instrument_method(simple_module.cmp_predicate)
+    instr.instrument_function(simple_module.cmp_predicate)
     simple_module.cmp_predicate(1, 2)
     tracer.predicate_exists.assert_called_once()
     tracer.passed_cmp_predicate.assert_called_once()
 
 
-def test_module_instrumentation():
+def test_avoid_duplicate_instrumentation(simple_module):
+    tracer = Mock()
+    instr = BranchInstrumentation(tracer)
+    instr.instrument_function(simple_module.cmp_predicate)
+    with pytest.raises(AssertionError):
+        instr.instrument_function(simple_module.cmp_predicate)
+
+
+def test_module_instrumentation_integration():
+    """Small integration test, which tests the instrumentation for various function types."""
     mixed = importlib.import_module("tests.fixtures.instrumentation.mixed")
     mixed = importlib.reload(mixed)
     tracer = Mock()
@@ -63,8 +73,26 @@ def test_module_instrumentation():
     instr.instrument(mixed)
 
     inst = mixed.TestClass(5)
-    inst.foo()
-    mixed.module_function()
+    inst.method(5)
+    inst.method_with_nested(5)
+    mixed.function(5)
+    sum(mixed.generator())
+    asyncio.run(mixed.coroutine(5))
+    asyncio.run(run_async_generator(mixed.async_generator()))
 
-    tracer.method_exists.assert_has_calls([call(0), call(1), call(2)])
-    tracer.entered_method.assert_has_calls([call(0), call(1), call(2)])
+    # The number of functions defined in mixed
+    call_count = 8
+    calls: list = [call(i) for i in range(call_count)]
+
+    tracer.function_exists.assert_has_calls(calls, any_order=True)
+    assert tracer.function_exists.call_count == call_count
+    tracer.entered_function.assert_has_calls(calls, any_order=True)
+    assert tracer.entered_function.call_count == call_count
+
+
+async def run_async_generator(gen):
+    """Small helper to execute async generator"""
+    the_sum = 0
+    async for i in gen:
+        the_sum += i
+    return the_sum

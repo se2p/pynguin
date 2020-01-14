@@ -24,15 +24,15 @@ class ExecutionTracer:
 
     def __init__(self) -> None:
         self._existing_predicates: Set[int] = set()
-        self._existing_methods: Set[int] = set()
+        self._existing_functions: Set[int] = set()
         self._init_tracking()
 
     def clear_tracking(self) -> None:
-        """Remove gathered data. Does not delete known predicates or methods."""
+        """Remove gathered data. Does not delete known predicates or functions."""
         self._init_tracking()
 
     def _init_tracking(self) -> None:
-        self._covered_methods: Set[int] = set()
+        self._covered_functions: Set[int] = set()
         self._covered_predicates: Dict[int, int] = {}
         self._true_distances: Dict[int, float] = {}
         self._false_distances: Dict[int, float] = {}
@@ -43,14 +43,14 @@ class ExecutionTracer:
         return set(self._existing_predicates)
 
     @property
-    def existing_methods(self) -> Set[int]:
-        """Get existing methods."""
-        return set(self._existing_methods)
+    def existing_functions(self) -> Set[int]:
+        """Get existing functions."""
+        return set(self._existing_functions)
 
     @property
-    def covered_methods(self) -> Set[int]:
-        """Get covered methods."""
-        return set(self._covered_methods)
+    def covered_functions(self) -> Set[int]:
+        """Get covered functions."""
+        return set(self._covered_functions)
 
     @property
     def covered_predicates(self) -> Dict[int, int]:
@@ -69,8 +69,8 @@ class ExecutionTracer:
 
     def get_fitness(self) -> float:
         """Get the fitness of a test suite that generated the tracked data."""
-        fit: float = len(self._existing_methods) - len(self._covered_methods)
-        assert fit >= 0.0, "Amount of non covered methods cannot be negative"
+        fit: float = len(self._existing_functions) - len(self._covered_functions)
+        assert fit >= 0.0, "Amount of non covered functions cannot be negative"
         for predicate in self._existing_predicates:
             fit += self._predicate_fitness(predicate, self._true_distances)
             fit += self._predicate_fitness(predicate, self._false_distances)
@@ -94,15 +94,15 @@ class ExecutionTracer:
         assert normalize >= 0.0, "Can only normalize non negative values"
         return normalize / (normalize + 1.0)
 
-    def method_exists(self, method: int) -> None:
-        """Declare that a methods exists."""
-        assert method not in self._existing_methods, "Method is already known"
-        self._existing_methods.add(method)
+    def function_exists(self, function_id: int) -> None:
+        """Declare that a function exists."""
+        assert function_id not in self._existing_functions, "Function is already known"
+        self._existing_functions.add(function_id)
 
-    def entered_method(self, method: int) -> None:
-        """Mark a methods as covered. This means, that the methods was at least entered once."""
-        assert method in self._existing_methods, "Cannot trace unknown method"
-        self._covered_methods.add(method)
+    def entered_function(self, function_id: int) -> None:
+        """Mark a function as covered. This means, that the function was at least entered once."""
+        assert function_id in self._existing_functions, "Cannot trace unknown function"
+        self._covered_functions.add(function_id)
 
     def predicate_exists(self, predicate: int) -> None:
         """Declare that a predicate exists."""
@@ -165,8 +165,10 @@ class ExecutionTracer:
                 self._is(value1, value2),
             )
         else:
-            assert False, "Unknown cmp_op {0}, value1={1}, value2={2}".format(
-                str(cmp_op), str(value1), str(value2)
+            raise Exception(
+                "Unknown cmp_op {0}, value1={1}, value2={2}".format(
+                    str(cmp_op), str(value1), str(value2)
+                )
             )
 
         self._update_metrics(distance_false, distance_true, predicate)
