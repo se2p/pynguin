@@ -196,6 +196,6 @@ def test_clone(default_test_case):
     stmt.return_value.clone.return_value = ref
     default_test_case._statements = [stmt]
     result = default_test_case.clone()
-    assert result.id == 2
+    assert result.id != default_test_case.id
     assert result.size() == 1
     assert result.get_statement(0) == stmt

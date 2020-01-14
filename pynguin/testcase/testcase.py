@@ -27,8 +27,10 @@ class TestCase(metaclass=ABCMeta):
     Serves as an interface for test-case implementations
     """
 
+    _id_generator = AtomicInteger()
+
     def __init__(self) -> None:
-        self._id_generator = AtomicInteger()
+        pass
 
     @abstractmethod
     def accept(self, visitor) -> None:
