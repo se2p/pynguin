@@ -79,7 +79,7 @@ class DefaultTestCase(TestCase):
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
-    def clone(self) -> DefaultTestCase:
+    def clone(self) -> TestCase:
         test_case = DefaultTestCase()
         for statement in self._statements:
             copy = statement.clone(test_case)
