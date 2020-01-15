@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an implementation for a test case."""
+from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import List
 
@@ -103,7 +104,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clone(self) -> "TestCase":
+    def clone(self) -> TestCase:
         """Provides a deep copy of the test case.
 
         :return: A deep copy of this test case

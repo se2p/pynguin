@@ -13,19 +13,22 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a base implementation of a statement representation."""
+from __future__ import annotations
+
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Type, Any
+from typing import Any
 
+from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.variable.variablereference import VariableReference
 
 
 class Statement(metaclass=ABCMeta):
     """An abstract base class of a statement representation."""
 
-    def __init__(self, return_value: VariableReference, return_type: Type,) -> None:
+    def __init__(self, test_case: TestCase, return_value: VariableReference) -> None:
+        self._test_case = test_case
         self._return_value = return_value
-        self._return_type = return_type
         self._logger = logging.getLogger(__name__)
 
     @property
@@ -44,9 +47,18 @@ class Statement(metaclass=ABCMeta):
         """
         self._return_value = reference
 
+    @property
+    def test_case(self) -> TestCase:
+        """Provides the test case in which this statement is used.
+
+        :return: The containing test case
+        """
+        return self._test_case
+
     @abstractmethod
-    def clone(self) -> "Statement":
+    def clone(self, test_case: TestCase) -> Statement:
         """Provides a deep clone of this statement.
+        :param test_case: the new test case in which the clone will be used.
 
         :return: A deep clone of this statement
         """

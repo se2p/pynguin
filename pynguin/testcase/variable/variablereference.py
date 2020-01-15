@@ -13,19 +13,24 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a base implementation of a variable in a test case."""
+from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import Type
+
+from pynguin.testcase.testcase import TestCase
 
 
 class VariableReference(metaclass=ABCMeta):
     """Represents a variable in a test case."""
 
-    def __init__(self, variable_type: Type) -> None:
+    def __init__(self, test_case: TestCase, variable_type: Type) -> None:
         self._variable_type = variable_type
+        self._test_case = test_case
 
     @abstractmethod
-    def clone(self) -> "VariableReference":
+    def clone(self, test_case: TestCase) -> VariableReference:
         """Provides a deep copy of the current variable.
+        :param test_case: the new test case in which this clone will be used.
 
         :return: A deep copy of the current variable
         """
@@ -45,3 +50,11 @@ class VariableReference(metaclass=ABCMeta):
         :param variable_type: The new type of this variable
         """
         self._variable_type = variable_type
+
+    @property
+    def test_case(self) -> TestCase:
+        """Provides the test case in which this variable reference is used.
+
+        :return: The containing test case
+        """
+        return self._test_case

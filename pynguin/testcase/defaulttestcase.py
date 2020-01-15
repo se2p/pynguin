@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a default implementation of a test case."""
+from __future__ import annotations
 import logging
 from typing import List, Any
 
@@ -78,12 +79,12 @@ class DefaultTestCase(TestCase):
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
-    def clone(self) -> "TestCase":
+    def clone(self) -> DefaultTestCase:
         test_case = DefaultTestCase()
         for statement in self._statements:
-            copy = statement.clone()
+            copy = statement.clone(test_case)
             test_case._statements.append(copy)
-            copy.return_value = statement.return_value.clone()
+            copy.return_value = statement.return_value.clone(test_case)
         test_case._is_failing = self._is_failing
         test_case._id = self._id_generator.inc()
         return test_case
