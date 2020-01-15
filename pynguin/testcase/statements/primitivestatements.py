@@ -16,19 +16,17 @@
 from abc import abstractmethod
 from typing import Type, Any
 
-from pynguin.testcase.statements.statement import Statement
-from pynguin.testcase.testcase import TestCase
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
-from pynguin.testcase.variable.variablereferenceimpl import VariableReferenceImpl
-
-
-class PrimitiveStatement(Statement):
+class PrimitiveStatement(stmt.Statement):
     # TODO(fk) add generic annotation of value type.
     """Abstract primitive statement which holds a value."""
 
-    def __init__(self, test_case: TestCase, variable_type: Type, value: Any) -> None:
-        super().__init__(test_case, VariableReferenceImpl(test_case, variable_type))
+    def __init__(self, test_case: tc.TestCase, variable_type: Type, value: Any) -> None:
+        super().__init__(test_case, vri.VariableReferenceImpl(test_case, variable_type))
         self._value = value
 
     @property
@@ -49,50 +47,50 @@ class PrimitiveStatement(Statement):
 class IntPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates an int."""
 
-    def __init__(self, test_case: TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
         pass
 
-    def clone(self, test_case: TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
 
 
 class FloatPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a float."""
 
-    def __init__(self, test_case: TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
         pass
 
-    def clone(self, test_case: TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
 
 
 class StringPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a String."""
 
-    def __init__(self, test_case: TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
         pass
 
-    def clone(self, test_case: TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
 
 
 class BooleanPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a boolean."""
 
-    def __init__(self, test_case: TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
         super().__init__(test_case, bool, value)
 
     def randomize_value(self) -> None:
         pass
 
-    def clone(self, test_case: TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)

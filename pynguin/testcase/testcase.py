@@ -17,8 +17,8 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import List
 
-from pynguin.testcase.statements.statement import Statement
-from pynguin.testcase.variable.variablereference import VariableReference
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.atomicinteger import AtomicInteger
 
 
@@ -44,8 +44,8 @@ class TestCase(metaclass=ABCMeta):
 
     @abstractmethod
     def add_statement(
-        self, statement: Statement, position: int = -1
-    ) -> VariableReference:
+        self, statement: stmt.Statement, position: int = -1
+    ) -> vr.VariableReference:
         """Adds a new statement to the test case.
 
         The optional position parameter specifies the position.  If it is not given,
@@ -59,7 +59,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def add_statements(self, statements: List[Statement]) -> None:
+    def add_statements(self, statements: List[stmt.Statement]) -> None:
         """Adds a list of statements to the end of the test case.
 
         :param statements: The list of statements to add
@@ -80,7 +80,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def contains(self, statement: Statement) -> bool:
+    def contains(self, statement: stmt.Statement) -> bool:
         """Determines whether or not the test case contains a specific statement.
 
         :param statement: The statement to search in the test case
@@ -88,7 +88,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_statement(self, position: int) -> Statement:
+    def get_statement(self, position: int) -> stmt.Statement:
         """Provides access to a statement at a given position.
 
         :param position: The position of the statement in the test case

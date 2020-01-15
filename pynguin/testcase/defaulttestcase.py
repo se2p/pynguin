@@ -17,19 +17,19 @@ from __future__ import annotations
 import logging
 from typing import List, Any
 
-from pynguin.testcase.statements.statement import Statement
-from pynguin.testcase.testcase import TestCase
-from pynguin.testcase.variable.variablereference import VariableReference
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
 
 
-class DefaultTestCase(TestCase):
+class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
     # pylint: disable=invalid-name
     def __init__(self) -> None:
         super().__init__()
         self._logger = logging.getLogger(__name__)
-        self._statements: List[Statement] = []
+        self._statements: List[stmt.Statement] = []
         self._is_failing: bool = False
         self._id = self._id_generator.inc()
 
@@ -47,15 +47,15 @@ class DefaultTestCase(TestCase):
         pass
 
     def add_statement(
-        self, statement: Statement, position: int = -1
-    ) -> VariableReference:
+        self, statement: stmt.Statement, position: int = -1
+    ) -> vr.VariableReference:
         if position == -1:
             self._statements.append(statement)
         else:
             self._statements.insert(position, statement)
         return statement.return_value
 
-    def add_statements(self, statements: List[Statement]) -> None:
+    def add_statements(self, statements: List[stmt.Statement]) -> None:
         self._statements.extend(statements)
 
     def remove(self, position: int) -> None:
@@ -69,17 +69,17 @@ class DefaultTestCase(TestCase):
         while len(self._statements) > length:
             del self._statements[-1]
 
-    def contains(self, statement: Statement) -> bool:
+    def contains(self, statement: stmt.Statement) -> bool:
         return statement in self._statements
 
-    def get_statement(self, position: int) -> Statement:
+    def get_statement(self, position: int) -> stmt.Statement:
         assert 0 <= position < len(self._statements)
         return self._statements[position]
 
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
-    def clone(self) -> TestCase:
+    def clone(self) -> tc.TestCase:
         test_case = DefaultTestCase()
         for statement in self._statements:
             copy = statement.clone(test_case)

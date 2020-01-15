@@ -16,26 +16,26 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.testcase.defaulttestcase import DefaultTestCase
-from pynguin.testcase.statements.statement import Statement
-from pynguin.testcase.variable.variablereference import VariableReference
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.statement as st
+import pynguin.testcase.variable.variablereference as vr
 
 
 @pytest.fixture
 def default_test_case():
     # TODO what about the logger, should be a mock
-    return DefaultTestCase()
+    return dtc.DefaultTestCase()
 
 
 def get_default_test_case():
-    return DefaultTestCase()
+    return dtc.DefaultTestCase()
 
 
 def test_add_statement_end(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
-    stmt_3.return_value = MagicMock(VariableReference)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
+    stmt_3.return_value = MagicMock(vr.VariableReference)
     default_test_case._statements.extend([stmt_1, stmt_2])
 
     reference = default_test_case.add_statement(stmt_3)
@@ -44,10 +44,10 @@ def test_add_statement_end(default_test_case):
 
 
 def test_add_statement_middle(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_2.return_value = MagicMock(VariableReference)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_2.return_value = MagicMock(vr.VariableReference)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_3])
 
     reference = default_test_case.add_statement(stmt_2, position=1)
@@ -56,9 +56,9 @@ def test_add_statement_middle(default_test_case):
 
 
 def test_add_statements(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.append(stmt_1)
     default_test_case.add_statements([stmt_2, stmt_3])
     assert default_test_case._statements == [stmt_1, stmt_2, stmt_3]
@@ -75,28 +75,28 @@ def test_failing(default_test_case):
 
 
 def test_chop(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
     default_test_case.chop(2)
     assert default_test_case._statements == [stmt_1, stmt_2]
 
 
 def test_contains_true(default_test_case):
-    stmt = MagicMock(Statement)
+    stmt = MagicMock(st.Statement)
     default_test_case._statements.append(stmt)
     assert default_test_case.contains(stmt)
 
 
 def test_contains_false(default_test_case):
-    assert not default_test_case.contains(MagicMock(Statement))
+    assert not default_test_case.contains(MagicMock(st.Statement))
 
 
 def test_size(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
     assert default_test_case.size() == 3
 
@@ -106,18 +106,18 @@ def test_remove_nothing(default_test_case):
 
 
 def test_remove(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
     default_test_case.remove(1)
     assert default_test_case._statements == [stmt_1, stmt_3]
 
 
 def test_get_statement(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
     assert default_test_case.get_statement(1) == stmt_2
 
@@ -133,9 +133,9 @@ def test_get_statement_positive_position(default_test_case):
 
 
 def test_has_statement(default_test_case):
-    stmt_1 = MagicMock(Statement)
-    stmt_2 = MagicMock(Statement)
-    stmt_3 = MagicMock(Statement)
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
     assert not default_test_case.has_statement(-1)
     assert default_test_case.has_statement(1)
@@ -162,36 +162,36 @@ def test_eq_same(default_test_case):
 
 
 def test_eq_statements_1(default_test_case):
-    other = DefaultTestCase()
-    other._statements = [MagicMock(Statement)]
+    other = dtc.DefaultTestCase()
+    other._statements = [MagicMock(st.Statement)]
     assert not default_test_case.__eq__(other)
 
 
 def test_eq_statements_2(default_test_case):
-    default_test_case._statements = [MagicMock(Statement)]
-    other = DefaultTestCase()
-    other._statements = [MagicMock(Statement), MagicMock(Statement)]
+    default_test_case._statements = [MagicMock(st.Statement)]
+    other = dtc.DefaultTestCase()
+    other._statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
     assert not default_test_case.__eq__(other)
 
 
 def test_eq_statements_3(default_test_case):
-    default_test_case._statements = [MagicMock(Statement)]
-    other = DefaultTestCase()
-    other._statements = [MagicMock(Statement)]
+    default_test_case._statements = [MagicMock(st.Statement)]
+    other = dtc.DefaultTestCase()
+    other._statements = [MagicMock(st.Statement)]
     assert not default_test_case.__eq__(other)
 
 
 def test_eq_statements_4(default_test_case):
-    statements = [MagicMock(Statement), MagicMock(Statement)]
+    statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
     default_test_case._statements = statements
-    other = DefaultTestCase()
+    other = dtc.DefaultTestCase()
     other._statements = statements
     assert default_test_case.__eq__(other)
 
 
 def test_clone(default_test_case):
-    stmt = MagicMock(Statement)
-    ref = MagicMock(VariableReference)
+    stmt = MagicMock(st.Statement)
+    ref = MagicMock(vr.VariableReference)
     stmt.clone.return_value = stmt
     stmt.return_value.clone.return_value = ref
     default_test_case._statements = [stmt]

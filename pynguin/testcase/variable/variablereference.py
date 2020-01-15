@@ -17,18 +17,18 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import Type
 
-from pynguin.testcase.testcase import TestCase
+import pynguin.testcase.testcase as tc  # pylint: disable=cyclic-import
 
 
 class VariableReference(metaclass=ABCMeta):
     """Represents a variable in a test case."""
 
-    def __init__(self, test_case: TestCase, variable_type: Type) -> None:
+    def __init__(self, test_case: tc.TestCase, variable_type: Type) -> None:
         self._variable_type = variable_type
         self._test_case = test_case
 
     @abstractmethod
-    def clone(self, test_case: TestCase) -> VariableReference:
+    def clone(self, test_case: tc.TestCase) -> VariableReference:
         """Provides a deep copy of the current variable.
         :param test_case: the new test case in which this clone will be used.
 
@@ -52,7 +52,7 @@ class VariableReference(metaclass=ABCMeta):
         self._variable_type = variable_type
 
     @property
-    def test_case(self) -> TestCase:
+    def test_case(self) -> tc.TestCase:
         """Provides the test case in which this variable reference is used.
 
         :return: The containing test case
