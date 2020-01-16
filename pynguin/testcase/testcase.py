@@ -31,7 +31,15 @@ class TestCase(metaclass=ABCMeta):
     _id_generator = AtomicInteger()
 
     def __init__(self) -> None:
-        pass
+        self._statements: List[stmt.Statement] = []
+
+    @property
+    def statements(self) -> List[stmt.Statement]:
+        """Provides the list of statements in this test case.
+
+        :return: The list of statements in this test case
+        """
+        return self._statements
 
     @abstractmethod
     def accept(self, visitor) -> None:

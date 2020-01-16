@@ -29,7 +29,6 @@ class DefaultTestCase(tc.TestCase):
     def __init__(self) -> None:
         super().__init__()
         self._logger = logging.getLogger(__name__)
-        self._statements: List[stmt.Statement] = []
         self._is_failing: bool = False
         self._id = self._id_generator.inc()
 
