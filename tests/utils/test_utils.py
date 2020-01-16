@@ -12,23 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""A collection of utility functions."""
-import inspect
+import importlib
+
+from pynguin.utils.utils import get_members_from_module
 
 
-def get_members_from_module(module):
-    """Returns the members from a module.
-
-    :param module: A module
-    :return: A list of types that are members of the module
-    """
-
-    def filter_members(member):
-        return (
-            inspect.isclass(member)
-            or inspect.isfunction(member)
-            or inspect.ismethod(member)
-        ) and member.__module__ == module.__name__
-
-    members = inspect.getmembers(module, filter_members)
-    return members
+def test_get_members_from_module():
+    module = importlib.import_module("tests.fixtures.examples.triangle")
+    members = get_members_from_module(module)
+    assert len(members) == 1
+    assert members[0][0] == "triangle"
