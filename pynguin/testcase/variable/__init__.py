@@ -12,16 +12,3 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-
-from pynguin.generation.export.pytestexporter import PyTestExporter
-
-
-def test__create_function_node():
-    result = PyTestExporter._create_function_node("foo", [])
-    assert result.name == "test_foo"
-
-
-def test__create_functions_empty_sequences():
-    exporter = PyTestExporter([], "")
-    result = exporter._create_functions([])
-    assert len(result) == 0

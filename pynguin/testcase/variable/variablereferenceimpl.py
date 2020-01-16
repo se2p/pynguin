@@ -12,16 +12,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-
-from pynguin.generation.export.pytestexporter import PyTestExporter
-
-
-def test__create_function_node():
-    result = PyTestExporter._create_function_node("foo", [])
-    assert result.name == "test_foo"
+"""Provides a simple implementation of a variable reference."""
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
 
 
-def test__create_functions_empty_sequences():
-    exporter = PyTestExporter([], "")
-    result = exporter._create_functions([])
-    assert len(result) == 0
+class VariableReferenceImpl(vr.VariableReference):
+    """
+    Basic implementation of a variable reference.
+    """
+
+    def clone(self, test_case: tc.TestCase) -> vr.VariableReference:
+        return VariableReferenceImpl(test_case, self.variable_type)
