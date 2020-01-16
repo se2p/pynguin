@@ -36,6 +36,7 @@ def test_builder():
         .set_max_sequence_length(42)
         .set_max_sequences_combined(42)
         .set_counter_threshold(42)
+        .set_export_strategy("foo")
         .set_tests_output(os.path.join("tmp", "test_output"))
     )
     configuration = builder.build()
@@ -54,6 +55,7 @@ def test_builder():
     assert configuration.max_sequence_length == 42
     assert configuration.max_sequences_combined == 42
     assert configuration.counter_threshold == 42
+    assert configuration.export_strategy == "foo"
     assert configuration.tests_output == os.path.join("tmp", "test_output")
 
 
