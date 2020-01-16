@@ -58,3 +58,9 @@ class VariableReference(metaclass=ABCMeta):
         :return: The containing test case
         """
         return self._test_case
+
+    def __repr__(self) -> str:
+        return f"VariableReference({self._test_case}, {self._variable_type})"
+
+    def __str__(self) -> str:
+        return f"{self._variable_type}"

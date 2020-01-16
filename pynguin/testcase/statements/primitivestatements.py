@@ -43,6 +43,15 @@ class PrimitiveStatement(stmt.Statement):
         """Randomize the primitive value of this statement."""
         # TODO(fk) move value generation for each primitive to the corresponding subclasses.
 
+    def __repr__(self) -> str:
+        return (
+            f"PrimitiveStatement({self._test_case}, {self._return_value}, "
+            f"{self._value})"
+        )
+
+    def __str__(self) -> str:
+        return f"{self._value}: {self._return_value}"
+
 
 class IntPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates an int."""
@@ -55,6 +64,12 @@ class IntPrimitiveStatement(PrimitiveStatement):
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
+
+    def __repr__(self) -> str:
+        return f"IntPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: float"
 
 
 class FloatPrimitiveStatement(PrimitiveStatement):
@@ -69,6 +84,12 @@ class FloatPrimitiveStatement(PrimitiveStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
 
+    def __repr__(self) -> str:
+        return f"FloatPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: float"
+
 
 class StringPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a String."""
@@ -82,6 +103,12 @@ class StringPrimitiveStatement(PrimitiveStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
 
+    def __repr__(self) -> str:
+        return f"StringPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: str"
+
 
 class BooleanPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a boolean."""
@@ -94,3 +121,9 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
+
+    def __repr__(self) -> str:
+        return f"BooleanPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: bool"
