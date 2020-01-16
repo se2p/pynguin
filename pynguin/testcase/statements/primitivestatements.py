@@ -56,7 +56,7 @@ class PrimitiveStatement(stmt.Statement):
 class IntPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates an int."""
 
-    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: int) -> None:
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
@@ -75,7 +75,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
 class FloatPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a float."""
 
-    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: float) -> None:
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
@@ -94,7 +94,7 @@ class FloatPrimitiveStatement(PrimitiveStatement):
 class StringPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a String."""
 
-    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: str) -> None:
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
@@ -113,7 +113,7 @@ class StringPrimitiveStatement(PrimitiveStatement):
 class BooleanPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a boolean."""
 
-    def __init__(self, test_case: tc.TestCase, value: Any) -> None:
+    def __init__(self, test_case: tc.TestCase, value: bool) -> None:
         super().__init__(test_case, bool, value)
 
     def randomize_value(self) -> None:
