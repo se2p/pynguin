@@ -120,7 +120,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
         pass
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        return StringPrimitiveStatement(test_case, self._value)
+        return BooleanPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
         return f"BooleanPrimitiveStatement({self._test_case}, {self._value})"
