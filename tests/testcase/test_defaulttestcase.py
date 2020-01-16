@@ -200,3 +200,7 @@ def test_clone(default_test_case):
     assert result.id != default_test_case.id
     assert result.size() == 1
     assert result.get_statement(0) == stmt
+
+
+def test_statements(default_test_case):
+    assert default_test_case.statements == []
