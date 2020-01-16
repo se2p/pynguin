@@ -19,7 +19,7 @@ from enum import Enum
 from functools import singledispatch, wraps
 from typing import Optional, Any, List
 
-from pynguin.utils.statements import Sequence
+from pynguin.testcase.testcase import TestCase
 from pynguin.utils.string import String
 
 LOGGER = logging.getLogger(__name__)
@@ -52,43 +52,29 @@ def value_dispatch(func):
 
 # pylint: disable=unused-argument
 @value_dispatch
-def init_value(type_: Any, sequences: List[Sequence]) -> Optional[Any]:
+def init_value(type_: Any, test_cases: List[TestCase]) -> Optional[Any]:
     """A decorator for initialising generated values.
 
     :param type_: The type we are interested in
-    :param sequences: The current list of sequences
+    :param test_cases: The current list of test cases
     :return: An optional initialised value
     """
-    # targets: List[Any] = []
-    # for sequence in reversed(sequences):
-    #     for statement in reversed(sequence):
-    #         if isinstance(statement, Statement):  # was Assignment
-    #             pass
-    #                 assert isinstance(statement.rhs, Statement)  # was Call
-    #                 if isinstance(statement.rhs.function, Statement):  # was Attribute
-    #                     # call on variable
-    #                     # TODO(sl) use once we record return values
-    #                     LOGGER.debug("Reached: TODO(sl) use once we record return values")
-    #                 elif (
-    #                     hasattr(type_, "__name__")
-    #                     and isinstance(statement.rhs.function, Statement)  # was Name
-    #                     and type_.__name__ in statement.rhs.function.identifier
-    #                 ):
-    #                     # constructor or direct function call
-    #                     # TODO(sl) this way we loose tuples and other builtin composita.
-    #                     LOGGER.debug(
-    #                         "Reached: TODO(sl) this way we loose tuples and other builtin"
-    #                         " composita"
-    #                     )
-    #                     targets.append(statement.lhs)
+    targets: List[Any] = []
+    for test_case in reversed(test_cases):
+        for statement in reversed(test_case.statements):
+            LOGGER.warning(
+                "No value generation implemented for type %s and statement %s",
+                type_,
+                statement,
+            )
 
-    # if targets:
-    #     value = random.choice(targets)
-    # else:
-    #     # Sometime we want None but most of the time, None will just fail with an
-    #     # unusable TypeError anyways
-    #     value = random.choice([1, None])
-    # return value
+    if targets:
+        value = random.choice(targets)
+    else:
+        # Sometime we want None but most of the time, None will just fail with an
+        # unusable TypeError anyways
+        value = random.choice([1, None])
+    return value
 
 
 @init_value.register(int)
