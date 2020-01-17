@@ -189,6 +189,13 @@ def test_eq_statements_4(default_test_case):
     assert default_test_case.__eq__(other)
 
 
+def test_eq_statements_5(default_test_case):
+    default_test_case._statements = []
+    other = dtc.DefaultTestCase()
+    other._statements = []
+    assert default_test_case.__eq__(other)
+
+
 def test_clone(default_test_case):
     stmt = MagicMock(st.Statement)
     ref = MagicMock(vr.VariableReference)
