@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 # -- FIXTURES --------------------------------------------------------------------------
@@ -26,6 +27,11 @@ import pynguin.testcase.testcase as tc
 @pytest.fixture(scope="function")
 def test_case_mock():
     return MagicMock(tc.TestCase)
+
+
+@pytest.fixture(scope="function")
+def variable_reference_mock():
+    return MagicMock(vri.VariableReferenceImpl)
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
