@@ -14,38 +14,26 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
-import pytest
-
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
-@pytest.fixture
-def variable_type():
-    return int
+def test_getters(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    assert ref.variable_type == int
+    assert ref.test_case == test_case_mock
 
 
-@pytest.fixture
-def test_case():
-    return MagicMock(tc.TestCase)
-
-
-def test_getters(test_case, variable_type):
-    ref = vri.VariableReferenceImpl(test_case, variable_type)
-    assert ref.variable_type == variable_type
-    assert ref.test_case == test_case
-
-
-def test_setters(test_case, variable_type):
-    ref = vri.VariableReferenceImpl(test_case, variable_type)
+def test_setters(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
     vt_new = float
     ref.variable_type = vt_new
     assert ref.variable_type == vt_new
 
 
-def test_clone(test_case, variable_type):
-    ref = vri.VariableReferenceImpl(test_case, variable_type)
+def test_clone(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
     tc_new = MagicMock(tc.TestCase)
     clone = ref.clone(tc_new)
-    assert clone.variable_type == variable_type
+    assert clone.variable_type == int
     assert clone.test_case == tc_new

@@ -12,7 +12,22 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from unittest.mock import MagicMock
+
 import pytest
+
+import pynguin.testcase.testcase as tc
+
+
+# -- FIXTURES --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="function")
+def test_case_mock():
+    return MagicMock(tc.TestCase)
+
+
+# -- CONFIGURATIONS FOR PYTEST ---------------------------------------------------------
 
 
 def pytest_addoption(parser):
