@@ -70,7 +70,9 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
                     test_cases, failing_test_cases, archive, objects_under_test,
                 )
             except GenerationException as exception:
-                self._logger.debug("Generate test case %s failed", exception)
+                self._logger.debug(
+                    "Generate test case failed with exception %s", exception
+                )
 
         self._logger.info("Finish generating sequences with random algorithm")
         self._logger.debug("Generated %d passing test cases", len(test_cases))
