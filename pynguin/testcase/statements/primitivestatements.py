@@ -69,7 +69,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
         return f"IntPrimitiveStatement({self._test_case}, {self._value})"
 
     def __str__(self) -> str:
-        return f"{self._value}: float"
+        return f"{self._value}: int"
 
 
 class FloatPrimitiveStatement(PrimitiveStatement):
