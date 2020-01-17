@@ -21,7 +21,6 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.testcase.statements.statement import Statement
 
 
 class EntityWithParametersStatement(
@@ -68,7 +67,7 @@ class ConstructorStatement(EntityWithParametersStatement):
         # TODO: return_annotation is wrong, because a constructor returns None.
         self._constructor = constructor
 
-    def clone(self, test_case: tc.TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         pass
 
 
@@ -86,5 +85,5 @@ class MethodStatement(EntityWithParametersStatement):
         self._method = method
         self._callee = callee
 
-    def clone(self, test_case: tc.TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         pass
