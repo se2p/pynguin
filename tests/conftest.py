@@ -22,6 +22,7 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 # -- FIXTURES --------------------------------------------------------------------------
+from pynguin import Configuration
 
 
 @pytest.fixture(scope="function")
@@ -32,6 +33,11 @@ def test_case_mock():
 @pytest.fixture(scope="function")
 def variable_reference_mock():
     return MagicMock(vri.VariableReferenceImpl)
+
+
+@pytest.fixture(scope="function")
+def configuration_mock():
+    return MagicMock(Configuration)
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

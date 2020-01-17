@@ -19,7 +19,6 @@ import pytest
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 
 
@@ -33,8 +32,8 @@ class _GenerationAlgorithm(GenerationAlgorithm):
 
 
 @pytest.fixture
-def algorithm():
-    return _GenerationAlgorithm(MagicMock(Configuration))
+def algorithm(configuration_mock):
+    return _GenerationAlgorithm(configuration_mock)
 
 
 def test_not_has_type_violations(algorithm):
