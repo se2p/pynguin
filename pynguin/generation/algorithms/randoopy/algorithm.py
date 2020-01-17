@@ -97,5 +97,6 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         objects_under_test = types.copy()
         for module in types:
             members = get_members_from_module(module)
+            # members is tuple (name, module/class/function/method)
             objects_under_test = objects_under_test + [x[1] for x in members]
         return objects_under_test
