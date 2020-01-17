@@ -14,23 +14,12 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Entry"""
 import argparse
-import importlib
 import logging
 import os
-import sys
-from typing import Union, List, Type
-
-from coverage import Coverage  # type: ignore
+from typing import Union, List
 
 from pynguin.configuration import Configuration, ConfigurationBuilder
-from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
-from pynguin.generation.algorithms.random_algorithm import RandomGenerationAlgorithm
-from pynguin.generation.executor import Executor
-from pynguin.generation.export.exporter import Exporter
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.recorder import CoverageRecorder
-from pynguin.utils.statements import Sequence
-from pynguin.utils.string import String
 
 
 # pylint: disable=too-few-public-methods
@@ -78,150 +67,9 @@ class Pynguin:
 
         try:
             self._logger.info("Start Pynguin Test Generation…")
-            return self._run_execution()
+            return -1
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
-
-    def _run_execution(self) -> int:
-        exit_status = 0
-
-        sys.path.insert(0, self._configuration.project_path)
-        executor = Executor(
-            self._configuration.module_names,
-            measure_coverage=self._configuration.measure_coverage,
-        )
-
-        objects_under_test: List[Type] = []
-        coverage_filename = f"{self._configuration.seed}.csv"
-        coverage_recorder = CoverageRecorder(
-            modules=[],
-            store=True,
-            file_name=coverage_filename,
-            folder=os.path.join(self._configuration.output_folder, "coverage_total"),
-        )
-        for module in self._configuration.module_names:
-            imported_module = importlib.import_module(module)
-            objects_under_test.append(imported_module)  # type: ignore
-            coverage_recorder.add_module(imported_module)  # type: ignore
-
-        algorithm: GenerationAlgorithm = RandomGenerationAlgorithm(
-            recorder=coverage_recorder,
-            executor=executor,
-            configuration=self._configuration,
-        )
-        sequences, error_sequences = algorithm.generate_sequences(
-            self._configuration.budget, objects_under_test
-        )
-
-        if self._configuration.measure_coverage:
-            self._store_all_coverage_data(
-                coverage_recorder,
-                executor,
-                coverage_filename,
-                sequences,
-                error_sequences,
-                self._configuration.seed,
-            )
-
-        self._store_symbol_table(algorithm)
-        self._print_results(sequences, error_sequences, executor.accumulated_coverage)
-
-        strings_filename = os.path.join(
-            self._configuration.output_folder,
-            "string",
-            f"{self._configuration.seed}.txt",
-        )
-        os.makedirs(os.path.dirname(strings_filename), exist_ok=True)
-        with open(strings_filename, mode="w") as out_file:
-            for string in String.observed:
-                out_file.write(f"{string}\n")
-
-        if self._configuration.tests_output:
-            exporter = Exporter(self._configuration)
-            exporter.export_sequences(sequences)
-
-        return exit_status
-
-    # pylint: disable=too-many-arguments
-    def _store_all_coverage_data(
-        self,
-        coverage_recorder: CoverageRecorder,
-        executor: Executor,
-        coverage_filename: str,
-        sequences: List[Sequence],
-        error_sequences: List[Sequence],
-        seed: int,
-    ) -> None:
-        coverage_recorder.save()
-        self._store_coverage(
-            executor.load_coverage,
-            os.path.join(self._configuration.output_folder, "coverage_base"),
-            coverage_filename,
-        )
-
-        executor.load_coverage.html_report(
-            directory=os.path.join(
-                self._configuration.coverage_filename, str(seed), "base",
-            ),
-        )
-        executor.accumulated_coverage.html_report(
-            directory=os.path.join(self._configuration.coverage_filename, str(seed))
-        )
-
-        coverage = self._re_execute_sequences(sequences)
-        self._store_coverage(
-            coverage,
-            os.path.join(self._configuration.output_folder, "coverage"),
-            coverage_filename,
-        )
-
-        error_coverage = self._re_execute_sequences(error_sequences)
-        self._store_coverage(
-            error_coverage,
-            os.path.join(self._configuration.output_folder, "coverage_error"),
-            coverage_filename,
-        )
-
-    def _re_execute_sequences(self, sequences: List[Sequence],) -> Coverage:
-        executor = Executor(self._configuration.module_names, measure_coverage=True)
-        executor.load_modules(reload=True)
-        for sequence in sequences:
-            executor.execute(sequence)
-        return executor.accumulated_coverage
-
-    @staticmethod
-    def _store_coverage(
-        coverage: Coverage, path: Union[str, os.PathLike], file_name: str,
-    ):
-        recorder = CoverageRecorder(
-            store=True, file_name=file_name, folder=path, modules=[]
-        )
-        recorder.record_data(coverage)
-        recorder.save()
-
-    def _store_symbol_table(self, algorithm: GenerationAlgorithm) -> None:
-        pass
-
-    def _print_results(
-        self,
-        sequences: List[Sequence],
-        error_sequences: List[Sequence],
-        coverage: Coverage,
-    ) -> None:
-        result_string = (
-            "Results:\n"
-            "Sequence   \t \t Number\n"
-            "----------------------------------------------------------\n"
-            "Seqs       \t \t " + str(len(sequences)) + "\n"
-            "Error seqs \t \t " + str(len(error_sequences)) + "\n"
-            "----------------------------------------------------------\n"
-            "\n"
-            "Observed Strings:\n"
-            + str(String.observed)
-            + "----------------------------------------------------------\n"
-            "Coverage: " + str(coverage.get_data())
-        )
-        self._logger.info(result_string)
 
     @staticmethod
     def _setup_logging(
