@@ -51,6 +51,7 @@ def test_constructor_statement_clone(inferred_method_type_mock):
     cloned = test_case.clone()
     assert isinstance(cloned.statements[1], ps.ConstructorStatement)
     assert cloned.statements[1] is not method_stmt
+    assert cloned.statements[0].return_value is not test_case.statements[0].return_value
 
 
 def test_assignment_clone():

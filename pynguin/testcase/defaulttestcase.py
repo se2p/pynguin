@@ -81,9 +81,7 @@ class DefaultTestCase(tc.TestCase):
     def clone(self) -> tc.TestCase:
         test_case = DefaultTestCase()
         for statement in self._statements:
-            copy = statement.clone(test_case)
-            test_case._statements.append(copy)
-            copy.return_value = statement.return_value.clone(test_case)
+            test_case._statements.append(statement.clone(test_case))
         test_case._is_failing = self._is_failing
         test_case._id = self._id_generator.inc()
         return test_case
