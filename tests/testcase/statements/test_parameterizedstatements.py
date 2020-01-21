@@ -12,32 +12,34 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from inspect import Signature
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.typeinference.strategy import InferredMethodType
 
 
 @pytest.fixture
-def signature_mock():
-    return MagicMock(Signature)
+def inferred_method_type_mock():
+    return MagicMock(InferredMethodType)
 
 
-def test_constructor_statement(test_case_mock, variable_reference_mock, signature_mock):
+def test_constructor_statement(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
     statement = ps.ConstructorStatement(
-        test_case_mock, signature_mock, [variable_reference_mock]
+        test_case_mock, inferred_method_type_mock, str, [variable_reference_mock]
     )
     assert statement.parameters == [variable_reference_mock]
 
 
 def test_constructor_statement_parameters(
-    test_case_mock, variable_reference_mock, signature_mock
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
     statement = ps.ConstructorStatement(
-        test_case_mock, signature_mock, [variable_reference_mock]
+        test_case_mock, inferred_method_type_mock, str, [variable_reference_mock]
     )
     references = [
         MagicMock(vri.VariableReferenceImpl),
@@ -47,11 +49,12 @@ def test_constructor_statement_parameters(
     assert statement.parameters == references
 
 
-def test_method_statement(test_case_mock, variable_reference_mock, signature_mock):
+def test_method_statement(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    references = [variable_reference_mock]
+
     statement = ps.MethodStatement(
-        test_case_mock,
-        signature_mock,
-        variable_reference_mock,
-        [variable_reference_mock],
+        test_case_mock, inferred_method_type_mock, variable_reference_mock, references
     )
-    assert statement  # TODO Implement reasonable test here
+    assert statement.parameters == references

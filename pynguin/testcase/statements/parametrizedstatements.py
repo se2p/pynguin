@@ -14,23 +14,27 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from inspect import Signature
-from typing import Type, List
+from typing import Type, List, Any
+
+import typing
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.typeinference.strategy import InferredMethodType
 
 
-class EntityWithParametersStatement(
-    stmt.Statement, metaclass=ABCMeta
-):  # pylint: disable=W0223
-    """An abstract statement that has parameters. Superclass for e.g., method or constructor."""
+class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
+    """
+    An abstract statement that has parameters.
+    Superclass for e.g., method or constructor statement.
+    """
 
     def __init__(
         self,
         test_case: tc.TestCase,
+        method_type: InferredMethodType,
         return_type: Type,
         parameters: List[vr.VariableReference],
     ):
@@ -38,11 +42,13 @@ class EntityWithParametersStatement(
         Create a new statement with parameters.
 
         :param test_case: the containing test case.
+        :param method_type: the inferred method type.
         :param return_type: the return type.
         :param parameters: the parameters.
         """
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, return_type))
         self._parameters = parameters
+        self._method_type = method_type
 
     @property
     def parameters(self):
@@ -54,35 +60,31 @@ class EntityWithParametersStatement(
         self._parameters = parameters
 
 
-class ConstructorStatement(EntityWithParametersStatement):
-    """A statement that constructs an object"""
-
-    def __init__(
-        self,
-        test_case: tc.TestCase,
-        constructor: Signature,  # TODO Merge signature and type into a wrapper?
-        parameters: List[vr.VariableReference],
-    ):
-        super().__init__(test_case, constructor.return_annotation, parameters)
-        # TODO: return_annotation is wrong, because a constructor returns None.
-        self._constructor = constructor
+class ConstructorStatement(ParametrizedStatement):
+    """A statement that constructs an object."""
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         pass
 
 
-class MethodStatement(EntityWithParametersStatement):
-    """A statement that calls a method on an object"""
+class MethodStatement(ParametrizedStatement):
+    """A statement that calls a method on an object."""
 
     def __init__(
         self,
         test_case: tc.TestCase,
-        method: Signature,  # TODO Merge signature and type into a wrapper?
+        method_type: InferredMethodType,
         callee: vr.VariableReference,
         parameters: List[vr.VariableReference],
     ):
-        super().__init__(test_case, method.return_annotation, parameters)
-        self._method = method
+        super().__init__(
+            test_case,
+            method_type,
+            typing.Union[Any]
+            if method_type.return_type is None
+            else method_type.return_type,
+            parameters,
+        )
         self._callee = callee
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
