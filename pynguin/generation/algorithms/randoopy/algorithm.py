@@ -99,6 +99,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         method = self._random_public_method(objects_under_test)
         tests = self._random_test_cases(test_cases)
         values = self._random_values(test_cases, method)
+        # pylint: disable=assignment-from-no-return
         new_test_case = self._extend(method, tests, values)
 
         # Discard duplicates
