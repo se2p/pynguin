@@ -18,6 +18,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.algorithm import RandomGenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
@@ -47,11 +49,11 @@ def test_generate_sequences(recorder, executor, configuration_mock, symbol_table
     )
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
-    algorithm._generate_sequence = lambda t, f, a, o: None
+    algorithm._generate_sequence = lambda t, f, o: None
     test_cases, failing_test_cases = algorithm.generate_sequences(1, [])
     assert test_cases == []
     assert failing_test_cases == []
-    assert len(logger.method_calls) == 8
+    assert len(logger.method_calls) == 7
 
 
 def test_generate_sequences_exception(
@@ -79,3 +81,71 @@ def test_find_objects_under_test(recorder, executor, configuration_mock, symbol_
         [importlib.import_module("tests.fixtures.examples.triangle")]
     )
     assert len(result) == 2
+
+
+def test_random_public_method_one_object_under_test(
+    recorder, executor, configuration_mock, symbol_table
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    result = algorithm._random_public_method(
+        [importlib.import_module("tests.fixtures.examples.triangle")]
+    )
+    assert result
+
+
+def test_random_public_method_private_object_under_test(
+    recorder, executor, configuration_mock, symbol_table
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    with pytest.raises(GenerationException) as exception:
+        algorithm._random_public_method(
+            [importlib.import_module("tests.fixtures.examples.private_methods")]
+        )
+    assert (
+        str(exception.value) == "tests.fixtures.examples.private_methods has no public "
+        "callables."
+    )
+
+
+def test_random_test_cases_no_bounds(
+    recorder, executor, configuration_mock, symbol_table
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    algorithm._configuration.max_sequences_combined = 0
+    algorithm._configuration.max_sequence_length = 0
+    tc_1 = MagicMock(tc.TestCase)
+    tc_1.statements = [MagicMock(stmt.Statement)]
+    tc_2 = MagicMock(tc.TestCase)
+    tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
+    result = algorithm._random_test_cases([tc_1, tc_2])
+    assert 0 <= len(result) <= 2
+
+
+def test_random_test_cases_with_bounds(
+    recorder, executor, configuration_mock, symbol_table
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    algorithm._configuration.max_sequences_combined = 2
+    algorithm._configuration.max_sequence_length = 2
+    tc_1 = MagicMock(tc.TestCase)
+    tc_1.statements = [MagicMock(stmt.Statement)]
+    tc_2 = MagicMock(tc.TestCase)
+    tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
+    result = algorithm._random_test_cases([tc_1, tc_2])
+    assert 0 <= len(result) <= 1

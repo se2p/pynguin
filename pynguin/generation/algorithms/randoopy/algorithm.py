@@ -14,17 +14,18 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a random test generation algorithm similar to Randoop."""
 import datetime
+import inspect
 import logging
-from typing import Type, List, Tuple, Set
+import random
+from typing import Type, List, Tuple, Any, Callable, Dict
 
+import pynguin.testcase.testcase as tc
 from pynguin import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
-import pynguin.testcase.testcase as tc
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
-
 
 # pylint: disable=too-few-public-methods
 from pynguin.utils.utils import get_members_from_module
@@ -57,7 +58,6 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
 
         test_cases: List[tc.TestCase] = []
         failing_test_cases: List[tc.TestCase] = []
-        archive: Set[tc.TestCase] = set()
         start_time = datetime.datetime.now()
         execution_counter: int = 0
 
@@ -67,7 +67,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
             try:
                 execution_counter += 1
                 self._generate_sequence(
-                    test_cases, failing_test_cases, archive, objects_under_test,
+                    test_cases, failing_test_cases, objects_under_test,
                 )
             except GenerationException as exception:
                 self._logger.debug(
@@ -77,20 +77,43 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         self._logger.info("Finish generating sequences with random algorithm")
         self._logger.debug("Generated %d passing test cases", len(test_cases))
         self._logger.debug("Generated %d failing test cases", len(failing_test_cases))
-        self._logger.debug("Archive size: %d", len(archive))
         self._logger.debug("Number of algorithm iterations: %d", execution_counter)
 
-        failing_test_cases = failing_test_cases + list(archive)
         return test_cases, failing_test_cases
 
     def _generate_sequence(
         self,
         test_cases: List[tc.TestCase],
         failing_test_cases: List[tc.TestCase],
-        archive: Set[tc.TestCase],
         objects_under_test: List[Type],
     ) -> None:
-        pass
+        """Implements one step of the adapted Randoop algorithm.
+
+        :param test_cases: The list of currently successful test cases
+        :param failing_test_cases: The list of currently not successful test cases
+        :param objects_under_test: The list of available types in the current context
+        """
+        # Create new test case, i.e., sequence in Randoop paper terminology
+        method = self._random_public_method(objects_under_test)
+        tests = self._random_test_cases(test_cases)
+        values = self._random_values(test_cases, method)
+        new_test_case = self._extend(method, tests, values)
+
+        # Discard duplicates
+        if new_test_case in test_cases or new_test_case in failing_test_cases:
+            return
+
+        # Execute new sequence
+        # TODO(sl) what shall be the return values of the execution step?
+        # TODO(sl) think about the contracts from Randoop paper…
+        violated = self._executor.execute(new_test_case)
+
+        # Classify new test case and outputs
+        if violated:
+            failing_test_cases.append(new_test_case)
+        else:
+            test_cases.append(new_test_case)
+            # TODO(sl) what about extensible flags?
 
     @staticmethod
     def _find_objects_under_test(types: List[Type]) -> List[Type]:
@@ -100,3 +123,68 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
             # members is tuple (name, module/class/function/method)
             objects_under_test = objects_under_test + [x[1] for x in members]
         return objects_under_test
+
+    def _random_public_method(self, objects_under_test: List[Type]) -> Callable:
+        def inspect_member(member):
+            try:
+                return (
+                    inspect.isclass(member)
+                    or inspect.ismethod(member)
+                    or inspect.isfunction(member)
+                )
+            except BaseException as exception:
+                self._logger.debug(exception)
+                raise GenerationException("Test member: " + exception.__repr__())
+
+        object_under_test = random.choice(objects_under_test)
+        members = inspect.getmembers(object_under_test, inspect_member)
+
+        public_members = [
+            m[1]
+            for m in members
+            if not m[0][0] == "_" and not m[1].__name__ == "_recording_isinstance"
+        ]
+
+        if not public_members:
+            raise GenerationException(
+                object_under_test.__name__ + " has no public callables."
+            )
+
+        method = random.choice(public_members)
+        return method
+
+    def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
+        if self._configuration.max_sequence_length == 0:
+            selectables = test_cases
+        else:
+            selectables = [
+                test_case
+                for test_case in test_cases
+                if len(test_case.statements) < self._configuration.max_sequence_length
+            ]
+        if self._configuration.max_sequences_combined == 0:
+            upper_bound = len(selectables)
+        else:
+            upper_bound = min(
+                len(selectables), self._configuration.max_sequences_combined
+            )
+        new_test_cases = random.sample(selectables, random.randint(0, upper_bound))
+        self._logger.debug(
+            "Selected %d new test cases from %d available ones",
+            len(new_test_cases),
+            len(test_cases),
+        )
+        return new_test_cases
+
+    def _random_values(
+        self, test_cases: List[tc.TestCase], callable_: Callable,
+    ) -> Dict[str, Any]:
+        pass
+
+    def _extend(
+        self,
+        callable_: Callable,
+        test_cases: List[tc.TestCase],
+        values: Dict[str, Any],
+    ) -> tc.TestCase:
+        pass
