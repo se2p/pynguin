@@ -13,11 +13,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a base implementation of a variable in a test case."""
+# pylint: disable=cyclic-import
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import Type
 
-import pynguin.testcase.testcase as tc  # pylint: disable=cyclic-import
+import pynguin.testcase.testcase as tc
 
 
 class VariableReference(metaclass=ABCMeta):
