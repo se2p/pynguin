@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 
 
-def triangle(x, y, z):
+def triangle(x: int, y: int, z: int) -> None:
     if x == y == z:
         print("Equilateral triangle")
     elif x == y or y == z or x == z:
