@@ -17,13 +17,15 @@ import datetime
 import inspect
 import logging
 import random
-from typing import Type, List, Tuple, Any, Callable, Dict
+from inspect import Parameter
+from typing import Type, List, Tuple, Any, Callable
 
 import pynguin.testcase.testcase as tc
 from pynguin import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
+from pynguin.generation.valuegeneration import init_value
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -178,13 +180,26 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
 
     def _random_values(
         self, test_cases: List[tc.TestCase], callable_: Callable,
-    ) -> Dict[str, Any]:
-        pass
+    ) -> List[Tuple[str, Parameter, Any]]:
+        signature = inspect.signature(callable_)
+        parameters = [(k, v) for k, v in signature.parameters.items() if k != "self"]
+        values: List[Tuple[str, Parameter, Any]] = []
+        for parameter in parameters:
+            name, param = parameter
+            value = init_value(param.annotation, test_cases)
+            self._logger.debug(
+                "Selected Method: %s, Parameter: %s, Value: %s",
+                callable_.__name__,
+                param,
+                value,
+            )
+            values.append((name, param, value))
+        return values
 
     def _extend(
         self,
         callable_: Callable,
         test_cases: List[tc.TestCase],
-        values: Dict[str, Any],
+        values: List[Tuple[str, Parameter, Any]],
     ) -> tc.TestCase:
         pass

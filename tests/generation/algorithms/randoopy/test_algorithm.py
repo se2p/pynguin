@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
+import inspect
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -40,6 +41,17 @@ def executor():
 @pytest.fixture
 def symbol_table():
     return MagicMock(SymbolTable)
+
+
+def _inspect_member(member):
+    try:
+        return (
+            inspect.isclass(member)
+            or inspect.ismethod(member)
+            or inspect.isfunction(member)
+        )
+    except BaseException:
+        return None
 
 
 def test_generate_sequences(recorder, executor, configuration_mock, symbol_table):
@@ -149,3 +161,22 @@ def test_random_test_cases_with_bounds(
     tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
     result = algorithm._random_test_cases([tc_1, tc_2])
     assert 0 <= len(result) <= 1
+
+
+def test_random_values_for_function_with_type_annotation(
+    recorder, executor, configuration_mock, symbol_table
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    callable_ = algorithm._random_public_method(
+        [importlib.import_module("tests.fixtures.examples.triangle")]
+    )
+    test_cases = [MagicMock(tc.TestCase)]
+    result = algorithm._random_values(test_cases, callable_)
+    assert len(result) == 3
+    assert str(result[0][1]) == "x: int"
+    assert str(result[1][1]) == "y: int"
+    assert str(result[2][1]) == "z: int"
