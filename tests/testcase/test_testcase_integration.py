@@ -54,7 +54,7 @@ def test_constructor_statement_clone(inferred_method_type_mock):
     assert cloned.statements[0].return_value is not test_case.statements[0].return_value
 
 
-def test_assignment_clone():
+def test_assignment_statement_clone():
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     int_prim2 = prim.IntPrimitiveStatement(test_case, 10)
