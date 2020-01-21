@@ -16,6 +16,8 @@
 import inspect
 from typing import Callable, Dict, Optional
 
+import typing
+
 from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
 
 
@@ -31,43 +33,34 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
             return self._infer_type_info_for_constructor(getattr(method, "__init__"))
         return self._infer_type_info_for_method(method)
 
-    def _infer_type_info_for_method(self, method: Callable) -> InferredMethodType:
+    @staticmethod
+    def _infer_type_info_for_method(method: Callable) -> InferredMethodType:
         method_signature = inspect.signature(method)
         parameters: Dict[str, Optional[type]] = {}
-        for param_name, param_type in method_signature.parameters.items():
-            parameters[param_name] = self._extract_parameter_type(param_type)
+        hints = typing.get_type_hints(method)
+        for param_name in method_signature.parameters:
+            parameters[param_name] = hints.get(param_name, None)
 
-        return_types: Optional[type] = None
-        if method_signature.return_annotation is not None and (
-            method_signature.return_annotation
-            not in [inspect.Parameter.empty, inspect.Signature.empty]
-        ):
-            return_types = method_signature.return_annotation
+        return_type: Optional[type] = hints.get("return", None)
 
         return InferredMethodType(
             method_signature=method_signature,
             parameters=parameters if parameters else None,
-            return_type=return_types if return_types else None,
+            return_type=return_type if return_type else None,
         )
 
-    def _infer_type_info_for_constructor(self, method: Callable) -> InferredMethodType:
+    @staticmethod
+    def _infer_type_info_for_constructor(method: Callable) -> InferredMethodType:
         method_signature = inspect.signature(method)
         parameters: Dict[str, Optional[type]] = {}
-        for param_name, param_type in method_signature.parameters.items():
+        hints = typing.get_type_hints(method)
+        for param_name in method_signature.parameters:
             if param_name == "self":
                 continue
-            parameters[param_name] = self._extract_parameter_type(param_type)
+            parameters[param_name] = hints.get(param_name, None)
 
         return InferredMethodType(
             method_signature=method_signature,
             parameters=parameters if parameters else None,
             return_type=None,
         )
-
-    @staticmethod
-    def _extract_parameter_type(param_type) -> Optional[type]:
-        if param_type.annotation is None or (
-            param_type.annotation in [inspect.Parameter.empty, inspect.Signature.empty]
-        ):
-            return None
-        return param_type.annotation
