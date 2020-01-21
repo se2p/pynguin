@@ -29,11 +29,22 @@ class VariableReference(metaclass=ABCMeta):
         self._test_case = test_case
 
     @abstractmethod
-    def clone(self, test_case: tc.TestCase) -> VariableReference:
-        """Provides a deep copy of the current variable.
-        :param test_case: the new test case in which this clone will be used.
+    def clone(self, new_test_case: tc.TestCase) -> VariableReference:
+        """
+        This method is essential for the whole variable references to work.
+        'self' must not be cloned. Instead we have to look for the
+        corresponding variable reference in the new test case.
+        Actual cloning is only performed on statement level.
+        :param new_test_case: the new test case in which this clone will be used.
 
-        :return: A deep copy of the current variable
+        :return: The corresponding variable reference of the this variable in the new test case.
+        """
+
+    @abstractmethod
+    def get_statement_position(self) -> int:
+        """
+        Provides the position of the statement which defines this variable reference
+        in the test case.
         """
 
     @property

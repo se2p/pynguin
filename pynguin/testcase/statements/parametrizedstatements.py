@@ -59,12 +59,27 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def parameters(self, parameters: List[vr.VariableReference]):
         self._parameters = parameters
 
+    def _clone_params(self, new_test_case: tc.TestCase) -> List[vr.VariableReference]:
+        """
+        Small helper method, to clone the parameters into a new test case.
+        :param new_test_case: The new test case in which the params are used.
+        """
+        new_params = []
+        for par in self._parameters:
+            new_params.append(par.clone(new_test_case))
+        return new_params
+
 
 class ConstructorStatement(ParametrizedStatement):
     """A statement that constructs an object."""
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        pass
+        return ConstructorStatement(
+            test_case,
+            self._method_type,
+            self.return_value.variable_type,
+            self._clone_params(test_case),
+        )
 
 
 class MethodStatement(ParametrizedStatement):
@@ -88,4 +103,9 @@ class MethodStatement(ParametrizedStatement):
         self._callee = callee
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        pass
+        return MethodStatement(
+            test_case,
+            self._method_type,
+            self._callee.clone(test_case),
+            self._clone_params(test_case),
+        )

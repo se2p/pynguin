@@ -35,4 +35,6 @@ class AssignmentStatement(stmt.Statement):
         self._rhs = rhs
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        pass
+        return AssignmentStatement(
+            test_case, self.return_value.clone(test_case), self._rhs.clone(test_case)
+        )

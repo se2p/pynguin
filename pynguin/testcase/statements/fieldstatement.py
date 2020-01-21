@@ -51,4 +51,7 @@ class FieldStatement(stmt.Statement):
         self._field = field
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        pass
+        new_source = self._source.clone(test_case)
+        return FieldStatement(
+            test_case, self._field, self.return_value.variable_type, new_source
+        )

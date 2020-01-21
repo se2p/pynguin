@@ -14,16 +14,8 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
-import pytest
-
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.typeinference.strategy import InferredMethodType
-
-
-@pytest.fixture
-def inferred_method_type_mock():
-    return MagicMock(InferredMethodType)
 
 
 def test_constructor_statement(

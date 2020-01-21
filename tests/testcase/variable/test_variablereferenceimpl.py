@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
+import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 
@@ -32,8 +33,26 @@ def test_setters(test_case_mock):
 
 
 def test_clone(test_case_mock):
+    orig_ref = vri.VariableReferenceImpl(test_case_mock, int)
+    orig_ref._test_case = test_case_mock
+    orig_statement = MagicMock(stmt.Statement)
+    orig_statement.return_value = orig_ref
+    test_case_mock.statements = [orig_statement]
+
+    new_test_case = MagicMock(tc.TestCase)
+    new_ref = vri.VariableReferenceImpl(new_test_case, int)
+    new_statement = MagicMock(stmt.Statement)
+    new_statement.return_value = new_ref
+    new_test_case.get_statement.return_value = new_statement
+
+    clone = orig_ref.clone(new_test_case)
+    assert clone is new_ref
+
+
+def test_get_position(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
-    tc_new = MagicMock(tc.TestCase)
-    clone = ref.clone(tc_new)
-    assert clone.variable_type == int
-    assert clone.test_case == tc_new
+    ref._test_case = test_case_mock
+    statement = MagicMock(stmt.Statement)
+    statement.return_value = ref
+    test_case_mock.statements = [statement]
+    assert ref.get_statement_position() == 0
