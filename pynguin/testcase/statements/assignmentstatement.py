@@ -35,6 +35,11 @@ class AssignmentStatement(stmt.Statement):
         super().__init__(test_case, lhs)
         self._rhs = rhs
 
+    @property
+    def rhs(self) -> vr.VariableReference:
+        """The variable that is used as the right hand side."""
+        return self._rhs
+
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return AssignmentStatement(
             test_case, self.return_value.clone(test_case), self._rhs.clone(test_case)

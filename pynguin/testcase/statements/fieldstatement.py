@@ -41,6 +41,13 @@ class FieldStatement(stmt.Statement):
         self._source = source
 
     @property
+    def source(self) -> vr.VariableReference:
+        """
+        Provides the variable that is accessed.
+        """
+        return self._source
+
+    @property
     def field(self) -> str:
         """
         Provides the field name that is accessed.
@@ -52,9 +59,11 @@ class FieldStatement(stmt.Statement):
         self._field = field
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        new_source = self._source.clone(test_case)
         return FieldStatement(
-            test_case, self._field, self.return_value.variable_type, new_source
+            test_case,
+            self._field,
+            self.return_value.variable_type,
+            self._source.clone(test_case),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
