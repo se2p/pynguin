@@ -12,7 +12,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-import importlib
 import inspect
 from logging import Logger
 from unittest.mock import MagicMock
@@ -85,32 +84,30 @@ def test_generate_sequences_exception(
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
 
-def test_find_objects_under_test(recorder, executor, configuration_mock, symbol_table):
+def test_find_objects_under_test(
+    recorder, executor, configuration_mock, symbol_table, provide_imported_modules
+):
     algorithm = RandomGenerationAlgorithm(
         recorder, executor, configuration_mock, symbol_table
     )
-    result = algorithm._find_objects_under_test(
-        [importlib.import_module("tests.fixtures.examples.triangle")]
-    )
+    result = algorithm._find_objects_under_test([provide_imported_modules["triangle"]])
     assert len(result) == 2
 
 
 def test_random_public_method_one_object_under_test(
-    recorder, executor, configuration_mock, symbol_table
+    recorder, executor, configuration_mock, symbol_table, provide_imported_modules
 ):
     logger = MagicMock(Logger)
     algorithm = RandomGenerationAlgorithm(
         recorder, executor, configuration_mock, symbol_table
     )
     algorithm._logger = logger
-    result = algorithm._random_public_method(
-        [importlib.import_module("tests.fixtures.examples.triangle")]
-    )
+    result = algorithm._random_public_method([provide_imported_modules["triangle"]])
     assert result
 
 
 def test_random_public_method_private_object_under_test(
-    recorder, executor, configuration_mock, symbol_table
+    recorder, executor, configuration_mock, symbol_table, provide_imported_modules
 ):
     logger = MagicMock(Logger)
     algorithm = RandomGenerationAlgorithm(
@@ -118,9 +115,7 @@ def test_random_public_method_private_object_under_test(
     )
     algorithm._logger = logger
     with pytest.raises(GenerationException) as exception:
-        algorithm._random_public_method(
-            [importlib.import_module("tests.fixtures.examples.private_methods")]
-        )
+        algorithm._random_public_method([provide_imported_modules["private_methods"]])
     assert (
         str(exception.value) == "tests.fixtures.examples.private_methods has no public "
         "callables."
@@ -164,16 +159,18 @@ def test_random_test_cases_with_bounds(
 
 
 def test_random_values_for_function_with_type_annotation(
-    recorder, executor, configuration_mock, symbol_table
+    recorder,
+    executor,
+    configuration_mock,
+    symbol_table,
+    provide_callables_from_fixtures_modules,
 ):
     logger = MagicMock(Logger)
     algorithm = RandomGenerationAlgorithm(
         recorder, executor, configuration_mock, symbol_table
     )
     algorithm._logger = logger
-    callable_ = algorithm._random_public_method(
-        [importlib.import_module("tests.fixtures.examples.triangle")]
-    )
+    callable_ = provide_callables_from_fixtures_modules["triangle"]
     test_cases = [MagicMock(tc.TestCase)]
     result = algorithm._random_values(test_cases, callable_)
     assert len(result) == 3

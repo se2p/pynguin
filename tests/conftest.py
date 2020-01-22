@@ -12,14 +12,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import importlib
+import inspect
 from collections import defaultdict
+from typing import Dict, Callable, Any
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
-
 
 # -- FIXTURES --------------------------------------------------------------------------
 from pynguin import Configuration
@@ -44,6 +46,41 @@ def inferred_method_type_mock():
 @pytest.fixture(scope="function")
 def configuration_mock():
     return MagicMock(Configuration)
+
+
+@pytest.fixture(scope="session")
+def provide_imported_modules() -> Dict[str, Any]:
+    module_names = [
+        "tests.fixtures.examples.basket",
+        "tests.fixtures.examples.dummies",
+        "tests.fixtures.examples.monkey",
+        "tests.fixtures.examples.private_methods",
+        "tests.fixtures.examples.triangle",
+    ]
+    modules = {m.split(".")[-1]: importlib.import_module(m) for m in module_names}
+    return modules
+
+
+@pytest.fixture(scope="session")
+def provide_callables_from_fixtures_modules(
+    provide_imported_modules,
+) -> Dict[str, Callable]:
+    def inspect_member(member):
+        try:
+            return (
+                inspect.isclass(member)
+                or inspect.ismethod(member)
+                or inspect.isfunction(member)
+            )
+        except BaseException:
+            return False
+
+    members = []
+    for _, module in provide_imported_modules.items():
+        for member in inspect.getmembers(module, inspect_member):
+            members.append(member)
+    callables_ = {k: v for (k, v) in members}
+    return callables_
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
