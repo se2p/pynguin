@@ -21,6 +21,7 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.statements.statementvisitor as sv
 
 
 class FieldStatement(stmt.Statement):
@@ -55,3 +56,6 @@ class FieldStatement(stmt.Statement):
         return FieldStatement(
             test_case, self._field, self.return_value.variable_type, new_source
         )
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_field_statement(self)

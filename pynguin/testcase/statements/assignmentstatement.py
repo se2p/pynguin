@@ -18,6 +18,7 @@ Provide a statement that performs assignments.
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.statements.statementvisitor as sv
 
 
 class AssignmentStatement(stmt.Statement):
@@ -38,3 +39,6 @@ class AssignmentStatement(stmt.Statement):
         return AssignmentStatement(
             test_case, self.return_value.clone(test_case), self._rhs.clone(test_case)
         )
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_assignment_statement(self)

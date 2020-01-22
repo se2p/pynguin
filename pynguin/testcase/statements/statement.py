@@ -22,6 +22,7 @@ from typing import Any
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.statements.statementvisitor as sv
 
 
 class Statement(metaclass=ABCMeta):
@@ -65,6 +66,10 @@ class Statement(metaclass=ABCMeta):
 
         :return: A deep clone of this statement
         """
+
+    @abstractmethod
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        """Accepts a visitor to visit this statement."""
 
     def __eq__(self, other: Any) -> bool:
         pass

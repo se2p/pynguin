@@ -19,6 +19,7 @@ from typing import Type, Any
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.statements.statementvisitor as sv
 
 
 class PrimitiveStatement(stmt.Statement):
@@ -71,6 +72,9 @@ class IntPrimitiveStatement(PrimitiveStatement):
     def __str__(self) -> str:
         return f"{self._value}: int"
 
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_int_primitive_statement(self)
+
 
 class FloatPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a float."""
@@ -89,6 +93,9 @@ class FloatPrimitiveStatement(PrimitiveStatement):
 
     def __str__(self) -> str:
         return f"{self._value}: float"
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_float_primitive_statement(self)
 
 
 class StringPrimitiveStatement(PrimitiveStatement):
@@ -109,6 +116,9 @@ class StringPrimitiveStatement(PrimitiveStatement):
     def __str__(self) -> str:
         return f"{self._value}: str"
 
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_string_primitive_statement(self)
+
 
 class BooleanPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates a boolean."""
@@ -127,3 +137,6 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
 
     def __str__(self) -> str:
         return f"{self._value}: bool"
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_boolean_primitive_statement(self)

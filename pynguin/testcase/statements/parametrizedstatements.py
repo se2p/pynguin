@@ -22,6 +22,7 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.statements.statementvisitor as sv
 from pynguin.typeinference.strategy import InferredMethodType
 
 
@@ -81,6 +82,9 @@ class ConstructorStatement(ParametrizedStatement):
             self._clone_params(test_case),
         )
 
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_constructor_statement(self)
+
 
 class MethodStatement(ParametrizedStatement):
     """A statement that calls a method on an object."""
@@ -109,3 +113,6 @@ class MethodStatement(ParametrizedStatement):
             self._callee.clone(test_case),
             self._clone_params(test_case),
         )
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_method_statement(self)
