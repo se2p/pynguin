@@ -95,19 +95,34 @@ def test_primitive_statement_clone(statement_type, test_case, new_test_case, val
 @pytest.mark.parametrize(
     "statement_type,test_case,value,visitor_method",
     [
-        pytest.param(prim.IntPrimitiveStatement, MagicMock(tc.TestCase), 42, "visit_int_primitive_statement"),
-        pytest.param(prim.FloatPrimitiveStatement, MagicMock(tc.TestCase), 2.1, "visit_float_primitive_statement"),
         pytest.param(
-            prim.StringPrimitiveStatement, MagicMock(tc.TestCase), "foo", "visit_string_primitive_statement"
+            prim.IntPrimitiveStatement,
+            MagicMock(tc.TestCase),
+            42,
+            "visit_int_primitive_statement",
         ),
         pytest.param(
-            prim.BooleanPrimitiveStatement, MagicMock(tc.TestCase), True, "visit_boolean_primitive_statement"
+            prim.FloatPrimitiveStatement,
+            MagicMock(tc.TestCase),
+            2.1,
+            "visit_float_primitive_statement",
+        ),
+        pytest.param(
+            prim.StringPrimitiveStatement,
+            MagicMock(tc.TestCase),
+            "foo",
+            "visit_string_primitive_statement",
+        ),
+        pytest.param(
+            prim.BooleanPrimitiveStatement,
+            MagicMock(tc.TestCase),
+            True,
+            "visit_boolean_primitive_statement",
         ),
     ],
 )
-def test_primitive_statement_accept(statement_type,test_case,value, visitor_method):
+def test_primitive_statement_accept(statement_type, test_case, value, visitor_method):
     stmt = statement_type(test_case, value)
     visitor = MagicMock()
     stmt.accept(visitor)
     getattr(visitor, visitor_method).assert_called_once_with(stmt)
-
