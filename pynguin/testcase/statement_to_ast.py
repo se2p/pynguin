@@ -59,11 +59,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
     """Visitor that transforms statements into a list of AST nodes."""
 
     def __init__(self, scope: NamingScope):
-        self._ast_nodes: List[ast.AST] = []
+        self._ast_nodes: List[ast.stmt] = []
         self._scope = scope
 
     @property
-    def ast_nodes(self) -> List[ast.AST]:
+    def ast_nodes(self) -> List[ast.stmt]:
         """Get the list of generated AST nodes."""
         return self._ast_nodes
 
@@ -154,7 +154,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             )
         )
 
-    def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.AST:
+    def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
         """
         Small helper for int and float.
         """

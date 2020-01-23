@@ -15,9 +15,9 @@
 """Provides an executor that executes generated sequences."""
 import ast
 import logging
-from typing import Tuple, Union, Any, List
+from typing import Tuple, Union, Any, List, Dict
 
-import astor
+import astor  # type: ignore
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -49,24 +49,27 @@ class Executor:
         :return: Whether or not the execution was successful
         """
         # TODO(fk) wrap new values in magic proxy.
-        local_namespace = {}
+        local_namespace: Dict[str, Any] = {}
 
         # TODO(fk) Provide required global stuff/modules.
         # TODO(fk) Provide capabilities to add instrumentation/tracing
-        global_namespace = {}
+        global_namespace: Dict[str, Any] = {}
         for node in self._to_ast_nodes(test_case):
             try:
-                co = compile(self._wrap_node_in_module(node), "<ast>", 'exec')
-                exec(co, global_namespace, local_namespace)
-            except Exception as err:
+                code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
+                # pylint: disable=exec-used
+                exec(code, global_namespace, local_namespace)
+            except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
-                Executor._logger.warning(f"Failed to execute statement\n{failed_stmt}{err.args}")
+                Executor._logger.warning(
+                    "Failed to execute statement:\n%s%s", failed_stmt, err.args
+                )
                 return False
         return True
-        # TODO(fk) Provide ExecutionResult with more information(coverage, fitness, etc.), not just True/False
+        # TODO(fk) Provide ExecutionResult with more information(coverage, fitness, etc.)
 
     @staticmethod
-    def _to_ast_nodes(test_case: tc.TestCase) -> List[ast.AST]:
+    def _to_ast_nodes(test_case: tc.TestCase) -> List[ast.stmt]:
         """Transforms the given test case into a list of ast nodes."""
         naming_scope = stmt_to_ast.NamingScope()
         visitor = stmt_to_ast.StatementToAstVisitor(naming_scope)
@@ -75,7 +78,7 @@ class Executor:
         return visitor.ast_nodes
 
     @staticmethod
-    def _wrap_node_in_module(node: ast.AST) -> ast.Module:
+    def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
         """Wraps the given node in a Module, so that it can be executed."""
         ast.fix_missing_locations(node)
         wrapper = ast.parse("")

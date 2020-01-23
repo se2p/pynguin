@@ -30,7 +30,9 @@ def test_simple_execution():
 def test_illegal_call():
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    method_stmt = param_stmt.MethodStatement(test_case, str, "i_dont_exist", int_stmt.return_value)
+    method_stmt = param_stmt.MethodStatement(
+        test_case, str, "i_dont_exist", int_stmt.return_value
+    )
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     executor = Executor()
