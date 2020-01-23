@@ -18,35 +18,67 @@ import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
-def test_constructor_statement(
+def test_constructor_statement_no_args(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
-    statement = ps.ConstructorStatement(
-        test_case_mock, inferred_method_type_mock, str, [variable_reference_mock]
-    )
-    assert statement.parameters == [variable_reference_mock]
+    statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
+    assert statement.args == []
+    assert statement.kwargs == []
 
 
-def test_constructor_statement_parameters(
+def test_constructor_statement_args(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
-    statement = ps.ConstructorStatement(
-        test_case_mock, inferred_method_type_mock, str, [variable_reference_mock]
-    )
+    statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
     references = [
         MagicMock(vri.VariableReferenceImpl),
         MagicMock(vri.VariableReferenceImpl),
     ]
-    statement.parameters = references
-    assert statement.parameters == references
+    statement.args = references
+    assert statement.args == references
 
 
-def test_method_statement(
+def test_constructor_statement_kwargs(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
+    references = [
+        MagicMock(vri.VariableReferenceImpl),
+        MagicMock(vri.VariableReferenceImpl),
+    ]
+    statement.kwargs = references
+    assert statement.kwargs == references
+
+
+def test_method_statement_no_args(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    statement = ps.MethodStatement(
+        test_case_mock, inferred_method_type_mock, variable_reference_mock
+    )
+    assert statement.args == []
+    assert statement.kwargs == []
+
+
+def test_method_statement_args(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
     references = [variable_reference_mock]
 
     statement = ps.MethodStatement(
-        test_case_mock, inferred_method_type_mock, variable_reference_mock, references
+        test_case_mock, inferred_method_type_mock, variable_reference_mock
     )
-    assert statement.parameters == references
+    statement.args = references
+    assert statement.args == references
+
+
+def test_method_statement_kwargs(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    references = [variable_reference_mock]
+
+    statement = ps.MethodStatement(
+        test_case_mock, inferred_method_type_mock, variable_reference_mock
+    )
+    statement.kwargs = references
+    assert statement.kwargs == references

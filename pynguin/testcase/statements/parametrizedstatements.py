@@ -14,9 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Any
-
-import typing
+from typing import Type, List, Any, Union, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -32,12 +30,14 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     Superclass for e.g., method or constructor statement.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         test_case: tc.TestCase,
         method_type: InferredMethodType,
         return_type: Type,
-        parameters: List[vr.VariableReference],
+        args: Optional[List[vr.VariableReference]] = None,
+        kwargs: Optional[List[vr.VariableReference]] = None,
     ):
         """
         Create a new statement with parameters.
@@ -45,30 +45,46 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         :param test_case: the containing test case.
         :param method_type: the inferred method type.
         :param return_type: the return type.
-        :param parameters: the parameters.
+        :param args: the positional parameters.
+        :param kwargs: the keyword parameters.
         """
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, return_type))
-        self._parameters = parameters
+        self._args = args if args else []
+        self._kwargs = kwargs if kwargs else []
         self._method_type = method_type
 
     @property
-    def parameters(self):
-        """The parameters used in this statement."""
-        return self._parameters
+    def args(self) -> List[vr.VariableReference]:
+        """The positional parameters used in this statement."""
+        return self._args
 
-    @parameters.setter
-    def parameters(self, parameters: List[vr.VariableReference]):
-        self._parameters = parameters
+    @args.setter
+    def args(self, args: List[vr.VariableReference]):
+        self._args = args
 
-    def _clone_params(self, new_test_case: tc.TestCase) -> List[vr.VariableReference]:
+    @property
+    def kwargs(self) -> List[vr.VariableReference]:
+        """The keyword parameters used in this statement."""
+        return self._kwargs
+
+    @kwargs.setter
+    def kwargs(self, kwargs: List[vr.VariableReference]):
+        self._kwargs = kwargs
+
+    @property
+    def method_type(self):
+        """Provides the method type"""
+        return self._method_type
+
+    @staticmethod
+    def _clone_params(
+        new_test_case: tc.TestCase, params: List[vr.VariableReference]
+    ) -> List[vr.VariableReference]:
         """
         Small helper method, to clone the parameters into a new test case.
         :param new_test_case: The new test case in which the params are used.
         """
-        new_params = []
-        for par in self._parameters:
-            new_params.append(par.clone(new_test_case))
-        return new_params
+        return [par.clone(new_test_case) for par in params]
 
 
 class ConstructorStatement(ParametrizedStatement):
@@ -79,7 +95,8 @@ class ConstructorStatement(ParametrizedStatement):
             test_case,
             self._method_type,
             self.return_value.variable_type,
-            self._clone_params(test_case),
+            self._clone_params(test_case, self._args),
+            self._clone_params(test_case, self._kwargs),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -89,20 +106,21 @@ class ConstructorStatement(ParametrizedStatement):
 class MethodStatement(ParametrizedStatement):
     """A statement that calls a method on an object."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         test_case: tc.TestCase,
         method_type: InferredMethodType,
         callee: vr.VariableReference,
-        parameters: List[vr.VariableReference],
+        args: Optional[List[vr.VariableReference]] = None,
+        kwargs: Optional[List[vr.VariableReference]] = None,
     ):
         super().__init__(
             test_case,
             method_type,
-            typing.Union[Any]
-            if method_type.return_type is None
-            else method_type.return_type,
-            parameters,
+            Union[Any] if method_type.return_type is None else method_type.return_type,
+            args,
+            kwargs,
         )
         self._callee = callee
 
@@ -111,7 +129,8 @@ class MethodStatement(ParametrizedStatement):
             test_case,
             self._method_type,
             self._callee.clone(test_case),
-            self._clone_params(test_case),
+            self._clone_params(test_case, self._args),
+            self._clone_params(test_case, self._kwargs),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
