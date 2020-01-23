@@ -16,6 +16,7 @@ from unittest.mock import MagicMock
 
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.statements.statementvisitor as sv
 
 
 def test_constructor_statement_no_args(
@@ -23,7 +24,7 @@ def test_constructor_statement_no_args(
 ):
     statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
     assert statement.args == []
-    assert statement.kwargs == []
+    assert statement.kwargs == {}
 
 
 def test_constructor_statement_args(
@@ -42,12 +43,22 @@ def test_constructor_statement_kwargs(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
     statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
-    references = [
-        MagicMock(vri.VariableReferenceImpl),
-        MagicMock(vri.VariableReferenceImpl),
-    ]
+    references = {
+        "par1": MagicMock(vri.VariableReferenceImpl),
+        "par2": MagicMock(vri.VariableReferenceImpl),
+    }
     statement.kwargs = references
     assert statement.kwargs == references
+
+
+def test_constructor_statement_accept(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    statement = ps.ConstructorStatement(test_case_mock, inferred_method_type_mock, str)
+    visitor = MagicMock(sv.StatementVisitor)
+    statement.accept(visitor)
+
+    visitor.visit_constructor_statement.assert_called_once_with(statement)
 
 
 def test_method_statement_no_args(
@@ -57,13 +68,16 @@ def test_method_statement_no_args(
         test_case_mock, inferred_method_type_mock, variable_reference_mock
     )
     assert statement.args == []
-    assert statement.kwargs == []
+    assert statement.kwargs == {}
 
 
 def test_method_statement_args(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
-    references = [variable_reference_mock]
+    references = [
+        MagicMock(vri.VariableReferenceImpl),
+        MagicMock(vri.VariableReferenceImpl),
+    ]
 
     statement = ps.MethodStatement(
         test_case_mock, inferred_method_type_mock, variable_reference_mock
@@ -75,10 +89,25 @@ def test_method_statement_args(
 def test_method_statement_kwargs(
     test_case_mock, variable_reference_mock, inferred_method_type_mock
 ):
-    references = [variable_reference_mock]
+    references = {
+        "par1": MagicMock(vri.VariableReferenceImpl),
+        "par2": MagicMock(vri.VariableReferenceImpl),
+    }
 
     statement = ps.MethodStatement(
         test_case_mock, inferred_method_type_mock, variable_reference_mock
     )
     statement.kwargs = references
     assert statement.kwargs == references
+
+
+def test_method_statement_accept(
+    test_case_mock, variable_reference_mock, inferred_method_type_mock
+):
+    statement = ps.MethodStatement(
+        test_case_mock, inferred_method_type_mock, variable_reference_mock
+    )
+    visitor = MagicMock(sv.StatementVisitor)
+    statement.accept(visitor)
+
+    visitor.visit_method_statement.assert_called_once_with(statement)
