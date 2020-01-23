@@ -46,7 +46,7 @@ pylint = "^2.4"
 pytest-sugar = "^0.9.2"
 pytest-picked = "^0.4.1"
 pytest-xdist = "^1.31"
-hypothesis = "^5.1.1"
+hypothesis = "^5.3"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

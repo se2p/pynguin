@@ -167,7 +167,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5"
-version = "5.1.5"
+version = "5.3.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -329,7 +329,7 @@ description = "pytest: simple powerful testing with Python"
 name = "pytest"
 optional = false
 python-versions = ">=3.5"
-version = "5.3.3"
+version = "5.3.4"
 
 [package.dependencies]
 atomicwrites = ">=1.0"
@@ -485,7 +485,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "bc10b80203fe78121b275134630651261fdee1713d6357ec7a8097c700eb5644"
+content-hash = "e2393a1aa1c53de10e46d425fd1e95cb0ead7b39fee924fb5887ffd9118e87e1"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -578,8 +578,8 @@ flake8 = [
     {file = "flake8-3.7.9.tar.gz", hash = "sha256:45681a117ecc81e870cbf1262835ae4af5e7a8b08e40b944a8a6e6b895914cfb"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.1.5-py3-none-any.whl", hash = "sha256:db06d817dbcb44522c37d3fb08ee3eddee0027f6768f9e193bce77844f8a59cf"},
-    {file = "hypothesis-5.1.5.tar.gz", hash = "sha256:5f9fe7dc5bba2f3df51d626b8488a321cb1b2dc7a6c90be76551f3cb2543bea9"},
+    {file = "hypothesis-5.3.0-py3-none-any.whl", hash = "sha256:bfdac4e9ca4c6f9850be67699293dba3016f9c0521a73f5210f3d647888d6256"},
+    {file = "hypothesis-5.3.0.tar.gz", hash = "sha256:c9fdb53fe3bf1f8e7dcca1a7dd6e430862502f088aca2903d141511212e79429"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
@@ -669,8 +669,8 @@ pyparsing = [
     {file = "pyparsing-2.4.6.tar.gz", hash = "sha256:4c830582a84fb022400b85429791bc551f1f4871c33f23e44f353119e92f969f"},
 ]
 pytest = [
-    {file = "pytest-5.3.3-py3-none-any.whl", hash = "sha256:9f8d44f4722b3d06b41afaeb8d177cfbe0700f8351b1fc755dd27eedaa3eb9e0"},
-    {file = "pytest-5.3.3.tar.gz", hash = "sha256:f5d3d0e07333119fe7d4af4ce122362dc4053cdd34a71d2766290cf5369c64ad"},
+    {file = "pytest-5.3.4-py3-none-any.whl", hash = "sha256:c13d1943c63e599b98cf118fcb9703e4d7bde7caa9a432567bcdcae4bf512d20"},
+    {file = "pytest-5.3.4.tar.gz", hash = "sha256:1d122e8be54d1a709e56f82e2d85dcba3018313d64647f38a91aec88c239b600"},
 ]
 pytest-cov = [
     {file = "pytest-cov-2.8.1.tar.gz", hash = "sha256:cc6742d8bac45070217169f5f72ceee1e0e55b0221f54bcf24845972d3a47f2b"},
