@@ -73,6 +73,14 @@ class TestCase(metaclass=ABCMeta):
         :param statements: The list of statements to add
         """
 
+    def append_test_case(self, test_case: TestCase) -> None:
+        """Appends a test case to this test case.
+
+        :param test_case: The test case to append
+        """
+        for statement in test_case.statements:
+            self._statements.append(statement.clone(self))
+
     @abstractmethod
     def remove(self, position: int) -> None:
         """Removes a statement a the given position

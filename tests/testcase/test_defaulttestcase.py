@@ -211,3 +211,13 @@ def test_clone(default_test_case):
 
 def test_statements(default_test_case):
     assert default_test_case.statements == []
+
+
+def test_append_test_case(default_test_case):
+    stmt = MagicMock(st.Statement)
+    stmt.clone.return_value = stmt
+    other = dtc.DefaultTestCase()
+    other._statements = [stmt]
+    assert len(default_test_case.statements) == 0
+    default_test_case.append_test_case(other)
+    assert len(default_test_case.statements) == 1
