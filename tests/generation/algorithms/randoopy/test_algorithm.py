@@ -13,7 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
+from inspect import Parameter
 from logging import Logger
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -177,3 +179,30 @@ def test_random_values_for_function_with_type_annotation(
     assert str(result[0][1]) == "x: int"
     assert str(result[1][1]) == "y: int"
     assert str(result[2][1]) == "z: int"
+
+
+def test_extend_for_function_with_type_annotation(
+    recorder,
+    executor,
+    configuration_mock,
+    symbol_table,
+    provide_callables_from_fixtures_modules,
+):
+    logger = MagicMock(Logger)
+    algorithm = RandomGenerationAlgorithm(
+        recorder, executor, configuration_mock, symbol_table
+    )
+    algorithm._logger = logger
+    callable_ = provide_callables_from_fixtures_modules["triangle"]
+    test_cases = [MagicMock(tc.TestCase)]
+    values = [
+        ("x", Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+        ("y", Parameter("y", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+        ("z", Parameter("z", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+    ]
+    with mock.patch(
+        "pynguin.generation.algorithms.randoopy.algorithm.stf.StatementFactory"
+    ) as m:
+        m.create_statement.return_value = MagicMock(stmt.Statement)
+        result = algorithm._extend(callable_, test_cases, values)
+    assert len(result.statements) == 1
