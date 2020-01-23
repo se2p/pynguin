@@ -25,7 +25,6 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 
 # -- FIXTURES --------------------------------------------------------------------------
 from pynguin import Configuration
-from pynguin.typeinference.strategy import InferredMethodType
 
 
 @pytest.fixture(scope="function")
@@ -36,11 +35,6 @@ def test_case_mock():
 @pytest.fixture(scope="function")
 def variable_reference_mock():
     return MagicMock(vri.VariableReferenceImpl)
-
-
-@pytest.fixture
-def inferred_method_type_mock():
-    return MagicMock(InferredMethodType)
 
 
 @pytest.fixture(scope="function")

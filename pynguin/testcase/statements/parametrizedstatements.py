@@ -14,14 +14,13 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Any, Union, Optional
+from typing import Type, List, Dict, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
-from pynguin.typeinference.strategy import InferredMethodType
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
@@ -34,7 +33,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def __init__(
         self,
         test_case: tc.TestCase,
-        method_type: InferredMethodType,
         return_type: Type,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
@@ -43,7 +41,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         Create a new statement with parameters.
 
         :param test_case: the containing test case.
-        :param method_type: the inferred method type.
         :param return_type: the return type.
         :param args: the positional parameters.
         :param kwargs: the keyword parameters.
@@ -51,7 +48,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, return_type))
         self._args = args if args else []
         self._kwargs = kwargs if kwargs else {}
-        self._method_type = method_type
 
     @property
     def args(self) -> List[vr.VariableReference]:
@@ -71,11 +67,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def kwargs(self, kwargs: Dict[str, vr.VariableReference]):
         self._kwargs = kwargs
 
-    @property
-    def method_type(self):
-        """Provides the method type"""
-        return self._method_type
-
     def _clone_args(self, new_test_case: tc.TestCase) -> List[vr.VariableReference]:
         """
         Small helper method, to clone the args into a new test case.
@@ -91,8 +82,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         :param new_test_case: The new test case in which the params are used.
         """
         new_kw_args = {}
-        for name in self._kwargs:
-            new_kw_args[name] = self._kwargs[name].clone(new_test_case)
+        for name, var in self._kwargs.items():
+            new_kw_args[name] = var.clone(new_test_case)
         return new_kw_args
 
 
@@ -102,7 +93,6 @@ class ConstructorStatement(ParametrizedStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return ConstructorStatement(
             test_case,
-            self._method_type,
             self.return_value.variable_type,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
@@ -119,7 +109,8 @@ class MethodStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        method_type: InferredMethodType,
+        return_type: Type,
+        method_name: str,
         callee: vr.VariableReference,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
@@ -127,24 +118,37 @@ class MethodStatement(ParametrizedStatement):
         """
         Create new method statement.
         :param test_case: The containing test case
-        :param method_type:  the method type
+        :param return_type: return type
+        :param method_name: the method name
         :param callee: the object on which the method is called
         :param args: the positional arguments
         :param kwargs: the keyword arguments
         """
         super().__init__(
-            test_case,
-            method_type,
-            Union[Any] if method_type.return_type is None else method_type.return_type,
-            args,
-            kwargs,
+            test_case, return_type, args, kwargs,
         )
+        self._method_name = method_name
         self._callee = callee
+
+    @property
+    def method_name(self) -> str:
+        """Provides the name of the method that is called."""
+        return self._method_name
+
+    @method_name.setter
+    def method_name(self, value: str):
+        self._method_name = value
+
+    @property
+    def callee(self) -> vr.VariableReference:
+        """Provides the variable on which the method is invoked."""
+        return self._callee
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return MethodStatement(
             test_case,
-            self._method_type,
+            self.return_value.variable_type,
+            self._method_name,
             self._callee.clone(test_case),
             self._clone_args(test_case),
             self._clone_kwargs(test_case),

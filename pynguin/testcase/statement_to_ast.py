@@ -82,12 +82,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[
-                    ast.Name(
-                        id=self._scope.get_variable_name(stmt.return_value),
-                        ctx=ast.Store(),
-                    )
-                ],
+                targets=[self._create_name(stmt.return_value, False)],
                 value=ast.Str(s=stmt.value),
             )
         )
@@ -97,12 +92,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[
-                    ast.Name(
-                        id=self._scope.get_variable_name(stmt.return_value),
-                        ctx=ast.Store(),
-                    )
-                ],
+                targets=[self._create_name(stmt.return_value, False)],
                 value=ast.NameConstant(value=stmt.value),
             )
         )
@@ -110,12 +100,34 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
     ) -> None:
-        pass
-        # TODO(fk)
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[self._create_name(stmt.return_value, False)],
+                value=ast.Call(
+                    func=ast.Name(
+                        id=stmt.return_value.variable_type.__name__, ctx=ast.Load()
+                    ),
+                    args=self._create_args(stmt),
+                    keywords=self._create_kw_args(stmt),
+                ),
+            )
+        )
 
     def visit_method_statement(self, stmt: param_stmt.MethodStatement) -> None:
-        pass
-        # TODO(fk)
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[self._create_name(stmt.return_value, False)],
+                value=ast.Call(
+                    func=ast.Attribute(
+                        attr=stmt.method_name,
+                        ctx=ast.Load(),
+                        value=self._create_name(stmt.callee, True),
+                    ),
+                    args=self._create_args(stmt),
+                    keywords=self._create_kw_args(stmt),
+                ),
+            )
+        )
 
     def visit_field_statement(self, stmt: field_stmt.FieldStatement) -> None:
         self._ast_nodes.append(
@@ -129,9 +141,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 value=ast.Attribute(
                     attr=stmt.field,
                     ctx=ast.Load(),
-                    value=ast.Name(
-                        ctx=ast.Load(), id=self._scope.get_variable_name(stmt.source)
-                    ),
+                    value=self._create_name(stmt.source, True),
                 ),
             )
         )
@@ -139,15 +149,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_assignment_statement(self, stmt: assign_stmt.AssignmentStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[
-                    ast.Name(
-                        id=self._scope.get_variable_name(stmt.return_value),
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Name(
-                    id=self._scope.get_variable_name(stmt.rhs), ctx=ast.Load(),
-                ),
+                targets=[self._create_name(stmt.return_value, False)],
+                value=self._create_name(stmt.rhs, True),
             )
         )
 
@@ -156,11 +159,34 @@ class StatementToAstVisitor(sv.StatementVisitor):
         Small helper for int and float.
         """
         return ast.Assign(
-            targets=[
-                ast.Name(
-                    id=self._scope.get_variable_name(stmt.return_value),
-                    ctx=ast.Store(),
-                )
-            ],
+            targets=[self._create_name(stmt.return_value, False)],
             value=ast.Num(n=stmt.value),
+        )
+
+    def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.Name]:
+        """Creates the positional arguments."""
+        args = []
+        for arg in stmt.args:
+            args.append(self._create_name(arg, True))
+        return args
+
+    def _create_kw_args(
+        self, stmt: param_stmt.ParametrizedStatement
+    ) -> List[ast.keyword]:
+        """Creates the keyword arguments."""
+        kwargs = []
+        for name, value in stmt.kwargs.items():
+            kwargs.append(ast.keyword(arg=name, value=self._create_name(value, True),))
+        return kwargs
+
+    def _create_name(self, var: vr.VariableReference, load: bool) -> ast.Name:
+        """
+        Create a name node for the corresponding variable.
+        :param var: the variable reference
+        :param load: load or store?
+        :return: the name node
+        """
+        return ast.Name(
+            id=self._scope.get_variable_name(var),
+            ctx=ast.Load() if load else ast.Store(),
         )

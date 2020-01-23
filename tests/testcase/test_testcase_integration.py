@@ -20,15 +20,12 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.assignmentstatement as assign
 
 
-def test_method_statement_clone(inferred_method_type_mock):
+def test_method_statement_clone():
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     str_prim = prim.StringPrimitiveStatement(test_case, "TestThis")
     method_stmt = ps.MethodStatement(
-        test_case,
-        inferred_method_type_mock,
-        str_prim.return_value,
-        [int_prim.return_value],
+        test_case, str, "", str_prim.return_value, [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)
@@ -39,12 +36,10 @@ def test_method_statement_clone(inferred_method_type_mock):
     assert cloned.statements[2] is not method_stmt
 
 
-def test_constructor_statement_clone(inferred_method_type_mock):
+def test_constructor_statement_clone():
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    method_stmt = ps.ConstructorStatement(
-        test_case, inferred_method_type_mock, int, [int_prim.return_value],
-    )
+    method_stmt = ps.ConstructorStatement(test_case, int, [int_prim.return_value],)
     test_case.add_statement(int_prim)
     test_case.add_statement(method_stmt)
 
