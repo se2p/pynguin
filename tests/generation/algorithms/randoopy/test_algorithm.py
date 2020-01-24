@@ -25,7 +25,8 @@ import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.algorithm import RandomGenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy
+from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -188,10 +189,10 @@ def test_random_values_for_function_with_type_annotation(
     executor,
     configuration_mock,
     symbol_table,
-    type_inference_strategy,
     provide_callables_from_fixtures_modules,
 ):
     logger = MagicMock(Logger)
+    type_inference_strategy = TypeHintsInferenceStrategy()
     algorithm = RandomGenerationAlgorithm(
         recorder, executor, configuration_mock, symbol_table, type_inference_strategy
     )
@@ -199,7 +200,7 @@ def test_random_values_for_function_with_type_annotation(
     callable_ = provide_callables_from_fixtures_modules["triangle"]
     test_cases = [MagicMock(tc.TestCase)]
     result = algorithm._random_values(
-        test_cases, callable_, MagicMock(TypeInferenceStrategy)
+        test_cases, callable_, type_inference_strategy.infer_type_info(callable_)
     )
     assert len(result) == 3
     assert str(result[0][1]) == "x: int"
@@ -212,10 +213,10 @@ def test_extend_for_function_with_type_annotation(
     executor,
     configuration_mock,
     symbol_table,
-    type_inference_strategy,
     provide_callables_from_fixtures_modules,
 ):
     logger = MagicMock(Logger)
+    type_inference_strategy = TypeHintsInferenceStrategy()
     algorithm = RandomGenerationAlgorithm(
         recorder, executor, configuration_mock, symbol_table, type_inference_strategy
     )
@@ -227,11 +228,7 @@ def test_extend_for_function_with_type_annotation(
         ("y", Parameter("y", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
         ("z", Parameter("z", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
     ]
-    method_type = InferredMethodType(
-        method_signature=inspect.signature(callable_),
-        parameters={k: v for k, v, _ in values},
-        return_type=int,
-    )
+    method_type = type_inference_strategy.infer_type_info(callable_)
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.algorithm.stf.StatementFactory"
     ) as m:
