@@ -203,9 +203,12 @@ def test_random_values_for_function_with_type_annotation(
         test_cases, callable_, type_inference_strategy.infer_type_info(callable_)
     )
     assert len(result) == 3
-    assert str(result[0][1]) == "x: int"
-    assert str(result[1][1]) == "y: int"
-    assert str(result[2][1]) == "z: int"
+    assert str(result[0][0]) == "x"
+    assert result[0][1] == int
+    assert str(result[1][0]) == "y"
+    assert result[1][1] == int
+    assert str(result[2][0]) == "z"
+    assert result[2][1] == int
 
 
 def test_extend_for_function_with_type_annotation(

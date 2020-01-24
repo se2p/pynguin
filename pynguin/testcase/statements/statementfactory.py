@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory that creates a statement instance for a callable."""
-from inspect import Parameter
 from typing import Callable, List, Tuple, Any, Type, Optional
 
 import pynguin.testcase.statements.parametrizedstatements as pars
@@ -32,7 +31,7 @@ class StatementFactory:
         cls,
         test_case: tc.TestCase,
         callable_: Callable,
-        values: List[Tuple[str, Parameter, Any]],
+        values: List[Tuple[str, Type, Any]],
         method_type: InferredMethodType,
     ) -> List[stmt.Statement]:
         """Creates a list of statements for a callable.
@@ -81,7 +80,7 @@ class StatementFactory:
 
     @classmethod
     def create_int_statement(
-        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+        cls, test_case: tc.TestCase, value: Tuple[str, Type, Any],
     ) -> prim.IntPrimitiveStatement:
         """Creates a statement representing a primitive integer.
 
@@ -94,7 +93,7 @@ class StatementFactory:
 
     @classmethod
     def create_float_statement(
-        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+        cls, test_case: tc.TestCase, value: Tuple[str, Type, Any],
     ) -> prim.FloatPrimitiveStatement:
         """Creates a statement representing a primitive float.
 
@@ -107,7 +106,7 @@ class StatementFactory:
 
     @classmethod
     def create_string_statement(
-        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+        cls, test_case: tc.TestCase, value: Tuple[str, Type, Any],
     ) -> prim.StringPrimitiveStatement:
         """Creates a statement representing a primitive string.
 
@@ -120,7 +119,7 @@ class StatementFactory:
 
     @classmethod
     def create_bool_statement(
-        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+        cls, test_case: tc.TestCase, value: Tuple[str, Type, Any],
     ) -> prim.BooleanPrimitiveStatement:
         """Creates a statement representing a primitive bool.
 

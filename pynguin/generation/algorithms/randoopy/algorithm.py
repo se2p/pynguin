@@ -17,7 +17,6 @@ import datetime
 import inspect
 import logging
 import random
-from inspect import Parameter
 from typing import Type, List, Tuple, Any, Callable
 
 import pynguin.testcase.defaulttestcase as dtc
@@ -189,17 +188,19 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         self,
         test_cases: List[tc.TestCase],
         callable_: Callable,
-        method_type: InferredMethodType,  # pylint: disable=unused-argument
-    ) -> List[Tuple[str, Parameter, Any]]:
-        signature = inspect.signature(callable_)
-        parameters = [(k, v) for k, v in signature.parameters.items() if k != "self"]
-        values: List[Tuple[str, Parameter, Any]] = []
+        method_type: InferredMethodType,
+    ) -> List[Tuple[str, Type, Any]]:
+        assert method_type.parameters  # TODO(sl) implement handling for other cases
+        parameters = [(k, v) for k, v in method_type.parameters.items() if k != "self"]
+        values: List[Tuple[str, Type, Any]] = []
         for parameter in parameters:
             name, param = parameter
-            value = init_value(param.annotation, test_cases)
+            assert param  # TODO(sl) this should always be true when we have parameters
+            value = init_value(param, test_cases)
             self._logger.debug(
-                "Selected Method: %s, Parameter: %s, Value: %s",
+                "Selected Method: %s, Parameter: %s: %s, Value: %s",
                 callable_.__name__,
+                name,
                 param,
                 value,
             )
@@ -210,7 +211,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         self,
         callable_: Callable,
         test_cases: List[tc.TestCase],
-        values: List[Tuple[str, Parameter, Any]],
+        values: List[Tuple[str, Type, Any]],
         method_type: InferredMethodType,
     ) -> tc.TestCase:
         new_test = dtc.DefaultTestCase()
