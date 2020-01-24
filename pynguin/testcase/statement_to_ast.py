@@ -100,6 +100,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
     ) -> None:
+        assert stmt.return_value.variable_type
         self._ast_nodes.append(
             ast.Assign(
                 targets=[self._create_name(stmt.return_value, False)],

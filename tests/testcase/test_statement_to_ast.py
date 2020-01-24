@@ -133,7 +133,7 @@ def test_statement_to_ast_method_no_args(
     statement_to_ast_visitor, test_case_mock, variable_reference_mock
 ):
     method_stmt = param_stmt.MethodStatement(
-        test_case_mock, MagicMock, "test", variable_reference_mock
+        test_case_mock, "test", variable_reference_mock, MagicMock
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
     assert (
@@ -147,9 +147,9 @@ def test_statement_to_ast_method_args(
 ):
     method_stmt = param_stmt.MethodStatement(
         test_case_mock,
-        MagicMock,
         "test",
         variable_reference_mock,
+        MagicMock,
         [MagicMock(vr.VariableReference)],
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
@@ -164,9 +164,9 @@ def test_statement_to_ast_method_kwargs(
 ):
     method_stmt = param_stmt.MethodStatement(
         test_case_mock,
-        MagicMock,
         "test",
         variable_reference_mock,
+        MagicMock,
         kwargs={"param1": MagicMock(vr.VariableReference)},
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
@@ -177,7 +177,7 @@ def test_statement_to_ast_method_kwargs(
 
 
 def test_statement_to_ast_function_no_args(statement_to_ast_visitor, test_case_mock):
-    function_stmt = param_stmt.FunctionStatement(test_case_mock, MagicMock, "test")
+    function_stmt = param_stmt.FunctionStatement(test_case_mock, "test", MagicMock)
     statement_to_ast_visitor.visit_function_statement(function_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
@@ -187,7 +187,7 @@ def test_statement_to_ast_function_no_args(statement_to_ast_visitor, test_case_m
 
 def test_statement_to_ast_function_args(statement_to_ast_visitor, test_case_mock):
     function_stmt = param_stmt.FunctionStatement(
-        test_case_mock, MagicMock, "test", [MagicMock(vr.VariableReference)]
+        test_case_mock, "test", MagicMock, [MagicMock(vr.VariableReference)]
     )
     statement_to_ast_visitor.visit_function_statement(function_stmt)
     assert (
@@ -199,8 +199,8 @@ def test_statement_to_ast_function_args(statement_to_ast_visitor, test_case_mock
 def test_statement_to_ast_function_kwargs(statement_to_ast_visitor, test_case_mock):
     function_stmt = param_stmt.FunctionStatement(
         test_case_mock,
-        MagicMock,
         "test",
+        MagicMock,
         kwargs={"param1": MagicMock(vr.VariableReference)},
     )
     statement_to_ast_visitor.visit_function_statement(function_stmt)

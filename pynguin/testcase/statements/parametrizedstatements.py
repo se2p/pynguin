@@ -33,7 +33,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def __init__(
         self,
         test_case: tc.TestCase,
-        return_type: Type,
+        return_type: Optional[Type] = None,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ):
@@ -109,18 +109,18 @@ class MethodStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        return_type: Type,
         method_name: str,
         callee: vr.VariableReference,
+        return_type: Optional[Type],
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ):
         """
         Create new method statement.
         :param test_case: The containing test case
-        :param return_type: return type
         :param method_name: the method name
         :param callee: the object on which the method is called
+        :param return_type: return type
         :param args: the positional arguments
         :param kwargs: the keyword arguments
         """
@@ -147,9 +147,9 @@ class MethodStatement(ParametrizedStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return MethodStatement(
             test_case,
-            self.return_value.variable_type,
             self._method_name,
             self._callee.clone(test_case),
+            self.return_value.variable_type,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
         )
@@ -165,8 +165,8 @@ class FunctionStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        return_type: Type,
         function_name: str,
+        return_type: Optional[Type] = None,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ) -> None:
@@ -188,8 +188,8 @@ class FunctionStatement(ParametrizedStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return FunctionStatement(
             test_case,
-            self.return_value.variable_type,
             self._function_name,
+            self.return_value.variable_type,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
         )
@@ -200,7 +200,7 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._return_value.variable_type}, {self._function_name}, "
+            f"{self._function_name}, {self._return_value.variable_type}, "
             f"args={self._args}, kwargs={self._kwargs})"
         )
 

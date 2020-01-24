@@ -13,15 +13,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory that creates a statement instance for a callable."""
-import inspect
 from inspect import Parameter
-from typing import Callable, List, Tuple, Any, Type
+from typing import Callable, List, Tuple, Any, Type, Optional
 
 import pynguin.testcase.statements.parametrizedstatements as pars
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+from pynguin.typeinference.strategy import InferredMethodType
 
 
 class StatementFactory:
@@ -33,15 +33,16 @@ class StatementFactory:
         test_case: tc.TestCase,
         callable_: Callable,
         values: List[Tuple[str, Parameter, Any]],
+        method_type: InferredMethodType,
     ) -> List[stmt.Statement]:
         """Creates a list of statements for a callable.
 
         :param test_case: The test case for which we generate the statement
         :param callable_: The callable for which we generate the statement
         :param values: The list of parameter values
+        :param method_type: The inferred type information for this method
         :return: A list of statements representing this method call
         """
-        signature = inspect.signature(callable_)
         statements: List[stmt.Statement] = []
         for value in values:
             # TODO(sl) build a mechanism that allows this depending on the type
@@ -51,7 +52,7 @@ class StatementFactory:
                 test_case,
                 callable_,
                 [s.return_value for s in statements],
-                signature.return_annotation,
+                method_type.return_type,
             )
         )
         return statements
@@ -62,7 +63,7 @@ class StatementFactory:
         test_case: tc.TestCase,
         callable_: Callable,
         values: List[vr.VariableReference],
-        return_type: Type,
+        return_type: Optional[Type],
     ) -> pars.FunctionStatement:
         """Creates a function call statement.
 
@@ -74,7 +75,7 @@ class StatementFactory:
         """
         # TODO(sl) extend this to use the InferredMethodType for types somehow
         statement = pars.FunctionStatement(
-            test_case, return_type, callable_.__name__, args=values
+            test_case, callable_.__name__, return_type, args=values
         )
         return statement
 

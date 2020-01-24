@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import inspect
 from inspect import Parameter
 from unittest.mock import MagicMock
 
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statementfactory as sf
+from pynguin.typeinference.strategy import InferredMethodType
 
 
 def test_create_int_statement(test_case_mock):
@@ -70,7 +72,12 @@ def test_create_statements(provide_callables_from_fixtures_modules, test_case_mo
         ("y", Parameter("y", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
         ("z", Parameter("z", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
     ]
+    method_type = InferredMethodType(
+        method_signature=inspect.signature(callable_),
+        parameters={k: v for k, v, _ in values},
+        return_type=int,
+    )
     statements = sf.StatementFactory.create_statements(
-        test_case_mock, callable_, values
+        test_case_mock, callable_, values, method_type
     )
     assert len(statements) == 4

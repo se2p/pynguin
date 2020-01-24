@@ -25,7 +25,7 @@ def test_method_statement_clone():
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     str_prim = prim.StringPrimitiveStatement(test_case, "TestThis")
     method_stmt = ps.MethodStatement(
-        test_case, str, "", str_prim.return_value, [int_prim.return_value],
+        test_case, "", str_prim.return_value, str, [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)

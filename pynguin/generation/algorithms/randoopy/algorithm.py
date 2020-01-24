@@ -28,6 +28,7 @@ from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.generation.executor import Executor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.generation.valuegeneration import init_value
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -40,18 +41,21 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         recorder: CoverageRecorder,
         executor: Executor,
         configuration: Configuration,
         symbol_table: SymbolTable,
+        type_inference_strategy: TypeInferenceStrategy,
     ) -> None:
         super().__init__(configuration)
         self._recorder = recorder
         self._executor = executor
         self._configuration = configuration
         self._symbol_table = symbol_table
+        self._type_inference_strategy = type_inference_strategy
 
     def generate_sequences(
         self, time_limit: int, modules: List[Type]
@@ -99,10 +103,10 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         """
         # Create new test case, i.e., sequence in Randoop paper terminology
         method = self._random_public_method(objects_under_test)
+        method_type = self._type_inference_strategy.infer_type_info(method)
         tests = self._random_test_cases(test_cases)
-        values = self._random_values(test_cases, method)
-        # pylint: disable=assignment-from-no-return
-        new_test_case = self._extend(method, tests, values)
+        values = self._random_values(test_cases, method, method_type)
+        new_test_case = self._extend(method, tests, values, method_type)
 
         # Discard duplicates
         if new_test_case in test_cases or new_test_case in failing_test_cases:
@@ -182,7 +186,10 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         return new_test_cases
 
     def _random_values(
-        self, test_cases: List[tc.TestCase], callable_: Callable,
+        self,
+        test_cases: List[tc.TestCase],
+        callable_: Callable,
+        method_type: InferredMethodType,  # pylint: disable=unused-argument
     ) -> List[Tuple[str, Parameter, Any]]:
         signature = inspect.signature(callable_)
         parameters = [(k, v) for k, v in signature.parameters.items() if k != "self"]
@@ -204,12 +211,15 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         callable_: Callable,
         test_cases: List[tc.TestCase],
         values: List[Tuple[str, Parameter, Any]],
+        method_type: InferredMethodType,
     ) -> tc.TestCase:
         new_test = dtc.DefaultTestCase()
         for test_case in test_cases:
             new_test.append_test_case(test_case)
 
-        statements = stf.StatementFactory.create_statements(new_test, callable_, values)
+        statements = stf.StatementFactory.create_statements(
+            new_test, callable_, values, method_type
+        )
         self._logger.debug(
             "Generated %d statements for method %s", len(statements), callable_.__name__
         )

@@ -15,7 +15,7 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Type
+from typing import Type, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -33,7 +33,7 @@ class FieldStatement(stmt.Statement):
         self,
         test_case: tc.TestCase,
         field: str,
-        field_type: Type,
+        field_type: Optional[Type],
         source: vr.VariableReference,
     ):
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, field_type))

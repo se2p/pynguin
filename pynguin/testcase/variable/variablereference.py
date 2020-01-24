@@ -16,7 +16,7 @@
 # pylint: disable=cyclic-import
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Type
+from typing import Type, Optional
 
 import pynguin.testcase.testcase as tc
 
@@ -24,7 +24,7 @@ import pynguin.testcase.testcase as tc
 class VariableReference(metaclass=ABCMeta):
     """Represents a variable in a test case."""
 
-    def __init__(self, test_case: tc.TestCase, variable_type: Type) -> None:
+    def __init__(self, test_case: tc.TestCase, variable_type: Optional[Type]) -> None:
         self._variable_type = variable_type
         self._test_case = test_case
 
@@ -48,7 +48,7 @@ class VariableReference(metaclass=ABCMeta):
         """
 
     @property
-    def variable_type(self) -> Type:
+    def variable_type(self) -> Optional[Type]:
         """Provides the type of this variable.
 
         :return: The type of this variable
@@ -56,7 +56,7 @@ class VariableReference(metaclass=ABCMeta):
         return self._variable_type
 
     @variable_type.setter
-    def variable_type(self, variable_type: Type) -> None:
+    def variable_type(self, variable_type: Optional[Type]) -> None:
         """Allows to set the type of this variable.
 
         :param variable_type: The new type of this variable
