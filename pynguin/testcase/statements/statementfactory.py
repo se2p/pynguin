@@ -51,3 +51,42 @@ class StatementFactory:
         """
         statement = prim.IntPrimitiveStatement(test_case, value[2])
         return statement
+
+    @classmethod
+    def create_float_statement(
+        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+    ) -> prim.FloatPrimitiveStatement:
+        """Creates a statement representing a primitive float.
+
+        :param test_case: The test case for which we generate the statement
+        :param value: The parameter value
+        :return: A statement representing the float
+        """
+        statement = prim.FloatPrimitiveStatement(test_case, value[2])
+        return statement
+
+    @classmethod
+    def create_string_statement(
+        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+    ) -> prim.StringPrimitiveStatement:
+        """Creates a statement representing a primitive string.
+
+        :param test_case: The test case for which we generate the statement
+        :param value: The parameter value
+        :return: A statement representing the string
+        """
+        statement = prim.StringPrimitiveStatement(test_case, value[2])
+        return statement
+
+    @classmethod
+    def create_bool_statement(
+        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+    ) -> prim.BooleanPrimitiveStatement:
+        """Creates a statement representing a primitive bool.
+
+        :param test_case: The test case for which we generate the statement
+        :param value: The parameter value
+        :return: A statement representing the bool
+        """
+        statement = prim.BooleanPrimitiveStatement(test_case, value[2])
+        return statement

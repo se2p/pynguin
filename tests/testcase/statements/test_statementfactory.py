@@ -28,3 +28,36 @@ def test_create_int_statement(test_case_mock):
     assert result.test_case == test_case_mock
     assert result.value == 42
     assert result.return_value.variable_type == int
+
+
+def test_create_float_statement(test_case_mock):
+    name = "foo"
+    parameter = MagicMock(Parameter)
+    value = (name, parameter, 42.23)
+    result = sf.StatementFactory.create_float_statement(test_case_mock, value)
+    assert isinstance(result, prim.FloatPrimitiveStatement)
+    assert result.test_case == test_case_mock
+    assert result.value == 42.23
+    assert result.return_value.variable_type == float
+
+
+def test_create_string_statement(test_case_mock):
+    name = "foo"
+    parameter = MagicMock(Parameter)
+    value = (name, parameter, "bar")
+    result = sf.StatementFactory.create_string_statement(test_case_mock, value)
+    assert isinstance(result, prim.StringPrimitiveStatement)
+    assert result.test_case == test_case_mock
+    assert result.value == "bar"
+    assert result.return_value.variable_type == str
+
+
+def test_create_bool_statement(test_case_mock):
+    name = "foo"
+    parameter = MagicMock(Parameter)
+    value = (name, parameter, True)
+    result = sf.StatementFactory.create_bool_statement(test_case_mock, value)
+    assert isinstance(result, prim.BooleanPrimitiveStatement)
+    assert result.test_case == test_case_mock
+    assert result.value
+    assert result.return_value.variable_type == bool
