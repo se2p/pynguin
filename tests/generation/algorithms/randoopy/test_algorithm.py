@@ -203,6 +203,6 @@ def test_extend_for_function_with_type_annotation(
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.algorithm.stf.StatementFactory"
     ) as m:
-        m.create_statement.return_value = MagicMock(stmt.Statement)
+        m.create_statements.return_value = [MagicMock(stmt.Statement)]
         result = algorithm._extend(callable_, test_cases, values)
     assert len(result.statements) == 1

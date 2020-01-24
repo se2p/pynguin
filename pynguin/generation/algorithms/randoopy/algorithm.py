@@ -209,9 +209,11 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         for test_case in test_cases:
             new_test.append_test_case(test_case)
 
-        statement = stf.StatementFactory.create_statement(new_test, callable_, values)
+        statements = stf.StatementFactory.create_statements(new_test, callable_, values)
         self._logger.debug(
-            "Generated statement: %s for method %s", statement, callable_.__name__,
+            "Generated %d statements for method %s", len(statements), callable_.__name__
         )
-        new_test.add_statement(statement)
+        for statement in statements:
+            self._logger.debug("    Statement %s", statement)
+        new_test.add_statements(statements)
         return new_test

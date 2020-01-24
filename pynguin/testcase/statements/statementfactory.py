@@ -25,18 +25,18 @@ class StatementFactory:
     """A factory that creates a statement instance for a callable."""
 
     @classmethod
-    def create_statement(
+    def create_statements(
         cls,
         test_case: tc.TestCase,
         callable_: Callable,
         values: List[Tuple[str, Parameter, Any]],
-    ) -> stmt.Statement:
-        """Creates a statement for a callable.
+    ) -> List[stmt.Statement]:
+        """Creates a list of statements for a callable.
 
         :param test_case: The test case for which we generate the statement
         :param callable_: The callable for which we generate the statement
         :param values: The list of parameter values
-        :return: A statement representing this method call
+        :return: A list of statements representing this method call
         """
 
     @classmethod
