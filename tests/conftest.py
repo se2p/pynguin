@@ -22,9 +22,9 @@ import pytest
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin import Configuration
 
 # -- FIXTURES --------------------------------------------------------------------------
-from pynguin import Configuration
 
 
 @pytest.fixture(scope="function")
