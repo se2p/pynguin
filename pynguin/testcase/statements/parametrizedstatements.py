@@ -196,3 +196,16 @@ class FunctionStatement(ParametrizedStatement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_function_statement(self)
+
+    def __repr__(self) -> str:
+        return (
+            f"FunctionStatement({self._test_case}, "
+            f"{self._return_value.variable_type}, {self._function_name}, "
+            f"args={self._args}, kwargs={self._kwargs})"
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"{self._function_name}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._return_value.variable_type}"
+        )
