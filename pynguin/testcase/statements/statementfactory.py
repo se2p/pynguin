@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory that creates a statement instance for a callable."""
+import inspect
 from inspect import Parameter
-from typing import Callable, List, Tuple, Any
+from typing import Callable, List, Tuple, Any, Type
 
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.parametrizedstatements as pars
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 
 
@@ -40,13 +41,17 @@ class StatementFactory:
         :param values: The list of parameter values
         :return: A list of statements representing this method call
         """
+        signature = inspect.signature(callable_)
         statements: List[stmt.Statement] = []
         for value in values:
             # TODO(sl) build a mechanism that allows this depending on the type
             statements.append(cls.create_int_statement(test_case, value))
         statements.append(
             cls.create_function_statement(
-                test_case, callable_, [s.return_value for s in statements],
+                test_case,
+                callable_,
+                [s.return_value for s in statements],
+                signature.return_annotation,
             )
         )
         return statements
@@ -57,8 +62,21 @@ class StatementFactory:
         test_case: tc.TestCase,
         callable_: Callable,
         values: List[vr.VariableReference],
+        return_type: Type,
     ) -> pars.FunctionStatement:
-        """Foo"""
+        """Creates a function call statement.
+
+        :param test_case: The test case for which we generate the statement
+        :param callable_: The callable for which we generate the statement
+        :param values: The list of parameter values
+        :param return_type: The optional return type of the function
+        :return: A statement representing the function call
+        """
+        # TODO(sl) extend this to use the InferredMethodType for types somehow
+        statement = pars.FunctionStatement(
+            test_case, return_type, callable_.__name__, args=values
+        )
+        return statement
 
     @classmethod
     def create_int_statement(

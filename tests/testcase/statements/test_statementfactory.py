@@ -73,5 +73,4 @@ def test_create_statements(provide_callables_from_fixtures_modules, test_case_mo
     statements = sf.StatementFactory.create_statements(
         test_case_mock, callable_, values
     )
-    # a = 0
-    assert statements
+    assert len(statements) == 4
