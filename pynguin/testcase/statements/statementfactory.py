@@ -18,9 +18,9 @@ from typing import Callable, List, Tuple, Any
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statements.primitivestatements as prim
 
 
-# pylint: disable=too-few-public-methods
 class StatementFactory:
     """A factory that creates a statement instance for a callable."""
 
@@ -38,3 +38,16 @@ class StatementFactory:
         :param values: The list of parameter values
         :return: A statement representing this method call
         """
+
+    @classmethod
+    def create_int_statement(
+        cls, test_case: tc.TestCase, value: Tuple[str, Parameter, Any],
+    ) -> prim.IntPrimitiveStatement:
+        """Creates a statement representing a primitive integer.
+
+        :param test_case: The test case for which we generate the statement
+        :param value: The parameter value
+        :return: A statement representing the integer
+        """
+        statement = prim.IntPrimitiveStatement(test_case, value[2])
+        return statement
