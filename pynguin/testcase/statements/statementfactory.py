@@ -18,7 +18,9 @@ from typing import Callable, List, Tuple, Any
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statements.parametrizedstatements as pars
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.variable.variablereference as vr
 
 
 class StatementFactory:
@@ -38,6 +40,25 @@ class StatementFactory:
         :param values: The list of parameter values
         :return: A list of statements representing this method call
         """
+        statements: List[stmt.Statement] = []
+        for value in values:
+            # TODO(sl) build a mechanism that allows this depending on the type
+            statements.append(cls.create_int_statement(test_case, value))
+        statements.append(
+            cls.create_function_statement(
+                test_case, callable_, [s.return_value for s in statements],
+            )
+        )
+        return statements
+
+    @classmethod
+    def create_function_statement(
+        cls,
+        test_case: tc.TestCase,
+        callable_: Callable,
+        values: List[vr.VariableReference],
+    ) -> pars.FunctionStatement:
+        """Foo"""
 
     @classmethod
     def create_int_statement(

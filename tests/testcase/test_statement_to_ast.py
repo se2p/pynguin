@@ -174,3 +174,37 @@ def test_statement_to_ast_method_kwargs(
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "var0 = var1.test(param1=var2)\n"
     )
+
+
+def test_statement_to_ast_function_no_args(statement_to_ast_visitor, test_case_mock):
+    function_stmt = param_stmt.FunctionStatement(test_case_mock, MagicMock, "test")
+    statement_to_ast_visitor.visit_function_statement(function_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = test()\n"
+    )
+
+
+def test_statement_to_ast_function_args(statement_to_ast_visitor, test_case_mock):
+    function_stmt = param_stmt.FunctionStatement(
+        test_case_mock, MagicMock, "test", [MagicMock(vr.VariableReference)]
+    )
+    statement_to_ast_visitor.visit_function_statement(function_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = test(var1)\n"
+    )
+
+
+def test_statement_to_ast_function_kwargs(statement_to_ast_visitor, test_case_mock):
+    function_stmt = param_stmt.FunctionStatement(
+        test_case_mock,
+        MagicMock,
+        "test",
+        kwargs={"param1": MagicMock(vr.VariableReference)},
+    )
+    statement_to_ast_visitor.visit_function_statement(function_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = test(param1=var1)\n"
+    )

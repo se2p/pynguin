@@ -61,3 +61,17 @@ def test_create_bool_statement(test_case_mock):
     assert result.test_case == test_case_mock
     assert result.value
     assert result.return_value.variable_type == bool
+
+
+def test_create_statements(provide_callables_from_fixtures_modules, test_case_mock):
+    callable_ = provide_callables_from_fixtures_modules["triangle"]
+    values = [
+        ("x", Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+        ("y", Parameter("y", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+        ("z", Parameter("z", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+    ]
+    statements = sf.StatementFactory.create_statements(
+        test_case_mock, callable_, values
+    )
+    # a = 0
+    assert statements

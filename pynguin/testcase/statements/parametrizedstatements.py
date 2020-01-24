@@ -156,3 +156,43 @@ class MethodStatement(ParametrizedStatement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_method_statement(self)
+
+
+class FunctionStatement(ParametrizedStatement):
+    """A statement that calls a function."""
+
+    # pylint: disable=too-many-arguments
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        return_type: Type,
+        function_name: str,
+        args: Optional[List[vr.VariableReference]] = None,
+        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
+    ) -> None:
+        """
+
+        """
+        super().__init__(test_case, return_type, args, kwargs)
+        self._function_name = function_name
+
+    @property
+    def function_name(self) -> str:
+        """Provides then name of the function that is called."""
+        return self._function_name
+
+    @function_name.setter
+    def function_name(self, value: str) -> None:
+        self._function_name = value
+
+    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+        return FunctionStatement(
+            test_case,
+            self.return_value.variable_type,
+            self._function_name,
+            self._clone_args(test_case),
+            self._clone_kwargs(test_case),
+        )
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_function_statement(self)

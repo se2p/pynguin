@@ -129,6 +129,18 @@ class StatementToAstVisitor(sv.StatementVisitor):
             )
         )
 
+    def visit_function_statement(self, stmt: param_stmt.FunctionStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[self._create_name(stmt.return_value, False)],
+                value=ast.Call(
+                    func=ast.Name(id=stmt.function_name, ctx=ast.Load()),
+                    args=self._create_args(stmt),
+                    keywords=self._create_kw_args(stmt),
+                ),
+            )
+        )
+
     def visit_field_statement(self, stmt: field_stmt.FieldStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(

@@ -46,6 +46,10 @@ class StatementVisitor(ABC):
         """Visit method."""
 
     @abstractmethod
+    def visit_function_statement(self, stmt) -> None:
+        """Visit function."""
+
+    @abstractmethod
     def visit_field_statement(self, stmt) -> None:
         """Visit field."""
 
