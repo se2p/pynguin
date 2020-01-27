@@ -14,8 +14,6 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides classes to record coverage for executed sequences during test generation."""
 import logging
-import os
-import sys
 
 
 # pylint: disable=too-few-public-methods
@@ -23,16 +21,3 @@ class CoverageRecorder:
     """Records coverage for executed sequences."""
 
     _logger = logging.getLogger(__name__)
-
-
-# pylint: disable=attribute-defined-outside-init
-class HiddenPrints:
-    """A context-managing class that binds stdout to a null device."""
-
-    def __enter__(self) -> None:
-        self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, mode="w")
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        sys.stdout.close()
-        sys.stdout = self._original_stdout
