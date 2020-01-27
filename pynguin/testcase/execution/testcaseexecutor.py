@@ -34,7 +34,7 @@ def _recording_isinstance(
 
 
 # pylint: disable=too-few-public-methods
-class Executor:
+class TestCaseExecutor:
     """An executor that executes the generated sequences."""
 
     _logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class Executor:
                 exec(code, global_namespace, local_namespace)
             except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
-                Executor._logger.warning(
+                TestCaseExecutor._logger.warning(
                     "Failed to execute statement:\n%s%s", failed_stmt, err.args
                 )
                 return False

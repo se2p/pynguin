@@ -24,7 +24,7 @@ import pynguin.testcase.statements.statementfactory as stf
 import pynguin.testcase.testcase as tc
 from pynguin import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
-from pynguin.generation.executor import Executor
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.generation.valuegeneration import init_value
 from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
@@ -44,7 +44,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
     def __init__(
         self,
         recorder: CoverageRecorder,
-        executor: Executor,
+        executor: TestCaseExecutor,
         configuration: Configuration,
         symbol_table: SymbolTable,
         type_inference_strategy: TypeInferenceStrategy,

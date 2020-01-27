@@ -22,7 +22,7 @@ import pytest
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.algorithm import RandomGenerationAlgorithm
-from pynguin.generation.executor import Executor
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.typeinference.strategy import TypeInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
@@ -37,7 +37,7 @@ def recorder():
 
 @pytest.fixture
 def executor():
-    return MagicMock(Executor)
+    return MagicMock(TestCaseExecutor)
 
 
 @pytest.fixture
