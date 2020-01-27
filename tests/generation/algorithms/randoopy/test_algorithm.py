@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
-from inspect import Parameter
 from logging import Logger
 from unittest import mock
 from unittest.mock import MagicMock
@@ -227,9 +226,9 @@ def test_extend_for_function_with_type_annotation(
     callable_ = provide_callables_from_fixtures_modules["triangle"]
     test_cases = [MagicMock(tc.TestCase)]
     values = [
-        ("x", Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
-        ("y", Parameter("y", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
-        ("z", Parameter("z", Parameter.POSITIONAL_OR_KEYWORD, annotation=int), 42),
+        ("x", int, 42),
+        ("y", int, 42),
+        ("z", int, 42),
     ]
     method_type = type_inference_strategy.infer_type_info(callable_)
     with mock.patch(
