@@ -53,6 +53,21 @@ class PrimitiveStatement(stmt.Statement):
     def __str__(self) -> str:
         return f"{self._value}: {self._return_value}"
 
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, PrimitiveStatement):
+            return False
+        return self._return_value == other._return_value and self._value == other._value
+
+    def __hash__(self) -> int:
+        return (
+            31
+            + 17 * hash(self._test_case)
+            + hash(self._return_value)
+            + hash(self._value)
+        )
+
 
 class IntPrimitiveStatement(PrimitiveStatement):
     """Primitive Statement that creates an int."""

@@ -24,3 +24,24 @@ def test_field_statement(test_case_mock, variable_reference_mock):
         test_case_mock, variable_reference_mock, rhs
     )
     assert field_statement._rhs == rhs
+
+
+def test_hash(test_case_mock, variable_reference_mock):
+    statement = astmt.AssignmentStatement(
+        test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
+    )
+    assert statement.__hash__() != 0
+
+
+def test_eq_same(test_case_mock, variable_reference_mock):
+    statement = astmt.AssignmentStatement(
+        test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
+    )
+    assert statement.__eq__(statement)
+
+
+def test_eq_other_type(test_case_mock, variable_reference_mock):
+    statement = astmt.AssignmentStatement(
+        test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
+    )
+    assert not statement.__eq__(test_case_mock)

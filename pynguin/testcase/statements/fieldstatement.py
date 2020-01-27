@@ -15,7 +15,7 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Type, Optional
+from typing import Type, Optional, Any
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -68,3 +68,13 @@ class FieldStatement(stmt.Statement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_field_statement(self)
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, FieldStatement):
+            return False
+        return self._field == other._field and self._return_value == other._return_value
+
+    def __hash__(self) -> int:
+        return 31 + 17 * hash(self._field) + 17 * hash(self._return_value)

@@ -126,3 +126,63 @@ def test_primitive_statement_accept(statement_type, test_case, value, visitor_me
     visitor = MagicMock()
     stmt.accept(visitor)
     getattr(visitor, visitor_method).assert_called_once_with(stmt)
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        pytest.param(prim.IntPrimitiveStatement, 42),
+        pytest.param(prim.FloatPrimitiveStatement, 42.23),
+        pytest.param(prim.StringPrimitiveStatement, "foo"),
+        pytest.param(prim.BooleanPrimitiveStatement, True),
+    ],
+)
+def test_primitive_statement_equals_same(statement_type, value):
+    test_case = MagicMock(tc.TestCase)
+    statement = statement_type(test_case, value)
+    assert statement.__eq__(statement)
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        pytest.param(prim.IntPrimitiveStatement, 42),
+        pytest.param(prim.FloatPrimitiveStatement, 42.23),
+        pytest.param(prim.StringPrimitiveStatement, "foo"),
+        pytest.param(prim.BooleanPrimitiveStatement, True),
+    ],
+)
+def test_primitive_statement_equals_other_type(statement_type, value):
+    test_case = MagicMock(tc.TestCase)
+    statement = statement_type(test_case, value)
+    assert not statement.__eq__(test_case)
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        pytest.param(prim.IntPrimitiveStatement, 42),
+        pytest.param(prim.FloatPrimitiveStatement, 42.23),
+        pytest.param(prim.StringPrimitiveStatement, "foo"),
+        pytest.param(prim.BooleanPrimitiveStatement, True),
+    ],
+)
+def test_primitive_statement_equals_clone(statement_type, value):
+    test_case = MagicMock(tc.TestCase)
+    statement = statement_type(test_case, value)
+    clone = statement.clone(MagicMock(tc.TestCase))
+    assert statement.__eq__(clone)
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        pytest.param(prim.IntPrimitiveStatement, 42),
+        pytest.param(prim.FloatPrimitiveStatement, 42.23),
+        pytest.param(prim.StringPrimitiveStatement, "foo"),
+        pytest.param(prim.BooleanPrimitiveStatement, True),
+    ],
+)
+def test_primitive_statement_hash(statement_type, value):
+    statement = statement_type(MagicMock(tc.TestCase), value)
+    assert statement.__hash__() != 0

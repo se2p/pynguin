@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Optional
+from typing import Type, List, Dict, Optional, Any
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -85,6 +85,25 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         for name, var in self._kwargs.items():
             new_kw_args[name] = var.clone(new_test_case)
         return new_kw_args
+
+    def __hash__(self) -> int:
+        return (
+            31
+            + 17 * hash(self._return_value)
+            + 17 * hash(frozenset(self._args))
+            + 17 * hash(frozenset(self._kwargs.items()))
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, ParametrizedStatement):
+            return False
+        return (
+            self._return_value == other._return_value
+            and self._args == other._args
+            and self._kwargs == other._kwargs
+        )
 
 
 class ConstructorStatement(ParametrizedStatement):

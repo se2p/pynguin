@@ -53,8 +53,23 @@ def test_constructor_statement_accept(test_case_mock, variable_reference_mock):
     visitor.visit_constructor_statement.assert_called_once_with(statement)
 
 
+def test_constructor_statement_hash(test_case_mock, variable_reference_mock):
+    statement = ps.ConstructorStatement(test_case_mock, str)
+    assert statement.__hash__() != 0
+
+
+def test_constructor_statement_eq_same(test_case_mock, variable_reference_mock):
+    statement = ps.ConstructorStatement(test_case_mock, str)
+    assert statement.__eq__(statement)
+
+
+def test_constructor_statement_eq_other_type(test_case_mock, variable_reference_mock):
+    statement = ps.ConstructorStatement(test_case_mock, str)
+    assert not statement.__eq__(variable_reference_mock)
+
+
 def test_method_statement_no_args(test_case_mock, variable_reference_mock):
-    statement = ps.MethodStatement(test_case_mock, str, "", variable_reference_mock)
+    statement = ps.MethodStatement(test_case_mock, "", variable_reference_mock, str)
     assert statement.args == []
     assert statement.kwargs == {}
 
@@ -65,7 +80,7 @@ def test_method_statement_args(test_case_mock, variable_reference_mock):
         MagicMock(vri.VariableReferenceImpl),
     ]
 
-    statement = ps.MethodStatement(test_case_mock, str, "", variable_reference_mock)
+    statement = ps.MethodStatement(test_case_mock, "", variable_reference_mock, str)
     statement.args = references
     assert statement.args == references
 
@@ -76,13 +91,13 @@ def test_method_statement_kwargs(test_case_mock, variable_reference_mock):
         "par2": MagicMock(vri.VariableReferenceImpl),
     }
 
-    statement = ps.MethodStatement(test_case_mock, str, "", variable_reference_mock)
+    statement = ps.MethodStatement(test_case_mock, "", variable_reference_mock, str)
     statement.kwargs = references
     assert statement.kwargs == references
 
 
 def test_method_statement_accept(test_case_mock, variable_reference_mock):
-    statement = ps.MethodStatement(test_case_mock, str, "", variable_reference_mock)
+    statement = ps.MethodStatement(test_case_mock, "", variable_reference_mock, str)
     visitor = MagicMock(sv.StatementVisitor)
     statement.accept(visitor)
 

@@ -15,6 +15,8 @@
 """
 Provide a statement that performs assignments.
 """
+from typing import Any
+
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
@@ -47,3 +49,13 @@ class AssignmentStatement(stmt.Statement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_assignment_statement(self)
+
+    def __hash__(self) -> int:
+        return 31 + 17 * hash(self._return_value) + 17 * hash(self._rhs)
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, AssignmentStatement):
+            return False
+        return self._return_value == other._return_value and self._rhs == other._rhs

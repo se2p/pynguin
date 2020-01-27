@@ -72,7 +72,9 @@ class Statement(metaclass=ABCMeta):
         """Accepts a visitor to visit this statement."""
 
     def __eq__(self, other: Any) -> bool:
-        pass
+        raise NotImplementedError("You need to override __eq__ for your statement type")
 
     def __hash__(self) -> int:
-        pass
+        raise NotImplementedError(
+            "You need to override __hash__ for your statement type"
+        )

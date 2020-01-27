@@ -16,7 +16,7 @@
 # pylint: disable=cyclic-import
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Type, Optional
+from typing import Type, Optional, Any
 
 import pynguin.testcase.testcase as tc
 
@@ -76,3 +76,13 @@ class VariableReference(metaclass=ABCMeta):
 
     def __str__(self) -> str:
         return f"{self._variable_type}"
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, VariableReference):
+            return False
+        return self._variable_type == other._variable_type
+
+    def __hash__(self) -> int:
+        return 31 * 17 + hash(self._variable_type)

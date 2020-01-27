@@ -56,3 +56,18 @@ def test_get_position(test_case_mock):
     statement.return_value = ref
     test_case_mock.statements = [statement]
     assert ref.get_statement_position() == 0
+
+
+def test_hash(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    assert ref.__hash__() != 0
+
+
+def test_eq_same(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    assert ref.__eq__(ref)
+
+
+def test_eq_other_type(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    assert not ref.__eq__(test_case_mock)
