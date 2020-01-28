@@ -114,10 +114,10 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         # Execute new sequence
         # TODO(sl) what shall be the return values of the execution step?
         # TODO(sl) think about the contracts from Randoop paper…
-        violated = self._executor.execute(new_test_case)
+        exec_result = self._executor.execute(new_test_case)
 
         # Classify new test case and outputs
-        if violated:
+        if exec_result.has_test_exceptions():
             failing_test_cases.append(new_test_case)
         else:
             test_cases.append(new_test_case)

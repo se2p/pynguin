@@ -24,7 +24,7 @@ def test_simple_execution():
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case, 5))
     executor = TestCaseExecutor()
-    assert executor.execute(test_case)
+    assert not executor.execute(test_case).has_test_exceptions()
 
 
 def test_illegal_call():
@@ -36,4 +36,4 @@ def test_illegal_call():
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     executor = TestCaseExecutor()
-    assert not executor.execute(test_case)
+    assert executor.execute(test_case).has_test_exceptions()
