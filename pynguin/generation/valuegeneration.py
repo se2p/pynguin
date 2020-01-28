@@ -17,7 +17,7 @@ import logging
 import random
 from enum import Enum
 from functools import singledispatch, wraps
-from typing import Optional, Any, List
+from typing import Optional, List, Type, Any
 
 from pynguin.testcase.testcase import TestCase
 from pynguin.utils.string import String
@@ -55,7 +55,7 @@ def value_dispatch(func):
 # pylint: disable=unused-argument
 @value_dispatch
 def init_value(
-    type_: Any, test_cases: List[TestCase], failing_test_cases: List[TestCase]
+    type_: Type, test_cases: List[TestCase], failing_test_cases: List[TestCase]
 ) -> Optional[Any]:
     """A decorator for initialising generated values.
 
@@ -65,6 +65,8 @@ def init_value(
     :return: An optional initialised value
     """
     targets: List[Any] = []
+    if random.random() < 0.5:
+        targets
     for test_case in reversed(test_cases):
         for statement in reversed(test_case.statements):
             LOGGER.warning(
