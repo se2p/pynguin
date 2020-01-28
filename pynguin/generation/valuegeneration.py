@@ -26,7 +26,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 def value_dispatch(func):
-    """See http://lukasz.langa.pl/8/single-dispatch-generic-functions/"""
+    """See http://lukasz.langa.pl/8/single-dispatch-generic-functions/
+    https://web.archive.org/web/20190122122012/http://lukasz.langa.pl/8/single-dispatch-generic-functions/
+    """
     _func = singledispatch(func)
 
     @_func.register(Enum)
