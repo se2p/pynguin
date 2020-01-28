@@ -65,8 +65,6 @@ def init_value(
     :return: An optional initialised value
     """
     targets: List[Any] = []
-    if random.random() < 0.5:
-        targets
     for test_case in reversed(test_cases):
         for statement in reversed(test_case.statements):
             LOGGER.warning(
