@@ -54,11 +54,14 @@ def value_dispatch(func):
 
 # pylint: disable=unused-argument
 @value_dispatch
-def init_value(type_: Any, test_cases: List[TestCase]) -> Optional[Any]:
+def init_value(
+    type_: Any, test_cases: List[TestCase], failing_test_cases: List[TestCase]
+) -> Optional[Any]:
     """A decorator for initialising generated values.
 
     :param type_: The type we are interested in
     :param test_cases: The current list of test cases
+    :param failing_test_cases: The current list of failing test cases
     :return: An optional initialised value
     """
     targets: List[Any] = []
@@ -80,14 +83,14 @@ def init_value(type_: Any, test_cases: List[TestCase]) -> Optional[Any]:
 
 
 @init_value.register(int)
-def int_generator(_, __):
+def int_generator(_, __, ___):
     """A generator for uniformly-distributed random integer values."""
     value = random.randint(-100, 100)
     return value
 
 
 @init_value.register(String)
-def str_generator(_, __):
+def str_generator(_, __, ___):
     """A generator for random string values from the list of observed strings."""
     if len(String.observed) > 0:
         return String(random.choice(String.observed))
@@ -95,13 +98,13 @@ def str_generator(_, __):
 
 
 @init_value.register(bool)
-def bool_generator(_, __):
+def bool_generator(_, __, ___):
     """A generator for uniformly-distributed random boolean values."""
     return bool(random.getrandbits(1))
 
 
 @init_value.register(complex)
-def complex_generator(_, __):
+def complex_generator(_, __, ___):
     """A generator for uniformly-distributed random complex values of integers."""
     real = random.randint(-100, 100)
     imaginary = random.randint(-100, 100)
@@ -109,7 +112,7 @@ def complex_generator(_, __):
 
 
 @init_value.register(float)
-def float_generator(_, __):
+def float_generator(_, __, ___):
     """A generator for uniformly-distributed random float values."""
     value = random.uniform(-100, 100)
     return value

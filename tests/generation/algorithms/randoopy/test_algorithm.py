@@ -199,7 +199,10 @@ def test_random_values_for_function_with_type_annotation(
     callable_ = provide_callables_from_fixtures_modules["triangle"]
     test_cases = [MagicMock(tc.TestCase)]
     result = algorithm._random_values(
-        test_cases, callable_, type_inference_strategy.infer_type_info(callable_)
+        test_cases,
+        callable_,
+        type_inference_strategy.infer_type_info(callable_),
+        [MagicMock(tc.TestCase)],
     )
     assert len(result) == 3
     assert str(result[0][0]) == "x"

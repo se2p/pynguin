@@ -17,7 +17,7 @@ from pynguin.utils.string import String
 
 
 def test_init_value_int():
-    result = init_value(int, [])
+    result = init_value(int, [], [])
     assert result in range(-100, 101)
 
 
@@ -25,30 +25,30 @@ def test_init_value_string():
     String.observed = []
     String.observed.append("foo")
     String.observed.append("bar")
-    result = init_value(String, [])
+    result = init_value(String, [], [])
     assert result in {"foo", "bar"}
 
 
 def test_init_value_string_no_strings_seen():
     String.observed = []
-    result = init_value(String, [])
+    result = init_value(String, [], [])
     assert result == "Test"
 
 
 def test_init_value_bool():
-    result = init_value(bool, [])
+    result = init_value(bool, [], [])
     assert result or not result
 
 
 def test_init_value_complex():
-    result = init_value(complex, [])
+    result = init_value(complex, [], [])
     assert isinstance(result, complex)
     assert result.real in range(-100, 101)
     assert result.imag in range(-100, 101)
 
 
 def test_init_value_float():
-    result = init_value(float, [])
+    result = init_value(float, [], [])
     assert isinstance(result, float)
     assert result >= -100
     assert result < 100

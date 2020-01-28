@@ -104,7 +104,9 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         method = self._random_public_method(objects_under_test)
         method_type = self._type_inference_strategy.infer_type_info(method)
         tests = self._random_test_cases(test_cases)
-        values = self._random_values(test_cases, method, method_type)
+        values = self._random_values(
+            test_cases, method, method_type, failing_test_cases
+        )
         new_test_case = self._extend(method, tests, values, method_type)
 
         # Discard duplicates
@@ -189,6 +191,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         test_cases: List[tc.TestCase],
         callable_: Callable,
         method_type: InferredMethodType,
+        failing_test_cases: List[tc.TestCase],
     ) -> List[Tuple[str, Type, Any]]:
         assert method_type.parameters  # TODO(sl) implement handling for other cases
         parameters = [(k, v) for k, v in method_type.parameters.items() if k != "self"]
@@ -196,7 +199,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         for parameter in parameters:
             name, param = parameter
             assert param  # TODO(sl) this should always be true when we have parameters
-            value = init_value(param, test_cases)
+            value = init_value(param, test_cases, failing_test_cases)
             self._logger.debug(
                 "Selected Method: %s, Parameter: %s: %s, Value: %s",
                 callable_.__name__,
