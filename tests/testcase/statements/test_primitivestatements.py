@@ -170,7 +170,10 @@ def test_primitive_statement_equals_other_type(statement_type, value):
 def test_primitive_statement_equals_clone(statement_type, value):
     test_case = MagicMock(tc.TestCase)
     statement = statement_type(test_case, value)
-    clone = statement.clone(MagicMock(tc.TestCase))
+    test_case.statements = [statement]
+    test_case2 = MagicMock(tc.TestCase)
+    clone = statement.clone(test_case2)
+    test_case2.statements = [clone]
     assert statement.__eq__(clone)
 
 

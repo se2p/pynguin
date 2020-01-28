@@ -12,10 +12,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from unittest.mock import MagicMock
-
 import pynguin.testcase.statements.fieldstatement as fstmt
-import pynguin.testcase.testcase as tc
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.primitivestatements as prim
 
 
 def test_field_statement(test_case_mock, variable_reference_mock):
@@ -47,9 +46,16 @@ def test_field_statement_eq_other_type(test_case_mock, variable_reference_mock):
     assert not statement.__eq__(variable_reference_mock)
 
 
-def test_field_statement_eq_clone(test_case_mock, variable_reference_mock):
+def test_field_statement_eq_clone():
+    testcase1 = dtc.DefaultTestCase()
+    testcase1.add_statement(prim.IntPrimitiveStatement(testcase1, 0))
+    testcase2 = dtc.DefaultTestCase()
+    testcase2.add_statement(prim.IntPrimitiveStatement(testcase2, 0))
+
     statement = fstmt.FieldStatement(
-        test_case_mock, "test", str, variable_reference_mock
+        testcase1, "test", str, testcase1.statements[0].return_value
     )
-    clone = statement.clone(MagicMock(tc.TestCase))
+    testcase1.add_statement(statement)
+    clone = statement.clone(testcase2)
+    testcase2.add_statement(clone)
     assert statement.__eq__(clone)

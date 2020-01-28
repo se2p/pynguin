@@ -82,7 +82,10 @@ class VariableReference(metaclass=ABCMeta):
             return True
         if not isinstance(other, VariableReference):
             return False
-        return self._variable_type == other._variable_type
+        return (
+            self._variable_type == other._variable_type
+            and self.get_statement_position() == other.get_statement_position()
+        )
 
     def __hash__(self) -> int:
         return 31 * 17 + hash(self._variable_type)

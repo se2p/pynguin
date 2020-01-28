@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Some integration tests for the testcase/statements"""
+import pytest
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
@@ -65,3 +66,31 @@ def test_assignment_statement_clone():
     cloned = test_case.clone()
     assert isinstance(cloned.statements[2], assign.AssignmentStatement)
     assert cloned.statements[2] is not assignment_stmt
+
+
+@pytest.fixture(scope="function")
+def simple_test_case() -> dtc.DefaultTestCase:
+    test_case = dtc.DefaultTestCase()
+    int_prim = prim.IntPrimitiveStatement(test_case, 5)
+    int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
+    test_case.add_statement(int_prim)
+    test_case.add_statement(int_prim2)
+    return test_case
+
+
+def test_test_case_equals_on_different_prim(simple_test_case: dtc.DefaultTestCase):
+    cloned = simple_test_case.clone()
+
+    # Original points to int at 0
+    simple_test_case.add_statement(
+        ps.ConstructorStatement(
+            simple_test_case, int, [simple_test_case.statements[0].return_value]
+        )
+    )
+    # Clone points to int at 1
+    cloned.add_statement(
+        ps.ConstructorStatement(cloned, int, [cloned.statements[1].return_value])
+    )
+
+    # Even thought they both point to an int, they are not equal
+    assert not simple_test_case == cloned
