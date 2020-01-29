@@ -26,7 +26,6 @@ from pynguin import Configuration
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
-from pynguin.generation.valuegeneration import init_value
 from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
@@ -186,6 +185,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         )
         return new_test_cases
 
+    # pylint: disable=unused-argument
     def _random_values(
         self,
         test_cases: List[tc.TestCase],
@@ -199,7 +199,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         for parameter in parameters:
             name, param = parameter
             assert param  # TODO(sl) this should always be true when we have parameters
-            value = init_value(param, test_cases, failing_test_cases)
+            value = 42
             self._logger.debug(
                 "Selected Method: %s, Parameter: %s: %s, Value: %s",
                 callable_.__name__,
