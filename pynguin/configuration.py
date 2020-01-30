@@ -94,6 +94,9 @@ class Configuration:
     # generated tests should fit.
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST_EXPORTER
 
+    # Recursion depth when trying to create objects
+    max_recursion: int = 10
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(
