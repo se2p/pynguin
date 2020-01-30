@@ -17,14 +17,14 @@ from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Type
 
 import pynguin.testcase.testcase as tc
-from pynguin.configuration import Configuration
+import pynguin.configuration as config
 
 
 class GenerationAlgorithm(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self, configuration: Configuration) -> None:
-        self._configuration = configuration
+    def __init__(self) -> None:
+        pass
 
     @abstractmethod
     def generate_sequences(
@@ -53,8 +53,9 @@ class GenerationAlgorithm(metaclass=ABCMeta):
                 return True
         return False
 
+    @staticmethod
     def purge_test_cases(
-        self, test_cases: List[tc.TestCase]
+        test_cases: List[tc.TestCase],
     ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         """Purges a list of test cases and returns the purged and remaining.
 
@@ -73,13 +74,13 @@ class GenerationAlgorithm(metaclass=ABCMeta):
         :return: A tuple of two lists of test cases.  The first contains test cases
         that where purged, the second contains the remaining test cases
         """
-        if self._configuration.counter_threshold <= 0:
+        if config.INSTANCE.counter_threshold <= 0:
             return [], test_cases
 
         purged: List[tc.TestCase] = []
         remaining: List[tc.TestCase] = []
         for test_case in test_cases:
-            if len(test_case.statements) > self._configuration.counter_threshold:
+            if len(test_case.statements) > config.INSTANCE.counter_threshold:
                 purged.append(test_case)
             else:
                 remaining.append(test_case)

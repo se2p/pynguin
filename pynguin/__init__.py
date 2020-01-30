@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Pynguin is an automated unit test generation framework for Python."""
-from .configuration import Configuration, ConfigurationBuilder
+from .configuration import Configuration
 from .generator import Pynguin
 
 __version__ = "0.1.0"
-__all__ = ["Pynguin", "ConfigurationBuilder", "Configuration"]
+__all__ = ["Pynguin", "Configuration", "__version__"]

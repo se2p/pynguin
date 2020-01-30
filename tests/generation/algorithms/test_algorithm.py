@@ -16,7 +16,7 @@ from typing import List, Type, Tuple
 from unittest.mock import MagicMock
 
 import pytest
-
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
@@ -32,8 +32,8 @@ class _GenerationAlgorithm(GenerationAlgorithm):
 
 
 @pytest.fixture
-def algorithm(configuration_mock):
-    return _GenerationAlgorithm(configuration_mock)
+def algorithm():
+    return _GenerationAlgorithm()
 
 
 def test_not_has_type_violations(algorithm):
@@ -45,14 +45,14 @@ def test_has_type_violations(algorithm):
 
 
 def test_purge_test_cases_without_threshold(algorithm, test_case_mock):
-    algorithm._configuration.counter_threshold = 0
+    config.INSTANCE.counter_threshold = 0
     purged, remaining = algorithm.purge_test_cases([test_case_mock])
     assert purged == []
     assert remaining == [test_case_mock]
 
 
 def test_purge_test_cases(algorithm):
-    algorithm._configuration.counter_threshold = 1
+    config.INSTANCE.counter_threshold = 1
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)

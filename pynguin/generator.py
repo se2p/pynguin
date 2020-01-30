@@ -18,7 +18,7 @@ import logging
 import os
 from typing import Union, List
 
-from pynguin.configuration import Configuration, ConfigurationBuilder
+import pynguin.configuration as config
 from pynguin.utils.exceptions import ConfigurationException
 
 
@@ -30,7 +30,7 @@ class Pynguin:
         self,
         argument_parser: argparse.ArgumentParser = None,
         arguments: List[str] = None,
-        configuration: Configuration = None,
+        configuration: config.Configuration = None,
     ) -> None:
         """Initialises the test generator.
 
@@ -45,19 +45,15 @@ class Pynguin:
         :raises ConfigurationException: In case there is no proper configuration
         """
         if configuration:
-            self._configuration = configuration
+            config.INSTANCE = configuration
         elif argument_parser and arguments:
-            self._configuration = ConfigurationBuilder.build_from_cli_arguments(
-                argument_parser, arguments
-            )
+            config.INSTANCE = argument_parser.parse_args(arguments).config
         else:
             raise ConfigurationException(
                 "Cannot initialise test generator without proper configuration."
             )
         self._logger = self._setup_logging(
-            self._configuration.verbose,
-            self._configuration.quiet,
-            self._configuration.log_file,
+            config.INSTANCE.verbosity, config.INSTANCE.log_file,
         )
 
     def run(self) -> int:
@@ -73,15 +69,13 @@ class Pynguin:
 
     @staticmethod
     def _setup_logging(
-        verbose: bool = False,
-        quiet: bool = False,
-        log_file: Union[str, os.PathLike] = None,
+        verbosity: config.Verbosity, log_file: Union[str, os.PathLike] = None,
     ) -> logging.Logger:
         logger = logging.getLogger("pynguin")
         logger.setLevel(logging.DEBUG)
-        if verbose:
+        if verbosity is config.Verbosity.VERBOSE:
             level = logging.DEBUG
-        elif quiet:
+        elif verbosity is config.Verbosity.QUIET:
             level = logging.NOTSET
         else:
             level = logging.INFO
@@ -96,7 +90,7 @@ class Pynguin:
             file_handler.setLevel(logging.DEBUG)
             logger.addHandler(file_handler)
 
-        if not quiet:
+        if verbosity is not config.Verbosity.QUIET:
             console_handler = logging.StreamHandler()
             console_handler.setLevel(level)
             console_handler.setFormatter(

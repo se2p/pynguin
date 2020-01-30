@@ -32,9 +32,9 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 coverage = "^5.0"
-configargparse = "^1.0"
 astor = "^0.8.1"
 bytecode = "^0.9.0"
+simple-parsing = "^0.0.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"

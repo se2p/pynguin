@@ -22,9 +22,20 @@ import pytest
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin import Configuration
+import pynguin.configuration as config
 
 # -- FIXTURES --------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def reset_configuration():
+    """Automatically reset the configuration singleton"""
+    config.INSTANCE = config.Configuration(
+        algorithm=config.Algorithm.RANDOOPY,
+        project_path="",
+        output_path="",
+        module_names=[],
+    )
 
 
 @pytest.fixture(scope="function")
@@ -35,11 +46,6 @@ def test_case_mock():
 @pytest.fixture(scope="function")
 def variable_reference_mock():
     return MagicMock(vri.VariableReferenceImpl)
-
-
-@pytest.fixture(scope="function")
-def configuration_mock():
-    return MagicMock(Configuration)
 
 
 @pytest.fixture(scope="session")

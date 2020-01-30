@@ -22,7 +22,7 @@ from typing import Type, List, Tuple, Any, Callable
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statementfactory as stf
 import pynguin.testcase.testcase as tc
-from pynguin import Configuration
+import pynguin.configuration as config
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
@@ -44,14 +44,12 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         self,
         recorder: CoverageRecorder,
         executor: TestCaseExecutor,
-        configuration: Configuration,
         symbol_table: SymbolTable,
         type_inference_strategy: TypeInferenceStrategy,
     ) -> None:
-        super().__init__(configuration)
+        super().__init__()
         self._recorder = recorder
         self._executor = executor
-        self._configuration = configuration
         self._symbol_table = symbol_table
         self._type_inference_strategy = type_inference_strategy
 
@@ -163,20 +161,18 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         return method
 
     def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
-        if self._configuration.max_sequence_length == 0:
+        if config.INSTANCE.max_sequence_length == 0:
             selectables = test_cases
         else:
             selectables = [
                 test_case
                 for test_case in test_cases
-                if len(test_case.statements) < self._configuration.max_sequence_length
+                if len(test_case.statements) < config.INSTANCE.max_sequence_length
             ]
-        if self._configuration.max_sequences_combined == 0:
+        if config.INSTANCE.max_sequences_combined == 0:
             upper_bound = len(selectables)
         else:
-            upper_bound = min(
-                len(selectables), self._configuration.max_sequences_combined
-            )
+            upper_bound = min(len(selectables), config.INSTANCE.max_sequences_combined)
         new_test_cases = random.sample(selectables, random.randint(0, upper_bound))
         self._logger.debug(
             "Selected %d new test cases from %d available ones",

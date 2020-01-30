@@ -16,10 +16,7 @@ import ast
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
-
-from pynguin import Configuration
-from pynguin.generation.export.exporter import Exporter, ExportStrategy
+from pynguin.generation.export.exporter import Exporter
 from pynguin.utils.statements import Sequence
 
 
@@ -27,8 +24,7 @@ from pynguin.utils.statements import Sequence
 def test_export_sequences(pytest_exporter):
     ast_module_mock = MagicMock(ast.Module)
     pytest_exporter.return_value.export_sequences.return_value = ast_module_mock
-    configuration_mock = Configuration()
-    exporter = Exporter(configuration_mock)
+    exporter = Exporter()
     result = exporter.export_sequences([MagicMock(Sequence)])
     assert result == ast_module_mock
 
@@ -36,21 +32,6 @@ def test_export_sequences(pytest_exporter):
 @mock.patch("pynguin.generation.export.exporter.PyTestExporter")
 def test_save_ast_to_file(pytest_exporter):
     ast_module_mock = MagicMock(ast.Module)
-    configuration_mock = Configuration()
-    exporter = Exporter(configuration_mock)
+    exporter = Exporter()
     exporter.save_ast_to_file(ast_module_mock)
     pytest_exporter.assert_called_once()
-
-
-def test_export_strategy():
-    assert str(ExportStrategy.NONE) == "NONE"
-
-
-def test_export_strategy_from_string():
-    strategy = ExportStrategy.from_string("PYTEST_EXPORTER")
-    assert strategy == ExportStrategy.PYTEST_EXPORTER
-
-
-def test_export_strategy_from_non_existing_string():
-    with pytest.raises(ValueError):
-        ExportStrategy.from_string("FOO")

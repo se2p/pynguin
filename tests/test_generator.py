@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.configuration import Configuration
+import pynguin.configuration as config
 from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.string import String
@@ -31,14 +31,23 @@ from pynguin.utils.string import String
 
 @pytest.fixture
 def configuration():
-    return Configuration(verbose=False, quiet=True, log_file="")
+    return config.Configuration(
+        algorithm=config.Algorithm.RANDOOPY,
+        verbosity=config.Verbosity.QUIET,
+        log_file="",
+        module_names=[],
+        output_path="",
+        project_path="",
+    )
 
 
 def test__setup_logging_standard_with_log_file():
     log_fd, log_file = tempfile.mkstemp()
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(log_file=log_file)
+    logger = Pynguin._setup_logging(
+        log_file=log_file, verbosity=config.Verbosity.NORMAL
+    )
     assert isinstance(logger, logging.Logger)
     assert logger.level == logging.DEBUG
     assert len(logger.handlers) == 2
@@ -51,7 +60,7 @@ def test__setup_logging_standard_with_log_file():
 def test__setup_logging_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(verbose=True)
+    logger = Pynguin._setup_logging(config.Verbosity.VERBOSE)
     assert len(logger.handlers) == 1
     assert logger.handlers[0].level == logging.DEBUG
     logging.shutdown()
@@ -61,7 +70,7 @@ def test__setup_logging_verbose_without_log_file():
 def test__setup_logging_quiet_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(quiet=True)
+    logger = Pynguin._setup_logging(config.Verbosity.QUIET)
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
@@ -69,8 +78,8 @@ def test__setup_logging_quiet_without_log_file():
 
 
 def test_init_with_configuration(configuration):
-    generator = Pynguin(configuration=configuration)
-    assert generator._configuration == configuration
+    Pynguin(configuration=configuration)
+    assert config.INSTANCE == configuration
 
 
 def test_init_without_params():
@@ -83,14 +92,12 @@ def test_init_without_params():
 
 
 def test_init_with_cli_arguments(configuration):
+    option_mock = MagicMock(config=configuration)
     parser = MagicMock(ArgumentParser)
+    parser.parse_args.return_value = option_mock
     args = [""]
-    with mock.patch(
-        "pynguin.generator.ConfigurationBuilder.build_from_cli_arguments"
-    ) as builder_mock:
-        builder_mock.return_value = configuration
-        generator = Pynguin(argument_parser=parser, arguments=args)
-        assert generator._configuration == configuration
+    Pynguin(argument_parser=parser, arguments=args)
+    assert config.INSTANCE == configuration
 
 
 @pytest.mark.skip()
@@ -101,7 +108,7 @@ def test_run(algorithm, __, ___):
     algorithm.return_value.generate_sequences.return_value = ([], [])
 
     tmp_dir = tempfile.mkdtemp()
-    configuration = Configuration(output_folder=tmp_dir)
+    configuration = config.Configuration(output_path=tmp_dir)
     generator = Pynguin(configuration=configuration)
     assert generator.run() == 0
     shutil.rmtree(tmp_dir)
@@ -115,8 +122,8 @@ def test_run_with_module_names_and_coverage(algorithm, _, __):
     algorithm.return_value.generate_sequences.return_value = ([], [])
 
     tmp_dir = tempfile.mkdtemp()
-    configuration = Configuration(
-        output_folder=tmp_dir, module_names=["foo"], measure_coverage=True
+    configuration = config.Configuration(
+        output_path=tmp_dir, module_names=["foo"], measure_coverage=True
     )
     generator = Pynguin(configuration=configuration)
     with mock.patch("pynguin.generator.importlib.import_module") as import_mock:
@@ -136,7 +143,7 @@ def test_run_with_observed_string(algorithm, _, __):
     String.observed.append("bar")
 
     tmp_dir = tempfile.mkdtemp()
-    configuration = Configuration(output_folder=tmp_dir)
+    configuration = config.Configuration(output_path=tmp_dir)
     generator = Pynguin(configuration=configuration)
     generator.run()
 

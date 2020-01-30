@@ -15,51 +15,26 @@
 """A generic exporter that selects its export strategy based on configuration."""
 import ast
 import os
-from enum import Enum
 from typing import List
 
-from pynguin.configuration import Configuration
+import pynguin.configuration as config
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
 from pynguin.generation.export.pytestexporter import PyTestExporter
 from pynguin.utils.statements import Sequence
 
 
-class ExportStrategy(Enum):
-    """Contains all available export strategies."""
-
-    PYTEST_EXPORTER = "PYTEST_EXPORTER"
-    NONE = "NONE"
-
-    def __str__(self) -> str:
-        return self.value
-
-    @staticmethod
-    def from_string(string):
-        """Returns a representation of the enum value from its string name.
-
-        :return: A representation
-        :raises: ValueError if the representation was not found
-        """
-        try:
-            return ExportStrategy[string]
-        except KeyError:
-            raise ValueError()
-
-
 class Exporter:
     """Provides the possibility to export generated tests using a configured strategy"""
 
-    def __init__(self, configuration: Configuration) -> None:
-        self._configuration = configuration
+    def __init__(self) -> None:
         self._strategy = self._configure_strategy()
 
-    def _configure_strategy(self) -> AbstractTestExporter:
+    @staticmethod
+    def _configure_strategy() -> AbstractTestExporter:
         # if self._configuration.export_strategy == ExportStrategy.PYTEST_EXPORTER:
         return PyTestExporter(
-            self._configuration.module_names,
-            os.path.join(
-                self._configuration.tests_output, f"{self._configuration.seed}.py"
-            ),
+            config.INSTANCE.module_names,
+            os.path.join(config.INSTANCE.output_path, f"{config.INSTANCE.seed}.py"),
         )
 
     # raise Exception("Illegal export strategy")
