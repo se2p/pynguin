@@ -32,4 +32,4 @@ def test_next_string_printable():
 
 def test_next_int():
     rand = randomness.next_int(lower_bound=-50, upper_bound=50)
-    assert -50 <= rand < 50
+    assert -50 <= rand <= 50

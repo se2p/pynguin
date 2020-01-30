@@ -194,13 +194,13 @@ def test_primitive_statement_hash(statement_type, value):
 def test_int_primitive_statement_randomize_value(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert -100 <= statement.value < 100
+    assert -100 <= statement.value <= 100
 
 
 def test_float_primitive_statement_randomize_value(test_case_mock):
     statement = prim.FloatPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert -100 <= statement.value < 100
+    assert -100 <= statement.value <= 100
 
 
 def test_bool_primitive_statement_randomize_value(test_case_mock):
@@ -212,4 +212,4 @@ def test_bool_primitive_statement_randomize_value(test_case_mock):
 def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 1 <= len(statement.value) < 100
+    assert 1 <= len(statement.value) <= 100
