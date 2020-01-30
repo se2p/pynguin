@@ -23,6 +23,12 @@ unit-tests:python-3.8:
   variables:
     PYTHON_VERSION: '3.8-buster'
 
+unit-tests:python-3.9:
+  <<: *unit-tests
+  variables:
+    PYTHON_VERSION: '3.9-rc-buster'
+  allow_failure: true  # allow failure for Python 3.9 since it's only an alpha version
+
 .nightly-tests:
   only:
     - schedules
@@ -39,6 +45,12 @@ nightly-tests:python-3.8:
   extends: .nightly-tests
   variables:
     PYTHON_VERSION: '3.8-buster'
+
+nightly-tests:python-3.9:
+  extends: .nightly-tests
+  variables:
+    PYTHON_VERSION: '3.9-rc-buster'
+  allow_failure: true  # allow failure for Python 3.9 since it's only an alpha version
 
 flake8:
   stage: build
