@@ -192,7 +192,7 @@ def test_random_values_for_function_with_type_annotation(
     assert result[2][1] == int
 
 
-def test_extend_for_function_with_type_annotation(
+def extend_for_function_with_type_annotation(
     recorder, executor, symbol_table, provide_callables_from_fixtures_modules,
 ):
     logger = MagicMock(Logger)

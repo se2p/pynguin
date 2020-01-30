@@ -20,7 +20,7 @@ import random
 from typing import Type, List, Tuple, Any, Callable
 
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.statementfactory as stf
+import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
@@ -217,9 +217,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         for test_case in test_cases:
             new_test.append_test_case(test_case)
 
-        statements = stf.StatementFactory.create_statements(
-            new_test, callable_, values, method_type
-        )
+        statements: List[stmt.Statement] = []
         self._logger.debug(
             "Generated %d statements for method %s", len(statements), callable_.__name__
         )
