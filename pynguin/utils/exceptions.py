@@ -25,3 +25,7 @@ class GenerationException(BaseException):
     This type shall be used for all exceptions that occur during test generation and
     that are caused by the test-generation process.
     """
+
+
+class ConstructionFailedException(BaseException):
+    """An exception used when error occurs during construction of a test case."""
