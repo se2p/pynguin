@@ -47,6 +47,7 @@ pytest-sugar = "^0.9.2"
 pytest-picked = "^0.4.1"
 pytest-xdist = "^1.31"
 hypothesis = "^5.3"
+pytest-mock = "^2.0.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
