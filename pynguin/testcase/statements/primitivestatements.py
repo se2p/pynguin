@@ -21,6 +21,7 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.utils import randomness
 
 
 class PrimitiveStatement(stmt.Statement):
@@ -124,7 +125,8 @@ class StringPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
-        pass
+        length = randomness.next_int(lower_bound=1)
+        self._value = randomness.next_string(length)
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)

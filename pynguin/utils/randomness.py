@@ -30,3 +30,15 @@ def next_string(length: int) -> str:
     :param length: the desired length
     """
     return "".join(next_char() for _ in range(length))
+
+
+def next_int(lower_bound=-100, upper_bound=100) -> int:
+    """Provide a random integer number from an interval.
+
+    If no lower or upper bound is given, the integer is chosen from the interval
+    including -100 to excluded 100.
+
+    :param lower_bound: The lower bound for the number selection
+    :param upper_bound: The upper bound for the number selection
+    """
+    return RNG.randint(lower_bound, upper_bound)

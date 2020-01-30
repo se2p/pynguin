@@ -28,3 +28,8 @@ def test_next_string_length():
 def test_next_string_printable():
     rand = randomness.next_string(15)
     assert all(char in string.printable for char in rand)
+
+
+def test_next_int():
+    rand = randomness.next_int(lower_bound=-50, upper_bound=50)
+    assert -50 <= rand < 50
