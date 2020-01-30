@@ -27,6 +27,6 @@ def next_char() -> str:
 def next_string(length: int) -> str:
     """
     Create a random string consisting of printable and with the given length.
-    :param length the desired length
+    :param length: the desired length
     """
     return "".join(next_char() for _ in range(length))
