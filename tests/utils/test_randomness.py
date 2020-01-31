@@ -33,3 +33,14 @@ def test_next_string_printable():
 def test_next_int():
     rand = randomness.next_int(lower_bound=-50, upper_bound=50)
     assert -50 <= rand <= 50
+
+
+def test_next_float():
+    rand = randomness.next_float()
+    assert 0 <= rand <= 1
+
+
+def test_choice():
+    sequence = ["a", "b", "c"]
+    result = randomness.choice(sequence)
+    assert result in ("a", "b", "c")

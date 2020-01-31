@@ -15,6 +15,7 @@
 """Provides a singleton instance of Random that can be seeded."""
 import random
 import string
+from typing import Sequence, Any
 
 RNG: random.Random = random.Random()
 
@@ -42,3 +43,27 @@ def next_int(lower_bound=-100, upper_bound=100) -> int:
     :param upper_bound: The upper bound for the number selection
     """
     return RNG.randint(lower_bound, upper_bound)
+
+
+def next_float(lower_bound=0, upper_bound=1) -> float:
+    """Provide a random float number uniformly selected from an interval.
+
+    If no lower or upper bound is given, the float is chosen uniformly from the
+    interval [0,1].
+
+    :param lower_bound: The lower bound for the number selection
+    :param upper_bound: The upper bound for the number selection
+    :return: A random float number from the interval
+    """
+    return RNG.uniform(lower_bound, upper_bound)
+
+
+def choice(sequence: Sequence[Any]) -> Any:
+    """Return a random element from a non-empty sequence.
+
+    If the sequence is empty, it raises an `IndexError`.
+
+    :param sequence: The non-empty sequence to choose from
+    :return: An randomly selected element of the sequence
+    """
+    return RNG.choice(sequence)
