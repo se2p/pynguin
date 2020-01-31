@@ -19,6 +19,7 @@ import pytest
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as st
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 @pytest.fixture
@@ -221,3 +222,18 @@ def test_append_test_case(default_test_case):
     assert len(default_test_case.statements) == 0
     default_test_case.append_test_case(other)
     assert len(default_test_case.statements) == 1
+
+
+def test_get_objects(default_test_case):
+    stmt_1 = MagicMock(st.Statement)
+    vri_1 = vri.VariableReferenceImpl(default_test_case, int)
+    stmt_1.return_value = vri_1
+    stmt_2 = MagicMock(st.Statement)
+    vri_2 = vri.VariableReferenceImpl(default_test_case, float)
+    stmt_2.return_value = vri_2
+    stmt_3 = MagicMock(st.Statement)
+    vri_3 = vri.VariableReferenceImpl(default_test_case, int)
+    stmt_3.return_value = vri_3
+    default_test_case._statements = [stmt_1, stmt_2, stmt_3]
+    result = default_test_case.get_objects(int, 2)
+    assert result == [vri_1]
