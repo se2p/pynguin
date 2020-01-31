@@ -14,6 +14,8 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory for test-case generation."""
 import logging
+from typing import List, Type, Optional
+
 import pynguin.configuration as config
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.statement as stmt
@@ -21,6 +23,7 @@ import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
@@ -183,6 +186,154 @@ class _TestFactory:
         self._logger.debug("Adding primitive %s", primitive)
         statement = primitive.clone(test_case)
         return test_case.add_statement(statement, position)
+
+    # pylint: disable=too-many-arguments, assignment-from-none
+    def satisfy_parameters(
+        self,
+        test_case: tc.TestCase,
+        parameter_types: List[Type],
+        callee: Optional[vr.VariableReference] = None,
+        position: int = -1,
+        recursion_depth: int = 0,
+        allow_none: bool = True,
+        can_reuse_existing_variables: bool = True,
+    ) -> List[vr.VariableReference]:
+        """Satisfy a list of parameters by reusing or creating variables.
+
+        :param test_case: The test case
+        :param parameter_types: The list of parameter types
+        :param callee: The callee of the method
+        :param position: The current position in the test case
+        :param recursion_depth: The recursion depth
+        :param allow_none: Whether or not a variable can be a None value
+        :param can_reuse_existing_variables: Whether or not existing variables shall
+        be reused.
+        :return: A list of variable references for the parameters
+        """
+        parameters: List[vr.VariableReference] = []
+        self._logger.debug(
+            "Trying to satisfy %d parameters at position %d",
+            len(parameter_types),
+            position,
+        )
+
+        for parameter_type in parameter_types:
+            self._logger.debug("Current parameter type: %s", parameter_type)
+
+            previous_length = test_case.size()
+
+            if can_reuse_existing_variables:
+                self._logger.debug("Ca re-use variables")
+                var = self._create_or_reuse_variable(
+                    test_case,
+                    parameter_type,
+                    position,
+                    recursion_depth,
+                    callee,
+                    allow_none,
+                )
+            else:
+                self._logger.debug(
+                    "Cannot re-use variables: attempt to creating new one"
+                )
+                var = self._create_variable(
+                    test_case,
+                    parameter_type,
+                    position,
+                    recursion_depth,
+                    callee,
+                    allow_none,
+                )
+            if not var:
+                raise ConstructionFailedException(
+                    f"Failed to create variable for type {parameter_type} "
+                    f"at position {position}",
+                )
+
+            parameters.append(var)
+            current_length = test_case.size()
+            position += current_length - previous_length
+
+        self._logger.debug("Satisfied %d parameters", len(parameters))
+        return parameters
+
+    # pylint: disable=too-many-arguments, unused-argument, no-self-use
+    def _create_or_reuse_variable(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int = -1,
+        recursion_depth: int = 0,
+        exclude: Optional[vr.VariableReference] = None,
+        allow_none: bool = True,
+    ) -> Optional[vr.VariableReference]:
+        reuse = randomness.next_float()
+        objects = test_case.get_objects(parameter_type, position)
+        is_primitive = True  # TODO(sl) implement this properly
+        if (
+            is_primitive
+            and objects
+            and reuse <= config.Configuration.primitive_reuse_probability
+        ):
+            self._logger.debug("Looking for existing object of type %s", parameter_type)
+            reference = randomness.choice(objects)
+            return reference
+        if (
+            not is_primitive
+            and objects
+            and reuse <= config.Configuration.object_reuse_probability
+        ):
+            self._logger.debug(
+                "Choosing from %d existing objects %s", len(objects), objects
+            )
+            reference = randomness.choice(objects)
+            return reference
+
+        # if chosen to not re-use existing variable, try to create a new one
+        created = self._create_variable(
+            test_case, parameter_type, position, recursion_depth, exclude, allow_none
+        )
+        if created:
+            return created
+
+        # could not create, so go back in trying to re-use an existing variable
+        if not objects:
+            if allow_none:
+                return self._create_none(
+                    test_case, parameter_type, position, recursion_depth
+                )
+            raise ConstructionFailedException(f"No objects for type {parameter_type}")
+
+        self._logger.debug(
+            "Choosing from %d existing objects: %s", len(objects), objects
+        )
+        reference = randomness.choice(objects)
+        self._logger.debug(
+            "Use existing object of type %s: %s", parameter_type, reference
+        )
+        return reference
+
+    # pylint: disable=too-many-arguments, unused-argument, no-self-use
+    def _create_variable(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int = -1,
+        recursion_depth: int = 0,
+        exclude: Optional[vr.VariableReference] = None,
+        allow_none: bool = True,
+    ) -> Optional[vr.VariableReference]:
+        return None
+
+    # pylint: disable=unused-argument, no-self-use
+    def _create_none(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int = -1,
+        recursion_depth: int = 0,
+    ) -> Optional[vr.VariableReference]:
+        return None
 
 
 # pylint: disable=invalid-name
