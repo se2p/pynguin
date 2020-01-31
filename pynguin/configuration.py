@@ -97,6 +97,12 @@ class Configuration:
     # Recursion depth when trying to create objects
     max_recursion: int = 10
 
+    # Probability to reuse an existing primitive, if available.  Expects values in [0,1]
+    primitive_reuse_probability: float = 0.5
+
+    # Probability to reuse an existing object, if available.  Expects values in [0,1]
+    object_reuse_probability: float = 0.9
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(
