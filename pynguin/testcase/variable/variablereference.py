@@ -27,6 +27,7 @@ class VariableReference(metaclass=ABCMeta):
     def __init__(self, test_case: tc.TestCase, variable_type: Optional[Type]) -> None:
         self._variable_type = variable_type
         self._test_case = test_case
+        self._distance = 0
 
     @abstractmethod
     def clone(self, new_test_case: tc.TestCase) -> VariableReference:
@@ -70,6 +71,23 @@ class VariableReference(metaclass=ABCMeta):
         :return: The containing test case
         """
         return self._test_case
+
+    @property
+    def distance(self) -> int:
+        """Distance metric used to select variables for mutation based on how close
+        they are to the subject under test.
+
+        :return: The distance value
+        """
+        return self._distance
+
+    @distance.setter
+    def distance(self, distance: int) -> None:
+        """Set the distance metric.
+
+        :param distance: The new distance value
+        """
+        self._distance = distance
 
     def __repr__(self) -> str:
         return f"VariableReference({self._test_case}, {self._variable_type})"

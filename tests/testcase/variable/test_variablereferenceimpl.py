@@ -71,3 +71,10 @@ def test_eq_same(test_case_mock):
 def test_eq_other_type(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
     assert not ref.__eq__(test_case_mock)
+
+
+def test_distance(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    assert ref.distance == 0
+    ref.distance = 42
+    assert ref.distance == 42

@@ -21,6 +21,7 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 
 
@@ -161,3 +162,22 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_boolean_primitive_statement(self)
+
+
+class NoneStatement(PrimitiveStatement):
+    """A statement serving as a None reference."""
+
+    def clone(self, test_case: tc.TestCase) -> Statement:
+        raise Exception("Cloning is not supported for NoneStatement")
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        pass
+
+    def randomize_value(self) -> None:
+        raise Exception("Cannot randomize value for NoneStatement")
+
+    def __repr__(self) -> str:
+        return f"NoneStatement({self._test_case})"
+
+    def __str__(self) -> str:
+        return "None"

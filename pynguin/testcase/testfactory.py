@@ -325,15 +325,18 @@ class _TestFactory:
     ) -> Optional[vr.VariableReference]:
         return None
 
-    # pylint: disable=unused-argument, no-self-use
+    @staticmethod
     def _create_none(
-        self,
         test_case: tc.TestCase,
         parameter_type: Type,
         position: int = -1,
         recursion_depth: int = 0,
-    ) -> Optional[vr.VariableReference]:
-        return None
+    ) -> vr.VariableReference:
+        statement = prim.NoneStatement(test_case, parameter_type)
+        test_case.add_statement(statement, position)
+        ret = test_case.get_statement(position).return_value
+        ret.distance = recursion_depth
+        return ret
 
 
 # pylint: disable=invalid-name

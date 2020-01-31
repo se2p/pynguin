@@ -213,3 +213,15 @@ def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
     assert 1 <= len(statement.value) <= 100
+
+
+def test_none_statement_clone(test_case_mock):
+    with pytest.raises(Exception):
+        statement = prim.NoneStatement(test_case_mock, type(None))
+        statement.clone(test_case_mock)
+
+
+def test_none_statement_randomize_value(test_case_mock):
+    with pytest.raises(Exception):
+        statement = prim.NoneStatement(test_case_mock, type(None))
+        statement.randomize_value()
