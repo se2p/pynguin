@@ -34,7 +34,7 @@ class Verbosity(enum.Enum):
 
 
 class Algorithm(enum.Enum):
-    """Different verbosity levels."""
+    """Different algorithms."""
 
     RANDOOPY = "RANDOOPY"
     WSPY = "WSPY"
