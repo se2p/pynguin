@@ -156,7 +156,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.4.0"
+version = "5.4.1"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -429,7 +429,7 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.5"
+version = "0.0.6"
 
 [[package]]
 category = "dev"
@@ -496,7 +496,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "5c085e5c24a31ad15b1ca770ad7bfccb252fcc8adf86f988abe407dd45b15f22"
+content-hash = "e0020d0831fdaf9284a4dd48031d5679c2313f905882a2a27ebc67c5497abf76"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -586,8 +586,8 @@ flake8 = [
     {file = "flake8-3.7.9.tar.gz", hash = "sha256:45681a117ecc81e870cbf1262835ae4af5e7a8b08e40b944a8a6e6b895914cfb"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.4.0-py3-none-any.whl", hash = "sha256:193699797b6f7ab416d0a7b38ae6c444647568f923c735765f1aa00ca2df5272"},
-    {file = "hypothesis-5.4.0.tar.gz", hash = "sha256:758dbd2b8fa76d7a33cb4fdf5d8a47aa52470b6ec366ed7d75b29a26fd4eae37"},
+    {file = "hypothesis-5.4.1-py3-none-any.whl", hash = "sha256:c7f5694f7bc27e49d5c41120adc6e075c1a7d625b7c80df44681c0ecaa84323e"},
+    {file = "hypothesis-5.4.1.tar.gz", hash = "sha256:37a1ccbc5a0f177c0f37e40f1b61aee8bb92e55cc84b43fb26b32968ec4ac07e"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
@@ -727,8 +727,8 @@ regex = [
     {file = "regex-2020.1.8.tar.gz", hash = "sha256:d0f424328f9822b0323b3b6f2e4b9c90960b24743d220763c7f07071e0778351"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.5-py3-none-any.whl", hash = "sha256:43cfdd64a01eed697d831c50a451a86338a7a4b0a20a587ad114cda9ebc867d2"},
-    {file = "simple_parsing-0.0.5.tar.gz", hash = "sha256:08c1e62932ba9fcf73e239712f6a3cddc56f6bca75a2e788b263af3fd0ee85e6"},
+    {file = "simple_parsing-0.0.6-py3-none-any.whl", hash = "sha256:e1429b1fcf72afce1a6aa9d9ca35a295d934fb20e98cbea3bfe4bb665fa8c6a8"},
+    {file = "simple_parsing-0.0.6.tar.gz", hash = "sha256:95be58874450c461b457464bcfcdbe9fb3a2c724eb05c1fea7dac109e475f718"},
 ]
 six = [
     {file = "six-1.14.0-py2.py3-none-any.whl", hash = "sha256:8f3cd2e254d8f793e7f3d6d9df77b92252b52637291d0f0da013c76ea2724b6c"},
