@@ -97,6 +97,9 @@ class Configuration:
     # Recursion depth when trying to create objects
     max_recursion: int = 10
 
+    # The maximum level of recursion when calculating the dependencies in the test cluster
+    max_cluster_recursion: int = 10
+
     # Probability to reuse an existing primitive, if available.  Expects values in [0,1]
     primitive_reuse_probability: float = 0.5
 
