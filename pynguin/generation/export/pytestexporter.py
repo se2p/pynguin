@@ -18,7 +18,7 @@ import os
 from typing import List, Union
 
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
-from pynguin.utils.statements import Sequence
+import pynguin.testcase.testcase as tc
 
 
 class PyTestExporter(AbstractTestExporter):
@@ -30,7 +30,7 @@ class PyTestExporter(AbstractTestExporter):
         super().__init__(path)
         self._module_names = module_names
 
-    def export_sequences(self, sequences: List[Sequence]) -> ast.Module:
+    def export_sequences(self, sequences: List[tc.TestCase]) -> ast.Module:
         """Exports a list of sequences to files.
 
         :param sequences:
@@ -51,7 +51,7 @@ class PyTestExporter(AbstractTestExporter):
         import_node = ast.Import(names=imports)
         return import_node
 
-    def _create_functions(self, sequences: List[Sequence]) -> List[ast.FunctionDef]:
+    def _create_functions(self, sequences: List[tc.TestCase]) -> List[ast.FunctionDef]:
         functions: List[ast.FunctionDef] = []
         for i, sequence in enumerate(sequences):
             nodes = self._create_statement_nodes(sequence)
@@ -61,7 +61,7 @@ class PyTestExporter(AbstractTestExporter):
         return functions
 
     @staticmethod
-    def _create_statement_nodes(sequence: Sequence) -> List[ast.AST]:
+    def _create_statement_nodes(sequence: tc.TestCase) -> List[ast.AST]:
         pass
         # statements: List[ast.AST] = []
         # export_visitor = _PyTestExportStatementVisitor()

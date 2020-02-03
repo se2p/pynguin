@@ -21,7 +21,7 @@ from typing import Union, List
 
 import astor  # type: ignore
 
-from pynguin.utils.statements import Sequence
+import pynguin.testcase.testcase as tc
 
 
 class AbstractTestExporter(metaclass=ABCMeta):
@@ -31,7 +31,7 @@ class AbstractTestExporter(metaclass=ABCMeta):
         self._path = path
 
     @abstractmethod
-    def export_sequences(self, sequences: List[Sequence]) -> ast.Module:
+    def export_sequences(self, sequences: List[tc.TestCase]) -> ast.Module:
         """Exports sequences to an AST module, where each sequence is a method.
 
         :param sequences: A list of sequences

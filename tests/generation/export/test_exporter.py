@@ -17,7 +17,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from pynguin.generation.export.exporter import Exporter
-from pynguin.utils.statements import Sequence
+import pynguin.testcase.testcase as tc
 
 
 @mock.patch("pynguin.generation.export.exporter.PyTestExporter")
@@ -25,7 +25,7 @@ def test_export_sequences(pytest_exporter):
     ast_module_mock = MagicMock(ast.Module)
     pytest_exporter.return_value.export_sequences.return_value = ast_module_mock
     exporter = Exporter()
-    result = exporter.export_sequences([MagicMock(Sequence)])
+    result = exporter.export_sequences([MagicMock(tc.TestCase)])
     assert result == ast_module_mock
 
 

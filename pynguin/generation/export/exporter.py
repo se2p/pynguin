@@ -20,7 +20,7 @@ from typing import List
 import pynguin.configuration as config
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
 from pynguin.generation.export.pytestexporter import PyTestExporter
-from pynguin.utils.statements import Sequence
+import pynguin.testcase.testcase as tc
 
 
 class Exporter:
@@ -39,7 +39,7 @@ class Exporter:
 
     # raise Exception("Illegal export strategy")
 
-    def export_sequences(self, sequences: List[Sequence]) -> ast.Module:
+    def export_sequences(self, sequences: List[tc.TestCase]) -> ast.Module:
         """Exports sequences to an AST module, where each sequence is a method.
 
         :param sequences: A list of sequences
