@@ -94,6 +94,16 @@ def test_statement_to_ast_bool(statement_to_ast_visitor):
     )
 
 
+def test_statement_to_ast_none(statement_to_ast_visitor):
+    none_stmt = MagicMock(stmt.Statement)
+    none_stmt.value = None
+    statement_to_ast_visitor.visit_string_primitive_statement(none_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = None\n"
+    )
+
+
 def test_statement_to_ast_constructor_no_args(statement_to_ast_visitor, test_case_mock):
     constr_stmt = param_stmt.ConstructorStatement(test_case_mock, MagicMock)
     statement_to_ast_visitor.visit_constructor_statement(constr_stmt)

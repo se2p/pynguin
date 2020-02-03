@@ -97,6 +97,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
             )
         )
 
+    def visit_none_statement(self, stmt: prim_stmt.NoneStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[self._create_name(stmt.return_value, False)],
+                value=ast.NameConstant(value=None),
+            )
+        )
+
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
     ) -> None:

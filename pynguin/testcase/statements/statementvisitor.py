@@ -38,6 +38,10 @@ class StatementVisitor(ABC):
         """Visit boolean primitive."""
 
     @abstractmethod
+    def visit_none_statement(self, stmt) -> None:
+        """Visit none."""
+
+    @abstractmethod
     def visit_constructor_statement(self, stmt) -> None:
         """Visit constructor."""
 

@@ -177,6 +177,16 @@ def test_primitive_statement_equals_clone(statement_type, value):
     assert statement.__eq__(clone)
 
 
+def test_none_statement_equals_clone():
+    test_case = MagicMock(tc.TestCase)
+    statement = prim.NoneStatement(test_case, type(None))
+    test_case.statements = [statement]
+    test_case2 = MagicMock(tc.TestCase)
+    clone = statement.clone(test_case2)
+    test_case2.statements = [clone]
+    assert statement.__eq__(clone)
+
+
 @pytest.mark.parametrize(
     "statement_type,value",
     [
@@ -215,13 +225,7 @@ def test_string_primitive_statement_randomize_value(test_case_mock):
     assert 1 <= len(statement.value) <= 100
 
 
-def test_none_statement_clone(test_case_mock):
-    with pytest.raises(Exception):
-        statement = prim.NoneStatement(test_case_mock, type(None))
-        statement.clone(test_case_mock)
-
-
 def test_none_statement_randomize_value(test_case_mock):
-    with pytest.raises(Exception):
-        statement = prim.NoneStatement(test_case_mock, type(None))
-        statement.randomize_value()
+    statement = prim.NoneStatement(test_case_mock, type(None))
+    statement.randomize_value()
+    assert statement.value is None

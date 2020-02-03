@@ -30,7 +30,10 @@ class PrimitiveStatement(stmt.Statement):
     """Abstract primitive statement which holds a value."""
 
     def __init__(
-        self, test_case: tc.TestCase, variable_type: Type, value: Optional[Any] = None
+        self,
+        test_case: tc.TestCase,
+        variable_type: Optional[Type],
+        value: Optional[Any] = None,
     ) -> None:
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, variable_type))
         self._value = value
@@ -168,13 +171,13 @@ class NoneStatement(PrimitiveStatement):
     """A statement serving as a None reference."""
 
     def clone(self, test_case: tc.TestCase) -> Statement:
-        raise Exception("Cloning is not supported for NoneStatement")
+        return NoneStatement(test_case, self.return_value.variable_type)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
-        pass
+        visitor.visit_none_statement(self)
 
     def randomize_value(self) -> None:
-        raise Exception("Cannot randomize value for NoneStatement")
+        pass
 
     def __repr__(self) -> str:
         return f"NoneStatement({self._test_case})"
