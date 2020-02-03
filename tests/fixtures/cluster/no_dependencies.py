@@ -24,3 +24,7 @@ class Test:
 
 def test_function(x: float) -> float:
     return x * 5.5
+
+
+def test_function_no_return() -> None:
+    pass

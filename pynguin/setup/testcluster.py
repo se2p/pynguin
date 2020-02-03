@@ -18,6 +18,7 @@ import importlib
 import inspect
 import logging
 from typing import List, Type, Optional, Callable, Dict, Set, cast
+
 import pynguin.configuration as config
 
 from pynguin.typeinference import typeinference
@@ -120,13 +121,14 @@ class TestCluster:
         )
 
         self._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
-
         # TODO(fk) use configured inference strategy
         inference = typeinference.TypeInference(
             strategies=[TypeHintsInferenceStrategy()]
         )
 
+        self._logger.debug("Generating test cluster")
         for module in module_names:
+            self._logger.debug("Analyzing module %s", module)
             imported = importlib.import_module(module)
             for class_name, klass in inspect.getmembers(imported, inspect.isclass):
                 self._logger.debug("Analyzing class %s", class_name)
@@ -134,31 +136,35 @@ class TestCluster:
                 generic_constructor = GenericConstructor(
                     klass, inference.infer_type_info(klass.__init__)[0]
                 )
-                self._add_generator(klass, generic_constructor)
+                self._add_generator(generic_constructor)
                 self._accessible_objects_under_test.add(generic_constructor)
                 self._add_callable_dependencies(generic_constructor, 1)
+
                 for method_name, method in inspect.getmembers(
                     klass, inspect.isfunction
                 ):
                     # TODO(fk) why does inspect.ismethod not work here?!
-                    self._logger.debug("Analyzing method %s", method_name)
+                    self._logger.debug(
+                        "Analyzing method %s.%s", class_name, method_name
+                    )
                     if method_name == "__init__":
                         # The constructor is handled elsewhere.
                         continue
                     generic_method = GenericMethod(
                         klass, method, inference.infer_type_info(method)[0]
                     )
-                    # TODO(fk) add method as generator
+                    self._add_generator(generic_method)
                     self._accessible_objects_under_test.add(generic_method)
                     self._add_callable_dependencies(generic_method, 1)
                 # TODO(fk) how do we find attributes?
             for function_name, funktion in inspect.getmembers(
                 imported, inspect.isfunction
             ):
-                self._logger.debug("Analyzing method %s", function_name)
+                self._logger.debug("Analyzing function %s", function_name)
                 generic_function = GenericFunction(
                     funktion, inference.infer_type_info(funktion)[0]
                 )
+                self._add_generator(generic_function)
                 self._accessible_objects_under_test.add(generic_function)
                 self._add_callable_dependencies(generic_function, 1)
 
@@ -166,9 +172,10 @@ class TestCluster:
         self, call: GenericCallableAccessibleObject, recursion_level: int
     ) -> None:
         """Add required dependencies."""
+        self._logger.debug("Find dependencies for %s", call)
         if recursion_level > config.INSTANCE.max_cluster_recursion:
-            self._logger.debug("Find dependencies for %s", call)
             return
+
         # TODO(fk) Implement me
 
     @property
@@ -176,14 +183,15 @@ class TestCluster:
         """Provides all accessible objects that are under test."""
         return self._accessible_objects_under_test
 
-    def _add_generator(
-        self, for_type: Type, generator: GenericAccessibleObject
-    ) -> None:
-        """Add a generator for a given type."""
-        if for_type in self._generators:
-            self._generators[for_type].add(generator)
+    def _add_generator(self, generator: GenericAccessibleObject) -> None:
+        """Add the given accessible as a generator, if the type is known and not NoneType."""
+        type_ = generator.generated_type()
+        if type_ is None or type_ is type(None):  # noqa: E721
+            return
+        if type_ in self._generators:
+            self._generators[type_].add(generator)
         else:
-            self._generators[for_type] = {generator}
+            self._generators[type_] = {generator}
 
     def get_generators_for(self, for_type: Type) -> Set[GenericAccessibleObject]:
         """

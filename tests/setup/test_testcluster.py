@@ -18,11 +18,11 @@ from tests.fixtures.cluster.no_dependencies import Test
 
 def test_simple_cluster_accessible():
     cluster = TestCluster(["tests.fixtures.cluster.no_dependencies"])
-    assert len(cluster.accessible_objects_under_test) == 3
+    assert len(cluster.accessible_objects_under_test) == 4
 
 
 def test_simple_cluster_generators():
     cluster = TestCluster(["tests.fixtures.cluster.no_dependencies"])
     assert len(cluster.get_generators_for(Test)) == 1
-    # TODO(fk) This should also be 3, because the method and the function also generate float/int.
-    # But they are not yet added as generators.
+    assert len(cluster.get_generators_for(int)) == 1
+    assert len(cluster.get_generators_for(float)) == 1
