@@ -26,7 +26,7 @@ import pynguin.configuration as config
 from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -186,7 +186,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         self,
         test_cases: List[tc.TestCase],
         callable_: Callable,
-        method_type: InferredMethodType,
+        method_type: InferredSignature,
         failing_test_cases: List[tc.TestCase],
     ) -> List[Tuple[str, Type, Any]]:
         assert method_type.parameters  # TODO(sl) implement handling for other cases
@@ -211,7 +211,7 @@ class RandomGenerationAlgorithm(GenerationAlgorithm):
         callable_: Callable,
         test_cases: List[tc.TestCase],
         values: List[Tuple[str, Type, Any]],
-        method_type: InferredMethodType,
+        method_type: InferredSignature,
     ) -> tc.TestCase:
         new_test = dtc.DefaultTestCase()
         for test_case in test_cases:

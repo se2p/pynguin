@@ -14,18 +14,18 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an inference strategy for types."""
 from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from inspect import Signature
 from typing import Callable, Dict, Optional
 
 
 # pylint: disable=too-few-public-methods
 @dataclass
-class InferredMethodType:
+class InferredSignature:
     """Encapsulates the types inferred for a method"""
 
-    method_signature: Optional[Signature] = None
-    parameters: Optional[Dict[str, Optional[type]]] = None
+    signature: Signature
+    parameters: Dict[str, Optional[type]] = field(default_factory=dict)
     return_type: Optional[type] = None
 
 
@@ -34,7 +34,7 @@ class TypeInferenceStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for inference strategies for types."""
 
     @abstractmethod
-    def infer_type_info(self, method: Callable) -> InferredMethodType:
+    def infer_type_info(self, method: Callable) -> InferredSignature:
         """Infers the type information for a callable.
 
         :param method: The callable we try to infer type information for

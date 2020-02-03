@@ -20,7 +20,7 @@ import sys
 from pydoc import locate
 from typing import Union, Callable, Optional, Dict, Tuple
 
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 
 
@@ -33,7 +33,7 @@ class StubInferenceStrategy(TypeInferenceStrategy):
     def __init__(self, pyi_dir: Union[str, os.PathLike]) -> None:
         self._pyi_dir = pyi_dir
 
-    def infer_type_info(self, method: Callable) -> InferredMethodType:
+    def infer_type_info(self, method: Callable) -> InferredSignature:
         assert self._pyi_dir
 
         module = sys.modules[method.__module__]
@@ -42,8 +42,9 @@ class StubInferenceStrategy(TypeInferenceStrategy):
         pyi_ast = self._read_stub(pyi_src)
         parameter_types, return_type = self._get_parameter_annotations(method, pyi_ast)
         if parameter_types:
-            return InferredMethodType(
-                parameters=parameter_types if parameter_types else None,
+            return InferredSignature(
+                signature=inspect.signature(method),
+                parameters=parameter_types if parameter_types else {},
                 return_type=return_type if return_type else None,
             )
         return TypeHintsInferenceStrategy().infer_type_info(method)

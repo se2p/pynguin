@@ -18,7 +18,7 @@ from typing import Callable, Dict, Optional
 
 import typing
 
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 
 
 # pylint: disable=too-few-public-methods
@@ -28,39 +28,39 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
     For classes it inspects the `__init__` method and uses its parameters.
     """
 
-    def infer_type_info(self, method: Callable) -> InferredMethodType:
+    def infer_type_info(self, method: Callable) -> InferredSignature:
         if inspect.isclass(method) and hasattr(method, "__init__"):
             return self._infer_type_info_for_constructor(getattr(method, "__init__"))
         return self._infer_type_info_for_method(method)
 
     @staticmethod
-    def _infer_type_info_for_method(method: Callable) -> InferredMethodType:
-        method_signature = inspect.signature(method)
+    def _infer_type_info_for_method(method: Callable) -> InferredSignature:
+        signature = inspect.signature(method)
         parameters: Dict[str, Optional[type]] = {}
         hints = typing.get_type_hints(method)
-        for param_name in method_signature.parameters:
+        for param_name in signature.parameters:
             parameters[param_name] = hints.get(param_name, None)
 
         return_type: Optional[type] = hints.get("return", None)
 
-        return InferredMethodType(
-            method_signature=method_signature,
-            parameters=parameters if parameters else None,
-            return_type=return_type if return_type else None,
+        return InferredSignature(
+            signature=signature,
+            parameters=parameters if parameters else {},
+            return_type=return_type,
         )
 
     @staticmethod
-    def _infer_type_info_for_constructor(method: Callable) -> InferredMethodType:
-        method_signature = inspect.signature(method)
+    def _infer_type_info_for_constructor(method: Callable) -> InferredSignature:
+        signature = inspect.signature(method)
         parameters: Dict[str, Optional[type]] = {}
         hints = typing.get_type_hints(method)
-        for param_name in method_signature.parameters:
+        for param_name in signature.parameters:
             if param_name == "self":
                 continue
             parameters[param_name] = hints.get(param_name, None)
 
-        return InferredMethodType(
-            method_signature=method_signature,
-            parameters=parameters if parameters else None,
+        return InferredSignature(
+            signature=signature,
+            parameters=parameters if parameters else {},
             return_type=None,
         )

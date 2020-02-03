@@ -17,7 +17,7 @@ import importlib
 from typing import Optional, List, Callable
 
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 
 
 # pylint: disable=too-few-public-methods
@@ -38,7 +38,7 @@ class TypeInference:
         initialised on demand.  An ImportError is raised if the initialisation was not
         successful.
 
-        If neither parameter is given, a default strategy will be initialised an used.
+        If neither parameter is given, a default strategy will be initialised and used.
 
         :param strategies: An optional list of already initialised strategies
         :param strategy_names: An optional list of fully-qualified strategy names
@@ -65,16 +65,16 @@ class TypeInference:
                 raise ImportError(strategy)
         return strategies
 
-    def infer_type_info(self, method: Callable) -> List[InferredMethodType]:
+    def infer_type_info(self, method: Callable) -> List[InferredSignature]:
         """Evaluates the type information for a callable.
 
-        It returns a list of `InferredMethodType`s that could be inferred for the
+        It returns a list of `InferredSignature`s that could be inferred for the
         given callable.
 
         :param method: The callable we try to infer type information for
-        :return: A list of InferredMethodTypes
+        :return: A list of InferredSignature
         """
-        method_types: List[InferredMethodType] = []
+        method_types: List[InferredSignature] = []
         for strategy in self._strategies:
             method_types.append(strategy.infer_type_info(method))
         return method_types

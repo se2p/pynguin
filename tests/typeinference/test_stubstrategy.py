@@ -70,7 +70,7 @@ PYI_DIR = os.path.join(os.path.dirname(__file__), "..", "fixtures")
         #     Union[int, float],
         # ),
         # pytest.param(return_tuple, None, Tuple[int, int]),
-        pytest.param(return_tuple_no_annotation, None, None),
+        pytest.param(return_tuple_no_annotation, {}, None),
         pytest.param(TypedDummy, {"a": Any}, None),
         pytest.param(UntypedDummy, {"a": None}, None),
     ],

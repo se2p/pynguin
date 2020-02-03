@@ -22,5 +22,5 @@ def _func_1(x: int) -> int:
 def test_strategy():
     strategy = NoTypeInferenceStrategy()
     result = strategy.infer_type_info(_func_1)
-    assert result.parameters is None
+    assert result.parameters == {}
     assert result.return_type is None

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.strategy import InferredMethodType
+from pynguin.typeinference.strategy import InferredSignature
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.typeinference.typeinference import TypeInference
 
@@ -48,7 +48,7 @@ def test_type_inference():
 
 def test_infer_type_info():
     strategy = MagicMock(TypeHintsInferenceStrategy)
-    method_type = MagicMock(InferredMethodType)
+    method_type = MagicMock(InferredSignature)
     strategy.infer_type_info.return_value = method_type
     inference = TypeInference(strategies=[strategy])
     result = inference.infer_type_info(MagicMock(Callable))

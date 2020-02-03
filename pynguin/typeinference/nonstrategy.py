@@ -13,14 +13,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a strategy that never does any type inference."""
+import inspect
 from typing import Callable
 
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredMethodType
+from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 
 
 # pylint: disable=too-few-public-methods
 class NoTypeInferenceStrategy(TypeInferenceStrategy):
     """Provides a strategy that never does any type inference."""
 
-    def infer_type_info(self, method: Callable) -> InferredMethodType:
-        return InferredMethodType()
+    def infer_type_info(self, method: Callable) -> InferredSignature:
+        return InferredSignature(inspect.signature(method))
