@@ -84,7 +84,7 @@ description = "Python module to generate and modify bytecode"
 name = "bytecode"
 optional = false
 python-versions = "*"
-version = "0.9.0"
+version = "0.10.0"
 
 [[package]]
 category = "dev"
@@ -496,7 +496,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "e0020d0831fdaf9284a4dd48031d5679c2313f905882a2a27ebc67c5497abf76"
+content-hash = "27fa4c0cf6b8c8eaf753fbdb664c27c5539a8d28e20a41f5022f59a05a2547e7"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -529,8 +529,8 @@ black = [
     {file = "black-19.10b0.tar.gz", hash = "sha256:c2edb73a08e9e0e6f65a0e6af18b059b8b1cdd5bef997d7a0b181df93dc81539"},
 ]
 bytecode = [
-    {file = "bytecode-0.9.0-py3-none-any.whl", hash = "sha256:08eab84ca01bc16e7f5c2f6f7550ab9a98ea5a5839cba8be589e16ffedfe9c96"},
-    {file = "bytecode-0.9.0.tar.gz", hash = "sha256:eaf65fde702a8740c67c9470168c0e095925db269af3cb4dfe78cba73d47fd63"},
+    {file = "bytecode-0.10.0-py3-none-any.whl", hash = "sha256:f492f740789adaa8ea25cd48e855f2d3cd84ac15dc19289251bafe99c8248d6c"},
+    {file = "bytecode-0.10.0.tar.gz", hash = "sha256:f78a312880173f1d20aef2eceb8eb959dc6c2167966b757fef201b8af839f802"},
 ]
 click = [
     {file = "Click-7.0-py2.py3-none-any.whl", hash = "sha256:2335065e6395b9e67ca716de5f7526736bfa6ceead690adf616d925bdc622b13"},
