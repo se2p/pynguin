@@ -12,17 +12,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testclustergenerator import TestClusterGenerator
 from tests.fixtures.cluster.no_dependencies import Test
 
 
 def test_simple_cluster_accessible():
-    cluster = TestCluster(["tests.fixtures.cluster.no_dependencies"])
+    cluster = TestClusterGenerator(
+        ["tests.fixtures.cluster.no_dependencies"]
+    ).generate_cluster()
     assert len(cluster.accessible_objects_under_test) == 4
 
 
 def test_simple_cluster_generators():
-    cluster = TestCluster(["tests.fixtures.cluster.no_dependencies"])
+    cluster = TestClusterGenerator(
+        ["tests.fixtures.cluster.no_dependencies"]
+    ).generate_cluster()
     assert len(cluster.get_generators_for(Test)) == 1
     assert len(cluster.get_generators_for(int)) == 1
     assert len(cluster.get_generators_for(float)) == 1
