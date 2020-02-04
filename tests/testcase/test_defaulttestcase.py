@@ -237,3 +237,8 @@ def test_get_objects(default_test_case):
     default_test_case._statements = [stmt_1, stmt_2, stmt_3]
     result = default_test_case.get_objects(int, 2)
     assert result == [vri_1]
+
+
+def test_get_objects_without_type(default_test_case):
+    result = default_test_case.get_objects(None, 42)
+    assert result == []
