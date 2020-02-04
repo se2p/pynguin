@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import inspect
 from inspect import Signature, Parameter
 from unittest.mock import MagicMock
 
@@ -26,13 +27,14 @@ import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
+from tests.fixtures.examples.monkey import Monkey
 
 
 @pytest.mark.parametrize(
     "statement",
     [
         # pytest.param(MagicMock(par_stmt.ConstructorStatement)),
-        pytest.param(MagicMock(par_stmt.MethodStatement)),
+        # pytest.param(MagicMock(par_stmt.MethodStatement)),
         pytest.param(MagicMock(par_stmt.FunctionStatement)),
         pytest.param(MagicMock(f_stmt.FieldStatement)),
         pytest.param(MagicMock(prim.PrimitiveStatement)),
@@ -86,3 +88,29 @@ def test_add_constructor(provide_callables_from_fixtures_modules):
     result = tf.add_constructor(test_case, generic_constructor, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Basket"]
     assert test_case.size() == 2
+
+
+def test_add_method(provide_callables_from_fixtures_modules):
+    test_case = dtc.DefaultTestCase()
+    object_ = Monkey("foo")
+    methods = inspect.getmembers(object_, inspect.ismethod)
+    generic_method = gao.GenericMethod(
+        owner=provide_callables_from_fixtures_modules["Monkey"],
+        method=methods[3][1],
+        inferred_signature=InferredSignature(
+            signature=Signature(
+                parameters=[
+                    Parameter(
+                        name="sentence",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=str,
+                    ),
+                ]
+            ),
+            return_type=provide_callables_from_fixtures_modules["Monkey"],
+            parameters={"sentence": str},
+        ),
+    )
+    result = tf.add_method(test_case, generic_method, position=0)
+    assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
+    assert test_case.size() == 3

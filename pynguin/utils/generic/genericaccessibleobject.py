@@ -76,6 +76,11 @@ class GenericMethod(GenericCallableAccessibleObject):
         assert owner
         self._method = method
 
+    @property
+    def name(self) -> str:
+        """Provide the name of the method."""
+        return self._method.__name__
+
 
 class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
