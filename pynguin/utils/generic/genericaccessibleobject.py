@@ -12,7 +12,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provide wrappers around constructors, methods, function and fields."""
+"""
+Provide wrappers around constructors, methods, function and fields.
+Think of these like the reflection classes in Java.
+"""
 import abc
 from typing import Optional, Type, Callable
 
@@ -90,6 +93,11 @@ class GenericFunction(GenericCallableAccessibleObject):
     ) -> None:
         super().__init__(None, inferred_signature)
         self._function = function
+
+    @property
+    def name(self) -> str:
+        """Provide the name of the function."""
+        return self._function.__name__
 
 
 class GenericField(GenericAccessibleObject):
