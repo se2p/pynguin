@@ -106,6 +106,9 @@ class Configuration:
     # Probability to reuse an existing object, if available.  Expects values in [0,1]
     object_reuse_probability: float = 0.9
 
+    # Probability to use None instead of constructing an object
+    none_probability: float = 0.1
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(

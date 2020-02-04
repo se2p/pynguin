@@ -354,7 +354,7 @@ class _TestFactory:
         )
         return reference
 
-    # pylint: disable=too-many-arguments, unused-argument, no-self-use
+    # pylint: disable=too-many-arguments
     def _create_variable(
         self,
         test_case: tc.TestCase,
@@ -364,6 +364,34 @@ class _TestFactory:
         exclude: Optional[vr.VariableReference] = None,
         allow_none: bool = True,
     ) -> Optional[vr.VariableReference]:
+        return self._attempt_generation(
+            test_case, parameter_type, position, recursion_depth, exclude, allow_none,
+        )
+
+    # pylint: disable=too-many-arguments
+    def _attempt_generation(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Optional[Type],
+        position: int = -1,
+        recursion_depth: int = 0,
+        exclude: Optional[vr.VariableReference] = None,
+        allow_none: bool = True,
+    ) -> Optional[vr.VariableReference]:
+        if not parameter_type:
+            return None
+
+        if parameter_type in (int, float, bool, str):
+            return self._create_primitive(
+                test_case, parameter_type, position, recursion_depth,
+            )
+        if (
+            allow_none
+            and randomness.next_float() <= config.Configuration.none_probability
+        ):
+            return self._create_none(
+                test_case, parameter_type, position, recursion_depth
+            )
         return None
 
     @staticmethod
@@ -376,6 +404,25 @@ class _TestFactory:
         statement = prim.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
         ret = test_case.get_statement(position).return_value
+        ret.distance = recursion_depth
+        return ret
+
+    @staticmethod
+    def _create_primitive(
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int = -1,
+        recursion_depth: int = 0,
+    ) -> vr.VariableReference:
+        if parameter_type == int:
+            statement: prim.PrimitiveStatement = prim.IntPrimitiveStatement(test_case)
+        elif parameter_type == float:
+            statement = prim.FloatPrimitiveStatement(test_case)
+        elif parameter_type == bool:
+            statement = prim.BooleanPrimitiveStatement(test_case)
+        else:
+            statement = prim.StringPrimitiveStatement(test_case)
+        ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
 
