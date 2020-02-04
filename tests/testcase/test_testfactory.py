@@ -12,19 +12,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-import importlib
-import inspect
 from inspect import Signature, Parameter
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.testfactory as tf
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -69,12 +67,10 @@ def test_add_primitive(test_case_mock):
     test_case_mock.add_statement.assert_called_once()
 
 
-def test_add_constructor():
+def test_add_constructor(provide_callables_from_fixtures_modules):
     test_case = dtc.DefaultTestCase()
-    imported = importlib.import_module("tests.fixtures.examples.basket")
-    members = {n: k for n, k in inspect.getmembers(imported, inspect.isclass)}
     generic_constructor = gao.GenericConstructor(
-        owner=members["Basket"],
+        owner=provide_callables_from_fixtures_modules["Basket"],
         inferred_signature=InferredSignature(
             signature=Signature(
                 parameters=[
@@ -88,5 +84,5 @@ def test_add_constructor():
         ),
     )
     result = tf.add_constructor(test_case, generic_constructor, position=0)
-    assert result.variable_type == members["Basket"]
+    assert result.variable_type == provide_callables_from_fixtures_modules["Basket"]
     assert test_case.size() == 2
