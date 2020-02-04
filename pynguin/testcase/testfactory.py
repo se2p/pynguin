@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory for test-case generation."""
 import logging
-from typing import List, Type, Optional
+from typing import List, Type, Optional, Dict
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.fieldstatement as f_stmt
@@ -23,6 +23,7 @@ import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
@@ -41,7 +42,8 @@ class _TestFactory:
         :param statement: The statement to append
         """
         if isinstance(statement, par_stmt.ConstructorStatement):
-            self.add_constructor(test_case, statement)
+            # self.add_constructor(test_case, statement)
+            pass
         if isinstance(statement, par_stmt.MethodStatement):
             self.add_method(test_case, statement)
         if isinstance(statement, par_stmt.FunctionStatement):
@@ -54,7 +56,7 @@ class _TestFactory:
     def add_constructor(
         self,
         test_case: tc.TestCase,
-        constructor: par_stmt.ConstructorStatement,
+        constructor: gao.GenericConstructor,
         position: int = -1,
         recursion_depth: int = 0,
     ) -> vr.VariableReference:
@@ -76,9 +78,26 @@ class _TestFactory:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
-        # TODO(sl) implement me
-        statement = constructor.clone(test_case)
-        return test_case.add_statement(statement, position)
+        signature = constructor.inferred_signature
+        length = test_case.size()
+        try:
+            parameters: List[vr.VariableReference] = self.satisfy_parameters(
+                test_case=test_case,
+                parameter_types=signature.parameters,
+                position=position,
+                recursion_depth=recursion_depth + 1,
+            )
+            new_length = test_case.size()
+            position = position + new_length - length
+
+            statement = par_stmt.ConstructorStatement(
+                test_case=test_case, return_type=constructor.owner, args=parameters,
+            )
+            return test_case.add_statement(statement, position)
+        except BaseException as exception:
+            raise ConstructionFailedException(
+                f"Failed to add constructor for {constructor} " f"due to {exception}."
+            )
 
     def add_method(
         self,
@@ -191,7 +210,7 @@ class _TestFactory:
     def satisfy_parameters(
         self,
         test_case: tc.TestCase,
-        parameter_types: List[Type],
+        parameter_types: Dict[str, Optional[Type]],
         callee: Optional[vr.VariableReference] = None,
         position: int = -1,
         recursion_depth: int = 0,
@@ -217,7 +236,7 @@ class _TestFactory:
             position,
         )
 
-        for parameter_type in parameter_types:
+        for _, parameter_type in parameter_types.items():
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()
@@ -261,7 +280,7 @@ class _TestFactory:
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: Optional[Type],
         position: int = -1,
         recursion_depth: int = 0,
         exclude: Optional[vr.VariableReference] = None,
@@ -317,7 +336,7 @@ class _TestFactory:
     def _create_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: Optional[Type],
         position: int = -1,
         recursion_depth: int = 0,
         exclude: Optional[vr.VariableReference] = None,
@@ -328,7 +347,7 @@ class _TestFactory:
     @staticmethod
     def _create_none(
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: Optional[Type],
         position: int = -1,
         recursion_depth: int = 0,
     ) -> vr.VariableReference:

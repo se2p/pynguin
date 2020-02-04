@@ -15,7 +15,7 @@
 """Provides an implementation for a test case."""
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import List, Type
+from typing import List, Type, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
@@ -145,7 +145,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     def get_objects(
-        self, parameter_type: Type, position: int
+        self, parameter_type: Optional[Type], position: int
     ) -> List[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type before a
         given position.
@@ -158,6 +158,8 @@ class TestCase(metaclass=ABCMeta):
         :param position: The position in the statement list until we search
         :return: A list of variable references satisfying the parameter type
         """
+        if not parameter_type:
+            return []
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):

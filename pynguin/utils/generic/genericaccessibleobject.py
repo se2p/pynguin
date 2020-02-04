@@ -49,6 +49,11 @@ class GenericCallableAccessibleObject(
     def generated_type(self) -> Optional[Type]:
         return self._inferred_signature.return_type
 
+    @property
+    def inferred_signature(self) -> InferredSignature:
+        """Provides access to the inferred type signature information."""
+        return self._inferred_signature
+
 
 class GenericConstructor(GenericCallableAccessibleObject):
     """A constructor."""
