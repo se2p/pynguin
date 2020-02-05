@@ -306,7 +306,7 @@ class _TestFactory:
     ) -> Optional[vr.VariableReference]:
         reuse = randomness.next_float()
         objects = test_case.get_objects(parameter_type, position)
-        is_primitive = True  # TODO(sl) implement this properly
+        is_primitive = self._is_primitive(parameter_type)
         if (
             is_primitive
             and objects
@@ -377,7 +377,7 @@ class _TestFactory:
         if not parameter_type:
             return None
 
-        if parameter_type in (int, float, bool, str):
+        if self._is_primitive(parameter_type):
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
             )
@@ -421,6 +421,10 @@ class _TestFactory:
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
+
+    @staticmethod
+    def _is_primitive(type_: Optional[Type]) -> bool:
+        return type_ in (int, float, bool, str)
 
 
 # pylint: disable=invalid-name
