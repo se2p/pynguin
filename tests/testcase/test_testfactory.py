@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.primitivestatements as prim
@@ -116,6 +117,7 @@ def test_add_method(provide_callables_from_fixtures_modules):
 
 
 def test_add_function(provide_callables_from_fixtures_modules):
+    config.INSTANCE.object_reuse_probability = 0.0
     test_case = dtc.DefaultTestCase()
     generic_function = gao.GenericFunction(
         function=provide_callables_from_fixtures_modules["triangle"],
@@ -139,4 +141,4 @@ def test_add_function(provide_callables_from_fixtures_modules):
     )
     result = tf.add_function(test_case, generic_function, position=0)
     assert isinstance(result.variable_type, type(None))
-    assert test_case.size() == 4
+    assert test_case.size() <= 4

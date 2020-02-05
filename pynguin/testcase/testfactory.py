@@ -323,7 +323,7 @@ class _TestFactory:
         if (
             is_primitive
             and objects
-            and reuse <= config.Configuration.primitive_reuse_probability
+            and reuse <= config.INSTANCE.primitive_reuse_probability
         ):
             self._logger.debug("Looking for existing object of type %s", parameter_type)
             reference = randomness.choice(objects)
@@ -331,7 +331,7 @@ class _TestFactory:
         if (
             not is_primitive
             and objects
-            and reuse <= config.Configuration.object_reuse_probability
+            and reuse <= config.INSTANCE.object_reuse_probability
         ):
             self._logger.debug(
                 "Choosing from %d existing objects %s", len(objects), objects
