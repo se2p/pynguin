@@ -55,6 +55,10 @@ def test_append_statement(test_case_mock, statement):
     test_case_mock.add_statement.assert_called_once()
 
 
+def test_append_statement_unknown_type(test_case_mock):
+    tf.append_statement(test_case_mock, MagicMock(Monkey))
+
+
 @pytest.mark.parametrize(
     "method",
     [
