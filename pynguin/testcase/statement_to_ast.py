@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import ast
-from typing import List, Dict
+from typing import List, Dict, Any
 
 import pynguin.testcase.statements.assignmentstatement as assign_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
@@ -28,39 +28,44 @@ import pynguin.testcase.variable.variablereference as vr
 
 class NamingScope:
     """
-    Provides variable names when transforming variable references.
+    Maps any object to unique, human friendly names.
     """
 
-    def __init__(self):
-        self._next_index = 0
-        self._known_var_indices = {}
-
-    def get_variable_name(self, var: vr.VariableReference) -> str:
+    def __init__(self, prefix: str = "var"):
         """
-        Get the variable name for the given variable within this scope.
-        :param var: the variable reference for which a name is requested
+        :param prefix: The prefix that will be used in the name.
+        """
+        self._next_index = 0
+        self._known_name_indices: Dict[Any, int] = {}
+        self._prefix = prefix
+
+    def get_name(self, obj: Any) -> str:
+        """
+        Get the name for the given object within this scope.
+        :param obj: the object for which a name is requested
         :return: the variable name
         """
-        if var in self._known_var_indices:
-            index = self._known_var_indices.get(var)
+        if obj in self._known_name_indices:
+            index = self._known_name_indices.get(obj)
         else:
             index = self._next_index
-            self._known_var_indices[var] = index
+            self._known_name_indices[obj] = index
             self._next_index += 1
-        return "var" + str(index)
+        return self._prefix + str(index)
 
     @property
-    def known_var_indices(self) -> Dict[vr.VariableReference, int]:
-        """Provides a dict of variable references and there corresponding variable name"""
-        return self._known_var_indices
+    def known_name_indices(self) -> Dict[Any, int]:
+        """Provides a dict of objects and their corresponding variable name."""
+        return self._known_name_indices
 
 
 class StatementToAstVisitor(sv.StatementVisitor):
     """Visitor that transforms statements into a list of AST nodes."""
 
-    def __init__(self, scope: NamingScope):
+    def __init__(self, module_aliases: NamingScope, variable_names: NamingScope):
         self._ast_nodes: List[ast.stmt] = []
-        self._scope = scope
+        self._variable_names = variable_names
+        self._module_aliases = module_aliases
 
     @property
     def ast_nodes(self) -> List[ast.stmt]:
@@ -82,7 +87,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Str(s=stmt.value),
             )
         )
@@ -92,7 +97,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.NameConstant(value=stmt.value),
             )
         )
@@ -100,7 +105,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_none_statement(self, stmt: prim_stmt.NoneStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.NameConstant(value=None),
             )
         )
@@ -111,9 +116,15 @@ class StatementToAstVisitor(sv.StatementVisitor):
         assert stmt.constructor.owner
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
-                    func=ast.Name(id=stmt.constructor.owner.__name__, ctx=ast.Load()),
+                    func=ast.Attribute(
+                        attr=stmt.constructor.owner.__name__,
+                        ctx=ast.Load(),
+                        value=self._create_module_alias(
+                            stmt.constructor.owner.__module__
+                        ),
+                    ),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
                 ),
@@ -123,12 +134,12 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_method_statement(self, stmt: param_stmt.MethodStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
                     func=ast.Attribute(
                         attr=stmt.method.name,
                         ctx=ast.Load(),
-                        value=self._create_name(stmt.callee, True),
+                        value=self._create_var_name(stmt.callee, True),
                     ),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
@@ -139,9 +150,13 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_function_statement(self, stmt: param_stmt.FunctionStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
+                targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
-                    func=ast.Name(id=stmt.function.name, ctx=ast.Load()),
+                    func=ast.Attribute(
+                        attr=stmt.function.name,
+                        ctx=ast.Load(),
+                        value=self._create_module_alias(stmt.function.__module__),
+                    ),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
                 ),
@@ -153,14 +168,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
             ast.Assign(
                 targets=[
                     ast.Name(
-                        id=self._scope.get_variable_name(stmt.return_value),
+                        id=self._variable_names.get_name(stmt.return_value),
                         ctx=ast.Store(),
                     )
                 ],
                 value=ast.Attribute(
                     attr=stmt.field,
                     ctx=ast.Load(),
-                    value=self._create_name(stmt.source, True),
+                    value=self._create_var_name(stmt.source, True),
                 ),
             )
         )
@@ -168,8 +183,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_assignment_statement(self, stmt: assign_stmt.AssignmentStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_name(stmt.return_value, False)],
-                value=self._create_name(stmt.rhs, True),
+                targets=[self._create_var_name(stmt.return_value, False)],
+                value=self._create_var_name(stmt.rhs, True),
             )
         )
 
@@ -178,7 +193,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
         Small helper for int and float.
         """
         return ast.Assign(
-            targets=[self._create_name(stmt.return_value, False)],
+            targets=[self._create_var_name(stmt.return_value, False)],
             value=ast.Num(n=stmt.value),
         )
 
@@ -186,7 +201,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
         """Creates the positional arguments."""
         args = []
         for arg in stmt.args:
-            args.append(self._create_name(arg, True))
+            args.append(self._create_var_name(arg, True))
         return args
 
     def _create_kw_args(
@@ -195,10 +210,12 @@ class StatementToAstVisitor(sv.StatementVisitor):
         """Creates the keyword arguments."""
         kwargs = []
         for name, value in stmt.kwargs.items():
-            kwargs.append(ast.keyword(arg=name, value=self._create_name(value, True),))
+            kwargs.append(
+                ast.keyword(arg=name, value=self._create_var_name(value, True),)
+            )
         return kwargs
 
-    def _create_name(self, var: vr.VariableReference, load: bool) -> ast.Name:
+    def _create_var_name(self, var: vr.VariableReference, load: bool) -> ast.Name:
         """
         Create a name node for the corresponding variable.
         :param var: the variable reference
@@ -206,6 +223,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
         :return: the name node
         """
         return ast.Name(
-            id=self._scope.get_variable_name(var),
+            id=self._variable_names.get_name(var),
             ctx=ast.Load() if load else ast.Store(),
         )
+
+    def _create_module_alias(self, module_name) -> ast.Name:
+        """Create a name node for a module alias."""
+        return ast.Name(id=self._module_aliases.get_name(module_name), ctx=ast.Load())

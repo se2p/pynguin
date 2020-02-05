@@ -36,4 +36,18 @@ def test_illegal_call(method_mock):
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     executor = TestCaseExecutor()
-    assert executor.execute(test_case).has_test_exceptions()
+    result = executor.execute(test_case)
+    assert result.has_test_exceptions()
+
+
+def test_create_object(constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
+    constructor_stmt = param_stmt.ConstructorStatement(
+        test_case, constructor_mock, [int_stmt.return_value]
+    )
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_stmt)
+    executor = TestCaseExecutor()
+    result = executor.execute(test_case)
+    assert not result.has_test_exceptions()

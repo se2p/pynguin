@@ -17,6 +17,7 @@ import ast
 import contextlib
 import logging
 import os
+import sys
 from typing import Tuple, Union, Any, List, Dict
 
 import astor  # type: ignore
@@ -56,13 +57,20 @@ class TestCaseExecutor:
         # TODO(fk) wrap new values in magic proxy.
         local_namespace: Dict[str, Any] = {}
 
-        # TODO(fk) Provide required global stuff/modules.
+        variable_names = stmt_to_ast.NamingScope()
+        modules_aliases = stmt_to_ast.NamingScope(prefix="module")
+        ast_nodes: List[ast.stmt] = TestCaseExecutor._to_ast_nodes(
+            test_case, variable_names, modules_aliases
+        )
         # TODO(fk) Provide capabilities to add instrumentation/tracing
-        global_namespace: Dict[str, Any] = {}
+        global_namespace: Dict[str, Any] = TestCaseExecutor._prepare_global_namespace(
+            modules_aliases
+        )
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for idx, node in enumerate(self._to_ast_nodes(test_case)):
+                for idx, node in enumerate(ast_nodes):
                     try:
+                        self._logger.debug("Executing %s", astor.to_source(node))
                         code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
                         # pylint: disable=exec-used
                         exec(code, global_namespace, local_namespace)
@@ -76,18 +84,37 @@ class TestCaseExecutor:
         # TODO(fk) Provide ExecutionResult with more information(coverage, fitness, etc.)
 
     @staticmethod
-    def _to_ast_nodes(test_case: tc.TestCase) -> List[ast.stmt]:
+    def _to_ast_nodes(
+        test_case: tc.TestCase,
+        variable_names: stmt_to_ast.NamingScope,
+        modules_aliases: stmt_to_ast.NamingScope,
+    ) -> List[ast.stmt]:
         """Transforms the given test case into a list of ast nodes."""
-        naming_scope = stmt_to_ast.NamingScope()
-        visitor = stmt_to_ast.StatementToAstVisitor(naming_scope)
+        visitor = stmt_to_ast.StatementToAstVisitor(modules_aliases, variable_names)
         for statement in test_case.statements:
             statement.accept(visitor)
         return visitor.ast_nodes
 
     @staticmethod
     def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
-        """Wraps the given node in a Module, so that it can be executed."""
+        """Wraps the given node in a module, so that it can be executed."""
         ast.fix_missing_locations(node)
         wrapper = ast.parse("")
         wrapper.body = [node]
         return wrapper
+
+    @staticmethod
+    def _prepare_global_namespace(
+        modules_aliases: stmt_to_ast.NamingScope,
+    ) -> Dict[str, Any]:
+        """
+        Provides the required modules under the given aliases.
+        :param modules_aliases:
+        :return: a dict of module aliases and the corresponding module.
+        """
+        global_namespace: Dict[str, Any] = {}
+        for required_module in modules_aliases.known_name_indices:
+            global_namespace[modules_aliases.get_name(required_module)] = sys.modules[
+                required_module
+            ]
+        return global_namespace
