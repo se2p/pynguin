@@ -80,6 +80,9 @@ class _TestFactory:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
+        if position < 0:
+            position = test_case.size()
+
         signature = constructor.inferred_signature
         length = test_case.size()
         try:
@@ -126,10 +129,13 @@ class _TestFactory:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
+        if position < 0:
+            position = test_case.size()
+
         signature = method.inferred_signature
         length = test_case.size()
         callee = self._create_or_reuse_variable(
-            test_case, method.owner, position, recursion_depth
+            test_case, method.owner, position, recursion_depth, allow_none=True
         )
         assert callee
         parameters: List[vr.VariableReference] = self.satisfy_parameters(
@@ -172,6 +178,9 @@ class _TestFactory:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
+        if position < 0:
+            position = test_case.size()
+
         # TODO(sl) implement me
         statement = field.clone(test_case)
         return test_case.add_statement(statement, position)
@@ -200,6 +209,9 @@ class _TestFactory:
         if recursion_depth > config.INSTANCE.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
+
+        if position < 0:
+            position = test_case.size()
 
         signature = function.inferred_signature
         length = test_case.size()
@@ -233,6 +245,9 @@ class _TestFactory:
         the statement will be appended to the end of the test case
         :return: A reference to the statement
         """
+        if position < 0:
+            position = test_case.size()
+
         self._logger.debug("Adding primitive %s", primitive)
         statement = primitive.clone(test_case)
         return test_case.add_statement(statement, position)
@@ -260,6 +275,9 @@ class _TestFactory:
         be reused.
         :return: A list of variable references for the parameters
         """
+        if position < 0:
+            position = test_case.size()
+
         parameters: List[vr.VariableReference] = []
         self._logger.debug(
             "Trying to satisfy %d parameters at position %d",
@@ -279,8 +297,8 @@ class _TestFactory:
                     parameter_type,
                     position,
                     recursion_depth,
-                    callee,
                     allow_none,
+                    callee,
                 )
             else:
                 self._logger.debug(
@@ -291,8 +309,8 @@ class _TestFactory:
                     parameter_type,
                     position,
                     recursion_depth,
-                    callee,
                     allow_none,
+                    callee,
                 )
             if not var:
                 raise ConstructionFailedException(
@@ -312,10 +330,10 @@ class _TestFactory:
         self,
         test_case: tc.TestCase,
         parameter_type: Optional[Type],
-        position: int = -1,
-        recursion_depth: int = 0,
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
-        allow_none: bool = True,
     ) -> Optional[vr.VariableReference]:
         reuse = randomness.next_float()
         objects = test_case.get_objects(parameter_type, position)
@@ -341,7 +359,7 @@ class _TestFactory:
 
         # if chosen to not re-use existing variable, try to create a new one
         created = self._create_variable(
-            test_case, parameter_type, position, recursion_depth, exclude, allow_none
+            test_case, parameter_type, position, recursion_depth, allow_none, exclude
         )
         if created:
             return created
@@ -368,13 +386,13 @@ class _TestFactory:
         self,
         test_case: tc.TestCase,
         parameter_type: Optional[Type],
-        position: int = -1,
-        recursion_depth: int = 0,
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
-        allow_none: bool = True,
     ) -> Optional[vr.VariableReference]:
         return self._attempt_generation(
-            test_case, parameter_type, position, recursion_depth, exclude, allow_none,
+            test_case, parameter_type, position, recursion_depth, allow_none, exclude
         )
 
     # pylint: disable=too-many-arguments
@@ -382,10 +400,10 @@ class _TestFactory:
         self,
         test_case: tc.TestCase,
         parameter_type: Optional[Type],
-        position: int = -1,
-        recursion_depth: int = 0,
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
-        allow_none: bool = True,
     ) -> Optional[vr.VariableReference]:
         if not parameter_type:
             return None
@@ -407,8 +425,8 @@ class _TestFactory:
     def _create_none(
         test_case: tc.TestCase,
         parameter_type: Optional[Type],
-        position: int = -1,
-        recursion_depth: int = 0,
+        position: int,
+        recursion_depth: int,
     ) -> vr.VariableReference:
         statement = prim.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
@@ -420,8 +438,8 @@ class _TestFactory:
     def _create_primitive(
         test_case: tc.TestCase,
         parameter_type: Type,
-        position: int = -1,
-        recursion_depth: int = 0,
+        position: int,
+        recursion_depth: int,
     ) -> vr.VariableReference:
         if parameter_type == int:
             statement: prim.PrimitiveStatement = prim.IntPrimitiveStatement(test_case)
