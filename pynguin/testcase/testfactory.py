@@ -45,20 +45,22 @@ class _TestFactory:
             self.add_constructor(
                 test_case, statement.constructor, position=test_case.size(),
             )
-        if isinstance(statement, par_stmt.MethodStatement):
+        elif isinstance(statement, par_stmt.MethodStatement):
             self.add_method(
                 test_case, statement.method, position=test_case.size(),
             )
-        if isinstance(statement, par_stmt.FunctionStatement):
+        elif isinstance(statement, par_stmt.FunctionStatement):
             self.add_function(
                 test_case, statement.function, position=test_case.size(),
             )
-        if isinstance(statement, f_stmt.FieldStatement):
+        elif isinstance(statement, f_stmt.FieldStatement):
             self.add_field(
                 test_case, statement.field, position=test_case.size(),
             )
-        if isinstance(statement, prim.PrimitiveStatement):
+        elif isinstance(statement, prim.PrimitiveStatement):
             self.add_primitive(test_case, statement, position=test_case.size())
+        else:
+            raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
     def add_constructor(
         self,
