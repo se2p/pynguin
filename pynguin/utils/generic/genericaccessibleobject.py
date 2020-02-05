@@ -68,6 +68,16 @@ class GenericConstructor(GenericCallableAccessibleObject):
     def generated_type(self) -> Optional[Type]:
         return self.owner
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericConstructor):
+            return False
+        return self._owner == other._owner
+
+    def __hash__(self):
+        return hash(self._owner)
+
 
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
@@ -84,6 +94,16 @@ class GenericMethod(GenericCallableAccessibleObject):
         """Provide the name of the method."""
         return self._method.__name__
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericMethod):
+            return False
+        return self._method == other._method
+
+    def __hash__(self):
+        return hash(self._method)
+
 
 class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
@@ -98,6 +118,16 @@ class GenericFunction(GenericCallableAccessibleObject):
     def name(self) -> str:
         """Provide the name of the function."""
         return self._function.__name__
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericFunction):
+            return False
+        return self._function == other._function
+
+    def __hash__(self):
+        return hash(self._function)
 
 
 class GenericField(GenericAccessibleObject):
@@ -115,3 +145,13 @@ class GenericField(GenericAccessibleObject):
     def field(self) -> str:
         """Provides the name of the field."""
         return self._field
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericField):
+            return False
+        return self._owner == other._owner and self._field == self._field
+
+    def __hash__(self):
+        return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
