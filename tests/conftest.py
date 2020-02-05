@@ -23,6 +23,14 @@ import pytest
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.configuration as config
+from pynguin.typeinference.strategy import InferredSignature
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericMethod,
+    GenericFunction,
+    GenericField,
+)
+from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
 
@@ -81,6 +89,72 @@ def provide_callables_from_fixtures_modules(
             members.append(member)
     callables_ = {k: v for (k, v) in members}
     return callables_
+
+
+@pytest.fixture()
+def constructor_mock() -> GenericConstructor:
+    return GenericConstructor(
+        owner=SomeType,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="y",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            return_type=type(None),
+            parameters={"y": float},
+        ),
+    )
+
+
+@pytest.fixture()
+def method_mock() -> GenericMethod:
+    return GenericMethod(
+        owner=SomeType,
+        method=SomeType.simple_method,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="x",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=int,
+                    ),
+                ]
+            ),
+            return_type=float,
+            parameters={"x": int},
+        ),
+    )
+
+
+@pytest.fixture()
+def function_mock() -> GenericFunction:
+    return GenericFunction(
+        function=simple_function,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            return_type=float,
+            parameters={"z": float},
+        ),
+    )
+
+
+@pytest.fixture()
+def field_mock() -> GenericField:
+    return GenericField(owner=SomeType, field="y", field_type=float)
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

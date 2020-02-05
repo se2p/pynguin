@@ -21,12 +21,12 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.assignmentstatement as assign
 
 
-def test_method_statement_clone():
+def test_method_statement_clone(method_mock):
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     str_prim = prim.StringPrimitiveStatement(test_case, "TestThis")
     method_stmt = ps.MethodStatement(
-        test_case, "", str_prim.return_value, str, [int_prim.return_value],
+        test_case, method_mock, str_prim.return_value, [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)
@@ -37,10 +37,12 @@ def test_method_statement_clone():
     assert cloned.statements[2] is not method_stmt
 
 
-def test_constructor_statement_clone():
+def test_constructor_statement_clone(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    method_stmt = ps.ConstructorStatement(test_case, int, [int_prim.return_value],)
+    method_stmt = ps.ConstructorStatement(
+        test_case, constructor_mock, [int_prim.return_value],
+    )
     test_case.add_statement(int_prim)
     test_case.add_statement(method_stmt)
 
@@ -78,18 +80,24 @@ def simple_test_case() -> dtc.DefaultTestCase:
     return test_case
 
 
-def test_test_case_equals_on_different_prim(simple_test_case: dtc.DefaultTestCase):
+def test_test_case_equals_on_different_prim(
+    simple_test_case: dtc.DefaultTestCase, constructor_mock
+):
     cloned = simple_test_case.clone()
 
     # Original points to int at 0
     simple_test_case.add_statement(
         ps.ConstructorStatement(
-            simple_test_case, int, [simple_test_case.statements[0].return_value]
+            simple_test_case,
+            constructor_mock,
+            [simple_test_case.statements[0].return_value],
         )
     )
     # Clone points to int at 1
     cloned.add_statement(
-        ps.ConstructorStatement(cloned, int, [cloned.statements[1].return_value])
+        ps.ConstructorStatement(
+            cloned, constructor_mock, [cloned.statements[1].return_value]
+        )
     )
 
     # Even thought they both point to an int, they are not equal

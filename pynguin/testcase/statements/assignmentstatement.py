@@ -15,12 +15,13 @@
 """
 Provide a statement that performs assignments.
 """
-from typing import Any
+from typing import Any, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class AssignmentStatement(stmt.Statement):
@@ -49,6 +50,9 @@ class AssignmentStatement(stmt.Statement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_assignment_statement(self)
+
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        return None
 
     def __hash__(self) -> int:
         return 31 + 17 * hash(self._return_value) + 17 * hash(self._rhs)

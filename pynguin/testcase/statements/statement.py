@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class Statement(metaclass=ABCMeta):
@@ -70,6 +71,10 @@ class Statement(metaclass=ABCMeta):
     @abstractmethod
     def accept(self, visitor: sv.StatementVisitor) -> None:
         """Accepts a visitor to visit this statement."""
+
+    @abstractmethod
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        """Provides the accessible which is used in this statement."""
 
     def __eq__(self, other: Any) -> bool:
         raise NotImplementedError("You need to override __eq__ for your statement type")

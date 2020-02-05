@@ -92,7 +92,7 @@ class _TestFactory:
             position = position + new_length - length
 
             statement = par_stmt.ConstructorStatement(
-                test_case=test_case, return_type=constructor.owner, args=parameters,
+                test_case=test_case, constructor=constructor, args=parameters,
             )
             return test_case.add_statement(statement, position)
         except BaseException as exception:
@@ -142,11 +142,7 @@ class _TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.MethodStatement(
-            test_case=test_case,
-            method_name=method.name,
-            callee=callee,
-            return_type=signature.return_type,
-            args=parameters,
+            test_case=test_case, method=method, callee=callee, args=parameters,
         )
         return test_case.add_statement(statement, position)
 

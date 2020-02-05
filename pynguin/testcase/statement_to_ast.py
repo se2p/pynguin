@@ -108,14 +108,12 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
     ) -> None:
-        assert stmt.return_value.variable_type
+        assert stmt.constructor.owner
         self._ast_nodes.append(
             ast.Assign(
                 targets=[self._create_name(stmt.return_value, False)],
                 value=ast.Call(
-                    func=ast.Name(
-                        id=stmt.return_value.variable_type.__name__, ctx=ast.Load()
-                    ),
+                    func=ast.Name(id=stmt.constructor.owner.__name__, ctx=ast.Load()),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
                 ),
@@ -128,7 +126,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 targets=[self._create_name(stmt.return_value, False)],
                 value=ast.Call(
                     func=ast.Attribute(
-                        attr=stmt.method_name,
+                        attr=stmt.method.name,
                         ctx=ast.Load(),
                         value=self._create_name(stmt.callee, True),
                     ),
@@ -143,7 +141,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             ast.Assign(
                 targets=[self._create_name(stmt.return_value, False)],
                 value=ast.Call(
-                    func=ast.Name(id=stmt.function_name, ctx=ast.Load()),
+                    func=ast.Name(id=stmt.function.name, ctx=ast.Load()),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
                 ),

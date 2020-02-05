@@ -23,6 +23,7 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class PrimitiveStatement(stmt.Statement):
@@ -48,6 +49,9 @@ class PrimitiveStatement(stmt.Statement):
     @value.setter
     def value(self, value: Any) -> None:
         self._value = value
+
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        return None
 
     @abstractmethod
     def randomize_value(self) -> None:

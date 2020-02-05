@@ -21,6 +21,12 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericMethod,
+    GenericAccessibleObject,
+    GenericFunction,
+)
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
@@ -109,16 +115,34 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 class ConstructorStatement(ParametrizedStatement):
     """A statement that constructs an object."""
 
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        constructor: GenericConstructor,
+        args: Optional[List[vr.VariableReference]] = None,
+        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
+    ):
+        super().__init__(test_case, constructor.generated_type(), args, kwargs)
+        self._constructor = constructor
+
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return ConstructorStatement(
             test_case,
-            self.return_value.variable_type,
+            self._constructor,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_constructor_statement(self)
+
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        return self._constructor
+
+    @property
+    def constructor(self) -> GenericConstructor:
+        """The used constructor."""
+        return self._constructor
 
 
 class MethodStatement(ParametrizedStatement):
@@ -128,35 +152,31 @@ class MethodStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        method_name: str,
+        method: GenericMethod,
         callee: vr.VariableReference,
-        return_type: Optional[Type],
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ):
         """
         Create new method statement.
         :param test_case: The containing test case
-        :param method_name: the method name
         :param callee: the object on which the method is called
-        :param return_type: return type
         :param args: the positional arguments
         :param kwargs: the keyword arguments
         """
         super().__init__(
-            test_case, return_type, args, kwargs,
+            test_case, method.generated_type(), args, kwargs,
         )
-        self._method_name = method_name
+        self._method = method
         self._callee = callee
 
-    @property
-    def method_name(self) -> str:
-        """Provides the name of the method that is called."""
-        return self._method_name
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        return self._method
 
-    @method_name.setter
-    def method_name(self, value: str):
-        self._method_name = value
+    @property
+    def method(self) -> GenericMethod:
+        """The used method."""
+        return self._method
 
     @property
     def callee(self) -> vr.VariableReference:
@@ -166,9 +186,8 @@ class MethodStatement(ParametrizedStatement):
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return MethodStatement(
             test_case,
-            self._method_name,
+            self._method,
             self._callee.clone(test_case),
-            self.return_value.variable_type,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
         )
@@ -184,31 +203,28 @@ class FunctionStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        function_name: str,
-        return_type: Optional[Type] = None,
+        function: GenericFunction,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ) -> None:
         """
 
         """
-        super().__init__(test_case, return_type, args, kwargs)
-        self._function_name = function_name
+        super().__init__(test_case, function.generated_type(), args, kwargs)
+        self._function = function
+
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
+        return self._function
 
     @property
-    def function_name(self) -> str:
-        """Provides then name of the function that is called."""
-        return self._function_name
-
-    @function_name.setter
-    def function_name(self, value: str) -> None:
-        self._function_name = value
+    def function(self) -> GenericFunction:
+        """The used function."""
+        return self._function
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
         return FunctionStatement(
             test_case,
-            self._function_name,
-            self.return_value.variable_type,
+            self._function,
             self._clone_args(test_case),
             self._clone_kwargs(test_case),
         )
@@ -219,12 +235,12 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._function_name}, {self._return_value.variable_type}, "
+            f"{self._function.name}, {self._return_value.variable_type}, "
             f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._function_name}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._function.name}(args={self._args}, kwargs={self._kwargs}) -> "
             f"{self._return_value.variable_type}"
         )

@@ -15,13 +15,17 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Type, Optional, Any
+from typing import Any, Optional
 
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericField,
+    GenericAccessibleObject,
+)
 
 
 class FieldStatement(stmt.Statement):
@@ -30,13 +34,11 @@ class FieldStatement(stmt.Statement):
     """
 
     def __init__(
-        self,
-        test_case: tc.TestCase,
-        field: str,
-        field_type: Optional[Type],
-        source: vr.VariableReference,
+        self, test_case: tc.TestCase, field: GenericField, source: vr.VariableReference,
     ):
-        super().__init__(test_case, vri.VariableReferenceImpl(test_case, field_type))
+        super().__init__(
+            test_case, vri.VariableReferenceImpl(test_case, field.generated_type())
+        )
         self._field = field
         self._source = source
 
@@ -47,24 +49,16 @@ class FieldStatement(stmt.Statement):
         """
         return self._source
 
-    @property
-    def field(self) -> str:
-        """
-        Provides the field name that is accessed.
-        """
+    def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._field
 
-    @field.setter
-    def field(self, field: str) -> None:
-        self._field = field
+    @property
+    def field(self) -> GenericField:
+        """The used field."""
+        return self._field
 
     def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        return FieldStatement(
-            test_case,
-            self._field,
-            self.return_value.variable_type,
-            self._source.clone(test_case),
-        )
+        return FieldStatement(test_case, self._field, self._source.clone(test_case),)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_field_statement(self)
@@ -74,7 +68,7 @@ class FieldStatement(stmt.Statement):
             return True
         if not isinstance(other, FieldStatement):
             return False
-        return self._field == other._field and self._return_value == other._return_value
+        return self._field == other._field
 
     def __hash__(self) -> int:
-        return 31 + 17 * hash(self._field) + 17 * hash(self._return_value)
+        return 31 + 17 * hash(self._field)

@@ -17,43 +17,37 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.primitivestatements as prim
 
 
-def test_field_statement(test_case_mock, variable_reference_mock):
+def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
     field_statement = fstmt.FieldStatement(
-        test_case_mock, "test", str, variable_reference_mock
+        test_case_mock, field_mock, variable_reference_mock
     )
-    assert field_statement.field == "test"
+    assert field_statement.field == field_mock
 
 
-def test_field_statement_source(test_case_mock, variable_reference_mock):
-    field_statement = fstmt.FieldStatement(
-        test_case_mock, "test", str, variable_reference_mock
-    )
-    field_statement.field = "another"
-    assert field_statement.field == "another"
-
-
-def test_field_statement_eq_same(test_case_mock, variable_reference_mock):
+def test_field_statement_eq_same(test_case_mock, variable_reference_mock, field_mock):
     statement = fstmt.FieldStatement(
-        test_case_mock, "test", str, variable_reference_mock
+        test_case_mock, field_mock, variable_reference_mock
     )
     assert statement.__eq__(statement)
 
 
-def test_field_statement_eq_other_type(test_case_mock, variable_reference_mock):
+def test_field_statement_eq_other_type(
+    test_case_mock, variable_reference_mock, field_mock
+):
     statement = fstmt.FieldStatement(
-        test_case_mock, "test", str, variable_reference_mock
+        test_case_mock, field_mock, variable_reference_mock
     )
     assert not statement.__eq__(variable_reference_mock)
 
 
-def test_field_statement_eq_clone():
+def test_field_statement_eq_clone(field_mock):
     testcase1 = dtc.DefaultTestCase()
     testcase1.add_statement(prim.IntPrimitiveStatement(testcase1, 0))
     testcase2 = dtc.DefaultTestCase()
     testcase2.add_statement(prim.IntPrimitiveStatement(testcase2, 0))
 
     statement = fstmt.FieldStatement(
-        testcase1, "test", str, testcase1.statements[0].return_value
+        testcase1, field_mock, testcase1.statements[0].return_value
     )
     testcase1.add_statement(statement)
     clone = statement.clone(testcase2)
