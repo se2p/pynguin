@@ -20,7 +20,6 @@ import pytest
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.fieldstatement as f_stmt
-import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
@@ -35,7 +34,7 @@ from tests.fixtures.examples.monkey import Monkey
     [
         # pytest.param(MagicMock(par_stmt.ConstructorStatement)),
         # pytest.param(MagicMock(par_stmt.MethodStatement)),
-        pytest.param(MagicMock(par_stmt.FunctionStatement)),
+        # pytest.param(MagicMock(par_stmt.FunctionStatement)),
         pytest.param(MagicMock(f_stmt.FieldStatement)),
         pytest.param(MagicMock(prim.PrimitiveStatement)),
     ],
@@ -114,3 +113,30 @@ def test_add_method(provide_callables_from_fixtures_modules):
     result = tf.add_method(test_case, generic_method, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
     assert test_case.size() == 3
+
+
+def test_add_function(provide_callables_from_fixtures_modules):
+    test_case = dtc.DefaultTestCase()
+    generic_function = gao.GenericFunction(
+        function=provide_callables_from_fixtures_modules["triangle"],
+        inferred_signature=InferredSignature(
+            signature=Signature(
+                parameters=[
+                    Parameter(
+                        name="x", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+                    ),
+                    Parameter(
+                        name="y", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+                    ),
+                    Parameter(
+                        name="z", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+                    ),
+                ]
+            ),
+            return_type=None,
+            parameters={"x": int, "y": int, "z": int},
+        ),
+    )
+    result = tf.add_function(test_case, generic_function, position=0)
+    assert isinstance(result.variable_type, type(None))
+    assert test_case.size() == 4

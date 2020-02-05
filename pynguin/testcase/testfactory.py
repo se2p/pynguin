@@ -48,7 +48,8 @@ class _TestFactory:
             # self.add_method(test_case, statement)
             pass
         if isinstance(statement, par_stmt.FunctionStatement):
-            self.add_function(test_case, statement)
+            # self.add_function(test_case, statement)
+            pass
         if isinstance(statement, f_stmt.FieldStatement):
             self.add_field(test_case, statement)
         if isinstance(statement, prim.PrimitiveStatement):
@@ -178,7 +179,7 @@ class _TestFactory:
     def add_function(
         self,
         test_case: tc.TestCase,
-        function: par_stmt.FunctionStatement,
+        function: gao.GenericFunction,
         position: int = -1,
         recursion_depth: int = 0,
     ) -> vr.VariableReference:
@@ -200,8 +201,20 @@ class _TestFactory:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
-        # TODO(sl) implement me
-        statement = function.clone(test_case)
+        signature = function.inferred_signature
+        length = test_case.size()
+        parameters: List[vr.VariableReference] = self.satisfy_parameters(
+            test_case=test_case,
+            parameter_types=signature.parameters,
+            position=position,
+            recursion_depth=recursion_depth + 1,
+        )
+        new_length = test_case.size()
+        position = position + new_length - length
+
+        statement = par_stmt.FunctionStatement(
+            test_case=test_case, function=function, args=parameters,
+        )
         return test_case.add_statement(statement, position)
 
     def add_primitive(
