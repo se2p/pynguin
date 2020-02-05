@@ -42,18 +42,23 @@ class _TestFactory:
         :param statement: The statement to append
         """
         if isinstance(statement, par_stmt.ConstructorStatement):
-            # self.add_constructor(test_case, statement)
-            pass
+            self.add_constructor(
+                test_case, statement.constructor, position=test_case.size(),
+            )
         if isinstance(statement, par_stmt.MethodStatement):
-            # self.add_method(test_case, statement)
-            pass
+            self.add_method(
+                test_case, statement.method, position=test_case.size(),
+            )
         if isinstance(statement, par_stmt.FunctionStatement):
-            # self.add_function(test_case, statement)
-            pass
+            self.add_function(
+                test_case, statement.function, position=test_case.size(),
+            )
         if isinstance(statement, f_stmt.FieldStatement):
-            self.add_field(test_case, statement)
+            self.add_field(
+                test_case, statement.field, position=test_case.size(),
+            )
         if isinstance(statement, prim.PrimitiveStatement):
-            self.add_primitive(test_case, statement)
+            self.add_primitive(test_case, statement, position=test_case.size())
 
     def add_constructor(
         self,
@@ -137,7 +142,7 @@ class _TestFactory:
         callee = self._create_or_reuse_variable(
             test_case, method.owner, position, recursion_depth, allow_none=True
         )
-        assert callee
+        assert callee, "The callee must not be None"
         parameters: List[vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
             parameter_types=signature.parameters,
@@ -156,7 +161,7 @@ class _TestFactory:
     def add_field(
         self,
         test_case: tc.TestCase,
-        field: f_stmt.FieldStatement,
+        field: gao.GenericField,
         position: int = -1,
         recursion_depth: int = 0,
     ) -> vr.VariableReference:
@@ -181,8 +186,13 @@ class _TestFactory:
         if position < 0:
             position = test_case.size()
 
-        # TODO(sl) implement me
-        statement = field.clone(test_case)
+        length = test_case.size()
+        callee = self._create_or_reuse_variable(
+            test_case, field.owner, position, recursion_depth, allow_none=False
+        )
+        assert callee, "The callee must not be None"
+        position = position + test_case.size() - length
+        statement = f_stmt.FieldStatement(test_case, field, callee)
         return test_case.add_statement(statement, position)
 
     def add_function(
