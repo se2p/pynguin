@@ -20,6 +20,8 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.fieldstatement as f_stmt
+import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
@@ -33,14 +35,22 @@ from tests.fixtures.examples.monkey import Monkey
 @pytest.mark.parametrize(
     "statement",
     [
-        # pytest.param(MagicMock(par_stmt.ConstructorStatement)),
-        # pytest.param(MagicMock(par_stmt.MethodStatement)),
-        # pytest.param(MagicMock(par_stmt.FunctionStatement)),
-        # pytest.param(MagicMock(f_stmt.FieldStatement)),
+        pytest.param(MagicMock(par_stmt.ConstructorStatement)),
+        pytest.param(MagicMock(par_stmt.MethodStatement)),
+        pytest.param(MagicMock(par_stmt.FunctionStatement)),
+        pytest.param(MagicMock(f_stmt.FieldStatement)),
         pytest.param(MagicMock(prim.PrimitiveStatement)),
     ],
 )
 def test_append_statement(test_case_mock, statement):
+    def fun(*_):
+        pass
+
+    tf.add_constructor = fun
+    tf.add_method = fun
+    tf.add_function = fun
+    tf.add_field = fun
+    tf.add_primitive = fun
     tf.append_statement(test_case_mock, statement)
     test_case_mock.add_statement.assert_called_once()
 
