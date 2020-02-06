@@ -19,6 +19,7 @@ from typing import List, Any
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
+import pynguin.testcase.testcasevisitor as tcv
 import pynguin.testcase.variable.variablereference as vr
 
 
@@ -42,8 +43,8 @@ class DefaultTestCase(tc.TestCase):
         """
         return self._id
 
-    def accept(self, visitor) -> None:
-        pass
+    def accept(self, visitor: tcv.TestCaseVisitor) -> None:
+        visitor.visit_default_test_case(self)
 
     def add_statement(
         self, statement: stmt.Statement, position: int = -1

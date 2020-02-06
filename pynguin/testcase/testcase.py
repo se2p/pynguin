@@ -19,6 +19,7 @@ from typing import List, Type, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.testcasevisitor as tcv
 from pynguin.utils.atomicinteger import AtomicInteger
 
 
@@ -42,10 +43,8 @@ class TestCase(metaclass=ABCMeta):
         return self._statements
 
     @abstractmethod
-    def accept(self, visitor) -> None:
+    def accept(self, visitor: tcv.TestCaseVisitor) -> None:
         """Handles a test visitor.
-
-        TODO: What type does this visitor have?
 
         :param visitor: The test visitor to accept
         """
