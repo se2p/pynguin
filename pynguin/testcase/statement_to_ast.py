@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import ast
-from typing import List, Dict, Any
+from typing import List
 
 import pynguin.testcase.statements.assignmentstatement as assign_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
@@ -24,39 +24,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.variable.variablereference as vr
-
-
-class NamingScope:
-    """
-    Maps any object to unique, human friendly names.
-    """
-
-    def __init__(self, prefix: str = "var"):
-        """
-        :param prefix: The prefix that will be used in the name.
-        """
-        self._next_index = 0
-        self._known_name_indices: Dict[Any, int] = {}
-        self._prefix = prefix
-
-    def get_name(self, obj: Any) -> str:
-        """
-        Get the name for the given object within this scope.
-        :param obj: the object for which a name is requested
-        :return: the variable name
-        """
-        if obj in self._known_name_indices:
-            index = self._known_name_indices.get(obj)
-        else:
-            index = self._next_index
-            self._known_name_indices[obj] = index
-            self._next_index += 1
-        return self._prefix + str(index)
-
-    @property
-    def known_name_indices(self) -> Dict[Any, int]:
-        """Provides a dict of objects and their corresponding name."""
-        return self._known_name_indices
+from pynguin.utils.namingscope import NamingScope
 
 
 class StatementToAstVisitor(sv.StatementVisitor):

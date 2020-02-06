@@ -23,37 +23,13 @@ import pytest
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statement as stmt
-
-
-def test_naming_scope_same(variable_reference_mock):
-    scope = stmt_to_ast.NamingScope()
-    name1 = scope.get_name(variable_reference_mock)
-    name2 = scope.get_name(variable_reference_mock)
-    assert name1 == name2
-
-
-def test_naming_scope_different(variable_reference_mock):
-    scope = stmt_to_ast.NamingScope()
-    name1 = scope.get_name(variable_reference_mock)
-    name2 = scope.get_name(MagicMock(vr.VariableReference))
-    assert name1 != name2
-
-
-def test_naming_scope_known_indices_empty():
-    scope = stmt_to_ast.NamingScope()
-    assert scope.known_name_indices == {}
-
-
-def test_naming_scope_known_indices_not_empty(variable_reference_mock):
-    scope = stmt_to_ast.NamingScope()
-    scope.get_name(variable_reference_mock)
-    assert scope.known_name_indices == {variable_reference_mock: 0}
+from pynguin.utils.namingscope import NamingScope
 
 
 @pytest.fixture()
 def statement_to_ast_visitor() -> stmt_to_ast.StatementToAstVisitor:
-    var_names = stmt_to_ast.NamingScope()
-    module_aliases = stmt_to_ast.NamingScope(prefix="module")
+    var_names = NamingScope()
+    module_aliases = NamingScope(prefix="module")
     return stmt_to_ast.StatementToAstVisitor(module_aliases, var_names)
 
 
