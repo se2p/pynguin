@@ -25,10 +25,8 @@ from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationS
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
+
 # pylint: disable=too-few-public-methods
-from pynguin.utils.recorder import CoverageRecorder
-
-
 class Pynguin:
     """The basic interface of the test generator."""
 
@@ -78,11 +76,8 @@ class Pynguin:
 
         sys.path.insert(0, config.INSTANCE.project_path)
         executor = TestCaseExecutor()
-        coverage_recorder = CoverageRecorder()
 
-        algorithm: TestGenerationStrategy = RandomTestStrategy(
-            recorder=coverage_recorder, executor=executor
-        )
+        algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
         test_cases, failing_test_cases = algorithm.generate_sequences()
 
         self._print_results(len(test_cases), len(failing_test_cases))

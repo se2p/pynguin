@@ -29,7 +29,6 @@ from pynguin.testcase import testfactory
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import GenerationException
-from pynguin.utils.recorder import CoverageRecorder
 
 
 # pylint: disable=too-few-public-methods
@@ -41,9 +40,8 @@ class RandomTestStrategy(TestGenerationStrategy):
     _logger = logging.getLogger(__name__)
 
     # pylint: disable=too-many-arguments
-    def __init__(self, recorder: CoverageRecorder, executor: TestCaseExecutor,) -> None:
+    def __init__(self, executor: TestCaseExecutor,) -> None:
         super().__init__()
-        self._recorder = recorder
         self._executor = executor
 
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:

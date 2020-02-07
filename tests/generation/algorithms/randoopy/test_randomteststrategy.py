@@ -24,12 +24,6 @@ import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
-from pynguin.utils.recorder import CoverageRecorder
-
-
-@pytest.fixture
-def recorder():
-    return MagicMock(CoverageRecorder)
 
 
 @pytest.fixture
@@ -48,10 +42,10 @@ def _inspect_member(member):
         return None
 
 
-def test_generate_sequences(recorder, executor):
+def test_generate_sequences(executor):
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(recorder, executor)
+    algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm._generate_sequence = lambda t, f, o: None
@@ -61,13 +55,13 @@ def test_generate_sequences(recorder, executor):
     assert len(logger.method_calls) == 7
 
 
-def test_generate_sequences_exception(recorder, executor):
+def test_generate_sequences_exception(executor):
     def raise_exception(*args):
         raise GenerationException("Exception Test")
 
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(recorder, executor)
+    algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm._generate_sequence = raise_exception
@@ -75,9 +69,9 @@ def test_generate_sequences_exception(recorder, executor):
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
 
-def test_random_test_cases_no_bounds(recorder, executor):
+def test_random_test_cases_no_bounds(executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(recorder, executor)
+    algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 0
     config.INSTANCE.max_sequence_length = 0
@@ -89,9 +83,9 @@ def test_random_test_cases_no_bounds(recorder, executor):
     assert 0 <= len(result) <= 2
 
 
-def test_random_test_cases_with_bounds(recorder, executor):
+def test_random_test_cases_with_bounds(executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(recorder, executor)
+    algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 2
     config.INSTANCE.max_sequence_length = 2
