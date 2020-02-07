@@ -61,6 +61,7 @@ def _inspect_member(member):
 
 
 def test_generate_sequences(recorder, executor, symbol_table, type_inference_strategy):
+    config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
@@ -71,7 +72,7 @@ def test_generate_sequences(recorder, executor, symbol_table, type_inference_str
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases == []
     assert failing_test_cases == []
-    assert len(logger.method_calls) == 7
+    assert len(logger.method_calls) == 5
 
 
 def test_generate_sequences_exception(
@@ -80,6 +81,7 @@ def test_generate_sequences_exception(
     def raise_exception(*args):
         raise GenerationException("Exception Test")
 
+    config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
