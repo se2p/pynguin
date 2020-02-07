@@ -426,7 +426,7 @@ class _TestFactory:
             )
         if (
             allow_none
-            and randomness.next_float() <= config.Configuration.none_probability
+            and randomness.next_float() <= config.INSTANCE.none_probability
         ):
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
