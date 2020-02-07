@@ -14,10 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract base class for a test generation algorithm."""
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, List, Type
+from typing import Tuple, List
 
-import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
+import pynguin.testcase.testcase as tc
 
 
 class TestGenerationStrategy(metaclass=ABCMeta):
@@ -27,13 +27,9 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def generate_sequences(
-        self, time_limit: int, modules: List[Type]
-    ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         """Generates sequences for a given module until the time limit is reached.
 
-        :param time_limit: The maximum amount of time that shall be consumed
-        :param modules: The list of types that are available
         :return: A two-tuple of lists; the former containing the successful test
         cases, the latter containing the failing test cases.
         """

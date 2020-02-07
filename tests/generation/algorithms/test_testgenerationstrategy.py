@@ -12,10 +12,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import List, Type, Tuple
+from typing import List, Tuple
 from unittest.mock import MagicMock
 
 import pytest
+
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -23,9 +24,7 @@ from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationS
 
 
 class _Test_GenerationStrategy(TestGenerationStrategy):
-    def generate_sequences(
-        self, time_limit: int, modules: List[Type]
-    ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         raise NotImplementedError(
             "This class is not intended for usage but only for testing"
         )

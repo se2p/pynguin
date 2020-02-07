@@ -50,12 +50,10 @@ class RandomTestStrategy(TestGenerationStrategy):
         self._symbol_table = symbol_table
         self._type_inference_strategy = type_inference_strategy
 
-    def generate_sequences(
-        self, time_limit: int, modules: List[Type]
-    ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         self._logger.info("Start generating sequences using random algorithm")
-        self._logger.debug("Time limit: %d", time_limit)
-        self._logger.debug("Modules: %s", modules)
+        # self._logger.debug("Time limit: %d", time_limit)
+        # self._logger.debug("Modules: %s", modules)
 
         test_cases: List[tc.TestCase] = []
         failing_test_cases: List[tc.TestCase] = []
@@ -64,7 +62,9 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         objects_under_test: List[Type] = []  # Select all objects under test
 
-        while (datetime.datetime.now() - start_time).total_seconds() < time_limit:
+        while (
+            datetime.datetime.now() - start_time
+        ).total_seconds() < config.INSTANCE.budget:
             try:
                 execution_counter += 1
                 self._generate_sequence(
