@@ -16,13 +16,19 @@
 import argparse
 import logging
 import os
+import sys
 from typing import Union, List
 
 import pynguin.configuration as config
+from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
-
 # pylint: disable=too-few-public-methods
+from pynguin.utils.recorder import CoverageRecorder
+
+
 class Pynguin:
     """The basic interface of the test generator."""
 
@@ -63,9 +69,30 @@ class Pynguin:
 
         try:
             self._logger.info("Start Pynguin Test Generation…")
-            return -1
+            return self._run()
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
+
+    def _run(self) -> int:
+        status = 0
+
+        sys.path.insert(0, config.INSTANCE.project_path)
+        executor = TestCaseExecutor()
+        coverage_recorder = CoverageRecorder()
+
+        algorithm: TestGenerationStrategy = RandomTestStrategy(
+            recorder=coverage_recorder, executor=executor
+        )
+        test_cases, failing_test_cases = algorithm.generate_sequences()
+
+        self._print_results(len(test_cases), len(failing_test_cases))
+
+        return status
+
+    @staticmethod
+    def _print_results(num_test_cases, num_failing_test_cases):
+        print(f"Generated {num_test_cases} test cases")
+        print(f"Generated {num_failing_test_cases} failing test cases")
 
     @staticmethod
     def _setup_logging(
