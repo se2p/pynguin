@@ -123,7 +123,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
                     func=ast.Attribute(
                         attr=stmt.function.name,
                         ctx=ast.Load(),
-                        value=self._create_module_alias(stmt.function.__module__),
+                        value=self._create_module_alias(
+                            stmt.function.function.__module__
+                        ),
                     ),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),

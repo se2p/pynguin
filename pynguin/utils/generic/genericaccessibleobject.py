@@ -94,6 +94,11 @@ class GenericMethod(GenericCallableAccessibleObject):
         """Provide the name of the method."""
         return self._method.__name__
 
+    @property
+    def method(self) -> Callable:
+        """Provide access to the method's callable."""
+        return self._method
+
     def __eq__(self, other):
         if self is other:
             return True
@@ -118,6 +123,11 @@ class GenericFunction(GenericCallableAccessibleObject):
     def name(self) -> str:
         """Provide the name of the function."""
         return self._function.__name__
+
+    @property
+    def function(self) -> Callable:
+        """Provide access to the function's callable."""
+        return self._function
 
     def __eq__(self, other):
         if self is other:
