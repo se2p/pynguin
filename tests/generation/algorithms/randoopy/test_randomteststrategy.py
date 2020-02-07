@@ -22,9 +22,7 @@ import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
-from pynguin.generation.symboltable import SymbolTable
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
-from pynguin.typeinference.strategy import TypeInferenceStrategy
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -39,16 +37,6 @@ def executor():
     return MagicMock(TestCaseExecutor)
 
 
-@pytest.fixture
-def symbol_table():
-    return MagicMock(SymbolTable)
-
-
-@pytest.fixture
-def type_inference_strategy():
-    return MagicMock(TypeInferenceStrategy)
-
-
 def _inspect_member(member):
     try:
         return (
@@ -60,32 +48,26 @@ def _inspect_member(member):
         return None
 
 
-def test_generate_sequences(recorder, executor, symbol_table, type_inference_strategy):
+def test_generate_sequences(recorder, executor):
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
+    algorithm = RandomTestStrategy(recorder, executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm._generate_sequence = lambda t, f, o: None
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases == []
     assert failing_test_cases == []
-    assert len(logger.method_calls) == 5
+    assert len(logger.method_calls) == 7
 
 
-def test_generate_sequences_exception(
-    recorder, executor, symbol_table, type_inference_strategy
-):
+def test_generate_sequences_exception(recorder, executor):
     def raise_exception(*args):
         raise GenerationException("Exception Test")
 
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
+    algorithm = RandomTestStrategy(recorder, executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm._generate_sequence = raise_exception
@@ -93,13 +75,9 @@ def test_generate_sequences_exception(
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
 
-def test_random_test_cases_no_bounds(
-    recorder, executor, symbol_table, type_inference_strategy
-):
+def test_random_test_cases_no_bounds(recorder, executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
+    algorithm = RandomTestStrategy(recorder, executor)
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 0
     config.INSTANCE.max_sequence_length = 0
@@ -111,13 +89,9 @@ def test_random_test_cases_no_bounds(
     assert 0 <= len(result) <= 2
 
 
-def test_random_test_cases_with_bounds(
-    recorder, executor, symbol_table, type_inference_strategy
-):
+def test_random_test_cases_with_bounds(recorder, executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
+    algorithm = RandomTestStrategy(recorder, executor)
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 2
     config.INSTANCE.max_sequence_length = 2

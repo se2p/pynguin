@@ -62,6 +62,26 @@ class _TestFactory:
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
+    def append_generic_statement(
+        self, test_case: tc.TestCase, statement: gao.GenericAccessibleObject
+    ) -> None:
+        """Appends a generic accessible object to a test case.
+
+        :param test_case: The test case
+        :param statement: The object to append
+        :return:
+        """
+        if isinstance(statement, gao.GenericConstructor):
+            self.add_constructor(test_case, statement, position=test_case.size())
+        elif isinstance(statement, gao.GenericMethod):
+            self.add_method(test_case, statement, position=test_case.size())
+        elif isinstance(statement, gao.GenericFunction):
+            self.add_function(test_case, statement, position=test_case.size())
+        elif isinstance(statement, gao.GenericField):
+            self.add_field(test_case, statement, position=test_case.size())
+        else:
+            raise ConstructionFailedException(f"Unknown statement type: {statement}")
+
     def add_constructor(
         self,
         test_case: tc.TestCase,
@@ -470,6 +490,7 @@ class _TestFactory:
 # pylint: disable=invalid-name
 _inst = _TestFactory()
 append_statement = _inst.append_statement
+append_generic_statement = _inst.append_generic_statement
 add_constructor = _inst.add_constructor
 add_method = _inst.add_method
 add_field = _inst.add_field
