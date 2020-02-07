@@ -20,7 +20,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
 
 
-class GenerationAlgorithm(metaclass=ABCMeta):
+class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self) -> None:

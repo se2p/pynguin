@@ -23,7 +23,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
-from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
+from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
@@ -34,7 +34,7 @@ from pynguin.utils.recorder import CoverageRecorder
 from pynguin.utils.utils import get_members_from_module
 
 
-class RandomGenerationAlgorithm(GenerationAlgorithm):
+class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
     _logger = logging.getLogger(__name__)

@@ -424,10 +424,7 @@ class _TestFactory:
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
             )
-        if (
-            allow_none
-            and randomness.next_float() <= config.INSTANCE.none_probability
-        ):
+        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )

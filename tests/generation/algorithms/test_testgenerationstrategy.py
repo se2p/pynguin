@@ -19,10 +19,10 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin.generation.algorithms.algorithm import GenerationAlgorithm
+from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 
 
-class _GenerationAlgorithm(GenerationAlgorithm):
+class _Test_GenerationStrategy(TestGenerationStrategy):
     def generate_sequences(
         self, time_limit: int, modules: List[Type]
     ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
@@ -33,7 +33,7 @@ class _GenerationAlgorithm(GenerationAlgorithm):
 
 @pytest.fixture
 def algorithm():
-    return _GenerationAlgorithm()
+    return _Test_GenerationStrategy()
 
 
 def test_not_has_type_violations(algorithm):

@@ -21,7 +21,7 @@ import pytest
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin.generation.algorithms.randoopy.algorithm import RandomGenerationAlgorithm
+from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
 from pynguin.typeinference.strategy import TypeInferenceStrategy
@@ -63,7 +63,7 @@ def _inspect_member(member):
 
 def test_generate_sequences(recorder, executor, symbol_table, type_inference_strategy):
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -82,7 +82,7 @@ def test_generate_sequences_exception(
         raise GenerationException("Exception Test")
 
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -95,7 +95,7 @@ def test_generate_sequences_exception(
 def test_find_objects_under_test(
     recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
 ):
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     result = algorithm._find_objects_under_test([provide_imported_modules["triangle"]])
@@ -106,7 +106,7 @@ def test_random_public_method_one_object_under_test(
     recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
 ):
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -118,7 +118,7 @@ def test_random_public_method_private_object_under_test(
     recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
 ):
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -134,7 +134,7 @@ def test_random_test_cases_no_bounds(
     recorder, executor, symbol_table, type_inference_strategy
 ):
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -152,7 +152,7 @@ def test_random_test_cases_with_bounds(
     recorder, executor, symbol_table, type_inference_strategy
 ):
     logger = MagicMock(Logger)
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -171,7 +171,7 @@ def test_random_values_for_function_with_type_annotation(
 ):
     logger = MagicMock(Logger)
     type_inference_strategy = TypeHintsInferenceStrategy()
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
@@ -197,7 +197,7 @@ def extend_for_function_with_type_annotation(
 ):
     logger = MagicMock(Logger)
     type_inference_strategy = TypeHintsInferenceStrategy()
-    algorithm = RandomGenerationAlgorithm(
+    algorithm = RandomTestStrategy(
         recorder, executor, symbol_table, type_inference_strategy
     )
     algorithm._logger = logger
