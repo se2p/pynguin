@@ -14,18 +14,17 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from logging import Logger
-from unittest import mock
 from unittest.mock import MagicMock
-import pynguin.configuration as config
+
 import pytest
 
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.typeinference.strategy import TypeInferenceStrategy
-from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
@@ -92,44 +91,6 @@ def test_generate_sequences_exception(
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
 
-def test_find_objects_under_test(
-    recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
-):
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
-    result = algorithm._find_objects_under_test([provide_imported_modules["triangle"]])
-    assert len(result) == 2
-
-
-def test_random_public_method_one_object_under_test(
-    recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
-):
-    logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
-    algorithm._logger = logger
-    result = algorithm._random_public_method([provide_imported_modules["triangle"]])
-    assert result
-
-
-def test_random_public_method_private_object_under_test(
-    recorder, executor, symbol_table, type_inference_strategy, provide_imported_modules,
-):
-    logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
-    algorithm._logger = logger
-    with pytest.raises(GenerationException) as exception:
-        algorithm._random_public_method([provide_imported_modules["private_methods"]])
-    assert (
-        str(exception.value) == "tests.fixtures.examples.private_methods has no public "
-        "callables."
-    )
-
-
 def test_random_test_cases_no_bounds(
     recorder, executor, symbol_table, type_inference_strategy
 ):
@@ -164,54 +125,3 @@ def test_random_test_cases_with_bounds(
     tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
     result = algorithm._random_test_cases([tc_1, tc_2])
     assert 0 <= len(result) <= 1
-
-
-def test_random_values_for_function_with_type_annotation(
-    recorder, executor, symbol_table, provide_callables_from_fixtures_modules,
-):
-    logger = MagicMock(Logger)
-    type_inference_strategy = TypeHintsInferenceStrategy()
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
-    algorithm._logger = logger
-    callable_ = provide_callables_from_fixtures_modules["triangle"]
-    test_cases = [MagicMock(tc.TestCase)]
-    result = algorithm._random_values(
-        test_cases,
-        callable_,
-        type_inference_strategy.infer_type_info(callable_),
-        [MagicMock(tc.TestCase)],
-    )
-    assert len(result) == 3
-    assert str(result[0][0]) == "x"
-    assert result[0][1] == int
-    assert str(result[1][0]) == "y"
-    assert result[1][1] == int
-    assert str(result[2][0]) == "z"
-    assert result[2][1] == int
-
-
-def extend_for_function_with_type_annotation(
-    recorder, executor, symbol_table, provide_callables_from_fixtures_modules,
-):
-    logger = MagicMock(Logger)
-    type_inference_strategy = TypeHintsInferenceStrategy()
-    algorithm = RandomTestStrategy(
-        recorder, executor, symbol_table, type_inference_strategy
-    )
-    algorithm._logger = logger
-    callable_ = provide_callables_from_fixtures_modules["triangle"]
-    test_cases = [MagicMock(tc.TestCase)]
-    values = [
-        ("x", int, 42),
-        ("y", int, 42),
-        ("z", int, 42),
-    ]
-    method_type = type_inference_strategy.infer_type_info(callable_)
-    with mock.patch(
-        "pynguin.generation.algorithms.randoopy.algorithm.stf.StatementFactory"
-    ) as m:
-        m.create_statements.return_value = [MagicMock(stmt.Statement)]
-        result = algorithm._extend(callable_, test_cases, values, method_type)
-    assert len(result.statements) == 1

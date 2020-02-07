@@ -14,24 +14,21 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a random test generation algorithm similar to Randoop."""
 import datetime
-import inspect
 import logging
 import random
-from typing import Type, List, Tuple, Any, Callable
+from typing import Type, List, Tuple
 
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
+import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.generation.symboltable import SymbolTable
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.typeinference.strategy import TypeInferenceStrategy
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.recorder import CoverageRecorder
 
+
 # pylint: disable=too-few-public-methods
-from pynguin.utils.utils import get_members_from_module
 
 
 class RandomTestStrategy(TestGenerationStrategy):
@@ -65,7 +62,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         start_time = datetime.datetime.now()
         execution_counter: int = 0
 
-        objects_under_test = self._find_objects_under_test(modules)
+        objects_under_test: List[Type] = []  # Select all objects under test
 
         while (datetime.datetime.now() - start_time).total_seconds() < time_limit:
             try:
@@ -98,67 +95,16 @@ class RandomTestStrategy(TestGenerationStrategy):
         :param objects_under_test: The list of available types in the current context
         """
         # Create new test case, i.e., sequence in Randoop paper terminology
-        method = self._random_public_method(objects_under_test)
-        method_type = self._type_inference_strategy.infer_type_info(method)
-        tests = self._random_test_cases(test_cases)
-        values = self._random_values(
-            test_cases, method, method_type, failing_test_cases
-        )
-        new_test_case = self._extend(method, tests, values, method_type)
+        # Pick a random public method from objects under test
+        # Select random test cases from existing ones to base generation on
+        # Generate random values as input for the previously picked random method
+        # Extend the test case by the new method call
 
         # Discard duplicates
-        if new_test_case in test_cases or new_test_case in failing_test_cases:
-            return
 
         # Execute new sequence
-        # TODO(sl) what shall be the return values of the execution step?
-        # TODO(sl) think about the contracts from Randoop paper…
-        exec_result = self._executor.execute(new_test_case)
 
         # Classify new test case and outputs
-        if exec_result.has_test_exceptions():
-            failing_test_cases.append(new_test_case)
-        else:
-            test_cases.append(new_test_case)
-            # TODO(sl) what about extensible flags?
-
-    @staticmethod
-    def _find_objects_under_test(types: List[Type]) -> List[Type]:
-        objects_under_test = types.copy()
-        for module in types:
-            members = get_members_from_module(module)
-            # members is tuple (name, module/class/function/method)
-            objects_under_test = objects_under_test + [x[1] for x in members]
-        return objects_under_test
-
-    def _random_public_method(self, objects_under_test: List[Type]) -> Callable:
-        def inspect_member(member):
-            try:
-                return (
-                    inspect.isclass(member)
-                    or inspect.ismethod(member)
-                    or inspect.isfunction(member)
-                )
-            except BaseException as exception:
-                self._logger.debug(exception)
-                raise GenerationException("Test member: " + exception.__repr__())
-
-        object_under_test = random.choice(objects_under_test)
-        members = inspect.getmembers(object_under_test, inspect_member)
-
-        public_members = [
-            m[1]
-            for m in members
-            if not m[0][0] == "_" and not m[1].__name__ == "_recording_isinstance"
-        ]
-
-        if not public_members:
-            raise GenerationException(
-                object_under_test.__name__ + " has no public callables."
-            )
-
-        method = random.choice(public_members)
-        return method
 
     def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
         if config.INSTANCE.max_sequence_length == 0:
@@ -180,48 +126,3 @@ class RandomTestStrategy(TestGenerationStrategy):
             len(test_cases),
         )
         return new_test_cases
-
-    # pylint: disable=unused-argument
-    def _random_values(
-        self,
-        test_cases: List[tc.TestCase],
-        callable_: Callable,
-        method_type: InferredSignature,
-        failing_test_cases: List[tc.TestCase],
-    ) -> List[Tuple[str, Type, Any]]:
-        assert method_type.parameters  # TODO(sl) implement handling for other cases
-        parameters = [(k, v) for k, v in method_type.parameters.items() if k != "self"]
-        values: List[Tuple[str, Type, Any]] = []
-        for parameter in parameters:
-            name, param = parameter
-            assert param  # TODO(sl) this should always be true when we have parameters
-            value = 42
-            self._logger.debug(
-                "Selected Method: %s, Parameter: %s: %s, Value: %s",
-                callable_.__name__,
-                name,
-                param,
-                value,
-            )
-            values.append((name, param, value))
-        return values
-
-    def _extend(
-        self,
-        callable_: Callable,
-        test_cases: List[tc.TestCase],
-        values: List[Tuple[str, Type, Any]],
-        method_type: InferredSignature,
-    ) -> tc.TestCase:
-        new_test = dtc.DefaultTestCase()
-        for test_case in test_cases:
-            new_test.append_test_case(test_case)
-
-        statements: List[stmt.Statement] = []
-        self._logger.debug(
-            "Generated %d statements for method %s", len(statements), callable_.__name__
-        )
-        for statement in statements:
-            self._logger.debug("    Statement %s", statement)
-        new_test.add_statements(statements)
-        return new_test
