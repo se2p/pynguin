@@ -66,12 +66,6 @@ class Configuration:
     # A predefined seed value for the random number generator that is used.
     seed: int = 42
 
-    # If set the achieved coverage will be measured during test generation.
-    measure_coverage: bool = False
-
-    # File name for storing the coverage information.
-    coverage_filename: str = ""
-
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 
