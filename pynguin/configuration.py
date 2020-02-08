@@ -57,12 +57,6 @@ class Configuration:
     # A list of module names for that the generator shall create tests for.
     module_names: List[str]
 
-    # Verbosity of the output
-    verbosity: Verbosity = Verbosity.NORMAL
-
-    # Path to store the log file.
-    log_file: str = "pynguin.log"
-
     # A predefined seed value for the random number generator that is used.
     seed: int = 42
 

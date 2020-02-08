@@ -31,9 +31,28 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     parser = simple_parsing.ArgumentParser(
         description="Pynguin is an automatic random unit test generation framework for Python."
     )
-
     parser.add_argument(
         "--version", action="version", version="%(prog)s " + __version__
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        dest="verbosity",
+        default=0,
+        help="verbose output (repeat for increased verbosity)",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_const",
+        const=-1,
+        default=0,
+        dest="verbosity",
+        help="quiet output",
+    )
+    parser.add_argument(
+        "--log_file", dest="log_file", help="Path to store the log file."
     )
     parser.add_arguments(Configuration, dest="config")
 

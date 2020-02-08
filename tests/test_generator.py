@@ -29,38 +29,33 @@ from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.string import String
 
 
-@pytest.fixture
-def configuration():
-    return config.Configuration(
-        algorithm=config.Algorithm.RANDOOPY,
-        verbosity=config.Verbosity.QUIET,
-        log_file="",
-        module_names=[],
-        output_path="",
-        project_path="",
-    )
-
-
-def test__setup_logging_standard_with_log_file():
-    log_fd, log_file = tempfile.mkstemp()
+def test__setup_logging_standard_with_log_file(tmp_path):
     logging.shutdown()
     importlib.reload(logging)
     logger = Pynguin._setup_logging(
-        log_file=log_file, verbosity=config.Verbosity.NORMAL
+        log_file=str(tmp_path / "pynguin-test.log"), verbosity=0
     )
     assert isinstance(logger, logging.Logger)
     assert logger.level == logging.DEBUG
     assert len(logger.handlers) == 2
     logging.shutdown()
-    os.close(log_fd)
-    os.remove(log_file)
     importlib.reload(logging)
 
 
-def test__setup_logging_verbose_without_log_file():
+def test__setup_logging_single_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(config.Verbosity.VERBOSE)
+    logger = Pynguin._setup_logging(1)
+    assert len(logger.handlers) == 1
+    assert logger.handlers[0].level == logging.INFO
+    logging.shutdown()
+    importlib.reload(logging)
+
+
+def test__setup_logging_double_verbose_without_log_file():
+    logging.shutdown()
+    importlib.reload(logging)
+    logger = Pynguin._setup_logging(2)
     assert len(logger.handlers) == 1
     assert logger.handlers[0].level == logging.DEBUG
     logging.shutdown()
@@ -70,16 +65,17 @@ def test__setup_logging_verbose_without_log_file():
 def test__setup_logging_quiet_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(config.Verbosity.QUIET)
+    logger = Pynguin._setup_logging(-1)
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
     importlib.reload(logging)
 
 
-def test_init_with_configuration(configuration):
-    Pynguin(configuration=configuration)
-    assert config.INSTANCE == configuration
+def test_init_with_configuration():
+    conf = MagicMock()
+    Pynguin(configuration=conf)
+    assert config.INSTANCE == conf
 
 
 def test_init_without_params():
@@ -91,13 +87,14 @@ def test_init_without_params():
     )
 
 
-def test_init_with_cli_arguments(configuration):
-    option_mock = MagicMock(config=configuration)
+def test_init_with_cli_arguments():
+    conf = MagicMock(config.Configuration)
+    option_mock = MagicMock(config=conf, log_file=None, verbosity=0)
     parser = MagicMock(ArgumentParser)
     parser.parse_args.return_value = option_mock
     args = [""]
     Pynguin(argument_parser=parser, arguments=args)
-    assert config.INSTANCE == configuration
+    assert config.INSTANCE == conf
 
 
 @pytest.mark.skip()
@@ -155,8 +152,8 @@ def test_run_with_observed_string(algorithm, _, __):
     shutil.rmtree(tmp_dir)
 
 
-def test_run_without_logger(configuration):
-    generator = Pynguin(configuration=configuration)
+def test_run_without_logger():
+    generator = Pynguin(configuration=MagicMock(config.Configuration))
     generator._logger = None
     with pytest.raises(ConfigurationException):
         generator.run()

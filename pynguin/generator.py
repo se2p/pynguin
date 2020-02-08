@@ -17,7 +17,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Union, List
+from typing import Union, List, Optional
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -32,11 +32,14 @@ from pynguin.utils.exceptions import ConfigurationException
 class Pynguin:
     """The basic interface of the test generator."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         argument_parser: argparse.ArgumentParser = None,
         arguments: List[str] = None,
         configuration: config.Configuration = None,
+        verbosity: int = -1,
+        log_file: Optional[str] = None,
     ) -> None:
         """Initialises the test generator.
 
@@ -53,14 +56,15 @@ class Pynguin:
         if configuration:
             config.INSTANCE = configuration
         elif argument_parser and arguments:
-            config.INSTANCE = argument_parser.parse_args(arguments).config
+            parsed = argument_parser.parse_args(arguments)
+            config.INSTANCE = parsed.config
+            verbosity = parsed.verbosity
+            log_file = parsed.log_file
         else:
             raise ConfigurationException(
                 "Cannot initialise test generator without proper configuration."
             )
-        self._logger = self._setup_logging(
-            config.INSTANCE.verbosity, config.INSTANCE.log_file,
-        )
+        self._logger = self._setup_logging(verbosity, log_file)
 
     def run(self) -> int:
         """Run"""
@@ -100,16 +104,11 @@ class Pynguin:
 
     @staticmethod
     def _setup_logging(
-        verbosity: config.Verbosity, log_file: Union[str, os.PathLike] = None,
+        verbosity: int, log_file: Union[str, os.PathLike] = None,
     ) -> logging.Logger:
         logger = logging.getLogger("pynguin")
         logger.setLevel(logging.DEBUG)
-        if verbosity is config.Verbosity.VERBOSE:
-            level = logging.DEBUG
-        elif verbosity is config.Verbosity.QUIET:
-            level = logging.NOTSET
-        else:
-            level = logging.INFO
+
         if log_file:
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(
@@ -121,14 +120,20 @@ class Pynguin:
             file_handler.setLevel(logging.DEBUG)
             logger.addHandler(file_handler)
 
-        if verbosity is not config.Verbosity.QUIET:
+        if verbosity < 0:
+            logger.addHandler(logging.NullHandler())
+        else:
+            level = logging.WARNING
+            if verbosity == 1:
+                level = logging.INFO
+            if verbosity >= 2:
+                level = logging.DEBUG
+
             console_handler = logging.StreamHandler()
             console_handler.setLevel(level)
             console_handler.setFormatter(
                 logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
             )
             logger.addHandler(console_handler)
-        else:
-            logger.addHandler(logging.NullHandler())
 
         return logger
