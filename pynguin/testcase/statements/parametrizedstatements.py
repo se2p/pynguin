@@ -239,12 +239,12 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._function.name}, {self._return_value.variable_type}, "
+            f"{self._function}, {self._return_value.variable_type}, "
             f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._function.name}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._function}(args={self._args}, kwargs={self._kwargs}) -> "
             f"{self._return_value.variable_type}"
         )

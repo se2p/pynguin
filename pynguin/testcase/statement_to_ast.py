@@ -105,7 +105,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
                     func=ast.Attribute(
-                        attr=stmt.method.name,
+                        attr=stmt.method.callable.__name__,
                         ctx=ast.Load(),
                         value=self._create_var_name(stmt.callee, True),
                     ),
@@ -121,10 +121,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
                     func=ast.Attribute(
-                        attr=stmt.function.name,
+                        attr=stmt.function.callable.__name__,
                         ctx=ast.Load(),
                         value=self._create_module_alias(
-                            stmt.function.function.__module__
+                            stmt.function.callable.__module__
                         ),
                     ),
                     args=self._create_args(stmt),

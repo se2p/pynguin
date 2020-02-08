@@ -44,9 +44,13 @@ class GenericCallableAccessibleObject(
     """Abstract base class for something that can be called."""
 
     def __init__(
-        self, owner: Optional[Type], inferred_signature: InferredSignature
+        self,
+        owner: Optional[Type],
+        callable_: Callable,
+        inferred_signature: InferredSignature,
     ) -> None:
         super().__init__(owner)
+        self._callable = callable_
         self._inferred_signature = inferred_signature
 
     def generated_type(self) -> Optional[Type]:
@@ -57,12 +61,17 @@ class GenericCallableAccessibleObject(
         """Provides access to the inferred type signature information."""
         return self._inferred_signature
 
+    @property
+    def callable(self) -> Callable:
+        """Provides the callable."""
+        return self._callable
+
 
 class GenericConstructor(GenericCallableAccessibleObject):
     """A constructor."""
 
     def __init__(self, owner: Type, inferred_signature: InferredSignature) -> None:
-        super().__init__(owner, inferred_signature)
+        super().__init__(owner, owner.__init__, inferred_signature)
         assert owner
 
     def generated_type(self) -> Optional[Type]:
@@ -85,29 +94,18 @@ class GenericMethod(GenericCallableAccessibleObject):
     def __init__(
         self, owner: Type, method: Callable, inferred_signature: InferredSignature
     ) -> None:
-        super().__init__(owner, inferred_signature)
+        super().__init__(owner, method, inferred_signature)
         assert owner
-        self._method = method
-
-    @property
-    def name(self) -> str:
-        """Provide the name of the method."""
-        return self._method.__name__
-
-    @property
-    def method(self) -> Callable:
-        """Provide access to the method's callable."""
-        return self._method
 
     def __eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, GenericMethod):
             return False
-        return self._method == other._method
+        return self._callable == other._callable
 
     def __hash__(self):
-        return hash(self._method)
+        return hash(self._callable)
 
 
 class GenericFunction(GenericCallableAccessibleObject):
@@ -116,28 +114,17 @@ class GenericFunction(GenericCallableAccessibleObject):
     def __init__(
         self, function: Callable, inferred_signature: InferredSignature
     ) -> None:
-        super().__init__(None, inferred_signature)
-        self._function = function
-
-    @property
-    def name(self) -> str:
-        """Provide the name of the function."""
-        return self._function.__name__
-
-    @property
-    def function(self) -> Callable:
-        """Provide access to the function's callable."""
-        return self._function
+        super().__init__(None, function, inferred_signature)
 
     def __eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, GenericFunction):
             return False
-        return self._function == other._function
+        return self._callable == other._callable
 
     def __hash__(self):
-        return hash(self._function)
+        return hash(self._callable)
 
 
 class GenericField(GenericAccessibleObject):
