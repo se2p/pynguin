@@ -73,23 +73,27 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def kwargs(self, kwargs: Dict[str, vr.VariableReference]):
         self._kwargs = kwargs
 
-    def _clone_args(self, new_test_case: tc.TestCase) -> List[vr.VariableReference]:
+    def _clone_args(
+        self, new_test_case: tc.TestCase, offset: int = 0
+    ) -> List[vr.VariableReference]:
         """
         Small helper method, to clone the args into a new test case.
         :param new_test_case: The new test case in which the params are used.
+        :param offset: Offset when cloning into a non empty test case.
         """
-        return [par.clone(new_test_case) for par in self._args]
+        return [par.clone(new_test_case, offset) for par in self._args]
 
     def _clone_kwargs(
-        self, new_test_case: tc.TestCase
+        self, new_test_case: tc.TestCase, offset: int = 0
     ) -> Dict[str, vr.VariableReference]:
         """
         Small helper method, to clone the args into a new test case.
         :param new_test_case: The new test case in which the params are used.
+        :param offset: Offset when cloning into a non empty test case.
         """
         new_kw_args = {}
         for name, var in self._kwargs.items():
-            new_kw_args[name] = var.clone(new_test_case)
+            new_kw_args[name] = var.clone(new_test_case, offset)
         return new_kw_args
 
     def __hash__(self) -> int:
@@ -125,12 +129,12 @@ class ConstructorStatement(ParametrizedStatement):
         super().__init__(test_case, constructor.generated_type(), args, kwargs)
         self._constructor = constructor
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return ConstructorStatement(
             test_case,
             self._constructor,
-            self._clone_args(test_case),
-            self._clone_kwargs(test_case),
+            self._clone_args(test_case, offset),
+            self._clone_kwargs(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -183,13 +187,13 @@ class MethodStatement(ParametrizedStatement):
         """Provides the variable on which the method is invoked."""
         return self._callee
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return MethodStatement(
             test_case,
             self._method,
-            self._callee.clone(test_case),
-            self._clone_args(test_case),
-            self._clone_kwargs(test_case),
+            self._callee.clone(test_case, offset),
+            self._clone_args(test_case, offset),
+            self._clone_kwargs(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -221,12 +225,12 @@ class FunctionStatement(ParametrizedStatement):
         """The used function."""
         return self._function
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FunctionStatement(
             test_case,
             self._function,
-            self._clone_args(test_case),
-            self._clone_kwargs(test_case),
+            self._clone_args(test_case, offset),
+            self._clone_kwargs(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:

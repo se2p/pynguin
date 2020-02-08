@@ -30,15 +30,20 @@ class VariableReference(metaclass=ABCMeta):
         self._distance = 0
 
     @abstractmethod
-    def clone(self, new_test_case: tc.TestCase) -> VariableReference:
+    def clone(self, new_test_case: tc.TestCase, offset: int = 0) -> VariableReference:
         """
-        This method is essential for the whole variable references to work.
+        This method is essential for the whole variable references to work while cloning.
         'self' must not be cloned. Instead we have to look for the
         corresponding variable reference in the new test case.
         Actual cloning is only performed on statement level.
-        :param new_test_case: the new test case in which this clone will be used.
-
-        :return: The corresponding variable reference of the this variable in the new test case.
+        :param new_test_case: the new test case in which we search for the corresponding
+            variable reference.
+        :param offset: Offset must be used when cloning is performed on a test case,
+            which already contains statements, i.e., when appending on test case onto another.
+            The position of the statement which defines the new reference within the new test
+            case will be different, so we have to add the offset when searching for the new
+            reference.
+        :return: The corresponding variable reference of this variable in the new test case.
         """
 
     @abstractmethod

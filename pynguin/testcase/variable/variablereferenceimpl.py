@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a simple implementation of a variable reference."""
+
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 
@@ -22,8 +23,12 @@ class VariableReferenceImpl(vr.VariableReference):
     Basic implementation of a variable reference.
     """
 
-    def clone(self, new_test_case: tc.TestCase) -> vr.VariableReference:
-        return new_test_case.get_statement(self.get_statement_position()).return_value
+    def clone(
+        self, new_test_case: tc.TestCase, offset: int = 0
+    ) -> vr.VariableReference:
+        return new_test_case.get_statement(
+            self.get_statement_position() + offset
+        ).return_value
 
     def get_statement_position(self) -> int:
         for idx, stmt in enumerate(self._test_case.statements):

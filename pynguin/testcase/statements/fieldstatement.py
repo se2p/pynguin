@@ -57,8 +57,10 @@ class FieldStatement(stmt.Statement):
         """The used field."""
         return self._field
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
-        return FieldStatement(test_case, self._field, self._source.clone(test_case),)
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+        return FieldStatement(
+            test_case, self._field, self._source.clone(test_case, offset)
+        )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_field_statement(self)

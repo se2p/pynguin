@@ -77,8 +77,9 @@ class TestCase(metaclass=ABCMeta):
 
         :param test_case: The test case to append
         """
+        size = self.size()
         for statement in test_case.statements:
-            self._statements.append(statement.clone(self))
+            self._statements.append(statement.clone(self, size))
 
     @abstractmethod
     def remove(self, position: int) -> None:

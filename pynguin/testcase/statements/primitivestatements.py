@@ -91,7 +91,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
     def randomize_value(self) -> None:
         self._value = random.randint(-100, 100)
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -113,7 +113,7 @@ class FloatPrimitiveStatement(PrimitiveStatement):
     def randomize_value(self) -> None:
         self._value = random.uniform(-100, 100)
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -136,7 +136,7 @@ class StringPrimitiveStatement(PrimitiveStatement):
         length = randomness.next_int(lower_bound=1)
         self._value = randomness.next_string(length)
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -158,7 +158,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
     def randomize_value(self) -> None:
         self._value = bool(random.getrandbits(1))
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return BooleanPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -174,7 +174,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
 class NoneStatement(PrimitiveStatement):
     """A statement serving as a None reference."""
 
-    def clone(self, test_case: tc.TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> Statement:
         return NoneStatement(test_case, self.return_value.variable_type)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:

@@ -43,9 +43,11 @@ class AssignmentStatement(stmt.Statement):
         """The variable that is used as the right hand side."""
         return self._rhs
 
-    def clone(self, test_case: tc.TestCase) -> stmt.Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return AssignmentStatement(
-            test_case, self.return_value.clone(test_case), self._rhs.clone(test_case)
+            test_case,
+            self.return_value.clone(test_case, offset),
+            self._rhs.clone(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:

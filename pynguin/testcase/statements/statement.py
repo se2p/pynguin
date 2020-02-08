@@ -61,10 +61,10 @@ class Statement(metaclass=ABCMeta):
         return self._test_case
 
     @abstractmethod
-    def clone(self, test_case: tc.TestCase) -> Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> Statement:
         """Provides a deep clone of this statement.
         :param test_case: the new test case in which the clone will be used.
-
+        :param offset: Offset when cloning into a non empty test case.
         :return: A deep clone of this statement
         """
 
