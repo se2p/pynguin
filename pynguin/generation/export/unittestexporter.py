@@ -12,25 +12,43 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""An exported implementation creating PyTest test cases from the statements."""
+"""An export implementation creating unittest test cases from the statements."""
 import ast
 import os
-
-from typing import List, Union
+from typing import List, Union, Sequence
 
 import pynguin.testcase.testcase as tc
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
 
 
 # pylint: disable=too-few-public-methods
-class PyTestExporter(AbstractTestExporter):
-    """An exporter for PyTest-style test cases."""
+class UnitTestExporter(AbstractTestExporter):
+    """An exporter for UnitTest-style test cases."""
 
     def export_sequences(
         self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
     ):
         asts, module_aliases = AbstractTestExporter._transform_to_asts(test_cases)
-        import_nodes = AbstractTestExporter._create_ast_imports(module_aliases)
-        functions = AbstractTestExporter._create_functions(asts, False)
-        module = ast.Module(body=import_nodes + functions)
+        import_node = AbstractTestExporter._create_ast_imports(
+            module_aliases, "unittest"
+        )
+        functions = AbstractTestExporter._create_functions(asts, True)
+        module = ast.Module(
+            body=import_node + [UnitTestExporter._create_unit_test_class(functions)]
+        )
         AbstractTestExporter._save_ast_to_file(path, module)
+
+    @staticmethod
+    def _create_unit_test_class(functions: Sequence[ast.stmt]) -> ast.stmt:
+        return ast.ClassDef(
+            bases=[
+                ast.Attribute(
+                    attr="TestCase",
+                    ctx=ast.Load(),
+                    value=ast.Name(id="unittest", ctx=ast.Load()),
+                )
+            ],
+            name="GeneratedTestSuite",
+            body=functions,
+            decorator_list=[],
+        )

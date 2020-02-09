@@ -22,6 +22,7 @@ class ExportStrategy(enum.Enum):
     """Contains all available export strategies."""
 
     PY_TEST_EXPORTER = "PY_TEST_EXPORTER"
+    UNIT_TEST_EXPORTER = "UNIT_TEST_EXPORTER"
     NONE = "NONE"
 
 

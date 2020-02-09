@@ -17,13 +17,14 @@ import argparse
 import logging
 import os
 import sys
+import time
 from typing import Union, List, Optional
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.export.exporter import Exporter
+from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -88,6 +89,7 @@ class Pynguin:
 
         self._print_results(len(test_cases), len(failing_test_cases))
         self._export_test_cases(test_cases)
+        self._export_test_cases(failing_test_cases, "_failing")
 
         return status
 
@@ -97,10 +99,19 @@ class Pynguin:
         print(f"Generated {num_failing_test_cases} failing test cases")
 
     @staticmethod
-    def _export_test_cases(test_cases: List[tc.TestCase]) -> None:
-        exporter = Exporter()
-        module = exporter.export_sequences(test_cases)
-        exporter.save_ast_to_file(module)
+    def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
+        """
+        Export the given test cases.
+        :param suffix Suffix that can be added to the file name to distinguish
+            between different results e.g., failing and succeeding test cases.
+        """
+
+        exporter = ExportProvider.get_exporter()
+        target_file = os.path.join(
+            config.INSTANCE.output_path,
+            time.strftime("pynguin_%Y%m%d-%H%M%S") + suffix + ".py",
+        )
+        exporter.export_sequences(target_file, test_cases)
 
     @staticmethod
     def _setup_logging(

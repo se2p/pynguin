@@ -1,0 +1,43 @@
+# This file is part of Pynguin.
+#
+# Pynguin is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Pynguin is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+"""A generic exporter that selects its export strategy based on configuration."""
+from typing import Dict
+
+import pynguin.configuration as config
+from pynguin.generation.export.abstractexporter import AbstractTestExporter
+from pynguin.generation.export.noneexporter import NoneExporter
+from pynguin.generation.export.pytestexporter import PyTestExporter
+from pynguin.generation.export.unittestexporter import UnitTestExporter
+
+
+# pylint: disable=too-few-public-methods
+class ExportProvider:
+    """Provides the possibility to export generated tests using a configured strategy"""
+
+    _strategies: Dict[config.ExportStrategy, AbstractTestExporter] = {
+        config.ExportStrategy.PY_TEST_EXPORTER: PyTestExporter(),
+        config.ExportStrategy.UNIT_TEST_EXPORTER: UnitTestExporter(),
+        config.ExportStrategy.NONE: NoneExporter(),
+    }
+
+    @classmethod
+    def get_exporter(cls) -> AbstractTestExporter:
+        """Provides an instance of the configured test exporter."""
+        strategy = config.INSTANCE.export_strategy
+        if strategy in cls._strategies:
+            exp = cls._strategies.get(strategy)
+            assert exp, "Export strategy cannot be defined as None"
+            return exp
+        raise Exception("Unknown export strategy")
