@@ -22,30 +22,23 @@ def test_crossover_successful():
     part_two = ["1", "2", "3"]
 
     parent1 = MagicMock(test_cases=part_one)
-    parent1.clone.return_value = parent1
     parent1.size.return_value = len(part_one)
     parent2 = MagicMock(test_cases=part_two)
-    parent2.clone.return_value = parent2
     parent2.size.return_value = len(part_two)
 
-    offspring1, offspring2 = crossover(parent1, parent2)
+    crossover(parent1, parent2)
     for entry in part_one + part_two:
-        assert (
-            entry in offspring1.test_cases and entry not in offspring2.test_cases
-        ) or (entry not in offspring1.test_cases and entry in offspring2.test_cases)
-    assert len(offspring1.test_cases) + len(offspring2.test_cases) == len(
-        part_one + part_two
-    )
+        assert (entry in parent1.test_cases and entry not in parent2.test_cases) or (
+            entry not in parent1.test_cases and entry in parent2.test_cases
+        )
+    assert len(parent1.test_cases) + len(parent2.test_cases) == len(part_one + part_two)
 
 
 def test_crossover_to_small():
     parent1 = MagicMock()
     parent1.size.return_value = 1
-    parent1.clone.return_value = "Test1"
     parent2 = MagicMock()
     parent2.size.return_value = 1
-    parent2.clone.return_value = "Test2"
 
-    offspring1, offspring2 = crossover(parent1, parent2)
-    assert offspring1 == "Test1"
-    assert offspring2 == "Test2"
+    crossover(parent1, parent2)
+    parent1.size.assert_called_once()

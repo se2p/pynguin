@@ -14,30 +14,23 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides operations for the genetic algorithm."""
 from math import floor
-from typing import Tuple
 
 from pynguin.generation.algorithms.wspy.testsuite import TestSuite
 from pynguin.utils import randomness
 
 
-def crossover(parent1: TestSuite, parent2: TestSuite) -> Tuple[TestSuite, TestSuite]:
+def crossover(parent1: TestSuite, parent2: TestSuite):
     """Performs a single point relative crossover of the two parents."""
-    offspring1 = parent1.clone()
-    offspring2 = parent2.clone()
+    if parent1.size() < 2 or parent2.size() < 2:
+        return
 
-    if parent1.size() > 1 and parent2.size() > 1:
-        split_point = randomness.next_float()
+    split_point = randomness.next_float()
 
-        position1 = floor((offspring1.size() - 1) * split_point) + 1
-        position2 = floor((offspring2.size() - 1) * split_point) + 1
+    position1 = floor((parent1.size() - 1) * split_point) + 1
+    position2 = floor((parent2.size() - 1) * split_point) + 1
 
-        new_test_cases1 = (
-            offspring1.test_cases[:position1] + offspring2.test_cases[position2:]
-        )
-        new_test_cases2 = (
-            offspring2.test_cases[:position2] + offspring1.test_cases[position1:]
-        )
+    new_test_cases1 = parent1.test_cases[:position1] + parent2.test_cases[position2:]
+    new_test_cases2 = parent2.test_cases[:position2] + parent1.test_cases[position1:]
 
-        offspring1.test_cases = new_test_cases1
-        offspring2.test_cases = new_test_cases2
-    return offspring1, offspring2
+    parent1.test_cases = new_test_cases1
+    parent2.test_cases = new_test_cases2
