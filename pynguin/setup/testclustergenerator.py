@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provides capabilites to create a test cluster"""
+"""Provides capabilities to create a test cluster"""
 import dataclasses
 import importlib
 import inspect
@@ -93,9 +93,10 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         if recursion_level > config.INSTANCE.max_cluster_recursion:
             self._logger.debug("Reached recursion limit. No more dependencies added.")
             return
-        for _, type_ in call.inferred_signature.parameters.items():
+        for param_name, type_ in call.inferred_signature.parameters.items():
+            self._logger.debug("Resolving '%s' (%s)", param_name, type_)
             if is_primitive_type(type_):
-                self._logger.debug("Not following primitive argument type.")
+                self._logger.debug("Not following primitive argument.")
                 continue
             if inspect.isclass(type_):
                 assert type_
