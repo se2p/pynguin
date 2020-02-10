@@ -59,7 +59,7 @@ class Configuration:
     module_names: List[str]
 
     # A predefined seed value for the random number generator that is used.
-    seed: int = 42
+    seed: int = 0
 
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600

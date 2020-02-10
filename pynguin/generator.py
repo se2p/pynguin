@@ -26,6 +26,7 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 
 
@@ -82,6 +83,12 @@ class Pynguin:
         status = 0
 
         sys.path.insert(0, config.INSTANCE.project_path)
+        # TODO(fk) the current simple_parse does not support Optional values:
+        # https://github.com/lebrice/SimpleParsing/issues/14
+        if config.INSTANCE.seed != 0:
+
+            randomness.RNG.seed(config.INSTANCE.seed)
+
         executor = TestCaseExecutor()
 
         algorithm: TestGenerationStrategy = RandomTestStrategy(executor)

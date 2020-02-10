@@ -15,7 +15,6 @@
 """Provides a random test generation algorithm similar to Randoop."""
 import datetime
 import logging
-import random
 from typing import List, Tuple, Set
 
 import pynguin.configuration as config
@@ -147,7 +146,9 @@ class RandomTestStrategy(TestGenerationStrategy):
             upper_bound = len(selectables)
         else:
             upper_bound = min(len(selectables), config.INSTANCE.max_sequences_combined)
-        new_test_cases = random.sample(selectables, random.randint(0, upper_bound))
+        new_test_cases = randomness.RNG.sample(
+            selectables, randomness.RNG.randint(0, upper_bound)
+        )
         self._logger.debug(
             "Selected %d new test cases from %d available ones",
             len(new_test_cases),

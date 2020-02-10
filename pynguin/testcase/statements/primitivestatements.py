@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides primitive statements."""
-import random
 from abc import abstractmethod
 from typing import Type, Any, Optional
 
@@ -89,7 +88,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
-        self._value = random.randint(-100, 100)
+        self._value = randomness.RNG.randint(-100, 100)
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
@@ -111,7 +110,7 @@ class FloatPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
-        self._value = random.uniform(-100, 100)
+        self._value = randomness.RNG.uniform(-100, 100)
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
@@ -156,7 +155,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, bool, value)
 
     def randomize_value(self) -> None:
-        self._value = bool(random.getrandbits(1))
+        self._value = bool(randomness.RNG.getrandbits(1))
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return BooleanPrimitiveStatement(test_case, self._value)
