@@ -29,6 +29,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericCallableAccessibleObject,
 )
+from pynguin.utils.type_utils import is_primitive_type
 
 
 @dataclasses.dataclass(eq=True, frozen=True)
@@ -46,8 +47,6 @@ class DependencyPair:
 
 class TestClusterGenerator:  # pylint: disable=too-few-public-methods
     """Generate a new test cluster"""
-
-    primitives = {int, str, bool, float, complex}
 
     _logger = logging.getLogger(__name__)
 
@@ -95,7 +94,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             self._logger.debug("Reached recursion limit. No more dependencies added.")
             return
         for _, type_ in call.inferred_signature.parameters.items():
-            if type_ in TestClusterGenerator.primitives:
+            if is_primitive_type(type_):
                 self._logger.debug("Not following primitive argument type.")
                 continue
             if inspect.isclass(type_):
