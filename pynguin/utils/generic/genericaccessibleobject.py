@@ -87,6 +87,9 @@ class GenericConstructor(GenericCallableAccessibleObject):
     def __hash__(self):
         return hash(self._owner)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.owner}, {self.inferred_signature})"
+
 
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
@@ -107,6 +110,12 @@ class GenericMethod(GenericCallableAccessibleObject):
     def __hash__(self):
         return hash(self._callable)
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.owner},"
+            f" {self._callable.__name__}, {self.inferred_signature})"
+        )
+
 
 class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
@@ -125,6 +134,9 @@ class GenericFunction(GenericCallableAccessibleObject):
 
     def __hash__(self):
         return hash(self._callable)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._callable.__name__}, {self.inferred_signature})"
 
 
 class GenericField(GenericAccessibleObject):
@@ -152,3 +164,6 @@ class GenericField(GenericAccessibleObject):
 
     def __hash__(self):
         return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.owner}, {self._field}, {self._field_type})"
