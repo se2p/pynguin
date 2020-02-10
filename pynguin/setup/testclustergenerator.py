@@ -29,7 +29,11 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.type_utils import is_primitive_type
+from pynguin.utils.type_utils import (
+    is_primitive_type,
+    class_in_module,
+    function_in_module,
+)
 
 
 @dataclasses.dataclass(eq=True, frozen=True)
@@ -66,11 +70,11 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         for module_name in self._module_names:
             self._logger.debug("Analyzing module %s", module_name)
             module = importlib.import_module(module_name)
-            for _, klass in inspect.getmembers(module, inspect.isclass):
+            for _, klass in inspect.getmembers(module, class_in_module(module_name)):
                 self._add_dependency(klass, 1, True)
 
             for function_name, funktion in inspect.getmembers(
-                module, inspect.isfunction
+                module, function_in_module(module_name)
             ):
                 self._logger.debug("Analyzing function %s", function_name)
                 generic_function = GenericFunction(

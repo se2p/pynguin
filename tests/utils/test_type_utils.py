@@ -12,9 +12,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from pynguin.utils.type_utils import is_primitive_type
+from pynguin.utils.type_utils import (
+    is_primitive_type,
+    class_in_module,
+    function_in_module,
+)
 
 
 @pytest.mark.parametrize(
@@ -31,3 +37,21 @@ from pynguin.utils.type_utils import is_primitive_type
 )
 def test_is_primitive_type(type_, result):
     assert is_primitive_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "module, result",
+    [pytest.param("wrong_module", False), pytest.param("unittest.mock", True)],
+)
+def test_class_in_module(module, result):
+    predicate = class_in_module(module)
+    assert predicate(MagicMock) == result
+
+
+@pytest.mark.parametrize(
+    "module, result",
+    [pytest.param("wrong_module", False), pytest.param("unittest.mock", True)],
+)
+def test_function_in_module(module, result):
+    predicate = function_in_module(module)
+    assert predicate(patch) == result
