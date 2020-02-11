@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A generic exporter that selects its export strategy based on configuration."""
-from typing import Dict
+from typing import Dict, Callable
 
 import pynguin.configuration as config
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
@@ -26,10 +26,10 @@ from pynguin.generation.export.unittestexporter import UnitTestExporter
 class ExportProvider:
     """Provides the possibility to export generated tests using a configured strategy"""
 
-    _strategies: Dict[config.ExportStrategy, AbstractTestExporter] = {
-        config.ExportStrategy.PY_TEST_EXPORTER: PyTestExporter(),
-        config.ExportStrategy.UNIT_TEST_EXPORTER: UnitTestExporter(),
-        config.ExportStrategy.NONE: NoneExporter(),
+    _strategies: Dict[config.ExportStrategy, Callable[[], AbstractTestExporter]] = {
+        config.ExportStrategy.PY_TEST_EXPORTER: PyTestExporter,
+        config.ExportStrategy.UNIT_TEST_EXPORTER: UnitTestExporter,
+        config.ExportStrategy.NONE: NoneExporter,
     }
 
     @classmethod
@@ -39,5 +39,5 @@ class ExportProvider:
         if strategy in cls._strategies:
             exp = cls._strategies.get(strategy)
             assert exp, "Export strategy cannot be defined as None"
-            return exp
+            return exp()
         raise Exception("Unknown export strategy")
