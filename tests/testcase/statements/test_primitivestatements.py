@@ -271,8 +271,8 @@ def test_string_primitive_statement_delta_all(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock, value)
     with mock.patch("pynguin.utils.randomness.next_char") as char_mock:
         char_mock.side_effect = ["a", "b"]
-        with mock.patch("pynguin.utils.randomness.next_float") as int_mock:
-            int_mock.return_value = 1
+        with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
+            int_mock.return_value = 0
             with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
                 deletion = [0.0, 0.0, 1.0]
                 replacement = [0.0, 0.0]
@@ -315,8 +315,8 @@ def test_float_primitive_statement_delta_gauss(test_case_mock):
 
 def test_float_primitive_statement_delta_round(test_case_mock):
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.2345)
-    with mock.patch("pynguin.utils.randomness.next_int") as gauss_mock:
-        gauss_mock.return_value = 2
+    with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
+        int_mock.return_value = 2
         with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
             float_mock.return_value = 2.0 / 3.0
             statement.delta()
