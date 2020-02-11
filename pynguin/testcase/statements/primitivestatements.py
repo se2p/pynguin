@@ -54,6 +54,12 @@ class PrimitiveStatement(stmt.Statement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return None
 
+    def mutate(self) -> bool:
+        old_value = self._value
+        while self._value == old_value and self._value is not None:
+            self.delta()
+        return True
+
     @abstractmethod
     def randomize_value(self) -> None:
         """Randomize the primitive value of this statement."""

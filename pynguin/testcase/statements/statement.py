@@ -76,6 +76,13 @@ class Statement(metaclass=ABCMeta):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         """Provides the accessible which is used in this statement."""
 
+    @abstractmethod
+    def mutate(self) -> bool:
+        """
+        Mutate this statement.
+        :return True, if a mutation happened.
+        """
+
     def __eq__(self, other: Any) -> bool:
         raise NotImplementedError("You need to override __eq__ for your statement type")
 

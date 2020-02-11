@@ -143,6 +143,9 @@ class ConstructorStatement(ParametrizedStatement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._constructor
 
+    def mutate(self) -> bool:
+        raise Exception("Implement me")
+
     @property
     def constructor(self) -> GenericConstructor:
         """The used constructor."""
@@ -176,6 +179,9 @@ class MethodStatement(ParametrizedStatement):
 
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._method
+
+    def mutate(self) -> bool:
+        raise Exception("Implement me")
 
     @property
     def method(self) -> GenericMethod:
@@ -219,6 +225,9 @@ class FunctionStatement(ParametrizedStatement):
 
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._function
+
+    def mutate(self) -> bool:
+        raise Exception("Implement me")
 
     @property
     def function(self) -> GenericFunction:

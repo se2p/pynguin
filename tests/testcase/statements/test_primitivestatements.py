@@ -327,3 +327,9 @@ def test_boolean_primitive_statement_delta(test_case_mock):
     statement = prim.BooleanPrimitiveStatement(test_case_mock, True)
     statement.delta()
     assert not statement.value
+
+
+def test_primitive_statement_mutate(test_case_mock):
+    statement = prim.BooleanPrimitiveStatement(test_case_mock, True)
+    statement.mutate()
+    assert not statement.value

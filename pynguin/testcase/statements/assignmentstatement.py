@@ -56,6 +56,9 @@ class AssignmentStatement(stmt.Statement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return None
 
+    def mutate(self) -> bool:
+        raise Exception("Implement me")
+
     def __hash__(self) -> int:
         return 31 + 17 * hash(self._return_value) + 17 * hash(self._rhs)
 

@@ -52,6 +52,9 @@ class FieldStatement(stmt.Statement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._field
 
+    def mutate(self) -> bool:
+        raise Exception("Implement me")
+
     @property
     def field(self) -> GenericField:
         """The used field."""
