@@ -12,12 +12,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testcase as tc
+import pynguin.configuration as config
 
 
 @pytest.mark.parametrize(
@@ -204,13 +206,13 @@ def test_primitive_statement_hash(statement_type, value):
 def test_int_primitive_statement_randomize_value(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert -100 <= statement.value <= 100
+    assert isinstance(statement.value, int)
 
 
 def test_float_primitive_statement_randomize_value(test_case_mock):
     statement = prim.FloatPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert -100 <= statement.value <= 100
+    assert isinstance(statement.value, float)
 
 
 def test_bool_primitive_statement_randomize_value(test_case_mock):
@@ -222,10 +224,106 @@ def test_bool_primitive_statement_randomize_value(test_case_mock):
 def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 1 <= len(statement.value) <= 100
+    assert 0 <= len(statement.value) <= config.INSTANCE.string_length
 
 
 def test_none_statement_randomize_value(test_case_mock):
     statement = prim.NoneStatement(test_case_mock, type(None))
     statement.randomize_value()
     assert statement.value is None
+
+
+def test_string_primitive_statement_random_deletion(test_case_mock):
+    sample = list("Test")
+    result = prim.StringPrimitiveStatement._random_deletion(sample)
+    assert len(result) <= len(sample)
+
+
+def test_string_primitive_statement_random_insertion(test_case_mock):
+    sample = list("Test")
+    result = prim.StringPrimitiveStatement._random_insertion(sample)
+    assert len(result) >= len(sample)
+
+
+def test_string_primitive_statement_random_insertion_empty(test_case_mock):
+    sample = list("")
+    result = prim.StringPrimitiveStatement._random_insertion(sample)
+    assert len(result) >= len(sample)
+
+
+def test_string_primitive_statement_random_replacement(test_case_mock):
+    sample = list("Test")
+    result = prim.StringPrimitiveStatement._random_replacement(sample)
+    assert len(result) == len(sample)
+
+
+def test_string_primitive_statement_delta_none(test_case_mock):
+    value = "t"
+    statement = prim.StringPrimitiveStatement(test_case_mock, value)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.side_effect = [1.0, 1.0, 1.0]
+        statement.delta()
+        assert statement.value == value
+
+
+def test_string_primitive_statement_delta_all(test_case_mock):
+    value = "te"
+    statement = prim.StringPrimitiveStatement(test_case_mock, value)
+    with mock.patch("pynguin.utils.randomness.next_char") as char_mock:
+        char_mock.side_effect = ["a", "b"]
+        with mock.patch("pynguin.utils.randomness.next_float") as int_mock:
+            int_mock.return_value = 1
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                deletion = [0.0, 0.0, 1.0]
+                replacement = [0.0, 0.0]
+                insertion = [0.0, 0.0, 1.0]
+                float_mock.side_effect = deletion + replacement + insertion
+                statement.delta()
+                assert statement.value == "ba"
+
+
+def test_int_primitive_statement_delta(test_case_mock):
+    config.INSTANCE.max_delta = 10
+    statement = prim.IntPrimitiveStatement(test_case_mock, 1)
+    with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
+        gauss_mock.return_value = 0.5
+        statement.delta()
+    assert statement.value == 6
+
+
+def test_float_primitive_statement_delta_max(test_case_mock):
+    config.INSTANCE.max_delta = 10
+    statement = prim.FloatPrimitiveStatement(test_case_mock, 1.5)
+    with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
+        gauss_mock.return_value = 0.5
+        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+            float_mock.return_value = 0.0
+            statement.delta()
+            assert statement.value == 6.5
+
+
+def test_float_primitive_statement_delta_gauss(test_case_mock):
+    config.INSTANCE.max_delta = 10
+    statement = prim.FloatPrimitiveStatement(test_case_mock, 1.0)
+    with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
+        gauss_mock.return_value = 0.5
+        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+            float_mock.return_value = 1.0 / 3.0
+            statement.delta()
+            assert statement.value == 1.5
+
+
+def test_float_primitive_statement_delta_round(test_case_mock):
+    statement = prim.FloatPrimitiveStatement(test_case_mock, 1.2345)
+    with mock.patch("pynguin.utils.randomness.next_int") as gauss_mock:
+        gauss_mock.return_value = 2
+        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+            float_mock.return_value = 2.0 / 3.0
+            statement.delta()
+            assert statement.value == 1.23
+
+
+def test_boolean_primitive_statement_delta(test_case_mock):
+    statement = prim.BooleanPrimitiveStatement(test_case_mock, True)
+    statement.delta()
+    assert not statement.value

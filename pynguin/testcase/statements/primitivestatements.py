@@ -13,8 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides primitive statements."""
+import math
 from abc import abstractmethod
-from typing import Type, Any, Optional
+from typing import Type, Any, Optional, List
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -22,6 +23,7 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
+import pynguin.configuration as config
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
@@ -56,6 +58,10 @@ class PrimitiveStatement(stmt.Statement):
     def randomize_value(self) -> None:
         """Randomize the primitive value of this statement."""
 
+    @abstractmethod
+    def delta(self) -> None:
+        """Add a random delta to the value."""
+
     def __repr__(self) -> str:
         return (
             f"PrimitiveStatement({self._test_case}, {self._return_value}, "
@@ -88,7 +94,12 @@ class IntPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
-        self._value = randomness.RNG.randint(-100, 100)
+        self._value = int(randomness.next_gaussian() * config.INSTANCE.max_int)
+
+    def delta(self) -> None:
+        assert self._value
+        delta = math.floor(randomness.next_gaussian() * config.INSTANCE.max_delta)
+        self._value += delta
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
@@ -110,7 +121,19 @@ class FloatPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
-        self._value = randomness.RNG.uniform(-100, 100)
+        val = randomness.next_gaussian() * config.INSTANCE.max_int
+        precision = randomness.next_int(lower_bound=0, upper_bound=7)
+        self._value = round(val, precision)
+
+    def delta(self) -> None:
+        assert self._value
+        probability = randomness.next_float()
+        if probability < 1.0 / 3.0:
+            self._value += randomness.next_gaussian() * config.INSTANCE.max_delta
+        elif probability < 2.0 / 3.0:
+            self._value += randomness.next_gaussian()
+        else:
+            self._value = round(self._value, randomness.next_int(0, 7))
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
@@ -132,8 +155,53 @@ class StringPrimitiveStatement(PrimitiveStatement):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
-        length = randomness.next_int(lower_bound=1)
+        length = randomness.next_int(
+            lower_bound=0, upper_bound=config.INSTANCE.string_length
+        )
         self._value = randomness.next_string(length)
+
+    def delta(self) -> None:
+        assert self._value
+        working_on = list(self._value)
+        p_perform_action = 1.0 / 3.0
+        if randomness.next_float() < p_perform_action and len(working_on) > 0:
+            working_on = self._random_deletion(working_on)
+
+        if randomness.next_float() < p_perform_action and len(working_on) > 0:
+            working_on = self._random_replacement(working_on)
+
+        if randomness.next_float() < p_perform_action:
+            working_on = self._random_insertion(working_on)
+
+        self._value = "".join(working_on)
+
+    @staticmethod
+    def _random_deletion(working_on: List[str]) -> List[str]:
+        p_per_char = 1.0 / len(working_on)
+        return [char for char in working_on if randomness.next_float() >= p_per_char]
+
+    @staticmethod
+    def _random_replacement(working_on: List[str]) -> List[str]:
+        p_per_char = 1.0 / len(working_on)
+        return [
+            randomness.next_char() if randomness.next_float() < p_per_char else char
+            for char in working_on
+        ]
+
+    @staticmethod
+    def _random_insertion(working_on: List[str]) -> List[str]:
+        pos = 0
+        if len(working_on) > 0:
+            pos = randomness.next_int(0, len(working_on))
+        alpha = 0.5
+        exponent = 1
+        while (
+            randomness.next_float() <= pow(alpha, exponent)
+            and len(working_on) < config.INSTANCE.string_length
+        ):
+            exponent += 1
+            working_on = working_on[:pos] + [randomness.next_char()] + working_on[pos:]
+        return working_on
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
@@ -156,6 +224,9 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
 
     def randomize_value(self) -> None:
         self._value = bool(randomness.RNG.getrandbits(1))
+
+    def delta(self) -> None:
+        self._value = not self._value
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return BooleanPrimitiveStatement(test_case, self._value)
@@ -180,6 +251,9 @@ class NoneStatement(PrimitiveStatement):
         visitor.visit_none_statement(self)
 
     def randomize_value(self) -> None:
+        pass
+
+    def delta(self) -> None:
         pass
 
     def __repr__(self) -> str:

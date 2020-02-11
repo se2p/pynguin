@@ -58,6 +58,14 @@ def next_float(lower_bound=0, upper_bound=1) -> float:
     return RNG.uniform(lower_bound, upper_bound)
 
 
+def next_gaussian() -> float:
+    """
+    Returns the next pseudorandom, Gaussian ("normally") distributed
+    value with mu 0.0 and sigma 1.0.
+    """
+    return RNG.gauss(0, 1)
+
+
 def choice(sequence: Sequence[Any]) -> Any:
     """Return a random element from a non-empty sequence.
 

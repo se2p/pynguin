@@ -84,6 +84,15 @@ class Configuration:
     # cluster
     max_cluster_recursion: int = 10
 
+    # Maximum size of delta for numbers during mutation
+    max_delta: int = 20
+
+    # Maximum size of randomly generated integers (minimum range = -1 * max)
+    max_int: int = 2048
+
+    # Maximum length of randomly generated strings
+    string_length: int = 20
+
     # Probability to reuse an existing primitive, if available.  Expects values in [0,1]
     primitive_reuse_probability: float = 0.5
 

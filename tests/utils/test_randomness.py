@@ -30,6 +30,11 @@ def test_next_string_printable():
     assert all(char in string.printable for char in rand)
 
 
+def test_next_string_zero():
+    rand = randomness.next_string(0)
+    assert rand == ""
+
+
 def test_next_int():
     rand = randomness.next_int(lower_bound=-50, upper_bound=50)
     assert -50 <= rand <= 50
@@ -38,6 +43,11 @@ def test_next_int():
 def test_next_float():
     rand = randomness.next_float()
     assert 0 <= rand <= 1
+
+
+def test_next_gaussian():
+    rand = randomness.next_gaussian()
+    assert isinstance(rand, float)
 
 
 def test_choice():
