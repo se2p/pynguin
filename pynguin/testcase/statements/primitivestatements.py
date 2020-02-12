@@ -103,7 +103,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
         self._value = int(randomness.next_gaussian() * config.INSTANCE.max_int)
 
     def delta(self) -> None:
-        assert self._value
+        assert self._value is not None
         delta = math.floor(randomness.next_gaussian() * config.INSTANCE.max_delta)
         self._value += delta
 
@@ -132,7 +132,7 @@ class FloatPrimitiveStatement(PrimitiveStatement):
         self._value = round(val, precision)
 
     def delta(self) -> None:
-        assert self._value
+        assert self._value is not None
         probability = randomness.next_float()
         if probability < 1.0 / 3.0:
             self._value += randomness.next_gaussian() * config.INSTANCE.max_delta
@@ -167,7 +167,7 @@ class StringPrimitiveStatement(PrimitiveStatement):
         self._value = randomness.next_string(length)
 
     def delta(self) -> None:
-        assert self._value
+        assert self._value is not None
         working_on = list(self._value)
         p_perform_action = 1.0 / 3.0
         if randomness.next_float() < p_perform_action and len(working_on) > 0:
@@ -232,6 +232,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement):
         self._value = bool(randomness.RNG.getrandbits(1))
 
     def delta(self) -> None:
+        assert self._value is not None
         self._value = not self._value
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
