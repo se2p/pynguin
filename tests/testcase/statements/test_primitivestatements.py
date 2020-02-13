@@ -45,7 +45,7 @@ def test_primitive_statement_value(statement_type, test_case, value):
         pytest.param(prim.BooleanPrimitiveStatement),
     ],
 )
-def test_primitive_statement_value(statement_type, test_case_mock):
+def test_primitive_statement_value_none(statement_type, test_case_mock):
     statement = statement_type(test_case_mock, None)
     assert statement.value is not None
 
@@ -55,15 +55,13 @@ def test_primitive_statement_value(statement_type, test_case_mock):
     [
         pytest.param(prim.IntPrimitiveStatement, 42, 23),
         pytest.param(prim.FloatPrimitiveStatement, 2.1, 1.2),
-        pytest.param(
-            prim.StringPrimitiveStatement, "foo", "bar"
-        ),
-        pytest.param(
-            prim.BooleanPrimitiveStatement, True, False
-        ),
+        pytest.param(prim.StringPrimitiveStatement, "foo", "bar"),
+        pytest.param(prim.BooleanPrimitiveStatement, True, False),
     ],
 )
-def test_primitive_statement_set_value(statement_type, test_case_mock, value, new_value):
+def test_primitive_statement_set_value(
+    statement_type, test_case_mock, value, new_value
+):
     statement = statement_type(test_case_mock, value)
     statement.value = new_value
     assert statement.value == new_value
