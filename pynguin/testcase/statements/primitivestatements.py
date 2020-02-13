@@ -39,7 +39,7 @@ class PrimitiveStatement(stmt.Statement):
     ) -> None:
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, variable_type))
         self._value = value
-        if not value:
+        if value is None:
             self.randomize_value()
 
     @property

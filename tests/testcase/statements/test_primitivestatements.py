@@ -25,10 +25,10 @@ import pynguin.configuration as config
 @pytest.mark.parametrize(
     "statement_type,test_case,value",
     [
-        pytest.param(prim.IntPrimitiveStatement, MagicMock(tc.TestCase), 42),
-        pytest.param(prim.FloatPrimitiveStatement, MagicMock(tc.TestCase), 42.23),
-        pytest.param(prim.StringPrimitiveStatement, MagicMock(tc.TestCase), "foo"),
-        pytest.param(prim.BooleanPrimitiveStatement, MagicMock(tc.TestCase), True),
+        pytest.param(prim.IntPrimitiveStatement, 42),
+        pytest.param(prim.FloatPrimitiveStatement, 42.23),
+        pytest.param(prim.StringPrimitiveStatement, "foo"),
+        pytest.param(prim.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_value(statement_type, test_case, value):
@@ -37,20 +37,34 @@ def test_primitive_statement_value(statement_type, test_case, value):
 
 
 @pytest.mark.parametrize(
-    "statement_type,test_case,value,new_value",
+    "statement_type",
     [
-        pytest.param(prim.IntPrimitiveStatement, MagicMock(tc.TestCase), 42, 23),
-        pytest.param(prim.FloatPrimitiveStatement, MagicMock(tc.TestCase), 2.1, 1.2),
+        pytest.param(prim.IntPrimitiveStatement),
+        pytest.param(prim.FloatPrimitiveStatement),
+        pytest.param(prim.StringPrimitiveStatement),
+        pytest.param(prim.BooleanPrimitiveStatement),
+    ],
+)
+def test_primitive_statement_value(statement_type, test_case_mock):
+    statement = statement_type(test_case_mock, None)
+    assert statement.value is not None
+
+
+@pytest.mark.parametrize(
+    "statement_type,value,new_value",
+    [
+        pytest.param(prim.IntPrimitiveStatement, 42, 23),
+        pytest.param(prim.FloatPrimitiveStatement, 2.1, 1.2),
         pytest.param(
-            prim.StringPrimitiveStatement, MagicMock(tc.TestCase), "foo", "bar"
+            prim.StringPrimitiveStatement, "foo", "bar"
         ),
         pytest.param(
-            prim.BooleanPrimitiveStatement, MagicMock(tc.TestCase), True, False
+            prim.BooleanPrimitiveStatement, True, False
         ),
     ],
 )
-def test_primitive_statement_set_value(statement_type, test_case, value, new_value):
-    statement = statement_type(test_case, value)
+def test_primitive_statement_set_value(statement_type, test_case_mock, value, new_value):
+    statement = statement_type(test_case_mock, value)
     statement.value = new_value
     assert statement.value == new_value
 
