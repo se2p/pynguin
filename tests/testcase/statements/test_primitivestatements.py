@@ -23,7 +23,7 @@ import pynguin.configuration as config
 
 
 @pytest.mark.parametrize(
-    "statement_type,test_case,value",
+    "statement_type,value",
     [
         pytest.param(prim.IntPrimitiveStatement, 42),
         pytest.param(prim.FloatPrimitiveStatement, 42.23),
@@ -31,8 +31,8 @@ import pynguin.configuration as config
         pytest.param(prim.BooleanPrimitiveStatement, True),
     ],
 )
-def test_primitive_statement_value(statement_type, test_case, value):
-    statement = statement_type(test_case, value)
+def test_primitive_statement_value(statement_type, test_case_mock, value):
+    statement = statement_type(test_case_mock, value)
     assert statement.value == value
 
 
