@@ -51,7 +51,7 @@ class TestCaseExecutor:
         Initializes the executor. Loads the module under test.
         """
         self._coverage = Coverage(
-            branch=True, config_file=False, source=[config.INSTANCE.module_name],
+            branch=True, config_file=False, source=[config.INSTANCE.module_name]
         )
         self._import_coverage = self._get_import_coverage()
 
@@ -61,7 +61,7 @@ class TestCaseExecutor:
         Theoretically coverage.py could store the data in memory instead of writing it to a file.
         But in this case, the merging of different runs doesn't work.
         """
-        cov_data = CoverageData(basename=".coverage.pynguin.import")
+        cov_data = CoverageData(basename="coverage.pynguin.import")
         cov_data.erase()
         try:
             self._coverage.start()
