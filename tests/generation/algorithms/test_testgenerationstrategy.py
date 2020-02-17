@@ -21,9 +21,19 @@ import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
+    MaxIterationsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
+    MaxTestsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
+    MaxTimeStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 
 
-class _Test_GenerationStrategy(TestGenerationStrategy):
+class _TestGenerationStrategy(TestGenerationStrategy):
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         raise NotImplementedError(
             "This class is not intended for usage but only for testing"
@@ -32,7 +42,7 @@ class _Test_GenerationStrategy(TestGenerationStrategy):
 
 @pytest.fixture
 def algorithm():
-    return _Test_GenerationStrategy()
+    return _TestGenerationStrategy()
 
 
 def test_not_has_type_violations(algorithm):
@@ -59,3 +69,32 @@ def test_purge_test_cases(algorithm):
     purged, remaining = algorithm.purge_test_cases([tc_1, tc_2])
     assert purged == [tc_2]
     assert remaining == [tc_1]
+
+
+def test_is_fulfilled(algorithm):
+    stopping_condition = MagicMock(StoppingCondition)
+    stopping_condition.is_fulfilled.return_value = True
+    assert algorithm.is_fulfilled(stopping_condition)
+
+
+def test_is_not_fulfilled(algorithm):
+    stopping_condition = MagicMock(StoppingCondition)
+    stopping_condition.is_fulfilled.return_value = False
+    assert not algorithm.is_fulfilled(stopping_condition)
+
+
+@pytest.mark.parametrize(
+    "configuration,result",
+    [
+        pytest.param(config.StoppingCondition.MAX_TIME, MaxTimeStoppingCondition),
+        pytest.param(config.StoppingCondition.MAX_TESTS, MaxTestsStoppingCondition),
+        pytest.param(
+            config.StoppingCondition.MAX_ITERATIONS, MaxIterationsStoppingCondition
+        ),
+        pytest.param("foo", MaxTimeStoppingCondition),
+    ],
+)
+def test_get_stopping_condition(configuration, result, algorithm):
+    config.INSTANCE.stopping_condition = configuration
+    condition = algorithm.get_stopping_condition()
+    assert isinstance(condition, result)
