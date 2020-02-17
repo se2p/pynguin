@@ -20,8 +20,9 @@ from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCond
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
-    _num_iterations = 0
-    _max_iterations = config.INSTANCE.algorithm_iterations
+    def __init__(self):
+        self._num_iterations = 0
+        self._max_iterations = config.INSTANCE.algorithm_iterations
 
     def limit(self) -> int:
         return self._max_iterations

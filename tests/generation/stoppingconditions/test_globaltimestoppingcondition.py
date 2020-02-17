@@ -46,8 +46,7 @@ def test_is_not_fulfilled(stopping_condition):
 def test_is_fulfilled(stopping_condition):
     config.INSTANCE.global_timeout = 1
     stopping_condition.reset()
-    stopping_condition.reset()
-    time.sleep(1)
+    time.sleep(1.05)
     assert stopping_condition.is_fulfilled()
 
 

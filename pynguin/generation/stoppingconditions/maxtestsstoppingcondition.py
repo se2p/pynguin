@@ -20,8 +20,9 @@ from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCond
 class MaxTestsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
-    _num_tests = 0
-    _max_tests = config.INSTANCE.search_budget
+    def __init__(self):
+        self._num_tests = 0
+        self._max_tests = config.INSTANCE.search_budget
 
     def limit(self) -> int:
         return self._max_tests

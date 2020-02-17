@@ -23,15 +23,16 @@ from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCond
 class MaxTimeStoppingCondition(StoppingCondition):
     """Stop search after a predefined amount of time."""
 
-    _max_seconds = config.INSTANCE.budget
-    _start_time = 0
+    def __init__(self):
+        self._max_seconds = config.INSTANCE.budget
+        self._start_time = 0
 
     def limit(self) -> int:
         return self._max_seconds
 
     def is_fulfilled(self) -> bool:
         current_time = time.time_ns()
-        return (current_time - self._start_time) / 1_000_000 > self._max_seconds
+        return (current_time - self._start_time) / 1_000_000_000 > self._max_seconds
 
     def reset(self) -> None:
         self._start_time = time.time_ns()

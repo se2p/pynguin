@@ -25,27 +25,28 @@ class GlobalTimeStoppingCondition(StoppingCondition):
 
     _logger = logging.getLogger(__name__)
 
-    _start_time = 0
+    def __init__(self):
+        self._start_time = 0
 
     @property
     def current_value(self) -> int:
         current_time = time.time_ns()
-        return (current_time - self._start_time) // 1_000_000
+        return (current_time - self._start_time) // 1_000_000_000
 
     @current_value.setter
     def current_value(self, value: int) -> None:
         self._start_time = value
 
     def limit(self) -> int:
-        return config.Configuration.global_timeout
+        return config.INSTANCE.global_timeout
 
     def is_fulfilled(self) -> bool:
         current_time = time.time_ns()
         if (
-            config.Configuration.global_timeout != 0
+            config.INSTANCE.global_timeout != 0
             and self._start_time != 0
-            and (current_time - self._start_time) // 1_000_000
-            > config.Configuration.global_timeout
+            and (current_time - self._start_time) / 1_000_000_000
+            > config.INSTANCE.global_timeout
         ):
             self._logger.info("Timeout reached")
             return True
