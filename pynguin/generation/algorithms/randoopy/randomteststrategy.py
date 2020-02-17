@@ -124,7 +124,7 @@ class RandomTestStrategy(TestGenerationStrategy):
     def _random_public_method(
         objects_under_test: Set[gao.GenericAccessibleObject],
     ) -> gao.GenericCallableAccessibleObject:
-        object_under_test = randomness.choice(
+        object_under_test = randomness.RNG.choice(
             [
                 o
                 for o in objects_under_test
