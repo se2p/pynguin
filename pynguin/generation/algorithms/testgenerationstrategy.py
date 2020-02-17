@@ -114,6 +114,4 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         :param stopping_condition: The stopping condition
         :return: Whether or not the stopping condition is fulfilled
         """
-        if stopping_condition.is_fulfilled():
-            return True
-        return False
+        return stopping_condition.is_fulfilled()
