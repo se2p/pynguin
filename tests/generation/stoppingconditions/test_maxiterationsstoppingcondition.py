@@ -30,6 +30,7 @@ def test_set_get_limit(stopping_condition):
 
 
 def test_is_not_fulfilled(stopping_condition):
+    stopping_condition.reset()
     assert not stopping_condition.is_fulfilled()
 
 
