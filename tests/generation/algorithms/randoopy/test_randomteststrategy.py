@@ -24,6 +24,10 @@ import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
+    GenericCallableAccessibleObject,
+)
 
 
 @pytest.fixture
@@ -95,3 +99,13 @@ def test_random_test_cases_with_bounds(executor):
     tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
     result = algorithm._random_test_cases([tc_1, tc_2])
     assert 0 <= len(result) <= 1
+
+
+def test_random_public_method(executor):
+    algorithm = RandomTestStrategy(executor)
+    out_0 = MagicMock(GenericCallableAccessibleObject)
+    out_1 = MagicMock(GenericAccessibleObject)
+    out_2 = MagicMock(GenericCallableAccessibleObject)
+    outs = {out_0, out_1, out_2}
+    result = algorithm._random_public_method(outs)
+    assert result == out_0 or result == out_2
