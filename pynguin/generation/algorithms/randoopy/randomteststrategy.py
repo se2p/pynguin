@@ -126,9 +126,9 @@ class RandomTestStrategy(TestGenerationStrategy):
     ) -> gao.GenericCallableAccessibleObject:
         object_under_test = randomness.RNG.choice(
             [
-                o
-                for o in objects_under_test
-                if isinstance(o, gao.GenericCallableAccessibleObject)
+                obj
+                for obj in objects_under_test
+                if isinstance(obj, gao.GenericCallableAccessibleObject)
             ]
         )
         return object_under_test
