@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a random test generation algorithm similar to Randoop."""
-import datetime
 import logging
 from typing import List, Tuple, Set
 
@@ -47,15 +46,14 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         test_cases: List[tc.TestCase] = []
         failing_test_cases: List[tc.TestCase] = []
-        start_time = datetime.datetime.now()
         execution_counter: int = 0
+        stopping_condition = self.get_stopping_condition()
+        stopping_condition.reset()
 
         test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_names)
         test_cluster = test_cluster_generator.generate_cluster()
 
-        while (
-            datetime.datetime.now() - start_time
-        ).total_seconds() < config.INSTANCE.budget:
+        while not self.is_fulfilled(stopping_condition):
             try:
                 execution_counter += 1
                 self._generate_sequence(

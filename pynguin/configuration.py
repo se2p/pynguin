@@ -41,6 +41,14 @@ class Algorithm(enum.Enum):
     WSPY = "WSPY"
 
 
+class StoppingCondition(enum.Enum):
+    """The different stopping conditions for the algorithms."""
+
+    MAX_TIME = "MAX_TIME"
+    MAX_ITERATIONS = "MAX_ITERATIONS"
+    MAX_TESTS = "MAX_TESTS"
+
+
 # pylint: disable=too-many-instance-attributes
 @dataclasses.dataclass(repr=True, eq=True)
 class Configuration:
@@ -112,6 +120,9 @@ class Configuration:
     # Probability to use None instead of constructing an object.  Expects values in
     # [0,1]
     none_probability: float = 0.1
+
+    # What condition should be checked to end the search/test generation.
+    stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
 
 
 # Singleton instance of the configuration.

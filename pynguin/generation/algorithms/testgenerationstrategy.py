@@ -18,6 +18,16 @@ from typing import Tuple, List
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
+    MaxIterationsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
+    MaxTestsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
+    MaxTimeStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 
 
 class TestGenerationStrategy(metaclass=ABCMeta):
@@ -81,3 +91,29 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             else:
                 remaining.append(test_case)
         return purged, remaining
+
+    @staticmethod
+    def get_stopping_condition() -> StoppingCondition:
+        """Instantiates the stopping condition depending on the configuration settings
+
+        :return: A stopping condition
+        """
+        stopping_condition = config.INSTANCE.stopping_condition
+        if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
+            return MaxIterationsStoppingCondition()
+        if stopping_condition == config.StoppingCondition.MAX_TESTS:
+            return MaxTestsStoppingCondition()
+        if stopping_condition == config.StoppingCondition.MAX_TIME:
+            return MaxTimeStoppingCondition()
+        return MaxTimeStoppingCondition()
+
+    @staticmethod
+    def is_fulfilled(stopping_condition: StoppingCondition) -> bool:
+        """Checks whether a stopping condition is fulfilled.
+
+        :param stopping_condition: The stopping condition
+        :return: Whether or not the stopping condition is fulfilled
+        """
+        if stopping_condition.is_fulfilled():
+            return True
+        return False
