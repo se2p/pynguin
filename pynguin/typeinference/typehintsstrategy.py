@@ -30,27 +30,11 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
 
     def infer_type_info(self, method: Callable) -> InferredSignature:
         if inspect.isclass(method) and hasattr(method, "__init__"):
-            return self._infer_type_info_for_constructor(getattr(method, "__init__"))
-        return self._infer_type_info_for_method(method)
+            return self._infer_type_info_for_callable(getattr(method, "__init__"))
+        return self._infer_type_info_for_callable(method)
 
     @staticmethod
-    def _infer_type_info_for_method(method: Callable) -> InferredSignature:
-        signature = inspect.signature(method)
-        parameters: Dict[str, Optional[type]] = {}
-        hints = typing.get_type_hints(method)
-        for param_name in signature.parameters:
-            parameters[param_name] = hints.get(param_name, None)
-
-        return_type: Optional[type] = hints.get("return", None)
-
-        return InferredSignature(
-            signature=signature,
-            parameters=parameters if parameters else {},
-            return_type=return_type,
-        )
-
-    @staticmethod
-    def _infer_type_info_for_constructor(method: Callable) -> InferredSignature:
+    def _infer_type_info_for_callable(method: Callable) -> InferredSignature:
         signature = inspect.signature(method)
         parameters: Dict[str, Optional[type]] = {}
         hints = typing.get_type_hints(method)
@@ -59,8 +43,10 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
                 continue
             parameters[param_name] = hints.get(param_name, None)
 
+        return_type: Optional[type] = hints.get("return", None)
+
         return InferredSignature(
             signature=signature,
             parameters=parameters if parameters else {},
-            return_type=None,
+            return_type=return_type,
         )

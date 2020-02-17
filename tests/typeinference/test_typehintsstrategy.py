@@ -67,7 +67,7 @@ class UntypedDummy:
         ),
         pytest.param(return_tuple, {}, Tuple[int, int]),
         pytest.param(return_tuple_no_annotation, {}, None),
-        pytest.param(TypedDummy, {"a": Any}, None),
+        pytest.param(TypedDummy, {"a": Any}, type(None)),
         pytest.param(UntypedDummy, {"a": None}, None),
     ],
 )
