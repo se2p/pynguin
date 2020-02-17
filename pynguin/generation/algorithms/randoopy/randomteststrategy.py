@@ -31,8 +31,6 @@ from pynguin.utils.exceptions import GenerationException
 
 
 # pylint: disable=too-few-public-methods
-
-
 class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
