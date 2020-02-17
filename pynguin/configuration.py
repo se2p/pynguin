@@ -64,6 +64,10 @@ class Configuration:
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 
+    # Maximum seconds allowed for entire search when not using time as stopping
+    # criterion.
+    global_timeout: int = 120
+
     # The maximum length of sequences that are generated, 0 means infinite.
     max_sequence_length: int = 10
 
