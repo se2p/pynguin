@@ -17,7 +17,6 @@ import argparse
 import logging
 import os
 import sys
-import time
 from typing import Union, List, Optional
 
 import pynguin.configuration as config

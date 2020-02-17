@@ -22,7 +22,7 @@ import sys
 from typing import Tuple, Union, Any, List, Dict
 
 import astor  # type: ignore
-from coverage import Coverage, CoverageException, CoverageData
+from coverage import Coverage, CoverageException, CoverageData  # type: ignore
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -51,9 +51,7 @@ class TestCaseExecutor:
         Initializes the executor. Loads the module under test.
         """
         self._coverage = Coverage(
-            branch=True,
-            config_file=False,
-            source=[config.INSTANCE.module_name],
+            branch=True, config_file=False, source=[config.INSTANCE.module_name],
         )
         self._import_coverage = self._get_import_coverage()
 
@@ -124,7 +122,9 @@ class TestCaseExecutor:
     def _collect_coverage(self, result: res.ExecutionResult):
         try:
             result.branch_coverage = self._coverage.report()
-            self._logger.debug("Achieved coverage after execution: %s", result.branch_coverage)
+            self._logger.debug(
+                "Achieved coverage after execution: %s", result.branch_coverage
+            )
         except CoverageException:
             # No call on the tested module?
             pass

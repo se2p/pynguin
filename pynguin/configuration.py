@@ -15,7 +15,6 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
-from typing import List
 
 
 class ExportStrategy(enum.Enum):

@@ -52,6 +52,7 @@ def _inspect_member(member):
 
 def test_generate_sequences(executor):
     config.INSTANCE.budget = 1
+    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
@@ -68,6 +69,7 @@ def test_generate_sequences_exception(executor):
         raise GenerationException("Exception Test")
 
     config.INSTANCE.budget = 1
+    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
