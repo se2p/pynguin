@@ -21,11 +21,22 @@ class ExecutionResult:
 
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
+        self._branch_coverage = 0.0
 
     @property
     def exceptions(self) -> Dict[int, Exception]:
         """Provide a map of statements indices that threw an exception. """
         return self._exceptions
+
+    @property
+    def branch_coverage(self) -> float:
+        """Provides the branch coverage that was achieved by this execution."""
+        return self._branch_coverage
+
+    @branch_coverage.setter
+    def branch_coverage(self, value: float) -> None:
+        """Set the achieved branch coverage."""
+        self._branch_coverage = value
 
     def has_test_exceptions(self) -> bool:
         """

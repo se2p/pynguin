@@ -18,7 +18,7 @@ import importlib
 import inspect
 import logging
 
-from typing import List, Type, Set
+from typing import Type, Set
 from pynguin.typeinference import typeinference
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 import pynguin.configuration as config
@@ -54,8 +54,8 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, modules_names: List[str]):
-        self._module_names = modules_names
+    def __init__(self, modules_name: str):
+        self._module_name = modules_name
         self._analyzed_classes: Set[Type] = set()
         self._dependencies_to_solve: Set[DependencyPair] = set()
         self._test_cluster: TestCluster = TestCluster()
@@ -67,22 +67,21 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
     def generate_cluster(self) -> TestCluster:
         """Generate new test cluster from the configured modules."""
         self._logger.debug("Generating test cluster")
-        for module_name in self._module_names:
-            self._logger.debug("Analyzing module %s", module_name)
-            module = importlib.import_module(module_name)
-            for _, klass in inspect.getmembers(module, class_in_module(module_name)):
-                self._add_dependency(klass, 1, True)
+        self._logger.debug("Analyzing module %s", self._module_name)
+        module = importlib.import_module(self._module_name)
+        for _, klass in inspect.getmembers(module, class_in_module(self._module_name)):
+            self._add_dependency(klass, 1, True)
 
-            for function_name, funktion in inspect.getmembers(
-                module, function_in_module(module_name)
-            ):
-                self._logger.debug("Analyzing function %s", function_name)
-                generic_function = GenericFunction(
-                    funktion, self._inference.infer_type_info(funktion)[0]
-                )
-                self._test_cluster.add_generator(generic_function)
-                self._test_cluster.add_accessible_object_under_test(generic_function)
-                self._add_callable_dependencies(generic_function, 1)
+        for function_name, funktion in inspect.getmembers(
+            module, function_in_module(self._module_name)
+        ):
+            self._logger.debug("Analyzing function %s", function_name)
+            generic_function = GenericFunction(
+                funktion, self._inference.infer_type_info(funktion)[0]
+            )
+            self._test_cluster.add_generator(generic_function)
+            self._test_cluster.add_accessible_object_under_test(generic_function)
+            self._add_callable_dependencies(generic_function, 1)
         self._resolve_dependencies_recursive()
         return self._test_cluster
 

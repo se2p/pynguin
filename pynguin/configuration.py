@@ -64,7 +64,7 @@ class Configuration:
     output_path: str
 
     # A list of module names for that the generator shall create tests for.
-    module_names: List[str]
+    module_name: str
 
     # A predefined seed value for the random number generator that is used.
     seed: int = 0
@@ -127,5 +127,5 @@ class Configuration:
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(
-    algorithm=Algorithm.RANDOOPY, project_path="", output_path="", module_names=[]
+    algorithm=Algorithm.RANDOOPY, project_path="", output_path="", module_name=""
 )

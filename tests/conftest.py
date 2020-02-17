@@ -42,7 +42,7 @@ def reset_configuration():
         algorithm=config.Algorithm.RANDOOPY,
         project_path="",
         output_path="",
-        module_names=[],
+        module_name="",
     )
 
 

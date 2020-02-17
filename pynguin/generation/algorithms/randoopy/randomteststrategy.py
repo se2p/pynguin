@@ -42,7 +42,7 @@ class RandomTestStrategy(TestGenerationStrategy):
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         self._logger.info("Start generating sequences using random algorithm")
         self._logger.debug("Time limit: %d", config.INSTANCE.budget)
-        self._logger.debug("Modules: %s", config.INSTANCE.module_names)
+        self._logger.debug("Module: %s", config.INSTANCE.module_name)
 
         test_cases: List[tc.TestCase] = []
         failing_test_cases: List[tc.TestCase] = []
@@ -50,7 +50,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
 
-        test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_names)
+        test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_name)
         test_cluster = test_cluster_generator.generate_cluster()
 
         while not self.is_fulfilled(stopping_condition):

@@ -16,11 +16,12 @@
 
 class SomeType:
     def __init__(self, y: float):
+        self._x = 5
         self._y = y
 
     def simple_method(self, x: int) -> float:
-        return self._y * x
+        return self._y * x * self._x
 
 
-def simple_function(self, z: float) -> float:
+def simple_function(z: float) -> float:
     return z

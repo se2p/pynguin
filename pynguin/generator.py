@@ -116,7 +116,7 @@ class Pynguin:
         exporter = ExportProvider.get_exporter()
         target_file = os.path.join(
             config.INSTANCE.output_path,
-            time.strftime("pynguin_%Y%m%d-%H%M%S") + suffix + ".py",
+            "test_" + config.INSTANCE.module_name.replace(".", "_") + suffix + ".py",
         )
         exporter.export_sequences(target_file, test_cases)
 
