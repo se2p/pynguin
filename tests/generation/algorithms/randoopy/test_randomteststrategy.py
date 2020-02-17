@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from logging import Logger
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,7 +22,10 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
+import pynguin.testcase.defaulttestcase as dtc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.setup.testcluster import TestCluster
+from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -109,3 +113,36 @@ def test_random_public_method(executor):
     outs = {out_0, out_1, out_2}
     result = algorithm._random_public_method(outs)
     assert result == out_0 or result == out_2
+
+
+@pytest.mark.parametrize("has_exceptions", [pytest.param(True), pytest.param(False)])
+def test_generate_sequence(has_exceptions, executor):
+    exec_result = MagicMock(ExecutionResult)
+    exec_result.has_test_exceptions.return_value = has_exceptions
+    executor.execute.return_value = exec_result
+    algorithm = RandomTestStrategy(executor)
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.accessible_objects_under_test = set()
+    algorithm._random_public_method = lambda x: None
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(MagicMock(stmt.Statement))
+    algorithm._random_test_cases = lambda x: [test_case]
+    with mock.patch(
+        "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
+    ) as m:
+        algorithm._generate_sequence([dtc.DefaultTestCase()], [], test_cluster)
+        m.append_generic_statement.assert_called_once()
+
+
+def test_generate_sequence_duplicate(executor):
+    algorithm = RandomTestStrategy(executor)
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.accessible_objects_under_test = set()
+    algorithm._random_public_method = lambda x: None
+    test_case = dtc.DefaultTestCase()
+    algorithm._random_test_cases = lambda x: [test_case]
+    with mock.patch(
+        "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
+    ) as m:
+        algorithm._generate_sequence([dtc.DefaultTestCase()], [], test_cluster)
+        m.append_generic_statement.assert_called_once()
