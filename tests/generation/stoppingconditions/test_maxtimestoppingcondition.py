@@ -12,6 +12,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import time
+
 import pytest
 
 from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
@@ -37,6 +39,7 @@ def test_is_not_fulfilled(stopping_condition):
 def test_is_fulfilled(stopping_condition):
     stopping_condition.reset()
     stopping_condition.set_limit(0)
+    time.sleep(0.05)
     assert stopping_condition.is_fulfilled()
 
 
