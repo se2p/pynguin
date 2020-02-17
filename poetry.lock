@@ -156,7 +156,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.5.1"
+version = "5.5.4"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -586,8 +586,8 @@ flake8 = [
     {file = "flake8-3.7.9.tar.gz", hash = "sha256:45681a117ecc81e870cbf1262835ae4af5e7a8b08e40b944a8a6e6b895914cfb"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.5.1-py3-none-any.whl", hash = "sha256:f407a5bbcb7578a5e12c7f5b6d6b74dc7118a6df3fb0a774a8efc6576f824dad"},
-    {file = "hypothesis-5.5.1.tar.gz", hash = "sha256:0cd069b14a3374f5bae1a7210bd20211e5f62a50f2884be10192eae2e296b78f"},
+    {file = "hypothesis-5.5.4-py3-none-any.whl", hash = "sha256:c82209a75ffb17556b2c396bbd55832f1525938809bd8bb6651a86e7b5ded154"},
+    {file = "hypothesis-5.5.4.tar.gz", hash = "sha256:2e5382dea626072f12a17c10d2b3c3f13bb7cb35ba40d0978bc29b0ade589b63"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
