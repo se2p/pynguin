@@ -36,7 +36,6 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    # pylint: disable=too-many-arguments
     def __init__(self, executor: TestCaseExecutor,) -> None:
         super().__init__()
         self._executor = executor
