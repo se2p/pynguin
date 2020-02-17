@@ -64,6 +64,12 @@ class Configuration:
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 
+    # Maximum search duration
+    search_budget: int = 60
+
+    # Maximum iterations
+    algorithm_iterations: int = 60
+
     # Maximum seconds allowed for entire search when not using time as stopping
     # criterion.
     global_timeout: int = 120

@@ -12,32 +12,28 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provides a stopping condition that stops the search after a predefined amount of
-time."""
-import time
-
+"""A stopping condition that checks the maximum number of test cases."""
 import pynguin.configuration as config
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 
 
-class MaxTimeStoppingCondition(StoppingCondition):
-    """Stop search after a predefined amount of time."""
+class MaxIterationsStoppingCondition(StoppingCondition):
+    """A stopping condition that checks the maximum number of test cases."""
 
-    _max_seconds = config.INSTANCE.budget
-    _start_time = 0
+    _num_iterations = 0
+    _max_iterations = config.INSTANCE.algorithm_iterations
 
     def limit(self) -> int:
-        return self._max_seconds
+        return self._max_iterations
 
     def is_fulfilled(self) -> bool:
-        current_time = time.time_ns()
-        return (current_time - self._start_time) / 1_000_000 > self._max_seconds
+        return self._num_iterations >= self._max_iterations
 
     def reset(self) -> None:
-        self._start_time = time.time_ns()
+        self._num_iterations = 0
 
     def set_limit(self, limit: int) -> None:
-        self._max_seconds = limit
+        self._max_iterations = limit
 
     def iterate(self) -> None:
-        pass
+        self._num_iterations += 1

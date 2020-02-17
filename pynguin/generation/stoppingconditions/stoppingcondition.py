@@ -63,3 +63,11 @@ class StoppingCondition(metaclass=ABCMeta):
 
         :param limit: The new upper limit
         """
+
+    @abstractmethod
+    def iterate(self) -> None:
+        """Shall be called in each algorithm iteration.
+
+        Does nothing if the stopping condition does not care for algorithm
+        iterations, it must not raise an exception in such a case!
+        """

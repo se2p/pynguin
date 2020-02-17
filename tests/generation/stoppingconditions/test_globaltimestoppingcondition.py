@@ -49,3 +49,7 @@ def test_is_fulfilled(stopping_condition):
     stopping_condition.reset()
     time.sleep(1)
     assert stopping_condition.is_fulfilled()
+
+
+def test_iterate(stopping_condition):
+    stopping_condition.iterate()

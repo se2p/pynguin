@@ -14,14 +14,14 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
-from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
-    MaxTimeStoppingCondition,
+from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
+    MaxTestsStoppingCondition,
 )
 
 
 @pytest.fixture
 def stopping_condition():
-    return MaxTimeStoppingCondition()
+    return MaxTestsStoppingCondition()
 
 
 def test_set_get_limit(stopping_condition):
@@ -30,15 +30,11 @@ def test_set_get_limit(stopping_condition):
 
 
 def test_is_not_fulfilled(stopping_condition):
-    stopping_condition.reset()
     assert not stopping_condition.is_fulfilled()
 
 
 def test_is_fulfilled(stopping_condition):
-    stopping_condition.reset()
-    stopping_condition.set_limit(0)
-    assert stopping_condition.is_fulfilled()
-
-
-def test_iterate(stopping_condition):
+    stopping_condition.set_limit(1)
     stopping_condition.iterate()
+    stopping_condition.iterate()
+    assert stopping_condition.is_fulfilled()

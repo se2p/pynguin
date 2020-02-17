@@ -57,3 +57,6 @@ class GlobalTimeStoppingCondition(StoppingCondition):
 
     def set_limit(self, limit: int) -> None:
         pass
+
+    def iterate(self) -> None:
+        pass
