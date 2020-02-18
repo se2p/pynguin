@@ -24,6 +24,7 @@ import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
+from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -85,17 +86,19 @@ class Pynguin:
         # TODO(fk) the current simple_parse does not support Optional values:
         # https://github.com/lebrice/SimpleParsing/issues/14
         if config.INSTANCE.seed != 0:
-
             randomness.RNG.seed(config.INSTANCE.seed)
 
-        executor = TestCaseExecutor()
+        with install_import_hook(
+            config.INSTANCE.algorithm.use_instrumentation, config.INSTANCE.module_name
+        ):
+            executor = TestCaseExecutor()
 
-        algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
-        test_cases, failing_test_cases = algorithm.generate_sequences()
+            algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
+            test_cases, failing_test_cases = algorithm.generate_sequences()
 
-        self._print_results(len(test_cases), len(failing_test_cases))
-        self._export_test_cases(test_cases)
-        self._export_test_cases(failing_test_cases, "_failing")
+            self._print_results(len(test_cases), len(failing_test_cases))
+            self._export_test_cases(test_cases)
+            self._export_test_cases(failing_test_cases, "_failing")
 
         return status
 

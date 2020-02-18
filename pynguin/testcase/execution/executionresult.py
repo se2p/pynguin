@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides the result of an execution run."""
-from typing import Dict
+from typing import Dict, Optional
 
 
 class ExecutionResult:
@@ -22,6 +22,7 @@ class ExecutionResult:
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
         self._branch_coverage = 0.0
+        self._fitness: Optional[float] = None
 
     @property
     def exceptions(self) -> Dict[int, Exception]:
@@ -37,6 +38,16 @@ class ExecutionResult:
     def branch_coverage(self, value: float) -> None:
         """Set the achieved branch coverage."""
         self._branch_coverage = value
+
+    @property
+    def fitness(self) -> Optional[float]:
+        """Get the achieved fitness"""
+        return self._fitness
+
+    @fitness.setter
+    def fitness(self, value: float) -> None:
+        """Set the achieved fitness"""
+        self._fitness = value
 
     def has_test_exceptions(self) -> bool:
         """

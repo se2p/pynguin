@@ -15,7 +15,7 @@
 import pytest
 from bytecode import Compare  # type: ignore
 
-from pynguin.generation.algorithms.wspy.tracking import ExecutionTracer
+from pynguin.instrumentation.tracking import ExecutionTracer
 
 
 def test_default_fitness():

@@ -28,6 +28,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.execution.executionresult as res
 import pynguin.configuration as config
+from pynguin.instrumentation.basis import get_tracer
 from pynguin.utils.proxy import MagicProxy
 
 
@@ -117,6 +118,7 @@ class TestCaseExecutor:
                     finally:
                         self._coverage.stop()
                 self._collect_coverage(result)
+                self._collect_fitness(result)
         return result
 
     def _collect_coverage(self, result: res.ExecutionResult):
@@ -128,6 +130,17 @@ class TestCaseExecutor:
         except CoverageException:
             # No call on the tested module?
             pass
+
+    @staticmethod
+    def _collect_fitness(result: res.ExecutionResult):
+        """
+        Collect the fitness after each execution.
+        Also clear the tracking results so far.
+        """
+        if config.INSTANCE.algorithm.use_instrumentation:
+            tracer = get_tracer(sys.modules[config.INSTANCE.module_name])
+            result.fitness = tracer.get_fitness()
+            tracer.clear_tracking()
 
     @staticmethod
     def _to_ast_nodes(

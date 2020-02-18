@@ -31,3 +31,14 @@ def test_exceptions():
     ex = Exception()
     result.report_new_thrown_exception(0, ex)
     assert result.exceptions[0] == ex
+
+
+def test_fitness_default():
+    result = ExecutionResult()
+    assert not result.fitness
+
+
+def test_fitness_setter():
+    result = ExecutionResult()
+    result.fitness = 5.0
+    assert result.fitness == 5.0

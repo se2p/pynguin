@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides capabilities to track branch distances."""
+import logging
 import numbers
 from typing import Set, Dict
 from math import inf
@@ -21,6 +22,8 @@ from bytecode import Compare  # type: ignore
 
 class ExecutionTracer:
     """Tracks branch distances during execution."""
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         self._existing_predicates: Set[int] = set()
@@ -40,32 +43,32 @@ class ExecutionTracer:
     @property
     def existing_predicates(self) -> Set[int]:
         """Get existing predicates."""
-        return set(self._existing_predicates)
+        return self._existing_predicates
 
     @property
     def existing_functions(self) -> Set[int]:
         """Get existing functions."""
-        return set(self._existing_functions)
+        return self._existing_functions
 
     @property
     def covered_functions(self) -> Set[int]:
         """Get covered functions."""
-        return set(self._covered_functions)
+        return self._covered_functions
 
     @property
     def covered_predicates(self) -> Dict[int, int]:
         """Get covered predicates and how often they were executed."""
-        return dict(self._covered_predicates)
+        return self._covered_predicates
 
     @property
     def true_distances(self) -> Dict[int, float]:
         """Get the minimum distances from "True" per predicate."""
-        return dict(self._true_distances)
+        return self._true_distances
 
     @property
     def false_distances(self) -> Dict[int, float]:
         """Get the minimum distances from "False" per predicate."""
-        return dict(self._false_distances)
+        return self._false_distances
 
     def get_fitness(self) -> float:
         """Get the fitness of a test suite that generated the tracked data."""
@@ -112,8 +115,6 @@ class ExecutionTracer:
     def passed_cmp_predicate(self, value1, value2, predicate: int, cmp_op: Compare):
         """A predicate that is based on a comparision was passed."""
         assert predicate in self._existing_predicates, "Cannot trace unknown predicate"
-        distance_true = 0.0
-        distance_false = 0.0
         if cmp_op == Compare.EQ:
             distance_true, distance_false = (
                 self._eq(value1, value2),

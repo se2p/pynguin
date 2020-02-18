@@ -19,15 +19,15 @@ from typing import Set
 
 from bytecode import Instr, Bytecode  # type: ignore
 
-from pynguin.generation.algorithms.wspy.tracking import ExecutionTracer
+from pynguin.instrumentation.basis import TRACER_NAME
+from pynguin.instrumentation.tracking import ExecutionTracer
 from pynguin.utils.iterator import ListIterator
 
 
-class BranchInstrumentation:
+class BranchDistanceInstrumentation:
     """Instruments modules/classes/methods/functions to enable branch distance tracking."""
 
     _INSTRUMENTED_FLAG: str = "instrumented"
-    _TRACER_NAME: str = "tracer"
 
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._predicate_id: int = 0
@@ -38,12 +38,12 @@ class BranchInstrumentation:
         """Adds branch distance instrumentation to the given function."""
         # Prevent multiple instrumentation
         assert not hasattr(
-            to_instrument, BranchInstrumentation._INSTRUMENTED_FLAG
+            to_instrument, BranchDistanceInstrumentation._INSTRUMENTED_FLAG
         ), "Function is already instrumented"
-        setattr(to_instrument, BranchInstrumentation._INSTRUMENTED_FLAG, True)
+        setattr(to_instrument, BranchDistanceInstrumentation._INSTRUMENTED_FLAG, True)
 
         # install tracer in the globals of the function so we can call it from bytecode
-        to_instrument.__globals__[self._TRACER_NAME] = self._tracer
+        to_instrument.__globals__[TRACER_NAME] = self._tracer
         to_instrument.__code__ = self._instrument_code_recursive(to_instrument.__code__)
 
     def _instrument_code_recursive(self, code: CodeType) -> CodeType:
@@ -81,7 +81,7 @@ class BranchInstrumentation:
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
             Instr("DUP_TOP"),
-            Instr("LOAD_GLOBAL", self._TRACER_NAME),
+            Instr("LOAD_GLOBAL", TRACER_NAME),
             Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
             Instr("ROT_THREE"),
             Instr("ROT_THREE"),
@@ -97,7 +97,7 @@ class BranchInstrumentation:
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
             Instr("DUP_TOP_TWO"),
-            Instr("LOAD_GLOBAL", self._TRACER_NAME),
+            Instr("LOAD_GLOBAL", TRACER_NAME),
             Instr("LOAD_METHOD", ExecutionTracer.passed_cmp_predicate.__name__),
             Instr("ROT_FOUR"),
             Instr("ROT_FOUR"),
@@ -112,7 +112,7 @@ class BranchInstrumentation:
     def _add_function_entered(self, iterator: ListIterator) -> None:
         self._tracer.function_exists(self._function_id)
         stmts = [
-            Instr("LOAD_GLOBAL", self._TRACER_NAME),
+            Instr("LOAD_GLOBAL", TRACER_NAME),
             Instr("LOAD_METHOD", ExecutionTracer.entered_function.__name__),
             Instr("LOAD_CONST", self._function_id),
             Instr("CALL_METHOD", 1),

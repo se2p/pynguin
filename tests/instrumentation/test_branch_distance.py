@@ -17,9 +17,7 @@ import importlib
 import asyncio
 import pytest
 from unittest.mock import Mock, call
-from pynguin.generation.algorithms.wspy.branch_instrumentation import (
-    BranchInstrumentation,
-)
+from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 
 
 @pytest.fixture()
@@ -31,7 +29,7 @@ def simple_module():
 
 def test_entered_function(simple_module):
     tracer = Mock()
-    instr = BranchInstrumentation(tracer)
+    instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.simple_function)
     simple_module.simple_function(1)
     tracer.function_exists.assert_called_once()
@@ -40,7 +38,7 @@ def test_entered_function(simple_module):
 
 def test_add_bool_predicate(simple_module):
     tracer = Mock()
-    instr = BranchInstrumentation(tracer)
+    instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.bool_predicate)
     simple_module.bool_predicate(True)
     tracer.predicate_exists.assert_called_once()
@@ -49,7 +47,7 @@ def test_add_bool_predicate(simple_module):
 
 def test_add_cmp_predicate(simple_module):
     tracer = Mock()
-    instr = BranchInstrumentation(tracer)
+    instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.cmp_predicate)
     simple_module.cmp_predicate(1, 2)
     tracer.predicate_exists.assert_called_once()
@@ -58,7 +56,7 @@ def test_add_cmp_predicate(simple_module):
 
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = Mock()
-    instr = BranchInstrumentation(tracer)
+    instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.cmp_predicate)
     with pytest.raises(AssertionError):
         instr.instrument_function(simple_module.cmp_predicate)
@@ -69,7 +67,7 @@ def test_module_instrumentation_integration():
     mixed = importlib.import_module("tests.fixtures.instrumentation.mixed")
     mixed = importlib.reload(mixed)
     tracer = Mock()
-    instr = BranchInstrumentation(tracer)
+    instr = BranchDistanceInstrumentation(tracer)
     instr.instrument(mixed)
 
     inst = mixed.TestClass(5)

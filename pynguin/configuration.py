@@ -36,8 +36,16 @@ class Verbosity(enum.Enum):
 class Algorithm(enum.Enum):
     """Different algorithms."""
 
-    RANDOOPY = "RANDOOPY"
-    WSPY = "WSPY"
+    RANDOOPY = False
+    WSPY = True
+
+    def __init__(self, use_instrumentation: bool):
+        self._use_instrumentation = use_instrumentation
+
+    @property
+    def use_instrumentation(self) -> bool:
+        """Does this algorithm use instrumentation."""
+        return self._use_instrumentation
 
 
 class StoppingCondition(enum.Enum):
