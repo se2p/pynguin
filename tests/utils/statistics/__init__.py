@@ -12,24 +12,3 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provides custom exception types."""
-
-
-class ConfigurationException(BaseException):
-    """An exception type that's raised if the generator has no proper configuration."""
-
-
-class GenerationException(BaseException):
-    """An exception during test generation.
-
-    This type shall be used for all exceptions that occur during test generation and
-    that are caused by the test-generation process.
-    """
-
-
-class ConstructionFailedException(BaseException):
-    """An exception used when error occurs during construction of a test case."""
-
-
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class"""
