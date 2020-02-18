@@ -15,6 +15,7 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
+from typing import Optional
 
 
 class ExportStrategy(enum.Enum):
@@ -74,7 +75,10 @@ class Configuration:
     module_name: str
 
     # A predefined seed value for the random number generator that is used.
-    seed: int = 0
+    seed: Optional[int] = None
+
+    # Path to store the log file.
+    log_file: Optional[str] = None
 
     # Measure coverage
     measure_coverage: bool = True

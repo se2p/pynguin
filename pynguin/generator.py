@@ -17,7 +17,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Union, List, Optional
+from typing import Union, List
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -41,7 +41,6 @@ class Pynguin:
         arguments: List[str] = None,
         configuration: config.Configuration = None,
         verbosity: int = -1,
-        log_file: Optional[str] = None,
     ) -> None:
         """Initialises the test generator.
 
@@ -61,12 +60,11 @@ class Pynguin:
             parsed = argument_parser.parse_args(arguments)
             config.INSTANCE = parsed.config
             verbosity = parsed.verbosity
-            log_file = parsed.log_file
         else:
             raise ConfigurationException(
                 "Cannot initialise test generator without proper configuration."
             )
-        self._logger = self._setup_logging(verbosity, log_file)
+        self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
 
     def run(self) -> int:
         """Run"""
@@ -83,9 +81,7 @@ class Pynguin:
         status = 0
 
         sys.path.insert(0, config.INSTANCE.project_path)
-        # TODO(fk) the current simple_parse does not support Optional values:
-        # https://github.com/lebrice/SimpleParsing/issues/14
-        if config.INSTANCE.seed != 0:
+        if config.INSTANCE.seed is not None:
             randomness.RNG.seed(config.INSTANCE.seed)
 
         with install_import_hook(

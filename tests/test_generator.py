@@ -73,7 +73,7 @@ def test__setup_logging_quiet_without_log_file():
 
 
 def test_init_with_configuration():
-    conf = MagicMock()
+    conf = MagicMock(log_file=None)
     Pynguin(configuration=conf)
     assert config.INSTANCE == conf
 
@@ -88,8 +88,8 @@ def test_init_without_params():
 
 
 def test_init_with_cli_arguments():
-    conf = MagicMock(config.Configuration)
-    option_mock = MagicMock(config=conf, log_file=None, verbosity=0)
+    conf = MagicMock(log_file=None)
+    option_mock = MagicMock(config=conf, verbosity=0)
     parser = MagicMock(ArgumentParser)
     parser.parse_args.return_value = option_mock
     args = [""]
@@ -153,7 +153,7 @@ def test_run_with_observed_string(algorithm, _, __):
 
 
 def test_run_without_logger():
-    generator = Pynguin(configuration=MagicMock(config.Configuration))
+    generator = Pynguin(configuration=MagicMock(log_file=None))
     generator._logger = None
     with pytest.raises(ConfigurationException):
         generator.run()

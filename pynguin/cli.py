@@ -51,9 +51,6 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         dest="verbosity",
         help="quiet output",
     )
-    parser.add_argument(
-        "--log_file", dest="log_file", help="Path to store the log file."
-    )
     parser.add_arguments(Configuration, dest="config")
 
     return parser
