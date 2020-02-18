@@ -76,3 +76,10 @@ def test_create_object_with_coverage(short_test_case):
     executor = TestCaseExecutor()
     result = executor.execute(short_test_case)
     assert result.branch_coverage == 75.0
+
+
+def test_execute_test_suite(short_test_case):
+    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    executor = TestCaseExecutor()
+    result = executor.execute_test_suite([short_test_case])
+    assert result.branch_coverage == 75.0

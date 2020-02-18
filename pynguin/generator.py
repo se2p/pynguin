@@ -93,9 +93,13 @@ class Pynguin:
         algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
         test_cases, failing_test_cases = algorithm.generate_sequences()
 
+        executor = TestCaseExecutor()
+        result = executor.execute_test_suite(test_cases)
+
         self._print_results(len(test_cases), len(failing_test_cases))
         self._export_test_cases(test_cases)
         self._export_test_cases(failing_test_cases, "_failing")
+        print(f"Branch Coverage: {result.branch_coverage:.2f}%")
 
         return status
 

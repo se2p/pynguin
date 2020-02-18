@@ -125,6 +125,45 @@ class TestCaseExecutor:
                 self._collect_coverage(result)
         return result
 
+    def execute_test_suite(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
+        """Executes all statements of all test cases in a test suite.
+
+        :param test_cases: The list of test cases, i.e., the test suite
+        :return: Result of the execution
+        """
+        TestCaseExecutor._logger.info(
+            "Rerun execution of generated test suite to measure coverage (if "
+            "requested by configuration)"
+        )
+        result = res.ExecutionResult()
+        if config.INSTANCE.measure_coverage:
+            self._coverage.erase()
+            self._coverage.get_data().update(self._import_coverage)
+
+        with open(os.devnull, mode="w") as null_file:
+            with contextlib.redirect_stdout(null_file):
+                for test_case in test_cases:
+                    local_namespace: Dict[str, Any] = {}
+                    variable_names = stmt_to_ast.NamingScope()
+                    modules_aliases = stmt_to_ast.NamingScope(prefix="module")
+                    ast_nodes: List[ast.stmt] = TestCaseExecutor._to_ast_nodes(
+                        test_case, variable_names, modules_aliases
+                    )
+                    global_namespace: Dict[
+                        str, Any
+                    ] = TestCaseExecutor._prepare_global_namespace(modules_aliases)
+                    for node in ast_nodes:
+                        code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
+                        if config.INSTANCE.measure_coverage:
+                            self._coverage.start()
+                        # pylint: disable=exec-used
+                        exec(code, global_namespace, local_namespace)
+                        if config.INSTANCE.measure_coverage:
+                            self._coverage.stop()
+                self._collect_coverage(result)
+        TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
+        return result
+
     def _collect_coverage(self, result: res.ExecutionResult):
         try:
             if config.INSTANCE.measure_coverage:
