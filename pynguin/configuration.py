@@ -68,6 +68,9 @@ class Configuration:
     # A predefined seed value for the random number generator that is used.
     seed: int = 0
 
+    # Measure coverage
+    measure_coverage: bool = True
+
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 

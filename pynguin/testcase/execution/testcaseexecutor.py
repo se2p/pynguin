@@ -19,7 +19,7 @@ import importlib
 import logging
 import os
 import sys
-from typing import Tuple, Union, Any, List, Dict
+from typing import Tuple, Union, Any, List, Dict, Optional
 
 import astor  # type: ignore
 from coverage import Coverage, CoverageException, CoverageData  # type: ignore
@@ -47,20 +47,23 @@ class TestCaseExecutor:
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        """
-        Initializes the executor. Loads the module under test.
-        """
-        self._coverage = Coverage(
-            branch=True, config_file=False, source=[config.INSTANCE.module_name]
-        )
+        """Initializes the executor. Loads the module under test."""
+        if config.INSTANCE.measure_coverage:
+            self._coverage = Coverage(
+                branch=True, config_file=False, source=[config.INSTANCE.module_name]
+            )
+        else:
+            self._coverage = None
         self._import_coverage = self._get_import_coverage()
 
-    def _get_import_coverage(self) -> CoverageData:
+    def _get_import_coverage(self) -> Optional[CoverageData]:
+        """Collect coverage data on the module under test when it is imported.
+
+        Theoretically coverage.py could store the data in memory instead of writing it
+        to a file. But in this case, the merging of different runs doesn't work.
         """
-        Collect coverage data on the module under test when it is imported.
-        Theoretically coverage.py could store the data in memory instead of writing it to a file.
-        But in this case, the merging of different runs doesn't work.
-        """
+        if not config.INSTANCE.measure_coverage:
+            return None
         cov_data = CoverageData(basename="coverage.pynguin.import")
         cov_data.erase()
         try:
@@ -84,8 +87,9 @@ class TestCaseExecutor:
         :return: Result of the execution
         """
         result = res.ExecutionResult()
-        self._coverage.erase()
-        self._coverage.get_data().update(self._import_coverage)
+        if config.INSTANCE.measure_coverage:
+            self._coverage.erase()
+            self._coverage.get_data().update(self._import_coverage)
 
         # TODO(fk) wrap new values in magic proxy.
         local_namespace: Dict[str, Any] = {}
@@ -104,7 +108,8 @@ class TestCaseExecutor:
                     try:
                         self._logger.debug("Executing %s", astor.to_source(node))
                         code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
-                        self._coverage.start()
+                        if config.INSTANCE.measure_coverage:
+                            self._coverage.start()
                         # pylint: disable=exec-used
                         exec(code, global_namespace, local_namespace)
                     except Exception as err:  # pylint: disable=broad-except
@@ -115,13 +120,17 @@ class TestCaseExecutor:
                         result.report_new_thrown_exception(idx, err)
                         break
                     finally:
-                        self._coverage.stop()
+                        if config.INSTANCE.measure_coverage:
+                            self._coverage.stop()
                 self._collect_coverage(result)
         return result
 
     def _collect_coverage(self, result: res.ExecutionResult):
         try:
-            result.branch_coverage = self._coverage.report()
+            if config.INSTANCE.measure_coverage:
+                result.branch_coverage = self._coverage.report()
+            else:
+                result.branch_coverage = -1
             self._logger.debug(
                 "Achieved coverage after execution: %s", result.branch_coverage
             )
