@@ -97,7 +97,9 @@ class Pynguin:
         result = executor.execute_test_suite(test_cases)
 
         self._print_results(len(test_cases), len(failing_test_cases))
+        self._logger.info("Export successful test cases")
         self._export_test_cases(test_cases)
+        self._logger.info("Export failing test cases")
         self._export_test_cases(failing_test_cases, "_failing")
         print(f"Branch Coverage: {result.branch_coverage:.2f}%")
 
@@ -110,12 +112,11 @@ class Pynguin:
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
-        """
-        Export the given test cases.
+        """Export the given test cases.
+
         :param suffix Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
         """
-
         exporter = ExportProvider.get_exporter()
         target_file = os.path.join(
             config.INSTANCE.output_path,
