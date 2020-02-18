@@ -26,14 +26,6 @@ class ExportStrategy(enum.Enum):
     NONE = "NONE"
 
 
-class Verbosity(enum.Enum):
-    """Different verbosity levels."""
-
-    QUIET = "QUIET"
-    NORMAL = "NORMAL"
-    VERBOSE = "VERBOSE"
-
-
 class Algorithm(enum.Enum):
     """Different algorithms."""
 
