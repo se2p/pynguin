@@ -32,6 +32,9 @@ from pynguin.utils.exceptions import ConfigurationException
 
 
 # pylint: disable=too-few-public-methods
+from pynguin.utils.statistics.timer import Timer
+
+
 class Pynguin:
     """The basic interface of the test generator."""
 
@@ -90,16 +93,23 @@ class Pynguin:
         ):
             executor = TestCaseExecutor()
 
+            timer = Timer(name="Test generation time", logger=None)
+            timer.start()
             algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
             test_cases, failing_test_cases = algorithm.generate_sequences()
 
-            executor = TestCaseExecutor()
-            result = executor.execute_test_suite(test_cases)
+            with Timer(name="Re-execution time", logger=None):
+                executor = TestCaseExecutor()
+                result = executor.execute_test_suite(test_cases)
 
+            export_timer = Timer(name="Export time", logger=None)
+            export_timer.start()
             self._logger.info("Export successful test cases")
             self._export_test_cases(test_cases)
             self._logger.info("Export failing test cases")
             self._export_test_cases(failing_test_cases, "_failing")
+            export_timer.stop()
+            timer.stop()
             self._print_results(test_cases, failing_test_cases, result)
             if len(test_cases) == 0:  # not able to generate one successful test case
                 status = 1
@@ -119,6 +129,16 @@ class Pynguin:
         print(f"Generated {len(test_cases)} test cases")
         print(f"Generated {len(failing_test_cases)} failing test cases")
         print(f"Branch Coverage: {result.branch_coverage:.2f}%")
+        timers = Timer.timers
+        for timer, value in Timer.timers.items():
+            print(f"{timer}: {value:.5f}s")
+            if timers.count(timer) > 1:
+                print(f"  {timer} count: {timers.count(timer)}")
+                print(f"  {timer} min: {timers.min(timer):.5f}s")
+                print(f"  {timer} mean: {timers.mean(timer):.5f}s")
+                print(f"  {timer} median: {timers.median(timer):.5f}s")
+                print(f"  {timer} max: {timers.max(timer):.5f}s")
+                print(f"  {timer} stddev: {timers.std_dev(timer):.5f}s")
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:

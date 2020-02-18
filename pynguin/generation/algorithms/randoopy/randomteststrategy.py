@@ -30,6 +30,9 @@ from pynguin.utils.exceptions import GenerationException
 
 
 # pylint: disable=too-few-public-methods
+from pynguin.utils.statistics.timer import Timer
+
+
 class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
@@ -41,6 +44,8 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         self._logger.info("Start generating sequences using random algorithm")
+        timer = Timer(name="Sequences generation time", logger=None)
+        timer.start()
         self._logger.debug("Time limit: %d", config.INSTANCE.budget)
         self._logger.debug("Module: %s", config.INSTANCE.module_name)
 
@@ -50,8 +55,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
 
-        test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_name)
-        test_cluster = test_cluster_generator.generate_cluster()
+        with Timer(name="Test-cluster generation time", logger=None):
+            test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_name)
+            test_cluster = test_cluster_generator.generate_cluster()
 
         while not self.is_fulfilled(stopping_condition):
             try:
@@ -65,6 +71,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 )
 
         self._logger.info("Finish generating sequences with random algorithm")
+        timer.stop()
         self._logger.debug("Generated %d passing test cases", len(test_cases))
         self._logger.debug("Generated %d failing test cases", len(failing_test_cases))
         self._logger.debug("Number of algorithm iterations: %d", execution_counter)
@@ -84,6 +91,8 @@ class RandomTestStrategy(TestGenerationStrategy):
         :param test_cluster: A cluster storing the available types and methods for
         test generation
         """
+        timer = Timer(name="Sequence generation", logger=None)
+        timer.start()
         objects_under_test: Set[
             gao.GenericAccessibleObject
         ] = test_cluster.accessible_objects_under_test
@@ -105,8 +114,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         if new_test in test_cases or new_test in failing_test_cases:
             return
 
-        # Execute new sequence
-        exec_result = self._executor.execute(new_test)
+        with Timer(name="Execution time", logger=None):
+            # Execute new sequence
+            exec_result = self._executor.execute(new_test)
 
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
@@ -114,6 +124,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         else:
             test_cases.append(new_test)
             # TODO(sl) What about extensible flags?
+        timer.stop()
 
     @staticmethod
     def _random_public_method(
