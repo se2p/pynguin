@@ -25,6 +25,7 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -95,19 +96,29 @@ class Pynguin:
             executor = TestCaseExecutor()
             result = executor.execute_test_suite(test_cases)
 
-            self._print_results(len(test_cases), len(failing_test_cases))
             self._logger.info("Export successful test cases")
             self._export_test_cases(test_cases)
             self._logger.info("Export failing test cases")
             self._export_test_cases(failing_test_cases, "_failing")
-            print(f"Branch Coverage: {result.branch_coverage:.2f}%")
+            self._print_results(test_cases, failing_test_cases, result)
+            if len(test_cases) == 0:  # not able to generate one successful test case
+                status = 1
 
         return status
 
     @staticmethod
-    def _print_results(num_test_cases, num_failing_test_cases):
-        print(f"Generated {num_test_cases} test cases")
-        print(f"Generated {num_failing_test_cases} failing test cases")
+    def _print_results(
+        test_cases: List[tc.TestCase],
+        failing_test_cases: List[tc.TestCase],
+        result: ExecutionResult,
+    ) -> None:
+        print()
+        print()
+        print("== Results ============================================================")
+        print()
+        print(f"Generated {len(test_cases)} test cases")
+        print(f"Generated {len(failing_test_cases)} failing test cases")
+        print(f"Branch Coverage: {result.branch_coverage:.2f}%")
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
