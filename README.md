@@ -49,10 +49,20 @@ To start developing, follow these steps:
 1. Clone the repository
 2. Change to the `pynguin` folder: `cd pynguin`
 3. Create a virtual environment and install dependencies using `poetry`: `poetry install`
+4. Make your changes
+5. Run `poetry shell` to switch to the virtual environment in your current shell
+6. Run `make check` to verify that your changes pass all checks
 
    Please see the `poetry` documentation for more information on this tool.
    
-TODO: Extend this
+### Development using PyCharm.
+
+If you want to use the PyCharm IDE you have to set up a few things:
+1. Import pynguin into PyCharm.
+2. Find the location of the virtual environment by running `poetry env info` in the project directory.
+3. Go to `Settings` / `Project: pynguin` / `Project interpreter`
+4. Add and use a new interpreter that points to the path of the virtual environment
+5. Set the default test runner to `pytest`
 
 ## License
 
