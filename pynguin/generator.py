@@ -12,7 +12,18 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Entry"""
+"""Pynguin is an automated unit test generation framework for Python.
+
+The framework generates unit tests for a given Python module.  For this it
+supports various approaches, such as a random approach, similar to Randoop or a
+whole-suite approach, based on a genetic algorithm, as implemented in EvoSuite.  The
+framework allows to export test suites in various styles, i.e., using the `unittest`
+library from the Python standard library or tests in the style used by the PyTest
+framework.
+
+Pynguin is supposed to be used as a standalone command-line application but it
+can also be used as a library by instantiating this class directly.
+"""
 import argparse
 import logging
 import os
@@ -29,16 +40,23 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-
-
-# pylint: disable=too-few-public-methods
 from pynguin.utils.statistics.timer import Timer
 
 
+# pylint: disable=too-few-public-methods
 class Pynguin:
-    """The basic interface of the test generator."""
+    """Pynguin is an automated unit test generation framework for Python.
 
-    # pylint: disable=too-many-arguments
+    The framework generates unit tests for a given Python module.  For this it
+    supports various approaches, such as a random approach, similar to Randoop or a
+    whole-suite approach, based on a genetic algorithm.  The framework allows to
+    export test suites in various styles, i.e., using the `unittest` library from the
+    Python standard library or tests in the style used by the PyTest framework.
+
+    Pynguin is supposed to be used as a standalone command-line application but it
+    can also be used as a library by instantiating this class directly.
+    """
+
     def __init__(
         self,
         argument_parser: argparse.ArgumentParser = None,
@@ -71,7 +89,15 @@ class Pynguin:
         self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
 
     def run(self) -> int:
-        """Run"""
+        """Run the test generation.
+
+        This method behaves like a standard UNIX command-line application, i.e.,
+        the return value `0` signals a successful execution.  Any other return value
+        signals some errors.  This is, e.g., the case if the framework was not able
+        to generate one successfully running test case for the class under test.
+
+        :return: 0 if the generation was successful, other values otherwise.
+        """
         if not self._logger:
             raise ConfigurationException()
 
