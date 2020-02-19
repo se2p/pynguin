@@ -105,24 +105,9 @@ class TestCaseExecutor:
         )
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for idx, node in enumerate(ast_nodes):
-                    try:
-                        self._logger.debug("Executing %s", astor.to_source(node))
-                        code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
-                        if config.INSTANCE.measure_coverage:
-                            self._coverage.start()
-                        # pylint: disable=exec-used
-                        exec(code, global_namespace, local_namespace)
-                    except Exception as err:  # pylint: disable=broad-except
-                        failed_stmt = astor.to_source(node)
-                        TestCaseExecutor._logger.warning(
-                            "Failed to execute statement:\n%s%s", failed_stmt, err.args
-                        )
-                        result.report_new_thrown_exception(idx, err)
-                        break
-                    finally:
-                        if config.INSTANCE.measure_coverage:
-                            self._coverage.stop()
+                self._execute_ast_nodes(
+                    ast_nodes, global_namespace, local_namespace, result
+                )
                 self._collect_coverage(result)
                 self._collect_fitness(result)
         return result
@@ -154,18 +139,39 @@ class TestCaseExecutor:
                     global_namespace: Dict[
                         str, Any
                     ] = TestCaseExecutor._prepare_global_namespace(modules_aliases)
-                    for node in ast_nodes:
-                        code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
-                        if config.INSTANCE.measure_coverage:
-                            self._coverage.start()
-                        # pylint: disable=exec-used
-                        exec(code, global_namespace, local_namespace)
-                        if config.INSTANCE.measure_coverage:
-                            self._coverage.stop()
+                    self._execute_ast_nodes(
+                        ast_nodes, global_namespace, local_namespace, result
+                    )
                 self._collect_coverage(result)
                 self._collect_fitness(result)
         TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
         return result
+
+    def _execute_ast_nodes(
+        self,
+        ast_nodes: List[ast.stmt],
+        global_namespace: Dict[str, Any],
+        local_namespace: Dict[str, Any],
+        result: res.ExecutionResult,
+    ):
+        for idx, node in enumerate(ast_nodes):
+            try:
+                self._logger.debug("Executing %s", astor.to_source(node))
+                code = compile(self._wrap_node_in_module(node), "<ast>", "exec")
+                if config.INSTANCE.measure_coverage:
+                    self._coverage.start()
+                # pylint: disable=exec-used
+                exec(code, global_namespace, local_namespace)
+            except Exception as err:  # pylint: disable=broad-except
+                failed_stmt = astor.to_source(node)
+                TestCaseExecutor._logger.warning(
+                    "Failed to execute statement:\n%s%s", failed_stmt, err.args
+                )
+                result.report_new_thrown_exception(idx, err)
+                break
+            finally:
+                if config.INSTANCE.measure_coverage:
+                    self._coverage.stop()
 
     def _collect_coverage(self, result: res.ExecutionResult):
         try:
