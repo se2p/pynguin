@@ -15,11 +15,14 @@
 import time
 
 import pytest
+import hypothesis.strategies as st
+from hypothesis import given
 
 import pynguin.configuration as config
 from pynguin.generation.stoppingconditions.globaltimestoppingcondition import (
     GlobalTimeStoppingCondition,
 )
+from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 
 
 @pytest.fixture
@@ -46,9 +49,37 @@ def test_is_not_fulfilled(stopping_condition):
 def test_is_fulfilled(stopping_condition):
     config.INSTANCE.global_timeout = 1
     stopping_condition.reset()
+    stopping_condition.reset()
     time.sleep(1.05)
     assert stopping_condition.is_fulfilled()
 
 
 def test_iterate(stopping_condition):
     stopping_condition.iterate()
+
+
+def test_set_limit(stopping_condition):
+    stopping_condition.set_limit(42)
+
+
+@given(st.integers())
+def test_current_value_of_base_class(x):
+    class StoppingTestCondition(StoppingCondition):
+        def limit(self) -> int:
+            pass
+
+        def is_fulfilled(self) -> bool:
+            pass
+
+        def reset(self) -> None:
+            pass
+
+        def set_limit(self, limit: int) -> None:
+            pass
+
+        def iterate(self) -> None:
+            pass
+
+    stopping_condition = StoppingTestCondition()
+    stopping_condition.current_value = x
+    assert stopping_condition.current_value == x
