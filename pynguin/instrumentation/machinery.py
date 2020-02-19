@@ -16,9 +16,10 @@
 Provides classes for runtime instrumentation.
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py
 """
+import logging
 import sys
 from importlib.machinery import ModuleSpec, SourceFileLoader
-from importlib.abc import MetaPathFinder
+from importlib.abc import MetaPathFinder, FileLoader
 from inspect import isclass
 from typing import Optional
 
@@ -49,6 +50,8 @@ class InstrumentationFinder(MetaPathFinder):
     should be instrumented.
     """
 
+    _logger = logging.getLogger(__name__)
+
     def __init__(self, original_pathfinder, module_to_instrument: str):
         """
         Wraps the given path finder.
@@ -71,8 +74,14 @@ class InstrumentationFinder(MetaPathFinder):
                 fullname, path, target
             )
             if spec is not None:
-                spec.loader = InstrumentationLoader(spec.loader.name, spec.loader.path)
-                return spec
+                if isinstance(spec.loader, FileLoader):
+                    spec.loader = InstrumentationLoader(
+                        spec.loader.name, spec.loader.path
+                    )
+                    return spec
+                self._logger.error(
+                    "Loader for module under test is not a FileLoader, cannot instrument."
+                )
 
         return None
 
