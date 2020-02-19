@@ -17,7 +17,7 @@ import logging
 import numbers
 from typing import Set, Dict
 from math import inf
-from bytecode import Compare  # type: ignore
+from bytecode import Compare
 
 
 class ExecutionTracer:

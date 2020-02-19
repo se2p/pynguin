@@ -17,7 +17,7 @@ import inspect
 from types import FunctionType, CodeType
 from typing import Set
 
-from bytecode import Instr, Bytecode  # type: ignore
+from bytecode import Instr, Bytecode
 
 from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.instrumentation.tracking import ExecutionTracer

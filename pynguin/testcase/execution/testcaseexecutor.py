@@ -21,8 +21,8 @@ import os
 import sys
 from typing import Tuple, Union, Any, List, Dict, Optional
 
-import astor  # type: ignore
-from coverage import Coverage, CoverageException, CoverageData  # type: ignore
+import astor
+from coverage import Coverage, CoverageException, CoverageData
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.statement_to_ast as stmt_to_ast

@@ -21,7 +21,7 @@ import argparse
 import sys
 from typing import List
 
-import simple_parsing  # type: ignore
+import simple_parsing
 
 from pynguin import __version__, Configuration
 from pynguin.generator import Pynguin

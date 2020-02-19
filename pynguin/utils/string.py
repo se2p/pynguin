@@ -29,7 +29,7 @@ class String(str):
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def startswith(  # type: ignore
+    def startswith(
         self,
         prefix: Union[Text, Tuple[Text, ...]],
         start: Optional[int] = None,
@@ -38,7 +38,7 @@ class String(str):
         String._maybe_record(prefix)
         return super().startswith(prefix, start, end)
 
-    def endswith(  # type: ignore
+    def endswith(
         self,
         suffix: Union[Text, Tuple[Text, ...]],
         start: Optional[int] = None,

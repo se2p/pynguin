@@ -19,7 +19,7 @@ from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import List, Tuple, Optional, Union
 
-import astor  # type: ignore
+import astor
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
