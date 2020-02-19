@@ -164,7 +164,7 @@ class TestCaseExecutor:
                 exec(code, global_namespace, local_namespace)
             except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
-                TestCaseExecutor._logger.warning(
+                TestCaseExecutor._logger.info(
                     "Failed to execute statement:\n%s%s", failed_stmt, err.args
                 )
                 result.report_new_thrown_exception(idx, err)
