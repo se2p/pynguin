@@ -20,9 +20,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.parametrizedstatements as param_stmt
+import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.configuration as config
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
@@ -31,6 +34,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericField,
 )
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
+
 
 # -- FIXTURES --------------------------------------------------------------------------
 
@@ -155,6 +159,18 @@ def function_mock() -> GenericFunction:
 @pytest.fixture()
 def field_mock() -> GenericField:
     return GenericField(owner=SomeType, field="y", field_type=float)
+
+
+@pytest.fixture
+def short_test_case(constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
+    constructor_stmt = param_stmt.ConstructorStatement(
+        test_case, constructor_mock, [int_stmt.return_value]
+    )
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_stmt)
+    return test_case
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

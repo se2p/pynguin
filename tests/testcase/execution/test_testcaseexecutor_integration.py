@@ -13,13 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Integration tests for the executor."""
-import pytest
-
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.primitivestatements as prim_stmt
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.parametrizedstatements as param_stmt
+import pynguin.testcase.statements.primitivestatements as prim_stmt
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 def test_simple_execution():
@@ -42,18 +40,6 @@ def test_illegal_call(method_mock):
     executor = TestCaseExecutor()
     result = executor.execute(test_case)
     assert result.has_test_exceptions()
-
-
-@pytest.fixture
-def short_test_case(constructor_mock):
-    test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.return_value]
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_stmt)
-    return test_case
 
 
 def test_no_exceptions(short_test_case):
