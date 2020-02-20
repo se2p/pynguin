@@ -20,30 +20,28 @@ from math import inf
 from bytecode import Compare
 
 
+# pylint: disable=too-many-instance-attributes
 class ExecutionTracer:
     """Tracks branch distances during execution."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
-        self._existing_predicates: Set[int] = set()
         self._existing_functions: Set[int] = set()
+        self._existing_predicates: Set[int] = set()
+        self._existing_for_loops: Set[int] = set()
         self._init_tracking()
 
     def clear_tracking(self) -> None:
-        """Remove gathered data. Does not delete known predicates or functions."""
+        """Remove gathered data. Does not delete known predicates/functions/for-loops."""
         self._init_tracking()
 
     def _init_tracking(self) -> None:
         self._covered_functions: Set[int] = set()
         self._covered_predicates: Dict[int, int] = {}
+        self._covered_for_loops: Set[int] = set()
         self._true_distances: Dict[int, float] = {}
         self._false_distances: Dict[int, float] = {}
-
-    @property
-    def existing_predicates(self) -> Set[int]:
-        """Get existing predicates."""
-        return self._existing_predicates
 
     @property
     def existing_functions(self) -> Set[int]:
@@ -54,6 +52,11 @@ class ExecutionTracer:
     def covered_functions(self) -> Set[int]:
         """Get covered functions."""
         return self._covered_functions
+
+    @property
+    def existing_predicates(self) -> Set[int]:
+        """Get existing predicates."""
+        return self._existing_predicates
 
     @property
     def covered_predicates(self) -> Dict[int, int]:
@@ -70,15 +73,43 @@ class ExecutionTracer:
         """Get the minimum distances from "False" per predicate."""
         return self._false_distances
 
+    @property
+    def existing_for_loops(self) -> Set[int]:
+        """Get the existing for loops."""
+        return self._existing_for_loops
+
+    @property
+    def covered_for_loops(self) -> Set[int]:
+        """Get covered for loops."""
+        return self._covered_for_loops
+
     def get_fitness(self) -> float:
         """Get the fitness of a test suite that generated the tracked data."""
-        fit: float = len(self._existing_functions) - len(self._covered_functions)
-        assert fit >= 0.0, "Amount of non covered functions cannot be negative"
+        # Check if all functions were entered.
+        functions_missing: float = len(self._existing_functions) - len(
+            self._covered_functions
+        )
+        assert (
+            functions_missing >= 0.0
+        ), "Amount of non covered functions cannot be negative"
+
+        # Check if all for loops were entered.
+        for_loops_missing = len(self._existing_for_loops) - len(self._covered_for_loops)
+        assert (
+            for_loops_missing >= 0.0
+        ), "Amount of non covered for loops cannot be negative"
+
+        # Check if all predicates are covered
+        predicate_fitness: float = 0.0
         for predicate in self._existing_predicates:
-            fit += self._predicate_fitness(predicate, self._true_distances)
-            fit += self._predicate_fitness(predicate, self._false_distances)
-        assert fit >= 0.0, "Fitness cannot be negative"
-        return fit
+            predicate_fitness += self._predicate_fitness(
+                predicate, self._true_distances
+            )
+            predicate_fitness += self._predicate_fitness(
+                predicate, self._false_distances
+            )
+        assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
+        return functions_missing + for_loops_missing + predicate_fitness
 
     def _predicate_fitness(
         self, predicate: int, branch_distances: Dict[int, float]
@@ -106,6 +137,16 @@ class ExecutionTracer:
         """Mark a function as covered. This means, that the function was at least entered once."""
         assert function_id in self._existing_functions, "Cannot trace unknown function"
         self._covered_functions.add(function_id)
+
+    def for_loop_exists(self, for_loop_id: int) -> None:
+        """Declare that a for loop exists."""
+        assert for_loop_id not in self._existing_for_loops, "for loop already known"
+        self._existing_for_loops.add(for_loop_id)
+
+    def entered_for_loop(self, for_loop_id: int) -> None:
+        """Marks a for loop as covered. This means, that the for loop was at least entered once."""
+        assert for_loop_id in self._existing_for_loops, "Cannot tracer unknown for loop"
+        self._covered_for_loops.add(for_loop_id)
 
     def predicate_exists(self, predicate: int) -> None:
         """Declare that a predicate exists."""

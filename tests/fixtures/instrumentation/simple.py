@@ -30,3 +30,8 @@ def bool_predicate(a):
         return 1
     else:
         return 0
+
+
+def for_loop():
+    for x in [1]:
+        return x

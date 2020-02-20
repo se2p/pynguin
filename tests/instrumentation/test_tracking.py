@@ -61,6 +61,19 @@ def test_fitness_covered_both():
     assert tracer.get_fitness() == 0.0
 
 
+def test_fitness_uncovered_for_loop():
+    tracer = ExecutionTracer()
+    tracer.for_loop_exists(0)
+    assert tracer.get_fitness() == 1.0
+
+
+def test_fitness_covered_for_loop():
+    tracer = ExecutionTracer()
+    tracer.for_loop_exists(0)
+    tracer.entered_for_loop(0)
+    assert tracer.get_fitness() == 0.0
+
+
 def test_fitness_normalized():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
@@ -91,6 +104,19 @@ def test_entered_function():
     tracer.function_exists(0)
     tracer.entered_function(0)
     assert 0 in tracer.covered_functions
+
+
+def test_for_loop_exists():
+    tracer = ExecutionTracer()
+    tracer.for_loop_exists(0)
+    assert 0 in tracer.existing_for_loops
+
+
+def test_entered_for_loop():
+    tracer = ExecutionTracer()
+    tracer.for_loop_exists(0)
+    tracer.entered_for_loop(0)
+    assert 0 in tracer.covered_for_loops
 
 
 def test_predicate_exists():

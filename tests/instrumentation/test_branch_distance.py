@@ -36,6 +36,15 @@ def test_entered_function(simple_module):
     tracer.entered_function.assert_called_once()
 
 
+def test_entered_for_loop(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.for_loop)
+    simple_module.for_loop()
+    tracer.for_loop_exists.assert_called_once()
+    tracer.entered_for_loop.assert_called_once()
+
+
 def test_add_bool_predicate(simple_module):
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)

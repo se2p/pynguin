@@ -30,8 +30,9 @@ class BranchDistanceInstrumentation:
     _INSTRUMENTED_FLAG: str = "instrumented"
 
     def __init__(self, tracer: ExecutionTracer) -> None:
-        self._predicate_id: int = 0
         self._function_id: int = 0
+        self._predicate_id: int = 0
+        self._for_loop_id: int = 0
         self._tracer = tracer
 
     def instrument_function(self, to_instrument: FunctionType) -> None:
@@ -46,9 +47,7 @@ class BranchDistanceInstrumentation:
         to_instrument.__globals__[TRACER_NAME] = self._tracer
         to_instrument.__code__ = self._instrument_code_recursive(to_instrument.__code__)
 
-    def _instrument_code_recursive(self, code: CodeType) -> CodeType:
-        """Instrument the given CodeType recursively."""
-        # Nested functions are found within the consts of the CodeType.
+    def _instrument_inner_functions(self, code: CodeType) -> CodeType:
         new_consts = []
         for const in code.co_consts:
             if hasattr(const, "co_code"):
@@ -56,8 +55,12 @@ class BranchDistanceInstrumentation:
                 new_consts.append(self._instrument_code_recursive(const))
             else:
                 new_consts.append(const)
-        code = code.replace(co_consts=tuple(new_consts))
+        return code.replace(co_consts=tuple(new_consts))
 
+    def _instrument_code_recursive(self, code: CodeType) -> CodeType:
+        """Instrument the given CodeType recursively."""
+        # Nested functions are found within the consts of the CodeType.
+        code = self._instrument_inner_functions(code)
         instructions = Bytecode.from_code(code)
         code_iter: ListIterator = ListIterator(instructions)
         function_entered_inserted = False
@@ -65,6 +68,14 @@ class BranchDistanceInstrumentation:
             if not function_entered_inserted:
                 self._add_function_entered(code_iter)
                 function_entered_inserted = True
+
+            if (
+                code_iter.has_previous()
+                and isinstance(code_iter.previous(), Instr)
+                and code_iter.previous().name == "FOR_ITER"
+            ):
+                self._add_for_loop_entered(code_iter)
+
             current = code_iter.current()
             if isinstance(current, Instr) and current.is_cond_jump():
                 if (
@@ -111,15 +122,30 @@ class BranchDistanceInstrumentation:
 
     def _add_function_entered(self, iterator: ListIterator) -> None:
         self._tracer.function_exists(self._function_id)
+        self._add_entered_call(
+            iterator, ExecutionTracer.entered_function.__name__, self._function_id
+        )
+        self._function_id += 1
+
+    def _add_for_loop_entered(self, iterator: ListIterator) -> None:
+        self._tracer.for_loop_exists(self._for_loop_id)
+        self._add_entered_call(
+            iterator, ExecutionTracer.entered_for_loop.__name__, self._for_loop_id
+        )
+        self._for_loop_id += 1
+
+    @staticmethod
+    def _add_entered_call(
+        iterator: ListIterator, function_to_call: str, call_id: int
+    ) -> None:
         stmts = [
             Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", ExecutionTracer.entered_function.__name__),
-            Instr("LOAD_CONST", self._function_id),
+            Instr("LOAD_METHOD", function_to_call),
+            Instr("LOAD_CONST", call_id),
             Instr("CALL_METHOD", 1),
             Instr("POP_TOP"),
         ]
         iterator.insert_before(stmts)
-        self._function_id += 1
 
     def instrument(self, obj, seen: Set = None) -> None:
         """
