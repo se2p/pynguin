@@ -87,7 +87,7 @@ python-versions = "*"
 version = "0.10.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Composable command line interface toolkit"
 name = "click"
 optional = false
@@ -212,6 +212,19 @@ python-versions = "*"
 version = "0.6.1"
 
 [[package]]
+category = "main"
+description = "Generating type annotations from sampled production types"
+name = "monkeytype"
+optional = false
+python-versions = ">=3.6"
+version = "19.11.2"
+
+[package.dependencies]
+mypy-extensions = "*"
+retype = "*"
+stringcase = "*"
+
+[[package]]
 category = "dev"
 description = "More routines for operating on iterables, beyond itertools"
 name = "more-itertools"
@@ -236,7 +249,7 @@ typing-extensions = ">=3.7.4"
 dmypy = ["psutil (>=4.0)"]
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Experimental type system extensions for programs checked with the mypy typechecker."
 name = "mypy-extensions"
 optional = false
@@ -256,7 +269,7 @@ pyparsing = ">=2.0.2"
 six = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Utility library for gitignore style pattern matching of file paths."
 name = "pathspec"
 optional = false
@@ -433,6 +446,22 @@ version = "2020.2.18"
 
 [[package]]
 category = "main"
+description = "re-apply types from .pyi stub files to your codebase"
+name = "retype"
+optional = false
+python-versions = ">=3.6"
+version = "19.9.0"
+
+[package.dependencies]
+click = "*"
+pathspec = ">=0.5.9,<1"
+typed-ast = "*"
+
+[package.extras]
+testing = ["pytest (>=3.0.0,<5)", "pytest-cov (>=2.5.1,<3)"]
+
+[[package]]
+category = "main"
 description = "A small utility for simplifying and cleaning up argument parsing scripts."
 name = "simple-parsing"
 optional = false
@@ -459,6 +488,14 @@ python-versions = "*"
 version = "2.1.0"
 
 [[package]]
+category = "main"
+description = "String case converter."
+name = "stringcase"
+optional = false
+python-versions = "*"
+version = "1.2.0"
+
+[[package]]
 category = "dev"
 description = "ANSII Color formatting for output in terminal."
 name = "termcolor"
@@ -475,7 +512,7 @@ python-versions = "*"
 version = "0.10.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "a fork of Python 2 and 3 ast modules with type comment support"
 name = "typed-ast"
 optional = false
@@ -507,7 +544,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "27fa4c0cf6b8c8eaf753fbdb664c27c5539a8d28e20a41f5022f59a05a2547e7"
+content-hash = "e460462667c565c8147e2edd64f57619adffaf455346a5b8c0a469e4cb48feec"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -635,6 +672,10 @@ mccabe = [
     {file = "mccabe-0.6.1-py2.py3-none-any.whl", hash = "sha256:ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42"},
     {file = "mccabe-0.6.1.tar.gz", hash = "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"},
 ]
+monkeytype = [
+    {file = "MonkeyType-19.11.2-py3-none-any.whl", hash = "sha256:71da688939f08d19904462eef2e568a4f18f6133cc7e3c901ff5034c8ab5a538"},
+    {file = "MonkeyType-19.11.2.tar.gz", hash = "sha256:9f052b42851bc24603836ce3105166c8cc5edabeb25e8fcf256fa25777122618"},
+]
 more-itertools = [
     {file = "more-itertools-8.2.0.tar.gz", hash = "sha256:b1ddb932186d8a6ac451e1d95844b382f55e12686d51ca0c68b6f61f2ab7a507"},
     {file = "more_itertools-8.2.0-py3-none-any.whl", hash = "sha256:5dd8bcf33e5f9513ffa06d5ad33d78f31e1931ac9a18f33d37e77a180d393a7c"},
@@ -741,6 +782,10 @@ regex = [
     {file = "regex-2020.2.18-cp38-cp38-win_amd64.whl", hash = "sha256:54df3a00c5f8ece5ff969e0ee23fb01b927e9c265ea43b73da501677170b4746"},
     {file = "regex-2020.2.18.tar.gz", hash = "sha256:776908974bf26133abdb4a7b83943537aa84a207e0d36b6be9b0680e0d370163"},
 ]
+retype = [
+    {file = "retype-19.9.0-py3-none-any.whl", hash = "sha256:7d033b115f66e5327dea0a3fd7c9a3dbfa53841575daf27ce2ce409956d901d4"},
+    {file = "retype-19.9.0.tar.gz", hash = "sha256:846fd135d3ee33c1bad387602a405d808cb99a9a7a47299bfd0e1d25dfb2fedd"},
+]
 simple-parsing = [
     {file = "simple_parsing-0.0.7-py3-none-any.whl", hash = "sha256:d7ecaf6e9f82a5b6f82f5abc177e8bc67ba93aa6a34c3268c7dbdd3b845b1dd9"},
     {file = "simple_parsing-0.0.7.tar.gz", hash = "sha256:3b0cbafc5f6adfc8f3de4260f9345f3e1853db30933976f58a3fdc97e3f937c9"},
@@ -752,6 +797,9 @@ six = [
 sortedcontainers = [
     {file = "sortedcontainers-2.1.0-py2.py3-none-any.whl", hash = "sha256:d9e96492dd51fae31e60837736b38fe42a187b5404c16606ff7ee7cd582d4c60"},
     {file = "sortedcontainers-2.1.0.tar.gz", hash = "sha256:974e9a32f56b17c1bac2aebd9dcf197f3eb9cd30553c5852a3187ad162e1a03a"},
+]
+stringcase = [
+    {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},

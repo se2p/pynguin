@@ -35,6 +35,7 @@ coverage = "^5.0"
 astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0.10.0"
+monkeytype = "^19.11.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
