@@ -167,7 +167,7 @@ def test_last_starts_as_nan():
 def test_timer_sets_last():
     with Timer() as t:
         time.sleep(0.02)
-    assert t.last >= 0.02
+    assert t.last >= 0.015
 
 
 def test_timers_cleared():
