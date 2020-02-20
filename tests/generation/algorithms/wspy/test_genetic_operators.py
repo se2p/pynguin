@@ -14,7 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
-from pynguin.generation.algorithms.wspy.genetic_operations import crossover
+from pynguin.generation.algorithms.wspy.genetic_operations import (
+    crossover,
+    rank_selection,
+)
 
 
 def test_crossover_successful():
@@ -42,3 +45,13 @@ def test_crossover_to_small():
 
     crossover(parent1, parent2)
     parent1.size.assert_called_once()
+
+
+def test_rank_selection():
+    population_size = 10
+    assert 0 <= rank_selection(population_size) < population_size
+
+
+def test_rank_selection_int():
+    population_size = 1
+    assert isinstance(rank_selection(population_size), int)

@@ -127,6 +127,9 @@ class Configuration:
     # [0,1]
     none_probability: float = 0.1
 
+    # Bias for better individuals in rank selection
+    rank_bias = 1.7
+
     # What condition should be checked to end the search/test generation.
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
 
