@@ -25,3 +25,14 @@ def test_no_exceptions(short_test_case):
         result[0].funcname == "tests.fixtures.accessibles.accessible.SomeType.__init__"
     )
     assert result[0].arg_types["y"] == int
+
+
+def test_no_exceptions_test_suite(short_test_case):
+    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    executor = MonkeyTypeExecutor()
+    result = executor.execute_test_suite([short_test_case])
+    assert len(result) == 1
+    assert (
+        result[0].funcname == "tests.fixtures.accessibles.accessible.SomeType.__init__"
+    )
+    assert result[0].arg_types["y"] == int

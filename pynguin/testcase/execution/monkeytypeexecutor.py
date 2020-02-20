@@ -102,7 +102,13 @@ class MonkeyTypeExecutor(AbstractExecutor):
         return self._call_traces
 
     def execute_test_suite(self, test_suite: List[tc.TestCase]) -> List[CallTrace]:
-        pass
+        with open(os.devnull, mode="w") as null_file:
+            with contextlib.redirect_stdout(null_file):
+                for test_case in test_suite:
+                    self.setup(test_case)
+                    self._execute_ast_nodes()
+        self._filter_and_append_call_traces()
+        return self._call_traces
 
     def _execute_ast_nodes(self):
         for node in self._ast_nodes:
