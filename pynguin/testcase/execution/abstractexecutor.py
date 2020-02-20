@@ -95,3 +95,16 @@ class AbstractExecutor(Generic[T], metaclass=ABCMeta):
                 required_module
             ]
         return global_namespace
+
+    def setup(self, test_case: tc.TestCase) -> None:
+        """Setup the internal state of the executor to execute a test case
+
+        :param test_case: The test case to be executed
+        """
+        self._local_namespace = {}
+        self._variable_names = stmt_to_ast.NamingScope()
+        self._modules_aliases = stmt_to_ast.NamingScope(prefix="module")
+        self._ast_nodes = self.to_ast_nodes(
+            test_case, self._variable_names, self._modules_aliases
+        )
+        self._global_namespace = self.prepare_global_namespace(self._modules_aliases)

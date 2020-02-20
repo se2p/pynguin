@@ -25,7 +25,6 @@ from coverage import Coverage, CoverageException, CoverageData
 
 import pynguin.configuration as config
 import pynguin.testcase.execution.executionresult as res
-import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.testcase as tc
 from pynguin.instrumentation.basis import get_tracer
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
@@ -93,7 +92,7 @@ class TestCaseExecutor(AbstractExecutor):
             self._coverage.get_data().update(self._import_coverage)
 
         # TODO(fk) wrap new values in magic proxy.
-        self._setup(test_case)
+        self.setup(test_case)
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._execute_ast_nodes(result)
@@ -119,21 +118,12 @@ class TestCaseExecutor(AbstractExecutor):
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 for test_case in test_suite:
-                    self._setup(test_case)
+                    self.setup(test_case)
                     self._execute_ast_nodes(result)
                 self._collect_coverage(result)
                 self._collect_fitness(result)
         TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
         return result
-
-    def _setup(self, test_case: tc.TestCase) -> None:
-        self._local_namespace = {}
-        self._variable_names = stmt_to_ast.NamingScope()
-        self._modules_aliases = stmt_to_ast.NamingScope(prefix="module")
-        self._ast_nodes = self.to_ast_nodes(
-            test_case, self._variable_names, self._modules_aliases
-        )
-        self._global_namespace = self.prepare_global_namespace(self._modules_aliases)
 
     def _execute_ast_nodes(
         self, result: res.ExecutionResult,
