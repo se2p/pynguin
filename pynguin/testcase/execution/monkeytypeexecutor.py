@@ -22,7 +22,7 @@ from typing import List, Optional, Iterable, Dict, Any
 import astor
 from monkeytype.config import DefaultConfig
 from monkeytype.db.base import CallTraceStore, CallTraceThunk
-from monkeytype.encoding import serialize_traces
+from monkeytype.encoding import serialize_traces, CallTraceRow
 from monkeytype.tracing import CallTraceLogger, CallTrace, CallTracer
 
 import pynguin.configuration as config
@@ -46,14 +46,27 @@ class _MonkeyTypeCallTraceStore(CallTraceStore):
     def filter(
         self, module: str, qualname_prefix: Optional[str] = None, limit: int = 2000
     ) -> List[CallTraceThunk]:
-        pass
+        result: List[CallTraceThunk] = []
+        for stored_module, row in self._values.items():
+            is_qualname = qualname_prefix is not None and qualname_prefix in row[0]
+            if stored_module == module or is_qualname:
+                result.append(
+                    CallTraceRow(
+                        module=module,
+                        qualname=row[0],
+                        arg_types=row[1],
+                        return_type=row[2],
+                        yield_type=row[3],
+                    )
+                )
+        return result if len(result) < limit else result[:limit]
 
     @classmethod
     def make_store(cls, connection_string: str) -> "CallTraceStore":
         return cls()
 
     def list_modules(self) -> List[str]:
-        pass
+        return [k for k, _ in self._values.items()]
 
 
 class _MonkeyTypeCallTraceLogger(CallTraceLogger):
