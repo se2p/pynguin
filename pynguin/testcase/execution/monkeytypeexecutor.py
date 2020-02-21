@@ -127,8 +127,8 @@ class MonkeyTypeExecutor(AbstractExecutor):
         for node in self._ast_nodes:
             self._logger.debug("Executing %s", astor.to_source(node))
             code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
-            # pylint: disable=exec-used
             sys.setprofile(self._tracer)
+            # pylint: disable=exec-used
             exec(code, self._global_namespace, self._local_namespace)
             sys.setprofile(None)
 
