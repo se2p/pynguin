@@ -24,21 +24,19 @@ from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationS
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase import testfactory
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import GenerationException
-
-
-# pylint: disable=too-few-public-methods
 from pynguin.utils.statistics.timer import Timer
 
 
+# pylint: disable=too-few-public-methods
 class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor,) -> None:
+    def __init__(self, executor: AbstractExecutor) -> None:
         super().__init__()
         self._executor = executor
 

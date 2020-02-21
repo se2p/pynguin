@@ -32,10 +32,15 @@ from typing import Union, List
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+from pynguin.configuration import Algorithm
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
+    WholeSuiteTestStrategy,
+)
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
@@ -121,7 +126,9 @@ class Pynguin:
 
             timer = Timer(name="Test generation time", logger=None)
             timer.start()
-            algorithm: TestGenerationStrategy = RandomTestStrategy(executor)
+            algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
+                executor
+            )
             test_cases, failing_test_cases = algorithm.generate_sequences()
 
             with Timer(name="Re-execution time", logger=None):
@@ -141,6 +148,16 @@ class Pynguin:
                 status = 1
 
         return status
+
+    @staticmethod
+    def _instantiate_test_generation_strategy(
+        executor: AbstractExecutor,
+    ) -> TestGenerationStrategy:
+        if config.INSTANCE.algorithm == Algorithm.RANDOOPY:
+            return RandomTestStrategy(executor)
+        if config.INSTANCE.algorithm == Algorithm.WSPY:
+            return WholeSuiteTestStrategy(executor)
+        raise ConfigurationException("Unknown algorithm selected")
 
     @staticmethod
     def _print_results(
