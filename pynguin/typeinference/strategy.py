@@ -19,7 +19,6 @@ from inspect import Signature
 from typing import Callable, Dict, Optional
 
 
-# pylint: disable=too-few-public-methods
 @dataclass
 class InferredSignature:
     """Encapsulates the types inferred for a method"""
@@ -27,6 +26,24 @@ class InferredSignature:
     signature: Signature
     parameters: Dict[str, Optional[type]] = field(default_factory=dict)
     return_type: Optional[type] = None
+
+    def update_parameter_type(
+        self, parameter_name: str, parameter_type: Optional[type]
+    ) -> None:
+        """Updates the type of one parameter.
+
+        :param parameter_name: The name of the parameter
+        :param parameter_type: The new type of the parameter
+        """
+        assert parameter_name in self.parameters
+        self.parameters[parameter_name] = parameter_type
+
+    def update_return_type(self, return_type: Optional[type]) -> None:
+        """Updates the return type
+
+        :param return_type: The new return type
+        """
+        self.return_type = return_type
 
 
 # pylint: disable=too-few-public-methods
