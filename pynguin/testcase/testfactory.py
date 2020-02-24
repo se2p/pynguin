@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory for test-case generation."""
+from __future__ import annotations
 import logging
 from typing import List, Type, Optional, Dict
 
@@ -33,6 +34,12 @@ class _TestFactory:
     """A factory for test-case generation."""
 
     _logger = logging.getLogger(__name__)
+    _instance: Optional[_TestFactory] = None
+
+    def __new__(cls) -> _TestFactory:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def append_statement(
         self,

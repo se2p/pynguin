@@ -24,6 +24,7 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.testcase.testfactory import _TestFactory
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
 from tests.fixtures.examples.monkey import Monkey
@@ -131,3 +132,9 @@ def test_add_function(provide_callables_from_fixtures_modules):
     result = tf.add_function(test_case, generic_function, position=0)
     assert isinstance(result.variable_type, type(None))
     assert test_case.size() <= 4
+
+
+def test_singleton():
+    factory_1 = _TestFactory()
+    factory_2 = _TestFactory()
+    assert factory_1 is factory_2
