@@ -1,0 +1,72 @@
+# This file is part of Pynguin.
+#
+# Pynguin is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Pynguin is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+"""A random test generation strategy that utilises MonkeyType after the generation."""
+import logging
+from typing import List
+
+import pynguin.configuration as config
+import pynguin.testcase.testcase as tc
+from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
+    MonkeyTypeHandlerMixin,
+)
+from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.setup.testcluster import TestCluster
+
+
+class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
+    """A random test generation strategy that utilises MonkeyType.
+
+    The strategy does random test generation with an algorithm similar to Randoop.
+    For a successfully generated test case the algorithm calls the MonkeyType tool
+    and executes the test case under MonkeyType's supervision to gain type
+    information.  The collected type information will be propagated back to the
+    underlying `TestCluster`, such that it is available for the next algorithm
+    iteration.
+    """
+
+    _logger = logging.getLogger(__name__)
+
+    def generate_sequence(
+        self,
+        test_cases: List[tc.TestCase],
+        failing_test_cases: List[tc.TestCase],
+        test_cluster: TestCluster,
+        execution_counter: int,
+    ) -> None:
+        number_of_test_cases = len(test_cases)
+        super().generate_sequence(
+            test_cases, failing_test_cases, test_cluster, execution_counter
+        )
+        self._call_monkey_type(
+            number_of_test_cases, execution_counter, test_cases, test_cluster
+        )
+
+    def _call_monkey_type(
+        self,
+        number_of_test_cases: int,
+        execution_counter: int,
+        test_cases: List[tc.TestCase],
+        test_cluster: TestCluster,
+    ) -> None:
+        if execution_counter % config.INSTANCE.monkey_type_execution == 0:
+            self._logger.debug("Execute MonkeyType")
+            if len(test_cases) - number_of_test_cases == 1:
+                self._logger.debug("Execute MonkeyType on single test case")
+                self.handle_test_case(test_cases[-1], test_cluster)
+            elif len(test_cases) > number_of_test_cases:
+                self._logger.debug("Execute MonkeyType on test suite")
+                # TODO(sl) execute the full test suite or just the newly added test
+                #  cases?
+                self.handle_test_suite(test_cases, test_cluster)

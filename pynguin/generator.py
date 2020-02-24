@@ -33,6 +33,9 @@ from typing import Union, List
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 from pynguin.configuration import Algorithm
+from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
+    RandomTestMonkeyTypeStrategy,
+)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
@@ -155,6 +158,8 @@ class Pynguin:
     ) -> TestGenerationStrategy:
         if config.INSTANCE.algorithm == Algorithm.RANDOOPY:
             return RandomTestStrategy(executor)
+        if config.INSTANCE.algorithm == Algorithm.RANDOOPY_MONKEYTYPE:
+            return RandomTestMonkeyTypeStrategy(executor)
         if config.INSTANCE.algorithm == Algorithm.WSPY:
             return WholeSuiteTestStrategy(executor)
         raise ConfigurationException("Unknown algorithm selected")

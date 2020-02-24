@@ -30,6 +30,7 @@ class Algorithm(enum.Enum):
     """Different algorithms."""
 
     RANDOOPY = False
+    RANDOOPY_MONKEYTYPE = False
     WSPY = True
 
     def __init__(self, use_instrumentation: bool):
@@ -132,6 +133,9 @@ class Configuration:
 
     # What condition should be checked to end the search/test generation.
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
+
+    # Execute MonkeyType in each n-th iteration of the algorithm
+    monkey_type_execution: int = 1
 
 
 # Singleton instance of the configuration.
