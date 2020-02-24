@@ -60,8 +60,8 @@ class RandomTestStrategy(TestGenerationStrategy):
         while not self.is_fulfilled(stopping_condition):
             try:
                 execution_counter += 1
-                self._generate_sequence(
-                    test_cases, failing_test_cases, test_cluster,
+                self.generate_sequence(
+                    test_cases, failing_test_cases, test_cluster, execution_counter,
                 )
             except GenerationException as exception:
                 self._logger.debug(
@@ -76,11 +76,12 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         return test_cases, failing_test_cases
 
-    def _generate_sequence(
+    def generate_sequence(
         self,
         test_cases: List[tc.TestCase],
         failing_test_cases: List[tc.TestCase],
         test_cluster: TestCluster,
+        execution_counter: int,
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
 
@@ -88,7 +89,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         :param failing_test_cases: The list of currently not successful test cases
         :param test_cluster: A cluster storing the available types and methods for
         test generation
+        :param execution_counter: A current number of algorithm iterations
         """
+        self._logger.debug("Algorithm iteration %d", execution_counter)
         timer = Timer(name="Sequence generation", logger=None)
         timer.start()
         objects_under_test: Set[

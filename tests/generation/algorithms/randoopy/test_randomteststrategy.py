@@ -57,7 +57,7 @@ def test_generate_sequences(executor):
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
-    algorithm._generate_sequence = lambda t, f, o: None
+    algorithm.generate_sequence = lambda t, f, o, e: None
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases == []
     assert failing_test_cases == []
@@ -74,7 +74,7 @@ def test_generate_sequences_exception(executor):
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
-    algorithm._generate_sequence = raise_exception
+    algorithm.generate_sequence = raise_exception
     algorithm.generate_sequences()
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
@@ -132,7 +132,7 @@ def test_generate_sequence(has_exceptions, executor):
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
     ) as m:
-        algorithm._generate_sequence([dtc.DefaultTestCase()], [], test_cluster)
+        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
         m.append_generic_statement.assert_called_once()
 
 
@@ -146,5 +146,5 @@ def test_generate_sequence_duplicate(executor):
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
     ) as m:
-        algorithm._generate_sequence([dtc.DefaultTestCase()], [], test_cluster)
+        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
         m.append_generic_statement.assert_called_once()
