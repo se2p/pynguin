@@ -35,24 +35,37 @@ class _TestFactory:
     _logger = logging.getLogger(__name__)
 
     def append_statement(
-        self, test_case: tc.TestCase, statement: stmt.Statement
+        self,
+        test_case: tc.TestCase,
+        statement: stmt.Statement,
+        allow_none: bool = True,
     ) -> None:
         """Appends a statement to a test case.
 
         :param test_case: The test case
         :param statement: The statement to append
+        :param allow_none: Whether or not parameter variables can hold None values
         """
         if isinstance(statement, par_stmt.ConstructorStatement):
             self.add_constructor(
-                test_case, statement.constructor, position=test_case.size(),
+                test_case,
+                statement.constructor,
+                position=test_case.size(),
+                allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.MethodStatement):
             self.add_method(
-                test_case, statement.method, position=test_case.size(),
+                test_case,
+                statement.method,
+                position=test_case.size(),
+                allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.FunctionStatement):
             self.add_function(
-                test_case, statement.function, position=test_case.size(),
+                test_case,
+                statement.function,
+                position=test_case.size(),
+                allow_none=allow_none,
             )
         elif isinstance(statement, f_stmt.FieldStatement):
             self.add_field(
@@ -64,31 +77,43 @@ class _TestFactory:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
     def append_generic_statement(
-        self, test_case: tc.TestCase, statement: gao.GenericAccessibleObject
+        self,
+        test_case: tc.TestCase,
+        statement: gao.GenericAccessibleObject,
+        allow_none: bool = True,
     ) -> None:
         """Appends a generic accessible object to a test case.
 
         :param test_case: The test case
         :param statement: The object to append
+        :param allow_none: Whether or not parameter variables can hold None values
         :return:
         """
         if isinstance(statement, gao.GenericConstructor):
-            self.add_constructor(test_case, statement, position=test_case.size())
+            self.add_constructor(
+                test_case, statement, position=test_case.size(), allow_none=allow_none
+            )
         elif isinstance(statement, gao.GenericMethod):
-            self.add_method(test_case, statement, position=test_case.size())
+            self.add_method(
+                test_case, statement, position=test_case.size(), allow_none=allow_none
+            )
         elif isinstance(statement, gao.GenericFunction):
-            self.add_function(test_case, statement, position=test_case.size())
+            self.add_function(
+                test_case, statement, position=test_case.size(), allow_none=allow_none
+            )
         elif isinstance(statement, gao.GenericField):
             self.add_field(test_case, statement, position=test_case.size())
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
+    # pylint: disable=too-many-arguments
     def add_constructor(
         self,
         test_case: tc.TestCase,
         constructor: gao.GenericConstructor,
         position: int = -1,
         recursion_depth: int = 0,
+        allow_none: bool = True,
     ) -> vr.VariableReference:
         """Adds a constructor statement to a test case at a given position.
 
@@ -101,6 +126,7 @@ class _TestFactory:
         :param position: The position where to put the statement in the test case,
         defaults to the end of the test case
         :param recursion_depth: A recursion limit for the search of parameter values
+        :param allow_none: Whether or not a variable can be an None value
         :return: A variable reference to the constructor
         """
         self._logger.debug("Adding constructor %s", constructor)
@@ -119,6 +145,7 @@ class _TestFactory:
                 parameter_types=signature.parameters,
                 position=position,
                 recursion_depth=recursion_depth + 1,
+                allow_none=allow_none,
             )
             new_length = test_case.size()
             position = position + new_length - length
@@ -132,12 +159,14 @@ class _TestFactory:
                 f"Failed to add constructor for {constructor} " f"due to {exception}."
             )
 
+    # pylint: disable=too-many-arguments
     def add_method(
         self,
         test_case: tc.TestCase,
         method: gao.GenericMethod,
         position: int = -1,
         recursion_depth: int = 0,
+        allow_none: bool = True,
     ) -> vr.VariableReference:
         """Adds a method call to a test case at a given position.
 
@@ -150,6 +179,7 @@ class _TestFactory:
         :param position: The position where to put the statement in the test case,
         defaults to the end of the test case
         :param recursion_depth: A recursion limit for the search of parameter values
+        :param allow_none: Whether or not a variable can hold a None value
         :return: A variable reference to the method call's result
         """
         self._logger.debug("Adding method %s", method)
@@ -171,6 +201,7 @@ class _TestFactory:
             parameter_types=signature.parameters,
             position=position,
             recursion_depth=recursion_depth + 1,
+            allow_none=allow_none,
         )
 
         new_length = test_case.size()
@@ -218,12 +249,14 @@ class _TestFactory:
         statement = f_stmt.FieldStatement(test_case, field, callee)
         return test_case.add_statement(statement, position)
 
+    # pylint: disable=too-many-arguments
     def add_function(
         self,
         test_case: tc.TestCase,
         function: gao.GenericFunction,
         position: int = -1,
         recursion_depth: int = 0,
+        allow_none: bool = True,
     ) -> vr.VariableReference:
         """Adds a function call to a test case at a given position.
 
@@ -236,6 +269,7 @@ class _TestFactory:
         :param position: the position where to put the statement in the test case,
         defaults to the end of the test case
         :param recursion_depth: A recursion limit for the search of parameter values
+        :param allow_none: Whether or not a variable can hold a None value
         :return: A variable reference to the function call's result
         """
         self._logger.debug("Adding function %s", function)
@@ -253,6 +287,7 @@ class _TestFactory:
             parameter_types=signature.parameters,
             position=position,
             recursion_depth=recursion_depth + 1,
+            allow_none=allow_none,
         )
         new_length = test_case.size()
         position = position + new_length - length
