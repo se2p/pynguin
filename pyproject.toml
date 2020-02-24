@@ -36,13 +36,13 @@ astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0.10.0"
 monkeytype = "^19.11.2"
+mypy = "^0.761"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
 black = {version = "^19.10b0", allow-prereleases = true}
 flake8 = "^3.7"
 pytest-cov = "^2.8"
-mypy = "^0.761"
 pylint = "^2.4"
 pytest-sugar = "^0.9.2"
 pytest-picked = "^0.4.1"
