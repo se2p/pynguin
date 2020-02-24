@@ -13,22 +13,27 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a test cluster."""
-from typing import Type, Set, Dict, cast
+from __future__ import annotations
+from typing import Type, Set, Dict, cast, Optional
 
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class TestCluster:
-    """
-    A test cluster which contains all methods/constructors/functions
+    """A test cluster which contains all methods/constructors/functions
     and all required transitive dependencies.
     """
 
-    def __init__(self):
-        self._generators: Dict[Type, Set[GenericAccessibleObject]] = cast(
+    _instance: Optional[TestCluster] = None
+
+    def __new__(cls) -> TestCluster:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        cls._generators: Dict[Type, Set[GenericAccessibleObject]] = cast(
             Dict[Type, Set[GenericAccessibleObject]], dict()
         )
-        self._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
+        cls._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
+        return cls._instance
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator, if the type is known and not NoneType."""
