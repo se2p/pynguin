@@ -28,8 +28,8 @@ from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 @pytest.fixture
 def strategy():
     strategy = RandomTestMonkeyTypeStrategy(MagicMock(AbstractExecutor))
-    strategy.handle_test_case = lambda t, c: None
-    strategy.handle_test_suite = lambda t, c: None
+    strategy.execute_test_case_monkey_type = lambda t, c: None
+    strategy.execute_test_suite_monkey_type = lambda t, c: None
     return strategy
 
 

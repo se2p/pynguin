@@ -34,7 +34,7 @@ class MonkeyTypeHandlerMixin:
     def __init__(self) -> None:
         self._monkey_type_executor = MonkeyTypeExecutor()
 
-    def handle_test_case(
+    def execute_test_case_monkey_type(
         self, test_case: tc.TestCase, test_cluster: TestCluster
     ) -> None:
         """Handles a test case, i.e., executes it and propagates the results back.
@@ -55,7 +55,7 @@ class MonkeyTypeHandlerMixin:
         for result in results:
             self._update_type_inference(result, test_cluster)
 
-    def handle_test_suite(
+    def execute_test_suite_monkey_type(
         self, test_suite: List[tc.TestCase], test_cluster: TestCluster
     ) -> None:
         """Handles a test suite, i.e., executes it and propagates the results back.

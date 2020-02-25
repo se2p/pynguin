@@ -64,9 +64,9 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
             self._logger.debug("Execute MonkeyType")
             if len(test_cases) - number_of_test_cases == 1:
                 self._logger.debug("Execute MonkeyType on single test case")
-                self.handle_test_case(test_cases[-1], test_cluster)
+                self.execute_test_case_monkey_type(test_cases[-1], test_cluster)
             elif len(test_cases) > number_of_test_cases:
                 self._logger.debug("Execute MonkeyType on test suite")
                 # TODO(sl) execute the full test suite or just the newly added test
                 #  cases?
-                self.handle_test_suite(test_cases, test_cluster)
+                self.execute_test_suite_monkey_type(test_cases, test_cluster)
