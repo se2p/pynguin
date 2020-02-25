@@ -83,6 +83,7 @@ class MonkeyTypeHandlerMixin:
             if isinstance(out, GenericCallableAccessibleObject)
         }
         if call_trace.funcname in objects_under_test:
+            self._logger.debug("Update type information for %s", call_trace.funcname)
             object_under_test: GenericCallableAccessibleObject = objects_under_test[
                 call_trace.funcname
             ]
