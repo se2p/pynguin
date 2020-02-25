@@ -16,7 +16,7 @@
 from __future__ import annotations
 import enum
 import queue
-from typing import Optional, Any
+from typing import Optional, Any, Generator, Tuple
 
 
 class RuntimeVariable(enum.Enum):
@@ -65,3 +65,9 @@ class StatisticsTracker:
     def variables(self) -> queue.Queue:
         """Provides the queue of tracked variables"""
         return self._variables
+
+    @property
+    def variables_generator(self) -> Generator[Tuple[RuntimeVariable, Any], None, None]:
+        """Provides a generator"""
+        while not self._variables.empty():
+            yield self._variables.get()
