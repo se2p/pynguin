@@ -366,7 +366,7 @@ class _TestFactory:
             previous_length = test_case.size()
 
             if can_reuse_existing_variables:
-                self._logger.debug("Ca re-use variables")
+                self._logger.debug("Can re-use variables")
                 var = self._create_or_reuse_variable(
                     test_case,
                     parameter_type,
