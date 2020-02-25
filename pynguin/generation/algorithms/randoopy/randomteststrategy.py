@@ -37,7 +37,7 @@ class RandomTestStrategy(TestGenerationStrategy):
     _logger = logging.getLogger(__name__)
 
     def __init__(self, executor: AbstractExecutor) -> None:
-        super().__init__()
+        super(RandomTestStrategy, self).__init__()
         self._executor = executor
 
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:

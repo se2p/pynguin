@@ -23,6 +23,8 @@ from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
 )
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster
+from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
+from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 
 
 class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
@@ -37,6 +39,10 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
     """
 
     _logger = logging.getLogger(__name__)
+
+    def __init__(self, executor: AbstractExecutor) -> None:
+        super().__init__(executor)
+        self._monkey_type_executor = MonkeyTypeExecutor()
 
     def generate_sequence(
         self,
