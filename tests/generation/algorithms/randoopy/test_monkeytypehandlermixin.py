@@ -31,3 +31,10 @@ def test_handle_test_case(mixin, short_test_case):
     config.INSTANCE.module_name = module_name
     test_cluster = TestClusterGenerator(module_name).generate_cluster()
     mixin.handle_test_case(short_test_case, test_cluster)
+
+
+def test_handle_test_suite(mixin, short_test_case):
+    module_name = "tests.fixtures.accessibles.accessible"
+    config.INSTANCE.module_name = module_name
+    test_cluster = TestClusterGenerator(module_name).generate_cluster()
+    mixin.handle_test_suite([short_test_case], test_cluster)
