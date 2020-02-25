@@ -34,12 +34,22 @@ class MonkeyTypeHandlerMixin:
     def __init__(self) -> None:
         self._monkey_type_executor = MonkeyTypeExecutor()
 
-    def handle_test_case(self, test_case: tc.TestCase, test_cluster: TestCluster):
+    def handle_test_case(
+        self, test_case: tc.TestCase, test_cluster: TestCluster
+    ) -> None:
         """Handles a test case, i.e., executes it and propagates the results back.
 
-        :param test_case:
-        :param test_cluster:
-        :return:
+        The test case will be executed while MonkeyType is tracking all calls.
+        Afterwards, the results, i.e., the tracked types for calls, are collected
+        from the execution and the present type information gets updated accordingly.
+        See the documentation of the `MonkeyTypeExecutor` for details.
+
+        Currently, the update does only a simple `Union` of the existing and the
+        newly inferred types.  See the documentation of `typing.Union` for details on
+        how these `Union`s are handled.
+
+        :param test_case: The test case to execute
+        :param test_cluster: The underlying test cluster
         """
         results = self._monkey_type_executor.execute(test_case)
         for result in results:
@@ -47,12 +57,20 @@ class MonkeyTypeHandlerMixin:
 
     def handle_test_suite(
         self, test_suite: List[tc.TestCase], test_cluster: TestCluster
-    ):
+    ) -> None:
         """Handles a test suite, i.e., executes it and propagates the results back.
 
-        :param test_suite:
-        :param test_cluster:
-        :return:
+        Each test case will be executed while MonkeyType is tracking all calls.
+        Afterwards, the results, i.e., the tracked types for calls, are collected
+        from the execution and the present type information gets updated accordingly.
+        See the documentation of the `MonkeyTypeExecutor` for details.
+
+        Currently, the update does only a simple `Union` of the existing and the
+        newly inferred types.  See the documentation of `typing.Union` for details on
+        how these `Union`s are handled.
+
+        :param test_suite: The test suite to execute
+        :param test_cluster: The underlying test cluster
         """
         results = self._monkey_type_executor.execute_test_suite(test_suite)
         for result in results:
