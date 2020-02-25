@@ -86,7 +86,6 @@ class MonkeyTypeHandlerMixin:
             if isinstance(out, GenericCallableAccessibleObject)
         }
         if call_trace.funcname in objects_under_test:
-            self._logger.debug("Update type information for %s", call_trace.funcname)
             object_under_test: GenericCallableAccessibleObject = objects_under_test[
                 call_trace.funcname
             ]
@@ -95,10 +94,27 @@ class MonkeyTypeHandlerMixin:
             for name, type_ in signature.parameters.items():
                 if name in arg_types:
                     new_type = Union[type_, arg_types[name]]  # type: ignore
-                    signature.update_parameter_type(name, new_type)  # type: ignore
+                    if new_type != arg_types[name]:  # type: ignore
+                        self._logger.debug(
+                            "Update type information for %s: parameter %s, old type "
+                            "%s, new type %s",
+                            call_trace.funcname,
+                            name,
+                            str(type_),
+                            str(new_type),  # type: ignore
+                        )
+                        signature.update_parameter_type(name, new_type)  # type: ignore
             return_type = call_trace.return_type
             new_return_type = Union[signature.return_type, return_type]  # type: ignore
-            signature.update_return_type(new_return_type)  # type: ignore
+            if new_return_type != return_type:  # type: ignore
+                self._logger.debug(
+                    "Update type information for %s: return type, old type "
+                    "%s, new type %s",
+                    call_trace.funcname,
+                    str(return_type),
+                    str(new_return_type),  # type: ignore
+                )
+                signature.update_return_type(new_return_type)  # type: ignore
 
     @staticmethod
     def _full_name(callable_: Callable) -> str:
