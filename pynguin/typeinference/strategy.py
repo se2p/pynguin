@@ -15,7 +15,7 @@
 """Provides an inference strategy for types."""
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from inspect import Signature
+from inspect import Signature, Parameter
 from typing import Callable, Dict, Optional
 
 
@@ -37,6 +37,7 @@ class InferredSignature:
         """
         assert parameter_name in self.parameters
         self.parameters[parameter_name] = parameter_type
+        self._update_signature_parameter(parameter_name, parameter_type)
 
     def update_return_type(self, return_type: Optional[type]) -> None:
         """Updates the return type
@@ -44,6 +45,26 @@ class InferredSignature:
         :param return_type: The new return type
         """
         self.return_type = return_type
+        self._update_signature_return_type(return_type)
+
+    def _update_signature_parameter(
+        self, parameter_name: str, parameter_type: Optional[type],
+    ):
+        current_parameter: Optional[Parameter] = self.signature.parameters.get(
+            parameter_name
+        )
+        assert current_parameter is not None, "Cannot happen due to previous check"
+        new_parameter = current_parameter.replace(annotation=parameter_type)
+        new_parameters = [
+            new_parameter if key == parameter_name else value
+            for key, value in self.signature.parameters.items()
+        ]
+        new_signature = self.signature.replace(parameters=new_parameters)
+        self.signature = new_signature
+
+    def _update_signature_return_type(self, return_type: Optional[type]):
+        new_signature = self.signature.replace(return_annotation=return_type)
+        self.signature = new_signature
 
 
 # pylint: disable=too-few-public-methods
