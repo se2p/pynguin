@@ -29,11 +29,12 @@ class ExportStrategy(enum.Enum):
 class Algorithm(enum.Enum):
     """Different algorithms."""
 
-    RANDOOPY = False
-    RANDOOPY_MONKEYTYPE = False
-    WSPY = True
+    RANDOOPY = (enum.auto(), False)
+    RANDOOPY_MONKEYTYPE = (enum.auto(), False)
+    WSPY = (enum.auto(), True)
 
-    def __init__(self, use_instrumentation: bool):
+    def __init__(self, identifier: int, use_instrumentation: bool):
+        self._identifier = identifier
         self._use_instrumentation = use_instrumentation
 
     @property
