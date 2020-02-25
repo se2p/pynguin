@@ -24,6 +24,7 @@ from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
+from pynguin.utils.statistics.timer import Timer
 
 
 class MonkeyTypeHandlerMixin:
@@ -51,9 +52,10 @@ class MonkeyTypeHandlerMixin:
         :param test_case: The test case to execute
         :param test_cluster: The underlying test cluster
         """
-        results = self._monkey_type_executor.execute(test_case)
-        for result in results:
-            self._update_type_inference(result, test_cluster)
+        with Timer(name="MonkeyType execution", logger=None):
+            results = self._monkey_type_executor.execute(test_case)
+            for result in results:
+                self._update_type_inference(result, test_cluster)
 
     def execute_test_suite_monkey_type(
         self, test_suite: List[tc.TestCase], test_cluster: TestCluster
@@ -72,9 +74,10 @@ class MonkeyTypeHandlerMixin:
         :param test_suite: The test suite to execute
         :param test_cluster: The underlying test cluster
         """
-        results = self._monkey_type_executor.execute_test_suite(test_suite)
-        for result in results:
-            self._update_type_inference(result, test_cluster)
+        with Timer(name="MonkeyType execution", logger=None):
+            results = self._monkey_type_executor.execute_test_suite(test_suite)
+            for result in results:
+                self._update_type_inference(result, test_cluster)
 
     def _update_type_inference(self, call_trace: CallTrace, test_cluster: TestCluster):
         objects_under_test = {
