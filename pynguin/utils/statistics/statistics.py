@@ -32,6 +32,10 @@ class RuntimeVariable(enum.Enum):
     """
 
     total_time = "Total time spent by Pynguin to generate tests"
+    execution_results = "Execution results"
+    monkey_type_executions = "Number of MonkeyType executions"
+    parameter_type_updates = "Updated parameter types"
+    return_type_updates = "Updated return types"
 
     def __init__(self, value: str) -> None:
         self._value = value
