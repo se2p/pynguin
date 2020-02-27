@@ -63,4 +63,13 @@ class ExecutionResult:
         """
         self._exceptions[stmt_idx] = ex
 
+    def __str__(self) -> str:
+        return (
+            f"ExecutionResult(exceptions: {self._exceptions}, coverage: "
+            f"{self._branch_coverage}, fitness: {self._fitness}"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
     # TODO(fk) traces.
