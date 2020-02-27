@@ -44,6 +44,9 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         cases, the latter containing the failing test cases.
         """
 
+    def send_statistics(self):
+        """Sends statistics of the current strategy to tracker."""
+
     @staticmethod
     def has_type_violations(exceptions: List[Exception]) -> bool:
         """Returns whether or not a list of exceptions contains a type violation.

@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A mixin handling the execution of a test case with MonkeyType."""
 import logging
-from typing import List, Callable, Union
+from typing import List, Callable, Union, Tuple, Optional
 
 from monkeytype.tracing import CallTrace
 
@@ -34,6 +34,11 @@ class MonkeyTypeHandlerMixin:
 
     def __init__(self) -> None:
         self._monkey_type_executor = MonkeyTypeExecutor()
+        self._monkey_type_executions = 0
+        self._parameter_updates: List[
+            Tuple[str, str, Optional[type], Optional[type]]
+        ] = []
+        self._return_type_updates: List[Tuple[str, Optional[type], Optional[type]]] = []
 
     def execute_test_case_monkey_type(
         self, test_case: tc.TestCase, test_cluster: TestCluster
@@ -54,6 +59,7 @@ class MonkeyTypeHandlerMixin:
         """
         with Timer(name="MonkeyType execution", logger=None):
             results = self._monkey_type_executor.execute(test_case)
+            self._monkey_type_executions += 1
             for result in results:
                 self._update_type_inference(result, test_cluster)
 
@@ -76,6 +82,7 @@ class MonkeyTypeHandlerMixin:
         """
         with Timer(name="MonkeyType execution", logger=None):
             results = self._monkey_type_executor.execute_test_suite(test_suite)
+            self._monkey_type_executions += 1
             for result in results:
                 self._update_type_inference(result, test_cluster)
 
@@ -104,6 +111,9 @@ class MonkeyTypeHandlerMixin:
                             str(new_type),  # type: ignore
                         )
                         signature.update_parameter_type(name, new_type)  # type: ignore
+                        self._parameter_updates.append(
+                            (call_trace.funcname, name, type_, new_type)  # type: ignore
+                        )
             return_type = call_trace.return_type
             new_return_type = Union[signature.return_type, return_type]  # type: ignore
             if new_return_type != return_type:  # type: ignore
@@ -115,6 +125,9 @@ class MonkeyTypeHandlerMixin:
                     str(new_return_type),  # type: ignore
                 )
                 signature.update_return_type(new_return_type)  # type: ignore
+                self._return_type_updates.append(
+                    (call_trace.funcname, return_type, new_return_type)  # type: ignore
+                )
 
     @staticmethod
     def _full_name(callable_: Callable) -> str:
