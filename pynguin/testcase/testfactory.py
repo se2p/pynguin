@@ -431,6 +431,22 @@ class _TestFactory:
             )
             reference = randomness.choice(objects)
             return reference
+        if (
+            test_case.size() > 0
+            and isinstance(parameter_type, type(None))
+            and not objects
+        ):
+            self._logger.debug(
+                "Picking a random object from test case as parameter value"
+            )
+            variables: List[vr.VariableReference] = list(
+                map(
+                    lambda statement: statement.return_value,
+                    test_case.statements[:position],
+                )
+            )
+            reference = randomness.choice(variables)
+            return reference
 
         # if chosen to not re-use existing variable, try to create a new one
         created = self._create_variable(
