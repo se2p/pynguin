@@ -48,6 +48,7 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.statistics.statistics import StatisticsTracker
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -133,6 +134,7 @@ class Pynguin:
                 executor
             )
             test_cases, failing_test_cases = algorithm.generate_sequences()
+            algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
                 executor = TestCaseExecutor()
@@ -187,6 +189,12 @@ class Pynguin:
                 print(f"  {timer} median: {timers.median(timer):.5f}s")
                 print(f"  {timer} max: {timers.max(timer):.5f}s")
                 print(f"  {timer} stddev: {timers.std_dev(timer):.5f}s")
+
+        print()
+        print()
+        tracker = StatisticsTracker()
+        for variable, value in tracker.variables_generator:
+            print(f"{variable.value}: {value}")
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
