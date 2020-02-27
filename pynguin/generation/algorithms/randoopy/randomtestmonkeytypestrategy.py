@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A random test generation strategy that utilises MonkeyType after the generation."""
 import logging
-from typing import List
+from typing import List, Tuple, Optional
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -25,6 +25,7 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
+from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 
 
 class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
@@ -43,6 +44,11 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
     def __init__(self, executor: AbstractExecutor) -> None:
         super().__init__(executor)
         self._monkey_type_executor = MonkeyTypeExecutor()
+        self._monkey_type_executions = 0
+        self._parameter_updates: List[
+            Tuple[str, str, Optional[type], Optional[type]]
+        ] = []
+        self._return_type_updates: List[Tuple[str, Optional[type], Optional[type]]] = []
 
     def generate_sequence(
         self,
@@ -57,6 +63,19 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         )
         self._call_monkey_type(
             number_of_test_cases, execution_counter, test_cases, test_cluster
+        )
+
+    def send_statistics(self):
+        super().send_statistics()
+        tracker = StatisticsTracker()
+        tracker.track_output_variable(
+            RuntimeVariable.monkey_type_executions, self._monkey_type_executions
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.parameter_type_updates, self._parameter_updates
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.return_type_updates, self._return_type_updates
         )
 
     def _call_monkey_type(

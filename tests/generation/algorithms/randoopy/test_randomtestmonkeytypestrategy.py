@@ -23,6 +23,7 @@ from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import 
 )
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
+from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 
 
 @pytest.fixture
@@ -48,3 +49,15 @@ def test_call_monkey_type(
     strategy._call_monkey_type(
         number_of_test_cases, execution_counter, test_cases, MagicMock(TestCluster)
     )
+
+
+def test_send_statistics(strategy):
+    strategy.send_statistics()
+    tracker = StatisticsTracker()
+    statistics = [
+        v
+        for k, v in tracker.variables_generator
+        if k == RuntimeVariable.monkey_type_executions
+    ]
+    assert len(statistics) == 1
+    assert statistics[0] == 0
