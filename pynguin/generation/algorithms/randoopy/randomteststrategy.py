@@ -25,8 +25,10 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase import testfactory
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
+from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import GenerationException
+from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -39,6 +41,7 @@ class RandomTestStrategy(TestGenerationStrategy):
     def __init__(self, executor: AbstractExecutor) -> None:
         super(RandomTestStrategy, self).__init__()
         self._executor = executor
+        self._execution_results: List[ExecutionResult] = []
 
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         self._logger.info("Start generating sequences using random algorithm")
@@ -125,7 +128,15 @@ class RandomTestStrategy(TestGenerationStrategy):
         else:
             test_cases.append(new_test)
             # TODO(sl) What about extensible flags?
+        self._execution_results.append(exec_result)
         timer.stop()
+
+    def send_statistics(self):
+        super().send_statistics()
+        tracker = StatisticsTracker()
+        tracker.track_output_variable(
+            RuntimeVariable.execution_results, self._execution_results
+        )
 
     @staticmethod
     def _random_public_method(
