@@ -153,3 +153,20 @@ def test_select_from_union(type_, result):
     factory = _TestFactory()
     res = factory._select_from_union(type_)
     assert res in result
+
+
+@pytest.mark.parametrize(
+    "type_, statement_type",
+    [
+        pytest.param(int, int),
+        pytest.param(float, float),
+        pytest.param(bool, bool),
+        pytest.param(str, str),
+    ],
+)
+def test_create_primitive(type_, statement_type):
+    factory = _TestFactory()
+    result = factory._create_primitive(
+        dtc.DefaultTestCase(), type_, position=0, recursion_depth=0,
+    )
+    assert result.variable_type, statement_type
