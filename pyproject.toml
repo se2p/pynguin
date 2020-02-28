@@ -37,6 +37,7 @@ simple-parsing = "^0"
 bytecode = "^0.10.0"
 monkeytype = "^19.11.2"
 mypy = "^0.761"
+typing_inspect = "^0.5.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
