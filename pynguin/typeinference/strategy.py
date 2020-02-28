@@ -21,7 +21,30 @@ from typing import Callable, Dict, Optional
 
 @dataclass
 class InferredSignature:
-    """Encapsulates the types inferred for a method"""
+    """Encapsulates the types inferred for a method.
+
+    The fields contain the following:
+    - `signature`: Holds an `inspect.Signature` object as generated from the
+      `inspect.signature` function
+    - `parameters`: A dictionary mapping a parameter name to its type, if any.
+    - `return_type`: The return type of a method, if any.
+
+    The semantics of the `parameters` and `return_type` value for `None` is given as
+    follows: the value `None` means that we do not yet know anything about this type,
+    the value `NoneType` means that this parameter or return type is of type `None`,
+    i.e., there is not parameter or return value.
+
+    Consider the following example:
+    - `def foo()` with `return_type = None` means we do not know what the return type is
+    - `def bar() -> None` with `return_type = type(None) = NoneType` means that the
+      function does not return anything.
+
+    The types shall not be updated directly!  One is supposed to use the methods
+    `update_parameter_type(parameter_name: str, parameter_type: Optional[type])` and
+    `update_return_type(return_type: Optional[type])` to update the parameter or return
+    type, respectively.  These methods will also adjust the value of the `signature`
+    field by generating a new `inspect.Signature` instance accordingly.
+    """
 
     signature: Signature
     parameters: Dict[str, Optional[type]] = field(default_factory=dict)
