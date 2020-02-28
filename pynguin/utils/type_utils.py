@@ -26,8 +26,7 @@ def is_primitive_type(type_: Optional[Type]) -> bool:
 
 def is_union_type(type_: Optional[Type]) -> bool:
     """Checks whether or not a given type is a Union."""
-    # TODO is there a less hacky solution? cf. issue #25
-    if hasattr(type_, "__args__") and type_.__repr__().startswith("typing.Union"):
+    if type_ is not None and hasattr(type_, "__origin__") and type_.__origin__ is Union:
         return True
     return False
 
