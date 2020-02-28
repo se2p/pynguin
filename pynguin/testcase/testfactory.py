@@ -14,24 +14,23 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a factory for test-case generation."""
 from __future__ import annotations
+
 import logging
 from typing import List, Type, Optional, Dict
 
+from typing_inspect import is_union_type, get_args
+
 import pynguin.configuration as config
 import pynguin.testcase.statements.fieldstatement as f_stmt
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import (
-    is_primitive_type,
-    is_union_type,
-    get_union_elements,
-)
+from pynguin.utils.type_utils import is_primitive_type
 
 
 class _TestFactory:
@@ -552,7 +551,7 @@ class _TestFactory:
     def _select_from_union(parameter_type: Optional[Type]) -> Optional[Type]:
         if not is_union_type(parameter_type):
             return parameter_type
-        types = get_union_elements(parameter_type)
+        types = get_args(parameter_type)
         assert types is not None
         type_ = randomness.RNG.choice(types)
         return type_
