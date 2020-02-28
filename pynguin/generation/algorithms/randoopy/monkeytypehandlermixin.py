@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A mixin handling the execution of a test case with MonkeyType."""
 import logging
-from typing import List, Callable, Union, Tuple, Optional
+from typing import List, Callable, Union, Tuple, Optional, Type
 
 from monkeytype.tracing import CallTrace
 
@@ -100,33 +100,42 @@ class MonkeyTypeHandlerMixin:
             arg_types = call_trace.arg_types
             for name, type_ in signature.parameters.items():
                 if name in arg_types:
-                    new_type = Union[type_, arg_types[name]]  # type: ignore
-                    if new_type != arg_types[name]:  # type: ignore
+                    new_type: Type[...] = Union[type_, arg_types[name]]  # type: ignore
+                    if new_type != arg_types[name]:
+                        if isinstance(type_, type(None)) or type_ is None:
+                            new_type = arg_types[name]
                         self._logger.debug(
                             "Update type information for %s: parameter %s, old type "
                             "%s, new type %s",
                             call_trace.funcname,
                             name,
                             str(type_),
-                            str(new_type),  # type: ignore
+                            str(new_type),
                         )
-                        signature.update_parameter_type(name, new_type)  # type: ignore
+                        signature.update_parameter_type(name, new_type)
                         self._parameter_updates.append(
-                            (call_trace.funcname, name, type_, new_type)  # type: ignore
+                            (call_trace.funcname, name, type_, new_type)
                         )
             return_type = call_trace.return_type
-            new_return_type = Union[signature.return_type, return_type]  # type: ignore
-            if new_return_type != return_type:  # type: ignore
+            new_return_type: Type[...] = Union[  # type: ignore
+                signature.return_type, return_type
+            ]
+            if new_return_type != return_type:
+                if (
+                    isinstance(signature.return_type, type(None))
+                    or signature.return_type is None
+                ):
+                    new_return_type = return_type  # type: ignore
                 self._logger.debug(
                     "Update type information for %s: return type, old type "
                     "%s, new type %s",
                     call_trace.funcname,
                     str(return_type),
-                    str(new_return_type),  # type: ignore
+                    str(new_return_type),
                 )
-                signature.update_return_type(new_return_type)  # type: ignore
+                signature.update_return_type(new_return_type)
                 self._return_type_updates.append(
-                    (call_trace.funcname, return_type, new_return_type)  # type: ignore
+                    (call_trace.funcname, return_type, new_return_type)
                 )
 
     @staticmethod
