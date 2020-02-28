@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from inspect import Signature, Parameter
+from typing import Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -138,3 +139,17 @@ def test_singleton():
     factory_1 = _TestFactory()
     factory_2 = _TestFactory()
     assert factory_1 is factory_2
+
+
+@pytest.mark.parametrize(
+    "type_, result",
+    [
+        pytest.param(None, [None]),
+        pytest.param(bool, [bool]),
+        pytest.param(Union[int, float], (int, float)),
+    ],
+)
+def test_select_from_union(type_, result):
+    factory = _TestFactory()
+    res = factory._select_from_union(type_)
+    assert res in result

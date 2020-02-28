@@ -27,7 +27,11 @@ import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_primitive_type
+from pynguin.utils.type_utils import (
+    is_primitive_type,
+    is_union_type,
+    get_union_elements,
+)
 
 
 class _TestFactory:
@@ -410,6 +414,9 @@ class _TestFactory:
         allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
+        if is_union_type(parameter_type):
+            parameter_type = self._select_from_union(parameter_type)
+
         reuse = randomness.next_float()
         objects = test_case.get_objects(parameter_type, position)
         is_primitive = is_primitive_type(parameter_type)
@@ -540,6 +547,15 @@ class _TestFactory:
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
+
+    @staticmethod
+    def _select_from_union(parameter_type: Optional[Type]) -> Optional[Type]:
+        if not is_union_type(parameter_type):
+            return parameter_type
+        types = get_union_elements(parameter_type)
+        assert types is not None
+        type_ = randomness.RNG.choice(types)
+        return type_
 
 
 # pylint: disable=invalid-name
