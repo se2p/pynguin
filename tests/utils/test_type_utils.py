@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,6 +21,8 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     class_in_module,
     function_in_module,
+    is_union_type,
+    get_union_elements,
 )
 
 
@@ -55,3 +58,18 @@ def test_class_in_module(module, result):
 def test_function_in_module(module, result):
     predicate = function_in_module(module)
     assert predicate(patch) == result
+
+
+@pytest.mark.parametrize(
+    "type_, result", [pytest.param(int, False), pytest.param(Union[int, float], True)]
+)
+def test_is_union_type(type_, result):
+    assert is_union_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "type_, result",
+    [pytest.param(int, None), pytest.param(Union[int, float], (int, float))],
+)
+def test_get_union_elements(type_, result):
+    assert get_union_elements(type_) == result

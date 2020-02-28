@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides utilities when working with types."""
 from inspect import isclass, isfunction
-from typing import Type, Optional, Callable, Any
+from typing import Type, Optional, Callable, Any, Tuple, cast, Union
 
 _PRIMITIVES = {int, str, bool, float, complex}
 
@@ -22,6 +22,30 @@ _PRIMITIVES = {int, str, bool, float, complex}
 def is_primitive_type(type_: Optional[Type]) -> bool:
     """Check if the given type is a primitive."""
     return type_ in _PRIMITIVES
+
+
+def is_union_type(type_: Optional[Type]) -> bool:
+    """Checks whether or not a given type is a Union."""
+    # TODO is there a less hacky solution? cf. issue #25
+    if hasattr(type_, "__args__") and type_.__repr__().startswith("typing.Union"):
+        return True
+    return False
+
+
+def get_union_elements(type_: Optional[Type]) -> Optional[Tuple[Type]]:
+    """Provides the elements of an Union type, if any is given.
+
+    If the given parameter is not an Union type, the method returns `None`, otherwise it
+    returns the elements of the Union as a Tuple.
+
+    :param type_: The type to retrieve elements from
+    :return: None if `type_` is not a Union, a tuple of elements otherwise
+    """
+    if not is_union_type(type_):
+        return None
+    assert type_ is not None, "This is already given by the is_union_type function"
+    cast(Union, type_)
+    return type_.__args__
 
 
 def class_in_module(module_name: str) -> Callable[[Any], bool]:
