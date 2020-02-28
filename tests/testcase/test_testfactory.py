@@ -169,4 +169,4 @@ def test_create_primitive(type_, statement_type):
     result = factory._create_primitive(
         dtc.DefaultTestCase(), type_, position=0, recursion_depth=0,
     )
-    assert result.variable_type, statement_type
+    assert result.variable_type == statement_type
