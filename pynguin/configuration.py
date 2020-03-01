@@ -74,6 +74,9 @@ class Configuration:
     # Path to store the log file.
     log_file: Optional[str] = None
 
+    # Path to store the statistics CSV files to
+    statistics_path: Optional[str] = None
+
     # Measure coverage
     measure_coverage: bool = True
 
