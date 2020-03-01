@@ -101,6 +101,11 @@ class RandomTestStrategy(TestGenerationStrategy):
             gao.GenericAccessibleObject
         ] = test_cluster.accessible_objects_under_test
 
+        if not objects_under_test:
+            # In case we do not have any objects under test, we cannot generate a
+            # test case.
+            return
+
         # Create new test case, i.e., sequence in Randoop paper terminology
         # Pick a random public method from objects under test
         method = self._random_public_method(objects_under_test)

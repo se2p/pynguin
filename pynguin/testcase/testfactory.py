@@ -476,8 +476,9 @@ class _TestFactory:
                     test_case.statements[:position],
                 )
             )
-            reference = randomness.choice(variables)
-            return reference
+            if variables:
+                reference = randomness.choice(variables)
+                return reference
 
         # if chosen to not re-use existing variable, try to create a new one
         created = self._create_variable(
