@@ -203,9 +203,24 @@ class Pynguin:
             print(f"{variable.value}: {value}")
 
         if config.INSTANCE.statistics_path is not None:
-            execution_results = variables[RuntimeVariable.execution_results]
+            execution_results = list(
+                filter(
+                    lambda execution: execution.exceptions == {},
+                    variables[RuntimeVariable.execution_results],
+                )
+            )
             writer = CoverageStatisticCSVWriter(execution_results)
             writer.write_statistics()
+            failing_execution_results = list(
+                filter(
+                    lambda execution: execution.exceptions != {},
+                    variables[RuntimeVariable.execution_results],
+                )
+            )
+            failing_writer = CoverageStatisticCSVWriter(
+                failing_execution_results, folder="coverage_failing"
+            )
+            failing_writer.write_statistics()
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
