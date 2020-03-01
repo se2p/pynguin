@@ -28,7 +28,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Union, List
+from typing import Union, List, Dict, Any
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -194,15 +194,16 @@ class Pynguin:
         print()
         print()
         tracker = StatisticsTracker()
+        variables: Dict[RuntimeVariable, Any] = {}
         for variable, value in tracker.variables_generator:
+            # Iterating over the variables of the StatisticsTracker clears them from
+            # the internal queue, thus we need to store these variables.
+            # TODO This should be improved
+            variables[variable] = value
             print(f"{variable.value}: {value}")
 
         if config.INSTANCE.statistics_path is not None:
-            execution_results = [
-                value
-                for variable, value in tracker.variables_generator
-                if variable == RuntimeVariable.execution_results
-            ]
+            execution_results = variables[RuntimeVariable.execution_results]
             writer = CoverageStatisticCSVWriter(execution_results)
             writer.write_statistics()
 
