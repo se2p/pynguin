@@ -16,3 +16,9 @@
 
 def _private_method(a: int, b: int) -> int:
     return a + b
+
+
+class Dummy:
+    @staticmethod
+    def _private(self, x: int) -> int:
+        return x

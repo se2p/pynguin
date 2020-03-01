@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from tests.fixtures.cluster.no_dependencies import Test
 from tests.fixtures.cluster.dependency import SomeArgumentType
 
@@ -45,3 +46,13 @@ def test_test_cluster_generator_simple_dependencies_only_own_classes():
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
     assert len(cluster.accessible_objects_under_test) == 1
+
+
+def test_test_cluster_generator_private_method_not_added():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.examples.private_methods"
+    ).generate_cluster()
+    assert len(cluster.accessible_objects_under_test) == 1
+    assert isinstance(
+        next(iter(cluster.accessible_objects_under_test)), GenericConstructor
+    )

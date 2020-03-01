@@ -75,6 +75,9 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         for function_name, funktion in inspect.getmembers(
             module, function_in_module(self._module_name)
         ):
+            if function_name.startswith("_") and not function_name.startswith("__"):
+                self._logger.debug("Skip private function %s", function_name)
+                continue
             self._logger.debug("Analyzing function %s", function_name)
             generic_function = GenericFunction(
                 funktion, self._inference.infer_type_info(funktion)[0]
@@ -137,6 +140,10 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             if method_name == "__init__":
                 # The constructor is handled elsewhere.
                 continue
+            if method_name.startswith("_") and not method_name.startswith("__"):
+                self._logger.debug("Skip private method %s", method_name)
+                continue
+
             generic_method = GenericMethod(
                 klass, method, self._inference.infer_type_info(method)[0]
             )
