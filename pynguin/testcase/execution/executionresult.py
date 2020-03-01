@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides the result of an execution run."""
+import time
 from typing import Dict, Optional
 
 
@@ -23,6 +24,7 @@ class ExecutionResult:
         self._exceptions: Dict[int, Exception] = {}
         self._branch_coverage = 0.0
         self._fitness: Optional[float] = None
+        self._time_stamp: int = time.time_ns()
 
     @property
     def exceptions(self) -> Dict[int, Exception]:
@@ -37,6 +39,7 @@ class ExecutionResult:
     @branch_coverage.setter
     def branch_coverage(self, value: float) -> None:
         """Set the achieved branch coverage."""
+        self._time_stamp = time.time_ns()
         self._branch_coverage = value
 
     @property
@@ -47,7 +50,13 @@ class ExecutionResult:
     @fitness.setter
     def fitness(self, value: float) -> None:
         """Set the achieved fitness"""
+        self._time_stamp = time.time_ns()
         self._fitness = value
+
+    @property
+    def time_stamp(self) -> int:
+        """Provides the last update time of this result in nano seconds from epoch."""
+        return self._time_stamp
 
     def has_test_exceptions(self) -> bool:
         """

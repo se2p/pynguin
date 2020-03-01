@@ -12,6 +12,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import time
+
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
@@ -42,3 +44,9 @@ def test_fitness_setter():
     result = ExecutionResult()
     result.fitness = 5.0
     assert result.fitness == 5.0
+
+
+def test_time_stamp():
+    current = time.time_ns()
+    result = ExecutionResult()
+    assert current <= result.time_stamp
