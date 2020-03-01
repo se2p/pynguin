@@ -132,8 +132,10 @@ def test_generate_sequence(has_exceptions, executor):
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
     ) as m:
-        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
-        m.append_generic_statement.assert_called_once()
+        result = algorithm.generate_sequence(
+            [dtc.DefaultTestCase()], [], test_cluster, 0
+        )
+        assert result is None
 
 
 def test_generate_sequence_duplicate(executor):
@@ -146,5 +148,7 @@ def test_generate_sequence_duplicate(executor):
     with mock.patch(
         "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
     ) as m:
-        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
-        m.append_generic_statement.assert_called_once()
+        result = algorithm.generate_sequence(
+            [dtc.DefaultTestCase()], [], test_cluster, 0
+        )
+        assert result is None
