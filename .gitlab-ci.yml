@@ -50,11 +50,12 @@ nightly-tests:python-3.9:
   variables:
     PYTHON_VERSION: '3.9-rc-buster'
 
-flake8:
-  stage: build
-  image: python:3.8
-  script:
-    - poetry run flake8 .
+#flake8:
+#  stage: build
+#  image: python:3.8
+#  script:
+#    - poetry run flake8 .
+
 mypy:
   stage: build
   image: python:3.8
