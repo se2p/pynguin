@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Type, Optional, Dict
+from typing import List, Type, Optional, Dict, Set
 
 from typing_inspect import is_union_type, get_args
 
@@ -28,8 +28,10 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.setup.testcluster import TestCluster
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import is_primitive_type
 
 
@@ -86,35 +88,58 @@ class _TestFactory:
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
+    # pylint: disable=too-many-arguments
     def append_generic_statement(
         self,
         test_case: tc.TestCase,
         statement: gao.GenericAccessibleObject,
+        position: int = -1,
+        recursion_depth: int = 0,
         allow_none: bool = True,
-    ) -> None:
+    ) -> Optional[vr.VariableReference]:
         """Appends a generic accessible object to a test case.
 
         :param test_case: The test case
         :param statement: The object to append
+        :param position: The position to insert the statement, default is at the end
+        of the test case
+        :param recursion_depth: The recursion depth for search
         :param allow_none: Whether or not parameter variables can hold None values
-        :return:
+        :return: An optional variable reference to the added statement
         """
+        new_position = test_case.size() if position == -1 else position
         if isinstance(statement, gao.GenericConstructor):
-            self.add_constructor(
-                test_case, statement, position=test_case.size(), allow_none=allow_none
+            return self.add_constructor(
+                test_case,
+                statement,
+                position=new_position,
+                allow_none=allow_none,
+                recursion_depth=recursion_depth,
             )
-        elif isinstance(statement, gao.GenericMethod):
-            self.add_method(
-                test_case, statement, position=test_case.size(), allow_none=allow_none
+        if isinstance(statement, gao.GenericMethod):
+            return self.add_method(
+                test_case,
+                statement,
+                position=new_position,
+                allow_none=allow_none,
+                recursion_depth=recursion_depth,
             )
-        elif isinstance(statement, gao.GenericFunction):
-            self.add_function(
-                test_case, statement, position=test_case.size(), allow_none=allow_none
+        if isinstance(statement, gao.GenericFunction):
+            return self.add_function(
+                test_case,
+                statement,
+                position=new_position,
+                allow_none=allow_none,
+                recursion_depth=recursion_depth,
             )
-        elif isinstance(statement, gao.GenericField):
-            self.add_field(test_case, statement, position=test_case.size())
-        else:
-            raise ConstructionFailedException(f"Unknown statement type: {statement}")
+        if isinstance(statement, gao.GenericField):
+            return self.add_field(
+                test_case,
+                statement,
+                position=new_position,
+                recursion_depth=recursion_depth,
+            )
+        raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
     # pylint: disable=too-many-arguments
     def add_constructor(
@@ -509,11 +534,32 @@ class _TestFactory:
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
             )
+        if type_generators := TestCluster().get_generators_for(parameter_type):
+            return self._attempt_generation_for_type(
+                test_case, position, recursion_depth, allow_none, type_generators
+            )
         if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )
         return None
+
+    def _attempt_generation_for_type(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
+        type_generators: Set[GenericAccessibleObject],
+    ) -> Optional[vr.VariableReference]:
+        type_generator = randomness.choice(list(type_generators))
+        return self.append_generic_statement(
+            test_case,
+            type_generator,
+            position=position,
+            recursion_depth=recursion_depth + 1,
+            allow_none=allow_none,
+        )
 
     @staticmethod
     def _create_none(
