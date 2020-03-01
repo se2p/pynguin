@@ -48,7 +48,8 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.statistics.statistics import StatisticsTracker
+from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics_csv_writer import CoverageStatisticCSVWriter
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -195,6 +196,15 @@ class Pynguin:
         tracker = StatisticsTracker()
         for variable, value in tracker.variables_generator:
             print(f"{variable.value}: {value}")
+
+        if config.INSTANCE.statistics_path is not None:
+            execution_results = [
+                value
+                for variable, value in tracker.variables_generator
+                if variable == RuntimeVariable.execution_results
+            ]
+            writer = CoverageStatisticCSVWriter(execution_results)
+            writer.write_statistics()
 
     @staticmethod
     def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
