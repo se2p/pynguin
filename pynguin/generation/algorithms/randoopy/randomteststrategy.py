@@ -94,7 +94,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         test generation
         :param execution_counter: A current number of algorithm iterations
         """
-        self._logger.debug("Algorithm iteration %d", execution_counter)
+        self._logger.info("Algorithm iteration %d", execution_counter)
         timer = Timer(name="Sequence generation", logger=None)
         timer.start()
         objects_under_test: Set[
@@ -104,7 +104,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         if not objects_under_test:
             # In case we do not have any objects under test, we cannot generate a
             # test case.
-            return
+            raise GenerationException(
+                "Cannot generate test case without an object-under-test!"
+            )
 
         # Create new test case, i.e., sequence in Randoop paper terminology
         # Pick a random public method from objects under test

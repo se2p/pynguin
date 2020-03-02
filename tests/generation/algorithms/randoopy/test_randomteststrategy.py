@@ -129,13 +129,8 @@ def test_generate_sequence(has_exceptions, executor):
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(MagicMock(stmt.Statement))
     algorithm._random_test_cases = lambda x: [test_case]
-    with mock.patch(
-        "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
-    ) as m:
-        result = algorithm.generate_sequence(
-            [dtc.DefaultTestCase()], [], test_cluster, 0
-        )
-        assert result is None
+    with pytest.raises(GenerationException):
+        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
 
 
 def test_generate_sequence_duplicate(executor):
@@ -145,10 +140,5 @@ def test_generate_sequence_duplicate(executor):
     algorithm._random_public_method = lambda x: None
     test_case = dtc.DefaultTestCase()
     algorithm._random_test_cases = lambda x: [test_case]
-    with mock.patch(
-        "pynguin.generation.algorithms.randoopy.randomteststrategy.testfactory"
-    ) as m:
-        result = algorithm.generate_sequence(
-            [dtc.DefaultTestCase()], [], test_cluster, 0
-        )
-        assert result is None
+    with pytest.raises(GenerationException):
+        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)

@@ -86,7 +86,6 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         test_cluster: TestCluster,
     ) -> None:
         if execution_counter % config.INSTANCE.monkey_type_execution == 0:
-            self._logger.debug("Execute MonkeyType")
             if len(test_cases) - number_of_test_cases == 1:
                 self._logger.debug("Execute MonkeyType on single test case")
                 self.execute_test_case_monkey_type(test_cases[-1], test_cluster)
