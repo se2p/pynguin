@@ -164,7 +164,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.5.4"
+version = "5.6.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -466,7 +466,7 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.7"
+version = "0.0.8"
 
 [package.dependencies]
 dataclasses = "*"
@@ -650,8 +650,8 @@ flake8 = [
     {file = "flake8-3.7.9.tar.gz", hash = "sha256:45681a117ecc81e870cbf1262835ae4af5e7a8b08e40b944a8a6e6b895914cfb"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.5.4-py3-none-any.whl", hash = "sha256:c82209a75ffb17556b2c396bbd55832f1525938809bd8bb6651a86e7b5ded154"},
-    {file = "hypothesis-5.5.4.tar.gz", hash = "sha256:2e5382dea626072f12a17c10d2b3c3f13bb7cb35ba40d0978bc29b0ade589b63"},
+    {file = "hypothesis-5.6.0-py3-none-any.whl", hash = "sha256:4b4c236a2e14fca1dfc254bb38592360dfb1cbd9d3c4c410c0b7e91f37a43bf3"},
+    {file = "hypothesis-5.6.0.tar.gz", hash = "sha256:22fb60bd0c6eb7849121a7df263a91da23b4e8506d3ba9e92ac696d2720ac0f5"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
@@ -799,8 +799,8 @@ retype = [
     {file = "retype-19.9.0.tar.gz", hash = "sha256:846fd135d3ee33c1bad387602a405d808cb99a9a7a47299bfd0e1d25dfb2fedd"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.7-py3-none-any.whl", hash = "sha256:d7ecaf6e9f82a5b6f82f5abc177e8bc67ba93aa6a34c3268c7dbdd3b845b1dd9"},
-    {file = "simple_parsing-0.0.7.tar.gz", hash = "sha256:3b0cbafc5f6adfc8f3de4260f9345f3e1853db30933976f58a3fdc97e3f937c9"},
+    {file = "simple_parsing-0.0.8-py3-none-any.whl", hash = "sha256:fa079dce18c91a4f08c19790f17fb55fb0df8b975cf8e0c2c85df94583e29851"},
+    {file = "simple_parsing-0.0.8.tar.gz", hash = "sha256:a88cb2431c26efcf30a49f204aa9b7425bdd9c939b32cfb1869913415ec5890a"},
 ]
 six = [
     {file = "six-1.14.0-py2.py3-none-any.whl", hash = "sha256:8f3cd2e254d8f793e7f3d6d9df77b92252b52637291d0f0da013c76ea2724b6c"},
