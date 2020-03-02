@@ -27,6 +27,7 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.testfactory import _TestFactory
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -235,3 +236,54 @@ def test_create_primitive(type_, statement_type):
         dtc.DefaultTestCase(), type_, position=0, recursion_depth=0,
     )
     assert result.variable_type == statement_type
+
+
+def test_attempt_generation_for_type(test_case_mock):
+    def mock(t, g, position, recursion_depth, allow_none):
+        assert position == 0
+        assert recursion_depth == 1
+        assert allow_none
+
+    factory = _TestFactory()
+    factory.append_generic_statement = mock
+    factory._attempt_generation_for_type(
+        test_case_mock, 0, 0, True, {MagicMock(gao.GenericAccessibleObject)}
+    )
+
+
+def test_attempt_generation_for_no_type(test_case_mock):
+    factory = _TestFactory()
+    result = factory._attempt_generation(test_case_mock, None, 0, 0, True)
+    assert result is None
+
+
+def test_attempt_generation_for_none_type(reset_configuration):
+    config.INSTANCE.none_probability = 1.0
+    factory = _TestFactory()
+    result = factory._attempt_generation(
+        dtc.DefaultTestCase(), MagicMock(_TestFactory), 0, 0, True
+    )
+    assert result.distance == 0
+
+
+def test_attempt_generation_for_none_type_with_no_probability(reset_configuration):
+    config.INSTANCE.none_probability = 0.0
+    factory = _TestFactory()
+    result = factory._attempt_generation(
+        dtc.DefaultTestCase(), MagicMock(_TestFactory), 0, 0, True
+    )
+    assert result is None
+
+
+def test_attempt_generation_for_type_from_cluster(test_case_mock, reset_configuration):
+    def mock(t, position, recursion_depth, allow_none, type_generators):
+        assert position == 0
+        assert recursion_depth == 0
+        assert allow_none
+        assert isinstance(type_generators, gao.GenericAccessibleObject)
+
+    cluster = TestCluster()
+    cluster.get_generators_for = lambda t: MagicMock(gao.GenericAccessibleObject)
+    factory = _TestFactory()
+    factory._attempt_generation_for_type = mock
+    factory._attempt_generation(test_case_mock, MagicMock(_TestFactory), 0, 0, True)
