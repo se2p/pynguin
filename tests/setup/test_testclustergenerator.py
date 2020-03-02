@@ -12,7 +12,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import os
+
+import pytest
+
+import pynguin.configuration as config
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
+from pynguin.typeinference.stubstrategy import StubInferenceStrategy
+from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from tests.fixtures.cluster.no_dependencies import Test
 from tests.fixtures.cluster.dependency import SomeArgumentType
@@ -56,3 +65,26 @@ def test_test_cluster_generator_private_method_not_added():
     assert isinstance(
         next(iter(cluster.accessible_objects_under_test)), GenericConstructor
     )
+
+
+@pytest.mark.parametrize(
+    "inference_strategy, obj",
+    [
+        pytest.param(config.TypeInferenceStrategy.NONE, NoTypeInferenceStrategy),
+        pytest.param(config.TypeInferenceStrategy.STUB_FILES, StubInferenceStrategy),
+        pytest.param(
+            config.TypeInferenceStrategy.TYPE_HINTS, TypeHintsInferenceStrategy
+        ),
+    ],
+)
+def test_initialise_type_inference_strategies(inference_strategy, obj):
+    config.INSTANCE.type_inference_strategy = inference_strategy
+    config.INSTANCE.stub_dir = os.devnull
+    generator = TestClusterGenerator("")
+    assert isinstance(generator._inference._strategies[0], obj)
+
+
+def test_initialise_stub_inference_strategy_exception():
+    config.INSTANCE.type_inference_strategy = config.TypeInferenceStrategy.STUB_FILES
+    with pytest.raises(ConfigurationException):
+        TestClusterGenerator("")

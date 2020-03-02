@@ -51,6 +51,14 @@ class StoppingCondition(enum.Enum):
     MAX_TESTS = "MAX_TESTS"
 
 
+class TypeInferenceStrategy(enum.Enum):
+    """The different available type-inference strategies."""
+
+    NONE = "NoTypeInferenceStrategy"
+    STUB_FILES = "StubInferenceStrategy"
+    TYPE_HINTS = "TypeHintsInferenceStrategy"
+
+
 # pylint: disable=too-many-instance-attributes
 @dataclasses.dataclass(repr=True, eq=True)
 class Configuration:
@@ -140,6 +148,12 @@ class Configuration:
 
     # Execute MonkeyType in each n-th iteration of the algorithm
     monkey_type_execution: int = 1
+
+    # The strategy for type-inference that shall be used
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+
+    # Path to the pyi-stub files for the StubInferenceStrategy
+    stub_dir: Optional[str] = None
 
 
 # Singleton instance of the configuration.

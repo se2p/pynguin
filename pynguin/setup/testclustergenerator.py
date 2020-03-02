@@ -18,11 +18,16 @@ import importlib
 import inspect
 import logging
 
-from typing import Type, Set
+from typing import Type, Set, List
+
 from pynguin.typeinference import typeinference
+from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
+from pynguin.typeinference.strategy import TypeInferenceStrategy
+from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 import pynguin.configuration as config
 from pynguin.setup.testcluster import TestCluster
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericMethod,
     GenericFunction,
@@ -61,8 +66,23 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._test_cluster: TestCluster = TestCluster()
         # TODO(fk) use configured inference strategy
         self._inference = typeinference.TypeInference(
-            strategies=[TypeHintsInferenceStrategy()]
+            strategies=self._initialise_type_inference_strategies()
         )
+
+    @staticmethod
+    def _initialise_type_inference_strategies() -> List[TypeInferenceStrategy]:
+        strategy = config.INSTANCE.type_inference_strategy
+        if strategy == config.TypeInferenceStrategy.NONE:
+            return [NoTypeInferenceStrategy()]
+        if strategy == config.TypeInferenceStrategy.STUB_FILES:
+            if config.INSTANCE.stub_dir is None:
+                raise ConfigurationException(
+                    "Missing configuration value `stub_dir' for StubInferenceStrategy"
+                )
+            return [StubInferenceStrategy(config.INSTANCE.stub_dir)]
+        if strategy == config.TypeInferenceStrategy.TYPE_HINTS:
+            return [TypeHintsInferenceStrategy()]
+        raise ConfigurationException("Invalid type-inference strategy")
 
     def generate_cluster(self) -> TestCluster:
         """Generate new test cluster from the configured modules."""
