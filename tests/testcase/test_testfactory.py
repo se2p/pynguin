@@ -21,6 +21,8 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.fieldstatement as f_stmt
+import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
@@ -49,6 +51,69 @@ def test_check_recursion_depth_guard(test_case_mock, reset_configuration, method
     with pytest.raises(ConstructionFailedException):
         getattr(tf, method)(
             test_case_mock, MagicMock(stmt.Statement), recursion_depth=11
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        pytest.param(MagicMock(par_stmt.ConstructorStatement)),
+        pytest.param(MagicMock(par_stmt.MethodStatement)),
+        pytest.param(MagicMock(par_stmt.FunctionStatement)),
+        pytest.param(MagicMock(f_stmt.FieldStatement)),
+        pytest.param(MagicMock(prim.PrimitiveStatement)),
+    ],
+)
+def test_append_statement(test_case_mock, reset_configuration, statement):
+    called = False
+
+    def mock(t, s, position=0, allow_none=True):
+        nonlocal called
+        called = True
+
+    factory = _TestFactory()
+    factory.add_constructor = mock
+    factory.add_method = mock
+    factory.add_function = mock
+    factory.add_field = mock
+    factory.add_primitive = mock
+    factory.append_statement(test_case_mock, statement)
+    assert called
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        pytest.param(MagicMock(gao.GenericConstructor)),
+        pytest.param(MagicMock(gao.GenericMethod)),
+        pytest.param(MagicMock(gao.GenericFunction)),
+        pytest.param(MagicMock(gao.GenericField)),
+    ],
+)
+def test_append_generic_statement(test_case_mock, reset_configuration, statement):
+    called = False
+
+    def mock(t, s, position=0, allow_none=True, recursion_depth=11):
+        nonlocal called
+        called = True
+        return None
+
+    factory = _TestFactory()
+    factory.add_constructor = mock
+    factory.add_method = mock
+    factory.add_function = mock
+    factory.add_field = mock
+    factory.add_primitive = mock
+    result = factory.append_generic_statement(test_case_mock, statement)
+    assert result is None
+    assert called
+
+
+def test_append_illegal_generic_statement(test_case_mock, reset_configuration):
+    factory = _TestFactory()
+    with pytest.raises(ConstructionFailedException):
+        factory.append_generic_statement(
+            test_case_mock, MagicMock(prim.PrimitiveStatement), position=42
         )
 
 
