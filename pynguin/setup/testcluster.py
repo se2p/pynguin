@@ -29,10 +29,10 @@ class TestCluster:
     def __new__(cls) -> TestCluster:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        cls._generators: Dict[Type, Set[GenericAccessibleObject]] = cast(
-            Dict[Type, Set[GenericAccessibleObject]], dict()
-        )
-        cls._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
+            cls._generators: Dict[Type, Set[GenericAccessibleObject]] = cast(
+                Dict[Type, Set[GenericAccessibleObject]], dict()
+            )
+            cls._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
         return cls._instance
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
