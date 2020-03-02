@@ -27,7 +27,7 @@ from pynguin.testcase import testfactory
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import GenerationException
+from pynguin.utils.exceptions import GenerationException, ConstructionFailedException
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
@@ -66,7 +66,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 self.generate_sequence(
                     test_cases, failing_test_cases, test_cluster, execution_counter,
                 )
-            except GenerationException as exception:
+            except (ConstructionFailedException, GenerationException) as exception:
                 self._logger.debug(
                     "Generate test case failed with exception %s", exception
                 )
