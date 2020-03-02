@@ -42,7 +42,6 @@ typing_inspect = "^0.5.0"
 [tool.poetry.dev-dependencies]
 pytest = "^5.3"
 black = {version = "^19.10b0", allow-prereleases = true}
-flake8 = "^3.7"
 pytest-cov = "^2.8"
 pylint = "^2.4"
 pytest-sugar = "^0.9.2"

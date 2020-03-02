@@ -5,9 +5,9 @@ help:
 	@echo "make test"
 	@echo "        run tests"
 	@echo "make lint"
-	@echo "        run flake8, pylint, and mypy"
+	@echo "        run pylint, and mypy"
 	@echo "make check"
-	@echo "        run black, flake8, mypy, pylint, and pytest"
+	@echo "        run black, mypy, pylint, and pytest"
 	@echo "make black"
 	@echo "        run black code formatter"
 	@echo "make clean"
@@ -27,11 +27,7 @@ clean: clean-build clean-pyc
 test:
 	pytest -v --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
 
-lint: flake8 pylint mypy
-
-flake8:
-	# flake8 .
-	exit 0
+lint: pylint mypy
 
 pylint:
 	pylint pynguin
@@ -42,4 +38,4 @@ mypy:
 black:
 	black .
 
-check: black flake8 mypy pylint test
+check: black mypy pylint test
