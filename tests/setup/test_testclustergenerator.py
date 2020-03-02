@@ -88,3 +88,9 @@ def test_initialise_stub_inference_strategy_exception():
     config.INSTANCE.type_inference_strategy = config.TypeInferenceStrategy.STUB_FILES
     with pytest.raises(ConfigurationException):
         TestClusterGenerator("")
+
+
+def test_initialise_unknown_type_inference_strategies():
+    config.INSTANCE.type_inference_strategy = "foo"
+    with pytest.raises(ConfigurationException):
+        TestClusterGenerator("")
