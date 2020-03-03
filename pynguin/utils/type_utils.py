@@ -16,12 +16,12 @@
 from inspect import isclass, isfunction
 from typing import Type, Optional, Callable, Any
 
-_PRIMITIVES = {int, str, bool, float, complex}
+PRIMITIVES = {int, str, bool, float, complex}
 
 
 def is_primitive_type(type_: Optional[Type]) -> bool:
     """Check if the given type is a primitive."""
-    return type_ in _PRIMITIVES
+    return type_ in PRIMITIVES
 
 
 def class_in_module(module_name: str) -> Callable[[Any], bool]:
