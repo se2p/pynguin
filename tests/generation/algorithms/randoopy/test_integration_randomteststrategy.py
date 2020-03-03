@@ -25,6 +25,10 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 @pytest.mark.parametrize(
     "module_name",
     [
+        "tests.fixtures.accessibles.accessible",
+        "tests.fixtures.cluster.dependency",
+        "tests.fixtures.cluster.no_dependencies",
+        "tests.fixtures.cluster.simple_dependencies",
         "tests.fixtures.examples.basket",
         "tests.fixtures.examples.dummies",
         "tests.fixtures.examples.exceptions",
