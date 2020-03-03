@@ -62,3 +62,8 @@ class TestCluster:
         if for_type in self._generators:
             return self._generators[for_type]
         return set()
+
+    @property
+    def generators(self) -> Dict[Type, Set[GenericAccessibleObject]]:
+        """Provides all generators available."""
+        return self._generators
