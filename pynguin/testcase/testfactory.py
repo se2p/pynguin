@@ -32,7 +32,7 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.utils.type_utils import is_primitive_type
+from pynguin.utils.type_utils import is_primitive_type, PRIMITIVES
 
 
 class _TestFactory:
@@ -428,7 +428,7 @@ class _TestFactory:
         self._logger.debug("Satisfied %d parameters", len(parameters))
         return parameters
 
-    # pylint: disable=too-many-arguments, unused-argument, no-self-use
+    # pylint: disable=too-many-arguments, unused-argument, no-self-use, too-many-return-statements
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
@@ -489,6 +489,10 @@ class _TestFactory:
 
         # could not create, so go back in trying to re-use an existing variable
         if not objects:
+            if randomness.next_float() <= 0.85:
+                return self._create_random_type_variable(
+                    test_case, position, recursion_depth, allow_none
+                )
             if allow_none:
                 return self._create_none(
                     test_case, parameter_type, position, recursion_depth
@@ -557,6 +561,24 @@ class _TestFactory:
         return self.append_generic_statement(
             test_case,
             type_generator,
+            position=position,
+            recursion_depth=recursion_depth + 1,
+            allow_none=allow_none,
+        )
+
+    def _create_random_type_variable(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
+    ) -> Optional[vr.VariableReference]:
+        generator_types = list(TestCluster().generators.keys())
+        generator_types.extend(PRIMITIVES)
+        generator_type = randomness.RNG.choice(generator_types)
+        return self._create_or_reuse_variable(
+            test_case=test_case,
+            parameter_type=generator_type,
             position=position,
             recursion_depth=recursion_depth + 1,
             allow_none=allow_none,
