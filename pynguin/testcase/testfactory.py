@@ -428,7 +428,7 @@ class _TestFactory:
         self._logger.debug("Satisfied %d parameters", len(parameters))
         return parameters
 
-    # pylint: disable=too-many-arguments, too-many-return-statements
+    # pylint: disable=too-many-arguments, unused-argument, too-many-return-statements
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
