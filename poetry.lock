@@ -115,14 +115,6 @@ version = "5.0.3"
 toml = ["toml"]
 
 [[package]]
-category = "main"
-description = "A backport of the dataclasses module for Python 3.6"
-name = "dataclasses"
-optional = false
-python-versions = "*"
-version = "0.6"
-
-[[package]]
 category = "dev"
 description = "execnet: rapid multi-Python deployment"
 name = "execnet"
@@ -428,10 +420,7 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.8"
-
-[package.dependencies]
-dataclasses = "*"
+version = "0.0.8.post1"
 
 [[package]]
 category = "dev"
@@ -595,10 +584,6 @@ coverage = [
     {file = "coverage-5.0.3-cp39-cp39m-win_amd64.whl", hash = "sha256:da93027835164b8223e8e5af2cf902a4c80ed93cb0909417234f4a9df3bcd9af"},
     {file = "coverage-5.0.3.tar.gz", hash = "sha256:77afca04240c40450c331fa796b3eab6f1e15c5ecf8bf2b8bee9706cd5452fef"},
 ]
-dataclasses = [
-    {file = "dataclasses-0.6-py3-none-any.whl", hash = "sha256:454a69d788c7fda44efd71e259be79577822f5e3f53f029a22d08004e951dc9f"},
-    {file = "dataclasses-0.6.tar.gz", hash = "sha256:6988bd2b895eef432d562370bb707d540f32f7360ab13da45340101bc2307d84"},
-]
 execnet = [
     {file = "execnet-1.7.1-py2.py3-none-any.whl", hash = "sha256:d4efd397930c46415f62f8a31388d6be4f27a91d7550eb79bc64a756e0056547"},
     {file = "execnet-1.7.1.tar.gz", hash = "sha256:cacb9df31c9680ec5f95553976c4da484d407e85e41c83cb812aa014f0eddc50"},
@@ -745,8 +730,8 @@ retype = [
     {file = "retype-19.9.0.tar.gz", hash = "sha256:846fd135d3ee33c1bad387602a405d808cb99a9a7a47299bfd0e1d25dfb2fedd"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.8-py3-none-any.whl", hash = "sha256:fa079dce18c91a4f08c19790f17fb55fb0df8b975cf8e0c2c85df94583e29851"},
-    {file = "simple_parsing-0.0.8.tar.gz", hash = "sha256:a88cb2431c26efcf30a49f204aa9b7425bdd9c939b32cfb1869913415ec5890a"},
+    {file = "simple_parsing-0.0.8.post1-py3-none-any.whl", hash = "sha256:440de30a0909b6a62647a0138d4effe114a2bf5bf9042eba5c52af2df3bb4701"},
+    {file = "simple_parsing-0.0.8.post1.tar.gz", hash = "sha256:b56f358dc92e4db0b2d62016944fab39fbe95ef6381535c81222910e85097c23"},
 ]
 six = [
     {file = "six-1.14.0-py2.py3-none-any.whl", hash = "sha256:8f3cd2e254d8f793e7f3d6d9df77b92252b52637291d0f0da013c76ea2724b6c"},
