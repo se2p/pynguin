@@ -68,17 +68,27 @@ def test_check_recursion_depth_guard(test_case_mock, reset_configuration, method
 def test_append_statement(test_case_mock, reset_configuration, statement):
     called = False
 
-    def mock(t, s, position=0, allow_none=True):
+    def mock_method(t, s, position=0, allow_none=True):
         nonlocal called
         called = True
 
     factory = _TestFactory()
-    factory.add_constructor = mock
-    factory.add_method = mock
-    factory.add_function = mock
-    factory.add_field = mock
-    factory.add_primitive = mock
+    old_constructor = factory.add_constructor
+    old_method = factory.add_method
+    old_function = factory.add_function
+    old_field = factory.add_field
+    old_primitive = factory.add_primitive
+    factory.add_constructor = mock_method
+    factory.add_method = mock_method
+    factory.add_function = mock_method
+    factory.add_field = mock_method
+    factory.add_primitive = mock_method
     factory.append_statement(test_case_mock, statement)
+    factory.add_constructor = old_constructor
+    factory.add_method = old_method
+    factory.add_function = old_function
+    factory.add_field = old_field
+    factory.add_primitive = old_primitive
     assert called
 
 
@@ -94,18 +104,28 @@ def test_append_statement(test_case_mock, reset_configuration, statement):
 def test_append_generic_statement(test_case_mock, reset_configuration, statement):
     called = False
 
-    def mock(t, s, position=0, allow_none=True, recursion_depth=11):
+    def mock_method(t, s, position=0, allow_none=True, recursion_depth=11):
         nonlocal called
         called = True
         return None
 
     factory = _TestFactory()
-    factory.add_constructor = mock
-    factory.add_method = mock
-    factory.add_function = mock
-    factory.add_field = mock
-    factory.add_primitive = mock
+    old_constructor = factory.add_constructor
+    old_method = factory.add_method
+    old_function = factory.add_function
+    old_field = factory.add_field
+    old_primitive = factory.add_primitive
+    factory.add_constructor = mock_method
+    factory.add_method = mock_method
+    factory.add_function = mock_method
+    factory.add_field = mock_method
+    factory.add_primitive = mock_method
     result = factory.append_generic_statement(test_case_mock, statement)
+    factory.add_constructor = old_constructor
+    factory.add_method = old_method
+    factory.add_function = old_function
+    factory.add_field = old_field
+    factory.add_primitive = old_primitive
     assert result is None
     assert called
 
@@ -239,16 +259,18 @@ def test_create_primitive(type_, statement_type):
 
 
 def test_attempt_generation_for_type(test_case_mock):
-    def mock(t, g, position, recursion_depth, allow_none):
+    def mock_method(t, g, position, recursion_depth, allow_none):
         assert position == 0
         assert recursion_depth == 1
         assert allow_none
 
     factory = _TestFactory()
-    factory.append_generic_statement = mock
+    old = factory.append_generic_statement
+    factory.append_generic_statement = mock_method
     factory._attempt_generation_for_type(
         test_case_mock, 0, 0, True, {MagicMock(gao.GenericAccessibleObject)}
     )
+    factory.append_generic_statement = old
 
 
 def test_attempt_generation_for_no_type(test_case_mock):
@@ -276,7 +298,7 @@ def test_attempt_generation_for_none_type_with_no_probability(reset_configuratio
 
 
 def test_attempt_generation_for_type_from_cluster(test_case_mock, reset_configuration):
-    def mock(t, position, recursion_depth, allow_none, type_generators):
+    def mock_method(t, position, recursion_depth, allow_none, type_generators):
         assert position == 0
         assert recursion_depth == 0
         assert allow_none
@@ -285,5 +307,7 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock, reset_configur
     cluster = TestCluster()
     cluster.get_generators_for = lambda t: MagicMock(gao.GenericAccessibleObject)
     factory = _TestFactory()
-    factory._attempt_generation_for_type = mock
+    old = factory._attempt_generation_for_type
+    factory._attempt_generation_for_type = mock_method
     factory._attempt_generation(test_case_mock, MagicMock(_TestFactory), 0, 0, True)
+    factory._attempt_generation_for_type = old

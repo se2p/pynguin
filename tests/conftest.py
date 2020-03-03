@@ -26,6 +26,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
@@ -171,6 +172,11 @@ def short_test_case(constructor_mock):
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
     return test_case
+
+
+@pytest.fixture(autouse=True)
+def reset_test_cluster():
+    TestCluster._instance = None
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

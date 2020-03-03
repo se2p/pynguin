@@ -17,20 +17,14 @@ import os
 import pytest
 
 import pynguin.configuration as config
-from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from tests.fixtures.cluster.no_dependencies import Test
 from tests.fixtures.cluster.dependency import SomeArgumentType
-
-
-@pytest.fixture(autouse=True)
-def reset_test_cluster():
-    TestCluster._instance = None
+from tests.fixtures.cluster.no_dependencies import Test
 
 
 def test_test_cluster_generator_accessible():
