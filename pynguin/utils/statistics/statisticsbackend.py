@@ -15,6 +15,7 @@
 """Provides an interface for a statistics writer."""
 import logging
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar, Dict, Generic
 
@@ -23,28 +24,12 @@ import pynguin.configuration as config
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
+@dataclass(frozen=True)
 class OutputVariable(Generic[T]):
     """Encapsulates an output variable of the result statistics."""
 
-    def __init__(self, name: str, value: T) -> None:
-        self._name = name
-        self._value = value
-
-    @property
-    def name(self) -> str:
-        """Provides access to the name of the variable"""
-        return self._name
-
-    @property
-    def value(self) -> T:
-        """Provides access to the value of the variable"""
-        return self._value
-
-    def __str__(self) -> str:
-        return f"{self._name}: {self._value}"
-
-    def __repr__(self) -> str:
-        return f"OutputVariable({self._name}, {self._value})"
+    name: str
+    value: T
 
 
 # pylint: disable=too-few-public-methods
