@@ -18,6 +18,7 @@ import pynguin.configuration as config
 from pynguin.utils.statistics.statisticsbackend import (
     OutputVariable,
     CSVStatisticsBackend,
+    ConsoleStatisticsBackend,
 )
 
 
@@ -29,7 +30,7 @@ def test_output_variable():
     assert variable.value == value
 
 
-def test_write_data(tmpdir):
+def test_write_data_csv_backend(tmpdir):
     config.INSTANCE.report_dir = tmpdir / "statistics"
     data_1 = {
         "module": OutputVariable("module", "foo"),
@@ -42,3 +43,16 @@ def test_write_data(tmpdir):
     backend = CSVStatisticsBackend()
     backend.write_data(data_1)
     backend.write_data(data_2)
+
+
+def test_write_data_console_backend(capsys):
+    data = {
+        "module": OutputVariable("module", "foo"),
+        "value": OutputVariable("value", "bar"),
+    }
+    backend = ConsoleStatisticsBackend()
+    backend.write_data(data)
+    captured = capsys.readouterr()
+    assert "foo" in captured.out
+    assert "bar" in captured.out
+    assert captured.err == ""
