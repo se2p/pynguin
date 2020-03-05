@@ -50,6 +50,9 @@ class RuntimeVariable(enum.Enum):
     LengthTimeline = "Obtained length values at different points in time"
     TotalExceptionsTimeline = "Total number of exceptions"
     BranchCoverageTimeline = "Coverage over time"
+    Length = "Total number of statements in the final test suite"
+    Size = "Number of tests in the resulting test suite"
+    Fitness = "Fitness value of the best individual"
 
     def __init__(self, value: str) -> None:
         self._value = value
