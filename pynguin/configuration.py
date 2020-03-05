@@ -82,8 +82,8 @@ class Configuration:
     # Path to store the log file.
     log_file: Optional[str] = None
 
-    # Path to store the statistics CSV files to
-    statistics_path: Optional[str] = None
+    # Directory in which to put HTML and CSV reports
+    report_dir: str = "pynguin-report"
 
     # Measure coverage
     measure_coverage: bool = True
