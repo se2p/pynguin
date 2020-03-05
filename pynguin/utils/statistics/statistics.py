@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides tracking of statistics for various variables and types."""
 from __future__ import annotations
+
 import enum
 import queue
 from typing import Optional, Any, Generator, Tuple
@@ -36,6 +37,19 @@ class RuntimeVariable(enum.Enum):
     monkey_type_executions = "Number of MonkeyType executions"
     parameter_type_updates = "Updated parameter types"
     return_type_updates = "Updated return types"
+    Coverage = "Obtained coverage of the chosen testing criterion"
+    Random_Seed = (
+        "The random seed used during the search.  A random one was used if "
+        "none was specified in the beginning"
+    )
+    CoverageTimeline = (
+        "Obtained coverage (of the chosen testing criterion) at "
+        "different points in time"
+    )
+    SizeTimeline = "Obtained size values at different points in time"
+    LengthTimeline = "Obtained length values at different points in time"
+    TotalExceptionsTimeline = "Total number of exceptions"
+    BranchCoverageTimeline = "Coverage over time"
 
     def __init__(self, value: str) -> None:
         self._value = value

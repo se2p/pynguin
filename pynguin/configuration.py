@@ -59,6 +59,14 @@ class TypeInferenceStrategy(enum.Enum):
     TYPE_HINTS = "TypeHintsInferenceStrategy"
 
 
+class StatisticsBackend(enum.Enum):
+    """The different available statistics backends to write statistics"""
+
+    NONE = enum.auto()
+    CONSOLE = enum.auto()
+    CSV = enum.auto()
+
+
 # pylint: disable=too-many-instance-attributes
 @dataclasses.dataclass(repr=True, eq=True)
 class Configuration:
@@ -84,6 +92,23 @@ class Configuration:
 
     # Directory in which to put HTML and CSV reports
     report_dir: str = "pynguin-report"
+
+    # Which backend to use to collect data
+    statistics_backend: StatisticsBackend = StatisticsBackend.CSV
+
+    # Time interval in milliseconds for timeline statistics
+    timeline_interval: int = 60 * 1000
+
+    # Interpolate timeline values
+    timeline_interpolation: bool = True
+
+    # List of variables to output to CSV file.  Variables are separated by commas.
+    # None represents default values.
+    output_variables: Optional[str] = None
+
+    # Label that identifies the used configuration of Pynguin.  This is only done
+    # when running experiments.
+    configuration_id: Optional[str] = None
 
     # Measure coverage
     measure_coverage: bool = True
