@@ -34,6 +34,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericField,
 )
+from pynguin.utils.statistics.statistics import StatisticsTracker
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 
@@ -177,6 +178,11 @@ def short_test_case(constructor_mock):
 @pytest.fixture(autouse=True)
 def reset_test_cluster():
     TestCluster._instance = None
+
+
+@pytest.fixture(autouse=True)
+def reset_statistics_tracker():
+    StatisticsTracker._instance = None
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
