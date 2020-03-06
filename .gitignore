@@ -106,3 +106,4 @@ venv.bak/
 .idea
 cov_html/
 .dmypy.json
+pynguin-report/
