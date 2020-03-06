@@ -110,6 +110,7 @@ class SearchStatistics:
             return
 
         self._logger.debug("Received individual")
+        self._best_individual = individual
         for variable_factory in self._variable_factories.values():
             self.set_output_variable(variable_factory.get_variable(individual))
         for seq_variable_factory in self._sequence_output_variable_factories.values():
@@ -146,7 +147,6 @@ class SearchStatistics:
     def _get_all_output_variable_names() -> List[str]:
         return [
             "TARGET_CLASS",
-            "criterion",
             RuntimeVariable.Coverage.name,
         ]
 

@@ -57,14 +57,12 @@ def test_output_variable(search_statistics):
 def test_get_all_output_variable_names(search_statistics):
     names = search_statistics._get_all_output_variable_names()
     assert "TARGET_CLASS" in names
-    assert "criterion" in names
     assert RuntimeVariable.Coverage.name in names
 
 
 def test_get_output_variable_names_not_output_variables(search_statistics):
     names = search_statistics._get_output_variable_names()
     assert "TARGET_CLASS" in names
-    assert "criterion" in names
     assert RuntimeVariable.Coverage.name in names
 
 
