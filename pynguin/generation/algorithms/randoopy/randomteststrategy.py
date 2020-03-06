@@ -52,6 +52,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         timer.start()
         self._logger.debug("Time limit: %d", config.INSTANCE.budget)
         self._logger.debug("Module: %s", config.INSTANCE.module_name)
+        StatisticsTracker().track_output_variable(
+            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+        )
 
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()

@@ -32,6 +32,7 @@ from typing import Union, List, Dict, Any
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.configuration import Algorithm
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
@@ -48,6 +49,7 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.statistics.searchstatistics import SearchStatistics
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
@@ -96,6 +98,11 @@ class Pynguin:
                 "Cannot initialise test generator without proper configuration."
             )
         self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
+        self._search_statistics = SearchStatistics()
+        if config.INSTANCE.configuration_id:
+            StatisticsTracker().track_output_variable(
+                RuntimeVariable.configuration_id, config.INSTANCE.configuration_id
+            )
 
     def run(self) -> int:
         """Run the test generation.
@@ -147,12 +154,12 @@ class Pynguin:
             self._logger.info("Export failing test cases")
             self._export_test_cases(test_chromosome.test_chromosomes, "_failing")
             export_timer.stop()
+            self._track_statistics(result, test_chromosome, failing_test_chromosome)
             timer.stop()
-            self._print_results(
-                test_chromosome.test_chromosomes,
-                failing_test_chromosome.test_chromosomes,
-                result,
-            )
+            self._collect_statistics()
+            self._search_statistics.current_individual(test_chromosome)
+            if not self._search_statistics.write_statistics():
+                self._logger.error("Failed to write statistics data")
             if test_chromosome.size == 0:
                 # not able to generate one successful test case
                 status = 1
@@ -170,6 +177,35 @@ class Pynguin:
         if config.INSTANCE.algorithm == Algorithm.WSPY:
             return WholeSuiteTestStrategy(executor)
         raise ConfigurationException("Unknown algorithm selected")
+
+    def _collect_statistics(self) -> None:
+        tracker = StatisticsTracker()
+        for runtime_variable, value in tracker.variables_generator:
+            self._search_statistics.set_output_variable_for_runtime_variable(
+                runtime_variable, value
+            )
+
+    @staticmethod
+    def _track_statistics(
+        execution_result: ExecutionResult,
+        test_chromosome: tsc.TestSuiteChromosome,
+        failing_test_chromosome: tsc.TestSuiteChromosome,
+    ) -> None:
+        tracker = StatisticsTracker()
+        tracker.track_output_variable(RuntimeVariable.Size, test_chromosome.size)
+        tracker.track_output_variable(
+            RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.Coverage, execution_result.branch_coverage
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.FailingSize, failing_test_chromosome.size
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.FailingLength,
+            failing_test_chromosome.total_length_of_test_cases,
+        )
 
     @staticmethod
     def _print_results(
