@@ -20,6 +20,8 @@ import time
 from typing import Optional, Dict, Any, List
 
 import pynguin.configuration as config
+from pynguin.ga.chromosome import Chromosome
+from pynguin.testsuite.testsuitechromosome import TestSuiteChromosome
 from pynguin.utils.statistics.outputvariablefactory import (
     ChromosomeOutputVariableFactory,
     SequenceOutputVariableFactory,
@@ -32,15 +34,6 @@ from pynguin.utils.statistics.statisticsbackend import (
     CSVStatisticsBackend,
     OutputVariable,
 )
-
-
-class Chromosome:  # pylint: disable=missing-class-docstring,too-few-public-methods
-    pass
-
-
-# pylint: disable=missing-class-docstring,too-few-public-methods
-class TestSuiteChromosome(Chromosome):
-    pass
 
 
 class SearchStatistics:
@@ -101,9 +94,6 @@ class SearchStatistics:
         ] = DirectSequenceOutputVariableFactory.get_integer(
             RuntimeVariable.TotalExceptionsTimeline
         )
-        self._sequence_output_variable_factories[
-            RuntimeVariable.BranchCoverageTimeline.name
-        ] = self._BranchCoverageSequenceOutputVariableFactory()
 
     def current_individual(self, individual: Chromosome) -> None:
         """Called when a new individual is sent.
@@ -231,54 +221,47 @@ class SearchStatistics:
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.Length)
 
-        def get_data(self, individual) -> int:
+        def get_data(self, individual: TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases
 
     class _ChromosomeSizeOutputVariableFactory(ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.Size)
 
-        def get_data(self, individual) -> int:
+        def get_data(self, individual: TestSuiteChromosome) -> int:
             return individual.size
 
     class _ChromosomeCoverageOutputVariableFactory(ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.Coverage)
 
-        def get_data(self, individual) -> float:
+        def get_data(self, individual: TestSuiteChromosome) -> float:
             return individual.coverage
 
     class _ChromosomeFitnessOutputVariableFactory(ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.Fitness)
 
-        def get_data(self, individual) -> float:
+        def get_data(self, individual: TestSuiteChromosome) -> float:
             return individual.fitness
 
     class _CoverageSequenceOutputVariableFactory(SequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.CoverageTimeline)
 
-        def get_value(self, individual) -> float:
+        def get_value(self, individual: TestSuiteChromosome) -> float:
             return individual.coverage
 
     class _SizeSequenceOutputVariableFactory(SequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.SizeTimeline)
 
-        def get_value(self, individual) -> int:
+        def get_value(self, individual: TestSuiteChromosome) -> int:
             return individual.size
 
     class _LengthSequenceOutputVariableFactory(SequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.LengthTimeline)
 
-        def get_value(self, individual) -> int:
+        def get_value(self, individual: TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases
-
-    class _BranchCoverageSequenceOutputVariableFactory(SequenceOutputVariableFactory):
-        def __init__(self) -> None:
-            super().__init__(RuntimeVariable.BranchCoverageTimeline)
-
-        def get_value(self, individual) -> float:
-            return individual.branch_coverage

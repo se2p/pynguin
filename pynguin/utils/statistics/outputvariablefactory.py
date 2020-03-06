@@ -19,6 +19,7 @@ from abc import ABCMeta, abstractmethod
 from typing import List, Generic, TypeVar
 
 import pynguin.configuration as config
+from pynguin.testsuite.testsuitechromosome import TestSuiteChromosome
 from pynguin.utils.statistics.statistics import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import OutputVariable
 
@@ -32,14 +33,14 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._variable = variable
 
     @abstractmethod
-    def get_data(self, individual) -> T:
+    def get_data(self, individual: TestSuiteChromosome) -> T:
         """Returns the data value from the individual
 
         :param individual: The individual to query
         :return: The current value of the variable in the individual
         """
 
-    def get_variable(self, individual) -> OutputVariable[T]:
+    def get_variable(self, individual: TestSuiteChromosome) -> OutputVariable[T]:
         """Provides the output variable
 
         :param individual: The individual
@@ -62,14 +63,14 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._start_time = start_time
 
     @abstractmethod
-    def get_value(self, individual) -> T:
+    def get_value(self, individual: TestSuiteChromosome) -> T:
         """Returns the current value of the variable for the selected individual
 
         :param individual: The individual to query
         :return: The current value of the variable in the individual
         """
 
-    def update(self, individual) -> None:
+    def update(self, individual: TestSuiteChromosome) -> None:
         """Updates the values for an individual
 
         :param individual: The individual
