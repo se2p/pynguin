@@ -155,3 +155,8 @@ def test_get_coverage_instance_of_non_existing(chromosome, coverage_value):
 def test_get_coverage_instance_of_existing(chromosome):
     chromosome.coverage_values = {_DummyFitnessFunction(): 0.42}
     assert chromosome.get_coverage_instance_of(_DummyFitnessFunction) == 0.42
+
+
+def test_set_changed(chromosome):
+    chromosome.set_changed(False)
+    assert not chromosome.changed

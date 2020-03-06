@@ -20,6 +20,7 @@ from typing import Dict
 import pynguin.ga.fitnessfuncion as ff
 
 
+# pylint: disable=too-many-instance-attributes
 @dataclass
 class Chromosome:
     """An abstract base class for chromosomes"""
@@ -32,6 +33,8 @@ class Chromosome:
     nums_covered_goals: Dict[ff.FitnessFunction, int] = field(default_factory=dict)
     nums_not_covered_goals: Dict[ff.FitnessFunction, int] = field(default_factory=dict)
     number_of_evaluations: int = 0
+    changed: bool = True
+    local_search_applied: bool = False
 
     @property
     def size(self) -> int:
@@ -40,6 +43,11 @@ class Chromosome:
         :return: The length of an individual
         """
         raise NotImplementedError("Implement abstract method")
+
+    def set_changed(self, changed: bool) -> None:
+        """Set changed status to parameter value"""
+        self.changed = changed
+        self.local_search_applied = False
 
     @property
     def fitness(self) -> float:
