@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an implementation for a test suite chromosome"""
-from pynguin.testsuite.abstracttestsuitechromosome import AbstractTestSuiteChromosome
+import pynguin.testsuite.abstracttestsuitechromosome as atsc
 
 
-class TestSuiteChromosome(AbstractTestSuiteChromosome):
+class TestSuiteChromosome(atsc.AbstractTestSuiteChromosome):
     """Provides an implementation for a test suite chromosome"""

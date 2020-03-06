@@ -18,8 +18,6 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 
-import pynguin.ga.chromosome as chrom  # pylint: disable=cyclic-import
-
 
 class FitnessFunction(metaclass=ABCMeta):
     """Abstract base class of fitness function"""
@@ -28,7 +26,7 @@ class FitnessFunction(metaclass=ABCMeta):
 
     @staticmethod
     def update_individual(
-        fitness_function: FitnessFunction, individual: chrom.Chromosome, fitness: float,
+        fitness_function: FitnessFunction, individual, fitness: float,
     ) -> None:
         """Update the fitness values for an individual.
 
@@ -40,7 +38,7 @@ class FitnessFunction(metaclass=ABCMeta):
         individual.increase_number_of_evaluations()
 
     @abstractmethod
-    def get_fitness(self, individual: chrom.Chromosome) -> float:
+    def get_fitness(self, individual) -> float:
         """Calculate and set fitness function
 
         :param individual: An individual Chromosome

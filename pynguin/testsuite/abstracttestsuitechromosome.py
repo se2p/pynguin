@@ -17,10 +17,10 @@ from abc import ABCMeta
 from typing import List
 
 import pynguin.testcase.testcase as tc
-from pynguin.ga.chromosome import Chromosome
+import pynguin.ga.chromosome as chrom
 
 
-class AbstractTestSuiteChromosome(Chromosome, metaclass=ABCMeta):
+class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
     """An abstract base class for a test suite chromosome"""
 
     def __init__(self):

@@ -17,7 +17,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict
 
-import pynguin.ga.fitnessfuncion as ff  # pylint: disable=cyclic-import
+import pynguin.ga.fitnessfuncion as ff
 
 
 @dataclass
