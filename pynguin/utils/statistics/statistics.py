@@ -32,6 +32,8 @@ class RuntimeVariable(enum.Enum):
     description will become the text in the result.
     """
 
+    TARGET_CLASS = "The module name for which we currently generate tests"
+    configuration_id = "An identifier for this configuration for benchmarking"
     total_time = "Total time spent by Pynguin to generate tests"
     execution_results = "Execution results"
     monkey_type_executions = "Number of MonkeyType executions"
@@ -51,7 +53,9 @@ class RuntimeVariable(enum.Enum):
     TotalExceptionsTimeline = "Total number of exceptions"
     BranchCoverageTimeline = "Coverage over time"
     Length = "Total number of statements in the final test suite"
+    FailingLength = "Total number of statements in the final failing test suite"
     Size = "Number of tests in the resulting test suite"
+    FailingSize = "Number of tests in the resulting failing test suite"
     Fitness = "Fitness value of the best individual"
 
     def __init__(self, value: str) -> None:
