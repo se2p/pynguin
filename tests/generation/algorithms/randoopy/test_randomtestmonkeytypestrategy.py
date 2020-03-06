@@ -18,6 +18,7 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
@@ -46,8 +47,10 @@ def test_call_monkey_type(
     number_of_test_cases, execution_counter, test_cases, strategy
 ):
     config.INSTANCE.monkey_type_execution = 2
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_tests(test_cases)
     strategy._call_monkey_type(
-        number_of_test_cases, execution_counter, test_cases, MagicMock(TestCluster)
+        number_of_test_cases, execution_counter, test_suite, MagicMock(TestCluster)
     )
 
 

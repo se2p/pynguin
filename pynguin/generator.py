@@ -133,23 +133,28 @@ class Pynguin:
             algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
                 executor
             )
-            test_cases, failing_test_cases = algorithm.generate_sequences()
+            test_chromosome, failing_test_chromosome = algorithm.generate_sequences()
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
                 executor = TestCaseExecutor()
-                result = executor.execute_test_suite(test_cases)
+                result = executor.execute_test_suite(test_chromosome.test_chromosomes)
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
             self._logger.info("Export successful test cases")
-            self._export_test_cases(test_cases)
+            self._export_test_cases(test_chromosome.test_chromosomes)
             self._logger.info("Export failing test cases")
-            self._export_test_cases(failing_test_cases, "_failing")
+            self._export_test_cases(test_chromosome.test_chromosomes, "_failing")
             export_timer.stop()
             timer.stop()
-            self._print_results(test_cases, failing_test_cases, result)
-            if len(test_cases) == 0:  # not able to generate one successful test case
+            self._print_results(
+                test_chromosome.test_chromosomes,
+                failing_test_chromosome.test_chromosomes,
+                result,
+            )
+            if test_chromosome.size == 0:
+                # not able to generate one successful test case
                 status = 1
 
         return status

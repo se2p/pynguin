@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
-from typing import List, Tuple
+from typing import Tuple
 
-import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 
@@ -28,5 +28,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         super().__init__()
         self._executor = executor
 
-    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(
+        self,
+    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         raise NotImplementedError("Strategy not yet implemented!")

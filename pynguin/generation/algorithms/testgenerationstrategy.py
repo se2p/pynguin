@@ -18,6 +18,7 @@ from typing import Tuple, List
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -37,7 +38,9 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(
+        self,
+    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         """Generates sequences for a given module until the time limit is reached.
 
         :return: A two-tuple of lists; the former containing the successful test

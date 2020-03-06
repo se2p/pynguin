@@ -19,6 +19,7 @@ from typing import List, Tuple, Set
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
@@ -43,15 +44,17 @@ class RandomTestStrategy(TestGenerationStrategy):
         self._executor = executor
         self._execution_results: List[ExecutionResult] = []
 
-    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_sequences(
+        self,
+    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         self._logger.info("Start generating sequences using random algorithm")
         timer = Timer(name="Sequences generation time", logger=None)
         timer.start()
         self._logger.debug("Time limit: %d", config.INSTANCE.budget)
         self._logger.debug("Module: %s", config.INSTANCE.module_name)
 
-        test_cases: List[tc.TestCase] = []
-        failing_test_cases: List[tc.TestCase] = []
+        test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
+        failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         execution_counter: int = 0
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
@@ -64,7 +67,10 @@ class RandomTestStrategy(TestGenerationStrategy):
             try:
                 execution_counter += 1
                 self.generate_sequence(
-                    test_cases, failing_test_cases, test_cluster, execution_counter,
+                    test_chromosome,
+                    failing_test_chromosome,
+                    test_cluster,
+                    execution_counter,
                 )
             except (ConstructionFailedException, GenerationException) as exception:
                 self._logger.debug(
@@ -73,23 +79,25 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         self._logger.info("Finish generating sequences with random algorithm")
         timer.stop()
-        self._logger.debug("Generated %d passing test cases", len(test_cases))
-        self._logger.debug("Generated %d failing test cases", len(failing_test_cases))
+        self._logger.debug("Generated %d passing test cases", test_chromosome.size)
+        self._logger.debug(
+            "Generated %d failing test cases", failing_test_chromosome.size
+        )
         self._logger.debug("Number of algorithm iterations: %d", execution_counter)
 
-        return test_cases, failing_test_cases
+        return test_chromosome, failing_test_chromosome
 
     def generate_sequence(
         self,
-        test_cases: List[tc.TestCase],
-        failing_test_cases: List[tc.TestCase],
+        test_chromosome: tsc.TestSuiteChromosome,
+        failing_test_chromosome: tsc.TestSuiteChromosome,
         test_cluster: TestCluster,
         execution_counter: int,
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
 
-        :param test_cases: The list of currently successful test cases
-        :param failing_test_cases: The list of currently not successful test cases
+        :param test_chromosome: The list of currently successful test cases
+        :param failing_test_chromosome: The list of currently not successful test cases
         :param test_cluster: A cluster storing the available types and methods for
         test generation
         :param execution_counter: A current number of algorithm iterations
@@ -112,7 +120,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         # Pick a random public method from objects under test
         method = self._random_public_method(objects_under_test)
         # Select random test cases from existing ones to base generation on
-        tests = self._random_test_cases(test_cases)
+        tests = self._random_test_cases(test_chromosome.test_chromosomes)
         new_test: tc.TestCase = dtc.DefaultTestCase()
         for test in tests:
             new_test.append_test_case(test)
@@ -122,7 +130,10 @@ class RandomTestStrategy(TestGenerationStrategy):
         testfactory.append_generic_statement(new_test, method)
 
         # Discard duplicates
-        if new_test in test_cases or new_test in failing_test_cases:
+        if (
+            new_test in test_chromosome.test_chromosomes
+            or new_test in failing_test_chromosome.test_chromosomes
+        ):
             return
 
         with Timer(name="Execution time", logger=None):
@@ -131,9 +142,9 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
-            failing_test_cases.append(new_test)
+            failing_test_chromosome.add_test(new_test)
         else:
-            test_cases.append(new_test)
+            test_chromosome.add_test(new_test)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
         timer.stop()

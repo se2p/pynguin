@@ -46,8 +46,8 @@ def test_integrate_randoopy(module_name):
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert len(test_cases) >= 0
-    assert len(failing_test_cases) >= 0
+    assert test_cases.size >= 0
+    assert failing_test_cases.size >= 0
 
 
 @pytest.mark.parametrize(
@@ -75,5 +75,5 @@ def test_integrate_randoopy_monkey_type(module_name):
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert len(test_cases) >= 0
-    assert len(failing_test_cases) >= 0
+    assert test_cases.size >= 0
+    assert failing_test_cases.size >= 0
