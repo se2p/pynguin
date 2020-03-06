@@ -61,7 +61,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
             logging.warning("Error while writing statistics: %s", error)
 
     def _get_report_dir(self) -> Path:
-        report_dir = Path(config.INSTANCE.report_dir)
+        report_dir = Path(config.INSTANCE.report_dir).absolute()
         if not report_dir.exists():
             try:
                 report_dir.mkdir(parents=True, exist_ok=True)
