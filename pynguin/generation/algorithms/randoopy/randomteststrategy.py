@@ -128,13 +128,11 @@ class RandomTestStrategy(TestGenerationStrategy):
                 "Cannot generate test case without an object-under-test!"
             )
 
-        clone = test_chromosome.clone()
-
         # Create new test case, i.e., sequence in Randoop paper terminology
         # Pick a random public method from objects under test
         method = self._random_public_method(objects_under_test)
         # Select random test cases from existing ones to base generation on
-        tests = self._random_test_cases(clone.test_chromosomes)
+        tests = self._random_test_cases(test_chromosome.test_chromosomes)
         new_test: tc.TestCase = dtc.DefaultTestCase()
         for test in tests:
             new_test.append_test_case(test)
@@ -160,7 +158,6 @@ class RandomTestStrategy(TestGenerationStrategy):
             for fitness_function in fitness_functions:
                 fitness_function.get_fitness(failing_test_chromosome, exec_result)
         else:
-            test_chromosome = clone
             test_chromosome.add_test(new_test)
             for fitness_function in fitness_functions:
                 fitness_function.get_fitness(test_chromosome, exec_result)
