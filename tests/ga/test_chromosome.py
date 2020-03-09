@@ -18,7 +18,6 @@ import pytest
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.chromosome as chrom
-from pynguin.ga.chromosome import Chromosome
 
 
 @pytest.fixture
@@ -39,11 +38,11 @@ def coverage_value(fitness_function):
 @pytest.fixture
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
-        def size(self) -> int:
+        def cross_over(
+            self, other: chrom.Chromosome, position1: int, position2: int
+        ) -> None:
             raise NotImplementedError()
 
-        def cross_over(self, other: chrom.Chromosome, position1: int, position2: int) -> None:
-            raise NotImplementedError()
     return DummyChromosome()
 
 
@@ -53,6 +52,11 @@ class _DummyFitnessFunction(ff.FitnessFunction):
 
     def is_maximisation_function(self) -> bool:
         pass
+
+
+def test_size(chromosome):
+    with pytest.raises(NotImplementedError):
+        chromosome.size
 
 
 def test_fitness_no_fitness_values(chromosome):
