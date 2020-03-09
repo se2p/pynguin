@@ -17,6 +17,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Tuple, List
 
 import pynguin.configuration as config
+import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
@@ -112,6 +114,14 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         if stopping_condition == config.StoppingCondition.MAX_TIME:
             return MaxTimeStoppingCondition()
         return MaxTimeStoppingCondition()
+
+    @staticmethod
+    def get_fitness_functions() -> List[ff.FitnessFunction]:
+        """Converts a criterion into a test suite fitness function
+
+        :return:
+        """
+        return [bcsf.BranchCoverageSuiteFitness()]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:

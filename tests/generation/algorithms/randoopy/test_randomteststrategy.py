@@ -14,15 +14,16 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from logging import Logger
-from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.configuration as config
+import pynguin.ga.fitnessfunction as ff
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.executionresult import ExecutionResult
@@ -57,7 +58,7 @@ def test_generate_sequences(executor):
     algorithm = RandomTestStrategy(executor)
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
-    algorithm.generate_sequence = lambda t, f, o, e: None
+    algorithm.generate_sequence = lambda t, f, o, fitness, e: None
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases.size == 0
     assert failing_test_cases.size == 0
@@ -130,7 +131,13 @@ def test_generate_sequence(has_exceptions, executor):
     test_case.add_statement(MagicMock(stmt.Statement))
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
-        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
+        algorithm.generate_sequence(
+            tsc.TestSuiteChromosome(),
+            tsc.TestSuiteChromosome(),
+            test_cluster,
+            MagicMock(ff.FitnessFunction),
+            0,
+        )
 
 
 def test_generate_sequence_duplicate(executor):
@@ -141,4 +148,10 @@ def test_generate_sequence_duplicate(executor):
     test_case = dtc.DefaultTestCase()
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
-        algorithm.generate_sequence([dtc.DefaultTestCase()], [], test_cluster, 0)
+        algorithm.generate_sequence(
+            tsc.TestSuiteChromosome(),
+            tsc.TestSuiteChromosome(),
+            test_cluster,
+            MagicMock(ff.FitnessFunction),
+            0,
+        )

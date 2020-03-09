@@ -20,7 +20,7 @@ import math
 from abc import abstractmethod
 from typing import Dict
 
-import pynguin.ga.fitnessfuncion as ff
+import pynguin.ga.fitnessfunction as ff
 
 
 # pylint: disable=too-many-instance-attributes

@@ -19,6 +19,7 @@ from typing import List, Callable, Union, Tuple, Optional, Type
 from monkeytype.tracing import CallTrace
 
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -64,7 +65,7 @@ class MonkeyTypeHandlerMixin:
                 self._update_type_inference(result, test_cluster)
 
     def execute_test_suite_monkey_type(
-        self, test_suite: List[tc.TestCase], test_cluster: TestCluster
+        self, test_suite: tsc.TestSuiteChromosome, test_cluster: TestCluster
     ) -> None:
         """Handles a test suite, i.e., executes it and propagates the results back.
 

@@ -17,6 +17,7 @@ import logging
 from typing import List, Tuple, Optional
 
 import pynguin.configuration as config
+import pynguin.ga.fitnessfunction as ff
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
     MonkeyTypeHandlerMixin,
@@ -50,16 +51,22 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         ] = []
         self._return_type_updates: List[Tuple[str, Optional[type], Optional[type]]] = []
 
+    # pylint: disable=too-many-arguments
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
         test_cluster: TestCluster,
+        fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
         number_of_test_cases = test_chromosome.size
         super().generate_sequence(
-            test_chromosome, failing_test_chromosome, test_cluster, execution_counter
+            test_chromosome,
+            failing_test_chromosome,
+            test_cluster,
+            fitness_functions,
+            execution_counter,
         )
         self._call_monkey_type(
             number_of_test_cases, execution_counter, test_chromosome, test_cluster
@@ -95,6 +102,4 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
                 self._logger.debug("Execute MonkeyType on test suite")
                 # TODO(sl) execute the full test suite or just the newly added test
                 #  cases?
-                self.execute_test_suite_monkey_type(
-                    test_chromosome.test_chromosomes, test_cluster
-                )
+                self.execute_test_suite_monkey_type(test_chromosome, test_cluster)

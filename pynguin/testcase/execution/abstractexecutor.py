@@ -20,6 +20,7 @@ from typing import Generic, TypeVar, List, Dict, Any
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -43,7 +44,7 @@ class AbstractExecutor(Generic[T], metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def execute_test_suite(self, test_suite: List[tc.TestCase]) -> T:
+    def execute_test_suite(self, test_suite: tsc.TestSuiteChromosome) -> T:
         """Executes all statements of all test cases in a test suite.
 
         :param test_suite: The list of test cases, i.e., test test suite

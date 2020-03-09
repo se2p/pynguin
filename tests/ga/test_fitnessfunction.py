@@ -19,7 +19,7 @@ from hypothesis import given
 
 import hypothesis.strategies as st
 
-import pynguin.ga.fitnessfuncion as ff
+import pynguin.ga.fitnessfunction as ff
 
 
 class _DummyFitnessFunction(ff.FitnessFunction):

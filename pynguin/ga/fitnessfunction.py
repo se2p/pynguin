@@ -17,6 +17,9 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
+from typing import Optional
+
+from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 class FitnessFunction(metaclass=ABCMeta):
@@ -38,10 +41,13 @@ class FitnessFunction(metaclass=ABCMeta):
         individual.increase_number_of_evaluations()
 
     @abstractmethod
-    def get_fitness(self, individual) -> float:
+    def get_fitness(
+        self, individual, execution_result: Optional[ExecutionResult] = None
+    ) -> float:
         """Calculate and set fitness function
 
         :param individual: An individual Chromosome
+        :param execution_result: An optional execution result to extract the fitness
         :return: the new fitness
         """
 
