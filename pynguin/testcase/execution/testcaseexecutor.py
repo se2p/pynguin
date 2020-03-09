@@ -123,6 +123,7 @@ class TestCaseExecutor(AbstractExecutor):
                 for test_case in test_suite.test_chromosomes:
                     self.setup(test_case)
                     self._execute_ast_nodes(result)
+                self._collect_coverage(result)
                 self._collect_fitness(result)
         TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
         return result
@@ -154,7 +155,7 @@ class TestCaseExecutor(AbstractExecutor):
             if config.INSTANCE.measure_coverage:
                 result.branch_coverage = self._coverage.report()
             else:
-                result.branch_coverage = -1
+                result.branch_coverage = 0
             self._logger.debug(
                 "Achieved coverage after execution: %s", result.branch_coverage
             )

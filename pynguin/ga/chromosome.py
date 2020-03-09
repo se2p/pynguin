@@ -17,7 +17,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict
 
-import pynguin.ga.fitnessfuncion as ff
+import pynguin.ga.fitnessfunction as ff
 
 
 # pylint: disable=too-many-instance-attributes

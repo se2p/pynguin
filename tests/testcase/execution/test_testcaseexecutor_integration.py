@@ -67,7 +67,6 @@ def test_create_object_with_coverage(short_test_case):
     assert result.branch_coverage == 75.0
 
 
-@pytest.mark.skip(reason="Need to fix coverage storage first")
 def test_execute_test_suite(short_test_case):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     executor = TestCaseExecutor()

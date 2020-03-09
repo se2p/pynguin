@@ -17,6 +17,7 @@ import logging
 from typing import List, Tuple, Set
 
 import pynguin.configuration as config
+import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
@@ -61,6 +62,10 @@ class RandomTestStrategy(TestGenerationStrategy):
         execution_counter: int = 0
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
+        fitness_functions = self.get_fitness_functions()
+        for fitness_function in fitness_functions:
+            test_chromosome.add_fitness(fitness_function)
+            failing_test_chromosome.add_fitness(fitness_function)
 
         with Timer(name="Test-cluster generation time", logger=None):
             test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_name)
@@ -73,6 +78,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                     test_chromosome,
                     failing_test_chromosome,
                     test_cluster,
+                    fitness_functions,
                     execution_counter,
                 )
             except (ConstructionFailedException, GenerationException) as exception:
@@ -90,11 +96,13 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         return test_chromosome, failing_test_chromosome
 
+    # pylint: disable=too-many-arguments
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
         test_cluster: TestCluster,
+        fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
@@ -103,6 +111,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         :param failing_test_chromosome: The list of currently not successful test cases
         :param test_cluster: A cluster storing the available types and methods for
         test generation
+        :param fitness_functions:
         :param execution_counter: A current number of algorithm iterations
         """
         self._logger.info("Algorithm iteration %d", execution_counter)
@@ -119,11 +128,13 @@ class RandomTestStrategy(TestGenerationStrategy):
                 "Cannot generate test case without an object-under-test!"
             )
 
+        clone = test_chromosome.clone()
+
         # Create new test case, i.e., sequence in Randoop paper terminology
         # Pick a random public method from objects under test
         method = self._random_public_method(objects_under_test)
         # Select random test cases from existing ones to base generation on
-        tests = self._random_test_cases(test_chromosome.test_chromosomes)
+        tests = self._random_test_cases(clone.test_chromosomes)
         new_test: tc.TestCase = dtc.DefaultTestCase()
         for test in tests:
             new_test.append_test_case(test)
@@ -146,8 +157,13 @@ class RandomTestStrategy(TestGenerationStrategy):
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
             failing_test_chromosome.add_test(new_test)
+            for fitness_function in fitness_functions:
+                fitness_function.get_fitness(failing_test_chromosome, exec_result)
         else:
+            test_chromosome = clone
             test_chromosome.add_test(new_test)
+            for fitness_function in fitness_functions:
+                fitness_function.get_fitness(test_chromosome, exec_result)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
         timer.stop()

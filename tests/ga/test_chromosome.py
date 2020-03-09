@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.ga.fitnessfuncion as ff
+import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.chromosome as chrom
 
 

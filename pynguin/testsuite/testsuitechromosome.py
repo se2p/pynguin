@@ -13,14 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an implementation for a test suite chromosome"""
+from __future__ import annotations
 import pynguin.testsuite.abstracttestsuitechromosome as atsc
-import pynguin.ga.chromosome as chrom
 
 
 class TestSuiteChromosome(atsc.AbstractTestSuiteChromosome):
     """Provides an implementation for a test suite chromosome"""
 
-    def clone(self) -> chrom.Chromosome:
+    def clone(self) -> TestSuiteChromosome:
         chromosome = TestSuiteChromosome()
 
         for test in self._tests:
