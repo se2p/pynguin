@@ -14,10 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import List, Tuple
+from typing import Tuple
 import pynguin.testsuite.testsuitechromosome as tsc
 
-import pynguin.configuration as config
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 
@@ -35,14 +34,5 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def generate_sequences(
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
-        population: List[tsc.TestSuiteChromosome] = self._generate_random_population()
         # TODO(fk): Mutation, evolve...
         return tsc.TestSuiteChromosome(), tsc.TestSuiteChromosome()
-
-    @staticmethod
-    def _generate_random_population() -> List[tsc.TestSuiteChromosome]:
-        population = []
-        for _ in range(config.INSTANCE.population):
-            pass
-            # TODO(fk) append random suite.
-        return population
