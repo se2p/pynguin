@@ -184,6 +184,9 @@ class Configuration:
     # Maximum length of chromosomes during search
     chromosome_length: int = 40
 
+    # Number of attempts when generating an object before giving up
+    max_attempts = 1000
+
     # What condition should be checked to end the search/test generation.
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
 
