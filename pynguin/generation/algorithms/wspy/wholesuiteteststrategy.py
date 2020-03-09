@@ -41,6 +41,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         population: List[tsc.TestSuiteChromosome] = self._generate_random_population()
+        # TODO(fk): Mutation, evolve...
         return population[0], tsc.TestSuiteChromosome()
 
     def _generate_random_population(self) -> List[tsc.TestSuiteChromosome]:

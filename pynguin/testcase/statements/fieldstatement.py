@@ -22,6 +22,8 @@ import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.configuration as config
+from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericField,
     GenericAccessibleObject,
@@ -49,11 +51,27 @@ class FieldStatement(stmt.Statement):
         """
         return self._source
 
+    @source.setter
+    def source(self, new_source: vr.VariableReference) -> None:
+        """
+        Set new source.
+        """
+        self._source = new_source
+
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._field
 
     def mutate(self) -> bool:
-        raise Exception("Implement me")
+        if randomness.next_float() >= config.INSTANCE.change_parameter_probability:
+            return False
+
+        source = self.source
+        objects = self.test_case.get_objects(source.variable_type, self.get_position())
+        objects.remove(source)
+        if len(objects) > 0:
+            self.source = randomness.choice(objects)
+
+        return True
 
     @property
     def field(self) -> GenericField:

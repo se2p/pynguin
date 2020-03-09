@@ -83,6 +83,10 @@ class Statement(metaclass=ABCMeta):
         :return True, if a mutation happened.
         """
 
+    def get_position(self):
+        """Provides the position of this statement in the test case."""
+        return self._return_value.get_statement_position()
+
     def __eq__(self, other: Any) -> bool:
         raise NotImplementedError("You need to override __eq__ for your statement type")
 

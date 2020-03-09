@@ -165,6 +165,10 @@ class Configuration:
     # [0,1]
     none_probability: float = 0.1
 
+    # Probability of replacing parameters when mutating a method or constructor statement
+    # in a test case.  Expects values in [0,1]
+    change_parameter_probability = 0.1
+
     # Bias for better individuals in rank selection
     rank_bias = 1.7
 

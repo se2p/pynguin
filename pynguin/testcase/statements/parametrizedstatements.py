@@ -14,13 +14,16 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Optional, Any
+from typing import Type, List, Dict, Optional, Any, Union
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
+import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.configuration as config
+from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericMethod,
@@ -96,6 +99,117 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             new_kw_args[name] = var.clone(new_test_case, offset)
         return new_kw_args
 
+    def mutate(self) -> bool:
+        if randomness.next_float() >= config.INSTANCE.change_parameter_probability:
+            return False
+
+        changed = False
+        mutable_param_count = self._mutable_argument_count()
+        if mutable_param_count > 0:
+            p_per_param = 1.0 / mutable_param_count
+            changed |= self._mutate_special_parameters(p_per_param)
+            changed |= self._mutate_parameters(p_per_param)
+        return changed
+
+    def _mutable_argument_count(self) -> int:
+        """
+        Returns the amount of mutable parameters.
+        """
+        return len(self.args) + len(self.kwargs)
+
+    # pylint: disable=unused-argument,no-self-use
+    def _mutate_special_parameters(self, p_per_param: float) -> bool:
+        """
+        Overwrite this method to mutate any parameter, which is not in arg or kwargs.
+        e.g., the callee in an instance method call.
+        """
+        return False
+
+    def _mutate_parameters(self, p_per_param: float) -> bool:
+        """
+        Mutates args and kwargs with the given probability.
+        :param p_per_param: The probability for one parameter to be mutated.
+        """
+        changed = False
+        for arg in range(len(self.args)):
+            if randomness.next_float() < p_per_param:
+                changed |= self._mutate_parameter(arg)
+        for kwarg in self.kwargs.keys():
+            if randomness.next_float() < p_per_param:
+                changed |= self._mutate_parameter(kwarg)
+        return changed
+
+    def _mutate_parameter(self, arg: Union[int, str]) -> bool:
+        """
+        Replace the given parameter with another one that also fits the parameter type.
+        :return True, if the parameter was mutated.
+        """
+        to_mutate = self._get_argument(arg)
+        possible_replacements = self.test_case.get_objects(
+            to_mutate.variable_type, self.get_position()
+        )
+
+        if to_mutate in possible_replacements:
+            possible_replacements.remove(to_mutate)
+        if self.return_value in possible_replacements:
+            possible_replacements.remove(self.return_value)
+        # TODO(fk) handle none stuff
+        copy: Optional[stmt.Statement] = None
+
+        # Consider duplicating an existing statement/variable.
+        if self._param_count_of_type(to_mutate.variable_type) > len(
+            possible_replacements
+        ):
+            original_param_source = self.test_case.get_statement(
+                to_mutate.get_statement_position()
+            )
+            copy = original_param_source.clone(self.test_case)
+            if isinstance(copy, prim.PrimitiveStatement):
+                copy.delta()
+            possible_replacements.append(copy.return_value)
+
+        if len(possible_replacements) == 0:
+            return False
+
+        replacement = randomness.choice(possible_replacements)
+        if copy and replacement is copy.return_value:
+            self.test_case.add_statement(copy, self.get_position())
+
+        self._replace_argument(arg, replacement)
+        return True
+
+    def _param_count_of_type(self, type_: Optional[Type]) -> int:
+        """
+        Return the number of parameters that have the specified type.
+        :param type_: The type, whose occurrences should be counted.
+        :return: The number of occurrences.
+        """
+        count = 0
+        if not type_:
+            return 0
+        for var_ref in self.args:
+            if var_ref.variable_type == type_:
+                count += 1
+        for _, var_ref in self.kwargs.items():
+            if var_ref.variable_type == type_:
+                count += 1
+        return count
+
+    def _get_argument(self, arg: Union[int, str]) -> vr.VariableReference:
+        """Returns the arg or kwarg, depending on the parameter type."""
+        if isinstance(arg, int):
+            return self.args[arg]
+        return self.kwargs[arg]
+
+    def _replace_argument(
+        self, arg: Union[int, str], new_argument: vr.VariableReference
+    ):
+        """Replace the arg or kwarg, depending on the parameter type."""
+        if isinstance(arg, int):
+            self.args[arg] = new_argument
+        else:
+            self.kwargs[arg] = new_argument
+
     def __hash__(self) -> int:
         return (
             31
@@ -143,9 +257,6 @@ class ConstructorStatement(ParametrizedStatement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._constructor
 
-    def mutate(self) -> bool:
-        raise Exception("Implement me")
-
     @property
     def constructor(self) -> GenericConstructor:
         """The used constructor."""
@@ -180,8 +291,23 @@ class MethodStatement(ParametrizedStatement):
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._method
 
-    def mutate(self) -> bool:
-        raise Exception("Implement me")
+    def _mutable_argument_count(self) -> int:
+        # We add +1 to the count, because the callee itself can also be mutated.
+        return super()._mutable_argument_count() + 1
+
+    def _mutate_special_parameters(self, p_per_param: float) -> bool:
+        # We mutate the callee here, as the special parameter.
+        if randomness.next_float() < p_per_param:
+            callee = self.callee
+            objects = self.test_case.get_objects(
+                callee.variable_type, self.get_position()
+            )
+            objects.remove(callee)
+
+            if len(objects) > 0:
+                self.callee = randomness.choice(objects)
+                return True
+        return False
 
     @property
     def method(self) -> GenericMethod:
@@ -192,6 +318,11 @@ class MethodStatement(ParametrizedStatement):
     def callee(self) -> vr.VariableReference:
         """Provides the variable on which the method is invoked."""
         return self._callee
+
+    @callee.setter
+    def callee(self, new_callee: vr.VariableReference) -> None:
+        """Set new callee on which the method is invoked."""
+        self._callee = new_callee
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return MethodStatement(
@@ -225,9 +356,6 @@ class FunctionStatement(ParametrizedStatement):
 
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
         return self._function
-
-    def mutate(self) -> bool:
-        raise Exception("Implement me")
 
     @property
     def function(self) -> GenericFunction:
