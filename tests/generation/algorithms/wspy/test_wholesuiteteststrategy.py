@@ -15,6 +15,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import pynguin.testsuite.testsuitechromosome as tsc
 
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
@@ -29,5 +30,5 @@ def executor():
 
 def test_generate_sequences(executor):
     algorithm = WholeSuiteTestStrategy(executor)
-    with pytest.raises(NotImplementedError):
-        algorithm.generate_sequences()
+    result = algorithm.generate_sequences()
+    assert isinstance(result[0], tsc.TestSuiteChromosome)

@@ -168,6 +168,18 @@ class Configuration:
     # Bias for better individuals in rank selection
     rank_bias = 1.7
 
+    # Minimum number of tests in initial test suites
+    min_initial_tests: int = 1
+
+    # Maximum number of tests in initial test suites
+    max_initial_tests: int = 10
+
+    # Population size of genetic algorithm
+    population = 50
+
+    # Maximum length of chromosomes during search
+    chromosome_length: int = 40
+
     # What condition should be checked to end the search/test generation.
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
 
