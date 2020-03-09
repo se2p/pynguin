@@ -177,7 +177,7 @@ class Chromosome(metaclass=abc.ABCMeta):
         :param type_: A subtype of FitnessFunction
         :return: Its fitness value
         """
-        for fitness_function in self.fitness_values.keys():
+        for fitness_function in self.fitness_values:
             if isinstance(fitness_function, type_):
                 return self.fitness_values[fitness_function]
         return 0.0
@@ -188,7 +188,7 @@ class Chromosome(metaclass=abc.ABCMeta):
         :param type_: A subtype of FitnessFunction
         :return: Its coverage value
         """
-        for fitness_function in self.coverage_values.keys():
+        for fitness_function in self.coverage_values:
             if isinstance(fitness_function, type_):
                 return self.coverage_values[fitness_function]
         return 0.0
