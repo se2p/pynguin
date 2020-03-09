@@ -14,11 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
 import logging
-import os
-import shutil
-import tempfile
 from argparse import ArgumentParser
-from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,7 +22,6 @@ import pytest
 import pynguin.configuration as config
 from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.string import String
 
 
 def test__setup_logging_standard_with_log_file(tmp_path):
@@ -95,61 +90,6 @@ def test_init_with_cli_arguments():
     args = [""]
     Pynguin(argument_parser=parser, arguments=args)
     assert config.INSTANCE == conf
-
-
-@pytest.mark.skip()
-@mock.patch("pynguin.generator.Executor")
-@mock.patch("pynguin.generator.CoverageRecorder")
-@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
-def test_run(algorithm, __, ___):
-    algorithm.return_value.generate_sequences.return_value = ([], [])
-
-    tmp_dir = tempfile.mkdtemp()
-    configuration = config.Configuration(output_path=tmp_dir)
-    generator = Pynguin(configuration=configuration)
-    assert generator.run() == 0
-    shutil.rmtree(tmp_dir)
-
-
-@pytest.mark.skip()
-@mock.patch("pynguin.generator.Executor")
-@mock.patch("pynguin.generator.CoverageRecorder")
-@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
-def test_run_with_module_names_and_coverage(algorithm, _, __):
-    algorithm.return_value.generate_sequences.return_value = ([], [])
-
-    tmp_dir = tempfile.mkdtemp()
-    configuration = config.Configuration(
-        output_path=tmp_dir, module_names=["foo"], measure_coverage=True
-    )
-    generator = Pynguin(configuration=configuration)
-    with mock.patch("pynguin.generator.importlib.import_module") as import_mock:
-        import_mock.return_value = "bar"
-        generator.run()
-
-    shutil.rmtree(tmp_dir)
-
-
-@pytest.mark.skip()
-@mock.patch("pynguin.generator.Executor")
-@mock.patch("pynguin.generator.CoverageRecorder")
-@mock.patch("pynguin.generator.RandomGenerationAlgorithm")
-def test_run_with_observed_string(algorithm, _, __):
-    algorithm.return_value.generate_sequences.return_value = ([], [])
-    String.observed.append("foo")
-    String.observed.append("bar")
-
-    tmp_dir = tempfile.mkdtemp()
-    configuration = config.Configuration(output_path=tmp_dir)
-    generator = Pynguin(configuration=configuration)
-    generator.run()
-
-    with open(os.path.join(tmp_dir, "string", "42.txt")) as f:
-        lines = f.readlines()
-        assert "foo\n" in lines
-        assert "bar\n" in lines
-
-    shutil.rmtree(tmp_dir)
 
 
 def test_run_without_logger():
