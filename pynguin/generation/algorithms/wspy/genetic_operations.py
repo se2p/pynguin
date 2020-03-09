@@ -13,28 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides operations for the genetic algorithm."""
-from math import floor, sqrt
-
-from pynguin.generation.algorithms.wspy.testsuite import TestSuite
+from math import sqrt
 from pynguin.utils import randomness
 import pynguin.configuration as config
-
-
-def crossover(parent1: TestSuite, parent2: TestSuite):
-    """Performs a single point relative crossover of the two parents."""
-    if parent1.size() < 2 or parent2.size() < 2:
-        return
-
-    split_point = randomness.next_float()
-
-    position1 = floor((parent1.size() - 1) * split_point) + 1
-    position2 = floor((parent2.size() - 1) * split_point) + 1
-
-    new_test_cases1 = parent1.test_cases[:position1] + parent2.test_cases[position2:]
-    new_test_cases2 = parent2.test_cases[:position2] + parent1.test_cases[position1:]
-
-    parent1.test_cases = new_test_cases1
-    parent2.test_cases = new_test_cases2
 
 
 def rank_selection(population_size: int) -> int:
