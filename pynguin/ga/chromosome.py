@@ -37,13 +37,12 @@ class Chromosome(metaclass=abc.ABCMeta):
         self.changed: bool = True
         self.local_search_applied: bool = False
 
-    @property
+    @abstractmethod
     def size(self) -> int:
         """Return length of individual
 
         :return: The length of an individual
         """
-        raise NotImplementedError("Implement abstract method")
 
     def set_changed(self, changed: bool) -> None:
         """Set changed status to parameter value"""
