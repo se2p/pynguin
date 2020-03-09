@@ -13,28 +13,29 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract base class for chromosomes"""
+from __future__ import annotations
+
+import abc
 import math
-from dataclasses import dataclass, field
+from abc import abstractmethod
 from typing import Dict
 
 import pynguin.ga.fitnessfuncion as ff
 
 
 # pylint: disable=too-many-instance-attributes
-@dataclass
-class Chromosome:
+class Chromosome(metaclass=abc.ABCMeta):
     """An abstract base class for chromosomes"""
 
-    fitness_values: Dict[ff.FitnessFunction, float] = field(default_factory=dict)
-    previous_fitness_values: Dict[ff.FitnessFunction, float] = field(
-        default_factory=dict
-    )
-    coverage_values: Dict[ff.FitnessFunction, float] = field(default_factory=dict)
-    nums_covered_goals: Dict[ff.FitnessFunction, int] = field(default_factory=dict)
-    nums_not_covered_goals: Dict[ff.FitnessFunction, int] = field(default_factory=dict)
-    number_of_evaluations: int = 0
-    changed: bool = True
-    local_search_applied: bool = False
+    def __init__(self):
+        self.fitness_values: Dict[ff.FitnessFunction, float] = dict()
+        self.previous_fitness_values: Dict[ff.FitnessFunction, float] = dict()
+        self.coverage_values: Dict[ff.FitnessFunction, float] = dict()
+        self.nums_covered_goals: Dict[ff.FitnessFunction, int] = dict()
+        self.nums_not_covered_goals: Dict[ff.FitnessFunction, int] = dict()
+        self.number_of_evaluations: int = 0
+        self.changed: bool = True
+        self.local_search_applied: bool = False
 
     @property
     def size(self) -> int:
