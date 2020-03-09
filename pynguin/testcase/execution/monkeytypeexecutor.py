@@ -27,6 +27,7 @@ from monkeytype.tracing import CallTraceLogger, CallTrace, CallTracer
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 
 
@@ -114,10 +115,12 @@ class MonkeyTypeExecutor(AbstractExecutor):
         self._filter_and_append_call_traces()
         return self._call_traces
 
-    def execute_test_suite(self, test_suite: List[tc.TestCase]) -> List[CallTrace]:
+    def execute_test_suite(
+        self, test_suite: tsc.TestSuiteChromosome
+    ) -> List[CallTrace]:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for test_case in test_suite:
+                for test_case in test_suite.test_chromosomes:
                     self.setup(test_case)
                     self._execute_ast_nodes()
         self._filter_and_append_call_traces()

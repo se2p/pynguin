@@ -95,6 +95,4 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
                 self._logger.debug("Execute MonkeyType on test suite")
                 # TODO(sl) execute the full test suite or just the newly added test
                 #  cases?
-                self.execute_test_suite_monkey_type(
-                    test_chromosome.test_chromosomes, test_cluster
-                )
+                self.execute_test_suite_monkey_type(test_chromosome, test_cluster)

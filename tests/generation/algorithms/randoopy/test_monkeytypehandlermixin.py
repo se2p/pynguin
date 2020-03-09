@@ -15,6 +15,7 @@
 import pytest
 
 import pynguin.configuration as config
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
     MonkeyTypeHandlerMixin,
 )
@@ -37,4 +38,6 @@ def test_execute_test_suite_monkey_type(mixin, short_test_case):
     module_name = "tests.fixtures.accessibles.accessible"
     config.INSTANCE.module_name = module_name
     test_cluster = TestClusterGenerator(module_name).generate_cluster()
-    mixin.execute_test_suite_monkey_type([short_test_case], test_cluster)
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test(short_test_case)
+    mixin.execute_test_suite_monkey_type(test_suite, test_cluster)

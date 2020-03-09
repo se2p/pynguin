@@ -18,7 +18,7 @@ import importlib
 import logging
 import os
 import sys
-from typing import Tuple, Union, Any, List, Optional
+from typing import Tuple, Union, Any, Optional
 
 import astor
 from coverage import Coverage, CoverageException, CoverageData
@@ -26,6 +26,7 @@ from coverage import Coverage, CoverageException, CoverageData
 import pynguin.configuration as config
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.instrumentation.basis import get_tracer
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.utils.proxy import MagicProxy
@@ -100,7 +101,9 @@ class TestCaseExecutor(AbstractExecutor):
                 self._collect_fitness(result)
         return result
 
-    def execute_test_suite(self, test_suite: List[tc.TestCase]) -> res.ExecutionResult:
+    def execute_test_suite(
+        self, test_suite: tsc.TestSuiteChromosome
+    ) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
 
         :param test_suite: The list of test cases, i.e., the test suite
@@ -117,10 +120,9 @@ class TestCaseExecutor(AbstractExecutor):
 
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for test_case in test_suite:
+                for test_case in test_suite.test_chromosomes:
                     self.setup(test_case)
                     self._execute_ast_nodes(result)
-                self._collect_coverage(result)
                 self._collect_fitness(result)
         TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
         return result
@@ -147,7 +149,7 @@ class TestCaseExecutor(AbstractExecutor):
                 if config.INSTANCE.measure_coverage:
                     self._coverage.stop()
 
-    def _collect_coverage(self, result: res.ExecutionResult):
+    def _collect_coverage(self, result: res.ExecutionResult) -> float:
         try:
             if config.INSTANCE.measure_coverage:
                 result.branch_coverage = self._coverage.report()
@@ -156,9 +158,10 @@ class TestCaseExecutor(AbstractExecutor):
             self._logger.debug(
                 "Achieved coverage after execution: %s", result.branch_coverage
             )
+            return result.branch_coverage
         except CoverageException:
             # No call on the tested module?
-            pass
+            return -1
 
     @staticmethod
     def _collect_fitness(result: res.ExecutionResult):

@@ -145,7 +145,7 @@ class Pynguin:
 
             with Timer(name="Re-execution time", logger=None):
                 executor = TestCaseExecutor()
-                result = executor.execute_test_suite(test_chromosome.test_chromosomes)
+                result = executor.execute_test_suite(test_chromosome)
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
@@ -197,7 +197,7 @@ class Pynguin:
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
         tracker.track_output_variable(
-            RuntimeVariable.Coverage, execution_result.branch_coverage
+            RuntimeVariable.Coverage, execution_result.branch_coverage / 100
         )
         tracker.track_output_variable(
             RuntimeVariable.FailingSize, failing_test_chromosome.size

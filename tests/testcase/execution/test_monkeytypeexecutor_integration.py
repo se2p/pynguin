@@ -17,6 +17,7 @@ from monkeytype.encoding import CallTraceRow
 from monkeytype.tracing import CallTrace
 
 import pynguin.configuration as config
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.monkeytypeexecutor import (
     MonkeyTypeExecutor,
     _MonkeyTypeCallTraceStore,
@@ -54,7 +55,9 @@ def test_no_exceptions(short_test_case):
 def test_no_exceptions_test_suite(short_test_case):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     executor = MonkeyTypeExecutor()
-    result = executor.execute_test_suite([short_test_case])
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test(short_test_case)
+    result = executor.execute_test_suite(test_suite)
     assert len(result) == 1
     assert (
         result[0].funcname == "tests.fixtures.accessibles.accessible.SomeType.__init__"
