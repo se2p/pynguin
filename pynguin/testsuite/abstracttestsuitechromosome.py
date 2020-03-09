@@ -74,6 +74,18 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
         """Provides the size of the chromosome, i.e., its number of test cases."""
         return len(self._tests)
 
+    def cross_over(self, other: chrom.Chromosome, position1: int, position2: int):
+        """
+        Keep tests up to position1. Append copies of tests from other from position2 onwards.
+        """
+        if not isinstance(other, AbstractTestSuiteChromosome):
+            raise RuntimeError("Cannot perform crossover with " + str(type(other)))
+
+        self._tests = self._tests[:position1] + [
+            test.clone() for test in other._tests[position2:]
+        ]
+        self.set_changed(True)
+
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True

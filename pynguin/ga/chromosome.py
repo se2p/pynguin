@@ -196,3 +196,7 @@ class Chromosome(metaclass=abc.ABCMeta):
     def increase_number_of_evaluations(self) -> None:
         """Increases the number of times this chromosome has been evaluated by one"""
         self.number_of_evaluations += 1
+
+    @abstractmethod
+    def cross_over(self, other: Chromosome, position1: int, position2: int) -> None:
+        """Single point cross over."""
