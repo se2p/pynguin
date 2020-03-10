@@ -20,6 +20,7 @@ import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
 )
+from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
@@ -29,6 +30,6 @@ def executor():
 
 
 def test_generate_sequences(executor):
-    algorithm = WholeSuiteTestStrategy(executor)
+    algorithm = WholeSuiteTestStrategy(executor, MagicMock(TestCluster))
     result = algorithm.generate_sequences()
     assert isinstance(result[0], tsc.TestSuiteChromosome)

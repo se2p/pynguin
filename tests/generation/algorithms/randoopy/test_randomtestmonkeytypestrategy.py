@@ -29,7 +29,9 @@ from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariab
 
 @pytest.fixture
 def strategy():
-    strategy = RandomTestMonkeyTypeStrategy(MagicMock(AbstractExecutor))
+    strategy = RandomTestMonkeyTypeStrategy(
+        MagicMock(AbstractExecutor), MagicMock(TestCluster)
+    )
     strategy.execute_test_case_monkey_type = lambda t, c: None
     strategy.execute_test_suite_monkey_type = lambda t, c: None
     return strategy
@@ -49,9 +51,7 @@ def test_call_monkey_type(
     config.INSTANCE.monkey_type_execution = 2
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_tests(test_cases)
-    strategy._call_monkey_type(
-        number_of_test_cases, execution_counter, test_suite, MagicMock(TestCluster)
-    )
+    strategy._call_monkey_type(number_of_test_cases, execution_counter, test_suite)
 
 
 def test_send_statistics(strategy):

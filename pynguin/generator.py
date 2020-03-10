@@ -28,12 +28,11 @@ import argparse
 import logging
 import os
 import sys
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Callable
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.configuration import Algorithm
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
@@ -44,6 +43,8 @@ from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
 )
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
@@ -134,11 +135,15 @@ class Pynguin:
             config.INSTANCE.algorithm.use_instrumentation, config.INSTANCE.module_name
         ):
             executor = TestCaseExecutor()
+            with Timer(name="Test-cluster generation time", logger=None):
+                test_cluster = TestClusterGenerator(
+                    config.INSTANCE.module_name
+                ).generate_cluster()
 
             timer = Timer(name="Test generation time", logger=None)
             timer.start()
             algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
-                executor
+                executor, test_cluster
             )
             test_chromosome, failing_test_chromosome = algorithm.generate_sequences()
             algorithm.send_statistics()
@@ -166,16 +171,23 @@ class Pynguin:
 
         return status
 
-    @staticmethod
+    _strategies: Dict[
+        config.Algorithm,
+        Callable[[AbstractExecutor, TestCluster], TestGenerationStrategy],
+    ] = {
+        config.Algorithm.RANDOOPY: RandomTestStrategy,
+        config.Algorithm.RANDOOPY_MONKEYTYPE: RandomTestMonkeyTypeStrategy,
+        config.Algorithm.WSPY: WholeSuiteTestStrategy,
+    }
+
+    @classmethod
     def _instantiate_test_generation_strategy(
-        executor: AbstractExecutor,
+        cls, executor: AbstractExecutor, test_cluster: TestCluster
     ) -> TestGenerationStrategy:
-        if config.INSTANCE.algorithm == Algorithm.RANDOOPY:
-            return RandomTestStrategy(executor)
-        if config.INSTANCE.algorithm == Algorithm.RANDOOPY_MONKEYTYPE:
-            return RandomTestMonkeyTypeStrategy(executor)
-        if config.INSTANCE.algorithm == Algorithm.WSPY:
-            return WholeSuiteTestStrategy(executor)
+        if config.INSTANCE.algorithm in cls._strategies:
+            strategy = cls._strategies.get(config.INSTANCE.algorithm)
+            assert strategy, "Strategy cannot be defined as None"
+            return strategy(executor, test_cluster)
         raise ConfigurationException("Unknown algorithm selected")
 
     def _collect_statistics(self) -> None:

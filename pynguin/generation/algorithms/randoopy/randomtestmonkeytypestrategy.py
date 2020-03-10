@@ -42,8 +42,8 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor) -> None:
-        super().__init__(executor)
+    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
+        super().__init__(executor, test_cluster)
         self._monkey_type_executor = MonkeyTypeExecutor()
         self._monkey_type_executions = 0
         self._parameter_updates: List[
@@ -56,7 +56,6 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
-        test_cluster: TestCluster,
         fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
@@ -64,13 +63,10 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         super().generate_sequence(
             test_chromosome,
             failing_test_chromosome,
-            test_cluster,
             fitness_functions,
             execution_counter,
         )
-        self._call_monkey_type(
-            number_of_test_cases, execution_counter, test_chromosome, test_cluster
-        )
+        self._call_monkey_type(number_of_test_cases, execution_counter, test_chromosome)
 
     def send_statistics(self):
         super().send_statistics()
@@ -90,16 +86,15 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         number_of_test_cases: int,
         execution_counter: int,
         test_chromosome: tsc.TestSuiteChromosome,
-        test_cluster: TestCluster,
     ) -> None:
         if execution_counter % config.INSTANCE.monkey_type_execution == 0:
             if test_chromosome.size - number_of_test_cases == 1:
                 self._logger.debug("Execute MonkeyType on single test case")
                 self.execute_test_case_monkey_type(
-                    test_chromosome.test_chromosomes[-1], test_cluster
+                    test_chromosome.test_chromosomes[-1], self.test_cluster
                 )
             elif test_chromosome.size > number_of_test_cases:
                 self._logger.debug("Execute MonkeyType on test suite")
                 # TODO(sl) execute the full test suite or just the newly added test
                 #  cases?
-                self.execute_test_suite_monkey_type(test_chromosome, test_cluster)
+                self.execute_test_suite_monkey_type(test_chromosome, self.test_cluster)

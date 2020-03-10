@@ -18,6 +18,7 @@ from typing import Tuple
 import pynguin.testsuite.testsuitechromosome as tsc
 
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 
 
@@ -27,8 +28,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor) -> None:
-        super().__init__()
+    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
+        super().__init__(test_cluster)
         self._executor = executor
 
     def generate_sequences(

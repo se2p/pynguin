@@ -31,9 +31,13 @@ from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
     MaxTimeStoppingCondition,
 )
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.setup.testcluster import TestCluster
 
 
 class _TestGenerationStrategy(TestGenerationStrategy):
+    def __init__(self):
+        super().__init__(MagicMock(TestCluster))
+
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         raise NotImplementedError(
             "This class is not intended for usage but only for testing"

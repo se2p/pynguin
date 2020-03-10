@@ -24,7 +24,6 @@ import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase import testfactory
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
@@ -40,8 +39,8 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor) -> None:
-        super(RandomTestStrategy, self).__init__()
+    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
+        super(RandomTestStrategy, self).__init__(test_cluster)
         self._executor = executor
         self._execution_results: List[ExecutionResult] = []
 
@@ -67,17 +66,12 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome.add_fitness(fitness_function)
             failing_test_chromosome.add_fitness(fitness_function)
 
-        with Timer(name="Test-cluster generation time", logger=None):
-            test_cluster_generator = TestClusterGenerator(config.INSTANCE.module_name)
-            test_cluster = test_cluster_generator.generate_cluster()
-
         while not self.is_fulfilled(stopping_condition):
             try:
                 execution_counter += 1
                 self.generate_sequence(
                     test_chromosome,
                     failing_test_chromosome,
-                    test_cluster,
                     fitness_functions,
                     execution_counter,
                 )
@@ -101,7 +95,6 @@ class RandomTestStrategy(TestGenerationStrategy):
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
-        test_cluster: TestCluster,
         fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
@@ -109,8 +102,6 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         :param test_chromosome: The list of currently successful test cases
         :param failing_test_chromosome: The list of currently not successful test cases
-        :param test_cluster: A cluster storing the available types and methods for
-        test generation
         :param fitness_functions:
         :param execution_counter: A current number of algorithm iterations
         """
@@ -119,7 +110,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         timer.start()
         objects_under_test: Set[
             gao.GenericAccessibleObject
-        ] = test_cluster.accessible_objects_under_test
+        ] = self.test_cluster.accessible_objects_under_test
 
         if not objects_under_test:
             # In case we do not have any objects under test, we cannot generate a

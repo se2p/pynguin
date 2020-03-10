@@ -31,13 +31,22 @@ from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
     MaxTimeStoppingCondition,
 )
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.setup.testcluster import TestCluster
 
 
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, test_cluster: TestCluster) -> None:
+        """
+        :param test_cluster: A cluster storing the available types and methods for
+        test generation"""
+        self._test_cluster = test_cluster
+
+    @property
+    def test_cluster(self):
+        """Provide the test cluster."""
+        return self._test_cluster
 
     @abstractmethod
     def generate_sequences(

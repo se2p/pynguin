@@ -19,6 +19,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
@@ -39,11 +40,12 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_randoopy(module_name):
     config.INSTANCE.budget = 1
-    config.INSTANCE.module_name = module_name
     config.INSTANCE.measure_coverage = False
     logger = MagicMock(Logger)
     executor = TestCaseExecutor()
-    algorithm = RandomTestStrategy(executor)
+    algorithm = RandomTestStrategy(
+        executor, TestClusterGenerator(module_name).generate_cluster()
+    )
     algorithm._logger = logger
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases.size >= 0
@@ -67,12 +69,12 @@ def test_integrate_randoopy(module_name):
 )
 def test_integrate_randoopy_monkey_type(module_name):
     config.INSTANCE.budget = 1
-    config.INSTANCE.module_name = module_name
     config.INSTANCE.measure_coverage = False
-    config.INSTANCE.algorithm = config.Algorithm.RANDOOPY_MONKEYTYPE
     logger = MagicMock(Logger)
     executor = TestCaseExecutor()
-    algorithm = RandomTestStrategy(executor)
+    algorithm = RandomTestStrategy(
+        executor, TestClusterGenerator(module_name).generate_cluster()
+    )
     algorithm._logger = logger
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases.size >= 0
