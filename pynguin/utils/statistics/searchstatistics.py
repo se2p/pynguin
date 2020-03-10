@@ -22,77 +22,76 @@ from typing import Optional, Dict, Any, List
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.utils.statistics.outputvariablefactory import (
-    ChromosomeOutputVariableFactory,
-    SequenceOutputVariableFactory,
-    DirectSequenceOutputVariableFactory,
-)
-from pynguin.utils.statistics.statistics import RuntimeVariable
-from pynguin.utils.statistics.statisticsbackend import (
-    AbstractStatisticsBackend,
-    ConsoleStatisticsBackend,
-    CSVStatisticsBackend,
-    OutputVariable,
-)
+import pynguin.utils.statistics.outputvariablefactory as ovf
+import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
+import pynguin.utils.statistics.statisticsbackend as sb
 
 
 class SearchStatistics:
-    """A singleton of SearchStatistics collects all the data values reported"""
+    """A singleton of SearchStatistics collects all the data values reported.
+
+    Because we cannot guarantee a singleton here without making the code too crazy,
+    the only instance of this class that shall exist throughout the whole framework
+    is in the `StatisticsTracker`.  The `StatisticsTracker` provides public methods
+    for all public methods of this class, which delegate to its instance.
+    """
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._backend: Optional[AbstractStatisticsBackend] = self._initialise_backend()
-        self._output_variables: Dict[str, OutputVariable] = {}
-        self._variable_factories: Dict[str, ChromosomeOutputVariableFactory] = {}
+        self._backend: Optional[
+            sb.AbstractStatisticsBackend
+        ] = self._initialise_backend()
+        self._output_variables: Dict[str, sb.OutputVariable] = {}
+        self._variable_factories: Dict[str, ovf.ChromosomeOutputVariableFactory] = {}
         self._sequence_output_variable_factories: Dict[
-            str, SequenceOutputVariableFactory
+            str, ovf.SequenceOutputVariableFactory
         ] = {}
         self._init_factories()
         self.set_output_variable_for_runtime_variable(
-            RuntimeVariable.Random_Seed, config.INSTANCE.seed
+            stat.RuntimeVariable.Random_Seed, config.INSTANCE.seed
         )
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
         self._best_individual: Optional[tsc.TestSuiteChromosome] = None
 
     @staticmethod
-    def _initialise_backend() -> Optional[AbstractStatisticsBackend]:
+    def _initialise_backend() -> Optional[sb.AbstractStatisticsBackend]:
         backend = config.INSTANCE.statistics_backend
         if backend == config.StatisticsBackend.CONSOLE:
-            return ConsoleStatisticsBackend()
+            return sb.ConsoleStatisticsBackend()
         if backend == config.StatisticsBackend.CSV:
-            return CSVStatisticsBackend()
+            return sb.CSVStatisticsBackend()
         return None
 
     def _init_factories(self) -> None:
         self._variable_factories[
-            RuntimeVariable.Length.name
+            stat.RuntimeVariable.Length.name
         ] = self._ChromosomeLengthOutputVariableFactory()
         self._variable_factories[
-            RuntimeVariable.Size.name
+            stat.RuntimeVariable.Size.name
         ] = self._ChromosomeSizeOutputVariableFactory()
         self._variable_factories[
-            RuntimeVariable.Coverage.name
+            stat.RuntimeVariable.Coverage.name
         ] = self._ChromosomeCoverageOutputVariableFactory()
         self._variable_factories[
-            RuntimeVariable.Fitness.name
+            stat.RuntimeVariable.Fitness.name
         ] = self._ChromosomeFitnessOutputVariableFactory()
 
     def _fill_sequence_output_variable_factories(self) -> None:
         self._sequence_output_variable_factories[
-            RuntimeVariable.CoverageTimeline.name
+            stat.RuntimeVariable.CoverageTimeline.name
         ] = self._CoverageSequenceOutputVariableFactory()
         self._sequence_output_variable_factories[
-            RuntimeVariable.SizeTimeline.name
+            stat.RuntimeVariable.SizeTimeline.name
         ] = self._SizeSequenceOutputVariableFactory()
         self._sequence_output_variable_factories[
-            RuntimeVariable.LengthTimeline.name
+            stat.RuntimeVariable.LengthTimeline.name
         ] = self._LengthSequenceOutputVariableFactory()
         self._sequence_output_variable_factories[
-            RuntimeVariable.TotalExceptionsTimeline.name
-        ] = DirectSequenceOutputVariableFactory.get_integer(
-            RuntimeVariable.TotalExceptionsTimeline
+            stat.RuntimeVariable.TotalExceptionsTimeline.name
+        ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
+            stat.RuntimeVariable.TotalExceptionsTimeline
         )
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
@@ -116,30 +115,30 @@ class SearchStatistics:
         for seq_variable_factory in self._sequence_output_variable_factories.values():
             seq_variable_factory.update(individual)
 
-    def set_output_variable(self, variable: OutputVariable) -> None:
+    def set_output_variable(self, variable: sb.OutputVariable) -> None:
         """Sets an output variable to a value directly
 
         :param variable: The variable to be set
         """
         if variable.name in self._sequence_output_variable_factories:
             var = self._sequence_output_variable_factories[variable.name]
-            assert isinstance(var, DirectSequenceOutputVariableFactory)
+            assert isinstance(var, ovf.DirectSequenceOutputVariableFactory)
             var.set_value(variable.value)
         else:
             self._output_variables[variable.name] = variable
 
     def set_output_variable_for_runtime_variable(
-        self, variable: RuntimeVariable, value: Any
+        self, variable: stat.RuntimeVariable, value: Any
     ) -> None:
         """Sets an output variable to a value directly
 
         :param variable: The variable to be set
         :param value: the value to be set
         """
-        self.set_output_variable(OutputVariable(name=variable.name, value=value))
+        self.set_output_variable(sb.OutputVariable(name=variable.name, value=value))
 
     @property
-    def output_variables(self) -> Dict[str, OutputVariable]:
+    def output_variables(self) -> Dict[str, sb.OutputVariable]:
         """Provides the output variables"""
         return self._output_variables
 
@@ -147,7 +146,7 @@ class SearchStatistics:
     def _get_all_output_variable_names() -> List[str]:
         return [
             "TARGET_CLASS",
-            RuntimeVariable.Coverage.name,
+            stat.RuntimeVariable.Coverage.name,
         ]
 
     def _get_output_variable_names(self) -> List[str]:
@@ -161,8 +160,8 @@ class SearchStatistics:
 
     def _get_output_variables(
         self, individual, skip_missing: bool = False
-    ) -> Dict[str, OutputVariable]:
-        variables: Dict[str, OutputVariable] = {}
+    ) -> Dict[str, sb.OutputVariable]:
+        variables: Dict[str, sb.OutputVariable] = {}
 
         for variable_name in self._get_output_variable_names():
             if variable_name in self._output_variables:
@@ -182,7 +181,9 @@ class SearchStatistics:
                     variables[var.name] = var
             elif skip_missing:
                 # if variable does not exist, return an empty value instead
-                variables[variable_name] = OutputVariable(name=variable_name, value="")
+                variables[variable_name] = sb.OutputVariable(
+                    name=variable_name, value=""
+                )
             else:
                 self._logger.error(
                     "No obtained value for output variable %s", variable_name
@@ -200,8 +201,10 @@ class SearchStatistics:
         if not self._backend:
             return False
 
-        self._output_variables[RuntimeVariable.total_time.name] = OutputVariable(
-            name=RuntimeVariable.total_time.name,
+        self._output_variables[
+            stat.RuntimeVariable.total_time.name
+        ] = sb.OutputVariable(
+            name=stat.RuntimeVariable.total_time.name,
             value=time.time_ns() - self._start_time,
         )
 
@@ -217,51 +220,53 @@ class SearchStatistics:
         self._backend.write_data(output_variables)
         return True
 
-    class _ChromosomeLengthOutputVariableFactory(ChromosomeOutputVariableFactory):
+    class _ChromosomeLengthOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.Length)
+            super().__init__(stat.RuntimeVariable.Length)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases
 
-    class _ChromosomeSizeOutputVariableFactory(ChromosomeOutputVariableFactory):
+    class _ChromosomeSizeOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.Size)
+            super().__init__(stat.RuntimeVariable.Size)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.size
 
-    class _ChromosomeCoverageOutputVariableFactory(ChromosomeOutputVariableFactory):
+    class _ChromosomeCoverageOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.Coverage)
+            super().__init__(stat.RuntimeVariable.Coverage)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
             return individual.coverage
 
-    class _ChromosomeFitnessOutputVariableFactory(ChromosomeOutputVariableFactory):
+    class _ChromosomeFitnessOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.Fitness)
+            super().__init__(stat.RuntimeVariable.Fitness)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
             return individual.fitness
 
-    class _CoverageSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
+    class _CoverageSequenceOutputVariableFactory(
+        ovf.DirectSequenceOutputVariableFactory
+    ):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.CoverageTimeline, 0.0)
+            super().__init__(stat.RuntimeVariable.CoverageTimeline, 0.0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
             return individual.coverage
 
-    class _SizeSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
+    class _SizeSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.SizeTimeline, 0)
+            super().__init__(stat.RuntimeVariable.SizeTimeline, 0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.size
 
-    class _LengthSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
+    class _LengthSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.LengthTimeline, 0)
+            super().__init__(stat.RuntimeVariable.LengthTimeline, 0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases

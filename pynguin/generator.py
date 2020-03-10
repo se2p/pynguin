@@ -50,7 +50,6 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.statistics.searchstatistics import SearchStatistics
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
@@ -99,7 +98,6 @@ class Pynguin:
                 "Cannot initialise test generator without proper configuration."
             )
         self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
-        self._search_statistics = SearchStatistics()
         if config.INSTANCE.configuration_id:
             StatisticsTracker().track_output_variable(
                 RuntimeVariable.configuration_id, config.INSTANCE.configuration_id
@@ -162,8 +160,8 @@ class Pynguin:
             self._track_statistics(result, test_chromosome, failing_test_chromosome)
             timer.stop()
             self._collect_statistics()
-            self._search_statistics.current_individual(test_chromosome)
-            if not self._search_statistics.write_statistics():
+            StatisticsTracker().current_individual(test_chromosome)
+            if not StatisticsTracker().write_statistics():
                 self._logger.error("Failed to write statistics data")
             if test_chromosome.size == 0:
                 # not able to generate one successful test case
@@ -190,10 +188,11 @@ class Pynguin:
             return strategy(executor, test_cluster)
         raise ConfigurationException("Unknown algorithm selected")
 
-    def _collect_statistics(self) -> None:
+    @staticmethod
+    def _collect_statistics() -> None:
         tracker = StatisticsTracker()
         for runtime_variable, value in tracker.variables_generator:
-            self._search_statistics.set_output_variable_for_runtime_variable(
+            StatisticsTracker().set_output_variable_for_runtime_variable(
                 runtime_variable, value
             )
 

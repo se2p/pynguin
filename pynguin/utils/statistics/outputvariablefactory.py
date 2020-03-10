@@ -20,8 +20,8 @@ from typing import List, Generic, TypeVar
 
 import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.utils.statistics.statistics import RuntimeVariable
-from pynguin.utils.statistics.statisticsbackend import OutputVariable
+import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
+import pynguin.utils.statistics.statisticsbackend as sb
 
 T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 
@@ -29,7 +29,7 @@ T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Factory to create an output variable when given a test suite chromosome"""
 
-    def __init__(self, variable: RuntimeVariable) -> None:
+    def __init__(self, variable: stat.RuntimeVariable) -> None:
         self._variable = variable
 
     @abstractmethod
@@ -40,19 +40,21 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         :return: The current value of the variable in the individual
         """
 
-    def get_variable(self, individual: tsc.TestSuiteChromosome) -> OutputVariable[T]:
+    def get_variable(self, individual: tsc.TestSuiteChromosome) -> sb.OutputVariable[T]:
         """Provides the output variable
 
         :param individual: The individual
         :return: The output variable for the individual
         """
-        return OutputVariable(name=self._variable.name, value=self.get_data(individual))
+        return sb.OutputVariable(
+            name=self._variable.name, value=self.get_data(individual)
+        )
 
 
 class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Creates an output variable that represents a sequence of values"""
 
-    def __init__(self, variable: RuntimeVariable) -> None:
+    def __init__(self, variable: stat.RuntimeVariable) -> None:
         self._variable = variable
         self._time_stamps: List[int] = []
         self._values: List[T] = []
@@ -88,13 +90,13 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             for suffix in self._get_time_line_header_suffixes()
         ]
 
-    def get_output_variables(self) -> List[OutputVariable[T]]:
+    def get_output_variables(self) -> List[sb.OutputVariable[T]]:
         """Provides the output variables
 
         :return: A list of output variables
         """
         return [
-            OutputVariable(
+            sb.OutputVariable(
                 name=variable_name, value=self._get_time_line_value(variable_name)
             )
             for variable_name in self.get_variable_names()
@@ -150,7 +152,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
     """Sequence output variable whose value can be set directly, instead of
     retrieving it from an individual"""
 
-    def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
+    def __init__(self, variable: stat.RuntimeVariable, start_value: T) -> None:
         super().__init__(variable)
         self._value = start_value  # type: ignore
 
@@ -162,11 +164,15 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
         self._value = value
 
     @staticmethod
-    def get_float(variable: RuntimeVariable) -> DirectSequenceOutputVariableFactory:
+    def get_float(
+        variable: stat.RuntimeVariable,
+    ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for a float variable"""
         return DirectSequenceOutputVariableFactory(variable, 0.0)
 
     @staticmethod
-    def get_integer(variable: RuntimeVariable) -> DirectSequenceOutputVariableFactory:
+    def get_integer(
+        variable: stat.RuntimeVariable,
+    ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for an integer variable"""
         return DirectSequenceOutputVariableFactory(variable, 0)

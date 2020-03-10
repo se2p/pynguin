@@ -17,7 +17,11 @@ from __future__ import annotations
 
 import enum
 import queue
-from typing import Optional, Any, Generator, Tuple
+from typing import Optional, Any, Generator, Tuple, Dict
+
+import pynguin.ga.chromosome as chrom
+import pynguin.utils.statistics.searchstatistics as ss  # pylint: disable=cyclic-import
+import pynguin.utils.statistics.statisticsbackend as sb
 
 
 class RuntimeVariable(enum.Enum):
@@ -75,6 +79,7 @@ class StatisticsTracker:
         if cls._instance is None:
             cls._instance = super(StatisticsTracker, cls).__new__(cls)
             cls._variables: queue.Queue = queue.Queue()
+            cls._search_statistics: ss.SearchStatistics = ss.SearchStatistics()
         return cls._instance
 
     def track_output_variable(self, runtime_variable: RuntimeVariable, value: Any):
@@ -96,3 +101,48 @@ class StatisticsTracker:
         """Provides a generator"""
         while not self._variables.empty():
             yield self._variables.get()
+
+    @property
+    def search_statistics(self) -> ss.SearchStatistics:
+        """Provides the internal search statistics instance"""
+        return self._search_statistics
+
+    def current_individual(self, individual: chrom.Chromosome) -> None:
+        """Called when a new individual is sent.
+
+        The individual represents the best individual of the current generation.
+
+        :param individual: The best individual of the current generation
+        """
+        self._search_statistics.current_individual(individual)
+
+    def set_output_variable(self, variable: sb.OutputVariable) -> None:
+        """Sets an output variable to a value directly
+
+        :param variable: The variable to be set
+        """
+        self._search_statistics.set_output_variable(variable)
+
+    def set_output_variable_for_runtime_variable(
+        self, variable: RuntimeVariable, value: Any
+    ) -> None:
+        """Sets an output variable to a value directly
+
+        :param variable: The variable to be set
+        :param value: the value to be set
+        """
+        self._search_statistics.set_output_variable_for_runtime_variable(
+            variable, value
+        )
+
+    @property
+    def output_variables(self) -> Dict[str, sb.OutputVariable]:
+        """Provides the output variables"""
+        return self._search_statistics.output_variables
+
+    def write_statistics(self) -> bool:
+        """Write result to disk using selected backend
+
+        :return: True if the writing was successful
+        """
+        return self._search_statistics.write_statistics()

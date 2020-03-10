@@ -13,9 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provide various crossover functions for genetic algorithms."""
-
-# pylint: disable=too-few-public-methods
-
 from abc import abstractmethod
 from math import floor
 
@@ -23,6 +20,7 @@ import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 
+# pylint: disable=too-few-public-methods
 class CrossOverFunction:
     """Cross over two individuals."""
 
