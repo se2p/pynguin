@@ -245,23 +245,23 @@ class SearchStatistics:
         def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
             return individual.fitness
 
-    class _CoverageSequenceOutputVariableFactory(SequenceOutputVariableFactory):
+    class _CoverageSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.CoverageTimeline)
+            super().__init__(RuntimeVariable.CoverageTimeline, 0.0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
             return individual.coverage
 
-    class _SizeSequenceOutputVariableFactory(SequenceOutputVariableFactory):
+    class _SizeSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.SizeTimeline)
+            super().__init__(RuntimeVariable.SizeTimeline, 0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.size
 
-    class _LengthSequenceOutputVariableFactory(SequenceOutputVariableFactory):
+    class _LengthSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.LengthTimeline)
+            super().__init__(RuntimeVariable.LengthTimeline, 0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases

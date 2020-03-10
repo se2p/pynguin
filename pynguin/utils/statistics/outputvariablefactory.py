@@ -146,7 +146,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         return int(number_of_intervals)
 
 
-class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory):
+class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic[T]):
     """Sequence output variable whose value can be set directly, instead of
     retrieving it from an individual"""
 
