@@ -28,15 +28,22 @@ import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.testfactory import _TestFactory
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
 from tests.fixtures.examples.monkey import Monkey
 
 
+@pytest.fixture()
+def test_cluster_mock():
+    cluster = MagicMock(TestCluster)
+    cluster.get_generators_for.return_value = set()
+    return cluster
+
+
 def test_append_statement_unknown_type(test_case_mock):
     with pytest.raises(ConstructionFailedException):
-        tf.append_statement(test_case_mock, MagicMock(Monkey))
+        factory = tf.TestFactory(MagicMock(TestCluster))
+        factory.append_statement(test_case_mock, MagicMock(Monkey))
 
 
 @pytest.mark.parametrize(
@@ -48,9 +55,9 @@ def test_append_statement_unknown_type(test_case_mock):
         pytest.param("add_field"),
     ],
 )
-def test_check_recursion_depth_guard(test_case_mock, reset_configuration, method):
+def test_check_recursion_depth_guard(test_case_mock, method):
     with pytest.raises(ConstructionFailedException):
-        getattr(tf, method)(
+        getattr(tf.TestFactory(MagicMock(TestCluster)), method)(
             test_case_mock, MagicMock(stmt.Statement), recursion_depth=11
         )
 
@@ -65,30 +72,20 @@ def test_check_recursion_depth_guard(test_case_mock, reset_configuration, method
         pytest.param(MagicMock(prim.PrimitiveStatement)),
     ],
 )
-def test_append_statement(test_case_mock, reset_configuration, statement):
+def test_append_statement(test_case_mock, statement):
     called = False
 
     def mock_method(t, s, position=0, allow_none=True):
         nonlocal called
         called = True
 
-    factory = _TestFactory()
-    old_constructor = factory.add_constructor
-    old_method = factory.add_method
-    old_function = factory.add_function
-    old_field = factory.add_field
-    old_primitive = factory.add_primitive
+    factory = tf.TestFactory(MagicMock(TestCluster))
     factory.add_constructor = mock_method
     factory.add_method = mock_method
     factory.add_function = mock_method
     factory.add_field = mock_method
     factory.add_primitive = mock_method
     factory.append_statement(test_case_mock, statement)
-    factory.add_constructor = old_constructor
-    factory.add_method = old_method
-    factory.add_function = old_function
-    factory.add_field = old_field
-    factory.add_primitive = old_primitive
     assert called
 
 
@@ -101,7 +98,7 @@ def test_append_statement(test_case_mock, reset_configuration, statement):
         pytest.param(MagicMock(gao.GenericField)),
     ],
 )
-def test_append_generic_statement(test_case_mock, reset_configuration, statement):
+def test_append_generic_statement(test_case_mock, statement):
     called = False
 
     def mock_method(t, s, position=0, allow_none=True, recursion_depth=11):
@@ -109,29 +106,19 @@ def test_append_generic_statement(test_case_mock, reset_configuration, statement
         called = True
         return None
 
-    factory = _TestFactory()
-    old_constructor = factory.add_constructor
-    old_method = factory.add_method
-    old_function = factory.add_function
-    old_field = factory.add_field
-    old_primitive = factory.add_primitive
+    factory = tf.TestFactory(MagicMock(TestCluster))
     factory.add_constructor = mock_method
     factory.add_method = mock_method
     factory.add_function = mock_method
     factory.add_field = mock_method
     factory.add_primitive = mock_method
     result = factory.append_generic_statement(test_case_mock, statement)
-    factory.add_constructor = old_constructor
-    factory.add_method = old_method
-    factory.add_function = old_function
-    factory.add_field = old_field
-    factory.add_primitive = old_primitive
     assert result is None
     assert called
 
 
-def test_append_illegal_generic_statement(test_case_mock, reset_configuration):
-    factory = _TestFactory()
+def test_append_illegal_generic_statement(test_case_mock):
+    factory = tf.TestFactory(MagicMock(TestCluster))
     with pytest.raises(ConstructionFailedException):
         factory.append_generic_statement(
             test_case_mock, MagicMock(prim.PrimitiveStatement), position=42
@@ -141,7 +128,8 @@ def test_append_illegal_generic_statement(test_case_mock, reset_configuration):
 def test_add_primitive(test_case_mock):
     statement = MagicMock(prim.PrimitiveStatement)
     statement.clone.return_value = statement
-    tf.add_primitive(test_case_mock, statement)
+    factory = tf.TestFactory(MagicMock(TestCluster))
+    factory.add_primitive(test_case_mock, statement)
     statement.clone.assert_called_once()
     test_case_mock.add_statement.assert_called_once()
 
@@ -162,12 +150,13 @@ def test_add_constructor(provide_callables_from_fixtures_modules):
             parameters={"foo": int},
         ),
     )
-    result = tf.add_constructor(test_case, generic_constructor, position=0)
+    factory = tf.TestFactory(MagicMock(TestCluster))
+    result = factory.add_constructor(test_case, generic_constructor, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Basket"]
     assert test_case.size() == 2
 
 
-def test_add_method(provide_callables_from_fixtures_modules):
+def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
     test_case = dtc.DefaultTestCase()
     object_ = Monkey("foo")
     methods = inspect.getmembers(object_, inspect.ismethod)
@@ -188,7 +177,8 @@ def test_add_method(provide_callables_from_fixtures_modules):
             parameters={"sentence": str},
         ),
     )
-    result = tf.add_method(test_case, generic_method, position=0)
+    factory = tf.TestFactory(test_cluster_mock)
+    result = factory.add_method(test_case, generic_method, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
     assert test_case.size() == 3
 
@@ -216,15 +206,10 @@ def test_add_function(provide_callables_from_fixtures_modules):
             parameters={"x": int, "y": int, "z": int},
         ),
     )
-    result = tf.add_function(test_case, generic_function, position=0)
+    factory = tf.TestFactory(MagicMock(TestCluster))
+    result = factory.add_function(test_case, generic_function, position=0)
     assert isinstance(result.variable_type, type(None))
     assert test_case.size() <= 4
-
-
-def test_singleton():
-    factory_1 = _TestFactory()
-    factory_2 = _TestFactory()
-    assert factory_1 is factory_2
 
 
 @pytest.mark.parametrize(
@@ -236,7 +221,7 @@ def test_singleton():
     ],
 )
 def test_select_from_union(type_, result):
-    factory = _TestFactory()
+    factory = tf.TestFactory(MagicMock(TestCluster))
     res = factory._select_from_union(type_)
     assert res in result
 
@@ -251,7 +236,7 @@ def test_select_from_union(type_, result):
     ],
 )
 def test_create_primitive(type_, statement_type):
-    factory = _TestFactory()
+    factory = tf.TestFactory(MagicMock(TestCluster))
     result = factory._create_primitive(
         dtc.DefaultTestCase(), type_, position=0, recursion_depth=0,
     )
@@ -264,40 +249,38 @@ def test_attempt_generation_for_type(test_case_mock):
         assert recursion_depth == 1
         assert allow_none
 
-    factory = _TestFactory()
-    old = factory.append_generic_statement
+    factory = tf.TestFactory(MagicMock(TestCluster))
     factory.append_generic_statement = mock_method
     factory._attempt_generation_for_type(
         test_case_mock, 0, 0, True, {MagicMock(gao.GenericAccessibleObject)}
     )
-    factory.append_generic_statement = old
 
 
 def test_attempt_generation_for_no_type(test_case_mock):
-    factory = _TestFactory()
+    factory = tf.TestFactory(MagicMock(TestCluster))
     result = factory._attempt_generation(test_case_mock, None, 0, 0, True)
     assert result is None
 
 
-def test_attempt_generation_for_none_type(reset_configuration):
+def test_attempt_generation_for_none_type(test_cluster_mock):
     config.INSTANCE.none_probability = 1.0
-    factory = _TestFactory()
+    factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
-        dtc.DefaultTestCase(), MagicMock(_TestFactory), 0, 0, True
+        dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
     )
     assert result.distance == 0
 
 
-def test_attempt_generation_for_none_type_with_no_probability(reset_configuration):
+def test_attempt_generation_for_none_type_with_no_probability(test_cluster_mock):
     config.INSTANCE.none_probability = 0.0
-    factory = _TestFactory()
+    factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
-        dtc.DefaultTestCase(), MagicMock(_TestFactory), 0, 0, True
+        dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
     )
     assert result is None
 
 
-def test_attempt_generation_for_type_from_cluster(test_case_mock, reset_configuration):
+def test_attempt_generation_for_type_from_cluster(test_case_mock):
     def mock_method(t, position, recursion_depth, allow_none, type_generators):
         assert position == 0
         assert recursion_depth == 0
@@ -306,8 +289,6 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock, reset_configur
 
     cluster = TestCluster()
     cluster.get_generators_for = lambda t: MagicMock(gao.GenericAccessibleObject)
-    factory = _TestFactory()
-    old = factory._attempt_generation_for_type
+    factory = tf.TestFactory(cluster)
     factory._attempt_generation_for_type = mock_method
-    factory._attempt_generation(test_case_mock, MagicMock(_TestFactory), 0, 0, True)
-    factory._attempt_generation_for_type = old
+    factory._attempt_generation(test_case_mock, MagicMock(tf.TestFactory), 0, 0, True)

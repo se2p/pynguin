@@ -24,7 +24,6 @@ import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase import testfactory
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
@@ -130,7 +129,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         # Generate random values as input for the previously picked random method
         # Extend the test case by the new method call
-        testfactory.append_generic_statement(new_test, method)
+        self.test_factory.append_generic_statement(new_test, method)
 
         # Discard duplicates
         if (

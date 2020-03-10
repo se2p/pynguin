@@ -32,6 +32,7 @@ from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
 )
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
+import pynguin.testcase.testfactory as tf
 
 
 class TestGenerationStrategy(metaclass=ABCMeta):
@@ -42,11 +43,17 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         :param test_cluster: A cluster storing the available types and methods for
         test generation"""
         self._test_cluster = test_cluster
+        self._test_factory = tf.TestFactory(test_cluster)
 
     @property
-    def test_cluster(self):
+    def test_cluster(self) -> TestCluster:
         """Provide the test cluster."""
         return self._test_cluster
+
+    @property
+    def test_factory(self) -> tf.TestFactory:
+        """Provide the test factory."""
+        return self._test_factory
 
     @abstractmethod
     def generate_sequences(

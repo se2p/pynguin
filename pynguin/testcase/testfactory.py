@@ -35,16 +35,13 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 from pynguin.utils.type_utils import is_primitive_type, PRIMITIVES
 
 
-class _TestFactory:
+class TestFactory:
     """A factory for test-case generation."""
 
     _logger = logging.getLogger(__name__)
-    _instance: Optional[_TestFactory] = None
 
-    def __new__(cls) -> _TestFactory:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __init__(self, test_cluster: TestCluster):
+        self._test_cluster = test_cluster
 
     def append_statement(
         self,
@@ -539,7 +536,7 @@ class _TestFactory:
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
             )
-        if type_generators := TestCluster().get_generators_for(parameter_type):
+        if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(
                 test_case, position, recursion_depth, allow_none, type_generators
             )
@@ -573,7 +570,7 @@ class _TestFactory:
         recursion_depth: int,
         allow_none: bool,
     ) -> Optional[vr.VariableReference]:
-        generator_types = list(TestCluster().generators.keys())
+        generator_types = list(self._test_cluster.generators.keys())
         generator_types.extend(PRIMITIVES)
         generator_type = randomness.RNG.choice(generator_types)
         return self._create_or_reuse_variable(
@@ -622,16 +619,5 @@ class _TestFactory:
             return parameter_type
         types = get_args(parameter_type)
         assert types is not None
-        type_ = randomness.RNG.choice(types)
+        type_ = randomness.choice(types)
         return type_
-
-
-# pylint: disable=invalid-name
-_inst = _TestFactory()
-append_statement = _inst.append_statement
-append_generic_statement = _inst.append_generic_statement
-add_constructor = _inst.add_constructor
-add_method = _inst.add_method
-add_field = _inst.add_field
-add_function = _inst.add_function
-add_primitive = _inst.add_primitive
