@@ -151,6 +151,7 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome.add_test(new_test)
             for fitness_function in fitness_functions:
                 fitness_function.get_fitness(test_chromosome, exec_result)
+            StatisticsTracker().current_individual(test_chromosome)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
         timer.stop()
