@@ -16,6 +16,7 @@
 from __future__ import annotations
 from typing import Type, Set, Dict, cast
 
+from pynguin.utils import type_utils
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
