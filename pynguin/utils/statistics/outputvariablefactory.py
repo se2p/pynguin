@@ -143,7 +143,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         interval = config.INSTANCE.timeline_interval
         total_time = config.INSTANCE.budget * 1_000_000_000
         number_of_intervals = total_time // interval
-        return number_of_intervals
+        return int(number_of_intervals)
 
 
 class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory):
