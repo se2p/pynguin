@@ -20,6 +20,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     class_in_module,
     function_in_module,
+    is_none_type,
 )
 
 
@@ -37,6 +38,18 @@ from pynguin.utils.type_utils import (
 )
 def test_is_primitive_type(type_, result):
     assert is_primitive_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "type_, result",
+    [
+        pytest.param(type(None), True),
+        pytest.param(None, False),
+        pytest.param(str, False),
+    ],
+)
+def test_is_primitive_type(type_, result):
+    assert is_none_type(type_) == result
 
 
 @pytest.mark.parametrize(

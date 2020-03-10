@@ -36,3 +36,8 @@ def function_in_module(module_name: str) -> Callable[[Any], bool]:
     Returns a predicate which filters out any functions not directly defined in the given module.
     """
     return lambda member: isfunction(member) and member.__module__ == module_name
+
+
+def is_none_type(type_: Optional[Type]) -> bool:
+    """Is the given type NoneType?"""
+    return type_ is type(None)  # noqa: E721

@@ -34,7 +34,7 @@ class TestCluster:
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator, if the type is known and not NoneType."""
         type_ = generator.generated_type()
-        if type_ is None or type_ is type(None):  # noqa: E721
+        if type_ is None or type_utils.is_none_type(type_):
             return
         if type_ in self._generators:
             self._generators[type_].add(generator)
