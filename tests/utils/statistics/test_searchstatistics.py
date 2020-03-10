@@ -110,9 +110,9 @@ def test_write_statistics_with_individual(capsys, chromosome):
 
 def test_get_output_variables(chromosome, search_statistics):
     config.INSTANCE.output_variables = (
-        "Coverage,CoverageTimeline," "Length,configuration_id"
+        "Coverage,CoverageTimeline,Length,configuration_id"
     )
-    config.INSTANCE.budget = 0.005
+    config.INSTANCE.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )

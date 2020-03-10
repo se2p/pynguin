@@ -99,7 +99,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
         assert name == f"CoverageTimeline_T{index}"
         assert value == 42
 
-    config.INSTANCE.budget = 0.005
+    config.INSTANCE.budget = 0.25
     chromosome_2 = tsc.TestSuiteChromosome()
     sequence_factory.set_start_time(time.time_ns())
     time.sleep(0.05)
