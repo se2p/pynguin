@@ -105,7 +105,6 @@ def test_write_statistics_with_individual(capsys, chromosome):
     captured = capsys.readouterr()
     assert result
     assert captured.out == ""
-    assert captured.err.strip() == "No obtained value for output variable TARGET_CLASS"
 
 
 def test_get_output_variables(chromosome, search_statistics):
