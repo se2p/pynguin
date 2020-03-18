@@ -39,8 +39,8 @@ def test_test_cluster_generator_generators():
         "tests.fixtures.cluster.no_dependencies"
     ).generate_cluster()
     assert len(cluster.get_generators_for(Test)) == 1
-    assert len(cluster.get_generators_for(int)) == 1
-    assert len(cluster.get_generators_for(float)) == 1
+    assert len(cluster.get_generators_for(int)) == 0
+    assert len(cluster.get_generators_for(float)) == 0
 
 
 def test_test_cluster_generator_simple_dependencies():
@@ -48,6 +48,28 @@ def test_test_cluster_generator_simple_dependencies():
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
     assert len(cluster.get_generators_for(SomeArgumentType)) == 1
+
+
+def test_test_cluster_generator_complex_dependencies():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.complex_dependencies"
+    ).generate_cluster()
+    assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_test_cluster_generator_max_recursion():
+    config.INSTANCE.max_cluster_recursion = 1
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.complex_dependencies"
+    ).generate_cluster()
+    assert len(cluster.generators) == 2
+
+
+def test_test_cluster_generator_modifier():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.complex_dependencies"
+    ).generate_cluster()
+    assert len(cluster.modifiers) == 2
 
 
 def test_test_cluster_generator_simple_dependencies_only_own_classes():

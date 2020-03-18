@@ -64,7 +64,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._analyzed_classes: Set[Type] = set()
         self._dependencies_to_solve: Set[DependencyPair] = set()
         self._test_cluster: TestCluster = TestCluster()
-        # TODO(fk) use configured inference strategy
         self._inference = typeinference.TypeInference(
             strategies=self._initialise_type_inference_strategies()
         )
@@ -111,8 +110,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
     def _add_callable_dependencies(
         self, call: GenericCallableAccessibleObject, recursion_level: int
     ) -> None:
-        """
-        Add required dependencies.
+        """Add required dependencies.
         :param call The object whose parameter types should be added as dependencies.
         """
         self._logger.debug("Find dependencies for %s", call)
@@ -135,8 +133,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                 # TODO(fk) fully support typing annotations.
 
     def _add_dependency(self, klass: Type, recursion_level: int, add_to_test: bool):
-        """
-        Add constructor/methods/attributes of the given type to the test cluster.
+        """Add constructor/methods/attributes of the given type to the test cluster.
         :param add_to_test if true, the accessible objects are also added to objects under test.
         """
         assert inspect.isclass(klass), "Can only add dependencies for classes."
@@ -145,7 +142,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             return
         self._analyzed_classes.add(klass)
         self._logger.debug("Analyzing class %s", klass)
-        # TODO(fk) handle multiple strategies?
         generic_constructor = GenericConstructor(
             klass, self._inference.infer_type_info(klass.__init__)[0]
         )
@@ -168,6 +164,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                 klass, method, self._inference.infer_type_info(method)[0]
             )
             self._test_cluster.add_generator(generic_method)
+            self._test_cluster.add_modifier(klass, generic_method)
             if add_to_test:
                 self._test_cluster.add_accessible_object_under_test(generic_method)
             self._add_callable_dependencies(generic_method, recursion_level)
