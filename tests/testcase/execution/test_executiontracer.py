@@ -159,7 +159,7 @@ def test_clear():
     assert tracer.get_trace() != trace
 
 
-def test_enable_disable():
+def test_enable_disable_cmp():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     assert len(tracer.get_trace().covered_predicates) == 0
@@ -170,4 +170,18 @@ def test_enable_disable():
 
     tracer._enable()
     tracer.passed_cmp_predicate(0, 0, 0, Compare.EQ)
+    assert len(tracer.get_trace().covered_predicates) == 1
+
+
+def test_enable_disable_bool():
+    tracer = ExecutionTracer()
+    tracer.predicate_exists(0)
+    assert len(tracer.get_trace().covered_predicates) == 0
+
+    tracer._disable()
+    tracer.passed_bool_predicate(True, 0)
+    assert len(tracer.get_trace().covered_predicates) == 0
+
+    tracer._enable()
+    tracer.passed_bool_predicate(True, 0)
     assert len(tracer.get_trace().covered_predicates) == 1
