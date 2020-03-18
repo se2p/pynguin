@@ -100,38 +100,40 @@ class StatementToAstVisitor(sv.StatementVisitor):
         )
 
     def visit_method_statement(self, stmt: param_stmt.MethodStatement) -> None:
-        self._ast_nodes.append(
-            ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=ast.Call(
-                    func=ast.Attribute(
-                        attr=stmt.method.callable.__name__,
-                        ctx=ast.Load(),
-                        value=self._create_var_name(stmt.callee, True),
-                    ),
-                    args=self._create_args(stmt),
-                    keywords=self._create_kw_args(stmt),
-                ),
-            )
+        call = ast.Call(
+            func=ast.Attribute(
+                attr=stmt.method.callable.__name__,
+                ctx=ast.Load(),
+                value=self._create_var_name(stmt.callee, True),
+            ),
+            args=self._create_args(stmt),
+            keywords=self._create_kw_args(stmt),
         )
+        if stmt.return_value.is_none_type():
+            node: ast.stmt = ast.Expr(value=call)
+        else:
+            node = ast.Assign(
+                targets=[self._create_var_name(stmt.return_value, False)], value=call,
+            )
+        self._ast_nodes.append(node)
 
     def visit_function_statement(self, stmt: param_stmt.FunctionStatement) -> None:
-        self._ast_nodes.append(
-            ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=ast.Call(
-                    func=ast.Attribute(
-                        attr=stmt.function.callable.__name__,
-                        ctx=ast.Load(),
-                        value=self._create_module_alias(
-                            stmt.function.callable.__module__
-                        ),
-                    ),
-                    args=self._create_args(stmt),
-                    keywords=self._create_kw_args(stmt),
-                ),
-            )
+        call = ast.Call(
+            func=ast.Attribute(
+                attr=stmt.function.callable.__name__,
+                ctx=ast.Load(),
+                value=self._create_module_alias(stmt.function.callable.__module__),
+            ),
+            args=self._create_args(stmt),
+            keywords=self._create_kw_args(stmt),
         )
+        if stmt.return_value.is_none_type():
+            node: ast.stmt = ast.Expr(value=call)
+        else:
+            node = ast.Assign(
+                targets=[self._create_var_name(stmt.return_value, False)], value=call,
+            )
+        self._ast_nodes.append(node)
 
     def visit_field_statement(self, stmt: field_stmt.FieldStatement) -> None:
         self._ast_nodes.append(

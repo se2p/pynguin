@@ -148,7 +148,7 @@ def test_statement_to_ast_method_no_args(
     statement_to_ast_visitor.visit_method_statement(method_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = var1.simple_method()\n"
+        == "var1 = var0.simple_method()\n"
     )
 
 
@@ -164,7 +164,7 @@ def test_statement_to_ast_method_args(
     statement_to_ast_visitor.visit_method_statement(method_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = var1.simple_method(var2)\n"
+        == "var2 = var0.simple_method(var1)\n"
     )
 
 
@@ -180,7 +180,7 @@ def test_statement_to_ast_method_kwargs(
     statement_to_ast_visitor.visit_method_statement(method_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = var1.simple_method(param1=var2)\n"
+        == "var2 = var0.simple_method(param1=var1)\n"
     )
 
 
@@ -204,7 +204,7 @@ def test_statement_to_ast_function_args(
     statement_to_ast_visitor.visit_function_statement(function_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.simple_function(var1)\n"
+        == "var1 = module0.simple_function(var0)\n"
     )
 
 
@@ -219,5 +219,5 @@ def test_statement_to_ast_function_kwargs(
     statement_to_ast_visitor.visit_function_statement(function_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.simple_function(param1=var1)\n"
+        == "var1 = module0.simple_function(param1=var0)\n"
     )
