@@ -13,116 +13,41 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
-from bytecode import Compare  # type: ignore
+from bytecode import Compare
 
-from pynguin.instrumentation.tracking import ExecutionTracer
-
-
-def test_default_fitness():
-    tracer = ExecutionTracer()
-    assert tracer.get_fitness() == 0.0
-
-
-def test_fitness_function_diff():
-    tracer = ExecutionTracer()
-    tracer.function_exists(0)
-    tracer.function_exists(1)
-    tracer.function_exists(2)
-    tracer.entered_function(0)
-    assert tracer.get_fitness() == 2.0
-
-
-def test_fitness_covered():
-    tracer = ExecutionTracer()
-    tracer.predicate_exists(0)
-    tracer.passed_bool_predicate(True, 0)
-    assert tracer.get_fitness() == 1.0
-
-
-def test_fitness_neither_covered():
-    tracer = ExecutionTracer()
-    tracer.predicate_exists(0)
-    assert tracer.get_fitness() == 2.0
-
-
-def test_fitness_covered_twice():
-    tracer = ExecutionTracer()
-    tracer.predicate_exists(0)
-    tracer.passed_bool_predicate(True, 0)
-    tracer.passed_bool_predicate(True, 0)
-    assert tracer.get_fitness() == 0.5
-
-
-def test_fitness_covered_both():
-    tracer = ExecutionTracer()
-    tracer.predicate_exists(0)
-    tracer.passed_bool_predicate(True, 0)
-    tracer.passed_bool_predicate(False, 0)
-    assert tracer.get_fitness() == 0.0
-
-
-def test_fitness_uncovered_for_loop():
-    tracer = ExecutionTracer()
-    tracer.for_loop_exists(0)
-    assert tracer.get_fitness() == 1.0
-
-
-def test_fitness_covered_for_loop():
-    tracer = ExecutionTracer()
-    tracer.for_loop_exists(0)
-    tracer.entered_for_loop(0)
-    assert tracer.get_fitness() == 0.0
-
-
-def test_fitness_normalized():
-    tracer = ExecutionTracer()
-    tracer.predicate_exists(0)
-    tracer.passed_cmp_predicate(7, 0, 0, Compare.EQ)
-    tracer.passed_cmp_predicate(7, 0, 0, Compare.EQ)
-    assert tracer.get_fitness() == 0.875
-
-
-def test_clear_tracking():
-    tracer = ExecutionTracer()
-    tracer.function_exists(0)
-    tracer.entered_function(0)
-    tracer.predicate_exists(0)
-    tracer.passed_bool_predicate(True, 0)
-    assert tracer.get_fitness() == 1.0
-    tracer.clear_tracking()
-    assert tracer.get_fitness() == 3.0
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 def test_functions_exists():
     tracer = ExecutionTracer()
     tracer.function_exists(0)
-    assert 0 in tracer.existing_functions
+    assert 0 in tracer.get_trace().existing_functions
 
 
 def test_entered_function():
     tracer = ExecutionTracer()
     tracer.function_exists(0)
     tracer.entered_function(0)
-    assert 0 in tracer.covered_functions
+    assert 0 in tracer.get_trace().covered_functions
 
 
 def test_for_loop_exists():
     tracer = ExecutionTracer()
     tracer.for_loop_exists(0)
-    assert 0 in tracer.existing_for_loops
+    assert 0 in tracer.get_trace().existing_for_loops
 
 
 def test_entered_for_loop():
     tracer = ExecutionTracer()
     tracer.for_loop_exists(0)
     tracer.entered_for_loop(0)
-    assert 0 in tracer.covered_for_loops
+    assert 0 in tracer.get_trace().covered_for_loops
 
 
 def test_predicate_exists():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
-    assert 0 in tracer.existing_predicates
+    assert 0 in tracer.get_trace().existing_predicates
 
 
 def test_update_metrics_covered():
@@ -130,32 +55,32 @@ def test_update_metrics_covered():
     tracer.predicate_exists(0)
     tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
     tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
-    assert (0, 2) in tracer.covered_predicates.items()
+    assert (0, 2) in tracer.get_trace().covered_predicates.items()
 
 
 def test_update_metrics_true_dist_min():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_cmp_predicate(5, 0, 0, Compare.EQ)
-    assert (0, 5) in tracer.true_distances.items()
+    assert (0, 5) in tracer.get_trace().true_distances.items()
     tracer.passed_cmp_predicate(4, 0, 0, Compare.EQ)
-    assert (0, 4) in tracer.true_distances.items()
+    assert (0, 4) in tracer.get_trace().true_distances.items()
 
 
 def test_update_metrics_false_dist_min():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_cmp_predicate(3, 1, 0, Compare.NE)
-    assert (0, 2) in tracer.false_distances.items()
+    assert (0, 2) in tracer.get_trace().false_distances.items()
     tracer.passed_cmp_predicate(2, 1, 0, Compare.NE)
-    assert (0, 1) in tracer.false_distances.items()
+    assert (0, 1) in tracer.get_trace().false_distances.items()
 
 
 def test_passed_cmp_predicate():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
-    assert (0, 1) in tracer.covered_predicates.items()
+    assert (0, 1) in tracer.get_trace().covered_predicates.items()
 
 
 @pytest.mark.parametrize(
@@ -189,8 +114,8 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_cmp_predicate(val1, val2, 0, cmp)
-    assert (0, true_dist) in tracer.true_distances.items()
-    assert (0, false_dist) in tracer.false_distances.items()
+    assert (0, true_dist) in tracer.get_trace().true_distances.items()
+    assert (0, false_dist) in tracer.get_trace().false_distances.items()
 
 
 def test_unknown_comp():
@@ -204,20 +129,45 @@ def test_passed_bool_predicate():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_bool_predicate(True, 0)
-    assert (0, 1) in tracer.covered_predicates.items()
+    assert (0, 1) in tracer.get_trace().covered_predicates.items()
 
 
 def test_bool_distance_true():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_bool_predicate(True, 0)
-    assert (0, 0.0) in tracer.true_distances.items()
-    assert (0, 1.0) in tracer.false_distances.items()
+    assert (0, 0.0) in tracer.get_trace().true_distances.items()
+    assert (0, 1.0) in tracer.get_trace().false_distances.items()
 
 
 def test_bool_distance_false():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
     tracer.passed_bool_predicate(False, 0)
-    assert (0, 1.0) in tracer.true_distances.items()
-    assert (0, 0.0) in tracer.false_distances.items()
+    assert (0, 1.0) in tracer.get_trace().true_distances.items()
+    assert (0, 0.0) in tracer.get_trace().false_distances.items()
+
+
+def test_clear():
+    tracer = ExecutionTracer()
+    tracer.for_loop_exists(0)
+    tracer.entered_for_loop(0)
+    tracer.function_exists(0)
+    tracer.entered_function(0)
+    trace = tracer.get_trace()
+    tracer.clear_trace()
+    assert tracer.get_trace() != trace
+
+
+def test_enable_disable():
+    tracer = ExecutionTracer()
+    tracer.predicate_exists(0)
+    assert len(tracer.get_trace().covered_predicates) == 0
+
+    tracer._disable()
+    tracer.passed_cmp_predicate(0, 0, 0, Compare.EQ)
+    assert len(tracer.get_trace().covered_predicates) == 0
+
+    tracer._enable()
+    tracer.passed_cmp_predicate(0, 0, 0, Compare.EQ)
+    assert len(tracer.get_trace().covered_predicates) == 1

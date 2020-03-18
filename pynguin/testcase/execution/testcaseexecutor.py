@@ -109,10 +109,6 @@ class TestCaseExecutor(AbstractExecutor):
         :param test_suite: The list of test cases, i.e., the test suite
         :return: Result of the execution
         """
-        TestCaseExecutor._logger.info(
-            "Rerun execution of generated test suite to measure coverage (if "
-            "requested by configuration)"
-        )
         result = res.ExecutionResult()
         if config.INSTANCE.measure_coverage:
             self._coverage.erase()
@@ -125,7 +121,6 @@ class TestCaseExecutor(AbstractExecutor):
                     self._execute_ast_nodes(result)
                 self._collect_coverage(result)
                 self._collect_fitness(result)
-        TestCaseExecutor._logger.info("Finished re-execution of generated test suite")
         return result
 
     def _execute_ast_nodes(
@@ -172,5 +167,5 @@ class TestCaseExecutor(AbstractExecutor):
         """
         if config.INSTANCE.algorithm.use_instrumentation:
             tracer = get_tracer(sys.modules[config.INSTANCE.module_name])
-            result.fitness = tracer.get_fitness()
-            tracer.clear_tracking()
+            result.execution_trace = tracer.get_trace()
+            tracer.clear_trace()

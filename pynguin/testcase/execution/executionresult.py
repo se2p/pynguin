@@ -16,6 +16,8 @@
 import time
 from typing import Dict, Optional
 
+from pynguin.testcase.execution.executiontrace import ExecutionTrace
+
 
 class ExecutionResult:
     """Result of an execution."""
@@ -25,6 +27,7 @@ class ExecutionResult:
         self._branch_coverage = 0.0
         self._fitness: Optional[float] = None
         self._time_stamp: int = time.time_ns()
+        self._execution_trace: Optional[ExecutionTrace] = None
 
     @property
     def exceptions(self) -> Dict[int, Exception]:
@@ -43,15 +46,15 @@ class ExecutionResult:
         self._branch_coverage = value
 
     @property
-    def fitness(self) -> Optional[float]:
-        """Get the achieved fitness"""
-        return self._fitness
+    def execution_trace(self) -> Optional[ExecutionTrace]:
+        """The trace for this execution."""
+        return self._execution_trace
 
-    @fitness.setter
-    def fitness(self, value: float) -> None:
-        """Set the achieved fitness"""
+    @execution_trace.setter
+    def execution_trace(self, trace: Optional[ExecutionTrace]) -> None:
+        """Set new trace."""
+        self._execution_trace = trace
         self._time_stamp = time.time_ns()
-        self._fitness = value
 
     @property
     def time_stamp(self) -> int:
@@ -72,13 +75,17 @@ class ExecutionResult:
         """
         self._exceptions[stmt_idx] = ex
 
+    def get_first_position_of_thrown_exception(self) -> Optional[int]:
+        """Provide the index of the first thrown exception or None."""
+        if self.has_test_exceptions():
+            return min(self._exceptions.keys())
+        return None
+
     def __str__(self) -> str:
         return (
             f"ExecutionResult(exceptions: {self._exceptions}, coverage: "
-            f"{self._branch_coverage}, fitness: {self._fitness})"
+            f"{self._branch_coverage})"
         )
 
     def __repr__(self) -> str:
         return self.__str__()
-
-    # TODO(fk) traces.
