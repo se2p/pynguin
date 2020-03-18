@@ -12,16 +12,27 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from typing import List
 from unittest.mock import MagicMock
 
-from pynguin.generation.algorithms.wspy.genetic_operations import rank_selection
+import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.operators.selection.selection as sel
+from pynguin.ga.operators.selection.selection import T
+from pynguin.utils import randomness
 
 
-def test_rank_selection():
-    population_size = 10
-    assert 0 <= rank_selection(population_size) < population_size
+class PseudoSelection(sel.SelectionFunction):
+    def get_index(self, population: List[T]) -> int:
+        return randomness.next_int(0, len(population) - 1)
 
 
-def test_rank_selection_int():
-    population_size = 1
-    assert isinstance(rank_selection(population_size), int)
+def test_select():
+    func = PseudoSelection()
+    population = [MagicMock(tsc.TestSuiteChromosome) for i in range(10)]
+    assert len(func.select(population, 5)) == 5
+
+
+def test_maximize():
+    func = PseudoSelection()
+    func.maximize = True
+    assert func.maximize
