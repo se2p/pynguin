@@ -19,6 +19,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Type, Optional, Any
 
 import pynguin.testcase.testcase as tc
+from pynguin.utils import type_utils
 
 
 class VariableReference(metaclass=ABCMeta):
@@ -93,6 +94,18 @@ class VariableReference(metaclass=ABCMeta):
         :param distance: The new distance value
         """
         self._distance = distance
+
+    def is_primitive(self):
+        """Does this variable reference represent a primitive type."""
+        return type_utils.is_primitive_type(self._variable_type)
+
+    def is_none_type(self):
+        """Is this variable reference of type none, i.e. it does not return anything."""
+        return type_utils.is_none_type(self._variable_type)
+
+    def is_type_unknown(self):
+        """Is the type of this variable unknown?"""
+        return self._variable_type is None
 
     def __repr__(self) -> str:
         return f"VariableReference({self._test_case}, {self._variable_type})"

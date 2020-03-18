@@ -14,6 +14,8 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
+import pytest
+
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
@@ -69,6 +71,13 @@ def test_get_position(test_case_mock):
     assert ref.get_statement_position() == 0
 
 
+def test_get_position_no_statements(test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, int)
+    test_case_mock.statements = []
+    with pytest.raises(Exception):
+        ref.get_statement_position()
+
+
 def test_hash(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
     assert ref.__hash__() != 0
@@ -89,3 +98,27 @@ def test_distance(test_case_mock):
     assert ref.distance == 0
     ref.distance = 42
     assert ref.distance == 42
+
+
+@pytest.mark.parametrize(
+    "type_,result", [pytest.param(int, True), pytest.param(MagicMock, False),],
+)
+def test_is_primitive(test_case_mock, type_, result):
+    ref = vri.VariableReferenceImpl(test_case_mock, type_)
+    assert ref.is_primitive() == result
+
+
+@pytest.mark.parametrize(
+    "type_,result", [pytest.param(None, True), pytest.param(MagicMock, False),],
+)
+def test_is_type_unknown(test_case_mock, type_, result):
+    ref = vri.VariableReferenceImpl(test_case_mock, type_)
+    assert ref.is_type_unknown() == result
+
+
+@pytest.mark.parametrize(
+    "type_,result", [pytest.param(type(None), True), pytest.param(MagicMock, False),],
+)
+def test_is_none_type(test_case_mock, type_, result):
+    ref = vri.VariableReferenceImpl(test_case_mock, type_)
+    assert ref.is_none_type() == result
