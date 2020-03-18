@@ -15,7 +15,7 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pynguin.ga.operators.crossover as cross
+import pynguin.ga.operators.crossover.singlepointrelativecrossover as cross
 import pynguin.testsuite.testsuitechromosome as tsc
 
 

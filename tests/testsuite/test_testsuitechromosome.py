@@ -19,6 +19,7 @@ import pytest
 import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
+from pynguin.utils import randomness
 
 
 @pytest.fixture
@@ -104,3 +105,25 @@ def test_eq_clone(chromosome):
     chromosome.add_test(test)
     other = chromosome.clone()
     assert chromosome.__eq__(other)
+
+
+def test_crossover_wrong_type(chromosome):
+    with pytest.raises(RuntimeError):
+        chromosome.cross_over(0, 0, 0)
+
+
+def test_crossover(chromosome):
+    cases_a = [dtc.DefaultTestCase() for _ in range(5)]
+    cases_b = [dtc.DefaultTestCase() for _ in range(5)]
+
+    chromosome.add_tests(cases_a)
+
+    other = tsc.TestSuiteChromosome()
+    other.add_tests(cases_b)
+    pos1 = randomness.next_int(len(cases_a) - 1)
+    pos2 = randomness.next_int(len(cases_b) - 1)
+
+    chromosome.set_changed(False)
+    chromosome.cross_over(other, pos1, pos2)
+    assert chromosome.test_chromosomes == cases_a[:pos1] + cases_b[pos2:]
+    assert chromosome.changed

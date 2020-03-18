@@ -12,24 +12,20 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provide various crossover functions for genetic algorithms."""
-from abc import abstractmethod
+"""Provides a single point relative crossover."""
 from math import floor
+from typing import TypeVar
 
-import pynguin.testsuite.testsuitechromosome as tsc
+from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
-
-# pylint: disable=too-few-public-methods
-class CrossOverFunction:
-    """Cross over two individuals."""
-
-    @abstractmethod
-    def cross_over(self, parent1, parent2):
-        """Perform a crossover between the two parents."""
+# pylint:disable=invalid-name
+T = TypeVar("T", bound=chrom.Chromosome)
 
 
-class SinglePointRelativeCrossOver(CrossOverFunction):
+# pylint:disable=too-few-public-methods
+class SinglePointRelativeCrossOver(CrossOverFunction[T]):
     """Performs a single point relative crossover of the two parents.
 
     The splitting point is not an absolute value but a relative value (eg, at
@@ -38,9 +34,7 @@ class SinglePointRelativeCrossOver(CrossOverFunction):
     Therefore, the offspring d have n<=max(n1,n2)
     """
 
-    def cross_over(
-        self, parent1: tsc.TestSuiteChromosome, parent2: tsc.TestSuiteChromosome
-    ):
+    def cross_over(self, parent1: T, parent2: T):
         if parent1.size < 2 or parent2.size < 2:
             return
 

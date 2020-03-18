@@ -74,7 +74,9 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
         """Provides the size of the chromosome, i.e., its number of test cases."""
         return len(self._tests)
 
-    def cross_over(self, other: chrom.Chromosome, position1: int, position2: int):
+    def cross_over(
+        self, other: chrom.Chromosome, position1: int, position2: int
+    ) -> None:
         """
         Keep tests up to position1. Append copies of tests from other from position2 onwards.
         """
