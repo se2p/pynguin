@@ -124,8 +124,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                 continue
             if inspect.isclass(type_):
                 assert type_
-                if type_ in self._analyzed_classes:
-                    continue
                 self._logger.debug("Adding dependency for class %s", type_)
                 self._dependencies_to_solve.add(DependencyPair(type_, recursion_level))
             else:

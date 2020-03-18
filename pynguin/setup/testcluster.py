@@ -37,7 +37,8 @@ class TestCluster:
         self._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
-        """Add the given accessible as a generator, if the type is known and not NoneType."""
+        """Add the given accessible as a generator, if the type is known, not primitive
+         and not NoneType."""
         type_ = generator.generated_type()
         if (
             type_ is None
@@ -82,7 +83,7 @@ class TestCluster:
         return set()
 
     def get_modifiers_for(self, for_type: Type) -> Set[GenericAccessibleObject]:
-        """Get all known modifiers of a type. This does currently does not take
+        """Get all known modifiers of a type. This currently does not take
         inheritance into account."""
         if for_type in self._modifiers:
             return self._modifiers[for_type]
