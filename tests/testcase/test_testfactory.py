@@ -27,6 +27,7 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testfactory as tf
+import pynguin.setup.testcluster as tcl
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
@@ -357,3 +358,28 @@ def test__dependencies_satisfied_satisfied(test_case_mock):
         vri.VariableReferenceImpl(test_case_mock, bool),
     ]
     assert tf.TestFactory._dependencies_satisfied({int, bool}, objects)
+
+
+def test__get_possible_calls_no_calls():
+    cluster = MagicMock(tcl.TestCluster)
+    cluster.get_generators_for = MagicMock(side_effect=ConstructionFailedException())
+    assert tf.TestFactory(cluster)._get_possible_calls(int, []) == []
+
+
+def test__get_possible_calls_single_call(test_case_mock, function_mock):
+    cluster = MagicMock(tcl.TestCluster)
+    cluster.get_generators_for.return_value = {function_mock}
+    assert tf.TestFactory(cluster)._get_possible_calls(
+        float, [vri.VariableReferenceImpl(test_case_mock, float)]
+    ) == [function_mock]
+
+
+def test__get_possible_calls_no_match(test_case_mock, function_mock):
+    cluster = MagicMock(tcl.TestCluster)
+    cluster.get_generators_for.return_value = {function_mock}
+    assert (
+        tf.TestFactory(cluster)._get_possible_calls(
+            float, [vri.VariableReferenceImpl(test_case_mock, int)]
+        )
+        == []
+    )

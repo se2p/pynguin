@@ -661,7 +661,8 @@ class TestFactory:
         self, return_type: Type, objects: List[vr.VariableReference]
     ) -> List[gao.GenericAccessibleObject]:
         """Retrieve all the replacement calls that can be inserted at this position
-         without changing the length."""
+         without changing the length.
+         :param objects: The objects that are available as parameters."""
         calls: List[gao.GenericAccessibleObject] = []
         try:
             all_calls = self._test_cluster.get_generators_for(return_type)
