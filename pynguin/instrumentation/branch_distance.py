@@ -20,7 +20,7 @@ from typing import Set
 from bytecode import Instr, Bytecode
 
 from pynguin.instrumentation.basis import TRACER_NAME
-from pynguin.instrumentation.tracking import ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.utils.iterator import ListIterator
 
 
@@ -164,7 +164,7 @@ class BranchDistanceInstrumentation:
         if obj in seen:
             return
         seen.add(obj)
-
+        # TODO(fk) only members in module
         members = inspect.getmembers(obj)
         for (_, value) in members:
             if inspect.isfunction(value):

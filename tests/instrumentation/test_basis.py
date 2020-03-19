@@ -16,7 +16,7 @@ from types import ModuleType
 from unittest.mock import MagicMock
 
 from pynguin.instrumentation.basis import TRACER_NAME, get_tracer, set_tracer
-from pynguin.instrumentation.tracking import ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 def test_get_tracer():

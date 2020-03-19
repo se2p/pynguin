@@ -15,7 +15,7 @@
 """Defines the name of the tracer and utilities to get/set it."""
 from types import ModuleType
 
-from pynguin.instrumentation.tracking import ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 TRACER_NAME: str = "pynguin_tracer"
 

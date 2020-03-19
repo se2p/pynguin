@@ -25,7 +25,7 @@ from typing import Optional
 
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.instrumentation.basis import set_tracer
-from pynguin.instrumentation.tracking import ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):
