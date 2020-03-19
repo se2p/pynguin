@@ -139,6 +139,9 @@ class Pynguin:
                 # Thus we are not able to generate anything.  Stop the process here,
                 # and write statistics.
                 StatisticsTracker().current_individual(tsc.TestSuiteChromosome())
+                StatisticsTracker().track_output_variable(
+                    RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+                )
                 self._collect_statistics()
                 StatisticsTracker().write_statistics()
                 return 1
