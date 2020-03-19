@@ -39,6 +39,7 @@ class RuntimeVariable(enum.Enum):
     TARGET_CLASS = "The module name for which we currently generate tests"
     configuration_id = "An identifier for this configuration for benchmarking"
     total_time = "Total time spent by Pynguin to generate tests"
+    AlgorithmIterations = "Number of iterations of the test-generation algorithm"
     execution_results = "Execution results"
     monkey_type_executions = "Number of MonkeyType executions"
     parameter_type_updates = "Updated parameter types"
