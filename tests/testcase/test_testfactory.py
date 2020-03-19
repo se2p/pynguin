@@ -27,7 +27,6 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testfactory as tf
-import pynguin.setup.testcluster as tcl
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
@@ -361,13 +360,13 @@ def test__dependencies_satisfied_satisfied(test_case_mock):
 
 
 def test__get_possible_calls_no_calls():
-    cluster = MagicMock(tcl.TestCluster)
+    cluster = MagicMock(TestCluster)
     cluster.get_generators_for = MagicMock(side_effect=ConstructionFailedException())
     assert tf.TestFactory(cluster)._get_possible_calls(int, []) == []
 
 
 def test__get_possible_calls_single_call(test_case_mock, function_mock):
-    cluster = MagicMock(tcl.TestCluster)
+    cluster = MagicMock(TestCluster)
     cluster.get_generators_for.return_value = {function_mock}
     assert tf.TestFactory(cluster)._get_possible_calls(
         float, [vri.VariableReferenceImpl(test_case_mock, float)]
@@ -375,7 +374,7 @@ def test__get_possible_calls_single_call(test_case_mock, function_mock):
 
 
 def test__get_possible_calls_no_match(test_case_mock, function_mock):
-    cluster = MagicMock(tcl.TestCluster)
+    cluster = MagicMock(TestCluster)
     cluster.get_generators_for.return_value = {function_mock}
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
@@ -383,3 +382,35 @@ def test__get_possible_calls_no_match(test_case_mock, function_mock):
         )
         == []
     )
+
+
+@pytest.fixture()
+def sample_test_case(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim.return_value]
+    )
+    float_function2 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_function1.return_value]
+    )
+    test_case.add_statement(float_prim)
+    test_case.add_statement(float_prim2)
+    test_case.add_statement(float_function1)
+    test_case.add_statement(float_function2)
+    return test_case
+
+
+def test__get_reference_position_multi(sample_test_case):
+    cluster = MagicMock(TestCluster)
+    assert tf.TestFactory(cluster)._get_reference_positions(sample_test_case, 0) == {
+        0,
+        2,
+        3,
+    }
+
+
+def test__get_reference_position_single(sample_test_case):
+    cluster = MagicMock(TestCluster)
+    assert tf.TestFactory(cluster)._get_reference_positions(sample_test_case, 3) == {3}
