@@ -529,16 +529,17 @@ class TestFactory:
             test_case.remove(index)
         return True
 
+    @staticmethod
     def _recursive_delete_inclusion(
-        self, test_case: tc.TestCase, to_delete: Set[int], position: int
+        test_case: tc.TestCase, to_delete: Set[int], position: int
     ) -> None:
         if position in to_delete:
             return  # end of recursion
         to_delete.add(position)
-        references = self._get_reference_positions(test_case, position)
+        references = TestFactory._get_reference_positions(test_case, position)
         # TODO(fk) is this even required?
         for i in references:
-            self._recursive_delete_inclusion(test_case, to_delete, i)
+            TestFactory._recursive_delete_inclusion(test_case, to_delete, i)
 
     @staticmethod
     def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:

@@ -414,3 +414,15 @@ def test__get_reference_position_multi(sample_test_case):
 def test__get_reference_position_single(sample_test_case):
     cluster = MagicMock(TestCluster)
     assert tf.TestFactory(cluster)._get_reference_positions(sample_test_case, 3) == {3}
+
+
+def test__recursive_delete_inclusion_multi(sample_test_case):
+    to_delete = set()
+    tf.TestFactory._recursive_delete_inclusion(sample_test_case, to_delete, 0)
+    assert to_delete == {0, 2, 3}
+
+
+def test__recursive_delete_inclusion_single(sample_test_case):
+    to_delete = set()
+    tf.TestFactory._recursive_delete_inclusion(sample_test_case, to_delete, 3)
+    assert to_delete == {3}
