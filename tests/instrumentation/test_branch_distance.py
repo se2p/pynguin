@@ -77,7 +77,7 @@ def test_module_instrumentation_integration():
     mixed = importlib.reload(mixed)
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)
-    instr.instrument(mixed)
+    instr.instrument(mixed, "tests.fixtures.instrumentation.mixed")
 
     inst = mixed.TestClass(5)
     inst.method(5)

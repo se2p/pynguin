@@ -39,7 +39,7 @@ class InstrumentationLoader(SourceFileLoader):
         super().exec_module(module)
         tracer = ExecutionTracer()
         instrumentation = BranchDistanceInstrumentation(tracer)
-        instrumentation.instrument(module)
+        instrumentation.instrument(module, module.__name__)
         set_tracer(module, tracer)
 
 

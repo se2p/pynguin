@@ -13,9 +13,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A module that contains a mix of all possible functions"""
+from tests.fixtures.instrumentation.inherited import SimpleClass, some_function
 
 
-class TestClass:
+class TestClass(SimpleClass):
     # 1
     def __init__(self, x):
         self._x = x

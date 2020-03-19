@@ -15,12 +15,13 @@
 """Provides capabilities to perform branch instrumentation."""
 import inspect
 from types import FunctionType, CodeType
-from typing import Set
+from typing import Set, Optional, Any
 
 from bytecode import Instr, Bytecode
 
 from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.utils import type_utils
 from pynguin.utils.iterator import ListIterator
 
 
@@ -147,7 +148,9 @@ class BranchDistanceInstrumentation:
         ]
         iterator.insert_before(stmts)
 
-    def instrument(self, obj, seen: Set = None) -> None:
+    def instrument(
+        self, obj, module_name: str, seen: Optional[Set[Any]] = None
+    ) -> None:
         """
         Recursively instruments the given object and all functions within it.
         Technically there are a lot of different objects in Python that contain code,
@@ -164,10 +167,11 @@ class BranchDistanceInstrumentation:
         if obj in seen:
             return
         seen.add(obj)
-        # TODO(fk) only members in module
         members = inspect.getmembers(obj)
         for (_, value) in members:
-            if inspect.isfunction(value):
+            if type_utils.function_in_module(module_name)(value):
                 self.instrument_function(value)
-            if inspect.isclass(value) or inspect.ismethod(value):
-                self.instrument(value, seen)
+            if type_utils.class_in_module(module_name)(value) or inspect.ismethod(
+                value
+            ):
+                self.instrument(value, module_name, seen)
