@@ -15,7 +15,7 @@
 """
 Provide a statement that performs assignments.
 """
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -58,6 +58,15 @@ class AssignmentStatement(stmt.Statement):
 
     def mutate(self) -> bool:
         raise Exception("Implement me")
+
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        return {self.return_value, self._rhs}
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        if self.return_value == old:
+            self.return_value = new
+        if self._rhs == old:
+            self._rhs = new
 
     def __hash__(self) -> int:
         return 31 + 17 * hash(self._return_value) + 17 * hash(self._rhs)

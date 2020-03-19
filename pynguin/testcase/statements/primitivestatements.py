@@ -15,11 +15,12 @@
 """Provides primitive statements."""
 import math
 from abc import abstractmethod
-from typing import Type, Any, Optional, List
+from typing import Type, Any, Optional, List, Set, TypeVar, Generic
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
@@ -27,15 +28,18 @@ import pynguin.configuration as config
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
-class PrimitiveStatement(stmt.Statement):
-    # TODO(fk) add generic annotation of value type.
+# pylint:disable=invalid-name
+T = TypeVar("T")
+
+
+class PrimitiveStatement(Generic[T], stmt.Statement):
     """Abstract primitive statement which holds a value."""
 
     def __init__(
         self,
         test_case: tc.TestCase,
         variable_type: Optional[Type],
-        value: Optional[Any] = None,
+        value: Optional[T] = None,
     ) -> None:
         super().__init__(test_case, vri.VariableReferenceImpl(test_case, variable_type))
         self._value = value
@@ -43,12 +47,12 @@ class PrimitiveStatement(stmt.Statement):
             self.randomize_value()
 
     @property
-    def value(self) -> Any:
+    def value(self) -> Optional[T]:
         """Provides the primitive value of this statement"""
         return self._value
 
     @value.setter
-    def value(self, value: Any) -> None:
+    def value(self, value: T) -> None:
         self._value = value
 
     def accessible_object(self) -> Optional[GenericAccessibleObject]:
@@ -59,6 +63,13 @@ class PrimitiveStatement(stmt.Statement):
         while self._value == old_value and self._value is not None:
             self.delta()
         return True
+
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        return {self.return_value}
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        if self.return_value == old:
+            self.return_value = new
 
     @abstractmethod
     def randomize_value(self) -> None:
@@ -93,7 +104,7 @@ class PrimitiveStatement(stmt.Statement):
         )
 
 
-class IntPrimitiveStatement(PrimitiveStatement):
+class IntPrimitiveStatement(PrimitiveStatement[int]):
     """Primitive Statement that creates an int."""
 
     def __init__(self, test_case: tc.TestCase, value: Optional[int] = None) -> None:
@@ -120,7 +131,7 @@ class IntPrimitiveStatement(PrimitiveStatement):
         visitor.visit_int_primitive_statement(self)
 
 
-class FloatPrimitiveStatement(PrimitiveStatement):
+class FloatPrimitiveStatement(PrimitiveStatement[float]):
     """Primitive Statement that creates a float."""
 
     def __init__(self, test_case: tc.TestCase, value: Optional[float] = None) -> None:
@@ -154,7 +165,7 @@ class FloatPrimitiveStatement(PrimitiveStatement):
         visitor.visit_float_primitive_statement(self)
 
 
-class StringPrimitiveStatement(PrimitiveStatement):
+class StringPrimitiveStatement(PrimitiveStatement[str]):
     """Primitive Statement that creates a String."""
 
     def __init__(self, test_case: tc.TestCase, value: Optional[str] = None) -> None:
@@ -222,7 +233,7 @@ class StringPrimitiveStatement(PrimitiveStatement):
         visitor.visit_string_primitive_statement(self)
 
 
-class BooleanPrimitiveStatement(PrimitiveStatement):
+class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
     """Primitive Statement that creates a boolean."""
 
     def __init__(self, test_case: tc.TestCase, value: Optional[bool] = None) -> None:

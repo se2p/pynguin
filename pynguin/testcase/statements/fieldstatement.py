@@ -15,7 +15,7 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
@@ -85,6 +85,13 @@ class FieldStatement(stmt.Statement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_field_statement(self)
+
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        return {self.source}
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        if self.source == old:
+            self.source = new
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

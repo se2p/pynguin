@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
 
@@ -245,6 +246,12 @@ def test_none_statement_randomize_value(test_case_mock):
     assert statement.value is None
 
 
+def test_none_statement_delta(test_case_mock):
+    statement = prim.NoneStatement(test_case_mock, type(None))
+    statement.delta()
+    assert statement.value is None
+
+
 def test_string_primitive_statement_random_deletion(test_case_mock):
     sample = list("Test")
     result = prim.StringPrimitiveStatement._random_deletion(sample)
@@ -345,3 +352,28 @@ def test_primitive_statement_mutate(test_case_mock):
     statement = prim.BooleanPrimitiveStatement(test_case_mock, True)
     statement.mutate()
     assert not statement.value
+
+
+def test_primitive_statement_accessible(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 0)
+    assert statement.accessible_object() is None
+
+
+def test_primitive_statement_references(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 0)
+    assert {statement.return_value} == statement.get_variable_references()
+
+
+def test_primitive_statement_replace(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 0)
+    new = vri.VariableReferenceImpl(test_case_mock, int)
+    statement.replace(statement.return_value, new)
+    assert statement.return_value == new
+
+
+def test_primitive_statement_replace_ignore(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 0)
+    new = prim.FloatPrimitiveStatement(test_case_mock, 0).return_value
+    old = statement.return_value
+    statement.replace(new, new)
+    assert statement.return_value == old

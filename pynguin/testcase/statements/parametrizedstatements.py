@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Optional, Any, Union
+from typing import Type, List, Dict, Optional, Any, Union, Set
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -75,6 +75,21 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     @kwargs.setter
     def kwargs(self, kwargs: Dict[str, vr.VariableReference]):
         self._kwargs = kwargs
+
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        references = set()
+        references.add(self.return_value)
+        references.update(self.args)
+        references.update(self.kwargs.values())
+        return references
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        if self.return_value == old:
+            self.return_value = new
+        self._args = [new if arg == old else arg for arg in self._args]
+        for key, value in self._kwargs:
+            if value == old:
+                self._kwargs[key] = new
 
     def _clone_args(
         self, new_test_case: tc.TestCase, offset: int = 0
@@ -308,6 +323,16 @@ class MethodStatement(ParametrizedStatement):
                 self.callee = randomness.choice(objects)
                 return True
         return False
+
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        references = super().get_variable_references()
+        references.add(self._callee)
+        return references
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        super().replace(old, new)
+        if self._callee == old:
+            self._callee = new
 
     @property
     def method(self) -> GenericMethod:

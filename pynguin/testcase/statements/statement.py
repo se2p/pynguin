@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
@@ -82,6 +82,19 @@ class Statement(metaclass=ABCMeta):
         Mutate this statement.
         :return True, if a mutation happened.
         """
+
+    @abstractmethod
+    def get_variable_references(self) -> Set[vr.VariableReference]:
+        """Get all references that are used in this statement.
+        Including return values."""
+
+    def references(self, var: vr.VariableReference) -> bool:
+        """Check if this statement makes use of the given variable."""
+        return var in self.get_variable_references()
+
+    @abstractmethod
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        """Replace the old variable with the new variable."""
 
     def get_position(self):
         """Provides the position of this statement in the test case."""
