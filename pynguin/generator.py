@@ -138,6 +138,7 @@ class Pynguin:
                 # A module could not be imported because some dependencies are missing.
                 # Thus we are not able to generate anything.  Stop the process here,
                 # and write statistics.
+                StatisticsTracker().current_individual(tsc.TestSuiteChromosome())
                 self._collect_statistics()
                 StatisticsTracker().write_statistics()
                 return 1
