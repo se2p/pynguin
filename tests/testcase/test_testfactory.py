@@ -25,6 +25,7 @@ import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
@@ -332,3 +333,27 @@ def test__rollback_changes_nothing_to_rollback():
 
     tf.TestFactory._rollback_changes(test_case, cloned.size(), 3)
     assert cloned == test_case
+
+
+def test__dependencies_satisfied_no_dependencies():
+    assert tf.TestFactory._dependencies_satisfied(set(), [])
+
+
+def test__dependencies_satisfied_no_objects():
+    assert not tf.TestFactory._dependencies_satisfied({int}, [])
+
+
+def test__dependencies_satisfied_not_satisfied(test_case_mock):
+    objects = [
+        vri.VariableReferenceImpl(test_case_mock, int),
+        vri.VariableReferenceImpl(test_case_mock, bool),
+    ]
+    assert not tf.TestFactory._dependencies_satisfied({int, float}, objects)
+
+
+def test__dependencies_satisfied_satisfied(test_case_mock):
+    objects = [
+        vri.VariableReferenceImpl(test_case_mock, int),
+        vri.VariableReferenceImpl(test_case_mock, bool),
+    ]
+    assert tf.TestFactory._dependencies_satisfied({int, bool}, objects)
