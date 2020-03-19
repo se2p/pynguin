@@ -104,7 +104,7 @@ def test_write_statistics_with_individual(capsys, chromosome):
     result = statistics.write_statistics()
     captured = capsys.readouterr()
     assert result
-    assert captured.out == ""
+    assert captured.out != ""
 
 
 def test_get_output_variables(chromosome, search_statistics):
