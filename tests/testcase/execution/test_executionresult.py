@@ -45,3 +45,15 @@ def test_time_stamp():
     current = time.time_ns()
     result = ExecutionResult()
     assert current <= result.time_stamp
+
+
+def test_get_first_position_of_ex():
+    result = ExecutionResult()
+    result.report_new_thrown_exception(5, Exception())
+    result.report_new_thrown_exception(3, Exception())
+    assert result.get_first_position_of_thrown_exception() == 3
+
+
+def test_get_first_position_of_ex_none():
+    result = ExecutionResult()
+    assert result.get_first_position_of_thrown_exception() is None
