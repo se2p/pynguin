@@ -17,7 +17,7 @@ Provide wrappers around constructors, methods, function and fields.
 Think of these like the reflection classes in Java.
 """
 import abc
-from typing import Optional, Type, Callable
+from typing import Optional, Type, Callable, Set
 
 from pynguin.typeinference.strategy import InferredSignature
 
@@ -36,6 +36,35 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
     def owner(self) -> Optional[Type]:
         """The type which owns this accessible object."""
         return self._owner
+
+    # pylint: disable=no-self-use
+    def is_method(self) -> bool:
+        """Is this a method?"""
+        return False
+
+    # pylint: disable=no-self-use
+    def is_constructor(self) -> bool:
+        """Is this a constructor?"""
+        return False
+
+    # pylint: disable=no-self-use
+    def is_function(self) -> bool:
+        """Is this a function?"""
+        return False
+
+    # pylint: disable=no-self-use
+    def is_field(self) -> bool:
+        """Is this a field?"""
+        return False
+
+    # pylint: disable=no-self-use
+    def get_num_parameters(self) -> int:
+        """Number of parameters."""
+        return 0
+
+    @abc.abstractmethod
+    def get_dependencies(self) -> Set[Type]:
+        """A set of types that are required to use this accessible."""
 
 
 class GenericCallableAccessibleObject(
@@ -66,6 +95,16 @@ class GenericCallableAccessibleObject(
         """Provides the callable."""
         return self._callable
 
+    def get_num_parameters(self) -> int:
+        return len(self.inferred_signature.parameters)
+
+    def get_dependencies(self) -> Set[Type]:
+        return {
+            value
+            for value in self.inferred_signature.parameters.values()
+            if value is not None
+        }
+
 
 class GenericConstructor(GenericCallableAccessibleObject):
     """A constructor."""
@@ -76,6 +115,9 @@ class GenericConstructor(GenericCallableAccessibleObject):
 
     def generated_type(self) -> Optional[Type]:
         return self.owner
+
+    def is_constructor(self) -> bool:
+        return True
 
     def __eq__(self, other):
         if self is other:
@@ -99,6 +141,15 @@ class GenericMethod(GenericCallableAccessibleObject):
     ) -> None:
         super().__init__(owner, method, inferred_signature)
         assert owner
+
+    def is_method(self) -> bool:
+        return True
+
+    def get_dependencies(self) -> Set[Type]:
+        assert self.owner, "Method must have an owner"
+        dependencies = super().get_dependencies()
+        dependencies.add(self.owner)
+        return dependencies
 
     def __eq__(self, other):
         if self is other:
@@ -125,6 +176,9 @@ class GenericFunction(GenericCallableAccessibleObject):
     ) -> None:
         super().__init__(None, function, inferred_signature)
 
+    def is_function(self) -> bool:
+        return True
+
     def __eq__(self, other):
         if self is other:
             return True
@@ -146,6 +200,13 @@ class GenericField(GenericAccessibleObject):
         super().__init__(owner)
         self._field = field
         self._field_type = field_type
+
+    def is_field(self) -> bool:
+        return True
+
+    def get_dependencies(self) -> Set[Type]:
+        assert self.owner, "Field must have an owner"
+        return {self.owner}
 
     def generated_type(self) -> Optional[Type]:
         return self._field_type
