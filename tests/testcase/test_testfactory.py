@@ -15,7 +15,7 @@
 import inspect
 from inspect import Signature, Parameter
 from typing import Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -426,3 +426,27 @@ def test__recursive_delete_inclusion_single(sample_test_case):
     to_delete = set()
     tf.TestFactory._recursive_delete_inclusion(sample_test_case, to_delete, 3)
     assert to_delete == {3}
+
+
+def test_delete_statement_multi(sample_test_case):
+    cluster = MagicMock(TestCluster)
+    factory = tf.TestFactory(cluster)
+    factory.delete_statement(sample_test_case, 0)
+    assert sample_test_case.size() == 1
+
+
+def test_delete_statement_single(sample_test_case):
+    cluster = MagicMock(TestCluster)
+    factory = tf.TestFactory(cluster)
+    factory.delete_statement(sample_test_case, 3)
+    assert sample_test_case.size() == 3
+
+
+def test_delete_statement_reverse(test_case_mock):
+    cluster = MagicMock(TestCluster)
+    factory = tf.TestFactory(cluster)
+    factory._recursive_delete_inclusion = MagicMock(
+        side_effect=lambda t, delete, position: delete.update({1, 2, 3})
+    )
+    factory.delete_statement(test_case_mock, 0)
+    test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
