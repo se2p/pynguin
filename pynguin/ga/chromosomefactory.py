@@ -18,8 +18,7 @@ from typing import Generic, TypeVar
 import pynguin.ga.chromosome as chrom
 import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.configuration as config
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.defaulttestcase as dtc
+import pynguin.ga.testcasefactory as tcf
 from pynguin.utils import randomness
 
 T = TypeVar("T", bound=chrom.Chromosome)  # pylint: disable=invalid-name
@@ -37,25 +36,16 @@ class ChromosomeFactory(Generic[T]):
 class TestSuiteChromosomeFactory(ChromosomeFactory[tsc.TestSuiteChromosome]):
     """A factory that provides new test suite chromosomes of random length."""
 
+    def __init__(self, test_case_factory: tcf.TestCaseFactory):
+        self._test_case_factory = test_case_factory
+
     def get_chromosome(self) -> tsc.TestSuiteChromosome:
-        chromosome = tsc.TestSuiteChromosome()
+        chromosome = tsc.TestSuiteChromosome(self._test_case_factory)
         num_tests = randomness.next_int(
-            config.INSTANCE.min_initial_tests, config.INSTANCE.max_initial_tests + 1
+            config.INSTANCE.min_initial_tests, config.INSTANCE.max_initial_tests
         )
 
         for _ in range(num_tests):
-            chromosome.add_test(self._generate_random_test_case())
+            chromosome.add_test(self._test_case_factory.get_test_case())
 
         return chromosome
-
-    @staticmethod
-    def _generate_random_test_case() -> tc.TestCase:
-        test_case = dtc.DefaultTestCase()
-        attempts = 0
-        length = randomness.next_int(1, config.INSTANCE.chromosome_length)
-
-        while test_case.size() < length and attempts < config.INSTANCE.max_attempts:
-            # TODO(fk) add statements.
-            attempts += 1
-
-        return test_case
