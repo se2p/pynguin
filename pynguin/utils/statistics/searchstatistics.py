@@ -164,7 +164,7 @@ class SearchStatistics:
         return variable_names
 
     def _get_output_variables(
-        self, individual, skip_missing: bool = False
+        self, individual, skip_missing: bool = True
     ) -> Dict[str, sb.OutputVariable]:
         variables: Dict[str, sb.OutputVariable] = {}
 
