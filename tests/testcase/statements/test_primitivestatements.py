@@ -21,6 +21,7 @@ import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
 
 
 @pytest.mark.parametrize(
@@ -377,3 +378,10 @@ def test_primitive_statement_replace_ignore(test_case_mock):
     old = statement.return_value
     statement.replace(new, new)
     assert statement.return_value == old
+
+
+def test_primitive_statement_get_position():
+    test_case = dtc.DefaultTestCase()
+    statement = prim.IntPrimitiveStatement(test_case, 5)
+    test_case.add_statement(statement)
+    assert statement.get_position() == 0
