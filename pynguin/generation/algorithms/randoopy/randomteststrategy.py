@@ -86,6 +86,9 @@ class RandomTestStrategy(TestGenerationStrategy):
             "Generated %d failing test cases", failing_test_chromosome.size
         )
         self._logger.debug("Number of algorithm iterations: %d", execution_counter)
+        StatisticsTracker().track_output_variable(
+            RuntimeVariable.AlgorithmIterations, execution_counter
+        )
 
         return test_chromosome, failing_test_chromosome
 

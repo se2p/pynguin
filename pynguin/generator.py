@@ -132,7 +132,20 @@ class Pynguin:
         with install_import_hook(
             config.INSTANCE.algorithm.use_instrumentation, config.INSTANCE.module_name
         ):
-            executor = TestCaseExecutor()
+            try:
+                executor = TestCaseExecutor()
+            except ModuleNotFoundError:
+                # A module could not be imported because some dependencies are missing.
+                # Thus we are not able to generate anything.  Stop the process here,
+                # and write statistics.
+                StatisticsTracker().current_individual(tsc.TestSuiteChromosome())
+                StatisticsTracker().track_output_variable(
+                    RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+                )
+                self._collect_statistics()
+                StatisticsTracker().write_statistics()
+                return 1
+
             with Timer(name="Test-cluster generation time", logger=None):
                 test_cluster = TestClusterGenerator(
                     config.INSTANCE.module_name

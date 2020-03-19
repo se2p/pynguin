@@ -53,6 +53,7 @@ class SearchStatistics:
         )
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
+        self._set_sequence_output_variable_start_time()
         self._best_individual: Optional[tsc.TestSuiteChromosome] = None
 
     @staticmethod
@@ -93,6 +94,10 @@ class SearchStatistics:
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             stat.RuntimeVariable.TotalExceptionsTimeline
         )
+
+    def _set_sequence_output_variable_start_time(self) -> None:
+        for factory in self._sequence_output_variable_factories.values():
+            factory.set_start_time(self._start_time)
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
@@ -159,7 +164,7 @@ class SearchStatistics:
         return variable_names
 
     def _get_output_variables(
-        self, individual, skip_missing: bool = False
+        self, individual, skip_missing: bool = True
     ) -> Dict[str, sb.OutputVariable]:
         variables: Dict[str, sb.OutputVariable] = {}
 

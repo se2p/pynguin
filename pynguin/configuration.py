@@ -96,8 +96,11 @@ class Configuration:
     # Which backend to use to collect data
     statistics_backend: StatisticsBackend = StatisticsBackend.CSV
 
-    # Time interval in milliseconds for timeline statistics
-    timeline_interval: int = 60 * 1000
+    # Time interval in nano-seconds for timeline statistics, i.e., we select a data
+    # point after each interval.  This can be interpolated, if there is no exact
+    # value stored at the time-step of the interval, see `timeline_interpolation`.
+    # The default value is every 0.25s.
+    timeline_interval: int = 250 * 1_000_000
 
     # Interpolate timeline values
     timeline_interpolation: bool = True
