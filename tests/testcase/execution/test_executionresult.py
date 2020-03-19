@@ -35,11 +35,6 @@ def test_exceptions():
     assert result.exceptions[0] == ex
 
 
-def test_fitness_default():
-    result = ExecutionResult()
-    assert not result.fitness
-
-
 def test_fitness_setter():
     result = ExecutionResult()
     result.fitness = 5.0

@@ -15,23 +15,31 @@
 """Provides a default implementation of a test case."""
 from __future__ import annotations
 import logging
-from typing import List, Any
+from typing import List, Any, Optional
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.testfactory as tf
+import pynguin.configuration as config
+from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConstructionFailedException
 
 
 class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
     # pylint: disable=invalid-name
-    def __init__(self) -> None:
+    def __init__(self, test_factory: Optional[tf.TestFactory] = None) -> None:
         super().__init__()
         self._logger = logging.getLogger(__name__)
         self._is_failing: bool = False
         self._id = self._id_generator.inc()
+        self._changed = True
+        self._test_factory = test_factory
+        self._last_execution_result: Optional[ExecutionResult] = None
 
     @property
     def id(self) -> int:
@@ -76,6 +84,13 @@ class DefaultTestCase(tc.TestCase):
         assert 0 <= position < len(self._statements)
         return self._statements[position]
 
+    def set_statement(
+        self, statement: stmt.Statement, position: int
+    ) -> vr.VariableReference:
+        assert 0 <= position < len(self._statements)
+        self._statements[position] = statement
+        return statement.return_value
+
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
@@ -85,6 +100,7 @@ class DefaultTestCase(tc.TestCase):
             test_case._statements.append(statement.clone(test_case))
         test_case._is_failing = self._is_failing
         test_case._id = self._id_generator.inc()
+        test_case._test_factory = self._test_factory
         return test_case
 
     def is_failing(self) -> bool:
@@ -95,6 +111,117 @@ class DefaultTestCase(tc.TestCase):
 
     def size(self) -> int:
         return len(self._statements)
+
+    def mutate(self) -> None:
+        """Each statement is mutated with probability 1/l."""
+        changed = False
+
+        if randomness.next_float() <= config.INSTANCE.test_delete_probability:
+            if self._mutation_delete():
+                changed = True
+
+        if randomness.next_float() <= config.INSTANCE.test_change_probability:
+            if self._mutation_change():
+                changed = True
+
+        if randomness.next_float() <= config.INSTANCE.test_insert_probability:
+            if self._mutation_insert():
+                changed = True
+
+        if changed:
+            self.set_changed(True)
+
+    def _mutation_delete(self) -> bool:
+        if self.size() == 0:
+            return False
+        changed = False
+        last_mutable_statement = self._get_last_mutable_statement()
+        p_per_statement = 1.0 / (last_mutable_statement + 1)
+        num = last_mutable_statement
+        while num >= 0:
+            if num >= self.size():
+                continue
+            if randomness.next_float() <= p_per_statement:
+                changed |= self._delete_statement(num)
+            num -= 1
+        return changed
+
+    def _delete_statement(self, idx) -> bool:
+        try:
+            copy = self.clone()
+            assert self._test_factory, "Requires a test factory."
+            modified = self._test_factory.delete_statement_gracefully(copy, idx)
+
+            self._statements = copy.statements
+            return modified
+        except ConstructionFailedException:
+            return False
+
+    def _mutation_change(self) -> bool:
+        if self.size() == 0:
+            return False
+
+        changed = False
+        last_mutable_statement = self._get_last_mutable_statement()
+        p_per_statement = 1.0 / (last_mutable_statement + 1.0)
+        position = 0
+        while position <= last_mutable_statement:
+            if randomness.next_float() < p_per_statement:
+                statement = self.get_statement(position)
+                old_distance = statement.return_value.distance
+                if statement.mutate():
+                    changed = True
+                else:
+                    assert self._test_factory
+                    if self._test_factory.change_random_call(self, statement):
+                        changed = True
+                statement.return_value.distance = old_distance
+                position = statement.get_position()
+            position += 1
+
+        return changed
+
+    def _mutation_insert(self) -> bool:
+        """With exponentially decreasing probability, insert statements at
+        random position"""
+        changed = False
+        alpha = config.INSTANCE.statement_insertion_probability
+        exponent = 1
+        while (
+            randomness.next_float() <= pow(alpha, exponent)
+            and self.size() < config.INSTANCE.chromosome_length
+        ):
+            assert self._test_factory
+            position = self._test_factory.insert_random_statement(
+                self, self._get_last_mutable_statement() + 1
+            )
+            exponent += 1
+            if 0 <= position < self.size():
+                changed = True
+        return changed
+
+    def _get_last_mutable_statement(self) -> int:
+        result = self.get_last_execution_result()
+        if result is not None and result.has_test_exceptions():
+            position = result.get_first_position_of_thrown_exception()
+            assert position
+            # May happen, when statements where deleted.
+            if position >= self.size():
+                return self.size() - 1
+            return position
+        return self.size() - 1
+
+    def has_changed(self) -> bool:
+        return self._changed
+
+    def set_changed(self, value: bool) -> None:
+        self._changed = value
+
+    def get_last_execution_result(self) -> Optional[ExecutionResult]:
+        return self._last_execution_result
+
+    def set_last_execution_result(self, result: ExecutionResult) -> None:
+        self._last_execution_result = result
 
     # pylint: disable=too-many-return-statements
     def __eq__(self, other: Any) -> bool:

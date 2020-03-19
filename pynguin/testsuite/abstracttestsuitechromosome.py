@@ -14,18 +14,22 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract base class for a test suite chromosome."""
 from abc import ABCMeta, abstractmethod
-from typing import List, Any
+from typing import List, Any, Optional
 
 import pynguin.testcase.testcase as tc
+import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.chromosome as chrom
+import pynguin.configuration as config
+from pynguin.utils import randomness
 
 
 class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
     """An abstract base class for a test suite chromosome"""
 
-    def __init__(self):
+    def __init__(self, test_case_factory: Optional[tcf.TestCaseFactory] = None):
         super().__init__()
         self._tests: List[tc.TestCase] = []
+        self._test_case_factory = test_case_factory
 
     def add_test(self, test: tc.TestCase) -> None:
         """Adds a test case to the test suite"""
@@ -87,6 +91,35 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
             test.clone() for test in other._tests[position2:]
         ]
         self.set_changed(True)
+
+    def mutate(self) -> None:
+        """Apply mutation at test suite level."""
+        assert self._test_case_factory, "Can only mutate with test case factory."
+        changed = False
+
+        # Mutate existing test cases.
+        for test in self._tests:
+            if randomness.next_float() < 1.0 / self.size:
+                test.mutate()
+                if test.has_changed():
+                    changed = True
+
+        # Randomly add new test cases.
+        alpha = config.INSTANCE.test_insertion_probability
+        exponent = 1
+        while (
+            randomness.next_float() <= pow(alpha, exponent)
+            and self.size < config.INSTANCE.max_size
+        ):
+            self.add_test(self._test_case_factory.get_test_case())
+            exponent += 1
+            changed = True
+
+        # Remove any tests that have no more statements left.
+        self._tests = [t for t in self._tests if t.size() > 0]
+
+        if changed:
+            self.set_changed(True)
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

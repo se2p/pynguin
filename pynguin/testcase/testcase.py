@@ -20,9 +20,13 @@ from typing import List, Type, Optional
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.testcasevisitor as tcv
+from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
+from pynguin.utils.exceptions import ConstructionFailedException
 
 
+# pylint: disable=too-many-public-methods
 class TestCase(metaclass=ABCMeta):
     """An abstract base implementation for a test case.
 
@@ -112,6 +116,12 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def set_statement(
+        self, statement: stmt.Statement, position: int
+    ) -> vr.VariableReference:
+        """Set new statement at position."""
+
+    @abstractmethod
     def has_statement(self, position: int) -> bool:
         """Check if there is a statement at the given position.
 
@@ -169,3 +179,43 @@ class TestCase(metaclass=ABCMeta):
                 variables.append(value)
 
         return variables
+
+    def get_all_objects(self, position: int) -> List[vr.VariableReference]:
+        """Get all objects that are defined up to the given position."""
+        variables: List[vr.VariableReference] = []
+        for i in range(position):
+            var = self.get_statement(i).return_value
+            if not var.is_type_unknown():
+                variables.append(self.get_statement(i).return_value)
+        return variables
+
+    def get_random_object(
+        self, parameter_type: Type, position: int
+    ) -> vr.VariableReference:
+        """Get a random object of the given type."""
+        variables = self.get_objects(parameter_type, position)
+        if len(variables) == 0:
+            raise ConstructionFailedException(
+                f"Found no variables of type {parameter_type} at position {position}"
+            )
+        return randomness.choice(variables)
+
+    @abstractmethod
+    def mutate(self) -> None:
+        """Mutate this test case."""
+
+    @abstractmethod
+    def has_changed(self) -> bool:
+        """Has this test case changed since the last execution?"""
+
+    @abstractmethod
+    def set_changed(self, value: bool) -> None:
+        """Mark this test case as changed."""
+
+    @abstractmethod
+    def get_last_execution_result(self) -> Optional[ExecutionResult]:
+        """Get the last execution result."""
+
+    @abstractmethod
+    def set_last_execution_result(self, result: ExecutionResult) -> None:
+        """Set the last execution result."""

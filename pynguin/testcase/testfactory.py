@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Type, Optional, Dict, Set
+from typing import List, Type, Optional, Dict, Set, cast
 
 from typing_inspect import is_union_type, get_args
 
@@ -199,6 +199,7 @@ class TestFactory:
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
+        callee: Optional[vr.VariableReference] = None,
     ) -> vr.VariableReference:
         """Adds a method call to a test case at a given position.
 
@@ -212,6 +213,7 @@ class TestFactory:
         defaults to the end of the test case
         :param recursion_depth: A recursion limit for the search of parameter values
         :param allow_none: Whether or not a variable can hold a None value
+        :param callee: The callee, if it is already known.
         :return: A variable reference to the method call's result
         """
         self._logger.debug("Adding method %s", method)
@@ -224,9 +226,10 @@ class TestFactory:
 
         signature = method.inferred_signature
         length = test_case.size()
-        callee = self._create_or_reuse_variable(
-            test_case, method.owner, position, recursion_depth, allow_none=True
-        )
+        if callee is None:
+            callee = self._create_or_reuse_variable(
+                test_case, method.owner, position, recursion_depth, allow_none=True
+            )
         assert callee, "The callee must not be None"
         parameters: List[vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
@@ -250,6 +253,7 @@ class TestFactory:
         field: gao.GenericField,
         position: int = -1,
         recursion_depth: int = 0,
+        callee: Optional[vr.VariableReference] = None,
     ) -> vr.VariableReference:
         """Adds a field access to a test case at a given position.
 
@@ -262,6 +266,7 @@ class TestFactory:
         :param position: The position where to put the statement in the test case,
         defaults to the end of the test case
         :param recursion_depth: A recursion limit for the search of values
+        :param callee: The callee, if it is already known.
         :return: A variable reference to the field value
         """
         self._logger.debug("Adding field %s", field)
@@ -273,9 +278,10 @@ class TestFactory:
             position = test_case.size()
 
         length = test_case.size()
-        callee = self._create_or_reuse_variable(
-            test_case, field.owner, position, recursion_depth, allow_none=False
-        )
+        if callee is None:
+            callee = self._create_or_reuse_variable(
+                test_case, field.owner, position, recursion_depth, allow_none=False
+            )
         assert callee, "The callee must not be None"
         position = position + test_case.size() - length
         statement = f_stmt.FieldStatement(test_case, field, callee)
@@ -351,6 +357,334 @@ class TestFactory:
         self._logger.debug("Adding primitive %s", primitive)
         statement = primitive.clone(test_case)
         return test_case.add_statement(statement, position)
+
+    def insert_random_statement(
+        self, test_case: tc.TestCase, last_position: int
+    ) -> int:
+        """Insert a random statement up to the given position."""
+        old_size = test_case.size()
+        rand = randomness.next_float()
+
+        position = randomness.next_int(0, last_position)
+        if (
+            rand <= config.INSTANCE.insertion_uut
+            and self._test_cluster.num_accessible_objects_under_test() > 0
+        ):
+            success = self.insert_random_call(test_case, position)
+        else:
+            success = self.insert_random_call_on_object(test_case, position)
+
+        if test_case.size() - old_size > 1:
+            position += test_case.size() - old_size - 1
+        if success:
+            return position
+        return -1
+
+    def insert_random_call_on_object(
+        self, test_case: tc.TestCase, position: int
+    ) -> bool:
+        """Insert a random call on an object that already exists within the test case."""
+        variable = self._select_random_variable_for_call(test_case, position)
+        success = False
+        if variable is not None:
+            success = self.insert_random_call_on_object_at(
+                test_case, variable, position
+            )
+
+        if not success and self._test_cluster.num_accessible_objects_under_test() > 0:
+            success = self.insert_random_call(test_case, position)
+        return success
+
+    def insert_random_call_on_object_at(
+        self, test_case: tc.TestCase, variable: vr.VariableReference, position: int
+    ) -> bool:
+        """Add a random call on the passed variable."""
+        assert (
+            variable.variable_type
+        ), "Cannot insert random call on variable of unknown type."
+        try:
+            accessible = self._test_cluster.get_random_call_for(variable.variable_type)
+            return self.add_call_for(test_case, variable, accessible, position)
+        except ConstructionFailedException:
+            pass
+        return False
+
+    def add_call_for(
+        self,
+        test_case: tc.TestCase,
+        callee: vr.VariableReference,
+        accessible: gao.GenericAccessibleObject,
+        position: int,
+    ) -> bool:
+        """Add a call for the given accessible object."""
+        previous_length = test_case.size()
+        try:
+            if accessible.is_method():
+                method = cast(gao.GenericMethod, accessible)
+                self.add_method(test_case, method, position, callee=callee)
+            elif accessible.is_field():
+                field = cast(gao.GenericField, accessible)
+                self.add_field(test_case, field, position, callee=callee)
+            return True
+        except ConstructionFailedException:
+            self._rollback_changes(test_case, previous_length, position)
+            return False
+
+    @staticmethod
+    def _select_random_variable_for_call(
+        test_case: tc.TestCase, position: int
+    ) -> Optional[vr.VariableReference]:
+        """Randomly select one of the variables in the test defined up to
+        position to insert a call for."""
+        if test_case.size() == 0 or position == 0:
+            return None
+
+        distance_sum = 0.0
+        for i in range(position):
+            distance_sum += 1.0 / (
+                test_case.get_statement(i).return_value.distance + 1.0
+            )
+
+        rand = randomness.next_float() * distance_sum
+        for i in range(position):
+            variable = test_case.get_statement(i).return_value
+            dist = 1.0 / (variable.distance + 1.0)
+
+            if (
+                dist >= rand
+                and not variable.is_none_type()
+                and not variable.is_primitive()
+                and not variable.is_type_unknown()
+            ):
+                return variable
+
+            rand = rand - dist
+
+        if position > 0:
+            position = randomness.next_int(0, position - 1)
+
+        variable = test_case.get_statement(position).return_value
+        if (
+            not variable.is_primitive()
+            and not variable.is_none_type()
+            and not variable.is_type_unknown()
+        ):
+            return variable
+        return None
+
+    def insert_random_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Insert a random call for the unit under test at the given position."""
+        previous_length = test_case.size()
+        accessible = self._test_cluster.get_random_accessible()
+        if accessible is None:
+            return False
+
+        try:
+            self.append_generic_statement(test_case, accessible, position)
+        except ConstructionFailedException:
+            self._rollback_changes(test_case, previous_length, position)
+            return False
+        return True
+
+    @staticmethod
+    def _rollback_changes(test_case: tc.TestCase, previous_length: int, position: int):
+        """Rollback any changes that were made on the given test case.
+        This means that we remove any extra statements that were added.
+        TODO(fk) there should be a better way to do this?"""
+        length_difference = test_case.size() - previous_length
+        assert length_difference >= 0, "Cannot rollback from negative size difference."
+        for i in reversed(range(length_difference)):
+            test_case.remove(position + i)
+
+    def delete_statement_gracefully(
+        self, test_case: tc.TestCase, position: int
+    ) -> bool:
+        """Try to delete the statement that is defined at the given index.
+        We try to find replacements for the variable that is provided by this statement"""
+        variable = test_case.get_statement(position).return_value
+
+        alternatives = test_case.get_objects(variable.variable_type, position)
+        try:
+            alternatives.remove(variable)
+        except ValueError:
+            pass
+
+        changed = False
+        if len(alternatives) > 0:
+            for i in range(position + 1, test_case.size()):
+                statement = test_case.get_statement(i)
+                if statement.references(variable):
+                    statement.replace(variable, randomness.choice(alternatives))
+                    changed = True
+
+        deleted = self.delete_statement(test_case, position)
+        return deleted or changed
+
+    def delete_statement(self, test_case: tc.TestCase, position: int) -> bool:
+        """Delete the statement at position from the test case and remove all
+        references to it."""
+        to_delete: Set[int] = set()
+        self._recursive_delete_inclusion(test_case, to_delete, position)
+        for index in sorted(list(to_delete), reverse=True):
+            test_case.remove(index)
+        return True
+
+    def _recursive_delete_inclusion(
+        self, test_case: tc.TestCase, to_delete: Set[int], position: int
+    ) -> None:
+        if position in to_delete:
+            return  # end of recursion
+        to_delete.add(position)
+        references = self._get_reference_positions(test_case, position)
+        # TODO(fk) is this even required?
+        for i in references:
+            self._recursive_delete_inclusion(test_case, to_delete, i)
+
+    @staticmethod
+    def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:
+        references = set()
+        positions = set()
+        references.add(test_case.get_statement(position).return_value)
+        for i in range(position, test_case.size()):
+            temp = set()
+            for var in references:
+                if test_case.get_statement(i).references(var):
+                    temp.add(test_case.get_statement(i).return_value)
+                    positions.add(i)
+            references.update(temp)
+        return positions
+
+    def change_random_call(
+        self, test_case: tc.TestCase, statement: stmt.Statement
+    ) -> bool:
+        """Change the call represented by this statement to another one."""
+        if statement.return_value.is_type_unknown():
+            return False
+
+        objects = test_case.get_all_objects(statement.get_position())
+        try:
+            objects.remove(statement.return_value)
+        except ValueError:
+            pass
+        type_ = statement.return_value.variable_type
+        assert type_, "Cannot change change call, when type is unknown"
+        calls = self._get_possible_calls(type_, objects)
+        acc_object = statement.accessible_object()
+        if acc_object is not None and acc_object.get_num_parameters() > 0:
+            try:
+                calls.remove(acc_object)
+            except ValueError:
+                pass
+
+        if len(calls) == 0:
+            return False
+
+        call = randomness.choice(calls)
+        try:
+            self.change_call(test_case, statement, call)
+            return True
+        except ConstructionFailedException:
+            self._logger.info("Failed to change call for statement.")
+        return False
+
+    def change_call(
+        self,
+        test_case: tc.TestCase,
+        statement: stmt.Statement,
+        call: gao.GenericAccessibleObject,
+    ):
+        """Change the call of the given statement to the given one."""
+        position = statement.return_value.get_statement_position()
+        return_value = statement.return_value
+        replacement: Optional[stmt.Statement] = None
+        if call.is_method():
+            method = cast(gao.GenericMethod, call)
+            assert method.owner
+            callee = self._get_random_non_none_object(test_case, method.owner, position)
+            parameters = self._get_reuse_parameters(
+                test_case, method.inferred_signature.parameters, position - 1
+            )
+            replacement = par_stmt.MethodStatement(
+                test_case, method, callee, parameters
+            )
+        elif call.is_constructor():
+            constructor = cast(gao.GenericConstructor, call)
+            parameters = self._get_reuse_parameters(
+                test_case, constructor.inferred_signature.parameters, position - 1
+            )
+            replacement = par_stmt.ConstructorStatement(
+                test_case, constructor, parameters
+            )
+        elif call.is_function():
+            funktion = cast(gao.GenericFunction, call)
+            parameters = self._get_reuse_parameters(
+                test_case, funktion.inferred_signature.parameters, position - 1
+            )
+            replacement = par_stmt.FunctionStatement(test_case, funktion, parameters)
+
+        if replacement is None:
+            assert False, f"Unhandled call type {call}"
+        else:
+            replacement.return_value = return_value
+            test_case.set_statement(replacement, position)
+
+    @staticmethod
+    def _get_reuse_parameters(
+        test_case: tc.TestCase, parameters: Dict[str, Optional[type]], position: int
+    ) -> List[vr.VariableReference]:
+        """Find specified parameters from existing objects."""
+        # TODO(fk) Refactor this with one of the other parameter finding methods.
+        found = []
+        for type_ in parameters.values():
+            assert type_
+            found.append(test_case.get_random_object(type_, position))
+        return found
+
+    @staticmethod
+    def _get_random_non_none_object(test_case: tc.TestCase, type_: Type, position: int):
+        variables = test_case.get_objects(type_, position)
+        variables = [
+            var
+            for var in variables
+            if not isinstance(
+                test_case.get_statement(var.get_statement_position()),
+                prim.NoneStatement,
+            )
+        ]
+        if len(variables) == 0:
+            raise ConstructionFailedException(
+                f"Found no variables of type {type_} at position {position}"
+            )
+        randomness.choice(variables)
+
+    def _get_possible_calls(
+        self, return_type: Type, objects: List[vr.VariableReference]
+    ) -> List[gao.GenericAccessibleObject]:
+        """Retrieve all the replacement calls that can be inserted at this position
+         without changing the length."""
+        calls: List[gao.GenericAccessibleObject] = []
+        try:
+            all_calls = self._test_cluster.get_generators_for(return_type)
+        except ConstructionFailedException:
+            return calls
+        for i in all_calls:
+            if self._dependencies_satisfied(i.get_dependencies(), objects):
+                calls.append(i)
+        return calls
+
+    @staticmethod
+    def _dependencies_satisfied(
+        dependencies: Set[Type], objects: List[vr.VariableReference]
+    ) -> bool:
+        """Determine if the set of objects is sufficient to satisfy the set of dependencies"""
+        for type_ in dependencies:
+            found = False
+            for var in objects:
+                if var.variable_type == type_:
+                    found = True
+            if not found:
+                return False
+        return True
 
     # pylint: disable=too-many-arguments, assignment-from-none
     def satisfy_parameters(

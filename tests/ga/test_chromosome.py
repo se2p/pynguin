@@ -18,6 +18,7 @@ import pytest
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.chromosome as chrom
+from pynguin.ga.chromosome import Chromosome
 
 
 @pytest.fixture
@@ -38,6 +39,9 @@ def coverage_value(fitness_function):
 @pytest.fixture
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
+        def clone(self) -> Chromosome:
+            pass
+
         def cross_over(
             self, other: chrom.Chromosome, position1: int, position2: int
         ) -> None:

@@ -292,3 +292,43 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock):
     factory = tf.TestFactory(cluster)
     factory._attempt_generation_for_type = mock_method
     factory._attempt_generation(test_case_mock, MagicMock(tf.TestFactory), 0, 0, True)
+
+
+def test__rollback_changes_mid():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+
+    cloned = test_case.clone()
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 7.5), 1)
+    assert cloned != test_case
+
+    tf.TestFactory._rollback_changes(test_case, cloned.size(), 1)
+    assert cloned == test_case
+
+
+def test__rollback_changes_end():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+
+    cloned = test_case.clone()
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 7.5), 3)
+    assert cloned != test_case
+
+    tf.TestFactory._rollback_changes(test_case, cloned.size(), 3)
+    assert cloned == test_case
+
+
+def test__rollback_changes_nothing_to_rollback():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+
+    cloned = test_case.clone()
+
+    tf.TestFactory._rollback_changes(test_case, cloned.size(), 3)
+    assert cloned == test_case

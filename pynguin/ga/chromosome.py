@@ -200,3 +200,7 @@ class Chromosome(metaclass=abc.ABCMeta):
     @abstractmethod
     def cross_over(self, other: Chromosome, position1: int, position2: int) -> None:
         """Single point cross over."""
+
+    @abstractmethod
+    def clone(self) -> Chromosome:
+        """Create a clone of this chromosome."""
