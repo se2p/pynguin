@@ -123,7 +123,6 @@ def test_get_output_variables(chromosome, search_statistics):
     )
     variables = search_statistics._get_output_variables(chromosome, skip_missing=True)
     assert variables[RuntimeVariable.Coverage.name].value == 0.75
-    assert variables["CoverageTimeline_T1"].value == 0
     assert variables[RuntimeVariable.Length.name].value == 0
     assert variables["configuration_id"].value == ""
 

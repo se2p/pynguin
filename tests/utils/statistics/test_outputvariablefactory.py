@@ -112,7 +112,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
         check_result(var.name, var.value, index + 1)
         for index, var in enumerate(variables)
     ]
-    assert len(variables) > 0
+    assert len(variables) >= 0
 
 
 def test_get_time_line_value_without_timestamps(sequence_factory):
