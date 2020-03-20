@@ -36,18 +36,18 @@ astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0"
 monkeytype = "^19.11.2"
-mypy = "^0.761"
+mypy = "^0.770"
 typing_inspect = "^0.5.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.3"
+pytest = "^5.4"
 black = {version = "^19.10b0", allow-prereleases = true}
 pytest-cov = "^2.8"
 pylint = "^2.4"
 pytest-sugar = "^0.9.2"
 pytest-picked = "^0.4.1"
 pytest-xdist = "^1.31"
-hypothesis = "^5.5"
+hypothesis = "^5.7"
 pytest-mock = "^2.0.0"
 
 [tool.poetry.scripts]
