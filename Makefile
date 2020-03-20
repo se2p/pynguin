@@ -25,7 +25,7 @@ clean-build:
 clean: clean-build clean-pyc
 
 test:
-	pytest -v --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
+	pytest -p no:sugar -v --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
 
 lint: pylint mypy
 
