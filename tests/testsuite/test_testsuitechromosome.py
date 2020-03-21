@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,11 +20,13 @@ import pytest
 import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
+import pynguin.ga.testcasefactory as tcf
+import pynguin.configuration as config
 from pynguin.utils import randomness
 
 
 @pytest.fixture
-def chromosome():
+def chromosome() -> tsc.TestSuiteChromosome:
     return tsc.TestSuiteChromosome()
 
 
@@ -127,3 +130,96 @@ def test_crossover(chromosome):
     chromosome.cross_over(other, pos1, pos2)
     assert chromosome.test_chromosomes == cases_a[:pos1] + cases_b[pos2:]
     assert chromosome.changed
+
+
+def test_mutate_no_test_case_factory(chromosome):
+    with pytest.raises(AssertionError):
+        chromosome.mutate()
+
+
+def test_mutate_existing():
+    test_case_factory = MagicMock(tcf.TestCaseFactory)
+    chromosome = tsc.TestSuiteChromosome(test_case_factory)
+    test_1 = MagicMock(tc.TestCase)
+    test_1.size.return_value = 1
+    test_1.has_changed.return_value = True
+    test_2 = MagicMock(tc.TestCase)
+    test_2.size.return_value = 1
+    chromosome.add_test(test_1)
+    chromosome.add_test(test_2)
+    chromosome.set_changed(False)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.side_effect = [0.0, 1.0, 1.0]
+        chromosome.mutate()
+    test_1.mutate.assert_called_once()
+    test_2.mutate.assert_not_called()
+    assert chromosome.changed
+
+
+def test_mutate_add_new():
+    test_case_factory = MagicMock(tcf.TestCaseFactory)
+    test_case = MagicMock(tc.TestCase)
+    test_case.size.return_value = 1
+    test_case_factory.get_test_case.return_value = test_case
+    chromosome = tsc.TestSuiteChromosome(test_case_factory)
+    chromosome.set_changed(False)
+    config.INSTANCE.test_insertion_probability = 0.5
+    config.INSTANCE.max_size = 10
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.side_effect = [0.1, 0.1, 0.1, 0.1]
+        chromosome.mutate()
+    assert test_case_factory.get_test_case.call_count == 3
+    assert chromosome.changed
+
+
+def test_mutate_add_new_max_size():
+    test_case_factory = MagicMock(tcf.TestCaseFactory)
+    test_case = MagicMock(tc.TestCase)
+    test_case.size.return_value = 1
+    test_case_factory.get_test_case.return_value = test_case
+    chromosome = tsc.TestSuiteChromosome(test_case_factory)
+    chromosome.set_changed(False)
+    config.INSTANCE.test_insertion_probability = 0.5
+    config.INSTANCE.max_size = 2
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.side_effect = [0.1, 0.1, 0.1]
+        chromosome.mutate()
+    assert test_case_factory.get_test_case.call_count == 2
+    assert chromosome.changed
+
+
+def test_mutate_remove_empty():
+    test_case_factory = MagicMock(tcf.TestCaseFactory)
+    chromosome = tsc.TestSuiteChromosome(test_case_factory)
+    test_1 = MagicMock(tc.TestCase)
+    test_1.size.return_value = 1
+    test_1.has_changed.return_value = True
+    test_2 = MagicMock(tc.TestCase)
+    test_2.size.return_value = 0
+    chromosome.add_test(test_1)
+    chromosome.add_test(test_2)
+    chromosome.set_changed(False)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        # Prevent any other mutations/insertions.
+        float_mock.side_effect = [1.0, 1.0, 1.0]
+        chromosome.mutate()
+    assert chromosome.test_chromosomes == [test_1]
+    # A test case can only have a size of zero if it was mutated, but this already sets changed to True
+    # So this check is valid
+    assert not chromosome.changed
+
+
+def test_mutate_no_changes():
+    test_case_factory = MagicMock(tcf.TestCaseFactory)
+    chromosome = tsc.TestSuiteChromosome(test_case_factory)
+    test_1 = MagicMock(tc.TestCase)
+    test_1.size.return_value = 1
+    test_1.has_changed.return_value = True
+    chromosome.add_test(test_1)
+    chromosome.set_changed(False)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        # Prevent any other mutations/insertions.
+        float_mock.side_effect = [1.0, 1.0, 1.0]
+        chromosome.mutate()
+    assert chromosome.test_chromosomes == [test_1]
+    assert not chromosome.changed
