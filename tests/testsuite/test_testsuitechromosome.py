@@ -145,14 +145,18 @@ def test_mutate_existing():
     test_1.has_changed.return_value = True
     test_2 = MagicMock(tc.TestCase)
     test_2.size.return_value = 1
+    test_2.has_changed.return_value = False
+    test_3 = MagicMock(tc.TestCase)
+    test_3.size.return_value = 1
     chromosome.add_test(test_1)
     chromosome.add_test(test_2)
     chromosome.set_changed(False)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.side_effect = [0.0, 1.0, 1.0]
+        float_mock.side_effect = [0.0, 0.0, 1.0, 1.0]
         chromosome.mutate()
     test_1.mutate.assert_called_once()
-    test_2.mutate.assert_not_called()
+    test_2.mutate.assert_called_once()
+    test_3.mutate.assert_not_called()
     assert chromosome.changed
 
 
