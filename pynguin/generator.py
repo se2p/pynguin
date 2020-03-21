@@ -168,7 +168,9 @@ class Pynguin:
             self._logger.info("Export successful test cases")
             self._export_test_cases(test_chromosome.test_chromosomes)
             self._logger.info("Export failing test cases")
-            self._export_test_cases(test_chromosome.test_chromosomes, "_failing")
+            self._export_test_cases(
+                failing_test_chromosome.test_chromosomes, "_failing"
+            )
             export_timer.stop()
             self._track_statistics(result, test_chromosome, failing_test_chromosome)
             timer.stop()
