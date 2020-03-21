@@ -181,18 +181,18 @@ class TestCase(metaclass=ABCMeta):
         return variables
 
     def get_all_objects(self, position: int) -> List[vr.VariableReference]:
-        """Get all objects that are defined up to the given position."""
+        """Get all objects that are defined up to the given position (exclusive)."""
         variables: List[vr.VariableReference] = []
         for i in range(position):
             var = self.get_statement(i).return_value
-            if not var.is_type_unknown():
-                variables.append(self.get_statement(i).return_value)
+            if not (var.is_type_unknown() or var.is_none_type()):
+                variables.append(var)
         return variables
 
     def get_random_object(
         self, parameter_type: Type, position: int
     ) -> vr.VariableReference:
-        """Get a random object of the given type."""
+        """Get a random object of the given type up to the given position (exclusive)."""
         variables = self.get_objects(parameter_type, position)
         if len(variables) == 0:
             raise ConstructionFailedException(

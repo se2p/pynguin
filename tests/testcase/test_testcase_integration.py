@@ -19,6 +19,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.assignmentstatement as assign
+from pynguin.utils.exceptions import ConstructionFailedException
 
 
 def test_method_statement_clone(method_mock):
@@ -71,12 +72,22 @@ def test_assignment_statement_clone():
 
 
 @pytest.fixture(scope="function")
-def simple_test_case() -> dtc.DefaultTestCase:
+def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.5)
+    func = ps.FunctionStatement(test_case, function_mock, [float_prim.return_value])
+    string_prim = prim.StringPrimitiveStatement(test_case, "Test")
+    string_prim.return_value.variable_type = type(None)
+    string_prim2 = prim.StringPrimitiveStatement(test_case, "Test2")
+    string_prim2.return_value.variable_type = None
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
+    test_case.add_statement(float_prim)
+    test_case.add_statement(func)
+    test_case.add_statement(string_prim)
+    test_case.add_statement(string_prim2)
     return test_case
 
 
@@ -102,3 +113,38 @@ def test_test_case_equals_on_different_prim(
 
     # Even thought they both point to an int, they are not equal
     assert not simple_test_case == cloned
+
+
+def test_get_all_objects_short(simple_test_case):
+    assert simple_test_case.get_all_objects(2) == [
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+    ]
+
+
+def test_get_all_objects_full_length(simple_test_case):
+    assert simple_test_case.get_all_objects(simple_test_case.size()) == [
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+        simple_test_case.statements[2].return_value,
+        simple_test_case.statements[3].return_value,
+    ]
+
+
+def test_get_random_object_none_found(simple_test_case):
+    with pytest.raises(ConstructionFailedException):
+        simple_test_case.get_random_object(bool, simple_test_case.size())
+
+
+def test_get_random_object_one(simple_test_case):
+    assert (
+        simple_test_case.get_random_object(int, 1)
+        == simple_test_case.statements[0].return_value
+    )
+
+
+def test_get_random_object_all(simple_test_case):
+    assert simple_test_case.get_random_object(int, simple_test_case.size()) in [
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+    ]
