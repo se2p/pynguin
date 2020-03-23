@@ -41,3 +41,9 @@ def test_execute_test_suite_monkey_type(mixin, short_test_case):
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test(short_test_case)
     mixin.execute_test_suite_monkey_type(test_suite, test_cluster)
+
+
+def test_full_name_for_callable_without_module(mixin):
+    callable_ = object.__init__
+    result = mixin._full_name(callable_)
+    assert result == "callable"

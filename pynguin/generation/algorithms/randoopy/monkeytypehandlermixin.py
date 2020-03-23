@@ -139,7 +139,11 @@ class MonkeyTypeHandlerMixin:
                     (call_trace.funcname, return_type, new_return_type)
                 )
 
-    @staticmethod
-    def _full_name(callable_: Callable) -> str:
+    def _full_name(self, callable_: Callable) -> str:
+        if not hasattr(callable_, "__module__"):
+            self._logger.debug(
+                "Cannot find module for callable %s", callable_.__qualname__
+            )
+            return f"{callable.__qualname__}"
         assert hasattr(callable_, "__module__")
         return f"{callable_.__module__}.{callable_.__qualname__}"
