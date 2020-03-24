@@ -134,7 +134,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.7.0"
+version = "5.7.1"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -355,7 +355,7 @@ description = "Run the tests related to the changed files"
 name = "pytest-picked"
 optional = false
 python-versions = ">=3.5"
-version = "0.4.1"
+version = "0.4.4"
 
 [package.dependencies]
 pytest = ">=3.5.0"
@@ -496,7 +496,7 @@ description = "Measures number of Terminal column cells of wide-character codes"
 name = "wcwidth"
 optional = false
 python-versions = "*"
-version = "0.1.8"
+version = "0.1.9"
 
 [[package]]
 category = "dev"
@@ -589,8 +589,8 @@ execnet = [
     {file = "execnet-1.7.1.tar.gz", hash = "sha256:cacb9df31c9680ec5f95553976c4da484d407e85e41c83cb812aa014f0eddc50"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.7.0-py3-none-any.whl", hash = "sha256:73bb07b1d6d0097a77e35b69763fe87097f7b5605becf7f4adbb14451aba2e95"},
-    {file = "hypothesis-5.7.0.tar.gz", hash = "sha256:827f85d92dd383ad3ce495bda4a49745e86c8a64d4be8acbeac1198edc18cd01"},
+    {file = "hypothesis-5.7.1-py3-none-any.whl", hash = "sha256:6834102f23fec6b1ed336e88a087b7eface2b11fce1abf76bfa3a054d49e795e"},
+    {file = "hypothesis-5.7.1.tar.gz", hash = "sha256:65207ad35ccf30682d5c2cb169c27df71edcbdda9d22df568b979e9bd0ad3040"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
@@ -692,7 +692,7 @@ pytest-mock = [
     {file = "pytest_mock-2.0.0-py2.py3-none-any.whl", hash = "sha256:cb67402d87d5f53c579263d37971a164743dc33c159dfb4fb4a86f37c5552307"},
 ]
 pytest-picked = [
-    {file = "pytest-picked-0.4.1.tar.gz", hash = "sha256:ce1433afdfe314642c810ebf5daf642b3d12d94e041f16e72ebd3ca0a14a07b6"},
+    {file = "pytest-picked-0.4.4.tar.gz", hash = "sha256:1c7c070d622403e109d2e8cd8054e44c117065b5ab79dc39cb5697ffd867309f"},
 ]
 pytest-sugar = [
     {file = "pytest-sugar-0.9.2.tar.gz", hash = "sha256:fcd87a74b2bce5386d244b49ad60549bfbc4602527797fac167da147983f58ab"},
@@ -786,8 +786,8 @@ typing-inspect = [
     {file = "typing_inspect-0.5.0.tar.gz", hash = "sha256:811b44f92e780b90cfe7bac94249a4fae87cfaa9b40312765489255045231d9c"},
 ]
 wcwidth = [
-    {file = "wcwidth-0.1.8-py2.py3-none-any.whl", hash = "sha256:8fd29383f539be45b20bd4df0dc29c20ba48654a41e661925e612311e9f3c603"},
-    {file = "wcwidth-0.1.8.tar.gz", hash = "sha256:f28b3e8a6483e5d49e7f8949ac1a78314e740333ae305b4ba5defd3e74fb37a8"},
+    {file = "wcwidth-0.1.9-py2.py3-none-any.whl", hash = "sha256:cafe2186b3c009a04067022ce1dcd79cb38d8d65ee4f4791b8888d6599d1bbe1"},
+    {file = "wcwidth-0.1.9.tar.gz", hash = "sha256:ee73862862a156bf77ff92b09034fc4825dd3af9cf81bc5b360668d425f3c5f1"},
 ]
 wrapt = [
     {file = "wrapt-1.11.2.tar.gz", hash = "sha256:565a021fd19419476b9362b05eeaa094178de64f8361e44468f9e9d7843901e1"},
