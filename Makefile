@@ -1,4 +1,7 @@
 .PHONY: help test check clean
+VERSION=$(shell git rev-parse --short HEAD)
+APP_NAME=pynguin
+DOCKER_REPO=pynguin
 
 .DEFAULT: help
 help:
@@ -37,5 +40,9 @@ mypy:
 
 black:
 	black .
+
+build-docker:
+	docker build -t $(APP_NAME) .
+	docker tag $(APP_NAME) $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
 
 check: black mypy pylint test
