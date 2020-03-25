@@ -36,7 +36,6 @@ astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0"
 monkeytype = "^19.11.2"
-mypy = "^0.770"
 typing_inspect = "^0.5.0"
 
 [tool.poetry.dev-dependencies]
@@ -49,6 +48,7 @@ pytest-picked = "^0.4.1"
 pytest-xdist = "^1.31"
 hypothesis = "^5.7"
 pytest-mock = "^2.0.0"
+mypy = "^0.770"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

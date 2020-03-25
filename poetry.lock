@@ -203,7 +203,7 @@ python-versions = ">=3.5"
 version = "8.2.0"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Optional static typing for Python"
 name = "mypy"
 optional = false
@@ -507,7 +507,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "eba7e87f4d1e7458070705393ed0dc5626a4e852b253af6b1d8c81e356e29bb1"
+content-hash = "8b04b57b22fdcc24010cd61ec214c820fa87c70145f1b9ba5426864e548f43bc"
 python-versions = "^3.8"
 
 [metadata.files]
