@@ -134,7 +134,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.7.1"
+version = "5.8.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -589,8 +589,8 @@ execnet = [
     {file = "execnet-1.7.1.tar.gz", hash = "sha256:cacb9df31c9680ec5f95553976c4da484d407e85e41c83cb812aa014f0eddc50"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.7.1-py3-none-any.whl", hash = "sha256:6834102f23fec6b1ed336e88a087b7eface2b11fce1abf76bfa3a054d49e795e"},
-    {file = "hypothesis-5.7.1.tar.gz", hash = "sha256:65207ad35ccf30682d5c2cb169c27df71edcbdda9d22df568b979e9bd0ad3040"},
+    {file = "hypothesis-5.8.0-py3-none-any.whl", hash = "sha256:84671369a278088f1d48f7ed2aca7975550344fa744783fe6cb84ad5f3f55ff2"},
+    {file = "hypothesis-5.8.0.tar.gz", hash = "sha256:6023d9112ac23502abcb20ca3f336096fe97abab86e589cd9bf9b4bfcaa335d7"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
