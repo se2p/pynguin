@@ -73,6 +73,8 @@ docker-build:
   image: docker:19
   only:
     - master
+  before_script:
+    - docker info
   script:
     - docker build -t pynguin .
 
