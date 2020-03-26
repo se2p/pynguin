@@ -160,8 +160,8 @@ class Pynguin:
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                executor = TestCaseExecutor()
-                result = executor.execute_test_suite(test_chromosome)
+                re_executor = TestCaseExecutor()
+                result = re_executor.execute_test_suite(test_chromosome)
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
