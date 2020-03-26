@@ -175,7 +175,6 @@ class Pynguin:
             self._track_statistics(result, test_chromosome, failing_test_chromosome)
             timer.stop()
             self._collect_statistics()
-            StatisticsTracker().current_individual(test_chromosome)
             if not StatisticsTracker().write_statistics():
                 self._logger.error("Failed to write statistics data")
             if test_chromosome.size == 0:
@@ -218,6 +217,7 @@ class Pynguin:
         failing_test_chromosome: tsc.TestSuiteChromosome,
     ) -> None:
         tracker = StatisticsTracker()
+        tracker.current_individual(test_chromosome)
         tracker.track_output_variable(RuntimeVariable.Size, test_chromosome.size)
         tracker.track_output_variable(
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
