@@ -214,20 +214,6 @@ def test_add_function(provide_callables_from_fixtures_modules):
 
 
 @pytest.mark.parametrize(
-    "type_, result",
-    [
-        pytest.param(None, [None]),
-        pytest.param(bool, [bool]),
-        pytest.param(Union[int, float], (int, float)),
-    ],
-)
-def test_select_from_union(type_, result):
-    factory = tf.TestFactory(MagicMock(TestCluster))
-    res = factory._select_from_union(type_)
-    assert res in result
-
-
-@pytest.mark.parametrize(
     "type_, statement_type",
     [
         pytest.param(int, int),

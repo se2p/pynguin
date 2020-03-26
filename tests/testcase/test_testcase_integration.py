@@ -80,14 +80,11 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     func = ps.FunctionStatement(test_case, function_mock, [float_prim.return_value])
     string_prim = prim.StringPrimitiveStatement(test_case, "Test")
     string_prim.return_value.variable_type = type(None)
-    string_prim2 = prim.StringPrimitiveStatement(test_case, "Test2")
-    string_prim2.return_value.variable_type = None
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
     test_case.add_statement(float_prim)
     test_case.add_statement(func)
     test_case.add_statement(string_prim)
-    test_case.add_statement(string_prim2)
     return test_case
 
 

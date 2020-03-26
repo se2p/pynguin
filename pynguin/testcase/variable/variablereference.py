@@ -20,6 +20,7 @@ from typing import Type, Optional, Any
 
 import pynguin.testcase.testcase as tc
 from pynguin.utils import type_utils
+from pynguin.utils.type_utils import is_type_unknown
 
 
 class VariableReference(metaclass=ABCMeta):
@@ -95,17 +96,17 @@ class VariableReference(metaclass=ABCMeta):
         """
         self._distance = distance
 
-    def is_primitive(self):
+    def is_primitive(self) -> bool:
         """Does this variable reference represent a primitive type."""
         return type_utils.is_primitive_type(self._variable_type)
 
-    def is_none_type(self):
+    def is_none_type(self) -> bool:
         """Is this variable reference of type none, i.e. it does not return anything."""
         return type_utils.is_none_type(self._variable_type)
 
-    def is_type_unknown(self):
+    def is_type_unknown(self) -> bool:
         """Is the type of this variable unknown?"""
-        return self._variable_type is None
+        return is_type_unknown(self._variable_type)
 
     def __repr__(self) -> str:
         return f"VariableReference({self._test_case}, {self._variable_type})"

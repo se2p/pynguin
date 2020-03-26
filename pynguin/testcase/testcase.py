@@ -27,6 +27,9 @@ from pynguin.utils.exceptions import ConstructionFailedException
 
 
 # pylint: disable=too-many-public-methods
+from pynguin.utils.type_utils import is_assignable_to
+
+
 class TestCase(metaclass=ABCMeta):
     """An abstract base implementation for a test case.
 
@@ -174,9 +177,11 @@ class TestCase(metaclass=ABCMeta):
         bound = min(len(self._statements), position)
         for i in range(bound):
             statement = self._statements[i]
-            value = statement.return_value
-            if value.variable_type == parameter_type:
-                variables.append(value)
+            var = statement.return_value
+            if not var.is_none_type() and is_assignable_to(
+                var.variable_type, parameter_type
+            ):
+                variables.append(var)
 
         return variables
 
@@ -185,7 +190,7 @@ class TestCase(metaclass=ABCMeta):
         variables: List[vr.VariableReference] = []
         for i in range(position):
             var = self.get_statement(i).return_value
-            if not (var.is_type_unknown() or var.is_none_type()):
+            if not var.is_none_type():
                 variables.append(var)
         return variables
 
