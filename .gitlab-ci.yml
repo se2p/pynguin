@@ -74,7 +74,7 @@ docker-build:
   only:
     - master
   before_script:
-    - docker info
+    - docker --version
   script:
     - docker build -t pynguin .
 
