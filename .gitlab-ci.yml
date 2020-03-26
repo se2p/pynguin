@@ -68,14 +68,6 @@ black:
   script:
     - poetry run black --check .
 
-docker-build:
-  stage: build
-  image: docker:19
-  only:
-    - master
-  script:
-    - docker build -t pynguin .
-
 pages:
   stage: deploy
   variables:
