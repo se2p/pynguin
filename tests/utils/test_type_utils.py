@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,6 +22,7 @@ from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
     is_none_type,
+    is_assignable_to,
 )
 
 
@@ -68,3 +70,16 @@ def test_class_in_module(module, result):
 def test_function_in_module(module, result):
     predicate = function_in_module(module)
     assert predicate(patch) == result
+
+
+@pytest.mark.parametrize(
+    "from_type,to_type,result",
+    [
+        pytest.param(int, int, True),
+        pytest.param(float, Union[int, float], True),
+        pytest.param(float, int, False),
+        pytest.param(float, Union[str, int], False),
+    ],
+)
+def test_is_assignable_to(from_type, to_type, result):
+    assert is_assignable_to(from_type, to_type) == result

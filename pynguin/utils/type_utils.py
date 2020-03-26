@@ -16,6 +16,8 @@
 from inspect import isclass, isfunction
 from typing import Type, Optional, Callable, Any
 
+from typing_inspect import is_union_type, get_args
+
 PRIMITIVES = {int, str, bool, float, complex}
 
 
@@ -41,3 +43,16 @@ def function_in_module(module_name: str) -> Callable[[Any], bool]:
 def is_none_type(type_: Optional[Type]) -> bool:
     """Is the given type NoneType?"""
     return type_ is type(None)  # noqa: E721
+
+
+def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool:
+    """A naive implementation to check if one type is assignable to another.
+    Currently only unary types or union types are supported.
+
+    :param from_type: The type annotation that is used as the source.
+    :param to_type: The type which should be assigned to.
+    :return: True if `from_` is assignable to `to`
+    """
+    if is_union_type(to_type):
+        return from_type in get_args(to_type)
+    return from_type == to_type
