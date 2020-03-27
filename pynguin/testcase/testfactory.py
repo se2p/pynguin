@@ -644,7 +644,9 @@ class TestFactory:
         return found
 
     @staticmethod
-    def _get_random_non_none_object(test_case: tc.TestCase, type_: Type, position: int):
+    def _get_random_non_none_object(
+        test_case: tc.TestCase, type_: Type, position: int
+    ) -> vr.VariableReference:
         variables = test_case.get_objects(type_, position)
         variables = [
             var
@@ -658,7 +660,7 @@ class TestFactory:
             raise ConstructionFailedException(
                 f"Found no variables of type {type_} at position {position}"
             )
-        randomness.choice(variables)
+        return randomness.choice(variables)
 
     def _get_possible_calls(
         self, return_type: Type, objects: List[vr.VariableReference]

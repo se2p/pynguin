@@ -87,7 +87,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if self.return_value == old:
             self.return_value = new
         self._args = [new if arg == old else arg for arg in self._args]
-        for key, value in self._kwargs:
+        for key, value in self._kwargs.items():
             if value == old:
                 self._kwargs[key] = new
 
@@ -164,31 +164,33 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             to_mutate.variable_type, self.get_position()
         )
 
-        if to_mutate in possible_replacements:
-            possible_replacements.remove(to_mutate)
-        if self.return_value in possible_replacements:
-            possible_replacements.remove(self.return_value)
-        # TODO(fk) handle none stuff
-        copy: Optional[stmt.Statement] = None
+        possible_replacements.remove(to_mutate)
 
         # Consider duplicating an existing statement/variable.
-        if self._param_count_of_type(to_mutate.variable_type) > len(
-            possible_replacements
+        copy: Optional[stmt.Statement] = None
+        if (
+            self._param_count_of_type(to_mutate.variable_type)
+            > len(possible_replacements) + 1
         ):
             original_param_source = self.test_case.get_statement(
                 to_mutate.get_statement_position()
             )
             copy = original_param_source.clone(self.test_case)
-            if isinstance(copy, prim.PrimitiveStatement):
-                copy.delta()
+            copy.mutate()
             possible_replacements.append(copy.return_value)
 
-        if len(possible_replacements) == 0:
-            return False
+        # Using None as parameter value is also a possibility.
+        none_statement = prim.NoneStatement(self.test_case, to_mutate.variable_type)
+        possible_replacements.append(none_statement.return_value)
 
         replacement = randomness.choice(possible_replacements)
+
         if copy and replacement is copy.return_value:
+            # The chosen replacement is a copy, so we have to add it to the test case.
             self.test_case.add_statement(copy, self.get_position())
+        elif replacement is none_statement.return_value:
+            # The chosen replacement is a none statement, so we have to add it to the test case.
+            self.test_case.add_statement(none_statement, self.get_position())
 
         self._replace_argument(arg, replacement)
         return True
