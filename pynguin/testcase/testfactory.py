@@ -15,6 +15,7 @@
 """Provides a factory for test-case generation."""
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import List, Type, Optional, Dict, Set, cast
 
@@ -27,6 +28,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
+from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
@@ -178,7 +180,7 @@ class TestFactory:
         try:
             parameters: List[vr.VariableReference] = self.satisfy_parameters(
                 test_case=test_case,
-                parameter_types=signature.parameters,
+                signature=signature,
                 position=position,
                 recursion_depth=recursion_depth + 1,
                 allow_none=allow_none,
@@ -237,7 +239,7 @@ class TestFactory:
         assert callee, "The callee must not be None"
         parameters: List[vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
-            parameter_types=signature.parameters,
+            signature=signature,
             position=position,
             recursion_depth=recursion_depth + 1,
             allow_none=allow_none,
@@ -326,7 +328,7 @@ class TestFactory:
         length = test_case.size()
         parameters: List[vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
-            parameter_types=signature.parameters,
+            signature=signature,
             position=position,
             recursion_depth=recursion_depth + 1,
             allow_none=allow_none,
@@ -645,7 +647,9 @@ class TestFactory:
         return found
 
     @staticmethod
-    def _get_random_non_none_object(test_case: tc.TestCase, type_: Type, position: int):
+    def _get_random_non_none_object(
+        test_case: tc.TestCase, type_: Type, position: int
+    ) -> vr.VariableReference:
         variables = test_case.get_objects(type_, position)
         variables = [
             var
@@ -659,7 +663,7 @@ class TestFactory:
             raise ConstructionFailedException(
                 f"Found no variables of type {type_} at position {position}"
             )
-        randomness.choice(variables)
+        return randomness.choice(variables)
 
     def _get_possible_calls(
         self, return_type: Type, objects: List[vr.VariableReference]
@@ -695,7 +699,7 @@ class TestFactory:
     def satisfy_parameters(
         self,
         test_case: tc.TestCase,
-        parameter_types: Dict[str, Optional[Type]],
+        signature: InferredSignature,
         callee: Optional[vr.VariableReference] = None,
         position: int = -1,
         recursion_depth: int = 0,
@@ -705,7 +709,7 @@ class TestFactory:
         """Satisfy a list of parameters by reusing or creating variables.
 
         :param test_case: The test case
-        :param parameter_types: The list of parameter types
+        :param signature: The inferred signature of the method
         :param callee: The callee of the method
         :param position: The current position in the test case
         :param recursion_depth: The recursion depth
@@ -720,14 +724,25 @@ class TestFactory:
         parameters: List[vr.VariableReference] = []
         self._logger.debug(
             "Trying to satisfy %d parameters at position %d",
-            len(parameter_types),
+            len(signature.parameters),
             position,
         )
 
-        for _, parameter_type in parameter_types.items():
+        for parameter_name, parameter_type in signature.parameters.items():
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()
+            parameter: inspect.Parameter = signature.signature.parameters[
+                parameter_name
+            ]
+            if parameter.kind == inspect.Parameter.VAR_POSITIONAL:
+                self._logger.info("Skip variational parameter %s", parameter_name)
+                # TODO Implement generation for positional parameters of variable length
+                continue
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                self._logger.info("Skip keyword parameter %s", parameter_name)
+                # TODO Implement generation for keyword parameters of variable length
+                continue
 
             if can_reuse_existing_variables:
                 self._logger.debug("Can re-use variables")
