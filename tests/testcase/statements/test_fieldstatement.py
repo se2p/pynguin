@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 import pynguin.testcase.statements.fieldstatement as fstmt
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.statements.statementvisitor as sv
@@ -131,3 +132,28 @@ def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):
         test_case_mock, field_mock, variable_reference_mock
     )
     assert not statement.mutate()
+
+
+def test_mutate_no_replacements(field_mock, constructor_mock):
+    config.INSTANCE.change_parameter_probability = 1.0
+    test_case = dtc.DefaultTestCase()
+    const = ps.ConstructorStatement(test_case, constructor_mock)
+    field = fstmt.FieldStatement(test_case, field_mock, const.return_value)
+    test_case.add_statement(const)
+    test_case.add_statement(field)
+    assert not field.mutate()
+
+
+def test_mutate_success(field_mock, constructor_mock):
+    config.INSTANCE.change_parameter_probability = 1.0
+    test_case = dtc.DefaultTestCase()
+    const = ps.ConstructorStatement(test_case, constructor_mock)
+    const2 = ps.ConstructorStatement(test_case, constructor_mock)
+    field = fstmt.FieldStatement(test_case, field_mock, const.return_value)
+    const3 = ps.ConstructorStatement(test_case, constructor_mock)
+    test_case.add_statement(const)
+    test_case.add_statement(const2)
+    test_case.add_statement(field)
+    test_case.add_statement(const3)
+    assert field.mutate()
+    assert field.source == const2.return_value

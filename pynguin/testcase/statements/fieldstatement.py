@@ -65,13 +65,12 @@ class FieldStatement(stmt.Statement):
         if randomness.next_float() >= config.INSTANCE.change_parameter_probability:
             return False
 
-        source = self.source
-        objects = self.test_case.get_objects(source.variable_type, self.get_position())
-        objects.remove(source)
+        objects = self.test_case.get_objects(self.source.variable_type, self.get_position())
+        objects.remove(self.source)
         if len(objects) > 0:
             self.source = randomness.choice(objects)
-
-        return True
+            return True
+        return False
 
     @property
     def field(self) -> GenericField:
