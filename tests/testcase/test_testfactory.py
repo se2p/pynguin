@@ -15,6 +15,7 @@
 import inspect
 from inspect import Signature, Parameter
 from typing import Union
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -436,3 +437,65 @@ def test_delete_statement_reverse(test_case_mock):
     )
     factory.delete_statement(test_case_mock, 0)
     test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
+
+
+def test_get_random_non_none_object_empty():
+    test_case = dtc.DefaultTestCase()
+    with pytest.raises(ConstructionFailedException):
+        tf.TestFactory._get_random_non_none_object(test_case, float, 0)
+
+
+def test_get_random_non_none_object_none_statement():
+    test_case = dtc.DefaultTestCase()
+    none_statement = prim.NoneStatement(test_case, float)
+    test_case.add_statement(none_statement)
+    with pytest.raises(ConstructionFailedException):
+        tf.TestFactory._get_random_non_none_object(test_case, float, 0)
+
+
+def test_get_random_non_none_object_success():
+    test_case = dtc.DefaultTestCase()
+    float0 = prim.FloatPrimitiveStatement(test_case, 2.0)
+    float1 = prim.FloatPrimitiveStatement(test_case, 3.0)
+    float2 = prim.FloatPrimitiveStatement(test_case, 4.0)
+    test_case.add_statement(float0)
+    test_case.add_statement(float1)
+    test_case.add_statement(float2)
+    assert tf.TestFactory._get_random_non_none_object(test_case, float, 1) in {
+        float0.return_value,
+        float1.return_value,
+    }
+
+
+def test_get_reuse_parameters():
+    test_case = dtc.DefaultTestCase()
+    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    test_case.add_statement(float0)
+    test_case.add_statement(float1)
+    sign_mock = MagicMock(inspect.Signature)
+    params = {"test0": float, "test1": float}
+    inf_sig = MagicMock(InferredSignature, parameters=params, signature=sign_mock)
+    with mock.patch(
+        "pynguin.testcase.testfactory.TestFactory._should_skip_parameter"
+    ) as skip_mock:
+        skip_mock.side_effect = [True, False]
+        assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [
+            float0.return_value
+        ]
+
+
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        pytest.param("normal", False),
+        pytest.param("args", True),
+        pytest.param("kwargs", True),
+    ],
+)
+def test_should_skip_parameter(param_name, result):
+    def inner_func(normal: str, *args, **kwargs):
+        pass
+
+    inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
+    assert tf.TestFactory._should_skip_parameter(inf_sig, param_name) == result
