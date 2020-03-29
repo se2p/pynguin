@@ -18,6 +18,7 @@ import pytest
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as st
+import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 
@@ -242,3 +243,17 @@ def test_get_objects(default_test_case):
 def test_get_objects_without_type(default_test_case):
     result = default_test_case.get_objects(None, 42)
     assert result == []
+
+
+def test_set_statement_empty(default_test_case):
+    with pytest.raises(AssertionError):
+        default_test_case.set_statement(MagicMock(st.Statement), 0)
+
+
+def test_set_statement_valid(default_test_case):
+    int0 = prim.IntPrimitiveStatement(default_test_case, 5)
+    int1 = prim.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+    default_test_case.add_statement(int1)
+    assert default_test_case.set_statement(int1, 0) == int1.return_value
+    assert default_test_case.get_statement(0) == int1
