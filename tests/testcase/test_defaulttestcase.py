@@ -21,6 +21,7 @@ import pynguin.testcase.statements.statement as st
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 @pytest.fixture
@@ -257,3 +258,23 @@ def test_set_statement_valid(default_test_case):
     default_test_case.add_statement(int1)
     assert default_test_case.set_statement(int1, 0) == int1.return_value
     assert default_test_case.get_statement(0) == int1
+
+
+def test_has_changed_default(default_test_case):
+    assert default_test_case.has_changed()
+
+
+@pytest.mark.parametrize("value", [pytest.param(True), pytest.param(False)])
+def test_has_changed(default_test_case, value):
+    default_test_case.set_changed(value)
+    assert default_test_case.has_changed() == value
+
+
+def test_get_last_execution_last_result_default(default_test_case):
+    assert default_test_case.get_last_execution_result() is None
+
+
+def test_set_last_execution_result(default_test_case):
+    result = MagicMock(ExecutionResult)
+    default_test_case.set_last_execution_result(result)
+    assert default_test_case.get_last_execution_result() == result
