@@ -146,7 +146,7 @@ class DefaultTestCase(tc.TestCase):
             num -= 1
         return changed
 
-    def _delete_statement(self, idx) -> bool:
+    def _delete_statement(self, idx: int) -> bool:
         try:
             copy = self.clone()
             assert self._test_factory, "Requires a test factory."
