@@ -65,7 +65,9 @@ class FieldStatement(stmt.Statement):
         if randomness.next_float() >= config.INSTANCE.change_parameter_probability:
             return False
 
-        objects = self.test_case.get_objects(self.source.variable_type, self.get_position())
+        objects = self.test_case.get_objects(
+            self.source.variable_type, self.get_position()
+        )
         objects.remove(self.source)
         if len(objects) > 0:
             self.source = randomness.choice(objects)

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import List, Type, Optional, Dict, Set, cast
+from typing import List, Type, Optional, Set, cast
 
 from typing_inspect import is_union_type, get_args
 
@@ -605,7 +605,7 @@ class TestFactory:
             assert method.owner
             callee = self._get_random_non_none_object(test_case, method.owner, position)
             parameters = self._get_reuse_parameters(
-                test_case, method.inferred_signature.parameters, position - 1
+                test_case, method.inferred_signature, position
             )
             replacement = par_stmt.MethodStatement(
                 test_case, method, callee, parameters
@@ -613,7 +613,7 @@ class TestFactory:
         elif call.is_constructor():
             constructor = cast(gao.GenericConstructor, call)
             parameters = self._get_reuse_parameters(
-                test_case, constructor.inferred_signature.parameters, position - 1
+                test_case, constructor.inferred_signature, position
             )
             replacement = par_stmt.ConstructorStatement(
                 test_case, constructor, parameters
@@ -621,7 +621,7 @@ class TestFactory:
         elif call.is_function():
             funktion = cast(gao.GenericFunction, call)
             parameters = self._get_reuse_parameters(
-                test_case, funktion.inferred_signature.parameters, position - 1
+                test_case, funktion.inferred_signature, position
             )
             replacement = par_stmt.FunctionStatement(test_case, funktion, parameters)
 
@@ -633,14 +633,15 @@ class TestFactory:
 
     @staticmethod
     def _get_reuse_parameters(
-        test_case: tc.TestCase, parameters: Dict[str, Optional[type]], position: int
+        test_case: tc.TestCase, inf_signature: InferredSignature, position: int
     ) -> List[vr.VariableReference]:
         """Find specified parameters from existing objects."""
-        # TODO(fk) Refactor this with one of the other parameter finding methods.
         found = []
-        for type_ in parameters.values():
-            assert type_
-            found.append(test_case.get_random_object(type_, position))
+        for parameter_name, parameter_type in inf_signature.parameters.items():
+            assert parameter_type
+            if TestFactory._should_skip_parameter(inf_signature, parameter_name):
+                continue
+            found.append(test_case.get_random_object(parameter_type, position))
         return found
 
     @staticmethod
@@ -729,16 +730,11 @@ class TestFactory:
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()
-            parameter: inspect.Parameter = signature.signature.parameters[
-                parameter_name
-            ]
-            if parameter.kind == inspect.Parameter.VAR_POSITIONAL:
-                self._logger.info("Skip variational parameter %s", parameter_name)
+
+            if self._should_skip_parameter(signature, parameter_name):
                 # TODO Implement generation for positional parameters of variable length
-                continue
-            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
-                self._logger.info("Skip keyword parameter %s", parameter_name)
                 # TODO Implement generation for keyword parameters of variable length
+                self._logger.info("Skip parameter %s", parameter_name)
                 continue
 
             if can_reuse_existing_variables:
@@ -972,3 +968,13 @@ class TestFactory:
         assert types is not None
         type_ = randomness.choice(types)
         return type_
+
+    @staticmethod
+    def _should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
+        """There are some parameter types (*args, **kwargs) that are not handled as of now.
+        This is a simple utility method to check if such a parameter should be skipped."""
+        parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
+        return parameter.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        )
