@@ -490,17 +490,26 @@ def test_get_reuse_parameters():
     sign_mock = MagicMock(inspect.Signature)
     params = {"test0": float, "test1": float}
     inf_sig = MagicMock(InferredSignature, parameters=params, signature=sign_mock)
-    with mock.patch("pynguin.testcase.testfactory.TestFactory._should_skip_parameter") as skip_mock:
+    with mock.patch(
+        "pynguin.testcase.testfactory.TestFactory._should_skip_parameter"
+    ) as skip_mock:
         skip_mock.side_effect = [True, False]
-        assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [float0.return_value]
+        assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [
+            float0.return_value
+        ]
 
 
-@pytest.mark.parametrize("param_name,result",
-                         [pytest.param("normal", False),
-                          pytest.param("args", True),
-                          pytest.param("kwargs", True)])
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        pytest.param("normal", False),
+        pytest.param("args", True),
+        pytest.param("kwargs", True),
+    ],
+)
 def test_should_skip_parameter(param_name, result):
     def inner_func(normal: str, *args, **kwargs):
         pass
+
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
     assert tf.TestFactory._should_skip_parameter(inf_sig, param_name) == result
