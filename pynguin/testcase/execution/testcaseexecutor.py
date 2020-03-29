@@ -18,7 +18,7 @@ import importlib
 import logging
 import os
 import sys
-from typing import Tuple, Union, Any, Optional
+from typing import Optional
 
 import astor
 from coverage import Coverage, CoverageException, CoverageData
@@ -29,16 +29,6 @@ import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.instrumentation.basis import get_tracer
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
-from pynguin.utils.proxy import MagicProxy
-
-
-def _recording_isinstance(
-    obj: Any, obj_type: Union[type, Tuple[Union[type, tuple], ...]]
-) -> bool:
-    if isinstance(obj, MagicProxy):
-        # pylint: disable=protected-access
-        obj._instance_check_type = obj_type  # type: ignore
-    return isinstance(obj, obj_type)
 
 
 class TestCaseExecutor(AbstractExecutor):
@@ -92,7 +82,6 @@ class TestCaseExecutor(AbstractExecutor):
             self._coverage.erase()
             self._coverage.get_data().update(self._import_coverage)
 
-        # TODO(fk) wrap new values in magic proxy.
         self.setup(test_case)
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
