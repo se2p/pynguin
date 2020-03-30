@@ -367,7 +367,7 @@ class TestFactory:
         old_size = test_case.size()
         rand = randomness.next_float()
 
-        position = randomness.next_int(0, last_position)
+        position = randomness.next_int(0, last_position + 1)
         if (
             rand <= config.INSTANCE.insertion_uut
             and self._test_cluster.num_accessible_objects_under_test() > 0
@@ -463,7 +463,7 @@ class TestFactory:
             rand = rand - dist
 
         if position > 0:
-            position = randomness.next_int(0, position - 1)
+            position = randomness.next_int(0, position)
 
         variable = test_case.get_statement(position).return_value
         if (

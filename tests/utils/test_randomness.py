@@ -36,8 +36,8 @@ def test_next_string_zero():
 
 
 def test_next_int():
-    rand = randomness.next_int(lower_bound=-50, upper_bound=50)
-    assert -50 <= rand <= 50
+    rand = randomness.next_int(0, 50)
+    assert 0 <= rand < 50
 
 
 def test_next_float():

@@ -139,7 +139,7 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
 
     def randomize_value(self) -> None:
         val = randomness.next_gaussian() * config.INSTANCE.max_int
-        precision = randomness.next_int(lower_bound=0, upper_bound=7)
+        precision = randomness.next_int(0, 7)
         self._value = round(val, precision)
 
     def delta(self) -> None:
@@ -172,9 +172,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
-        length = randomness.next_int(
-            lower_bound=0, upper_bound=config.INSTANCE.string_length
-        )
+        length = randomness.next_int(0, config.INSTANCE.string_length + 1)
         self._value = randomness.next_string(length)
 
     def delta(self) -> None:
@@ -209,7 +207,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def _random_insertion(working_on: List[str]) -> List[str]:
         pos = 0
         if len(working_on) > 0:
-            pos = randomness.next_int(0, len(working_on))
+            pos = randomness.next_int(len(working_on) + 1)
         alpha = 0.5
         exponent = 1
         while (

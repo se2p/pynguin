@@ -42,7 +42,7 @@ class TestSuiteChromosomeFactory(ChromosomeFactory[tsc.TestSuiteChromosome]):
     def get_chromosome(self) -> tsc.TestSuiteChromosome:
         chromosome = tsc.TestSuiteChromosome(self._test_case_factory)
         num_tests = randomness.next_int(
-            config.INSTANCE.min_initial_tests, config.INSTANCE.max_initial_tests
+            config.INSTANCE.min_initial_tests, config.INSTANCE.max_initial_tests + 1
         )
 
         for _ in range(num_tests):

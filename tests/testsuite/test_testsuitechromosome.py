@@ -123,8 +123,8 @@ def test_crossover(chromosome):
 
     other = tsc.TestSuiteChromosome()
     other.add_tests(cases_b)
-    pos1 = randomness.next_int(len(cases_a) - 1)
-    pos2 = randomness.next_int(len(cases_b) - 1)
+    pos1 = randomness.next_int(len(cases_a))
+    pos2 = randomness.next_int(len(cases_b))
 
     chromosome.set_changed(False)
     chromosome.cross_over(other, pos1, pos2)

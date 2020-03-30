@@ -41,7 +41,7 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     def get_test_case(self) -> tc.TestCase:
         test_case = dtc.DefaultTestCase(self._test_factory)
         attempts = 0
-        size = randomness.next_int(1, config.INSTANCE.chromosome_length)
+        size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
 
         while test_case.size() < size and attempts < config.INSTANCE.max_attempts:
             self._test_factory.insert_random_statement(test_case, test_case.size())

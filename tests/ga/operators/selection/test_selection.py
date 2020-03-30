@@ -23,7 +23,7 @@ from pynguin.utils import randomness
 
 class PseudoSelection(sel.SelectionFunction):
     def get_index(self, population: List[T]) -> int:
-        return randomness.next_int(0, len(population) - 1)
+        return randomness.next_int(0, len(population))
 
 
 def test_select():

@@ -39,10 +39,10 @@ def next_int(lower_bound=-100, upper_bound=100) -> int:
     If no lower or upper bound is given, the integer is chosen from the interval
     including -100 to excluded 100.
 
-    :param lower_bound: The lower bound for the number selection
-    :param upper_bound: The upper bound for the number selection
+    :param lower_bound: The lower bound for the number selection,
+    :param upper_bound: The upper bound for the number selection, excluded
     """
-    return RNG.randint(lower_bound, upper_bound)
+    return RNG.randrange(lower_bound, upper_bound)
 
 
 def next_float(lower_bound=0, upper_bound=1) -> float:
