@@ -229,6 +229,10 @@ class Configuration:
     # Path to the pyi-stub files for the StubInferenceStrategy
     stub_dir: Optional[str] = None
 
+    # Should the generator use a static string seeding technique to improve string
+    # generation?
+    string_seeding: bool = False
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(

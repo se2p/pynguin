@@ -22,6 +22,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
+from pynguin.analyses.seeding.staticstringseeding import StaticStringSeeding
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 import pynguin.configuration as config
@@ -175,7 +176,13 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         length = randomness.next_int(
             lower_bound=0, upper_bound=config.INSTANCE.string_length
         )
-        self._value = randomness.next_string(length)
+        if config.INSTANCE.string_seeding and StaticStringSeeding().has_strings:
+            if randomness.next_float() >= 0.90:
+                self._value = randomness.next_string(length)
+            else:
+                self._value = StaticStringSeeding().random_string
+        else:
+            self._value = randomness.next_string(length)
 
     def delta(self) -> None:
         assert self._value is not None
