@@ -22,7 +22,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
-from pynguin.analyses.seeding.staticstringseeding import StaticStringSeeding
+from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 import pynguin.configuration as config
@@ -112,7 +112,14 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
-        self._value = int(randomness.next_gaussian() * config.INSTANCE.max_int)
+        if (
+            config.INSTANCE.constant_seeding
+            and StaticConstantSeeding().has_ints
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = StaticConstantSeeding().random_int
+        else:
+            self._value = int(randomness.next_gaussian() * config.INSTANCE.max_int)
 
     def delta(self) -> None:
         assert self._value is not None
@@ -139,9 +146,16 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
-        val = randomness.next_gaussian() * config.INSTANCE.max_int
-        precision = randomness.next_int(lower_bound=0, upper_bound=7)
-        self._value = round(val, precision)
+        if (
+            config.INSTANCE.constant_seeding
+            and StaticConstantSeeding().has_floats
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = StaticConstantSeeding().random_float
+        else:
+            val = randomness.next_gaussian() * config.INSTANCE.max_int
+            precision = randomness.next_int(lower_bound=0, upper_bound=7)
+            self._value = round(val, precision)
 
     def delta(self) -> None:
         assert self._value is not None
@@ -176,11 +190,12 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         length = randomness.next_int(
             lower_bound=0, upper_bound=config.INSTANCE.string_length
         )
-        if config.INSTANCE.string_seeding and StaticStringSeeding().has_strings:
-            if randomness.next_float() >= 0.90:
-                self._value = randomness.next_string(length)
-            else:
-                self._value = StaticStringSeeding().random_string
+        if (
+            config.INSTANCE.constant_seeding
+            and StaticConstantSeeding().has_strings
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = StaticConstantSeeding().random_string
         else:
             self._value = randomness.next_string(length)
 

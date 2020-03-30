@@ -33,7 +33,7 @@ from typing import Union, List, Dict, Any, Callable
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.analyses.seeding.staticstringseeding import StaticStringSeeding
+from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
@@ -130,8 +130,8 @@ class Pynguin:
         if config.INSTANCE.seed is not None:
             randomness.RNG.seed(config.INSTANCE.seed)
 
-        if config.INSTANCE.string_seeding:
-            StaticStringSeeding().collect_strings(config.INSTANCE.project_path)
+        if config.INSTANCE.constant_seeding:
+            StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
         with install_import_hook(
             config.INSTANCE.algorithm.use_instrumentation, config.INSTANCE.module_name
