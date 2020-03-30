@@ -170,10 +170,10 @@ class Configuration:
 
     # Probability of replacing parameters when mutating a method or constructor statement
     # in a test case.  Expects values in [0,1]
-    change_parameter_probability = 0.1
+    change_parameter_probability: float = 0.1
 
     # Bias for better individuals in rank selection
-    rank_bias = 1.7
+    rank_bias: float = 1.7
 
     # Minimum number of tests in initial test suites
     min_initial_tests: int = 1
@@ -182,40 +182,40 @@ class Configuration:
     max_initial_tests: int = 10
 
     # Population size of genetic algorithm
-    population = 50
+    population: int = 50
 
     # Elite size for search algorithm
-    elite = 1
+    elite: int = 1
 
     # Maximum length of chromosomes during search
     chromosome_length: int = 40
 
     # Number of attempts when generating an object before giving up
-    max_attempts = 1000
+    max_attempts: int = 1000
 
     # Score for selection of insertion of UUT calls
-    insertion_uut = 0.5
+    insertion_uut: float = 0.5
 
     # Probability of crossover
-    crossover_rate = 0.75
+    crossover_rate: float = 0.75
 
     # Initial probability of inserting a new test in a test suite
-    test_insertion_probability = 0.1
+    test_insertion_probability: float = 0.1
 
     # Probability of deleting statements during mutation
-    test_delete_probability = 1.0 / 3.0
+    test_delete_probability: float = 1.0 / 3.0
 
     # Probability of changing statements during mutation
-    test_change_probability = 1.0 / 3.0
+    test_change_probability: float = 1.0 / 3.0
 
     # Probability of inserting new statements during mutation
-    test_insert_probability = 1.0 / 3.0
+    test_insert_probability: float = 1.0 / 3.0
 
     # Initial probability of inserting a new statement in a test case
-    statement_insertion_probability = 0.5
+    statement_insertion_probability: float = 0.5
 
     # Maximum number of test cases in a test suite
-    max_size = 100
+    max_size: int = 100
 
     # What condition should be checked to end the search/test generation.
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
