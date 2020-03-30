@@ -184,6 +184,9 @@ class Configuration:
     # Population size of genetic algorithm
     population: int = 50
 
+    # Chop statements after exception if length has reached maximum
+    chop_max_length: bool = True
+
     # Elite size for search algorithm
     elite: int = 1
 
