@@ -232,6 +232,10 @@ class Configuration:
     # Path to the pyi-stub files for the StubInferenceStrategy
     stub_dir: Optional[str] = None
 
+    # Should the generator use a static constant seeding technique to improve constant
+    # generation?
+    constant_seeding: bool = False
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(

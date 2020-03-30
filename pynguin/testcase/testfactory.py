@@ -19,8 +19,6 @@ import inspect
 import logging
 from typing import List, Type, Optional, Set, cast
 
-from typing_inspect import is_union_type, get_args
-
 import pynguin.configuration as config
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
@@ -34,7 +32,13 @@ from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.utils.type_utils import is_primitive_type, PRIMITIVES
+from pynguin.utils.type_utils import (
+    is_primitive_type,
+    PRIMITIVES,
+    is_type_unknown,
+    select_concrete_type,
+    is_assignable_to,
+)
 
 
 class TestFactory:
@@ -596,7 +600,7 @@ class TestFactory:
         statement: stmt.Statement,
         call: gao.GenericAccessibleObject,
     ):
-        """Change the call of the given statement to the given one."""
+        """Change the call of the given statement to the one that is given."""
         position = statement.return_value.get_statement_position()
         return_value = statement.return_value
         replacement: Optional[stmt.Statement] = None
@@ -687,7 +691,7 @@ class TestFactory:
         for type_ in dependencies:
             found = False
             for var in objects:
-                if var.variable_type == type_:
+                if is_assignable_to(var.variable_type, type_):
                     found = True
             if not found:
                 return False
@@ -782,9 +786,6 @@ class TestFactory:
         allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
-        if is_union_type(parameter_type):
-            parameter_type = self._select_from_union(parameter_type)
-
         reuse = randomness.next_float()
         objects = test_case.get_objects(parameter_type, position)
         is_primitive = is_primitive_type(parameter_type)
@@ -793,9 +794,8 @@ class TestFactory:
             and objects
             and reuse <= config.INSTANCE.primitive_reuse_probability
         ):
-            self._logger.debug("Looking for existing object of type %s", parameter_type)
-            reference = randomness.choice(objects)
-            return reference
+            self._logger.debug("Reusing primitive of type %s", parameter_type)
+            return randomness.choice(objects)
         if (
             not is_primitive
             and objects
@@ -804,25 +804,14 @@ class TestFactory:
             self._logger.debug(
                 "Choosing from %d existing objects %s", len(objects), objects
             )
-            reference = randomness.choice(objects)
-            return reference
-        if (
-            test_case.size() > 0
-            and isinstance(parameter_type, type(None))
-            and not objects
-        ):
+            return randomness.choice(objects)
+
+        all_objects = test_case.get_all_objects(position)
+        if len(all_objects) > 0 and is_type_unknown(parameter_type) and not objects:
             self._logger.debug(
                 "Picking a random object from test case as parameter value"
             )
-            variables: List[vr.VariableReference] = list(
-                map(
-                    lambda statement: statement.return_value,
-                    test_case.statements[:position],
-                )
-            )
-            if variables:
-                reference = randomness.choice(variables)
-                return reference
+            return randomness.choice(all_objects)
 
         # if chosen to not re-use existing variable, try to create a new one
         created = self._create_variable(
@@ -876,6 +865,9 @@ class TestFactory:
         allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
+        # We only select a concrete type e.g. from a union, when we are forced to choose one.
+        parameter_type = select_concrete_type(parameter_type)
+
         if not parameter_type:
             return None
 
@@ -959,15 +951,6 @@ class TestFactory:
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
-
-    @staticmethod
-    def _select_from_union(parameter_type: Optional[Type]) -> Optional[Type]:
-        if not is_union_type(parameter_type):
-            return parameter_type
-        types = get_args(parameter_type)
-        assert types is not None
-        type_ = randomness.choice(types)
-        return type_
 
     @staticmethod
     def _should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
