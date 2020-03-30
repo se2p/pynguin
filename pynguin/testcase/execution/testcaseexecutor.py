@@ -41,7 +41,7 @@ class TestCaseExecutor(AbstractExecutor):
         super().__init__()
         if config.INSTANCE.measure_coverage:
             self._coverage = Coverage(
-                branch=True, config_file=False, source=[config.INSTANCE.module_name]
+                branch=False, config_file=False, source=[config.INSTANCE.module_name]
             )
         else:
             self._coverage = None
