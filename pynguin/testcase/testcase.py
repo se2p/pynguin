@@ -93,10 +93,10 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def chop(self, length: int) -> None:
+    def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 
-        :param length: The length of the test case after chopping
+        :param pos: The length of the test case after chopping
         """
 
     @abstractmethod

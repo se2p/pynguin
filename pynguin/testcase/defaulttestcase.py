@@ -72,9 +72,9 @@ class DefaultTestCase(tc.TestCase):
             return
         del self._statements[position]
 
-    def chop(self, length: int) -> None:
-        assert length >= 0
-        while len(self._statements) > length:
+    def chop(self, pos: int) -> None:
+        assert pos >= 0
+        while len(self._statements) > pos + 1:
             del self._statements[-1]
 
     def contains(self, statement: stmt.Statement) -> bool:

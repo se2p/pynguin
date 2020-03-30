@@ -82,7 +82,7 @@ def test_chop(default_test_case):
     stmt_2 = MagicMock(st.Statement)
     stmt_3 = MagicMock(st.Statement)
     default_test_case._statements.extend([stmt_1, stmt_2, stmt_3])
-    default_test_case.chop(2)
+    default_test_case.chop(1)
     assert default_test_case._statements == [stmt_1, stmt_2]
 
 
