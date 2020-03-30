@@ -229,7 +229,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def _random_insertion(working_on: List[str]) -> List[str]:
         pos = 0
         if len(working_on) > 0:
-            pos = randomness.next_int(len(working_on) + 1)
+            pos = randomness.next_int(0, len(working_on) + 1)
         alpha = 0.5
         exponent = 1
         while (
