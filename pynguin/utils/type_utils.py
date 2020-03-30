@@ -18,6 +18,8 @@ from typing import Type, Optional, Callable, Any
 
 from typing_inspect import is_union_type, get_args
 
+from pynguin.utils import randomness
+
 PRIMITIVES = {int, str, bool, float, complex}
 
 
@@ -45,6 +47,11 @@ def is_none_type(type_: Optional[Type]) -> bool:
     return type_ is type(None)  # noqa: E721
 
 
+def is_type_unknown(type_: Optional[Type]) -> bool:
+    """Is the type of this variable unknown?"""
+    return type_ is None
+
+
 def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool:
     """A naive implementation to check if one type is assignable to another.
     Currently only unary types or union types are supported.
@@ -56,3 +63,15 @@ def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool
     if is_union_type(to_type):
         return from_type in get_args(to_type)
     return from_type == to_type
+
+
+def select_concrete_type(select_from: Optional[Type]) -> Optional[Type]:
+    """Select a concrete type from the given type.
+    This is required e.g, when handling union types.
+    Currently only unary types and unions are handled."""
+    if is_union_type(select_from):
+        possible_types = get_args(select_from)
+        if possible_types is not None and len(possible_types) > 0:
+            return randomness.choice(possible_types)
+        return None
+    return select_from

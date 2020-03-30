@@ -23,6 +23,8 @@ from pynguin.utils.type_utils import (
     function_in_module,
     is_none_type,
     is_assignable_to,
+    is_type_unknown,
+    select_concrete_type,
 )
 
 
@@ -50,8 +52,15 @@ def test_is_primitive_type(type_, result):
         pytest.param(str, False),
     ],
 )
-def test_is_primitive_type(type_, result):
+def test_is_none_type(type_, result):
     assert is_none_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "type_,result", [pytest.param(None, True), pytest.param(MagicMock, False)],
+)
+def test_is_type_unknown(type_, result):
+    assert is_type_unknown(type_) == result
 
 
 @pytest.mark.parametrize(
@@ -83,3 +92,15 @@ def test_function_in_module(module, result):
 )
 def test_is_assignable_to(from_type, to_type, result):
     assert is_assignable_to(from_type, to_type) == result
+
+
+@pytest.mark.parametrize(
+    "type_, result",
+    [
+        pytest.param(None, [None]),
+        pytest.param(bool, [bool]),
+        pytest.param(Union[int, float], [int, float]),
+    ],
+)
+def test_select_concrete_type(type_, result):
+    assert select_concrete_type(type_) in result
