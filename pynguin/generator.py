@@ -176,7 +176,7 @@ class Pynguin:
             self._export_test_cases(test_chromosome.test_chromosomes)
             self._logger.info("Export failing test cases")
             self._export_test_cases(
-                failing_test_chromosome.test_chromosomes, "_failing"
+                failing_test_chromosome.test_chromosomes, "_failing", wrap_code=True
             )
             export_timer.stop()
             self._track_statistics(result, test_chromosome, failing_test_chromosome)
@@ -276,13 +276,17 @@ class Pynguin:
             print(f"{variable.value}: {value}")
 
     @staticmethod
-    def _export_test_cases(test_cases: List[tc.TestCase], suffix: str = "") -> None:
+    def _export_test_cases(
+        test_cases: List[tc.TestCase], suffix: str = "", wrap_code: bool = False
+    ) -> None:
         """Export the given test cases.
 
-        :param suffix Suffix that can be added to the file name to distinguish
+        :param test_cases: A list of test cases to export
+        :param suffix: Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
+        :param wrap_code: Whether or not the generated code shall be wrapped
         """
-        exporter = ExportProvider.get_exporter()
+        exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
         target_file = os.path.join(
             config.INSTANCE.output_path,
             "test_" + config.INSTANCE.module_name.replace(".", "_") + suffix + ".py",

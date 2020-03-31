@@ -28,14 +28,15 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     The modules that are required by the individual test cases are gathered and given an alias.
     """
 
-    def __init__(self):
+    def __init__(self, wrap_code: bool = False) -> None:
         """The module aliases are shared between test cases."""
         self._module_aliases = NamingScope("module")
         self._test_case_asts: List[List[stmt]] = []
+        self._wrap_code = wrap_code
 
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
         statement_visitor = stmt_to_ast.StatementToAstVisitor(
-            self._module_aliases, NamingScope()
+            self._module_aliases, NamingScope(), self._wrap_code
         )
         for statement in test_case.statements:
             statement.accept(statement_visitor)

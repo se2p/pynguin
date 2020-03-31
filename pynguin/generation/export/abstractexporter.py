@@ -30,6 +30,9 @@ from pynguin.utils.namingscope import NamingScope
 class AbstractTestExporter(metaclass=ABCMeta):
     """An abstract test exporter"""
 
+    def __init__(self, wrap_code: bool = False) -> None:
+        self._wrap_code = wrap_code
+
     @abstractmethod
     def export_sequences(
         self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
@@ -41,11 +44,10 @@ class AbstractTestExporter(metaclass=ABCMeta):
         :return: An AST module that contains the methods for these test cases.
         """
 
-    @staticmethod
     def _transform_to_asts(
-        test_cases: List[tc.TestCase],
+        self, test_cases: List[tc.TestCase],
     ) -> Tuple[List[List[ast.stmt]], NamingScope]:
-        visitor = tc_to_ast.TestCaseToAstVisitor()
+        visitor = tc_to_ast.TestCaseToAstVisitor(wrap_code=self._wrap_code)
         for test_case in test_cases:
             test_case.accept(visitor)
         return visitor.test_case_asts, visitor.module_aliases

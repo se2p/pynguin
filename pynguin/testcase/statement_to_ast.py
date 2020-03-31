@@ -30,14 +30,52 @@ from pynguin.utils.namingscope import NamingScope
 class StatementToAstVisitor(sv.StatementVisitor):
     """Visitor that transforms statements into a list of AST nodes."""
 
-    def __init__(self, module_aliases: NamingScope, variable_names: NamingScope):
+    def __init__(
+        self,
+        module_aliases: NamingScope,
+        variable_names: NamingScope,
+        wrap_nodes: bool = False,
+    ) -> None:
+        """Creates a new transformation visitor that transforms our internal
+        statements to Python AST nodes.
+
+        :param module_aliases: A naming scope for module alias names
+        :param variable_names: A naming scope for variable names
+        :param wrap_nodes: If True, wrap the create AST nodes in a try-except block
+        """
         self._ast_nodes: List[ast.stmt] = []
         self._variable_names = variable_names
         self._module_aliases = module_aliases
+        self._wrap_nodes = wrap_nodes
 
     @property
     def ast_nodes(self) -> List[ast.stmt]:
-        """Get the list of generated AST nodes."""
+        """Get the list of generated AST nodes.
+
+        In case the `wrap_nodes` property was set, the nodes will be wrapped in
+        ```
+        try:
+            [nodes]
+        except BaseException:
+            pass
+        ```
+        """
+        if self._wrap_nodes:
+            nodes: List[ast.stmt] = [
+                ast.Try(
+                    body=self._ast_nodes,
+                    handlers=[
+                        ast.ExceptHandler(
+                            body=[ast.Pass()],
+                            name=None,
+                            type=ast.Name(ctx=ast.Load(), id="BaseException"),
+                        )
+                    ],
+                    orelse=[],
+                    finalbody=[],
+                )
+            ]
+            return nodes
         return self._ast_nodes
 
     def visit_int_primitive_statement(

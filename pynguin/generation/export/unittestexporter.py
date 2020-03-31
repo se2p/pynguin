@@ -28,7 +28,7 @@ class UnitTestExporter(AbstractTestExporter):
     def export_sequences(
         self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
     ):
-        asts, module_aliases = AbstractTestExporter._transform_to_asts(test_cases)
+        asts, module_aliases = self._transform_to_asts(test_cases)
         import_node = AbstractTestExporter._create_ast_imports(
             module_aliases, "unittest"
         )

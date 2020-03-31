@@ -26,18 +26,18 @@ from pynguin.generation.export.unittestexporter import UnitTestExporter
 class ExportProvider:
     """Provides the possibility to export generated tests using a configured strategy"""
 
-    _strategies: Dict[config.ExportStrategy, Callable[[], AbstractTestExporter]] = {
+    _strategies: Dict[config.ExportStrategy, Callable[[bool], AbstractTestExporter]] = {
         config.ExportStrategy.PY_TEST_EXPORTER: PyTestExporter,
         config.ExportStrategy.UNIT_TEST_EXPORTER: UnitTestExporter,
         config.ExportStrategy.NONE: NoneExporter,
     }
 
     @classmethod
-    def get_exporter(cls) -> AbstractTestExporter:
+    def get_exporter(cls, wrap_code: bool = False) -> AbstractTestExporter:
         """Provides an instance of the configured test exporter."""
         strategy = config.INSTANCE.export_strategy
         if strategy in cls._strategies:
             exp = cls._strategies.get(strategy)
             assert exp, "Export strategy cannot be defined as None"
-            return exp()
+            return exp(wrap_code=wrap_code)  # type: ignore
         raise Exception("Unknown export strategy")
