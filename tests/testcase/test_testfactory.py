@@ -14,7 +14,6 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 from inspect import Signature, Parameter
-from typing import Union
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -390,8 +389,7 @@ def sample_test_case(function_mock):
 
 
 def test__get_reference_position_multi(sample_test_case):
-    cluster = MagicMock(TestCluster)
-    assert tf.TestFactory(cluster)._get_reference_positions(sample_test_case, 0) == {
+    assert tf.TestFactory._get_reference_positions(sample_test_case, 0) == {
         0,
         2,
         3,
@@ -399,8 +397,7 @@ def test__get_reference_position_multi(sample_test_case):
 
 
 def test__get_reference_position_single(sample_test_case):
-    cluster = MagicMock(TestCluster)
-    assert tf.TestFactory(cluster)._get_reference_positions(sample_test_case, 3) == {3}
+    assert tf.TestFactory._get_reference_positions(sample_test_case, 3) == {3}
 
 
 def test__recursive_delete_inclusion_multi(sample_test_case):
@@ -416,27 +413,20 @@ def test__recursive_delete_inclusion_single(sample_test_case):
 
 
 def test_delete_statement_multi(sample_test_case):
-    cluster = MagicMock(TestCluster)
-    factory = tf.TestFactory(cluster)
-    factory.delete_statement(sample_test_case, 0)
+    tf.TestFactory.delete_statement(sample_test_case, 0)
     assert sample_test_case.size() == 1
 
 
 def test_delete_statement_single(sample_test_case):
-    cluster = MagicMock(TestCluster)
-    factory = tf.TestFactory(cluster)
-    factory.delete_statement(sample_test_case, 3)
+    tf.TestFactory.delete_statement(sample_test_case, 3)
     assert sample_test_case.size() == 3
 
 
 def test_delete_statement_reverse(test_case_mock):
-    cluster = MagicMock(TestCluster)
-    factory = tf.TestFactory(cluster)
-    factory._recursive_delete_inclusion = MagicMock(
-        side_effect=lambda t, delete, position: delete.update({1, 2, 3})
-    )
-    factory.delete_statement(test_case_mock, 0)
-    test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
+    with mock.patch.object(tf.TestFactory, "_recursive_delete_inclusion") as rec_mock:
+        rec_mock.side_effect = lambda t, delete, position: delete.update({1, 2, 3})
+        tf.TestFactory.delete_statement(test_case_mock, 0)
+        test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
 
 
 def test_get_random_non_none_object_empty():
@@ -483,6 +473,493 @@ def test_get_reuse_parameters():
         assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [
             float0.return_value
         ]
+
+
+def test_insert_random_statement_empty_call():
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
+            ins_mock.return_value = True
+            assert (
+                test_factory.insert_random_statement(test_case, test_case.size()) == 0
+            )
+            ins_mock.assert_called_with(test_case, 0)
+
+
+def test_insert_random_statement_empty_on_object():
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 1.0
+        with mock.patch.object(
+            test_factory, "insert_random_call_on_object"
+        ) as ins_mock:
+            ins_mock.return_value = True
+            assert (
+                test_factory.insert_random_statement(test_case, test_case.size()) == 0
+            )
+            ins_mock.assert_called_with(test_case, 0)
+
+
+def test_insert_random_statement_empty_on_object_no_calls_in_cluster():
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 0
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(
+            test_factory, "insert_random_call_on_object"
+        ) as ins_mock:
+            ins_mock.return_value = True
+            assert (
+                test_factory.insert_random_statement(test_case, test_case.size()) == 0
+            )
+            ins_mock.assert_called_with(test_case, 0)
+
+
+def test_insert_random_statement_non_empty():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
+            ins_mock.return_value = True
+            assert test_factory.insert_random_statement(
+                test_case, test_case.size()
+            ) in range(test_case.size() + 1)
+            assert ins_mock.call_args_list[0].args[1] in range(test_case.size() + 1)
+
+
+def test_insert_random_statement_non_empty_multi_insert():
+    def side_effect(tc, pos):
+        tc.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+        tc.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+        return True
+
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
+            ins_mock.side_effect = side_effect
+            assert test_factory.insert_random_statement(
+                test_case, test_case.size()
+            ) in range(1, 1 + test_case.size() + 1)
+            assert ins_mock.call_args_list[0].args[1] in range(test_case.size() + 1)
+
+
+def test_insert_random_statement_no_success():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
+            ins_mock.return_value = False
+            assert (
+                test_factory.insert_random_statement(test_case, test_case.size()) == -1
+            )
+            assert ins_mock.call_args_list[0].args[1] in range(test_case.size() + 1)
+
+
+def test_insert_random_call_on_object_no_success():
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 0
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(
+        test_factory, "_select_random_variable_for_call"
+    ) as select_mock:
+        select_mock.return_value = None
+        assert not test_factory.insert_random_call_on_object(test_case, 0)
+        select_mock.assert_called_with(test_case, 0)
+
+
+def test_insert_random_call_on_object_success(variable_reference_mock):
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(
+        test_factory, "_select_random_variable_for_call"
+    ) as select_mock:
+        select_mock.return_value = variable_reference_mock
+        with mock.patch.object(
+            test_factory, "insert_random_call_on_object_at"
+        ) as insert_mock:
+            insert_mock.return_value = True
+            assert test_factory.insert_random_call_on_object(test_case, 0)
+            select_mock.assert_called_with(test_case, 0)
+            insert_mock.assert_called_with(test_case, variable_reference_mock, 0)
+
+
+def test_insert_random_call_on_object_retry(variable_reference_mock):
+    test_case = dtc.DefaultTestCase()
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.num_accessible_objects_under_test.return_value = 1
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(
+        test_factory, "_select_random_variable_for_call"
+    ) as select_mock:
+        select_mock.return_value = variable_reference_mock
+        with mock.patch.object(
+            test_factory, "insert_random_call_on_object_at"
+        ) as insert_random_at_mock:
+            insert_random_at_mock.return_value = False
+            with mock.patch.object(
+                test_factory, "insert_random_call"
+            ) as insert_random_mock:
+                insert_random_mock.return_value = False
+                assert not test_factory.insert_random_call_on_object(test_case, 0)
+                select_mock.assert_called_with(test_case, 0)
+                insert_random_at_mock.assert_called_with(
+                    test_case, variable_reference_mock, 0
+                )
+                insert_random_mock.assert_called_with(test_case, 0)
+
+
+def test_insert_random_call_on_object_at_no_accessible(
+    test_case_mock, variable_reference_mock
+):
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_random_call_for.side_effect = ConstructionFailedException()
+    test_factory = tf.TestFactory(test_cluster)
+    variable_reference_mock.variable_type = float
+    assert not test_factory.insert_random_call_on_object_at(
+        test_case_mock, variable_reference_mock, 0
+    )
+
+
+def test_insert_random_call_on_object_at_assertion(
+    test_case_mock, variable_reference_mock
+):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    variable_reference_mock.variable_type = None
+    with pytest.raises(AssertionError):
+        test_factory.insert_random_call_on_object_at(
+            test_case_mock, variable_reference_mock, 0
+        )
+
+
+@pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
+def test_insert_random_call_on_object_at_success(
+    test_case_mock, variable_reference_mock, result
+):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    variable_reference_mock.variable_type = float
+    with mock.patch.object(test_factory, "add_call_for") as call_mock:
+        call_mock.return_value = result
+        assert (
+            test_factory.insert_random_call_on_object_at(
+                test_case_mock, variable_reference_mock, 0
+            )
+            == result
+        )
+
+
+def test_add_call_for_field(field_mock, variable_reference_mock, test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "add_field") as add_field:
+        assert test_factory.add_call_for(
+            test_case_mock, variable_reference_mock, field_mock, 0
+        )
+        add_field.assert_called_with(
+            test_case_mock, field_mock, 0, callee=variable_reference_mock
+        )
+
+
+def test_add_call_for_method(method_mock, variable_reference_mock, test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "add_method") as add_field:
+        assert test_factory.add_call_for(
+            test_case_mock, variable_reference_mock, method_mock, 0
+        )
+        add_field.assert_called_with(
+            test_case_mock, method_mock, 0, callee=variable_reference_mock
+        )
+
+
+def test_add_call_for_rollback(method_mock, variable_reference_mock):
+    def side_effect(tc, f, p, callee=None):
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        raise ConstructionFailedException()
+
+    test_case = dtc.DefaultTestCase()
+    int0 = prim.IntPrimitiveStatement(test_case, 3)
+    test_case.add_statement(int0)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "add_method") as add_field:
+        add_field.side_effect = side_effect
+        assert not test_factory.add_call_for(
+            test_case, variable_reference_mock, method_mock, 0
+        )
+        assert test_case.statements == [int0]
+
+
+def test_add_call_for_unknown(method_mock, variable_reference_mock, test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    unknown = MagicMock(gao.GenericAccessibleObject)
+    unknown.is_method.return_value = False
+    unknown.is_field.return_value = False
+    with pytest.raises(RuntimeError):
+        test_factory.add_call_for(test_case_mock, variable_reference_mock, unknown, 0)
+
+
+def test_select_random_variable_for_call_one(constructor_mock, function_mock):
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.NoneStatement(test_case, MagicMock))
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 5.0))
+    function_mock.inferred_signature.update_return_type(None)
+    test_case.add_statement(par_stmt.FunctionStatement(test_case, function_mock))
+    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    test_case.add_statement(const)
+    assert (
+        tf.TestFactory._select_random_variable_for_call(test_case, test_case.size())
+        == const.return_value
+    )
+
+
+def test_select_random_variable_for_call_none(constructor_mock, function_mock):
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.NoneStatement(test_case, MagicMock))
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 5.0))
+    function_mock.inferred_signature.update_return_type(None)
+    test_case.add_statement(par_stmt.FunctionStatement(test_case, function_mock))
+    assert (
+        tf.TestFactory._select_random_variable_for_call(test_case, test_case.size())
+        is None
+    )
+
+
+def test_insert_random_call_no_accessible(test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_random_accessible.return_value = None
+    test_factory = tf.TestFactory(test_cluster)
+    assert not test_factory.insert_random_call(test_case_mock, 0)
+
+
+def test_insert_random_call_success(test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    acc = MagicMock(gao.GenericAccessibleObject)
+    test_cluster.get_random_accessible.return_value = acc
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "append_generic_statement") as append_mock:
+        assert test_factory.insert_random_call(test_case_mock, 0)
+        append_mock.assert_called_with(test_case_mock, acc, 0)
+
+
+def test_insert_random_call_rollback(test_case_mock):
+    def side_effect(tc, f, p, callee=None):
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        raise ConstructionFailedException()
+
+    test_case = dtc.DefaultTestCase()
+    int0 = prim.IntPrimitiveStatement(test_case, 3)
+    test_case.add_statement(int0)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(
+        test_factory, "append_generic_statement"
+    ) as append_generic_mock:
+        append_generic_mock.side_effect = side_effect
+        assert not test_factory.insert_random_call(test_case, 0)
+        assert test_case.statements == [int0]
+
+
+def test_delete_statement_gracefully_success(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim2.return_value]
+    )
+    test_case.add_statement(float_prim)
+    test_case.add_statement(float_prim2)
+    test_case.add_statement(float_function1)
+    assert tf.TestFactory.delete_statement_gracefully(test_case, 1)
+    assert test_case.statements[1].references(float_prim.return_value)
+    assert test_case.size() == 2
+
+
+def test_delete_statement_gracefully_no_alternatives(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim.return_value]
+    )
+    test_case.add_statement(float_prim)
+    test_case.add_statement(float_function1)
+    assert tf.TestFactory.delete_statement_gracefully(test_case, 0)
+    assert test_case.size() == 0
+
+
+def test_delete_statement_gracefully_no_dependencies(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim0 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim1 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    test_case.add_statement(float_prim0)
+    test_case.add_statement(float_prim1)
+    test_case.add_statement(float_prim2)
+    assert tf.TestFactory.delete_statement_gracefully(test_case, 1)
+    assert test_case.statements == [float_prim0, float_prim2]
+
+
+def test_change_random_call_unknown_type(test_case_mock):
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    assert not test_factory.change_random_call(
+        test_case_mock, prim.NoneStatement(test_case_mock, None)
+    )
+
+
+def test_change_random_call_no_calls(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim.return_value]
+    )
+    test_case.add_statement(float_prim)
+    test_case.add_statement(float_function1)
+
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_generators_for.return_value = {function_mock}
+    test_factory = tf.TestFactory(test_cluster)
+    assert not test_factory.change_random_call(test_case, float_function1)
+
+
+def test_change_random_call_primitive(function_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    test_case.add_statement(float_prim)
+
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_generators_for.return_value = {function_mock}
+    test_factory = tf.TestFactory(test_cluster)
+    assert not test_factory.change_random_call(test_case, float_prim)
+
+
+def test_change_random_call_success(function_mock, method_mock, constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    int0 = prim.IntPrimitiveStatement(test_case, 2)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim.return_value]
+    )
+    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    test_case.add_statement(float_prim)
+    test_case.add_statement(int0)
+    test_case.add_statement(const)
+    test_case.add_statement(float_function1)
+
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "change_call") as change_mock:
+        assert test_factory.change_random_call(test_case, float_function1)
+        change_mock.assert_called_with(test_case, float_function1, method_mock)
+
+
+def test_change_random_call_failed(function_mock, method_mock, constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    int0 = prim.IntPrimitiveStatement(test_case, 2)
+    float_function1 = par_stmt.FunctionStatement(
+        test_case, function_mock, [float_prim.return_value]
+    )
+    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    test_case.add_statement(float_prim)
+    test_case.add_statement(int0)
+    test_case.add_statement(const)
+    test_case.add_statement(float_function1)
+
+    test_cluster = MagicMock(TestCluster)
+    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
+    test_factory = tf.TestFactory(test_cluster)
+    with mock.patch.object(test_factory, "change_call") as change_mock:
+        change_mock.side_effect = ConstructionFailedException()
+        assert not test_factory.change_random_call(test_case, float_function1)
+        change_mock.assert_called_with(test_case, float_function1, method_mock)
+
+
+def test_change_call_method(constructor_mock, method_mock):
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(par_stmt.ConstructorStatement(test_case, constructor_mock))
+    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 3))
+    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(to_replace)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    test_factory.change_call(test_case, to_replace, method_mock)
+    assert test_case.statements[2].accessible_object() == method_mock
+    assert test_case.statements[2].return_value is to_replace.return_value
+
+
+def test_change_call_constructor(constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(to_replace)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    test_factory.change_call(test_case, to_replace, constructor_mock)
+    assert test_case.statements[1].accessible_object() == constructor_mock
+    assert test_case.statements[1].return_value is to_replace.return_value
+
+
+def test_change_call_function(function_mock):
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(to_replace)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    test_factory.change_call(test_case, to_replace, function_mock)
+    assert test_case.statements[1].accessible_object() == function_mock
+    assert test_case.statements[1].return_value is to_replace.return_value
+
+
+def test_change_call_unknown():
+    test_case = dtc.DefaultTestCase()
+    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(to_replace)
+    test_cluster = MagicMock(TestCluster)
+    test_factory = tf.TestFactory(test_cluster)
+    acc = MagicMock(gao.GenericAccessibleObject)
+    acc.is_method.return_value = False
+    acc.is_constructor.return_value = False
+    acc.is_function.return_value = False
+    with pytest.raises(AssertionError):
+        test_factory.change_call(test_case, to_replace, acc)
 
 
 @pytest.mark.parametrize(

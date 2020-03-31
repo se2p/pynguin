@@ -367,7 +367,9 @@ class TestFactory:
     def insert_random_statement(
         self, test_case: tc.TestCase, last_position: int
     ) -> int:
-        """Insert a random statement up to the given position."""
+        """Insert a random statement up to the given position.
+        If the insertion was successful, the position at which the statement was inserted
+        is returned, otherwise -1."""
         old_size = test_case.size()
         rand = randomness.next_float()
 
@@ -428,10 +430,12 @@ class TestFactory:
             if accessible.is_method():
                 method = cast(gao.GenericMethod, accessible)
                 self.add_method(test_case, method, position, callee=callee)
-            elif accessible.is_field():
+                return True
+            if accessible.is_field():
                 field = cast(gao.GenericField, accessible)
                 self.add_field(test_case, field, position, callee=callee)
-            return True
+                return True
+            raise RuntimeError("Unknown accessible object")
         except ConstructionFailedException:
             self._rollback_changes(test_case, previous_length, position)
             return False
@@ -442,41 +446,21 @@ class TestFactory:
     ) -> Optional[vr.VariableReference]:
         """Randomly select one of the variables in the test defined up to
         position to insert a call for."""
-        if test_case.size() == 0 or position == 0:
-            return None
-
-        distance_sum = 0.0
-        for i in range(position):
-            distance_sum += 1.0 / (
-                test_case.get_statement(i).return_value.distance + 1.0
+        candidates: List[vr.VariableReference] = [
+            var
+            for var in test_case.get_all_objects(position)
+            if not var.is_primitive()
+            and not var.is_type_unknown()
+            and not isinstance(
+                test_case.get_statement(var.get_statement_position()),
+                prim.NoneStatement,
             )
+        ]
 
-        rand = randomness.next_float() * distance_sum
-        for i in range(position):
-            variable = test_case.get_statement(i).return_value
-            dist = 1.0 / (variable.distance + 1.0)
-
-            if (
-                dist >= rand
-                and not variable.is_none_type()
-                and not variable.is_primitive()
-                and not variable.is_type_unknown()
-            ):
-                return variable
-
-            rand = rand - dist
-
-        if position > 0:
-            position = randomness.next_int(0, position)
-
-        variable = test_case.get_statement(position).return_value
-        if (
-            not variable.is_primitive()
-            and not variable.is_none_type()
-            and not variable.is_type_unknown()
-        ):
-            return variable
-        return None
+        if len(candidates) == 0:
+            return None
+        # TODO(fk) sort based on distance and use rank selection.
+        return randomness.choice(candidates)
 
     def insert_random_call(self, test_case: tc.TestCase, position: int) -> bool:
         """Insert a random call for the unit under test at the given position."""
@@ -502,9 +486,8 @@ class TestFactory:
         for i in reversed(range(length_difference)):
             test_case.remove(position + i)
 
-    def delete_statement_gracefully(
-        self, test_case: tc.TestCase, position: int
-    ) -> bool:
+    @staticmethod
+    def delete_statement_gracefully(test_case: tc.TestCase, position: int) -> bool:
         """Try to delete the statement that is defined at the given index.
         We try to find replacements for the variable that is provided by this statement"""
         variable = test_case.get_statement(position).return_value
@@ -523,14 +506,15 @@ class TestFactory:
                     statement.replace(variable, randomness.choice(alternatives))
                     changed = True
 
-        deleted = self.delete_statement(test_case, position)
+        deleted = TestFactory.delete_statement(test_case, position)
         return deleted or changed
 
-    def delete_statement(self, test_case: tc.TestCase, position: int) -> bool:
+    @staticmethod
+    def delete_statement(test_case: tc.TestCase, position: int) -> bool:
         """Delete the statement at position from the test case and remove all
         references to it."""
         to_delete: Set[int] = set()
-        self._recursive_delete_inclusion(test_case, to_delete, position)
+        TestFactory._recursive_delete_inclusion(test_case, to_delete, position)
         for index in sorted(list(to_delete), reverse=True):
             test_case.remove(index)
         return True
@@ -569,19 +553,12 @@ class TestFactory:
             return False
 
         objects = test_case.get_all_objects(statement.get_position())
-        try:
-            objects.remove(statement.return_value)
-        except ValueError:
-            pass
         type_ = statement.return_value.variable_type
         assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
         acc_object = statement.accessible_object()
-        if acc_object is not None and acc_object.get_num_parameters() > 0:
-            try:
-                calls.remove(acc_object)
-            except ValueError:
-                pass
+        if acc_object in calls:
+            calls.remove(acc_object)
 
         if len(calls) == 0:
             return False
