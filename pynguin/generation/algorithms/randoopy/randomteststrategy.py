@@ -68,6 +68,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         while not self.is_fulfilled(stopping_condition):
             try:
                 execution_counter += 1
+                stopping_condition.iterate()
                 self.generate_sequence(
                     test_chromosome,
                     failing_test_chromosome,
