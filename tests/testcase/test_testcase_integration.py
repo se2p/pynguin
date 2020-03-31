@@ -128,6 +128,15 @@ def test_get_all_objects_full_length(simple_test_case):
     ]
 
 
+def test_get_all_objects_over_max_size(simple_test_case):
+    assert simple_test_case.get_all_objects(2000) == [
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+        simple_test_case.statements[2].return_value,
+        simple_test_case.statements[3].return_value,
+    ]
+
+
 def test_get_random_object_none_found(simple_test_case):
     with pytest.raises(ConstructionFailedException):
         simple_test_case.get_random_object(bool, simple_test_case.size())

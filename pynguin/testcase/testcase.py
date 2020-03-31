@@ -188,7 +188,8 @@ class TestCase(metaclass=ABCMeta):
     def get_all_objects(self, position: int) -> List[vr.VariableReference]:
         """Get all objects that are defined up to the given position (exclusive)."""
         variables: List[vr.VariableReference] = []
-        for i in range(position):
+        bound = min(len(self._statements), position)
+        for i in range(bound):
             var = self.get_statement(i).return_value
             if not var.is_none_type():
                 variables.append(var)
