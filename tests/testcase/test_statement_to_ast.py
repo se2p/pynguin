@@ -221,3 +221,18 @@ def test_statement_to_ast_function_kwargs(
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "var1 = module0.simple_function(param1=var0)\n"
     )
+
+
+def test_statement_to_ast_with_wrap():
+    var_names = NamingScope()
+    module_aliases = NamingScope(prefix="module")
+    statement_to_ast_visitor = stmt_to_ast.StatementToAstVisitor(
+        module_aliases, var_names, True
+    )
+    int_stmt = MagicMock(stmt.Statement)
+    int_stmt.value = 5
+    statement_to_ast_visitor.visit_int_primitive_statement(int_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "try:\n    var0 = 5\nexcept BaseException:\n    pass\n"
+    )
