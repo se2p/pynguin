@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a strategy that never does any type inference."""
 import inspect
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
 
@@ -24,4 +24,16 @@ class NoTypeInferenceStrategy(TypeInferenceStrategy):
     """Provides a strategy that never does any type inference."""
 
     def infer_type_info(self, method: Callable) -> InferredSignature:
-        return InferredSignature(inspect.signature(method))
+        signature = inspect.signature(method)
+        parameters: Dict[str, Optional[type]] = {}
+        for param_name in signature.parameters:
+            if param_name == "self":
+                continue
+            parameters[param_name] = None
+        return_type: Optional[type] = None
+
+        return InferredSignature(
+            signature=signature,
+            parameters=parameters if parameters else {},
+            return_type=return_type,
+        )
