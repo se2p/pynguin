@@ -16,6 +16,7 @@
 import logging
 from typing import List, Callable, Union, Tuple, Optional, Type
 
+import monkeytype.typing as mt_typing
 from monkeytype.tracing import CallTrace
 
 import pynguin.testcase.testcase as tc
@@ -121,7 +122,15 @@ class MonkeyTypeHandlerMixin:
             new_return_type: Type[...] = Union[  # type: ignore
                 signature.return_type, return_type
             ]
-            if new_return_type != return_type:
+            return_type_name = (
+                return_type.__name__
+                if return_type is not None and hasattr(return_type, "__name__")
+                else ""
+            )
+            if (
+                new_return_type != return_type
+                and return_type_name != mt_typing.DUMMY_TYPED_DICT_NAME
+            ):
                 if (
                     isinstance(signature.return_type, type(None))
                     or signature.return_type is None
