@@ -33,7 +33,5 @@ class NoTypeInferenceStrategy(TypeInferenceStrategy):
         return_type: Optional[type] = None
 
         return InferredSignature(
-            signature=signature,
-            parameters=parameters if parameters else {},
-            return_type=return_type,
+            signature=signature, parameters=parameters, return_type=return_type
         )
