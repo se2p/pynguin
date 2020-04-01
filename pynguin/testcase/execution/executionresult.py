@@ -25,7 +25,6 @@ class ExecutionResult:
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
         self._branch_coverage = 0.0
-        self._fitness: Optional[float] = None
         self._time_stamp: int = time.time_ns()
         self._execution_trace: Optional[ExecutionTrace] = None
 
