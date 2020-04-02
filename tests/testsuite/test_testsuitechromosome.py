@@ -70,7 +70,7 @@ def test_total_length_of_test_cases(chromosome):
     test_2.size.return_value = 3
     chromosome.add_tests([test_1, test_2])
     assert chromosome.total_length_of_test_cases == 5
-    assert chromosome.size == 2
+    assert chromosome.size() == 2
 
 
 def test_hash(chromosome):
@@ -129,7 +129,7 @@ def test_crossover(chromosome):
     chromosome.set_changed(False)
     chromosome.cross_over(other, pos1, pos2)
     assert chromosome.test_chromosomes == cases_a[:pos1] + cases_b[pos2:]
-    assert chromosome.changed
+    assert chromosome.has_changed()
 
 
 def test_mutate_no_test_case_factory(chromosome):
@@ -157,7 +157,7 @@ def test_mutate_existing():
     test_1.mutate.assert_called_once()
     test_2.mutate.assert_called_once()
     test_3.mutate.assert_not_called()
-    assert chromosome.changed
+    assert chromosome.has_changed()
 
 
 def test_mutate_add_new():
@@ -173,7 +173,7 @@ def test_mutate_add_new():
         float_mock.side_effect = [0.1, 0.1, 0.1, 0.1]
         chromosome.mutate()
     assert test_case_factory.get_test_case.call_count == 3
-    assert chromosome.changed
+    assert chromosome.has_changed()
 
 
 def test_mutate_add_new_max_size():
@@ -189,7 +189,7 @@ def test_mutate_add_new_max_size():
         float_mock.side_effect = [0.1, 0.1, 0.1]
         chromosome.mutate()
     assert test_case_factory.get_test_case.call_count == 2
-    assert chromosome.changed
+    assert chromosome.has_changed()
 
 
 def test_mutate_remove_empty():
@@ -210,7 +210,7 @@ def test_mutate_remove_empty():
     assert chromosome.test_chromosomes == [test_1]
     # A test case can only have a size of zero if it was mutated, but this already sets changed to True
     # So this check is valid
-    assert not chromosome.changed
+    assert not chromosome.has_changed()
 
 
 def test_mutate_no_changes():
@@ -226,4 +226,4 @@ def test_mutate_no_changes():
         float_mock.side_effect = [1.0, 1.0, 1.0]
         chromosome.mutate()
     assert chromosome.test_chromosomes == [test_1]
-    assert not chromosome.changed
+    assert not chromosome.has_changed()

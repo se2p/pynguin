@@ -36,7 +36,7 @@ from pynguin.setup.testcluster import TestCluster
 
 class _TestGenerationStrategy(TestGenerationStrategy):
     def __init__(self):
-        super().__init__(MagicMock(TestCluster))
+        super().__init__(MagicMock(), MagicMock(TestCluster))
 
     def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
         raise NotImplementedError(

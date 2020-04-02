@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides capabilities to track branch distances."""
+import dataclasses
 import logging
 import numbers
 from typing import Set
@@ -22,6 +23,17 @@ from bytecode import Compare
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 
 
+@dataclasses.dataclass
+class KnownData:
+    """Contains known functions, predicates and for loops.
+    FIXME(fk) better class name...
+    """
+
+    existing_functions: Set[int] = dataclasses.field(default_factory=set)
+    existing_predicates: Set[int] = dataclasses.field(default_factory=set)
+    existing_for_loops: Set[int] = dataclasses.field(default_factory=set)
+
+
 class ExecutionTracer:
     """Tracks branch distances during execution.
     The results are stored in an execution trace."""
@@ -29,19 +41,17 @@ class ExecutionTracer:
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
-        self._existing_functions: Set[int] = set()
-        self._existing_predicates: Set[int] = set()
-        self._existing_for_loops: Set[int] = set()
+        self._known_data = KnownData()
         self._init_trace()
         self._enabled = True
 
+    def get_known_data(self) -> KnownData:
+        """Provide known data."""
+        return self._known_data
+
     def _init_trace(self) -> None:
         """Create a new trace without any information."""
-        self._trace = ExecutionTrace(
-            existing_functions=self._existing_functions,
-            existing_predicates=self._existing_predicates,
-            existing_for_loops=self._existing_for_loops,
-        )
+        self._trace = ExecutionTrace()
 
     def _is_disabled(self) -> bool:
         """Should we track anything?
@@ -67,28 +77,38 @@ class ExecutionTracer:
 
     def function_exists(self, function_id: int) -> None:
         """Declare that a function exists."""
-        assert function_id not in self._existing_functions, "Function is already known"
-        self._existing_functions.add(function_id)
+        assert (
+            function_id not in self._known_data.existing_functions
+        ), "Function is already known"
+        self._known_data.existing_functions.add(function_id)
 
     def entered_function(self, function_id: int) -> None:
         """Mark a function as covered. This means, that the function was at least entered once."""
-        assert function_id in self._existing_functions, "Cannot trace unknown function"
+        assert (
+            function_id in self._known_data.existing_functions
+        ), "Cannot trace unknown function"
         self._trace.covered_functions.add(function_id)
 
     def for_loop_exists(self, for_loop_id: int) -> None:
         """Declare that a for loop exists."""
-        assert for_loop_id not in self._existing_for_loops, "for loop already known"
-        self._existing_for_loops.add(for_loop_id)
+        assert (
+            for_loop_id not in self._known_data.existing_for_loops
+        ), "for loop already known"
+        self._known_data.existing_for_loops.add(for_loop_id)
 
     def entered_for_loop(self, for_loop_id: int) -> None:
         """Marks a for loop as covered. This means, that the for loop was at least entered once."""
-        assert for_loop_id in self._existing_for_loops, "Cannot tracer unknown for loop"
+        assert (
+            for_loop_id in self._known_data.existing_for_loops
+        ), "Cannot tracer unknown for loop"
         self._trace.covered_for_loops.add(for_loop_id)
 
     def predicate_exists(self, predicate: int) -> None:
         """Declare that a predicate exists."""
-        assert predicate not in self._existing_predicates, "Predicate is already known"
-        self._existing_predicates.add(predicate)
+        assert (
+            predicate not in self._known_data.existing_predicates
+        ), "Predicate is already known"
+        self._known_data.existing_predicates.add(predicate)
 
     # pylint: disable=too-many-branches
     def passed_cmp_predicate(
@@ -101,7 +121,7 @@ class ExecutionTracer:
         try:
             self._disable()
             assert (
-                predicate in self._existing_predicates
+                predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
             if cmp_op == Compare.EQ:
                 distance_true, distance_false = (
@@ -172,7 +192,7 @@ class ExecutionTracer:
         try:
             self._disable()
             assert (
-                predicate in self._existing_predicates
+                predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
@@ -188,7 +208,9 @@ class ExecutionTracer:
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int
     ):
-        assert predicate in self._existing_predicates, "Cannot update unknown predicate"
+        assert (
+            predicate in self._known_data.existing_predicates
+        ), "Cannot update unknown predicate"
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
         assert (distance_true == 0.0 and distance_false > 0.0) or (

@@ -19,7 +19,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -40,27 +39,16 @@ def executor():
     return MagicMock(TestCaseExecutor)
 
 
-def _inspect_member(member):
-    try:
-        return (
-            inspect.isclass(member)
-            or inspect.ismethod(member)
-            or inspect.isfunction(member)
-        )
-    except BaseException:
-        return None
-
-
 def test_generate_sequences(executor):
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
-    algorithm.generate_sequence = lambda t, f, fitness, e: None
+    algorithm.generate_sequence = lambda t, f, e: None
     test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert test_cases.size == 0
-    assert failing_test_cases.size == 0
+    assert test_cases.size() == 0
+    assert failing_test_cases.size() == 0
     assert len(logger.method_calls) == 7
 
 
@@ -130,10 +118,7 @@ def test_generate_sequence(has_exceptions, executor):
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
-            tsc.TestSuiteChromosome(),
-            tsc.TestSuiteChromosome(),
-            MagicMock(ff.FitnessFunction),
-            0,
+            tsc.TestSuiteChromosome(), tsc.TestSuiteChromosome(), 0,
         )
 
 
@@ -146,8 +131,5 @@ def test_generate_sequence_duplicate(executor):
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
-            tsc.TestSuiteChromosome(),
-            tsc.TestSuiteChromosome(),
-            MagicMock(ff.FitnessFunction),
-            0,
+            tsc.TestSuiteChromosome(), tsc.TestSuiteChromosome(), 0,
         )

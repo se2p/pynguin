@@ -31,10 +31,10 @@ from pynguin.ga.operators.selection.selection import SelectionFunction
 
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 
 
 # pylint: disable=too-few-public-methods
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
@@ -44,9 +44,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(test_cluster)
-        self._executor = executor
+    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
+        super().__init__(executor, test_cluster)
         self._chromosome_factory = cf.TestSuiteChromosomeFactory(
             tcf.RandomLengthTestCaseFactory(self._test_factory)
         )
@@ -57,7 +56,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self._crossover_function: CrossOverFunction[
             tsc.TestSuiteChromosome
         ] = SinglePointRelativeCrossOver()
-        self._fitness_function = BranchDistanceSuiteFitnessFunction()
+        self._fitness_function = BranchDistanceSuiteFitnessFunction(executor)
 
     def generate_sequences(
         self,
@@ -69,19 +68,32 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         generation = 0
         while (
             not self.is_fulfilled(stopping_condition)
-            and self._population[0].fitness != 0.0
+            and self._population[0].get_fitness() != 0.0
         ):
+            # TODO(fk) add proper reporting for statistics.
             self._logger.info("Current generation %s", generation)
-            self._logger.info("Current best fitness 1. %s", self._population[0].fitness)
-            self._logger.info("Current best fitness 2. %s", self._population[1].fitness)
-            self._logger.info("Current best fitness 3. %s", self._population[2].fitness)
+            self._logger.info(
+                "Current best fitness 1. %s", self._population[0].get_fitness()
+            )
+            self._logger.info(
+                "Current best fitness 2. %s", self._population[1].get_fitness()
+            )
+            self._logger.info(
+                "Current best fitness 3. %s", self._population[2].get_fitness()
+            )
             self.evolve()
             generation += 1
         self._logger.info("Found solution")
         self._logger.info("Current generation %s", generation)
-        self._logger.info("Current best fitness 1. %s", self._population[0].fitness)
-        self._logger.info("Current best fitness 2. %s", self._population[1].fitness)
-        self._logger.info("Current best fitness 3. %s", self._population[2].fitness)
+        self._logger.info(
+            "Current best fitness 1. %s", self._population[0].get_fitness()
+        )
+        self._logger.info(
+            "Current best fitness 2. %s", self._population[1].get_fitness()
+        )
+        self._logger.info(
+            "Current best fitness 3. %s", self._population[2].get_fitness()
+        )
         return self._population[0], tsc.TestSuiteChromosome()
 
     def evolve(self):
@@ -105,13 +117,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 self._logger.info("Crossover/Mutation failed: %s", ex)
                 continue
 
-            result = self._executor.execute_test_suite(offspring1)
-            self._fitness_function.get_fitness(offspring1, result)
-            result = self._executor.execute_test_suite(offspring2)
-            self._fitness_function.get_fitness(offspring2, result)
-
-            f_p = min(parent1.fitness, parent2.fitness)
-            f_o = min(offspring1.fitness, offspring2.fitness)
+            f_p = min(parent1.get_fitness(), parent2.get_fitness())
+            f_o = min(offspring1.get_fitness(), offspring2.get_fitness())
             l_p = (
                 parent1.total_length_of_test_cases + parent2.total_length_of_test_cases
             )
@@ -141,13 +148,12 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         population = []
         for _ in range(config.INSTANCE.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            result = self._executor.execute_test_suite(chromosome)
-            self._fitness_function.get_fitness(chromosome, result)
+            chromosome.add_fitness_function(self._fitness_function)
             population.append(chromosome)
         return population
 
     def _sort_population(self):
-        self._population.sort(key=lambda x: x.fitness)
+        self._population.sort(key=lambda x: x.get_fitness())
 
     @staticmethod
     def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:

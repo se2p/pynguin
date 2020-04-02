@@ -17,15 +17,14 @@ import logging
 from typing import List, Tuple, Optional
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
     MonkeyTypeHandlerMixin,
 )
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 
 
@@ -42,7 +41,7 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
+    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
         super().__init__(executor, test_cluster)
         self._monkey_type_executor = MonkeyTypeExecutor()
         self._monkey_type_executions = 0
@@ -56,15 +55,11 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
-        fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
-        number_of_test_cases = test_chromosome.size
+        number_of_test_cases = test_chromosome.size()
         super().generate_sequence(
-            test_chromosome,
-            failing_test_chromosome,
-            fitness_functions,
-            execution_counter,
+            test_chromosome, failing_test_chromosome, execution_counter,
         )
         self._call_monkey_type(number_of_test_cases, execution_counter, test_chromosome)
 
@@ -88,12 +83,12 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         test_chromosome: tsc.TestSuiteChromosome,
     ) -> None:
         if execution_counter % config.INSTANCE.monkey_type_execution == 0:
-            if test_chromosome.size - number_of_test_cases == 1:
+            if test_chromosome.size() - number_of_test_cases == 1:
                 self._logger.debug("Execute MonkeyType on single test case")
                 self.execute_test_case_monkey_type(
                     test_chromosome.test_chromosomes[-1], self.test_cluster
                 )
-            elif test_chromosome.size > number_of_test_cases:
+            elif test_chromosome.size() > number_of_test_cases:
                 self._logger.debug("Execute MonkeyType on test suite")
                 # TODO(sl) execute the full test suite or just the newly added test
                 #  cases?

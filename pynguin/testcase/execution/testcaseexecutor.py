@@ -29,6 +29,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.instrumentation.basis import get_tracer
 from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class TestCaseExecutor(AbstractExecutor):
@@ -67,6 +68,11 @@ class TestCaseExecutor(AbstractExecutor):
             cov_data.write()
         self._coverage.erase()
         return cov_data
+
+    @staticmethod
+    def get_tracer() -> ExecutionTracer:
+        """Provide access to the execution tracer."""
+        return get_tracer(sys.modules[config.INSTANCE.module_name])
 
     def execute(self, test_case: tc.TestCase) -> res.ExecutionResult:
         """Executes the statements in a test case.

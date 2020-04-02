@@ -27,12 +27,8 @@ class TestSuiteChromosome(atsc.AbstractTestSuiteChromosome):
         for test in self._tests:
             chromosome.add_test(test.clone())
 
-        chromosome.fitness_values = dict(self.fitness_values)
-        chromosome.previous_fitness_values = dict(self.previous_fitness_values)
-        chromosome.changed = self.changed
-        chromosome.coverage_values = dict(self.coverage_values)
-        chromosome.nums_not_covered_goals = dict(self.nums_not_covered_goals)
-        chromosome.nums_covered_goals = dict(self.nums_covered_goals)
-        chromosome.number_of_evaluations = self.number_of_evaluations
+        chromosome._current_values = dict(self._current_values)
+        chromosome._fitness_functions = list(self._fitness_functions)
+        chromosome._changed = self._changed
         chromosome._test_case_factory = self._test_case_factory
         return chromosome

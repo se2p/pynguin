@@ -13,27 +13,30 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A fitness function for branch coverage."""
-from typing import Optional
-
+import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
 import pynguin.ga.fitnessfunction as ff
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
-class BranchCoverageSuiteFitness(ff.FitnessFunction):
+class BranchCoverageSuiteFitness(asff.AbstractSuiteFitnessFunction):
     """A fitness function for branch coverage."""
 
-    def get_fitness(
-        self, individual, execution_result: Optional[ExecutionResult] = None
-    ) -> float:
-        if not execution_result:
-            individual.set_coverage(self, 0.0)
-        else:
-            individual.set_coverage(self, execution_result.branch_coverage / 100.0)
-
-        coverage = individual.get_coverage(self)
-        assert 0.0 <= coverage <= 1.0, f"Illegal coverage value {coverage}"
-        self.update_individual(self, individual, coverage)
-        return coverage
+    def compute_fitness_values(
+        self, individual: tsc.TestSuiteChromosome
+    ) -> ff.FitnessValues:
+        result = self._run_test_suite_with_coverage_py(individual)
+        return ff.FitnessValues(
+            100.0 - result.branch_coverage, result.branch_coverage / 100.0
+        )
 
     def is_maximisation_function(self) -> bool:
         return False
+
+    def _run_test_suite_with_coverage_py(
+        self, individual: tsc.TestSuiteChromosome
+    ) -> ExecutionResult:
+        """Unfortunately the CoveragePy API does not allow us to cache executions.
+        Therefore we have to execute every test case..."""
+        # TODO(fk) enable caching of coverage py results.
+        return self._executor.execute_test_suite(individual)

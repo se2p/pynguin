@@ -27,146 +27,91 @@ def fitness_function():
 
 
 @pytest.fixture
-def fitness_value(fitness_function):
-    return {fitness_function: 0.42}
-
-
-@pytest.fixture
-def coverage_value(fitness_function):
-    return {fitness_function: 0.42}
-
-
-@pytest.fixture
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
+        def size(self) -> int:
+            return 0
+
         def clone(self) -> Chromosome:
             pass
 
         def cross_over(
             self, other: chrom.Chromosome, position1: int, position2: int
         ) -> None:
-            raise NotImplementedError()
+            pass
 
     return DummyChromosome()
 
 
-class _DummyFitnessFunction(ff.FitnessFunction):
-    def get_fitness(self, individual) -> float:
-        pass
-
-    def is_maximisation_function(self) -> bool:
-        pass
-
-
-def test_size(chromosome):
-    with pytest.raises(NotImplementedError):
-        chromosome.size
-
-
 def test_fitness_no_fitness_values(chromosome):
-    assert chromosome.fitness == 0.0
+    with pytest.raises(AssertionError):
+        assert chromosome.get_fitness()
 
 
-def test_fitness_one_fitness_value(chromosome, fitness_value):
-    chromosome.fitness_values = fitness_value
-    assert chromosome.fitness == 0.42
-
-
-def test_fitness_two_fitness_values(chromosome, fitness_function):
-    fv = {fitness_function: 0.42, MagicMock(ff.FitnessFunction): 0.23}
-    chromosome.fitness_values = fv
-    assert chromosome.fitness == 0.65
-
-
-def test_get_fitness(chromosome, fitness_function):
-    chromosome.set_fitness(fitness_function, 0.42)
-    assert chromosome.get_fitness(fitness_function) == 0.42
-
-
-def test_set_fitness_error(chromosome, fitness_function):
-    with pytest.raises(RuntimeError):
-        chromosome.set_fitness(fitness_function, float("inf"))
-
-
-def test_set_fitness_twice(chromosome, fitness_function):
-    chromosome.set_fitness(fitness_function, 0.42)
-    chromosome.set_fitness(fitness_function, 0.23)
-    assert chromosome.has_executed_fitness(fitness_function)
-    assert chromosome.previous_fitness_values[fitness_function] == 0.42
-    assert chromosome.get_fitness(fitness_function) == 0.23
-
-
-def test_add_fitness(chromosome, fitness_function):
-    chromosome.add_fitness(
-        fitness_function=fitness_function,
-        fitness_value=0.42,
-        coverage=0.23,
-        num_covered_goals=21,
-    )
-    assert chromosome.fitness_values[fitness_function] == 0.42
-    assert chromosome.previous_fitness_values[fitness_function] == 0.42
-    assert chromosome.coverage_values[fitness_function] == 0.23
-    assert chromosome.nums_covered_goals[fitness_function] == 21
-    assert chromosome.nums_not_covered_goals[fitness_function] == -1
-
-
-def test_coverage(chromosome, fitness_function):
-    fv = {fitness_function: 0.42, MagicMock(ff.FitnessFunction): 0.23}
-    chromosome.coverage_values = fv
-    assert chromosome.coverage == 0.325
-
-
-def test_coverage_no_values(chromosome):
-    assert chromosome.coverage == 0.0
-
-
-def test_get_set_coverage(chromosome, fitness_function):
-    chromosome.set_coverage(fitness_function, 0.42)
-    assert chromosome.get_coverage(fitness_function) == 0.42
-
-
-def test_number_of_evaluations(chromosome):
-    chromosome.increase_number_of_evaluations()
-    assert chromosome.number_of_evaluations == 1
-
-
-def test_get_set_num_covered_goals(chromosome, fitness_function):
-    chromosome.set_num_covered_goals(fitness_function, 42)
-    assert chromosome.get_num_covered_goals(fitness_function) == 42
-
-
-def test_num_of_covered_goals(chromosome, fitness_function):
-    covered_goal = {fitness_function: 42, MagicMock(ff.FitnessFunction): 23}
-    chromosome.nums_covered_goals = covered_goal
-    assert chromosome.num_of_covered_goals == 65
-
-
-def test_num_of_not_covered_goals(chromosome, fitness_function):
-    goal = {fitness_function: 42, MagicMock(ff.FitnessFunction): 23}
-    chromosome.nums_not_covered_goals = goal
-    assert chromosome.num_of_not_covered_goals == 65
-
-
-def test_get_fitness_instance_of_not_existing(chromosome, fitness_value):
-    chromosome.fitness_values = fitness_value
-    assert chromosome.get_fitness_instance_of(_DummyFitnessFunction) == 0
-
-
-def test_get_fitness_instance_of_existing(chromosome):
-    chromosome.fitness_values = {_DummyFitnessFunction(): 0.42}
-    assert chromosome.get_fitness_instance_of(_DummyFitnessFunction) == 0.42
-
-
-def test_get_coverage_instance_of_non_existing(chromosome, coverage_value):
-    chromosome.coverage_values = coverage_value
-    assert chromosome.get_coverage_instance_of(_DummyFitnessFunction) == 0
-
-
-def test_get_coverage_instance_of_existing(chromosome):
-    chromosome.coverage_values = {_DummyFitnessFunction(): 0.42}
-    assert chromosome.get_coverage_instance_of(_DummyFitnessFunction) == 0.42
-
-
-def test_set_changed(chromosome):
+def test_fitness_one_fitness_function(chromosome, fitness_function):
+    chromosome.add_fitness_function(fitness_function)
+    chromosome._update_fitness_values(fitness_function, ff.FitnessValues(5, 0.9))
     chromosome.set_changed(False)
-    assert not chromosome.changed
+    assert chromosome.get_fitness() == 5
+    assert chromosome.get_coverage() == 0.9
+
+
+def test_fitness_two_fitness_functions(chromosome, fitness_function):
+    chromosome.add_fitness_function(fitness_function)
+    chromosome._update_fitness_values(fitness_function, ff.FitnessValues(0.42, 0.1))
+    fitness_func2 = MagicMock(ff.FitnessFunction)
+    chromosome.add_fitness_function(fitness_func2)
+    chromosome._update_fitness_values(fitness_func2, ff.FitnessValues(0.23, 0.5))
+    chromosome.set_changed(False)
+    assert chromosome.get_fitness() == 0.65
+    assert chromosome.get_coverage() == 0.3
+
+
+def test_values_for_fitness_function(chromosome, fitness_function):
+    chromosome.add_fitness_function(fitness_function)
+    chromosome._update_fitness_values(fitness_function, ff.FitnessValues(5, 0.5))
+    chromosome.set_changed(False)
+    assert chromosome.get_fitness_for(fitness_function) == 5
+    assert chromosome.get_coverage_for(fitness_function) == 0.5
+
+
+def test_has_changed_default(chromosome):
+    assert chromosome.has_changed()
+
+
+def test_has_changed(chromosome):
+    chromosome.set_changed(False)
+    assert not chromosome.has_changed()
+
+
+def test_caching(chromosome, fitness_function):
+    fitness_function.compute_fitness_values.side_effect = [
+        ff.FitnessValues(5, 0.5),
+        ff.FitnessValues(6, 0.6),
+    ]
+    chromosome.add_fitness_function(fitness_function)
+    assert chromosome.get_fitness() == 5
+    assert chromosome.get_coverage() == 0.5
+    assert not chromosome.has_changed()
+    assert chromosome.get_number_of_evaluations() == 1
+
+    chromosome.set_changed(True)
+    assert chromosome.get_fitness() == 6
+    assert chromosome.get_coverage() == 0.6
+    assert not chromosome.has_changed()
+    assert chromosome.get_number_of_evaluations() == 2
+
+
+def test_illegal_values(chromosome, fitness_function):
+    fitness_function.compute_fitness_values.return_value = ff.FitnessValues(-1, 1.5)
+    chromosome.add_fitness_function(fitness_function)
+    with pytest.raises(RuntimeError):
+        chromosome.get_fitness()
+
+
+def test_get_fitness_functions(chromosome):
+    func1 = MagicMock(ff.FitnessFunction)
+    func2 = MagicMock(ff.FitnessFunction)
+    chromosome.add_fitness_function(func1)
+    chromosome.add_fitness_function(func2)
+    assert chromosome.get_fitness_functions() == [func1, func2]

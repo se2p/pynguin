@@ -12,70 +12,49 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import itertools
 from logging import Logger
+from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.configuration as config
+from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
+    RandomTestMonkeyTypeStrategy,
+)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 @pytest.mark.parametrize(
-    "module_name",
-    [
-        "tests.fixtures.accessibles.accessible",
-        "tests.fixtures.cluster.dependency",
-        "tests.fixtures.cluster.no_dependencies",
-        "tests.fixtures.cluster.simple_dependencies",
-        "tests.fixtures.examples.basket",
-        "tests.fixtures.examples.dummies",
-        "tests.fixtures.examples.exceptions",
-        "tests.fixtures.examples.monkey",
-        "tests.fixtures.examples.triangle",
-        "tests.fixtures.examples.type_inference",
-    ],
+    "algorithm_to_run,module_name",
+    itertools.product(
+        [RandomTestStrategy, RandomTestMonkeyTypeStrategy],
+        [
+            "tests.fixtures.accessibles.accessible",
+            "tests.fixtures.cluster.dependency",
+            "tests.fixtures.cluster.no_dependencies",
+            "tests.fixtures.cluster.simple_dependencies",
+            "tests.fixtures.examples.basket",
+            "tests.fixtures.examples.dummies",
+            "tests.fixtures.examples.exceptions",
+            "tests.fixtures.examples.monkey",
+            "tests.fixtures.examples.triangle",
+            "tests.fixtures.examples.type_inference",
+        ],
+    ),
 )
-def test_integrate_randoopy(module_name):
+def test_integrate_randoopy(algorithm_to_run: Callable, module_name):
     config.INSTANCE.budget = 1
     config.INSTANCE.measure_coverage = False
     logger = MagicMock(Logger)
     executor = TestCaseExecutor()
-    algorithm = RandomTestStrategy(
+    algorithm = algorithm_to_run(
         executor, TestClusterGenerator(module_name).generate_cluster()
     )
     algorithm._logger = logger
     test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert test_cases.size >= 0
-    assert failing_test_cases.size >= 0
-
-
-@pytest.mark.parametrize(
-    "module_name",
-    [
-        "tests.fixtures.accessibles.accessible",
-        "tests.fixtures.cluster.dependency",
-        "tests.fixtures.cluster.no_dependencies",
-        "tests.fixtures.cluster.simple_dependencies",
-        "tests.fixtures.examples.basket",
-        "tests.fixtures.examples.dummies",
-        "tests.fixtures.examples.exceptions",
-        "tests.fixtures.examples.monkey",
-        "tests.fixtures.examples.triangle",
-        "tests.fixtures.examples.type_inference",
-    ],
-)
-def test_integrate_randoopy_monkey_type(module_name):
-    config.INSTANCE.budget = 1
-    config.INSTANCE.measure_coverage = False
-    logger = MagicMock(Logger)
-    executor = TestCaseExecutor()
-    algorithm = RandomTestStrategy(
-        executor, TestClusterGenerator(module_name).generate_cluster()
-    )
-    algorithm._logger = logger
-    test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert test_cases.size >= 0
-    assert failing_test_cases.size >= 0
+    assert test_cases.size() >= 0
+    assert failing_test_cases.size() >= 0
