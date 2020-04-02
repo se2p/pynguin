@@ -41,9 +41,9 @@ class RuntimeVariable(enum.Enum):
     total_time = "Total time spent by Pynguin to generate tests"
     AlgorithmIterations = "Number of iterations of the test-generation algorithm"
     execution_results = "Execution results"
-    monkey_type_executions = "Number of MonkeyType executions"
-    parameter_type_updates = "Updated parameter types"
-    return_type_updates = "Updated return types"
+    MonkeyTypeExecutions = "Number of MonkeyType executions"
+    ParameterTypeUpdates = "Updated parameter types"
+    ReturnTypeUpdates = "Updated return types"
     Coverage = "Obtained coverage of the chosen testing criterion"
     Random_Seed = (
         "The random seed used during the search.  A random one was used if "

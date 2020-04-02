@@ -14,9 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A mixin handling the execution of a test case with MonkeyType."""
 import logging
-from typing import List, Callable, Union, Tuple, Optional, Type
+from typing import List, Callable, Union, Tuple, Optional
 
-import monkeytype.typing as mt_typing
+import monkeytype.typing as mtt
 from monkeytype.tracing import CallTrace
 
 import pynguin.testcase.testcase as tc
@@ -99,54 +99,69 @@ class MonkeyTypeHandlerMixin:
                 call_trace.funcname
             ]
             signature = object_under_test.inferred_signature
-            arg_types = call_trace.arg_types
-            for name, type_ in signature.parameters.items():
-                if name in arg_types:
-                    new_type: Type[...] = Union[type_, arg_types[name]]  # type: ignore
-                    if new_type != arg_types[name]:
-                        if isinstance(type_, type(None)) or type_ is None:
-                            new_type = arg_types[name]
-                        self._logger.debug(
-                            "Update type information for %s: parameter %s, old type "
-                            "%s, new type %s",
-                            call_trace.funcname,
-                            name,
-                            str(type_),
-                            str(new_type),
-                        )
-                        signature.update_parameter_type(name, new_type)
-                        self._parameter_updates.append(
-                            (call_trace.funcname, name, type_, new_type)
-                        )
-            return_type = call_trace.return_type
-            new_return_type: Type[...] = Union[  # type: ignore
-                signature.return_type, return_type
-            ]
-            return_type_name = (
-                return_type.__name__
-                if return_type is not None and hasattr(return_type, "__name__")
-                else ""
-            )
-            if (
-                new_return_type != return_type
-                and return_type_name != mt_typing.DUMMY_TYPED_DICT_NAME
-            ):
-                if (
-                    isinstance(signature.return_type, type(None))
-                    or signature.return_type is None
-                ):
-                    new_return_type = return_type  # type: ignore
+            self._update_parameter_types(call_trace, signature)
+            self._update_return_types(call_trace, signature)
+
+    def _update_parameter_types(self, call_trace, signature):
+        arg_types = call_trace.arg_types
+        for name, type_ in signature.parameters.items():
+            if name not in arg_types:
+                continue
+            current_type = self._rewrite_type(type_)
+            inferred_type = self._rewrite_type(arg_types[name])
+            new_type = self._rewrite_type(Union[current_type, inferred_type])
+            if str(new_type) != str(current_type):
+                if isinstance(current_type, type(None)) or type_ is None:
+                    new_type = inferred_type
                 self._logger.debug(
-                    "Update type information for %s: return type, old type "
-                    "%s, new type %s",
+                    "Update type information for %s: parameter %s, old type %s, "
+                    "new type %s",
                     call_trace.funcname,
-                    str(return_type),
-                    str(new_return_type),
+                    name,
+                    str(type_),
+                    str(new_type),
                 )
-                signature.update_return_type(new_return_type)
-                self._return_type_updates.append(
-                    (call_trace.funcname, return_type, new_return_type)
+                signature.update_parameter_type(name, new_type)
+                self._parameter_updates.append(
+                    (call_trace.funcname, name, type_, new_type)
                 )
+
+    def _update_return_types(self, call_trace, signature):
+        current_return_type = self._rewrite_type(signature.return_type)
+        inferred_return_type = self._rewrite_type(call_trace.return_type)
+        return_type_name = (
+            inferred_return_type.__name__
+            if inferred_return_type is not None
+            and hasattr(inferred_return_type, "__name__")
+            else str(inferred_return_type)
+        )
+        if mtt.DUMMY_TYPED_DICT_NAME in return_type_name:
+            new_return_type = current_return_type
+        else:
+            new_return_type = self._rewrite_type(
+                Union[current_return_type, inferred_return_type]
+            )
+        if str(new_return_type) != str(current_return_type):
+            if (
+                isinstance(current_return_type, type(None))
+                or signature.return_type is None
+            ):
+                new_return_type = inferred_return_type
+            self._logger.debug(
+                "Update type information for %s: return type, old type "
+                "%s, new type %s",
+                call_trace.funcname,
+                str(current_return_type),
+                str(new_return_type),
+            )
+            signature.update_return_type(new_return_type)
+            self._return_type_updates.append(
+                (call_trace.funcname, current_return_type, new_return_type)
+            )
+
+    @staticmethod
+    def _rewrite_type(type_: Optional[type]) -> Optional[type]:
+        return mtt.DEFAULT_REWRITER.rewrite(type_)
 
     def _full_name(self, callable_: Callable) -> str:
         if not hasattr(callable_, "__module__"):
