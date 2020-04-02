@@ -72,13 +72,24 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         super().send_statistics()
         tracker = StatisticsTracker()
         tracker.track_output_variable(
-            RuntimeVariable.monkey_type_executions, self._monkey_type_executions
+            RuntimeVariable.MonkeyTypeExecutions, self._monkey_type_executions
         )
         tracker.track_output_variable(
-            RuntimeVariable.parameter_type_updates, self._parameter_updates
+            RuntimeVariable.ParameterTypeUpdates,
+            [self._special_chars(str(p)) for p in self._parameter_updates],
         )
         tracker.track_output_variable(
-            RuntimeVariable.return_type_updates, self._return_type_updates
+            RuntimeVariable.ReturnTypeUpdates,
+            [self._special_chars(str(r)) for r in self._return_type_updates],
+        )
+
+    @staticmethod
+    def _special_chars(text: str) -> str:
+        return (
+            text.replace("&", "&amp;")
+            .replace('"', "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
         )
 
     def _call_monkey_type(

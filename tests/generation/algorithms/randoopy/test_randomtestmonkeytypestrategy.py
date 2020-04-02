@@ -60,7 +60,7 @@ def test_send_statistics(strategy):
     statistics = [
         v
         for k, v in tracker.variables_generator
-        if k == RuntimeVariable.monkey_type_executions
+        if k == RuntimeVariable.MonkeyTypeExecutions
     ]
     assert len(statistics) == 1
     assert statistics[0] == 0
