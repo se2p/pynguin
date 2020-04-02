@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an interface for a statistics writer."""
 import csv
+import ctypes
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
@@ -47,6 +48,9 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
     """A statistics backend writing all (selected) output variables to a CSV file."""
 
     _logger = logging.getLogger(__name__)
+
+    def __init__(self) -> None:
+        csv.field_size_limit(int(ctypes.c_ulong(-1).value // 2))
 
     def write_data(self, data: Dict[str, OutputVariable]) -> None:
         try:
