@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an interface for a statistics writer."""
+import csv
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
@@ -52,11 +53,13 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
             output_dir = self._get_report_dir()
             output_file = output_dir / "statistics.csv"
             with output_file.open(mode="a") as csv_file:
+                field_names = [k for k, _ in data.items()]
+                csv_writer = csv.DictWriter(
+                    csv_file, fieldnames=field_names, quoting=csv.QUOTE_NONNUMERIC
+                )
                 if output_file.stat().st_size == 0:  # file is empty, write CSV header
-                    csv_file.write(self._get_csv_header(data))
-                    csv_file.write("\n")
-                csv_file.write(self._get_csv_data(data))
-                csv_file.write("\n")
+                    csv_writer.writeheader()
+                csv_writer.writerow({k: str(v.value) for k, v in data.items()})
         except IOError as error:
             logging.warning("Error while writing statistics: %s", error)
 
@@ -70,14 +73,6 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                 self._logger.error(msg)
                 raise RuntimeError(msg)
         return report_dir
-
-    @staticmethod
-    def _get_csv_header(data: Dict[str, OutputVariable]) -> str:
-        return ",".join([k for k, _ in data.items()])
-
-    @staticmethod
-    def _get_csv_data(data: Dict[str, OutputVariable]) -> str:
-        return ",".join([str(v.value) for _, v in data.items()])
 
 
 # pylint: disable=too-few-public-methods
