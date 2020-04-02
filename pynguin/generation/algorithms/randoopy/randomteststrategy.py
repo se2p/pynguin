@@ -88,7 +88,6 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         return test_chromosome, failing_test_chromosome
 
-    # pylint: disable=too-many-arguments
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,
