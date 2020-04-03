@@ -123,7 +123,8 @@ class TestCaseExecutor(AbstractExecutor):
     ):
         for idx, node in enumerate(self._ast_nodes):
             try:
-                self._logger.debug("Executing %s", astor.to_source(node))
+                if self._logger.isEnabledFor(logging.DEBUG):
+                    self._logger.debug("Executing %s", astor.to_source(node))
                 code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
                 if config.INSTANCE.measure_coverage:
                     self._coverage.start()
