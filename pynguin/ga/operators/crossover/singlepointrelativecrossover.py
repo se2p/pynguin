@@ -35,12 +35,12 @@ class SinglePointRelativeCrossOver(CrossOverFunction[T]):
     """
 
     def cross_over(self, parent1: T, parent2: T):
-        if parent1.size < 2 or parent2.size < 2:
+        if parent1.size() < 2 or parent2.size() < 2:
             return
 
         split_point = randomness.next_float()
-        position1 = floor((parent1.size - 1) * split_point) + 1
-        position2 = floor((parent2.size - 1) * split_point) + 1
+        position1 = floor((parent1.size() - 1) * split_point) + 1
+        position2 = floor((parent2.size() - 1) * split_point) + 1
         clone1 = parent1.clone()
         clone2 = parent2.clone()
         parent1.cross_over(clone2, position1, position2)

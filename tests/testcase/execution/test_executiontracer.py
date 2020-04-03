@@ -21,7 +21,7 @@ from pynguin.testcase.execution.executiontracer import ExecutionTracer
 def test_functions_exists():
     tracer = ExecutionTracer()
     tracer.function_exists(0)
-    assert 0 in tracer.get_trace().existing_functions
+    assert 0 in tracer.get_known_data().existing_functions
 
 
 def test_entered_function():
@@ -34,7 +34,7 @@ def test_entered_function():
 def test_for_loop_exists():
     tracer = ExecutionTracer()
     tracer.for_loop_exists(0)
-    assert 0 in tracer.get_trace().existing_for_loops
+    assert 0 in tracer.get_known_data().existing_for_loops
 
 
 def test_entered_for_loop():
@@ -47,7 +47,7 @@ def test_entered_for_loop():
 def test_predicate_exists():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
-    assert 0 in tracer.get_trace().existing_predicates
+    assert 0 in tracer.get_known_data().existing_predicates
 
 
 def test_update_metrics_covered():

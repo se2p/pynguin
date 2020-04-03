@@ -46,7 +46,6 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
@@ -192,7 +191,7 @@ class Pynguin:
 
     _strategies: Dict[
         config.Algorithm,
-        Callable[[AbstractExecutor, TestCluster], TestGenerationStrategy],
+        Callable[[TestCaseExecutor, TestCluster], TestGenerationStrategy],
     ] = {
         config.Algorithm.RANDOOPY: RandomTestStrategy,
         config.Algorithm.RANDOOPY_MONKEYTYPE: RandomTestMonkeyTypeStrategy,
@@ -201,7 +200,7 @@ class Pynguin:
 
     @classmethod
     def _instantiate_test_generation_strategy(
-        cls, executor: AbstractExecutor, test_cluster: TestCluster
+        cls, executor: TestCaseExecutor, test_cluster: TestCluster
     ) -> TestGenerationStrategy:
         if config.INSTANCE.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.INSTANCE.algorithm)

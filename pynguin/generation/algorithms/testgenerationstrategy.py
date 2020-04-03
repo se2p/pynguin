@@ -33,15 +33,17 @@ from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
 import pynguin.testcase.testfactory as tf
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self, test_cluster: TestCluster) -> None:
+    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
         """
         :param test_cluster: A cluster storing the available types and methods for
         test generation"""
+        self._executor = executor
         self._test_cluster = test_cluster
         self._test_factory = tf.TestFactory(test_cluster)
 
@@ -131,13 +133,12 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             return MaxTimeStoppingCondition()
         return MaxTimeStoppingCondition()
 
-    @staticmethod
-    def get_fitness_functions() -> List[ff.FitnessFunction]:
+    def get_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function
 
         :return:
         """
-        return [bcsf.BranchCoverageSuiteFitness()]
+        return [bcsf.BranchCoverageSuiteFitness(self._executor)]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:

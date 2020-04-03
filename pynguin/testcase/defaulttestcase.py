@@ -60,21 +60,31 @@ class DefaultTestCase(tc.TestCase):
             self._statements.append(statement)
         else:
             self._statements.insert(position, statement)
+        self.set_changed(True)
         return statement.return_value
 
     def add_statements(self, statements: List[stmt.Statement]) -> None:
         self._statements.extend(statements)
+        self.set_changed(True)
+
+    def append_test_case(self, test_case: tc.TestCase) -> None:
+        size = self.size()
+        for statement in test_case.statements:
+            self._statements.append(statement.clone(self, size))
+        self.set_changed(True)
 
     def remove(self, position: int) -> None:
         self._logger.debug("Removing statement at position %d", position)
         if position >= self.size():
             return
         del self._statements[position]
+        self.set_changed(True)
 
     def chop(self, pos: int) -> None:
         assert pos >= 0
         while len(self._statements) > pos + 1:
             del self._statements[-1]
+            self.set_changed(True)
 
     def contains(self, statement: stmt.Statement) -> bool:
         return statement in self._statements
@@ -88,6 +98,7 @@ class DefaultTestCase(tc.TestCase):
     ) -> vr.VariableReference:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
+        self.set_changed(True)
         return statement.return_value
 
     def has_statement(self, position: int) -> bool:
@@ -100,6 +111,8 @@ class DefaultTestCase(tc.TestCase):
         test_case._is_failing = self._is_failing
         test_case._id = self._id_generator.inc()
         test_case._test_factory = self._test_factory
+        test_case._last_execution_result = self._last_execution_result
+        test_case._changed = self._changed
         return test_case
 
     def is_failing(self) -> bool:

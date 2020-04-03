@@ -237,21 +237,21 @@ class SearchStatistics:
             super().__init__(stat.RuntimeVariable.Size)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> int:
-            return individual.size
+            return individual.size()
 
     class _ChromosomeCoverageOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Coverage)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
-            return individual.coverage
+            return individual.get_coverage()
 
     class _ChromosomeFitnessOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Fitness)
 
         def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
-            return individual.fitness
+            return individual.get_fitness()
 
     class _CoverageSequenceOutputVariableFactory(
         ovf.DirectSequenceOutputVariableFactory
@@ -260,14 +260,14 @@ class SearchStatistics:
             super().__init__(stat.RuntimeVariable.CoverageTimeline, 0.0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
-            return individual.coverage
+            return individual.get_coverage()
 
     class _SizeSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.SizeTimeline, 0)
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
-            return individual.size
+            return individual.size()
 
     class _LengthSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:

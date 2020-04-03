@@ -17,15 +17,14 @@ import logging
 from typing import List, Tuple, Set
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import GenerationException, ConstructionFailedException
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
@@ -38,9 +37,8 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: AbstractExecutor, test_cluster: TestCluster) -> None:
-        super(RandomTestStrategy, self).__init__(test_cluster)
-        self._executor = executor
+    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
+        super(RandomTestStrategy, self).__init__(executor, test_cluster)
         self._execution_results: List[ExecutionResult] = []
 
     def generate_sequences(
@@ -62,18 +60,15 @@ class RandomTestStrategy(TestGenerationStrategy):
         stopping_condition.reset()
         fitness_functions = self.get_fitness_functions()
         for fitness_function in fitness_functions:
-            test_chromosome.add_fitness(fitness_function)
-            failing_test_chromosome.add_fitness(fitness_function)
+            test_chromosome.add_fitness_function(fitness_function)
+            failing_test_chromosome.add_fitness_function(fitness_function)
 
         while not self.is_fulfilled(stopping_condition):
             try:
                 execution_counter += 1
                 stopping_condition.iterate()
                 self.generate_sequence(
-                    test_chromosome,
-                    failing_test_chromosome,
-                    fitness_functions,
-                    execution_counter,
+                    test_chromosome, failing_test_chromosome, execution_counter,
                 )
             except (ConstructionFailedException, GenerationException) as exception:
                 self._logger.debug(
@@ -93,19 +88,16 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         return test_chromosome, failing_test_chromosome
 
-    # pylint: disable=too-many-arguments
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
-        fitness_functions: List[ff.FitnessFunction],
         execution_counter: int,
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
 
         :param test_chromosome: The list of currently successful test cases
         :param failing_test_chromosome: The list of currently not successful test cases
-        :param fitness_functions:
         :param execution_counter: A current number of algorithm iterations
         """
         self._logger.info("Algorithm iteration %d", execution_counter)
@@ -149,12 +141,8 @@ class RandomTestStrategy(TestGenerationStrategy):
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
             failing_test_chromosome.add_test(new_test)
-            for fitness_function in fitness_functions:
-                fitness_function.get_fitness(failing_test_chromosome, exec_result)
         else:
             test_chromosome.add_test(new_test)
-            for fitness_function in fitness_functions:
-                fitness_function.get_fitness(test_chromosome, exec_result)
             StatisticsTracker().current_individual(test_chromosome)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)

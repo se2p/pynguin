@@ -19,6 +19,7 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.fitnessfunction as ff
 from pynguin.utils.statistics.searchstatistics import SearchStatistics
 from pynguin.utils.statistics.statistics import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import (
@@ -35,7 +36,12 @@ def search_statistics():
 
 @pytest.fixture
 def chromosome():
-    return tsc.TestSuiteChromosome()
+    chrom = tsc.TestSuiteChromosome()
+    fitness_func = MagicMock(ff.FitnessFunction)
+    chrom.add_fitness_function(fitness_func)
+    chrom._update_fitness_values(fitness_func, ff.FitnessValues(0, 0))
+    chrom.set_changed(False)
+    return chrom
 
 
 @pytest.fixture

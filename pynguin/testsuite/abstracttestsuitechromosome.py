@@ -73,7 +73,6 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
         """Provides the sum of the lengths of the test cases."""
         return sum([test.size() for test in self._tests])
 
-    @property
     def size(self) -> int:
         """Provides the size of the chromosome, i.e., its number of test cases."""
         return len(self._tests)
@@ -99,7 +98,7 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
 
         # Mutate existing test cases.
         for test in self._tests:
-            if randomness.next_float() < 1.0 / self.size:
+            if randomness.next_float() < 1.0 / self.size():
                 test.mutate()
                 if test.has_changed():
                     changed = True
@@ -109,7 +108,7 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and self.size < config.INSTANCE.max_size
+            and self.size() < config.INSTANCE.max_size
         ):
             self.add_test(self._test_case_factory.get_test_case())
             exponent += 1
@@ -126,7 +125,7 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
             return True
         if not isinstance(other, AbstractTestSuiteChromosome):
             return False
-        if self.size != other.size:
+        if self.size() != other.size():
             return False
         for test, other_test in zip(self._tests, other._tests):
             if test != other_test:

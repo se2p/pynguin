@@ -12,37 +12,25 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
+from unittest import mock
+from unittest.mock import MagicMock
 
 import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.fitnessfunction as ff
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
-@pytest.fixture
-def individual():
-    return tsc.TestSuiteChromosome()
-
-
-@pytest.fixture
-def fitness_function():
-    return bcsf.BranchCoverageSuiteFitness()
-
-
-@pytest.fixture
-def execution_result():
-    result = ExecutionResult()
-    result.branch_coverage = 75
-    return result
-
-
-def test_is_maximisation_function(fitness_function):
+def test_is_maximisation_function():
+    fitness_function = bcsf.BranchCoverageSuiteFitness(MagicMock())
     assert not fitness_function.is_maximisation_function()
 
 
-def test_get_fitness_no_result(fitness_function, individual):
-    assert fitness_function.get_fitness(individual) == 0.0
-
-
-def test_get_fitness(fitness_function, individual, execution_result):
-    assert fitness_function.get_fitness(individual, execution_result) == 0.75
+def test_get_fitness_no_result():
+    executor = MagicMock()
+    result = ExecutionResult()
+    result.branch_coverage = 75
+    executor.execute_test_suite.return_value = result
+    fitness_function = bcsf.BranchCoverageSuiteFitness(executor)
+    indiv = MagicMock()
+    assert fitness_function.compute_fitness_values(indiv) == ff.FitnessValues(25, 0.75)
+    executor.execute_test_suite.assert_called_with(indiv)

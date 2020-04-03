@@ -473,11 +473,11 @@ def test_mutate_chop(default_test_case):
 
 
 def test_mutate_no_chop(default_test_case):
-    default_test_case.set_changed(False)
     for i in range(50):
         default_test_case.add_statement(
             prim.IntPrimitiveStatement(default_test_case, 5)
         )
+    default_test_case.set_changed(False)
     config.INSTANCE.test_insert_probability = 0.0
     config.INSTANCE.test_change_probability = 0.0
     config.INSTANCE.test_delete_probability = 0.0
@@ -486,8 +486,8 @@ def test_mutate_no_chop(default_test_case):
     ) as mut_mock:
         mut_mock.return_value = None
         default_test_case.mutate()
-        assert not default_test_case.has_changed()
         assert len(default_test_case.statements) == 50
+        assert not default_test_case.has_changed()
 
 
 @pytest.mark.parametrize(
