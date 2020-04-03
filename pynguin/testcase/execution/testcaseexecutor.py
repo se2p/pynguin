@@ -93,7 +93,7 @@ class TestCaseExecutor(AbstractExecutor):
             with contextlib.redirect_stdout(null_file):
                 self._execute_ast_nodes(result)
                 self._collect_coverage(result)
-                self._collect_fitness(result)
+                self._collect_execution_trace(result)
         return result
 
     def execute_test_suite(
@@ -115,7 +115,7 @@ class TestCaseExecutor(AbstractExecutor):
                     self.setup(test_case)
                     self._execute_ast_nodes(result)
                 self._collect_coverage(result)
-                self._collect_fitness(result)
+                self._collect_execution_trace(result)
         return result
 
     def _execute_ast_nodes(
@@ -156,12 +156,12 @@ class TestCaseExecutor(AbstractExecutor):
             return -1
 
     @staticmethod
-    def _collect_fitness(result: res.ExecutionResult):
+    def _collect_execution_trace(result: res.ExecutionResult):
         """
         Collect the fitness after each execution.
         Also clear the tracking results so far.
         """
         if config.INSTANCE.algorithm.use_instrumentation:
-            tracer = get_tracer(sys.modules[config.INSTANCE.module_name])
+            tracer = TestCaseExecutor.get_tracer()
             result.execution_trace = tracer.get_trace()
             tracer.clear_trace()
