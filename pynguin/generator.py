@@ -230,7 +230,7 @@ class Pynguin:
     ) -> None:
         tracker = StatisticsTracker()
         tracker.current_individual(test_chromosome)
-        tracker.track_output_variable(RuntimeVariable.Size, test_chromosome.size)
+        tracker.track_output_variable(RuntimeVariable.Size, test_chromosome.size())
         tracker.track_output_variable(
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
@@ -238,7 +238,7 @@ class Pynguin:
             RuntimeVariable.Coverage, execution_result.branch_coverage / 100
         )
         tracker.track_output_variable(
-            RuntimeVariable.FailingSize, failing_test_chromosome.size
+            RuntimeVariable.FailingSize, failing_test_chromosome.size()
         )
         tracker.track_output_variable(
             RuntimeVariable.FailingLength,
