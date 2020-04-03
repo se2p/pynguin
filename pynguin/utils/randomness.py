@@ -15,9 +15,41 @@
 """Provides a singleton instance of Random that can be seeded."""
 import random
 import string
-from typing import Sequence, Any
+from typing import Sequence, Any, Optional
 
-RNG: random.Random = random.Random()
+
+class Random(random.Random):
+    """Override Random to allow querying for the seed value.
+
+    It generates a seed if none was given from `time.time_ns()`.  This is NOT
+    cryptographically safe, and this random-number generator should not be used for
+    anything related to cryptography.  For our case, however, it is good enough to
+    use the current time stamp in nano seconds as seed.
+    """
+
+    def __init__(self, x=None) -> None:
+        super().__init__(x)
+        self._current_seed: Optional[int] = None
+        self.seed(x)
+
+    # pylint: disable=import-outside-toplevel
+    def seed(self, a=None, version: int = 2) -> None:
+        if a is None:
+            import time
+
+            a = time.time_ns()
+
+        self._current_seed = a
+        super().seed(a)
+
+    def get_seed(self) -> int:
+        """Provides the used seed for random-number generation."""
+        assert self._current_seed is not None
+        return self._current_seed
+
+
+RNG: Random = Random()
+RNG.seed()
 
 
 def next_char() -> str:

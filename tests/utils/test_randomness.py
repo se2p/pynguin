@@ -14,6 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import string
 
+import hypothesis.strategies as st
+from hypothesis import given
+
 import pynguin.utils.randomness as randomness
 
 
@@ -54,3 +57,15 @@ def test_choice():
     sequence = ["a", "b", "c"]
     result = randomness.choice(sequence)
     assert result in ("a", "b", "c")
+
+
+def test_get_seed():
+    rng = randomness.Random()
+    assert rng.get_seed() != 0
+
+
+@given(st.integers())
+def test_set_get_seed(seed):
+    rng = randomness.Random()
+    rng.seed(seed)
+    assert rng.get_seed() == seed
