@@ -129,7 +129,8 @@ class MonkeyTypeExecutor(AbstractExecutor):
     def _execute_ast_nodes(self):
         for node in self._ast_nodes:
             try:
-                self._logger.debug("Executing %s", astor.to_source(node))
+                if self._logger.isEnabledFor(logging.DEBUG):
+                    self._logger.debug("Executing %s", astor.to_source(node))
                 code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
                 sys.setprofile(self._tracer)
                 # pylint: disable=exec-used
