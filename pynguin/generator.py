@@ -128,6 +128,9 @@ class Pynguin:
         sys.path.insert(0, config.INSTANCE.project_path)
         if config.INSTANCE.seed is not None:
             randomness.RNG.seed(config.INSTANCE.seed)
+            self._logger.info("Random seed %d", config.INSTANCE.seed)
+        else:
+            self._logger.info("No seed given.  Using %d", randomness.RNG.get_seed())
 
         if config.INSTANCE.constant_seeding:
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
@@ -211,6 +214,9 @@ class Pynguin:
     @staticmethod
     def _collect_statistics() -> None:
         tracker = StatisticsTracker()
+        tracker.track_output_variable(
+            RuntimeVariable.Random_Seed, randomness.RNG.get_seed()
+        )
         for runtime_variable, value in tracker.variables_generator:
             StatisticsTracker().set_output_variable_for_runtime_variable(
                 runtime_variable, value
