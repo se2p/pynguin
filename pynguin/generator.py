@@ -169,8 +169,7 @@ class Pynguin:
                 test_suite = tsc.TestSuiteChromosome()
                 test_suite.add_tests(test_chromosome.test_chromosomes)
                 test_suite.add_tests(failing_test_chromosome.test_chromosomes)
-                re_executor = TestCaseExecutor()
-                result = re_executor.execute_test_suite(test_suite)
+                result = executor.execute_test_suite(test_suite)
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
