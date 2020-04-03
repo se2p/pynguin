@@ -84,6 +84,8 @@ class TestCaseExecutor(AbstractExecutor):
         :return: Result of the execution
         """
         result = res.ExecutionResult()
+        if config.INSTANCE.algorithm.use_instrumentation:
+            self.get_tracer().clear_trace()
         if config.INSTANCE.measure_coverage:
             self._coverage.erase()
             self._coverage.get_data().update(self._import_coverage)
@@ -105,6 +107,8 @@ class TestCaseExecutor(AbstractExecutor):
         :return: Result of the execution
         """
         result = res.ExecutionResult()
+        if config.INSTANCE.algorithm.use_instrumentation:
+            self.get_tracer().clear_trace()
         if config.INSTANCE.measure_coverage:
             self._coverage.erase()
             self._coverage.get_data().update(self._import_coverage)
