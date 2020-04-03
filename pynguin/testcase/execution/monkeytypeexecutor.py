@@ -128,12 +128,23 @@ class MonkeyTypeExecutor(AbstractExecutor):
 
     def _execute_ast_nodes(self):
         for node in self._ast_nodes:
-            self._logger.debug("Executing %s", astor.to_source(node))
-            code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
-            sys.setprofile(self._tracer)
-            # pylint: disable=exec-used
-            exec(code, self._global_namespace, self._local_namespace)
-            sys.setprofile(None)
+            try:
+                if self._logger.isEnabledFor(logging.DEBUG):
+                    self._logger.debug("Executing %s", astor.to_source(node))
+                code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
+                sys.setprofile(self._tracer)
+                # pylint: disable=exec-used
+                exec(code, self._global_namespace, self._local_namespace)
+            except BaseException as err:  # pylint: disable=broad-except
+                failed_stmt = astor.to_source(node)
+                self._logger.info(
+                    "Fatal! Failed to execute statement with MonkeyType\n%s%s",
+                    failed_stmt,
+                    err.args,
+                )
+                break
+            finally:
+                sys.setprofile(None)
 
     def _filter_and_append_call_traces(self) -> None:
         assert isinstance(self._tracer.logger, _MonkeyTypeCallTraceLogger)
