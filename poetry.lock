@@ -174,6 +174,14 @@ requirements = ["pipreqs", "pip-api"]
 xdg_home = ["appdirs (>=1.4.0)"]
 
 [[package]]
+category = "main"
+description = "a library for doing approximate and phonetic matching of strings."
+name = "jellyfish"
+optional = false
+python-versions = ">3.4"
+version = "0.7.2"
+
+[[package]]
 category = "dev"
 description = "A fast and thorough lazy object proxy."
 name = "lazy-object-proxy"
@@ -518,7 +526,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "8b04b57b22fdcc24010cd61ec214c820fa87c70145f1b9ba5426864e548f43bc"
+content-hash = "a065cf687cd7fcf6f74d3af44e298abd45e4e106cb2d4a311e47b082a31cdacf"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -610,6 +618,9 @@ hypothesis = [
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
     {file = "isort-4.3.21.tar.gz", hash = "sha256:54da7e92468955c4fceacd0c86bd0ec997b0e1ee80d97f67c35a78b719dccab1"},
+]
+jellyfish = [
+    {file = "jellyfish-0.7.2.tar.gz", hash = "sha256:cb09c50d7e2bb7b926fc7654762bc81f9c629e0c92ae7137bf22b34f39515286"},
 ]
 lazy-object-proxy = [
     {file = "lazy-object-proxy-1.4.3.tar.gz", hash = "sha256:f3900e8a5de27447acbf900b4750b0ddfd7ec1ea7fbaf11dfa911141bc522af0"},

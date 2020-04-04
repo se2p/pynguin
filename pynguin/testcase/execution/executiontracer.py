@@ -15,12 +15,13 @@
 """Provides capabilities to track branch distances."""
 import dataclasses
 import logging
-import numbers
-from typing import Set
+from typing import Set, Any, Callable, Dict, Tuple
 from math import inf
 from bytecode import Compare
+from jellyfish import levenshtein_distance
 
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from pynguin.utils.type_utils import is_numeric, is_string
 
 
 @dataclasses.dataclass
@@ -39,6 +40,22 @@ class ExecutionTracer:
     The results are stored in an execution trace."""
 
     _logger = logging.getLogger(__name__)
+
+    # Contains static information about how branch distances
+    # for certain op codes should be computed.
+    # pylint: disable=arguments-out-of-order
+    _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
+        Compare.EQ: lambda val1, val2: (_eq(val1, val2), _neq(val1, val2),),
+        Compare.NE: lambda val1, val2: (_neq(val1, val2), _eq(val1, val2),),
+        Compare.LT: lambda val1, val2: (_lt(val1, val2), _le(val2, val1),),
+        Compare.LE: lambda val1, val2: (_le(val1, val2), _lt(val2, val1),),
+        Compare.GT: lambda val1, val2: (_lt(val2, val1), _le(val1, val2),),
+        Compare.GE: lambda val1, val2: (_le(val2, val1), _lt(val1, val2),),
+        Compare.IN: lambda val1, val2: (_in(val1, val2), _nin(val1, val2),),
+        Compare.NOT_IN: lambda val1, val2: (_nin(val1, val2), _in(val1, val2),),
+        Compare.IS: lambda val1, val2: (_is(val1, val2), _isn(val1, val2),),
+        Compare.IS_NOT: lambda val1, val2: (_isn(val1, val2), _is(val1, val2),),
+    }
 
     def __init__(self) -> None:
         self._known_data = KnownData()
@@ -123,62 +140,10 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
-            if cmp_op == Compare.EQ:
-                distance_true, distance_false = (
-                    self._eq(value1, value2),
-                    self._neq(value1, value2),
-                )
-            elif cmp_op == Compare.NE:
-                distance_true, distance_false = (
-                    self._neq(value1, value2),
-                    self._eq(value1, value2),
-                )
-            elif cmp_op == Compare.LT:
-                distance_true, distance_false = (
-                    self._lt(value1, value2),
-                    self._le(value2, value1),
-                )
-            elif cmp_op == Compare.LE:
-                distance_true, distance_false = (
-                    self._le(value1, value2),
-                    self._lt(value2, value1),
-                )
-            elif cmp_op == Compare.GT:
-                distance_true, distance_false = (
-                    self._lt(value2, value1),
-                    self._le(value1, value2),
-                )
-            elif cmp_op == Compare.GE:
-                distance_true, distance_false = (
-                    self._le(value2, value1),
-                    self._lt(value1, value2),
-                )
-            elif cmp_op == Compare.IN:
-                distance_true, distance_false = (
-                    self._in(value1, value2),
-                    self._nin(value1, value2),
-                )
-            elif cmp_op == Compare.NOT_IN:
-                distance_true, distance_false = (
-                    self._nin(value1, value2),
-                    self._in(value1, value2),
-                )
-            elif cmp_op == Compare.IS:
-                distance_true, distance_false = (
-                    self._is(value1, value2),
-                    self._isn(value1, value2),
-                )
-            elif cmp_op == Compare.IS_NOT:
-                distance_true, distance_false = (
-                    self._isn(value1, value2),
-                    self._is(value1, value2),
-                )
-            else:
-                raise Exception(
-                    "Unknown cmp_op {0}, value1={1}, value2={2}".format(
-                        str(cmp_op), str(value1), str(value2)
-                    )
-                )
+
+            distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
+                cmp_op
+            ](value1, value2)
 
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
@@ -226,56 +191,62 @@ class ExecutionTracer:
             self._trace.false_distances.get(predicate, inf), distance_false
         )
 
-    @staticmethod
-    def _is_numeric(value):
-        return isinstance(value, numbers.Number)
 
-    @staticmethod
-    def _eq(val1, val2):
-        if val1 == val2:
-            return 0.0
-        if ExecutionTracer._is_numeric(val1) and ExecutionTracer._is_numeric(val2):
-            return abs(val1 - val2)
-        return 1.0
+def _eq(val1, val2) -> float:
+    """Distance computation for '=='"""
+    if val1 == val2:
+        return 0.0
+    if is_numeric(val1) and is_numeric(val2):
+        return abs(val1 - val2)
+    if is_string(val1) and is_string(val2):
+        return levenshtein_distance(val1, val2)
+    return 1.0
 
-    @staticmethod
-    def _neq(val1, val2):
-        if val1 != val2:
-            return 0.0
-        return 1.0
 
-    @staticmethod
-    def _lt(val1, val2):
-        if val1 < val2:
-            return 0.0
-        return (val1 - val2) + 1.0
+def _neq(val1, val2) -> float:
+    """Distance computation for '!='"""
+    if val1 != val2:
+        return 0.0
+    return 1.0
 
-    @staticmethod
-    def _le(val1, val2):
-        if val1 <= val2:
-            return 0.0
-        return (val1 - val2) + 1.0
 
-    @staticmethod
-    def _in(val1, val2):
-        if val1 in val2:
-            return 0.0
-        return 1.0
+def _lt(val1, val2) -> float:
+    """Distance computation for '<'"""
+    if val1 < val2:
+        return 0.0
+    return (val1 - val2) + 1.0
 
-    @staticmethod
-    def _nin(val1, val2):
-        if val1 not in val2:
-            return 0.0
-        return 1.0
 
-    @staticmethod
-    def _is(val1, val2):
-        if val1 is val2:
-            return 0.0
-        return 1.0
+def _le(val1, val2) -> float:
+    """Distance computation for '<='"""
+    if val1 <= val2:
+        return 0.0
+    return (val1 - val2) + 1.0
 
-    @staticmethod
-    def _isn(val1, val2):
-        if val1 is not val2:
-            return 0.0
-        return 1.0
+
+def _in(val1, val2) -> float:
+    """Distance computation for 'in'"""
+    if val1 in val2:
+        return 0.0
+    return 1.0
+
+
+def _nin(val1, val2) -> float:
+    """Distance computation for 'not in'"""
+    if val1 not in val2:
+        return 0.0
+    return 1.0
+
+
+def _is(val1, val2) -> float:
+    """Distance computation for 'is'"""
+    if val1 is val2:
+        return 0.0
+    return 1.0
+
+
+def _isn(val1, val2) -> float:
+    """Distance computation for 'is not'"""
+    if val1 is not val2:
+        return 0.0
+    return 1.0

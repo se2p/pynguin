@@ -25,6 +25,8 @@ from pynguin.utils.type_utils import (
     is_assignable_to,
     is_type_unknown,
     select_concrete_type,
+    is_numeric,
+    is_string,
 )
 
 
@@ -100,7 +102,22 @@ def test_is_assignable_to(from_type, to_type, result):
         pytest.param(None, [None]),
         pytest.param(bool, [bool]),
         pytest.param(Union[int, float], [int, float]),
+        pytest.param(Union, [None]),
     ],
 )
 def test_select_concrete_type(type_, result):
     assert select_concrete_type(type_) in result
+
+
+@pytest.mark.parametrize(
+    "value, result", [(5, True), (5.5, True), ("test", False)],
+)
+def test_is_numeric(value, result):
+    assert is_numeric(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result", [(5, False), (5.5, False), ("test", True)],
+)
+def test_is_string(value, result):
+    assert is_string(value) == result

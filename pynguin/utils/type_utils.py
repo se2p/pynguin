@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides utilities when working with types."""
+import numbers
 from inspect import isclass, isfunction
 from typing import Type, Optional, Callable, Any
 
@@ -75,3 +76,13 @@ def select_concrete_type(select_from: Optional[Type]) -> Optional[Type]:
             return randomness.choice(possible_types)
         return None
     return select_from
+
+
+def is_numeric(value: Any) -> bool:
+    """Check if the given value is numeric."""
+    return isinstance(value, numbers.Number)
+
+
+def is_string(value: Any) -> bool:
+    """Check if the given value is a string."""
+    return isinstance(value, str)
