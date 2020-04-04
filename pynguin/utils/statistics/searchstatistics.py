@@ -90,6 +90,9 @@ class SearchStatistics:
             stat.RuntimeVariable.LengthTimeline.name
         ] = self._LengthSequenceOutputVariableFactory()
         self._sequence_output_variable_factories[
+            stat.RuntimeVariable.FitnessTimeline.name
+        ] = self._FitnessSequenceOutputVariableFactory()
+        self._sequence_output_variable_factories[
             stat.RuntimeVariable.TotalExceptionsTimeline.name
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             stat.RuntimeVariable.TotalExceptionsTimeline
@@ -275,3 +278,12 @@ class SearchStatistics:
 
         def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
             return individual.total_length_of_test_cases
+
+    class _FitnessSequenceOutputVariableFactory(
+        ovf.DirectSequenceOutputVariableFactory
+    ):
+        def __init__(self) -> None:
+            super().__init__(stat.RuntimeVariable.FitnessTimeline, 0.0)
+
+        def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
+            return individual.get_fitness()

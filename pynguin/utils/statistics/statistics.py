@@ -55,6 +55,7 @@ class RuntimeVariable(enum.Enum):
     )
     SizeTimeline = "Obtained size values at different points in time"
     LengthTimeline = "Obtained length values at different points in time"
+    FitnessTimeline = "Obtained fitness values at different points in time"
     TotalExceptionsTimeline = "Total number of exceptions"
     BranchCoverageTimeline = "Coverage over time"
     Length = "Total number of statements in the final test suite"
