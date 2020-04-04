@@ -37,6 +37,7 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.statistics.statistics import StatisticsTracker
 
 
 class WholeSuiteTestStrategy(TestGenerationStrategy):
@@ -65,36 +66,15 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         stopping_condition.reset()
         self._population = self._get_random_population()
         self._sort_population()
+        StatisticsTracker().current_individual(self._get_best_individual())
         generation = 0
         while (
             not self.is_fulfilled(stopping_condition)
-            and self._population[0].get_fitness() != 0.0
+            and self._get_best_individual().get_fitness() != 0.0
         ):
-            # TODO(fk) add proper reporting for statistics.
-            self._logger.info("Current generation %s", generation)
-            self._logger.info(
-                "Current best fitness 1. %s", self._population[0].get_fitness()
-            )
-            self._logger.info(
-                "Current best fitness 2. %s", self._population[1].get_fitness()
-            )
-            self._logger.info(
-                "Current best fitness 3. %s", self._population[2].get_fitness()
-            )
             self.evolve()
             generation += 1
-        self._logger.info("Found solution")
-        self._logger.info("Current generation %s", generation)
-        self._logger.info(
-            "Current best fitness 1. %s", self._population[0].get_fitness()
-        )
-        self._logger.info(
-            "Current best fitness 2. %s", self._population[1].get_fitness()
-        )
-        self._logger.info(
-            "Current best fitness 3. %s", self._population[2].get_fitness()
-        )
-        return self._population[0], tsc.TestSuiteChromosome()
+        return self._get_best_individual(), tsc.TestSuiteChromosome()
 
     def evolve(self):
         """Evolve the current population and replace it with a new one."""
@@ -117,22 +97,25 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 self._logger.info("Crossover/Mutation failed: %s", ex)
                 continue
 
-            f_p = min(parent1.get_fitness(), parent2.get_fitness())
-            f_o = min(offspring1.get_fitness(), offspring2.get_fitness())
-            l_p = (
+            fitness_parents = min(parent1.get_fitness(), parent2.get_fitness())
+            fitness_offspring = min(offspring1.get_fitness(), offspring2.get_fitness())
+            length_parents = (
                 parent1.total_length_of_test_cases + parent2.total_length_of_test_cases
             )
-            l_o = (
+            length_offspring = (
                 offspring1.total_length_of_test_cases
                 + offspring2.total_length_of_test_cases
             )
-            t_b = self._population[0]
+            best_individual = self._get_best_individual()
 
-            if (f_o < f_p) or (f_o == f_p and l_o <= l_p):
+            if (fitness_offspring < fitness_parents) or (
+                fitness_offspring == fitness_parents
+                and length_offspring <= length_parents
+            ):
                 for offspring in [offspring1, offspring2]:
                     if (
                         offspring.total_length_of_test_cases
-                        <= 2 * t_b.total_length_of_test_cases
+                        <= 2 * best_individual.total_length_of_test_cases
                     ):
                         new_generation.append(offspring)
                     else:
@@ -143,6 +126,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
         self._population = new_generation
         self._sort_population()
+        StatisticsTracker().current_individual(self._get_best_individual())
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
@@ -152,8 +136,13 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             population.append(chromosome)
         return population
 
-    def _sort_population(self):
+    def _sort_population(self) -> None:
+        """Sort the population by fitness."""
         self._population.sort(key=lambda x: x.get_fitness())
+
+    def _get_best_individual(self) -> tsc.TestSuiteChromosome:
+        """Get the currently best individual."""
+        return self._population[0]
 
     @staticmethod
     def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:
