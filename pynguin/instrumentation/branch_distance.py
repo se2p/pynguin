@@ -17,7 +17,7 @@ import inspect
 from types import FunctionType, CodeType
 from typing import Set, Optional, Any
 
-from bytecode import Instr, Bytecode
+from bytecode import Instr, Bytecode, Compare
 
 from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
@@ -28,7 +28,13 @@ from pynguin.utils.iterator import ListIterator
 class BranchDistanceInstrumentation:
     """Instruments modules/classes/methods/functions to enable branch distance tracking."""
 
-    _INSTRUMENTED_FLAG: str = "instrumented"
+    _INSTRUMENTED_FLAG: str = "pynguin_instrumented"
+
+    # As of CPython 3.8, there are a few compare ops for which we can't really
+    # compute a sensible branch distance. So for now, we just ignore those
+    # comparisons and just track the result.
+    # TODO(fk) update this to work with the bytecode for CPython 3.9, once it is released.
+    _IGNORED_COMPARE_OPS: Set[Compare] = {Compare.EXC_MATCH}
 
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._function_id: int = 0
@@ -83,6 +89,8 @@ class BranchDistanceInstrumentation:
                     code_iter.has_previous()
                     and isinstance(code_iter.previous(), Instr)
                     and code_iter.previous().name == "COMPARE_OP"
+                    and not code_iter.previous().arg
+                    in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
                 ):
                     self._add_cmp_predicate(code_iter)
                 else:
