@@ -12,6 +12,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from math import inf
+
 import pytest
 from bytecode import Compare
 
@@ -88,11 +90,11 @@ def test_passed_cmp_predicate():
     [
         pytest.param(Compare.EQ, 5, 0, 5, 0),
         pytest.param(Compare.EQ, 0, 0, 0, 1),
-        pytest.param(Compare.EQ, "string", 0, 1, 0),
+        pytest.param(Compare.EQ, "string", 0, inf, 0),
         pytest.param(Compare.EQ, "abc", "cde", 3, 0),
         pytest.param(Compare.NE, 5, 0, 0, 5),
         pytest.param(Compare.NE, 0, 0, 1, 0),
-        pytest.param(Compare.NE, "string", 0, 0, 1),
+        pytest.param(Compare.NE, "string", 0, 0, inf),
         pytest.param(Compare.NE, "abc", "cde", 0, 3),
         pytest.param(Compare.LT, 5, 0, 6, 0),
         pytest.param(Compare.LT, 0, 5, 0, 6),

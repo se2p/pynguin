@@ -200,7 +200,7 @@ def _eq(val1, val2) -> float:
         return abs(val1 - val2)
     if is_string(val1) and is_string(val2):
         return levenshtein_distance(val1, val2)
-    return 1.0
+    return inf
 
 
 def _neq(val1, val2) -> float:
