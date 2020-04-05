@@ -27,14 +27,14 @@ from tests.fixtures.cluster.dependency import SomeArgumentType
 from tests.fixtures.cluster.no_dependencies import Test
 
 
-def test_test_cluster_generator_accessible():
+def test_accessible():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.no_dependencies"
     ).generate_cluster()
     assert len(cluster.accessible_objects_under_test) == 4
 
 
-def test_test_cluster_generator_generators():
+def test_generators():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.no_dependencies"
     ).generate_cluster()
@@ -43,21 +43,21 @@ def test_test_cluster_generator_generators():
     assert len(cluster.get_generators_for(float)) == 0
 
 
-def test_test_cluster_generator_simple_dependencies():
+def test_simple_dependencies():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
     assert len(cluster.get_generators_for(SomeArgumentType)) == 1
 
 
-def test_test_cluster_generator_complex_dependencies():
+def test_complex_dependencies():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.complex_dependencies"
     ).generate_cluster()
     assert cluster.num_accessible_objects_under_test() == 1
 
 
-def test_test_cluster_generator_max_recursion():
+def test_max_recursion():
     config.INSTANCE.max_cluster_recursion = 1
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.complex_dependencies"
@@ -65,21 +65,29 @@ def test_test_cluster_generator_max_recursion():
     assert len(cluster.generators) == 2
 
 
-def test_test_cluster_generator_modifier():
+def test_modifier():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.complex_dependencies"
     ).generate_cluster()
     assert len(cluster.modifiers) == 2
 
 
-def test_test_cluster_generator_simple_dependencies_only_own_classes():
+def test_simple_dependencies_only_own_classes():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
     assert len(cluster.accessible_objects_under_test) == 1
 
 
-def test_test_cluster_generator_private_method_not_added():
+def test_resolve_only_union():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.typing_parameters"
+    ).generate_cluster()
+    assert len(cluster.accessible_objects_under_test) == 2
+    assert len(cluster.generators) == 1
+
+
+def test_private_method_not_added():
     cluster = TestClusterGenerator(
         "tests.fixtures.examples.private_methods"
     ).generate_cluster()

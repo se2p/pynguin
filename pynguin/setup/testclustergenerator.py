@@ -20,6 +20,8 @@ import logging
 
 from typing import Type, Set, List
 
+from typing_inspect import is_union_type, get_args
+
 from pynguin.typeinference import typeinference
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 from pynguin.typeinference.strategy import TypeInferenceStrategy
@@ -119,16 +121,23 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             return
         for param_name, type_ in call.inferred_signature.parameters.items():
             self._logger.debug("Resolving '%s' (%s)", param_name, type_)
-            if is_primitive_type(type_):
-                self._logger.debug("Not following primitive argument.")
-                continue
-            if inspect.isclass(type_):
-                assert type_
-                self._logger.debug("Adding dependency for class %s", type_)
-                self._dependencies_to_solve.add(DependencyPair(type_, recursion_level))
-            else:
-                self._logger.debug("Found typing annotation %s, skipping", type_)
-                # TODO(fk) fully support typing annotations.
+            types = {type_}
+            if is_union_type(type_):
+                types = set(get_args(type_))
+
+            for elem in types:
+                if is_primitive_type(elem):
+                    self._logger.debug("Not following primitive argument.")
+                    continue
+                if inspect.isclass(elem):
+                    assert elem
+                    self._logger.debug("Adding dependency for class %s", elem)
+                    self._dependencies_to_solve.add(
+                        DependencyPair(elem, recursion_level)
+                    )
+                else:
+                    self._logger.debug("Found typing annotation %s, skipping", elem)
+                    # TODO(fk) fully support typing annotations.
 
     def _add_dependency(self, klass: Type, recursion_level: int, add_to_test: bool):
         """Add constructor/methods/attributes of the given type to the test cluster.
