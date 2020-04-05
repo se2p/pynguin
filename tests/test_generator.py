@@ -20,6 +20,13 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
+    RandomTestMonkeyTypeStrategy,
+)
+from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
+    WholeSuiteTestStrategy,
+)
 from pynguin.generator import Pynguin
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -97,3 +104,23 @@ def test_run_without_logger():
     generator._logger = None
     with pytest.raises(ConfigurationException):
         generator.run()
+
+
+def test_instantiate_test_generation_strategy_unknown():
+    config.INSTANCE.algorithm = MagicMock()
+    with pytest.raises(ConfigurationException):
+        Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
+
+
+@pytest.mark.parametrize(
+    "value,cls",
+    [
+        (config.Algorithm.RANDOOPY, RandomTestStrategy),
+        (config.Algorithm.RANDOOPY_MONKEYTYPE, RandomTestMonkeyTypeStrategy),
+        (config.Algorithm.WSPY, WholeSuiteTestStrategy),
+    ],
+)
+def test_instantiate_test_generation_strategy_actual(value, cls):
+    config.INSTANCE.algorithm = value
+    instance = Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
+    assert isinstance(instance, cls)
