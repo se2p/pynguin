@@ -23,8 +23,6 @@ from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from tests.fixtures.cluster.dependency import SomeArgumentType
-from tests.fixtures.cluster.no_dependencies import Test
 
 
 def test_accessible():
@@ -38,6 +36,8 @@ def test_generators():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.no_dependencies"
     ).generate_cluster()
+    from tests.fixtures.cluster.no_dependencies import Test
+
     assert len(cluster.get_generators_for(Test)) == 1
     assert len(cluster.get_generators_for(int)) == 0
     assert len(cluster.get_generators_for(float)) == 0
@@ -47,6 +47,8 @@ def test_simple_dependencies():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
+    from tests.fixtures.cluster.dependency import SomeArgumentType
+
     assert len(cluster.get_generators_for(SomeArgumentType)) == 1
 
 
