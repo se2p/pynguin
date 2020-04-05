@@ -73,6 +73,11 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
+            self._logger.debug(
+                "Generation: %s. Best fitness: %s",
+                generation,
+                self._get_best_individual().get_fitness(),
+            )
             generation += 1
         return self._get_best_individual(), tsc.TestSuiteChromosome()
 
