@@ -43,6 +43,7 @@ class ExecutionTracer:
 
     # Contains static information about how branch distances
     # for certain op codes should be computed.
+    # The returned tuple for each computation is (true distance, false distance).
     # pylint: disable=arguments-out-of-order
     _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
         Compare.EQ: lambda val1, val2: (_eq(val1, val2), _neq(val1, val2),),
@@ -140,7 +141,6 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
-
             distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
                 cmp_op
             ](value1, value2)
@@ -178,8 +178,8 @@ class ExecutionTracer:
         ), "Cannot update unknown predicate"
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
-        assert (distance_true == 0.0 and distance_false > 0.0) or (
-            distance_false == 0.0 and distance_true > 0.0
+        assert (distance_true == 0.0) ^ (
+            distance_false == 0.0
         ), "Exactly one distance must be 0.0"
         self._trace.covered_predicates[predicate] = (
             self._trace.covered_predicates.get(predicate, 0) + 1
