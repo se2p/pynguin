@@ -74,8 +74,14 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
             [self._special_chars(str(p)) for p in self._parameter_updates],
         )
         tracker.track_output_variable(
+            RuntimeVariable.ParameterTypeUpdatesSize, len(self._parameter_updates)
+        )
+        tracker.track_output_variable(
             RuntimeVariable.ReturnTypeUpdates,
             [self._special_chars(str(r)) for r in self._return_type_updates],
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.ReturnTypeUpdatesSize, len(self._return_type_updates)
         )
 
     @staticmethod

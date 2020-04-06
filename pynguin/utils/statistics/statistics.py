@@ -43,7 +43,9 @@ class RuntimeVariable(enum.Enum):
     execution_results = "Execution results"
     MonkeyTypeExecutions = "Number of MonkeyType executions"
     ParameterTypeUpdates = "Updated parameter types"
+    ParameterTypeUpdatesSize = "Number of updated parameter types"
     ReturnTypeUpdates = "Updated return types"
+    ReturnTypeUpdatesSize = "Number of updated return types"
     Coverage = "Obtained coverage of the chosen testing criterion"
     Random_Seed = (
         "The random seed used during the search.  A random one was used if "
