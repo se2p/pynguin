@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 from pkgutil import iter_modules
 from typing import Union, Set, Optional, Dict, cast
@@ -33,6 +34,7 @@ class StaticConstantSeeding:
     Extracts all constants from a set of modules by using an AST visitor.
     """
 
+    _logger = logging.getLogger(__name__)
     _instance: Optional[StaticConstantSeeding] = None
     _constants: Optional[Dict[str, Set[Types]]] = None
 
@@ -78,8 +80,11 @@ class StaticConstantSeeding:
         collector = _ConstantCollector()
         for module in self._find_modules(project_path):
             with open(os.path.join(project_path, module)) as module_file:
-                tree = ast.parse(module_file.read())
-                collector.visit(tree)
+                try:
+                    tree = ast.parse(module_file.read())
+                    collector.visit(tree)
+                except BaseException as exception:  # pylint: disable=broad-except
+                    self._logger.debug("Cannot collect constants: %s", exception)
         self._constants = collector.constants
         return self._constants
 
