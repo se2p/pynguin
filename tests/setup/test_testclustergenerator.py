@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import os
+from typing import Dict, Type, Set
 
 import pytest
 
@@ -23,6 +24,10 @@ from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+
+
+def convert_to_str_count_dict(dic: Dict[Type, Set]) -> Dict[str, int]:
+    return {k.__name__: len(v) for k, v in dic.items()}
 
 
 def test_accessible():
@@ -36,20 +41,20 @@ def test_generators():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.no_dependencies"
     ).generate_cluster()
-    from tests.fixtures.cluster.no_dependencies import Test
 
-    assert len(cluster.get_generators_for(Test)) == 1
     assert len(cluster.get_generators_for(int)) == 0
     assert len(cluster.get_generators_for(float)) == 0
+    assert convert_to_str_count_dict(cluster.generators) == {"Test": 1}
 
 
 def test_simple_dependencies():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.simple_dependencies"
     ).generate_cluster()
-    from tests.fixtures.cluster.dependency import SomeArgumentType
-
-    assert len(cluster.get_generators_for(SomeArgumentType)) == 1
+    assert convert_to_str_count_dict(cluster.generators) == {
+        "SomeArgumentType": 1,
+        "ConstructMeWithDependency": 1,
+    }
 
 
 def test_complex_dependencies():
