@@ -60,6 +60,14 @@ def test_update_metrics_covered():
     assert (0, 2) in tracer.get_trace().covered_predicates.items()
 
 
+@pytest.mark.parametrize("true_dist,false_dist", [(-1, 0), (0, -1), (0,0), (1,1)])
+def test_update_metrics_assertions(true_dist, false_dist):
+    tracer = ExecutionTracer()
+    tracer.predicate_exists(0)
+    with pytest.raises(AssertionError):
+        tracer._update_metrics(false_dist, true_dist, 0)
+
+
 def test_update_metrics_true_dist_min():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
