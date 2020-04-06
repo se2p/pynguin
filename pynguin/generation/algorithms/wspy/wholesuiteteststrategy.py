@@ -37,7 +37,7 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.statistics.statistics import StatisticsTracker
+from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 
 
 class WholeSuiteTestStrategy(TestGenerationStrategy):
@@ -62,6 +62,9 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def generate_sequences(
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
+        StatisticsTracker().track_output_variable(
+            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+        )
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
         self._population = self._get_random_population()
