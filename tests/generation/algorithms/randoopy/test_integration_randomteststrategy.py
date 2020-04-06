@@ -43,6 +43,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
             "tests.fixtures.examples.monkey",
             "tests.fixtures.examples.triangle",
             "tests.fixtures.examples.type_inference",
+            "tests.fixtures.examples.difficult",
         ],
     ),
 )
