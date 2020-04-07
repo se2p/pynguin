@@ -35,3 +35,11 @@ def bool_predicate(a):
 def for_loop():
     for x in [1]:
         return x
+
+
+def comprehension(y, z):
+    return [x for x in range(y) if x != z]
+
+
+def lambda_func(y):
+    return lambda x: x + 1 if x > y else x

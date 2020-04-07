@@ -63,6 +63,28 @@ def test_add_cmp_predicate(simple_module):
     tracer.passed_cmp_predicate.assert_called_once()
 
 
+def test_add_cmp_predicate_comprehension(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.comprehension)
+    call_count = 5
+    simple_module.comprehension(call_count, 3)
+    tracer.predicate_exists.assert_called_once()
+    assert tracer.passed_cmp_predicate.call_count == call_count
+
+
+def test_add_cmp_predicate_lambda(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.lambda_func)
+    lam = simple_module.lambda_func(10)
+    lam(5)
+    tracer.predicate_exists.assert_called_once()
+    tracer.function_exists.assert_has_calls([call(0), call(1)])
+    tracer.passed_cmp_predicate.assert_called_once()
+    tracer.entered_function.assert_has_calls([call(0), call(1)], any_order=True)
+
+
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)
