@@ -32,7 +32,7 @@ class Queue:
     def full(self) -> bool:
         return self.size == self.max
 
-    def enqueue(self, x) -> bool:
+    def enqueue(self, x: int) -> bool:
         if self.size == self.max:
             return False
         self.data[self.tail] = x
