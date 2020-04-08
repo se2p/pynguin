@@ -38,6 +38,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
         "tests.fixtures.examples.triangle",
         "tests.fixtures.examples.impossible",
         "tests.fixtures.examples.difficult",
+        "tests.fixtures.examples.queue",
     ],
 )
 def test_integrate_wspy(module_name: str):

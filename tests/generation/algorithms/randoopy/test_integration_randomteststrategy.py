@@ -44,10 +44,11 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
             "tests.fixtures.examples.triangle",
             "tests.fixtures.examples.type_inference",
             "tests.fixtures.examples.difficult",
+            "tests.fixtures.examples.queue",
         ],
     ),
 )
-def test_integrate_randoopy(algorithm_to_run: Callable, module_name):
+def test_integrate_randoopy(algorithm_to_run: Callable, module_name: str):
     config.INSTANCE.budget = 1
     config.INSTANCE.measure_coverage = False
     logger = MagicMock(Logger)
