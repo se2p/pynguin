@@ -260,6 +260,22 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock):
         )
 
 
+def test_constructor_mutate_parameter_not_included(constructor_mock):
+    test_case = dtc.DefaultTestCase()
+    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
+    test_case.add_statement(float0)
+    test_case.add_statement(const)
+    with mock.patch.object(test_case, "get_objects") as get_objs:
+        get_objs.return_value = []
+        assert const._mutate_parameter(0)
+        get_objs.assert_called_with(float0.return_value.variable_type, 1)
+        assert isinstance(
+            test_case.get_statement(const.args[0].get_statement_position()),
+            prim.NoneStatement,
+        )
+
+
 def test_constructor_mutate_parameter_add_copy(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)

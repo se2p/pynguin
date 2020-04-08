@@ -164,7 +164,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             to_mutate.variable_type, self.get_position()
         )
 
-        possible_replacements.remove(to_mutate)
+        if to_mutate in possible_replacements:
+            possible_replacements.remove(to_mutate)
 
         # Consider duplicating an existing statement/variable.
         copy: Optional[stmt.Statement] = None
