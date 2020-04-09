@@ -22,15 +22,15 @@ from pynguin.testcase.execution.executiontracer import ExecutionTracer, _le, _lt
 
 def test_functions_exists():
     tracer = ExecutionTracer()
-    tracer.function_exists(0)
-    assert 0 in tracer.get_known_data().existing_functions
+    tracer.code_object_exists(0)
+    assert 0 in tracer.get_known_data().existing_code_objects
 
 
 def test_entered_function():
     tracer = ExecutionTracer()
-    tracer.function_exists(0)
-    tracer.entered_function(0)
-    assert 0 in tracer.get_trace().covered_functions
+    tracer.code_object_exists(0)
+    tracer.entered_code_object(0)
+    assert 0 in tracer.get_trace().covered_code_objects
 
 
 def test_for_loop_exists():
@@ -164,8 +164,8 @@ def test_clear():
     tracer = ExecutionTracer()
     tracer.for_loop_exists(0)
     tracer.entered_for_loop(0)
-    tracer.function_exists(0)
-    tracer.entered_function(0)
+    tracer.code_object_exists(0)
+    tracer.entered_code_object(0)
     trace = tracer.get_trace()
     tracer.clear_trace()
     assert tracer.get_trace() != trace

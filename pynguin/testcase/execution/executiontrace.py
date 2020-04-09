@@ -23,7 +23,7 @@ from typing import Set, Dict
 class ExecutionTrace:
     """Stores trace information about the execution."""
 
-    covered_functions: Set[int] = field(default_factory=set)
+    covered_code_objects: Set[int] = field(default_factory=set)
     covered_predicates: Dict[int, int] = field(default_factory=dict)
     covered_for_loops: Set[int] = field(default_factory=set)
     true_distances: Dict[int, float] = field(default_factory=dict)
@@ -31,7 +31,7 @@ class ExecutionTrace:
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace."""
-        self.covered_functions.update(other.covered_functions)
+        self.covered_code_objects.update(other.covered_code_objects)
         for key, value in other.covered_predicates.items():
             self.covered_predicates[key] = self.covered_predicates.get(key, 0) + value
         self.covered_for_loops.update(other.covered_for_loops)

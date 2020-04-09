@@ -43,3 +43,13 @@ def comprehension(y, z):
 
 def lambda_func(y):
     return lambda x: x + 1 if x > y else x
+
+
+def conditionally_nested_class(x: int):
+    if x > 5:
+
+        class TestClass:
+            def __init__(self):
+                self.y = 3
+
+        TestClass()

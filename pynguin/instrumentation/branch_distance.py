@@ -37,7 +37,7 @@ class BranchDistanceInstrumentation:
     _IGNORED_COMPARE_OPS: Set[Compare] = {Compare.EXC_MATCH}
 
     def __init__(self, tracer: ExecutionTracer) -> None:
-        self._function_id: int = 0
+        self._code_object_id: int = 0
         self._predicate_id: int = 0
         self._for_loop_id: int = 0
         self._tracer = tracer
@@ -54,11 +54,11 @@ class BranchDistanceInstrumentation:
         to_instrument.__globals__[TRACER_NAME] = self._tracer
         to_instrument.__code__ = self._instrument_code_recursive(to_instrument.__code__)
 
-    def _instrument_inner_functions(self, code: CodeType) -> CodeType:
+    def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
         new_consts = []
         for const in code.co_consts:
             if hasattr(const, "co_code"):
-                # The const is an inner function
+                # The const is an inner code object
                 new_consts.append(self._instrument_code_recursive(const))
             else:
                 new_consts.append(const)
@@ -66,15 +66,15 @@ class BranchDistanceInstrumentation:
 
     def _instrument_code_recursive(self, code: CodeType) -> CodeType:
         """Instrument the given CodeType recursively."""
-        # Nested functions are found within the consts of the CodeType.
-        code = self._instrument_inner_functions(code)
+        # Nested code objects are found within the consts of the CodeType.
+        code = self._instrument_inner_code_objects(code)
         instructions = Bytecode.from_code(code)
         code_iter: ListIterator = ListIterator(instructions)
-        function_entered_inserted = False
+        code_object_entered_inserted = False
         while code_iter.next():
-            if not function_entered_inserted:
-                self._add_function_entered(code_iter)
-                function_entered_inserted = True
+            if not code_object_entered_inserted:
+                self._add_code_object_entered(code_iter)
+                code_object_entered_inserted = True
 
             if (
                 code_iter.has_previous()
@@ -129,12 +129,12 @@ class BranchDistanceInstrumentation:
         iterator.insert_before(stmts, 1)
         self._predicate_id += 1
 
-    def _add_function_entered(self, iterator: ListIterator) -> None:
-        self._tracer.function_exists(self._function_id)
+    def _add_code_object_entered(self, iterator: ListIterator) -> None:
+        self._tracer.code_object_exists(self._code_object_id)
         self._add_entered_call(
-            iterator, ExecutionTracer.entered_function.__name__, self._function_id
+            iterator, ExecutionTracer.entered_code_object.__name__, self._code_object_id
         )
-        self._function_id += 1
+        self._code_object_id += 1
 
     def _add_for_loop_entered(self, iterator: ListIterator) -> None:
         self._tracer.for_loop_exists(self._for_loop_id)
@@ -145,11 +145,11 @@ class BranchDistanceInstrumentation:
 
     @staticmethod
     def _add_entered_call(
-        iterator: ListIterator, function_to_call: str, call_id: int
+        iterator: ListIterator, method_to_call: str, call_id: int
     ) -> None:
         stmts = [
             Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", function_to_call),
+            Instr("LOAD_METHOD", method_to_call),
             Instr("LOAD_CONST", call_id),
             Instr("CALL_METHOD", 1),
             Instr("POP_TOP"),

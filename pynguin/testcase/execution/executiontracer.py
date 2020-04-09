@@ -26,11 +26,11 @@ from pynguin.utils.type_utils import is_numeric, is_string
 
 @dataclasses.dataclass
 class KnownData:
-    """Contains known functions, predicates and for loops.
+    """Contains known code objects, predicates and for loops.
     FIXME(fk) better class name...
     """
 
-    existing_functions: Set[int] = dataclasses.field(default_factory=set)
+    existing_code_objects: Set[int] = dataclasses.field(default_factory=set)
     existing_predicates: Set[int] = dataclasses.field(default_factory=set)
     existing_for_loops: Set[int] = dataclasses.field(default_factory=set)
 
@@ -90,22 +90,23 @@ class ExecutionTracer:
         return self._trace
 
     def clear_trace(self) -> None:
-        """Clear trace. Does not delete known predicates/functions/for-loops."""
+        """Clear trace. Does not delete known data."""
         self._init_trace()
 
-    def function_exists(self, function_id: int) -> None:
-        """Declare that a function exists."""
+    def code_object_exists(self, code_object_id: int) -> None:
+        """Declare that a code object exists."""
         assert (
-            function_id not in self._known_data.existing_functions
-        ), "Function is already known"
-        self._known_data.existing_functions.add(function_id)
+            code_object_id not in self._known_data.existing_code_objects
+        ), "Code object is already known"
+        self._known_data.existing_code_objects.add(code_object_id)
 
-    def entered_function(self, function_id: int) -> None:
-        """Mark a function as covered. This means, that the function was at least entered once."""
+    def entered_code_object(self, code_object_id: int) -> None:
+        """Mark a code object as covered. This means, that the code object
+        was at least entered once."""
         assert (
-            function_id in self._known_data.existing_functions
-        ), "Cannot trace unknown function"
-        self._trace.covered_functions.add(function_id)
+            code_object_id in self._known_data.existing_code_objects
+        ), "Cannot trace unknown code object"
+        self._trace.covered_code_objects.add(code_object_id)
 
     def for_loop_exists(self, for_loop_id: int) -> None:
         """Declare that a for loop exists."""

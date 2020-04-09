@@ -24,7 +24,7 @@ from pynguin.testcase.execution.executiontracer import KnownData
 
 
 class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
-    """A fitness function based on branch distances and entered methods/loops."""
+    """A fitness function based on branch distances and entered code objects/loops."""
 
     def compute_fitness_values(
         self, individual: tsc.TestSuiteChromosome,
@@ -38,13 +38,13 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     def _compute(
         self, has_exception, merged_trace, known_data: KnownData
     ) -> ff.FitnessValues:
-        # Check if all functions were entered.
-        functions_missing: float = len(known_data.existing_functions) - len(
-            merged_trace.covered_functions
+        # Check if all code objects were entered.
+        code_objects_missing: float = len(known_data.existing_code_objects) - len(
+            merged_trace.covered_code_objects
         )
         assert (
-            functions_missing >= 0.0
-        ), "Amount of non covered functions cannot be negative"
+            code_objects_missing >= 0.0
+        ), "Amount of non covered code objects cannot be negative"
         # Check if all for loops were entered.
         for_loops_missing = len(known_data.existing_for_loops) - len(
             merged_trace.covered_for_loops
@@ -62,7 +62,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
                 predicate, merged_trace.false_distances, merged_trace
             )
         assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
-        total_fitness = functions_missing + for_loops_missing + predicate_fitness
+        total_fitness = code_objects_missing + for_loops_missing + predicate_fitness
         # TODO(fk) compute coverage.
         if has_exception:
             return ff.FitnessValues(self.get_worst_fitness(known_data), 0)
@@ -100,7 +100,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     def get_worst_fitness(known_data: KnownData) -> float:
         """Compute the worst possible fitness value."""
         return (
-            len(known_data.existing_functions)
+            len(known_data.existing_code_objects)
             + len(known_data.existing_predicates) * 2
             + len(known_data.existing_for_loops)
         )

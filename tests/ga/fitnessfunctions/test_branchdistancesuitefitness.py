@@ -49,10 +49,10 @@ def test_default_fitness(executor_mock, trace_mock, known_data_mock):
 
 def test_fitness_function_diff(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_functions.add(0)
-    known_data_mock.existing_functions.add(1)
-    known_data_mock.existing_functions.add(2)
-    trace_mock.covered_functions.add(0)
+    known_data_mock.existing_code_objects.add(0)
+    known_data_mock.existing_code_objects.add(1)
+    known_data_mock.existing_code_objects.add(2)
+    trace_mock.covered_code_objects.add(0)
     assert ff._compute(False, trace_mock, known_data_mock) == FitnessValues(2.0, 0)
 
 
@@ -119,7 +119,7 @@ def test_is_maximisation_function(executor_mock):
 def test_has_exception(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates.add(0)
-    known_data_mock.existing_functions.add(0)
+    known_data_mock.existing_code_objects.add(0)
     known_data_mock.existing_for_loops.add(0)
     assert ff._compute(True, trace_mock, known_data_mock) == FitnessValues(4.0, 0)
 
@@ -148,7 +148,7 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[0] = 1
     trace_mock.true_distances[1] = 2
     trace_mock.covered_predicates[0] = 1
-    trace_mock.covered_functions.add(0)
+    trace_mock.covered_code_objects.add(0)
     trace_mock.covered_for_loops.add(0)
     result.execution_trace = trace_mock
     results.append(result)
@@ -159,7 +159,7 @@ def test_analyze_traces_merge(trace_mock):
 
 def test_worst_fitness(known_data_mock):
     known_data_mock.existing_for_loops.add(0)
-    known_data_mock.existing_functions.add(0)
+    known_data_mock.existing_code_objects.add(0)
     known_data_mock.existing_predicates.add(0)
     assert BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data_mock) == 4.0
 

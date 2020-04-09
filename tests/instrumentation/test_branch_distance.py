@@ -15,6 +15,7 @@
 
 import importlib
 import asyncio
+
 import pytest
 from unittest.mock import Mock, call
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
@@ -32,8 +33,8 @@ def test_entered_function(simple_module):
     instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.simple_function)
     simple_module.simple_function(1)
-    tracer.function_exists.assert_called_once()
-    tracer.entered_function.assert_called_once()
+    tracer.code_object_exists.assert_called_once()
+    tracer.entered_code_object.assert_called_once()
 
 
 def test_entered_for_loop(simple_module):
@@ -80,9 +81,25 @@ def test_add_cmp_predicate_lambda(simple_module):
     lam = simple_module.lambda_func(10)
     lam(5)
     tracer.predicate_exists.assert_called_once()
-    tracer.function_exists.assert_has_calls([call(0), call(1)])
+    tracer.code_object_exists.assert_has_calls([call(0), call(1)])
     tracer.passed_cmp_predicate.assert_called_once()
-    tracer.entered_function.assert_has_calls([call(0), call(1)], any_order=True)
+    tracer.entered_code_object.assert_has_calls([call(0), call(1)], any_order=True)
+
+
+def test_conditionally_nested_class(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.conditionally_nested_class)
+    tracer.code_object_exists.assert_has_calls(
+        [call(0), call(1), call(2)], any_order=True
+    )
+
+    simple_module.conditionally_nested_class(6)
+    tracer.entered_code_object.assert_has_calls(
+        [call(0), call(1), call(2)], any_order=True
+    )
+    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.passed_cmp_predicate.assert_called_once()
 
 
 def test_avoid_duplicate_instrumentation(simple_module):
@@ -113,10 +130,10 @@ def test_module_instrumentation_integration():
     call_count = 8
     calls: list = [call(i) for i in range(call_count)]
 
-    tracer.function_exists.assert_has_calls(calls, any_order=True)
-    assert tracer.function_exists.call_count == call_count
-    tracer.entered_function.assert_has_calls(calls, any_order=True)
-    assert tracer.entered_function.call_count == call_count
+    tracer.code_object_exists.assert_has_calls(calls, any_order=True)
+    assert tracer.code_object_exists.call_count == call_count
+    tracer.entered_code_object.assert_has_calls(calls, any_order=True)
+    assert tracer.entered_code_object.call_count == call_count
 
 
 async def run_async_generator(gen):
