@@ -17,7 +17,7 @@ from math import inf
 import pytest
 from bytecode import Compare
 
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer, _le, _lt
 
 
 def test_functions_exists():
@@ -197,3 +197,13 @@ def test_enable_disable_bool():
     tracer._enable()
     tracer.passed_bool_predicate(True, 0)
     assert len(tracer.get_trace().covered_predicates) == 1
+
+
+@pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", 1.0)])
+def test_le(val1, val2, result):
+    assert _le(val1, val2) == result
+
+
+@pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", 1.0)])
+def test_lt(val1, val2, result):
+    assert _lt(val1, val2) == result

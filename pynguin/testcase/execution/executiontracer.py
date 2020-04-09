@@ -214,14 +214,18 @@ def _lt(val1, val2) -> float:
     """Distance computation for '<'"""
     if val1 < val2:
         return 0.0
-    return (val1 - val2) + 1.0
+    if is_numeric(val1) and is_numeric(val2):
+        return (val1 - val2) + 1.0
+    return 1.0
 
 
 def _le(val1, val2) -> float:
     """Distance computation for '<='"""
     if val1 <= val2:
         return 0.0
-    return (val1 - val2) + 1.0
+    if is_numeric(val1) and is_numeric(val2):
+        return (val1 - val2) + 1.0
+    return 1.0
 
 
 def _in(val1, val2) -> float:
