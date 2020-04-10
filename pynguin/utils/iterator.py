@@ -31,7 +31,7 @@ class ListIterator:
         Checks if there is a next element. If so, returns True and sets current to the next element.
         Otherwise False is returned.
         """
-        if self.idx + 1 < len(self.elements):
+        if self.can_peek():
             self.idx += 1
             return True
         return False
@@ -58,3 +58,19 @@ class ListIterator:
         assert self.idx - offset >= 0, "Cannot insert out of range"
         self.elements[self.idx - offset : self.idx - offset] = insert
         self.idx += len(insert)
+
+    def can_peek(self, distance: int = 1) -> bool:
+        """Is there a next element?"""
+        return self.idx + distance < len(self.elements)
+
+    def peek(self, distance: int = 1) -> Any:
+        """Provide the element that is next in the list, without
+        moving the current pointer"""
+        assert self.can_peek(distance), "Cannot peek"
+        return self.elements[self.idx + distance]
+
+    def insert_after_current(self, insert: List[Any], offset: int = 0) -> None:
+        """Insert a list of elements. Warning! the inserted elements will be visited again
+        when the iterator is further traversed."""
+        assert offset >= 0, "Offset must be non negative"
+        self.elements[self.idx + offset + 1 : self.idx + offset + 1] = insert

@@ -12,6 +12,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import pytest
+
 from pynguin.utils.iterator import ListIterator
 
 
@@ -99,3 +101,72 @@ def test_insert_previous():
     it.next()
     it.insert_before([1, 3, 5])
     assert it.previous() == 5
+
+
+@pytest.mark.parametrize("test_list,result", [([], False), ([1], True)])
+def test_can_peek(test_list, result):
+    it = ListIterator(test_list)
+    assert it.can_peek() == result
+
+
+def test_peek_first():
+    test = [1]
+    it = ListIterator(test)
+    assert it.peek() == 1
+
+
+def test_peek_mid():
+    test = [1, 2, 3]
+    it = ListIterator(test)
+    it.next()
+    assert it.peek() == 2
+
+
+def test_peek_no_more():
+    test = [1]
+    it = ListIterator(test)
+    it.next()
+    with pytest.raises(AssertionError):
+        it.peek()
+
+
+def test_peek_two():
+    test = [1, 2]
+    it = ListIterator(test)
+    assert it.peek(2) == 2
+
+
+def test_insert_after_current_empty():
+    test = []
+    it = ListIterator(test)
+    it.insert_after_current([1, 2])
+    assert test == [1, 2]
+
+
+def test_insert_after_current_position():
+    test = [1, 2]
+    it = ListIterator(test)
+    it.next()
+    it.insert_after_current([42, 1337])
+    assert test == [1, 42, 1337, 2]
+
+
+def test_insert_after_current_end():
+    test = [1, 2]
+    it = ListIterator(test)
+    it.next()
+    it.next()
+    it.insert_after_current([42, 1337])
+    assert test == [1, 2, 42, 1337]
+
+
+def test_insert_after_current_seen_again():
+    test = [1, 2]
+    it = ListIterator(test)
+    it.next()
+    it.next()
+    it.insert_after_current([42, 1337])
+    assert it.next()
+    assert it.current() == 42
+    assert it.next()
+    assert it.current() == 1337
