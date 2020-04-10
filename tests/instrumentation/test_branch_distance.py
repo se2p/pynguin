@@ -37,13 +37,40 @@ def test_entered_function(simple_module):
     tracer.entered_code_object.assert_called_once()
 
 
-def test_entered_for_loop(simple_module):
+def test_entered_for_loop_no_jump(simple_module):
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.for_loop)
-    simple_module.for_loop()
-    tracer.for_loop_exists.assert_called_once()
-    tracer.entered_for_loop.assert_called_once()
+    tracer.predicate_exists.assert_has_calls([call(0)])
+    simple_module.for_loop(3)
+    tracer.passed_bool_predicate.assert_called_with(True, 0)
+
+
+def test_entered_for_loop_no_jump_not_entered(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.for_loop)
+    tracer.predicate_exists.assert_has_calls([call(0)])
+    simple_module.for_loop(0)
+    tracer.passed_bool_predicate.assert_called_with(False, 0)
+
+
+def test_entered_for_loop_full_loop(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.full_for_loop)
+    tracer.predicate_exists.assert_has_calls([call(0)])
+    simple_module.full_for_loop(3)
+    tracer.passed_bool_predicate.assert_called_with(True, 0)
+
+
+def test_entered_for_loop_full_loop_not_entered(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    instr.instrument_function(simple_module.full_for_loop)
+    tracer.predicate_exists.assert_has_calls([call(0)])
+    simple_module.full_for_loop(0)
+    tracer.passed_bool_predicate.assert_called_with(False, 0)
 
 
 def test_add_bool_predicate(simple_module):

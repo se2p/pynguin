@@ -32,9 +32,14 @@ def bool_predicate(a):
         return 0
 
 
-def for_loop():
-    for x in [1]:
+def for_loop(length: int):
+    for x in range(length):
         return x
+
+
+def full_for_loop(length: int):
+    for x in range(length):
+        print(x)
 
 
 def comprehension(y, z):

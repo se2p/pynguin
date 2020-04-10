@@ -45,13 +45,6 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         assert (
             code_objects_missing >= 0.0
         ), "Amount of non covered code objects cannot be negative"
-        # Check if all for loops were entered.
-        for_loops_missing = len(known_data.existing_for_loops) - len(
-            merged_trace.covered_for_loops
-        )
-        assert (
-            for_loops_missing >= 0.0
-        ), "Amount of non covered for loops cannot be negative"
         # Check if all predicates are covered
         predicate_fitness: float = 0.0
         for predicate in known_data.existing_predicates:
@@ -62,7 +55,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
                 predicate, merged_trace.false_distances, merged_trace
             )
         assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
-        total_fitness = code_objects_missing + for_loops_missing + predicate_fitness
+        total_fitness = code_objects_missing + predicate_fitness
         # TODO(fk) compute coverage.
         if has_exception:
             return ff.FitnessValues(self.get_worst_fitness(known_data), 0)
@@ -102,5 +95,4 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         return (
             len(known_data.existing_code_objects)
             + len(known_data.existing_predicates) * 2
-            + len(known_data.existing_for_loops)
         )

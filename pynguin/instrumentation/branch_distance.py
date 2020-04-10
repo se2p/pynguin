@@ -17,7 +17,7 @@ import inspect
 from types import FunctionType, CodeType
 from typing import Set, Optional, Any
 
-from bytecode import Instr, Bytecode, Compare
+from bytecode import Instr, Bytecode, Compare, Label
 
 from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
@@ -39,7 +39,6 @@ class BranchDistanceInstrumentation:
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._code_object_id: int = 0
         self._predicate_id: int = 0
-        self._for_loop_id: int = 0
         self._tracer = tracer
 
     def instrument_function(self, to_instrument: FunctionType) -> None:
@@ -66,6 +65,9 @@ class BranchDistanceInstrumentation:
 
     def _instrument_code_recursive(self, code: CodeType) -> CodeType:
         """Instrument the given CodeType recursively."""
+        # TODO(fk) Change instrumentation to make use of a visitor pattern, similar to ASM in Java.
+        # The instrumentation loop is already getting really big...
+
         # Nested code objects are found within the consts of the CodeType.
         code = self._instrument_inner_code_objects(code)
         instructions = Bytecode.from_code(code)
@@ -76,14 +78,33 @@ class BranchDistanceInstrumentation:
                 self._add_code_object_entered(code_iter)
                 code_object_entered_inserted = True
 
-            if (
-                code_iter.has_previous()
-                and isinstance(code_iter.previous(), Instr)
-                and code_iter.previous().name == "FOR_ITER"
-            ):
-                self._add_for_loop_entered(code_iter)
-
             current = code_iter.current()
+
+            if code_iter.has_previous():
+                prev = code_iter.previous()
+                if isinstance(prev, Instr) and prev.name == "GET_ITER":
+                    for_iter_instr: Optional[Instr] = None
+                    for_loop_body_offset = 0
+                    # There might be a Label between GET_ITER and FOR_ITER
+                    # We have to check for it.
+                    if isinstance(current, Instr) and current.name == "FOR_ITER":
+                        for_iter_instr = current
+                    elif code_iter.can_peek():
+                        peek = code_iter.peek()
+                        if (
+                            isinstance(current, Label)
+                            and isinstance(peek, Instr)
+                            and peek.name == "FOR_ITER"
+                        ):
+                            for_iter_instr = peek
+                            # We have to account for the label
+                            for_loop_body_offset = 1
+
+                    if for_iter_instr is not None:
+                        self._add_for_loop_check(
+                            code_iter, for_iter_instr, for_loop_body_offset
+                        )
+
             if isinstance(current, Instr) and current.is_cond_jump():
                 if (
                     code_iter.has_previous()
@@ -136,12 +157,37 @@ class BranchDistanceInstrumentation:
         )
         self._code_object_id += 1
 
-    def _add_for_loop_entered(self, iterator: ListIterator) -> None:
-        self._tracer.for_loop_exists(self._for_loop_id)
-        self._add_entered_call(
-            iterator, ExecutionTracer.entered_for_loop.__name__, self._for_loop_id
-        )
-        self._for_loop_id += 1
+    def _add_for_loop_check(
+        self, iterator: ListIterator, for_iter_instr: Instr, for_loop_body_offset: int
+    ) -> None:
+        self._tracer.predicate_exists(self._predicate_id)
+        # Label, if the iterator returns no value
+        no_element = Label()
+        # Label to the beginning of the for loop body
+        for_loop_body = Label()
+        # Label to exit of the for loop
+        for_loop_exit = for_iter_instr.arg
+        to_insert = [
+            Instr("FOR_ITER", no_element),
+            Instr("LOAD_GLOBAL", TRACER_NAME),
+            Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
+            Instr("LOAD_CONST", True),
+            Instr("LOAD_CONST", self._predicate_id),
+            Instr("CALL_METHOD", 2),
+            Instr("POP_TOP"),
+            Instr("JUMP_ABSOLUTE", for_loop_body),
+            no_element,
+            Instr("LOAD_GLOBAL", TRACER_NAME),
+            Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
+            Instr("LOAD_CONST", False),
+            Instr("LOAD_CONST", self._predicate_id),
+            Instr("CALL_METHOD", 2),
+            Instr("POP_TOP"),
+            Instr("JUMP_ABSOLUTE", for_loop_exit),
+        ]
+        iterator.insert_after_current([for_loop_body], for_loop_body_offset)
+        iterator.insert_before(to_insert)
+        self._predicate_id += 1
 
     @staticmethod
     def _add_entered_call(

@@ -32,7 +32,6 @@ class KnownData:
 
     existing_code_objects: Set[int] = dataclasses.field(default_factory=set)
     existing_predicates: Set[int] = dataclasses.field(default_factory=set)
-    existing_for_loops: Set[int] = dataclasses.field(default_factory=set)
 
 
 class ExecutionTracer:
@@ -107,20 +106,6 @@ class ExecutionTracer:
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
         self._trace.covered_code_objects.add(code_object_id)
-
-    def for_loop_exists(self, for_loop_id: int) -> None:
-        """Declare that a for loop exists."""
-        assert (
-            for_loop_id not in self._known_data.existing_for_loops
-        ), "for loop already known"
-        self._known_data.existing_for_loops.add(for_loop_id)
-
-    def entered_for_loop(self, for_loop_id: int) -> None:
-        """Marks a for loop as covered. This means, that the for loop was at least entered once."""
-        assert (
-            for_loop_id in self._known_data.existing_for_loops
-        ), "Cannot tracer unknown for loop"
-        self._trace.covered_for_loops.add(for_loop_id)
 
     def predicate_exists(self, predicate: int) -> None:
         """Declare that a predicate exists."""

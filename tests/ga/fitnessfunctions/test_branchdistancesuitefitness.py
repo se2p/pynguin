@@ -89,19 +89,6 @@ def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
     assert ff._compute(False, trace_mock, known_data_mock) == FitnessValues(0.0, 0)
 
 
-def test_fitness_uncovered_for_loop(executor_mock, trace_mock, known_data_mock):
-    ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_for_loops.add(0)
-    assert ff._compute(False, trace_mock, known_data_mock) == FitnessValues(1.0, 0)
-
-
-def test_fitness_covered_for_loop(executor_mock, trace_mock, known_data_mock):
-    ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_for_loops.add(0)
-    trace_mock.covered_for_loops.add(0)
-    assert ff._compute(False, trace_mock, known_data_mock) == FitnessValues(0.0, 0)
-
-
 def test_fitness_normalized(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates.add(0)
@@ -120,8 +107,7 @@ def test_has_exception(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates.add(0)
     known_data_mock.existing_code_objects.add(0)
-    known_data_mock.existing_for_loops.add(0)
-    assert ff._compute(True, trace_mock, known_data_mock) == FitnessValues(4.0, 0)
+    assert ff._compute(True, trace_mock, known_data_mock) == FitnessValues(3.0, 0)
 
 
 @pytest.mark.parametrize("has_ex", [pytest.param(True), pytest.param(False)])
@@ -149,7 +135,6 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[1] = 2
     trace_mock.covered_predicates[0] = 1
     trace_mock.covered_code_objects.add(0)
-    trace_mock.covered_for_loops.add(0)
     result.execution_trace = trace_mock
     results.append(result)
     has_exception, trace = BranchDistanceSuiteFitnessFunction.analyze_traces(results)
@@ -158,10 +143,9 @@ def test_analyze_traces_merge(trace_mock):
 
 
 def test_worst_fitness(known_data_mock):
-    known_data_mock.existing_for_loops.add(0)
     known_data_mock.existing_code_objects.add(0)
     known_data_mock.existing_predicates.add(0)
-    assert BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data_mock) == 4.0
+    assert BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data_mock) == 3.0
 
 
 def test_compute_fitness_values(known_data_mock, executor_mock, trace_mock):

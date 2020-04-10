@@ -25,7 +25,6 @@ class ExecutionTrace:
 
     covered_code_objects: Set[int] = field(default_factory=set)
     covered_predicates: Dict[int, int] = field(default_factory=dict)
-    covered_for_loops: Set[int] = field(default_factory=set)
     true_distances: Dict[int, float] = field(default_factory=dict)
     false_distances: Dict[int, float] = field(default_factory=dict)
 
@@ -34,7 +33,6 @@ class ExecutionTrace:
         self.covered_code_objects.update(other.covered_code_objects)
         for key, value in other.covered_predicates.items():
             self.covered_predicates[key] = self.covered_predicates.get(key, 0) + value
-        self.covered_for_loops.update(other.covered_for_loops)
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
 

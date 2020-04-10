@@ -33,19 +33,6 @@ def test_entered_function():
     assert 0 in tracer.get_trace().covered_code_objects
 
 
-def test_for_loop_exists():
-    tracer = ExecutionTracer()
-    tracer.for_loop_exists(0)
-    assert 0 in tracer.get_known_data().existing_for_loops
-
-
-def test_entered_for_loop():
-    tracer = ExecutionTracer()
-    tracer.for_loop_exists(0)
-    tracer.entered_for_loop(0)
-    assert 0 in tracer.get_trace().covered_for_loops
-
-
 def test_predicate_exists():
     tracer = ExecutionTracer()
     tracer.predicate_exists(0)
@@ -162,8 +149,6 @@ def test_bool_distance_false():
 
 def test_clear():
     tracer = ExecutionTracer()
-    tracer.for_loop_exists(0)
-    tracer.entered_for_loop(0)
     tracer.code_object_exists(0)
     tracer.entered_code_object(0)
     trace = tracer.get_trace()
