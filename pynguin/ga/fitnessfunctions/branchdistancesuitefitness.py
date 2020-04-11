@@ -24,7 +24,7 @@ from pynguin.testcase.execution.executiontracer import KnownData
 
 
 class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
-    """A fitness function based on branch distances and entered code objects/loops."""
+    """A fitness function based on branch distances and entered code objects."""
 
     def compute_fitness_values(
         self, individual: tsc.TestSuiteChromosome,
@@ -33,10 +33,12 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         has_exception, merged_trace = self.analyze_traces(results)
         tracer = self._executor.get_tracer()
 
-        return self._compute(has_exception, merged_trace, tracer.get_known_data())
+        return self._compute_fitness(
+            has_exception, merged_trace, tracer.get_known_data()
+        )
 
-    def _compute(
-        self, has_exception, merged_trace, known_data: KnownData
+    def _compute_fitness(
+        self, has_exception: bool, merged_trace: ExecutionTrace, known_data: KnownData
     ) -> ff.FitnessValues:
         # Check if all code objects were entered.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
