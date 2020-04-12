@@ -26,7 +26,7 @@ from pynguin.utils.type_utils import is_numeric, is_string
 
 @dataclasses.dataclass
 class KnownData:
-    """Contains known code objects, predicates and for loops.
+    """Contains known code objects and predicates.
     FIXME(fk) better class name...
     """
 
@@ -89,7 +89,7 @@ class ExecutionTracer:
         return self._trace
 
     def clear_trace(self) -> None:
-        """Clear trace. Does not delete known data."""
+        """Clear trace."""
         self._init_trace()
 
     def code_object_exists(self, code_object_id: int) -> None:
@@ -114,7 +114,6 @@ class ExecutionTracer:
         ), "Predicate is already known"
         self._known_data.existing_predicates.add(predicate)
 
-    # pylint: disable=too-many-branches
     def passed_cmp_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
