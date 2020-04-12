@@ -15,6 +15,7 @@
 
 import importlib
 import asyncio
+from unittest import mock
 
 import pytest
 from unittest.mock import Mock, call
@@ -169,3 +170,11 @@ async def run_async_generator(gen):
     async for i in gen:
         the_sum += i
     return the_sum
+
+
+def test_instrument_recursion():
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    with mock.patch("inspect.getmembers") as member_mock:
+        instr.instrument(1, "something", {1})
+        member_mock.assert_not_called()
