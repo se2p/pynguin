@@ -184,11 +184,11 @@ def test_enable_disable_bool():
     assert len(tracer.get_trace().covered_predicates) == 1
 
 
-@pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", 1.0)])
+@pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", inf)])
 def test_le(val1, val2, result):
     assert _le(val1, val2) == result
 
 
-@pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", 1.0)])
+@pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", inf)])
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result

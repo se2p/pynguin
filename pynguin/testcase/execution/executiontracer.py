@@ -201,7 +201,7 @@ def _lt(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return (val1 - val2) + 1.0
-    return 1.0
+    return inf
 
 
 def _le(val1, val2) -> float:
@@ -210,7 +210,7 @@ def _le(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return (val1 - val2) + 1.0
-    return 1.0
+    return inf
 
 
 def _in(val1, val2) -> float:
