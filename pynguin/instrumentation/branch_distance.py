@@ -74,11 +74,11 @@ class BranchDistanceInstrumentation:
         code_iter: ListIterator = ListIterator(instructions)
         code_object_entered_inserted = False
         while code_iter.next():
-            if not code_object_entered_inserted:
-                self._add_code_object_entered(code_iter)
-                code_object_entered_inserted = True
-
             current = code_iter.current()
+
+            if not code_object_entered_inserted:
+                self._add_code_object_entered(code_iter, current.lineno)
+                code_object_entered_inserted = True
 
             if code_iter.has_previous():
                 prev = code_iter.previous()
@@ -102,7 +102,10 @@ class BranchDistanceInstrumentation:
 
                     if for_iter_instr is not None:
                         self._add_for_loop_check(
-                            code_iter, for_iter_instr, for_loop_body_offset
+                            code_iter,
+                            for_iter_instr,
+                            for_loop_body_offset,
+                            for_iter_instr.lineno,
                         )
 
             if isinstance(current, Instr) and current.is_cond_jump():
@@ -113,52 +116,71 @@ class BranchDistanceInstrumentation:
                     and not code_iter.previous().arg
                     in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
                 ):
-                    self._add_cmp_predicate(code_iter)
+                    self._add_cmp_predicate(code_iter, current.lineno)
                 else:
-                    self._add_bool_predicate(code_iter)
+                    self._add_bool_predicate(code_iter, current.lineno)
         return instructions.to_code()
 
-    def _add_bool_predicate(self, iterator: ListIterator) -> None:
+    def _add_bool_predicate(
+        self, iterator: ListIterator, lineno: Optional[int]
+    ) -> None:
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
-            Instr("DUP_TOP"),
-            Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
-            Instr("ROT_THREE"),
-            Instr("ROT_THREE"),
-            Instr("LOAD_CONST", self._predicate_id),
-            Instr("CALL_METHOD", 2),
-            Instr("POP_TOP"),
+            Instr("DUP_TOP", lineno=lineno),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                ExecutionTracer.passed_bool_predicate.__name__,
+                lineno=lineno,
+            ),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("LOAD_CONST", self._predicate_id, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
         ]
         iterator.insert_before(stmts)
         self._predicate_id += 1
 
-    def _add_cmp_predicate(self, iterator: ListIterator) -> None:
+    def _add_cmp_predicate(self, iterator: ListIterator, lineno: Optional[int]) -> None:
         cmp_op = iterator.previous()
         self._tracer.predicate_exists(self._predicate_id)
         stmts = [
-            Instr("DUP_TOP_TWO"),
-            Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", ExecutionTracer.passed_cmp_predicate.__name__),
-            Instr("ROT_FOUR"),
-            Instr("ROT_FOUR"),
-            Instr("LOAD_CONST", self._predicate_id),
-            Instr("LOAD_CONST", cmp_op.arg),
-            Instr("CALL_METHOD", 4),
-            Instr("POP_TOP"),
+            Instr("DUP_TOP_TWO", lineno=lineno),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                ExecutionTracer.passed_cmp_predicate.__name__,
+                lineno=lineno,
+            ),
+            Instr("ROT_FOUR", lineno=lineno),
+            Instr("ROT_FOUR", lineno=lineno),
+            Instr("LOAD_CONST", self._predicate_id, lineno=lineno),
+            Instr("LOAD_CONST", cmp_op.arg, lineno=lineno),
+            Instr("CALL_METHOD", 4, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
         ]
         iterator.insert_before(stmts, 1)
         self._predicate_id += 1
 
-    def _add_code_object_entered(self, iterator: ListIterator) -> None:
+    def _add_code_object_entered(
+        self, iterator: ListIterator, lineno: Optional[int]
+    ) -> None:
         self._tracer.code_object_exists(self._code_object_id)
         self._add_entered_call(
-            iterator, ExecutionTracer.entered_code_object.__name__, self._code_object_id
+            iterator,
+            ExecutionTracer.entered_code_object.__name__,
+            self._code_object_id,
+            lineno,
         )
         self._code_object_id += 1
 
     def _add_for_loop_check(
-        self, iterator: ListIterator, for_iter_instr: Instr, for_loop_body_offset: int
+        self,
+        iterator: ListIterator,
+        for_iter_instr: Instr,
+        for_loop_body_offset: int,
+        lineno: Optional[int],
     ) -> None:
         self._tracer.predicate_exists(self._predicate_id)
         # Label, if the iterator returns no value
@@ -168,22 +190,30 @@ class BranchDistanceInstrumentation:
         # Label to exit of the for loop
         for_loop_exit = for_iter_instr.arg
         to_insert = [
-            Instr("FOR_ITER", no_element),
-            Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
-            Instr("LOAD_CONST", True),
-            Instr("LOAD_CONST", self._predicate_id),
-            Instr("CALL_METHOD", 2),
-            Instr("POP_TOP"),
-            Instr("JUMP_ABSOLUTE", for_loop_body),
+            Instr("FOR_ITER", no_element, lineno=lineno),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                ExecutionTracer.passed_bool_predicate.__name__,
+                lineno=lineno,
+            ),
+            Instr("LOAD_CONST", True, lineno=lineno),
+            Instr("LOAD_CONST", self._predicate_id, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+            Instr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
             no_element,
-            Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", ExecutionTracer.passed_bool_predicate.__name__),
-            Instr("LOAD_CONST", False),
-            Instr("LOAD_CONST", self._predicate_id),
-            Instr("CALL_METHOD", 2),
-            Instr("POP_TOP"),
-            Instr("JUMP_ABSOLUTE", for_loop_exit),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                ExecutionTracer.passed_bool_predicate.__name__,
+                lineno=lineno,
+            ),
+            Instr("LOAD_CONST", False, lineno=lineno),
+            Instr("LOAD_CONST", self._predicate_id, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+            Instr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
         ]
         iterator.insert_after_current([for_loop_body], for_loop_body_offset)
         iterator.insert_before(to_insert)
@@ -191,14 +221,14 @@ class BranchDistanceInstrumentation:
 
     @staticmethod
     def _add_entered_call(
-        iterator: ListIterator, method_to_call: str, call_id: int
+        iterator: ListIterator, method_to_call: str, call_id: int, lineno: Optional[int]
     ) -> None:
         stmts = [
-            Instr("LOAD_GLOBAL", TRACER_NAME),
-            Instr("LOAD_METHOD", method_to_call),
-            Instr("LOAD_CONST", call_id),
-            Instr("CALL_METHOD", 1),
-            Instr("POP_TOP"),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
+            Instr("LOAD_METHOD", method_to_call, lineno=lineno),
+            Instr("LOAD_CONST", call_id, lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
         ]
         iterator.insert_before(stmts)
 
