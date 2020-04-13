@@ -80,33 +80,18 @@ class BranchDistanceInstrumentation:
                 self._add_code_object_entered(code_iter, current.lineno)
                 code_object_entered_inserted = True
 
-            if code_iter.has_previous():
-                prev = code_iter.previous()
-                if isinstance(prev, Instr) and prev.name == "GET_ITER":
-                    for_iter_instr: Optional[Instr] = None
-                    for_loop_body_offset = 0
-                    # There might be a Label between GET_ITER and FOR_ITER
-                    # We have to check for it.
-                    if isinstance(current, Instr) and current.name == "FOR_ITER":
-                        for_iter_instr = current
-                    elif code_iter.can_peek():
-                        peek = code_iter.peek()
-                        if (
-                            isinstance(current, Label)
-                            and isinstance(peek, Instr)
-                            and peek.name == "FOR_ITER"
-                        ):
-                            for_iter_instr = peek
-                            # We have to account for the label
-                            for_loop_body_offset = 1
+            if isinstance(current, Instr) and current.name == "FOR_ITER":
+                # If the FOR_ITER instruction is a jump target
+                # we have to add our changes before the label
+                instruction_offset = 0
+                if code_iter.has_previous():
+                    prev = code_iter.previous()
+                    if isinstance(prev, Label):
+                        instruction_offset = 1
 
-                    if for_iter_instr is not None:
-                        self._add_for_loop_check(
-                            code_iter,
-                            for_iter_instr,
-                            for_loop_body_offset,
-                            for_iter_instr.lineno,
-                        )
+                self._add_for_loop_check(
+                    code_iter, instruction_offset, current.lineno,
+                )
 
             if isinstance(current, Instr) and current.is_cond_jump():
                 if (
@@ -176,11 +161,7 @@ class BranchDistanceInstrumentation:
         self._code_object_id += 1
 
     def _add_for_loop_check(
-        self,
-        iterator: ListIterator,
-        for_iter_instr: Instr,
-        for_loop_body_offset: int,
-        lineno: Optional[int],
+        self, iterator: ListIterator, instruction_offset: int, lineno: Optional[int],
     ) -> None:
         self._tracer.predicate_exists(self._predicate_id)
         # Label, if the iterator returns no value
@@ -188,7 +169,7 @@ class BranchDistanceInstrumentation:
         # Label to the beginning of the for loop body
         for_loop_body = Label()
         # Label to exit of the for loop
-        for_loop_exit = for_iter_instr.arg
+        for_loop_exit = iterator.current().arg
         to_insert = [
             Instr("FOR_ITER", no_element, lineno=lineno),
             Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
@@ -215,8 +196,8 @@ class BranchDistanceInstrumentation:
             Instr("POP_TOP", lineno=lineno),
             Instr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
         ]
-        iterator.insert_after_current([for_loop_body], for_loop_body_offset)
-        iterator.insert_before(to_insert)
+        iterator.insert_before(to_insert, instruction_offset)
+        iterator.insert_after_current([for_loop_body])
         self._predicate_id += 1
 
     @staticmethod

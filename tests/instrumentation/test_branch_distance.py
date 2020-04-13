@@ -92,14 +92,15 @@ def test_add_cmp_predicate(simple_module):
     tracer.passed_cmp_predicate.assert_called_once()
 
 
-def test_add_cmp_predicate_comprehension(simple_module):
+def test_add_cmp_predicate_loop_comprehension(simple_module):
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)
     instr.instrument_function(simple_module.comprehension)
     call_count = 5
     simple_module.comprehension(call_count, 3)
-    tracer.predicate_exists.assert_called_once()
+    tracer.predicate_exists.assert_has_calls([call(0), call(1)], any_order=True)
     assert tracer.passed_cmp_predicate.call_count == call_count
+    tracer.passed_bool_predicate.assert_has_calls([call(True, 0)])
 
 
 def test_add_cmp_predicate_lambda(simple_module):
