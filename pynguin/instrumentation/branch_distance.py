@@ -84,10 +84,8 @@ class BranchDistanceInstrumentation:
                 # If the FOR_ITER instruction is a jump target
                 # we have to add our changes before the label
                 instruction_offset = 0
-                if code_iter.has_previous():
-                    prev = code_iter.previous()
-                    if isinstance(prev, Label):
-                        instruction_offset = 1
+                if code_iter.has_previous() and isinstance(code_iter.previous(), Label):
+                    instruction_offset = 1
 
                 self._add_for_loop_check(
                     code_iter, instruction_offset, current.lineno,
