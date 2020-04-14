@@ -24,8 +24,8 @@ class ExecutionResult:
 
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
-        self._branch_coverage = 0.0
         self._time_stamp: int = time.time_ns()
+        self._branch_coverage: Optional[float] = None
         self._execution_trace: Optional[ExecutionTrace] = None
 
     @property
@@ -34,7 +34,7 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def branch_coverage(self) -> float:
+    def branch_coverage(self) -> Optional[float]:
         """Provides the branch coverage that was achieved by this execution."""
         return self._branch_coverage
 

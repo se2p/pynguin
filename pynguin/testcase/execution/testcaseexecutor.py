@@ -18,7 +18,7 @@ import importlib
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Optional, List
 
 import astor
 from coverage import Coverage, CoverageException, CoverageData
@@ -26,26 +26,21 @@ from coverage import Coverage, CoverageException, CoverageData
 import pynguin.configuration as config
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.testcase.execution.executioncontext as ctx
 from pynguin.instrumentation.basis import get_tracer
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
-class TestCaseExecutor(AbstractExecutor):
+class TestCaseExecutor:
     """An executor that executes the generated test cases."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
         """Initializes the executor. Loads the module under test."""
-        super().__init__()
-        if config.INSTANCE.measure_coverage:
-            self._coverage = Coverage(
-                branch=False, config_file=False, source=[config.INSTANCE.module_name]
-            )
-        else:
-            self._coverage = None
+        self._coverage = Coverage(
+            branch=False, config_file=False, source=[config.INSTANCE.module_name]
+        )
         self._import_coverage = self._get_import_coverage()
 
     def _get_import_coverage(self) -> Optional[CoverageData]:
@@ -54,8 +49,6 @@ class TestCaseExecutor(AbstractExecutor):
         Theoretically coverage.py could store the data in memory instead of writing it
         to a file. But in this case, the merging of different runs doesn't work.
         """
-        if not config.INSTANCE.measure_coverage:
-            return None
         cov_data = CoverageData(basename="coverage.pynguin.import")
         cov_data.erase()
         try:
@@ -74,66 +67,46 @@ class TestCaseExecutor(AbstractExecutor):
         """Provide access to the execution tracer."""
         return get_tracer(sys.modules[config.INSTANCE.module_name])
 
-    def execute(self, test_case: tc.TestCase) -> res.ExecutionResult:
-        """Executes the statements in a test case.
-
-        The return value indicates, whether or not the execution was successful,
-        i.e., whether or not any unexpected exceptions were thrown.
-
-        :param test_case: The test case that shall be executed
-        :return: Result of the execution
-        """
-        result = res.ExecutionResult()
-        if config.INSTANCE.algorithm.use_instrumentation:
-            self.get_tracer().clear_trace()
-        if config.INSTANCE.measure_coverage:
-            self._coverage.erase()
-            self._coverage.get_data().update(self._import_coverage)
-
-        self.setup(test_case)
-        with open(os.devnull, mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
-                self._execute_ast_nodes(result)
-                self._collect_coverage(result)
-                self._collect_execution_trace(result)
-        return result
-
-    def execute_test_suite(
-        self, test_suite: tsc.TestSuiteChromosome
+    def execute(
+        self, test_cases: List[tc.TestCase], measure_coverage: bool = False
     ) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
 
-        :param test_suite: The list of test cases, i.e., the test suite
+        :param test_cases: The list of test cases that should be executed.
+        :param measure_coverage: Measure coverage during execution.
         :return: Result of the execution
         """
         result = res.ExecutionResult()
         if config.INSTANCE.algorithm.use_instrumentation:
             self.get_tracer().clear_trace()
-        if config.INSTANCE.measure_coverage:
+        if measure_coverage:
             self._coverage.erase()
             self._coverage.get_data().update(self._import_coverage)
 
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for test_case in test_suite.test_chromosomes:
-                    self.setup(test_case)
-                    self._execute_ast_nodes(result)
-                self._collect_coverage(result)
+                for test_case in test_cases:
+                    exec_ctx = ctx.ExecutionContext(test_case)
+                    self._execute_nodes(exec_ctx, result, measure_coverage)
+                self._collect_coverage(result, measure_coverage)
                 self._collect_execution_trace(result)
         return result
 
-    def _execute_ast_nodes(
-        self, result: res.ExecutionResult,
+    def _execute_nodes(
+        self,
+        exec_ctx: ctx.ExecutionContext,
+        result: res.ExecutionResult,
+        measure_coverage: bool,
     ):
-        for idx, node in enumerate(self._ast_nodes):
+        for idx, node in enumerate(exec_ctx.executable_nodes()):
             try:
                 if self._logger.isEnabledFor(logging.DEBUG):
                     self._logger.debug("Executing %s", astor.to_source(node))
-                code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
-                if config.INSTANCE.measure_coverage:
+                code = compile(node, "<ast>", "exec")
+                if measure_coverage:
                     self._coverage.start()
                 # pylint: disable=exec-used
-                exec(code, self._global_namespace, self._local_namespace)
+                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)
             except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
                 TestCaseExecutor._logger.info(
@@ -142,22 +115,20 @@ class TestCaseExecutor(AbstractExecutor):
                 result.report_new_thrown_exception(idx, err)
                 break
             finally:
-                if config.INSTANCE.measure_coverage:
+                if measure_coverage:
                     self._coverage.stop()
 
-    def _collect_coverage(self, result: res.ExecutionResult):
-        try:
-            if config.INSTANCE.measure_coverage:
+    def _collect_coverage(self, result: res.ExecutionResult, measure_coverage: bool):
+        if measure_coverage:
+            try:
                 result.branch_coverage = self._coverage.report()
-            else:
-                result.branch_coverage = 0
-        except CoverageException:
-            # No call on the tested module?
-            self._logger.debug("No call on the SUT. Setting coverage to 0")
-            result.branch_coverage = 0
-        self._logger.debug(
-            "Achieved coverage after execution: %s", result.branch_coverage
-        )
+            except CoverageException:
+                # No call on the tested module?
+                self._logger.debug("No call on the SUT. Setting coverage to 0")
+                result.branch_coverage = 0.0
+            self._logger.debug(
+                "Achieved coverage after execution: %s", result.branch_coverage
+            )
 
     @staticmethod
     def _collect_execution_trace(result: res.ExecutionResult):

@@ -26,6 +26,7 @@ class BranchCoverageSuiteFitness(asff.AbstractSuiteFitnessFunction):
         self, individual: tsc.TestSuiteChromosome
     ) -> ff.FitnessValues:
         result = self._run_test_suite_with_coverage_py(individual)
+        assert result.branch_coverage
         return ff.FitnessValues(
             100.0 - result.branch_coverage, result.branch_coverage / 100.0
         )
@@ -39,4 +40,6 @@ class BranchCoverageSuiteFitness(asff.AbstractSuiteFitnessFunction):
         """Unfortunately the CoveragePy API does not allow us to cache executions.
         Therefore we have to execute every test case..."""
         # TODO(fk) enable caching of coverage py results.
-        return self._executor.execute_test_suite(individual)
+        return self._executor.execute(
+            individual.test_chromosomes, measure_coverage=True
+        )

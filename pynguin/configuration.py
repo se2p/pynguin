@@ -113,9 +113,6 @@ class Configuration:
     # when running experiments.
     configuration_id: Optional[str] = None
 
-    # Measure coverage
-    measure_coverage: bool = True
-
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 

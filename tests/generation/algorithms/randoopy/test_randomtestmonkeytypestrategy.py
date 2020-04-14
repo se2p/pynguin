@@ -19,18 +19,18 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.testcase.execution.testcaseexecutor as executor
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 
 
 @pytest.fixture
 def strategy():
     strategy = RandomTestMonkeyTypeStrategy(
-        MagicMock(AbstractExecutor), MagicMock(TestCluster)
+        MagicMock(executor.TestCaseExecutor), MagicMock(TestCluster)
     )
     strategy.execute_test_case_monkey_type = lambda t, c: None
     strategy.execute_test_suite_monkey_type = lambda t, c: None

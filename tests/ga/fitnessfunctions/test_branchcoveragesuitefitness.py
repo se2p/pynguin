@@ -13,10 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
 import pynguin.ga.fitnessfunction as ff
+import pynguin.testcase.testcase as tc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
@@ -29,8 +30,10 @@ def test_get_fitness_no_result():
     executor = MagicMock()
     result = ExecutionResult()
     result.branch_coverage = 75
-    executor.execute_test_suite.return_value = result
+    executor.execute.return_value = result
     fitness_function = bcsf.BranchCoverageSuiteFitness(executor)
+    test_case = MagicMock(tc.TestCase)
     indiv = MagicMock()
+    indiv.test_chromosomes = [test_case]
     assert fitness_function.compute_fitness_values(indiv) == ff.FitnessValues(25, 0.75)
-    executor.execute_test_suite.assert_called_with(indiv)
+    executor.execute.assert_has_calls([call([test_case], measure_coverage=True)])

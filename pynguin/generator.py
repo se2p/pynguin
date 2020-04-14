@@ -169,7 +169,9 @@ class Pynguin:
                 test_suite = tsc.TestSuiteChromosome()
                 test_suite.add_tests(test_chromosome.test_chromosomes)
                 test_suite.add_tests(failing_test_chromosome.test_chromosomes)
-                result = executor.execute_test_suite(test_suite)
+                result = executor.execute(
+                    test_suite.test_chromosomes, measure_coverage=True
+                )
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
@@ -233,6 +235,7 @@ class Pynguin:
         tracker.track_output_variable(
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
+        assert execution_result.branch_coverage
         tracker.track_output_variable(
             RuntimeVariable.Coverage, execution_result.branch_coverage / 100
         )
