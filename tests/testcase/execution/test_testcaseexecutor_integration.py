@@ -54,11 +54,11 @@ def test_create_object_only_import(constructor_mock):
     test_case = dtc.DefaultTestCase()
     executor = TestCaseExecutor()
     result = executor.execute([test_case], measure_coverage=True)
-    assert result.branch_coverage == 50.0
+    assert result.coverage == 50.0
 
 
 def test_create_object_with_coverage(short_test_case):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     executor = TestCaseExecutor()
     result = executor.execute([short_test_case], measure_coverage=True)
-    assert result.branch_coverage == 75.0
+    assert result.coverage == 75.0

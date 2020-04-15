@@ -235,9 +235,9 @@ class Pynguin:
         tracker.track_output_variable(
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
-        assert execution_result.branch_coverage
+        assert execution_result.coverage
         tracker.track_output_variable(
-            RuntimeVariable.Coverage, execution_result.branch_coverage / 100
+            RuntimeVariable.Coverage, execution_result.coverage / 100
         )
         tracker.track_output_variable(
             RuntimeVariable.FailingSize, failing_test_chromosome.size()
@@ -259,7 +259,7 @@ class Pynguin:
         print()
         print(f"Generated {len(test_cases)} test cases")
         print(f"Generated {len(failing_test_cases)} failing test cases")
-        print(f"Branch Coverage: {result.branch_coverage:.2f}%")
+        print(f"Coverage: {result.coverage:.2f}%")
         timers = Timer.timers
         for timer, value in Timer.timers.items():
             print(f"{timer}: {value:.5f}s")

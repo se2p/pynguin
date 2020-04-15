@@ -19,17 +19,16 @@ import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
-class BranchCoverageSuiteFitness(asff.AbstractSuiteFitnessFunction):
-    """A fitness function for branch coverage."""
+class CoveragePySuiteFitness(asff.AbstractSuiteFitnessFunction):
+    """A fitness function for the coverage values measured by Coverage.py.
+    This can be line or branch coverage, depending on the configuration."""
 
     def compute_fitness_values(
         self, individual: tsc.TestSuiteChromosome
     ) -> ff.FitnessValues:
         result = self._run_test_suite_with_coverage_py(individual)
-        assert result.branch_coverage
-        return ff.FitnessValues(
-            100.0 - result.branch_coverage, result.branch_coverage / 100.0
-        )
+        assert result.coverage
+        return ff.FitnessValues(100.0 - result.coverage, result.coverage / 100.0)
 
     def is_maximisation_function(self) -> bool:
         return False

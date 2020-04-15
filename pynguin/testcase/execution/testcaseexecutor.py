@@ -123,14 +123,12 @@ class TestCaseExecutor:
     def _collect_coverage(self, result: res.ExecutionResult, measure_coverage: bool):
         if measure_coverage:
             try:
-                result.branch_coverage = self._coverage.report()
+                result.coverage = self._coverage.report()
             except CoverageException:
                 # No call on the tested module?
                 self._logger.debug("No call on the SUT. Setting coverage to 0")
-                result.branch_coverage = 0.0
-            self._logger.debug(
-                "Achieved coverage after execution: %s", result.branch_coverage
-            )
+                result.coverage = 0.0
+            self._logger.debug("Achieved coverage after execution: %s", result.coverage)
 
     @staticmethod
     def _collect_execution_trace(result: res.ExecutionResult):

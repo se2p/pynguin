@@ -12,26 +12,25 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from unittest import mock
 from unittest.mock import MagicMock, call
 
-import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
+import pynguin.ga.fitnessfunctions.coveragepysuitefitness as cpsf
 import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.testcase as tc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 def test_is_maximisation_function():
-    fitness_function = bcsf.BranchCoverageSuiteFitness(MagicMock())
+    fitness_function = cpsf.CoveragePySuiteFitness(MagicMock())
     assert not fitness_function.is_maximisation_function()
 
 
 def test_get_fitness_no_result():
     executor = MagicMock()
     result = ExecutionResult()
-    result.branch_coverage = 75
+    result.coverage = 75
     executor.execute.return_value = result
-    fitness_function = bcsf.BranchCoverageSuiteFitness(executor)
+    fitness_function = cpsf.CoveragePySuiteFitness(executor)
     test_case = MagicMock(tc.TestCase)
     indiv = MagicMock()
     indiv.test_chromosomes = [test_case]

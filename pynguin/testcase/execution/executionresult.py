@@ -25,7 +25,7 @@ class ExecutionResult:
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
         self._time_stamp: int = time.time_ns()
-        self._branch_coverage: Optional[float] = None
+        self._coverage: Optional[float] = None
         self._execution_trace: Optional[ExecutionTrace] = None
 
     @property
@@ -34,15 +34,15 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def branch_coverage(self) -> Optional[float]:
-        """Provides the branch coverage that was achieved by this execution."""
-        return self._branch_coverage
+    def coverage(self) -> Optional[float]:
+        """Provides the branch coverage that was measured by Coverage.py."""
+        return self._coverage
 
-    @branch_coverage.setter
-    def branch_coverage(self, value: float) -> None:
-        """Set the achieved branch coverage."""
+    @coverage.setter
+    def coverage(self, value: float) -> None:
+        """Set the achieved coverage that was measured by Coverage.py."""
         self._time_stamp = time.time_ns()
-        self._branch_coverage = value
+        self._coverage = value
 
     @property
     def execution_trace(self) -> Optional[ExecutionTrace]:
@@ -83,7 +83,7 @@ class ExecutionResult:
     def __str__(self) -> str:
         return (
             f"ExecutionResult(exceptions: {self._exceptions}, coverage: "
-            f"{self._branch_coverage})"
+            f"{self._coverage}), trace: {self._execution_trace}"
         )
 
     def __repr__(self) -> str:

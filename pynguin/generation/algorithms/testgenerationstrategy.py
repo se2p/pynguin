@@ -18,7 +18,7 @@ from typing import Tuple, List
 
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
+import pynguin.ga.fitnessfunctions.coveragepysuitefitness as cpsf
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
@@ -138,7 +138,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
 
         :return:
         """
-        return [bcsf.BranchCoverageSuiteFitness(self._executor)]
+        return [cpsf.CoveragePySuiteFitness(self._executor)]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:
