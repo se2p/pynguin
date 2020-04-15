@@ -50,7 +50,6 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_randoopy(algorithm_to_run: Callable, module_name: str):
     config.INSTANCE.budget = 1
-    config.INSTANCE.measure_coverage = False
     config.INSTANCE.module_name = module_name
     logger = MagicMock(Logger)
     executor = TestCaseExecutor()
