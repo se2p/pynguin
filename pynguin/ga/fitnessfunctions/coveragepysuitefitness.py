@@ -27,7 +27,7 @@ class CoveragePySuiteFitness(asff.AbstractSuiteFitnessFunction):
         self, individual: tsc.TestSuiteChromosome
     ) -> ff.FitnessValues:
         result = self._run_test_suite_with_coverage_py(individual)
-        assert result.coverage
+        assert result.coverage is not None
         return ff.FitnessValues(100.0 - result.coverage, result.coverage / 100.0)
 
     def is_maximisation_function(self) -> bool:

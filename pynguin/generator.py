@@ -235,7 +235,7 @@ class Pynguin:
         tracker.track_output_variable(
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
-        assert execution_result.coverage
+        assert execution_result.coverage is not None
         tracker.track_output_variable(
             RuntimeVariable.Coverage, execution_result.coverage / 100
         )

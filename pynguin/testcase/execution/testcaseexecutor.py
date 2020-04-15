@@ -54,11 +54,14 @@ class TestCaseExecutor:
         cov_data = CoverageData(basename="coverage.pynguin.import")
         cov_data.erase()
         try:
-            self._coverage.start()
+            # We can only start coverage measurements when we don't debug.
+            if not config.INSTANCE.debug_mode:
+                self._coverage.start()
             imported = importlib.import_module(config.INSTANCE.module_name)
             importlib.reload(imported)
         finally:
-            self._coverage.stop()
+            if not config.INSTANCE.debug_mode:
+                self._coverage.stop()
             cov_data.update(self._coverage.get_data())
             cov_data.write()
         self._coverage.erase()
@@ -105,7 +108,7 @@ class TestCaseExecutor:
                 if self._logger.isEnabledFor(logging.DEBUG):
                     self._logger.debug("Executing %s", astor.to_source(node))
                 code = compile(node, "<ast>", "exec")
-                if measure_coverage:
+                if measure_coverage and not config.INSTANCE.debug_mode:
                     self._coverage.start()
                 # pylint: disable=exec-used
                 exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)
@@ -117,17 +120,22 @@ class TestCaseExecutor:
                 result.report_new_thrown_exception(idx, err)
                 break
             finally:
-                if measure_coverage:
+                if measure_coverage and not config.INSTANCE.debug_mode:
                     self._coverage.stop()
 
     def _collect_coverage(self, result: res.ExecutionResult, measure_coverage: bool):
         if measure_coverage:
-            try:
-                result.coverage = self._coverage.report()
-            except CoverageException:
-                # No call on the tested module?
-                self._logger.debug("No call on the SUT. Setting coverage to 0")
-                result.coverage = 0.0
+            if config.INSTANCE.debug_mode:
+                # If we are in debug mode, we don't know the coverage,
+                # so we use a bogus value.
+                result.coverage = 0
+            else:
+                try:
+                    result.coverage = self._coverage.report()
+                except CoverageException:
+                    # No call on the tested module?
+                    self._logger.debug("No call on the SUT. Setting coverage to 0")
+                    result.coverage = 0.0
             self._logger.debug("Achieved coverage after execution: %s", result.coverage)
 
     @staticmethod

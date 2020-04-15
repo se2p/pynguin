@@ -90,6 +90,11 @@ class Configuration:
     # Path to store the log file.
     log_file: Optional[str] = None
 
+    # Enables the debug mode.
+    # When enabled, the usage of Coverage.py is suppressed,
+    # because it overwrites the trace function of the debugger.
+    debug_mode: bool = False
+
     # Directory in which to put HTML and CSV reports
     report_dir: str = "pynguin-report"
 
