@@ -62,3 +62,11 @@ def test_create_object_with_coverage(short_test_case):
     executor = TestCaseExecutor()
     result = executor.execute([short_test_case], measure_coverage=True)
     assert result.coverage == 75.0
+
+
+def test_debug_mode(short_test_case):
+    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    config.INSTANCE.debug_mode = True
+    executor = TestCaseExecutor()
+    result = executor.execute([short_test_case], measure_coverage=True)
+    assert result.coverage == 0.0
