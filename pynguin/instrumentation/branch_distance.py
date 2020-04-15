@@ -56,7 +56,7 @@ class BranchDistanceInstrumentation:
     def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
         new_consts = []
         for const in code.co_consts:
-            if hasattr(const, "co_code"):
+            if isinstance(const, CodeType):
                 # The const is an inner code object
                 new_consts.append(self._instrument_code_recursive(const))
             else:
