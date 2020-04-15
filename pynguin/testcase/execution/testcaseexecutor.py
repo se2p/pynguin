@@ -39,7 +39,7 @@ class TestCaseExecutor:
     def __init__(self):
         """Initializes the executor. Loads the module under test."""
         self._coverage = Coverage(
-            branch=False, config_file=False, source=[config.INSTANCE.module_name]
+            branch=config.INSTANCE.use_branch_coverage, config_file=False, source=[config.INSTANCE.module_name]
         )
         self._import_coverage = self._get_import_coverage()
 

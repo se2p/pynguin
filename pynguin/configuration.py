@@ -113,6 +113,10 @@ class Configuration:
     # when running experiments.
     configuration_id: Optional[str] = None
 
+    # When measuring coverage with Coverage.py, we currently can either measure
+    # branch (True) or line (False) coverage.
+    use_branch_coverage: bool = True
+
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
 
