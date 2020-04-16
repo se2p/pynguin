@@ -59,7 +59,7 @@ class BranchDistanceInstrumentation:
         # The instrumentation loop is already getting really big...
 
         # Nested code objects are found within the consts of the CodeType.
-        self._logger.info("Instrumenting Code Object for %s", self._get_name(code))
+        self._logger.debug("Instrumenting Code Object for %s", self._get_name(code))
         code = self._instrument_inner_code_objects(code)
         instructions = Bytecode.from_code(code)
         iterator: ListIterator = ListIterator(instructions)
