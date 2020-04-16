@@ -74,7 +74,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         ):
             self.evolve()
             self._logger.info(
-                "Generation: %s. Best fitness: %s, Best coverage %s",
+                "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                 generation,
                 self._get_best_individual().get_fitness(),
                 self._get_best_individual().get_coverage(),
