@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from unittest import mock
+
 from unittest.mock import MagicMock
 
 import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf

@@ -21,10 +21,11 @@ import sys
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from importlib.abc import MetaPathFinder, FileLoader
 from inspect import isclass
-from typing import Optional
+from types import CodeType
+from typing import Optional, cast
 
+from pynguin.instrumentation.basis import get_tracer
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
-from pynguin.instrumentation.basis import set_tracer
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -32,15 +33,18 @@ class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
     def exec_module(self, module):
-        """
-        Instruments the module after it was executed.
-        Installs a tracer into the loaded module.
-        """
-        super().exec_module(module)
-        tracer = ExecutionTracer()
-        instrumentation = BranchDistanceInstrumentation(tracer)
-        instrumentation.instrument(module, module.__name__)
-        set_tracer(module, tracer)
+        super(InstrumentationLoader, self).exec_module(module)
+        get_tracer(module).store_import_trace()
+
+    def get_code(self, fullname) -> CodeType:
+        """Add instrumentation instructions to the code of the module
+        before it is executed."""
+        to_instrument = cast(
+            CodeType, super(InstrumentationLoader, self).get_code(fullname)
+        )
+        assert to_instrument, "Failed to get code object of module."
+        instrumentation = BranchDistanceInstrumentation(ExecutionTracer())
+        return instrumentation.instrument_module(to_instrument)
 
 
 class InstrumentationFinder(MetaPathFinder):
