@@ -33,6 +33,9 @@ class KnownData:
     existing_code_objects: Set[int] = dataclasses.field(default_factory=set)
     existing_predicates: Set[int] = dataclasses.field(default_factory=set)
 
+    # Some information to make debugging easier.
+    code_object_names: Dict[int, str] = dataclasses.field(default_factory=dict)
+
 
 class ExecutionTracer:
     """Tracks branch distances during execution.
@@ -59,6 +62,10 @@ class ExecutionTracer:
 
     def __init__(self) -> None:
         self._known_data = KnownData()
+
+        # Contains the trace information that is generated when a module is imported
+        self._import_trace = ExecutionTrace()
+
         self._init_trace()
         self._enabled = True
 
@@ -66,9 +73,18 @@ class ExecutionTracer:
         """Provide known data."""
         return self._known_data
 
+    def store_import_trace(self) -> None:
+        """Stores the current trace as the import trace.
+        Should only be done once, after a module was loaded.
+        The import trace will be merged into every subsequently recorded trace."""
+        self._import_trace = self._trace
+        self._init_trace()
+
     def _init_trace(self) -> None:
-        """Create a new trace without any information."""
-        self._trace = ExecutionTrace()
+        """Create a new trace that only contains the trace data from the import."""
+        new_trace = ExecutionTrace()
+        new_trace.merge(self._import_trace)
+        self._trace = new_trace
 
     def _is_disabled(self) -> bool:
         """Should we track anything?
@@ -92,12 +108,13 @@ class ExecutionTracer:
         """Clear trace."""
         self._init_trace()
 
-    def code_object_exists(self, code_object_id: int) -> None:
+    def code_object_exists(self, code_object_id: int, name: str = "") -> None:
         """Declare that a code object exists."""
         assert (
             code_object_id not in self._known_data.existing_code_objects
         ), "Code object is already known"
         self._known_data.existing_code_objects.add(code_object_id)
+        self._known_data.code_object_names[code_object_id] = name
 
     def entered_code_object(self, code_object_id: int) -> None:
         """Mark a code object as covered. This means, that the code object
@@ -165,7 +182,7 @@ class ExecutionTracer:
         assert distance_false >= 0.0, "False distance cannot be negative"
         assert (distance_true == 0.0) ^ (
             distance_false == 0.0
-        ), "Exactly one distance must be 0.0"
+        ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
         self._trace.covered_predicates[predicate] = (
             self._trace.covered_predicates.get(predicate, 0) + 1
         )
@@ -215,6 +232,7 @@ def _le(val1, val2) -> float:
 
 def _in(val1, val2) -> float:
     """Distance computation for 'in'"""
+    # TODO(fk) iterate over elements and return smallest distance?
     if val1 in val2:
         return 0.0
     return 1.0
