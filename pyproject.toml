@@ -31,7 +31,6 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-coverage = "^5.0"
 astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0"
@@ -40,6 +39,7 @@ typing_inspect = "^0.5.0"
 jellyfish = "^0.7.2"
 
 [tool.poetry.dev-dependencies]
+coverage = "^5.0"
 pytest = "^5.4"
 black = {version = "^19.10b0", allow-prereleases = true}
 pytest-cov = "^2.8"

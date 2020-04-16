@@ -29,18 +29,9 @@ class ExportStrategy(enum.Enum):
 class Algorithm(enum.Enum):
     """Different algorithms."""
 
-    RANDOOPY = (enum.auto(), False)
-    RANDOOPY_MONKEYTYPE = (enum.auto(), False)
-    WSPY = (enum.auto(), True)
-
-    def __init__(self, identifier: int, use_instrumentation: bool):
-        self._identifier = identifier
-        self._use_instrumentation = use_instrumentation
-
-    @property
-    def use_instrumentation(self) -> bool:
-        """Does this algorithm use instrumentation."""
-        return self._use_instrumentation
+    RANDOOPY = "RANDOOPY"
+    RANDOOPY_MONKEYTYPE = "RANDOOPY_MONKEYTYPE"
+    WSPY = "WSPY"
 
 
 class StoppingCondition(enum.Enum):
@@ -91,8 +82,7 @@ class Configuration:
     log_file: Optional[str] = None
 
     # Enables the debug mode.
-    # When enabled, the usage of Coverage.py is suppressed,
-    # because it overwrites the trace function of the debugger.
+    # Some features might behave different when it is active.
     debug_mode: bool = False
 
     # Directory in which to put HTML and CSV reports
@@ -117,10 +107,6 @@ class Configuration:
     # Label that identifies the used configuration of Pynguin.  This is only done
     # when running experiments.
     configuration_id: Optional[str] = None
-
-    # When measuring coverage with Coverage.py, we currently can either measure
-    # branch (True) or line (False) coverage.
-    use_branch_coverage: bool = True
 
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600
