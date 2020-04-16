@@ -38,11 +38,12 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
             self._compute_coverage(merged_trace, tracer.get_known_data()),
         )
 
+    @staticmethod
     def _compute_fitness(
-        self, has_exception: bool, trace: ExecutionTrace, known_data: KnownData
+        has_exception: bool, trace: ExecutionTrace, known_data: KnownData
     ) -> float:
         if has_exception:
-            return self.get_worst_fitness(known_data)
+            return BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data)
 
         # Check if all code objects were entered.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
@@ -54,18 +55,19 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         # Check if all predicates are covered
         predicate_fitness: float = 0.0
         for predicate in known_data.existing_predicates:
-            predicate_fitness += self._predicate_fitness(
+            predicate_fitness += BranchDistanceSuiteFitnessFunction._predicate_fitness(
                 predicate, trace.true_distances, trace
             )
-            predicate_fitness += self._predicate_fitness(
+            predicate_fitness += BranchDistanceSuiteFitnessFunction._predicate_fitness(
                 predicate, trace.false_distances, trace
             )
         assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
         total_fitness = code_objects_missing + predicate_fitness
         return total_fitness
 
+    @staticmethod
     def _predicate_fitness(
-        self, predicate: int, branch_distances: Dict[int, float], trace: ExecutionTrace
+        predicate: int, branch_distances: Dict[int, float], trace: ExecutionTrace
     ) -> float:
         if predicate in branch_distances and branch_distances[predicate] == 0.0:
             return 0.0
@@ -73,7 +75,9 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
             predicate in trace.covered_predicates
             and trace.covered_predicates[predicate] >= 2
         ):
-            return self.normalise(branch_distances[predicate])
+            return BranchDistanceSuiteFitnessFunction.normalise(
+                branch_distances[predicate]
+            )
         return 1.0
 
     @staticmethod
