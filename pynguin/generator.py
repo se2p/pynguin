@@ -28,7 +28,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Union, List, Dict, Any, Callable
+from typing import Union, List, Dict, Callable
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -46,7 +46,6 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -135,9 +134,7 @@ class Pynguin:
         if config.INSTANCE.constant_seeding:
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
-        with install_import_hook(
-            config.INSTANCE.algorithm.use_instrumentation, config.INSTANCE.module_name
-        ):
+        with install_import_hook(config.INSTANCE.module_name):
             try:
                 executor = TestCaseExecutor()
             except ModuleNotFoundError:
@@ -167,9 +164,13 @@ class Pynguin:
 
             with Timer(name="Re-execution time", logger=None):
                 test_suite = tsc.TestSuiteChromosome()
+                for fitness_func in test_chromosome.get_fitness_functions():
+                    test_suite.add_fitness_function(fitness_func)
                 test_suite.add_tests(test_chromosome.test_chromosomes)
                 test_suite.add_tests(failing_test_chromosome.test_chromosomes)
-                result = executor.execute_test_suite(test_suite)
+                StatisticsTracker().track_output_variable(
+                    RuntimeVariable.Coverage, test_suite.get_coverage()
+                )
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
@@ -180,7 +181,7 @@ class Pynguin:
                 failing_test_chromosome.test_chromosomes, "_failing", wrap_code=True
             )
             export_timer.stop()
-            self._track_statistics(result, test_chromosome, failing_test_chromosome)
+            self._track_statistics(test_chromosome, failing_test_chromosome)
             timer.stop()
             self._collect_statistics()
             if not StatisticsTracker().write_statistics():
@@ -223,7 +224,6 @@ class Pynguin:
 
     @staticmethod
     def _track_statistics(
-        execution_result: ExecutionResult,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
     ) -> None:
@@ -234,50 +234,12 @@ class Pynguin:
             RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
         )
         tracker.track_output_variable(
-            RuntimeVariable.Coverage, execution_result.branch_coverage / 100
-        )
-        tracker.track_output_variable(
             RuntimeVariable.FailingSize, failing_test_chromosome.size()
         )
         tracker.track_output_variable(
             RuntimeVariable.FailingLength,
             failing_test_chromosome.total_length_of_test_cases,
         )
-
-    @staticmethod
-    def _print_results(
-        test_cases: List[tc.TestCase],
-        failing_test_cases: List[tc.TestCase],
-        result: ExecutionResult,
-    ) -> None:
-        print()
-        print()
-        print("== Results ============================================================")
-        print()
-        print(f"Generated {len(test_cases)} test cases")
-        print(f"Generated {len(failing_test_cases)} failing test cases")
-        print(f"Branch Coverage: {result.branch_coverage:.2f}%")
-        timers = Timer.timers
-        for timer, value in Timer.timers.items():
-            print(f"{timer}: {value:.5f}s")
-            if timers.count(timer) > 1:
-                print(f"  {timer} count: {timers.count(timer)}")
-                print(f"  {timer} min: {timers.min(timer):.5f}s")
-                print(f"  {timer} mean: {timers.mean(timer):.5f}s")
-                print(f"  {timer} median: {timers.median(timer):.5f}s")
-                print(f"  {timer} max: {timers.max(timer):.5f}s")
-                print(f"  {timer} stddev: {timers.std_dev(timer):.5f}s")
-
-        print()
-        print()
-        tracker = StatisticsTracker()
-        variables: Dict[RuntimeVariable, Any] = {}
-        for variable, value in tracker.variables_generator:
-            # Iterating over the variables of the StatisticsTracker clears them from
-            # the internal queue, thus we need to store these variables.
-            # TODO This should be improved
-            variables[variable] = value
-            print(f"{variable.value}: {value}")
 
     @staticmethod
     def _export_test_cases(

@@ -22,7 +22,7 @@ from importlib.machinery import ModuleSpec, SourceFileLoader
 from importlib.abc import MetaPathFinder, FileLoader
 from inspect import isclass
 from types import CodeType
-from typing import Optional, cast
+from typing import cast
 
 from pynguin.instrumentation.basis import get_tracer
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
@@ -93,7 +93,7 @@ class InstrumentationFinder(MetaPathFinder):
 class ImportHookContextManager:
     """A simple context manager for using the import hook."""
 
-    def __init__(self, hook: Optional[MetaPathFinder]):
+    def __init__(self, hook: MetaPathFinder):
         self.hook = hook
 
     def __enter__(self):
@@ -104,27 +104,18 @@ class ImportHookContextManager:
 
     def uninstall(self):
         """Remove the installed hook."""
-        if self.hook is None:
-            return
-
         try:
             sys.meta_path.remove(self.hook)
         except ValueError:
             pass  # already removed
 
 
-def install_import_hook(
-    use: bool, module_to_instrument: str
-) -> ImportHookContextManager:
+def install_import_hook(module_to_instrument: str) -> ImportHookContextManager:
     """
     Install the InstrumentationFinder in the meta path.
-    :param use: Do we actually install the hook?
     :param module_to_instrument: The module that shall be instrumented.
     :return a context manager which can be used to uninstall the hook.
     """
-    if not use:
-        return ImportHookContextManager(None)
-
     to_wrap = None
     for finder in sys.meta_path:
         if (

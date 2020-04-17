@@ -44,16 +44,12 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 def test_integrate_wspy(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
     config.INSTANCE.budget = 1
-    config.INSTANCE.measure_coverage = False
-    config.INSTANCE.algorithm = config.Algorithm.WSPY
     config.INSTANCE.module_name = module_name
     config.INSTANCE.population = 3
     config.INSTANCE.min_initial_tests = 1
     config.INSTANCE.max_initial_tests = 1
     logger = MagicMock(Logger)
-    with install_import_hook(
-        config.INSTANCE.algorithm.use_instrumentation, module_name
-    ):
+    with install_import_hook(module_name):
         # Need to force reload in order to apply instrumentation.
         module = importlib.import_module(module_name)
         importlib.reload(module)

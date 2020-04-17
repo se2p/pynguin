@@ -19,9 +19,6 @@ import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.configuration as config
-from pynguin.ga.fitnessfunctions.branchdistancesuitefitness import (
-    BranchDistanceSuiteFitnessFunction,
-)
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
@@ -57,7 +54,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self._crossover_function: CrossOverFunction[
             tsc.TestSuiteChromosome
         ] = SinglePointRelativeCrossOver()
-        self._fitness_function = BranchDistanceSuiteFitnessFunction(executor)
+        self._fitness_functions = self.get_fitness_functions()
 
     def generate_sequences(
         self,
@@ -76,10 +73,11 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
-            self._logger.debug(
-                "Generation: %s. Best fitness: %s",
+            self._logger.info(
+                "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                 generation,
                 self._get_best_individual().get_fitness(),
+                self._get_best_individual().get_coverage(),
             )
             generation += 1
         return self._get_best_individual(), tsc.TestSuiteChromosome()
@@ -140,7 +138,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         population = []
         for _ in range(config.INSTANCE.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            chromosome.add_fitness_function(self._fitness_function)
+            for fitness_function in self._fitness_functions:
+                chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
 

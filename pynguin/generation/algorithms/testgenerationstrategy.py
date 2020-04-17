@@ -18,9 +18,9 @@ from typing import Tuple, List
 
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchcoveragesuitefitness as bcsf
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.fitnessfunctions.branchdistancesuitefitness as bdsf
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -135,10 +135,8 @@ class TestGenerationStrategy(metaclass=ABCMeta):
 
     def get_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function
-
-        :return:
         """
-        return [bcsf.BranchCoverageSuiteFitness(self._executor)]
+        return [bdsf.BranchDistanceSuiteFitnessFunction(self._executor)]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:

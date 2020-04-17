@@ -24,6 +24,7 @@ from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import 
     RandomTestMonkeyTypeStrategy,
 )
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
@@ -33,16 +34,13 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
     itertools.product(
         [RandomTestStrategy, RandomTestMonkeyTypeStrategy],
         [
-            "tests.fixtures.accessibles.accessible",
-            "tests.fixtures.cluster.dependency",
-            "tests.fixtures.cluster.no_dependencies",
-            "tests.fixtures.cluster.simple_dependencies",
             "tests.fixtures.examples.basket",
             "tests.fixtures.examples.dummies",
             "tests.fixtures.examples.exceptions",
             "tests.fixtures.examples.monkey",
             "tests.fixtures.examples.triangle",
             "tests.fixtures.examples.type_inference",
+            "tests.fixtures.examples.impossible",
             "tests.fixtures.examples.difficult",
             "tests.fixtures.examples.queue",
         ],
@@ -50,13 +48,14 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_randoopy(algorithm_to_run: Callable, module_name: str):
     config.INSTANCE.budget = 1
-    config.INSTANCE.measure_coverage = False
+    config.INSTANCE.module_name = module_name
     logger = MagicMock(Logger)
-    executor = TestCaseExecutor()
-    algorithm = algorithm_to_run(
-        executor, TestClusterGenerator(module_name).generate_cluster()
-    )
-    algorithm._logger = logger
-    test_cases, failing_test_cases = algorithm.generate_sequences()
-    assert test_cases.size() >= 0
-    assert failing_test_cases.size() >= 0
+    with install_import_hook(module_name):
+        executor = TestCaseExecutor()
+        algorithm = algorithm_to_run(
+            executor, TestClusterGenerator(module_name).generate_cluster()
+        )
+        algorithm._logger = logger
+        test_cases, failing_test_cases = algorithm.generate_sequences()
+        assert test_cases.size() >= 0
+        assert failing_test_cases.size() >= 0

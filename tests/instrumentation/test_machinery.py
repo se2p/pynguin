@@ -20,7 +20,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 
 
 def test_hook():
-    with install_import_hook(True, "tests.fixtures.instrumentation.mixed"):
+    with install_import_hook("tests.fixtures.instrumentation.mixed"):
         module = importlib.import_module("tests.fixtures.instrumentation.mixed")
         importlib.reload(module)
         assert module.function(6) == 0
@@ -28,7 +28,7 @@ def test_hook():
 
 def test_module_instrumentation_integration():
     """Small integration test, which tests the instrumentation for various function types."""
-    with install_import_hook(True, "tests.fixtures.instrumentation.mixed"):
+    with install_import_hook("tests.fixtures.instrumentation.mixed"):
         mixed = importlib.import_module("tests.fixtures.instrumentation.mixed")
         mixed = importlib.reload(mixed)
 

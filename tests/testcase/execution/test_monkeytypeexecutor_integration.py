@@ -44,20 +44,7 @@ def trace(provide_callables_from_fixtures_modules):
 def test_no_exceptions(short_test_case):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     executor = MonkeyTypeExecutor()
-    result = executor.execute(short_test_case)
-    assert len(result) == 1
-    assert (
-        result[0].funcname == "tests.fixtures.accessibles.accessible.SomeType.__init__"
-    )
-    assert result[0].arg_types["y"] == int
-
-
-def test_no_exceptions_test_suite(short_test_case):
-    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
-    executor = MonkeyTypeExecutor()
-    test_suite = tsc.TestSuiteChromosome()
-    test_suite.add_test(short_test_case)
-    result = executor.execute_test_suite(test_suite)
+    result = executor.execute([short_test_case])
     assert len(result) == 1
     assert (
         result[0].funcname == "tests.fixtures.accessibles.accessible.SomeType.__init__"

@@ -27,8 +27,7 @@ from monkeytype.tracing import CallTraceLogger, CallTrace, CallTracer
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.testcase.execution.abstractexecutor import AbstractExecutor
+import pynguin.testcase.execution.executioncontext as ctx
 
 
 class _MonkeyTypeCallTraceStore(CallTraceStore):
@@ -91,14 +90,14 @@ class _MonkeyTypeConfig(DefaultConfig):
         return _MonkeyTypeCallTraceLogger()
 
 
-class MonkeyTypeExecutor(AbstractExecutor):
+# pylint:disable=too-few-public-methods
+class MonkeyTypeExecutor:
     """An executor that executes a test under the inspection of the MonkeyType tool."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
         """"""
-        super().__init__()
         self._config = _MonkeyTypeConfig()
         self._tracer = CallTracer(
             logger=self._config.trace_logger(),
@@ -107,34 +106,25 @@ class MonkeyTypeExecutor(AbstractExecutor):
         )
         self._call_traces: List[CallTrace] = []
 
-    def execute(self, test_case: tc.TestCase) -> List[CallTrace]:
-        self.setup(test_case)
+    def execute(self, test_cases: List[tc.TestCase]) -> List[CallTrace]:
+        """Execute the given test cases."""
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                self._execute_ast_nodes()
+                for test_case in test_cases:
+                    exec_ctx = ctx.ExecutionContext(test_case)
+                    self._execute_ast_nodes(exec_ctx)
         self._filter_and_append_call_traces()
         return self._call_traces
 
-    def execute_test_suite(
-        self, test_suite: tsc.TestSuiteChromosome
-    ) -> List[CallTrace]:
-        with open(os.devnull, mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
-                for test_case in test_suite.test_chromosomes:
-                    self.setup(test_case)
-                    self._execute_ast_nodes()
-        self._filter_and_append_call_traces()
-        return self._call_traces
-
-    def _execute_ast_nodes(self):
-        for node in self._ast_nodes:
+    def _execute_ast_nodes(self, exec_ctx: ctx.ExecutionContext):
+        for node in exec_ctx.executable_nodes():
             try:
                 if self._logger.isEnabledFor(logging.DEBUG):
                     self._logger.debug("Executing %s", astor.to_source(node))
-                code = compile(self.wrap_node_in_module(node), "<ast>", "exec")
+                code = compile(node, "<ast>", "exec")
                 sys.setprofile(self._tracer)
                 # pylint: disable=exec-used
-                exec(code, self._global_namespace, self._local_namespace)
+                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)
             except BaseException as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
                 self._logger.info(

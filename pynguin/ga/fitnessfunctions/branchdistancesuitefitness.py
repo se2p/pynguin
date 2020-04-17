@@ -20,7 +20,7 @@ import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import KnownData
+from pynguin.testcase.execution.executiontracer import KnownData, ExecutionTracer
 
 
 class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
@@ -31,18 +31,23 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     ) -> ff.FitnessValues:
         results = self._run_test_suite(individual)
         has_exception, merged_trace = self.analyze_traces(results)
-        tracer = self._executor.get_tracer()
+        tracer: ExecutionTracer = self._executor.get_tracer()
 
-        return self._compute_fitness(
-            has_exception, merged_trace, tracer.get_known_data()
+        return ff.FitnessValues(
+            self._compute_fitness(has_exception, merged_trace, tracer.get_known_data()),
+            self._compute_coverage(merged_trace, tracer.get_known_data()),
         )
 
+    @staticmethod
     def _compute_fitness(
-        self, has_exception: bool, merged_trace: ExecutionTrace, known_data: KnownData
-    ) -> ff.FitnessValues:
+        has_exception: bool, trace: ExecutionTrace, known_data: KnownData
+    ) -> float:
+        if has_exception:
+            return BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data)
+
         # Check if all code objects were entered.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
-            merged_trace.covered_code_objects
+            trace.covered_code_objects
         )
         assert (
             code_objects_missing >= 0.0
@@ -50,21 +55,19 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         # Check if all predicates are covered
         predicate_fitness: float = 0.0
         for predicate in known_data.existing_predicates:
-            predicate_fitness += self._predicate_fitness(
-                predicate, merged_trace.true_distances, merged_trace
+            predicate_fitness += BranchDistanceSuiteFitnessFunction._predicate_fitness(
+                predicate, trace.true_distances, trace
             )
-            predicate_fitness += self._predicate_fitness(
-                predicate, merged_trace.false_distances, merged_trace
+            predicate_fitness += BranchDistanceSuiteFitnessFunction._predicate_fitness(
+                predicate, trace.false_distances, trace
             )
         assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
         total_fitness = code_objects_missing + predicate_fitness
-        # TODO(fk) compute coverage.
-        if has_exception:
-            return ff.FitnessValues(self.get_worst_fitness(known_data), 0)
-        return ff.FitnessValues(total_fitness, 0)
+        return total_fitness
 
+    @staticmethod
     def _predicate_fitness(
-        self, predicate: int, branch_distances: Dict[int, float], trace: ExecutionTrace
+        predicate: int, branch_distances: Dict[int, float], trace: ExecutionTrace
     ) -> float:
         if predicate in branch_distances and branch_distances[predicate] == 0.0:
             return 0.0
@@ -72,8 +75,34 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
             predicate in trace.covered_predicates
             and trace.covered_predicates[predicate] >= 2
         ):
-            return self.normalise(branch_distances[predicate])
+            return BranchDistanceSuiteFitnessFunction.normalise(
+                branch_distances[predicate]
+            )
         return 1.0
+
+    @staticmethod
+    def _compute_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+        """Computes branch coverage on bytecode instructions
+         which should equal decision coverage on source."""
+
+        covered = len(trace.covered_code_objects)
+        existing = len(known_data.existing_code_objects)
+
+        # Every predicate creates two branches
+        existing += len(known_data.existing_predicates) * 2
+
+        # A branch is covered if it has a distance of 0.0
+        # Must consider both branches (True and False)
+        covered += sum([1 for v in trace.true_distances.values() if v == 0.0])
+        covered += sum([1 for v in trace.false_distances.values() if v == 0.0])
+
+        if existing == 0:
+            # Nothing to cover => everything is covered.
+            coverage = 1.0
+        else:
+            coverage = covered / existing
+        assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+        return coverage
 
     def is_maximisation_function(self) -> bool:
         return False

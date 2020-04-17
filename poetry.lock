@@ -104,7 +104,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 version = "0.4.3"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Code coverage measurement for Python"
 name = "coverage"
 optional = false
@@ -142,7 +142,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.8.3"
+version = "5.9.1"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -526,7 +526,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "a065cf687cd7fcf6f74d3af44e298abd45e4e106cb2d4a311e47b082a31cdacf"
+content-hash = "065c2362965d7417e2d119fbd11faf34f82630048f42442010004a79ceb16d25"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -612,8 +612,8 @@ execnet = [
     {file = "execnet-1.7.1.tar.gz", hash = "sha256:cacb9df31c9680ec5f95553976c4da484d407e85e41c83cb812aa014f0eddc50"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.8.3-py3-none-any.whl", hash = "sha256:6e0470a1a7edd990c975429b7451ababd5425136eea72808a719e6d538bba463"},
-    {file = "hypothesis-5.8.3.tar.gz", hash = "sha256:039b6100163f649cbc5ecc338fd4e238cc88f84b2a460ff42d0ea9ac69b6a412"},
+    {file = "hypothesis-5.9.1-py3-none-any.whl", hash = "sha256:33860dc65ca8930356a4109393bd556126a03f28d543bf9b3447fa475401f06b"},
+    {file = "hypothesis-5.9.1.tar.gz", hash = "sha256:11b1fc00e86c2c1cdd9f9dfe24e781f33ac360290e1ce4c4821f8da7ea878fd0"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},

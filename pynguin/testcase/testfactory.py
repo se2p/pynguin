@@ -619,9 +619,9 @@ class TestFactory:
         """Find specified parameters from existing objects."""
         found = []
         for parameter_name, parameter_type in inf_signature.parameters.items():
-            assert parameter_type
             if TestFactory._should_skip_parameter(inf_signature, parameter_name):
                 continue
+            assert parameter_type
             found.append(test_case.get_random_object(parameter_type, position))
         return found
 

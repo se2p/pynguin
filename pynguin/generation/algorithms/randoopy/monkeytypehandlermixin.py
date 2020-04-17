@@ -20,7 +20,6 @@ import monkeytype.typing as mtt
 from monkeytype.tracing import CallTrace
 
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.typeinference.strategy import InferredSignature
@@ -30,6 +29,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.statistics.timer import Timer
 
 
+# pylint: disable=too-few-public-methods
 class MonkeyTypeHandlerMixin:
     """A mixin handling the execution of a test case with MonkeyType."""
 
@@ -44,11 +44,11 @@ class MonkeyTypeHandlerMixin:
         self._return_type_updates: List[Tuple[str, Optional[type], Optional[type]]] = []
 
     def execute_test_case_monkey_type(
-        self, test_case: tc.TestCase, test_cluster: TestCluster
+        self, test_cases: List[tc.TestCase], test_cluster: TestCluster
     ) -> None:
-        """Handles a test case, i.e., executes it and propagates the results back.
+        """Handles a list of test cases, i.e., executes them and propagates the results back.
 
-        The test case will be executed while MonkeyType is tracking all calls.
+        The test cases will be executed while MonkeyType is tracking all calls.
         Afterwards, the results, i.e., the tracked types for calls, are collected
         from the execution and the present type information gets updated accordingly.
         See the documentation of the `MonkeyTypeExecutor` for details.
@@ -57,34 +57,11 @@ class MonkeyTypeHandlerMixin:
         newly inferred types.  See the documentation of `typing.Union` for details on
         how these `Union`s are handled.
 
-        :param test_case: The test case to execute
+        :param test_cases: The test cases to execute
         :param test_cluster: The underlying test cluster
         """
         with Timer(name="MonkeyType execution", logger=None):
-            results = self._monkey_type_executor.execute(test_case)
-            self._monkey_type_executions += 1
-            for result in results:
-                self._update_type_inference(result, test_cluster)
-
-    def execute_test_suite_monkey_type(
-        self, test_suite: tsc.TestSuiteChromosome, test_cluster: TestCluster
-    ) -> None:
-        """Handles a test suite, i.e., executes it and propagates the results back.
-
-        Each test case will be executed while MonkeyType is tracking all calls.
-        Afterwards, the results, i.e., the tracked types for calls, are collected
-        from the execution and the present type information gets updated accordingly.
-        See the documentation of the `MonkeyTypeExecutor` for details.
-
-        Currently, the update does only a simple `Union` of the existing and the
-        newly inferred types.  See the documentation of `typing.Union` for details on
-        how these `Union`s are handled.
-
-        :param test_suite: The test suite to execute
-        :param test_cluster: The underlying test cluster
-        """
-        with Timer(name="MonkeyType execution", logger=None):
-            results = self._monkey_type_executor.execute_test_suite(test_suite)
+            results = self._monkey_type_executor.execute(test_cases)
             self._monkey_type_executions += 1
             for result in results:
                 self._update_type_inference(result, test_cluster)
