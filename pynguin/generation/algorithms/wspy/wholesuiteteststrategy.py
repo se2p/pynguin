@@ -73,6 +73,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
+            StatisticsTracker().current_individual(self._get_best_individual())
             self._logger.info(
                 "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                 generation,
@@ -80,7 +81,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 self._get_best_individual().get_coverage(),
             )
             generation += 1
-        return self._get_best_individual(), tsc.TestSuiteChromosome()
+        return self.split_chromosomes()
 
     def evolve(self):
         """Evolve the current population and replace it with a new one."""
@@ -162,3 +163,29 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         for idx in range(config.INSTANCE.elite):
             elite.append(self._population[idx].clone())
         return elite
+
+    def split_chromosomes(
+        self,
+    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
+        """Split the chromosome into two chromosomes.
+        The first one contains the non failing test cases.
+        The second one contains the failing test cases."""
+        best = self._get_best_individual()
+        # Make sure all test cases have a cached result.
+        best.get_fitness()
+        non_failing = tsc.TestSuiteChromosome()
+        failing = tsc.TestSuiteChromosome()
+
+        for fitness_function in self._fitness_functions:
+            non_failing.add_fitness_function(fitness_function)
+            failing.add_fitness_function(fitness_function)
+
+        for test_case in best.test_chromosomes:
+            result = test_case.get_last_execution_result()
+            assert result is not None
+            if result.has_test_exceptions():
+                failing.add_test(test_case.clone())
+            else:
+                non_failing.add_test(test_case.clone())
+
+        return non_failing, failing

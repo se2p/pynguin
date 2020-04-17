@@ -30,21 +30,16 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         self, individual: tsc.TestSuiteChromosome,
     ) -> ff.FitnessValues:
         results = self._run_test_suite(individual)
-        has_exception, merged_trace = self.analyze_traces(results)
+        _, merged_trace = self.analyze_traces(results)
         tracer: ExecutionTracer = self._executor.get_tracer()
 
         return ff.FitnessValues(
-            self._compute_fitness(has_exception, merged_trace, tracer.get_known_data()),
+            self._compute_fitness(merged_trace, tracer.get_known_data()),
             self._compute_coverage(merged_trace, tracer.get_known_data()),
         )
 
     @staticmethod
-    def _compute_fitness(
-        has_exception: bool, trace: ExecutionTrace, known_data: KnownData
-    ) -> float:
-        if has_exception:
-            return BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data)
-
+    def _compute_fitness(trace: ExecutionTrace, known_data: KnownData) -> float:
         # Check if all code objects were entered.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
             trace.covered_code_objects
@@ -122,7 +117,8 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
 
     @staticmethod
     def get_worst_fitness(known_data: KnownData) -> float:
-        """Compute the worst possible fitness value."""
+        """Compute the worst possible fitness value.
+        Can be used to penalize time outs."""
         return (
             len(known_data.existing_code_objects)
             + len(known_data.existing_predicates) * 2

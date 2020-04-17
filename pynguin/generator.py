@@ -159,34 +159,34 @@ class Pynguin:
             algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
                 executor, test_cluster
             )
-            test_chromosome, failing_test_chromosome = algorithm.generate_sequences()
+            non_failing, failing = algorithm.generate_sequences()
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                test_suite = tsc.TestSuiteChromosome()
-                for fitness_func in test_chromosome.get_fitness_functions():
-                    test_suite.add_fitness_function(fitness_func)
-                test_suite.add_tests(test_chromosome.test_chromosomes)
-                test_suite.add_tests(failing_test_chromosome.test_chromosomes)
+                combined = tsc.TestSuiteChromosome()
+                for fitness_func in non_failing.get_fitness_functions():
+                    combined.add_fitness_function(fitness_func)
+                combined.add_tests(non_failing.test_chromosomes)
+                combined.add_tests(failing.test_chromosomes)
                 StatisticsTracker().track_output_variable(
-                    RuntimeVariable.Coverage, test_suite.get_coverage()
+                    RuntimeVariable.Coverage, combined.get_coverage()
                 )
 
             export_timer = Timer(name="Export time", logger=None)
             export_timer.start()
             self._logger.info("Export successful test cases")
-            self._export_test_cases(test_chromosome.test_chromosomes)
+            self._export_test_cases(non_failing.test_chromosomes)
             self._logger.info("Export failing test cases")
             self._export_test_cases(
-                failing_test_chromosome.test_chromosomes, "_failing", wrap_code=True
+                failing.test_chromosomes, "_failing", wrap_code=True
             )
             export_timer.stop()
-            self._track_statistics(test_chromosome, failing_test_chromosome)
+            self._track_statistics(combined, failing)
             timer.stop()
             self._collect_statistics()
             if not StatisticsTracker().write_statistics():
                 self._logger.error("Failed to write statistics data")
-            if test_chromosome.size == 0:
+            if non_failing.size == 0:
                 # not able to generate one successful test case
                 status = 1
 
@@ -224,21 +224,17 @@ class Pynguin:
 
     @staticmethod
     def _track_statistics(
-        test_chromosome: tsc.TestSuiteChromosome,
-        failing_test_chromosome: tsc.TestSuiteChromosome,
+        combined: tsc.TestSuiteChromosome, failing: tsc.TestSuiteChromosome,
     ) -> None:
         tracker = StatisticsTracker()
-        tracker.current_individual(test_chromosome)
-        tracker.track_output_variable(RuntimeVariable.Size, test_chromosome.size())
+        tracker.current_individual(combined)
+        tracker.track_output_variable(RuntimeVariable.Size, combined.size())
         tracker.track_output_variable(
-            RuntimeVariable.Length, test_chromosome.total_length_of_test_cases
+            RuntimeVariable.Length, combined.total_length_of_test_cases
         )
+        tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
-            RuntimeVariable.FailingSize, failing_test_chromosome.size()
-        )
-        tracker.track_output_variable(
-            RuntimeVariable.FailingLength,
-            failing_test_chromosome.total_length_of_test_cases,
+            RuntimeVariable.FailingLength, failing.total_length_of_test_cases,
         )
 
     @staticmethod

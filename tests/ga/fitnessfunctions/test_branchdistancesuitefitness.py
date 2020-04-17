@@ -44,7 +44,7 @@ def known_data_mock():
 
 def test_default_fitness(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 0
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 0
 
 
 def test_fitness_function_diff(executor_mock, trace_mock, known_data_mock):
@@ -53,7 +53,7 @@ def test_fitness_function_diff(executor_mock, trace_mock, known_data_mock):
     known_data_mock.existing_code_objects.add(1)
     known_data_mock.existing_code_objects.add(2)
     trace_mock.covered_code_objects.add(0)
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 2.0
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 2.0
 
 
 def test_fitness_covered(executor_mock, trace_mock, known_data_mock):
@@ -62,13 +62,13 @@ def test_fitness_covered(executor_mock, trace_mock, known_data_mock):
     trace_mock.covered_predicates[0] = 1
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 1.0
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 1.0
 
 
 def test_fitness_neither_covered(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates.add(0)
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 2.0
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 2.0
 
 
 def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
@@ -77,7 +77,7 @@ def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 0.5
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 0.5
 
 
 def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
@@ -86,7 +86,7 @@ def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 0
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 0.0
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 0.0
 
 
 def test_fitness_normalized(executor_mock, trace_mock, known_data_mock):
@@ -95,19 +95,12 @@ def test_fitness_normalized(executor_mock, trace_mock, known_data_mock):
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 7.0
-    assert ff._compute_fitness(False, trace_mock, known_data_mock) == 0.875
+    assert ff._compute_fitness(trace_mock, known_data_mock) == 0.875
 
 
 def test_is_maximisation_function(executor_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     assert not ff.is_maximisation_function()
-
-
-def test_has_exception(executor_mock, trace_mock, known_data_mock):
-    ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
-    known_data_mock.existing_code_objects.add(0)
-    assert ff._compute_fitness(True, trace_mock, known_data_mock) == 3.0
 
 
 @pytest.mark.parametrize("has_ex", [pytest.param(True), pytest.param(False)])
