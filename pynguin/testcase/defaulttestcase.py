@@ -231,7 +231,7 @@ class DefaultTestCase(tc.TestCase):
         result = self.get_last_execution_result()
         if result is not None and result.has_test_exceptions():
             position = result.get_first_position_of_thrown_exception()
-            assert position
+            assert position is not None
             # The position might not be valid anymore.
             if position < self.size():
                 return position
