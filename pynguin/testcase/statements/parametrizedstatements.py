@@ -280,6 +280,15 @@ class ConstructorStatement(ParametrizedStatement):
         """The used constructor."""
         return self._constructor
 
+    def __repr__(self) -> str:
+        return (
+            f"ConstructorStatement({self._test_case}, "
+            f"{self._constructor}(args={self._args}, kwargs={self._kwargs})"
+        )
+
+    def __str__(self) -> str:
+        return f"{self._constructor}(args={self._args}, kwargs={self._kwargs}) -> None"
+
 
 class MethodStatement(ParametrizedStatement):
     """A statement that calls a method on an object."""
@@ -363,6 +372,19 @@ class MethodStatement(ParametrizedStatement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_method_statement(self)
+
+    def __repr__(self) -> str:
+        return (
+            f"MethodStatement({self._test_case}, "
+            f"{self._method}, {self._callee.variable_type}, "
+            f"args={self._args}, kwargs={self._kwargs})"
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"{self._method}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._method.generated_type()}"
+        )
 
 
 class FunctionStatement(ParametrizedStatement):
