@@ -90,8 +90,15 @@ def test_resolve_only_union():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.typing_parameters"
     ).generate_cluster()
-    assert len(cluster.accessible_objects_under_test) == 2
+    assert len(cluster.accessible_objects_under_test) == 3
     assert len(cluster.generators) == 1
+
+
+def test_resolve_optional():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.typing_parameters"
+    ).generate_cluster()
+    assert type(None) not in cluster.generators
 
 
 def test_private_method_not_added():
