@@ -88,8 +88,8 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
 
         # A branch is covered if it has a distance of 0.0
         # Must consider both branches (True and False)
-        covered += sum([1 for v in trace.true_distances.values() if v == 0.0])
-        covered += sum([1 for v in trace.false_distances.values() if v == 0.0])
+        covered += len([v for v in trace.true_distances.values() if v == 0.0])
+        covered += len([v for v in trace.false_distances.values() if v == 0.0])
 
         if existing == 0:
             # Nothing to cover => everything is covered.
