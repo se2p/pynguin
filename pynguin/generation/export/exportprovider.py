@@ -39,5 +39,5 @@ class ExportProvider:
         if strategy in cls._strategies:
             exp = cls._strategies.get(strategy)
             assert exp, "Export strategy cannot be defined as None"
-            return exp(wrap_code=wrap_code)  # type: ignore
+            return exp(wrap_code)
         raise Exception("Unknown export strategy")
