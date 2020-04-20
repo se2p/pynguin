@@ -25,10 +25,11 @@ Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
 import argparse
+import enum
 import logging
 import os
 import sys
-from typing import Union, List, Dict, Callable
+from typing import Union, List, Dict, Callable, Tuple, Optional
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -51,6 +52,15 @@ from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
+
+
+@enum.unique
+class ReturnCodes(enum.IntEnum):
+    """Return codes for Pynguin to signal result."""
+
+    OK = 0
+    SETUP_FAILED = 1
+    NOT_TESTS_GENERATED = 2
 
 
 # pylint: disable=too-few-public-methods
@@ -97,10 +107,6 @@ class Pynguin:
                 "Cannot initialise test generator without proper configuration."
             )
         self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
-        if config.INSTANCE.configuration_id:
-            StatisticsTracker().track_output_variable(
-                RuntimeVariable.configuration_id, config.INSTANCE.configuration_id
-            )
 
     def run(self) -> int:
         """Run the test generation.
@@ -110,7 +116,7 @@ class Pynguin:
         signals some errors.  This is, e.g., the case if the framework was not able
         to generate one successfully running test case for the class under test.
 
-        :return: 0 if the generation was successful, other values otherwise.
+        :return: See ReturnCodes.
         """
         if not self._logger:
             raise ConfigurationException()
@@ -121,41 +127,74 @@ class Pynguin:
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
 
-    def _run(self) -> int:
-        status = 0
+    def _setup_executor(self) -> Optional[TestCaseExecutor]:
+        try:
+            executor = TestCaseExecutor()
+        except ImportError as ex:
+            # A module could not be imported because some dependencies
+            # are missing or it is malformed
+            self._logger.error("Failed to load SUT: %s", ex)
+            return None
+        return executor
+
+    def _setup_test_cluster(self) -> Optional[TestCluster]:
+        with Timer(name="Test-cluster generation time", logger=None):
+            test_cluster = TestClusterGenerator(
+                config.INSTANCE.module_name
+            ).generate_cluster()
+            if test_cluster.num_accessible_objects_under_test() == 0:
+                self._logger.error("SUT contains nothing we can test.")
+                return None
+            return test_cluster
+
+    def _setup_path_and_hook(self) -> bool:
+        """Inserts the path to the SUT into the path list.
+        Also installs the import hook."""
+        if not os.path.isdir(config.INSTANCE.project_path):
+            self._logger.error(
+                "%s is not a valid project path", config.INSTANCE.project_path
+            )
+            return False
 
         sys.path.insert(0, config.INSTANCE.project_path)
-        if config.INSTANCE.seed is not None:
-            randomness.RNG.seed(config.INSTANCE.seed)
-            self._logger.info("Random seed %d", config.INSTANCE.seed)
-        else:
-            self._logger.info("No seed given.  Using %d", randomness.RNG.get_seed())
+        install_import_hook(config.INSTANCE.module_name)
+        return True
 
+    def _setup_random_number_generator(self) -> None:
+        """Setup RNG."""
+        if config.INSTANCE.seed is None:
+            self._logger.info("No seed given. Using %d", randomness.RNG.get_seed())
+        else:
+            self._logger.info("Using seed %d", config.INSTANCE.seed)
+            randomness.RNG.seed(config.INSTANCE.seed)
+
+    def _setup_constant_seeding_collection(self) -> None:
+        """Collect constants from SUT, if enabled."""
         if config.INSTANCE.constant_seeding:
+            self._logger.info("Collecting constants from SUT.")
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
-        with install_import_hook(config.INSTANCE.module_name):
-            try:
-                executor = TestCaseExecutor()
-            except ModuleNotFoundError:
-                # A module could not be imported because some dependencies are missing.
-                # Thus we are not able to generate anything.  Stop the process here,
-                # and write statistics.
-                StatisticsTracker().current_individual(tsc.TestSuiteChromosome())
-                StatisticsTracker().track_output_variable(
-                    RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
-                )
-                self._collect_statistics()
-                StatisticsTracker().write_statistics()
-                return 1
+    def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
+        """Load the System Under Test (SUT) i.e. the module that is tested.
+        Perform setup and some sanity checks."""
+        if not self._setup_path_and_hook():
+            return None
+        if (executor := self._setup_executor()) is None:
+            return None
+        if (test_cluster := self._setup_test_cluster()) is None:
+            return None
+        self._setup_random_number_generator()
+        self._setup_constant_seeding_collection()
+        return executor, test_cluster
 
-            with Timer(name="Test-cluster generation time", logger=None):
-                test_cluster = TestClusterGenerator(
-                    config.INSTANCE.module_name
-                ).generate_cluster()
+    def _run(self) -> int:
+        status = ReturnCodes.OK.value
 
-            timer = Timer(name="Test generation time", logger=None)
-            timer.start()
+        if (setup_result := self._setup_and_check()) is None:
+            return ReturnCodes.SETUP_FAILED.value
+        executor, test_cluster = setup_result
+
+        with Timer(name="Test generation time", logger=None):
             algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
                 executor, test_cluster
             )
@@ -172,24 +211,21 @@ class Pynguin:
                     RuntimeVariable.Coverage, combined.get_coverage()
                 )
 
-            export_timer = Timer(name="Export time", logger=None)
-            export_timer.start()
-            self._logger.info("Export successful test cases")
-            self._export_test_cases(non_failing.test_chromosomes)
-            self._logger.info("Export failing test cases")
-            self._export_test_cases(
-                failing.test_chromosomes, "_failing", wrap_code=True
-            )
-            export_timer.stop()
-            self._track_statistics(combined, failing)
-            timer.stop()
-            self._collect_statistics()
-            if not StatisticsTracker().write_statistics():
-                self._logger.error("Failed to write statistics data")
-            if non_failing.size == 0:
-                # not able to generate one successful test case
-                status = 1
+            with Timer(name="Export time", logger=None):
+                self._logger.info("Export successful test cases")
+                self._export_test_cases(non_failing.test_chromosomes)
+                self._logger.info("Export failing test cases")
+                self._export_test_cases(
+                    failing.test_chromosomes, "_failing", wrap_code=True
+                )
 
+        self._track_statistics(combined, failing)
+        self._collect_statistics()
+        if not StatisticsTracker().write_statistics():
+            self._logger.error("Failed to write statistics data")
+        if combined.size == 0:
+            # not able to generate one test case
+            return ReturnCodes.NOT_TESTS_GENERATED.value
         return status
 
     _strategies: Dict[
@@ -217,10 +253,11 @@ class Pynguin:
         tracker.track_output_variable(
             RuntimeVariable.Random_Seed, randomness.RNG.get_seed()
         )
+        tracker.track_output_variable(
+            RuntimeVariable.configuration_id, config.INSTANCE.configuration_id
+        )
         for runtime_variable, value in tracker.variables_generator:
-            StatisticsTracker().set_output_variable_for_runtime_variable(
-                runtime_variable, value
-            )
+            tracker.set_output_variable_for_runtime_variable(runtime_variable, value)
 
     @staticmethod
     def _track_statistics(
