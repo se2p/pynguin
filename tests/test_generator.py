@@ -28,14 +28,14 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
 )
-from pynguin.generator import Pynguin
+import pynguin.generator as gen
 from pynguin.utils.exceptions import ConfigurationException
 
 
 def test__setup_logging_standard_with_log_file(tmp_path):
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(
+    logger = gen.Pynguin._setup_logging(
         log_file=str(tmp_path / "pynguin-test.log"), verbosity=0
     )
     assert isinstance(logger, logging.Logger)
@@ -48,7 +48,7 @@ def test__setup_logging_standard_with_log_file(tmp_path):
 def test__setup_logging_single_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(1)
+    logger = gen.Pynguin._setup_logging(1)
     assert len(logger.handlers) == 1
     assert logger.handlers[0].level == logging.INFO
     logging.shutdown()
@@ -58,7 +58,7 @@ def test__setup_logging_single_verbose_without_log_file():
 def test__setup_logging_double_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(2)
+    logger = gen.Pynguin._setup_logging(2)
     assert len(logger.handlers) == 1
     assert logger.handlers[0].level == logging.DEBUG
     logging.shutdown()
@@ -68,7 +68,7 @@ def test__setup_logging_double_verbose_without_log_file():
 def test__setup_logging_quiet_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    logger = Pynguin._setup_logging(-1)
+    logger = gen.Pynguin._setup_logging(-1)
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
@@ -77,13 +77,13 @@ def test__setup_logging_quiet_without_log_file():
 
 def test_init_with_configuration():
     conf = MagicMock(log_file=None)
-    Pynguin(configuration=conf)
+    gen.Pynguin(configuration=conf)
     assert config.INSTANCE == conf
 
 
 def test_init_without_params():
     with pytest.raises(ConfigurationException) as exception:
-        Pynguin()
+        gen.Pynguin()
     assert (
         exception.value.args[0] == "Cannot initialise test generator without "
         "proper configuration."
@@ -96,12 +96,12 @@ def test_init_with_cli_arguments():
     parser = MagicMock(ArgumentParser)
     parser.parse_args.return_value = option_mock
     args = [""]
-    Pynguin(argument_parser=parser, arguments=args)
+    gen.Pynguin(argument_parser=parser, arguments=args)
     assert config.INSTANCE == conf
 
 
 def test_run_without_logger():
-    generator = Pynguin(configuration=MagicMock(log_file=None))
+    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
     generator._logger = None
     with pytest.raises(ConfigurationException):
         generator.run()
@@ -110,7 +110,7 @@ def test_run_without_logger():
 def test_instantiate_test_generation_strategy_unknown():
     config.INSTANCE.algorithm = MagicMock()
     with pytest.raises(ConfigurationException):
-        Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
+        gen.Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
 
 
 @pytest.mark.parametrize(
@@ -123,12 +123,14 @@ def test_instantiate_test_generation_strategy_unknown():
 )
 def test_instantiate_test_generation_strategy_actual(value, cls):
     config.INSTANCE.algorithm = value
-    instance = Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
+    instance = gen.Pynguin._instantiate_test_generation_strategy(
+        MagicMock(), MagicMock()
+    )
     assert isinstance(instance, cls)
 
 
 def test_setup_executor_failed():
-    generator = Pynguin(configuration=MagicMock(log_file=None))
+    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
     with mock.patch(
         "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
     ) as exec_mock:
@@ -137,7 +139,7 @@ def test_setup_executor_failed():
 
 
 def test_setup_executor_success():
-    generator = Pynguin(configuration=MagicMock(log_file=None))
+    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
     with mock.patch(
         "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
     ) as exec_mock:
@@ -146,7 +148,7 @@ def test_setup_executor_success():
 
 
 def test_setup_test_cluster_empty():
-    generator = Pynguin(
+    generator = gen.Pynguin(
         configuration=MagicMock(
             log_file=None,
             type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
@@ -162,7 +164,7 @@ def test_setup_test_cluster_empty():
 
 
 def test_setup_test_cluster_not_empty():
-    generator = Pynguin(
+    generator = gen.Pynguin(
         configuration=MagicMock(
             log_file=None,
             type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
@@ -175,3 +177,24 @@ def test_setup_test_cluster_not_empty():
         tc.num_accessible_objects_under_test.return_value = 1
         gen_mock.return_value = tc
         assert generator._setup_test_cluster()
+
+
+def test_setup_path_and_hook_invalid_dir(tmp_path):
+    generator = gen.Pynguin(
+        configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")
+    )
+    assert not generator._setup_path_and_hook()
+
+
+def test_setup_path_and_hook_valid_dir(tmp_path):
+    module_name = "test_module"
+    generator = gen.Pynguin(
+        configuration=MagicMock(
+            log_file=None, project_path=tmp_path, module_name=module_name
+        )
+    )
+    with mock.patch.object(gen, "install_import_hook") as hook_mock:
+        with mock.patch("sys.path") as path_mock:
+            assert generator._setup_path_and_hook()
+            hook_mock.assert_called_with(module_name)
+            path_mock.insert.assert_called_with(0, tmp_path)
