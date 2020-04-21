@@ -106,7 +106,7 @@ class Configuration:
 
     # Label that identifies the used configuration of Pynguin.  This is only done
     # when running experiments.
-    configuration_id: Optional[str] = None
+    configuration_id: str = ""
 
     # Time budget (in seconds) that can be used for generating tests.
     budget: int = 600

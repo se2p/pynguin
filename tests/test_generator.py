@@ -15,6 +15,7 @@
 import importlib
 import logging
 from argparse import ArgumentParser
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -124,3 +125,53 @@ def test_instantiate_test_generation_strategy_actual(value, cls):
     config.INSTANCE.algorithm = value
     instance = Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
     assert isinstance(instance, cls)
+
+
+def test_setup_executor_failed():
+    generator = Pynguin(configuration=MagicMock(log_file=None))
+    with mock.patch(
+        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
+    ) as exec_mock:
+        exec_mock.side_effect = ModuleNotFoundError()
+        assert generator._setup_executor() is None
+
+
+def test_setup_executor_success():
+    generator = Pynguin(configuration=MagicMock(log_file=None))
+    with mock.patch(
+        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
+    ) as exec_mock:
+        exec_mock.return_value = None
+        assert generator._setup_executor()
+
+
+def test_setup_test_cluster_empty():
+    generator = Pynguin(
+        configuration=MagicMock(
+            log_file=None,
+            type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+        )
+    )
+    with mock.patch(
+        "pynguin.setup.testclustergenerator.TestClusterGenerator.generate_cluster"
+    ) as gen_mock:
+        tc = MagicMock()
+        tc.num_accessible_objects_under_test.return_value = 0
+        gen_mock.return_value = tc
+        assert generator._setup_test_cluster() is None
+
+
+def test_setup_test_cluster_not_empty():
+    generator = Pynguin(
+        configuration=MagicMock(
+            log_file=None,
+            type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+        )
+    )
+    with mock.patch(
+        "pynguin.setup.testclustergenerator.TestClusterGenerator.generate_cluster"
+    ) as gen_mock:
+        tc = MagicMock()
+        tc.num_accessible_objects_under_test.return_value = 1
+        gen_mock.return_value = tc
+        assert generator._setup_test_cluster()

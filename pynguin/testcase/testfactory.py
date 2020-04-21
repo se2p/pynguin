@@ -374,10 +374,7 @@ class TestFactory:
         rand = randomness.next_float()
 
         position = randomness.next_int(0, last_position + 1)
-        if (
-            rand <= config.INSTANCE.insertion_uut
-            and self._test_cluster.num_accessible_objects_under_test() > 0
-        ):
+        if rand <= config.INSTANCE.insertion_uut:
             success = self.insert_random_call(test_case, position)
         else:
             success = self.insert_random_call_on_object(test_case, position)

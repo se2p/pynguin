@@ -507,23 +507,6 @@ def test_insert_random_statement_empty_on_object():
             ins_mock.assert_called_with(test_case, 0)
 
 
-def test_insert_random_statement_empty_on_object_no_calls_in_cluster():
-    test_case = dtc.DefaultTestCase()
-    test_cluster = MagicMock(TestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 0
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch.object(
-            test_factory, "insert_random_call_on_object"
-        ) as ins_mock:
-            ins_mock.return_value = True
-            assert (
-                test_factory.insert_random_statement(test_case, test_case.size()) == 0
-            )
-            ins_mock.assert_called_with(test_case, 0)
-
-
 def test_insert_random_statement_non_empty():
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
