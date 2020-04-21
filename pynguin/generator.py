@@ -60,7 +60,7 @@ class ReturnCodes(enum.IntEnum):
 
     OK = 0
     SETUP_FAILED = 1
-    NOT_TESTS_GENERATED = 2
+    NO_TESTS_GENERATED = 2
 
 
 # pylint: disable=too-few-public-methods
@@ -225,7 +225,7 @@ class Pynguin:
             self._logger.error("Failed to write statistics data")
         if combined.size == 0:
             # not able to generate one test case
-            return ReturnCodes.NOT_TESTS_GENERATED.value
+            return ReturnCodes.NO_TESTS_GENERATED.value
         return status
 
     _strategies: Dict[
