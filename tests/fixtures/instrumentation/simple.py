@@ -50,6 +50,11 @@ def lambda_func(y):
     return lambda x: x + 1 if x > y else x
 
 
+def conditional_assignment(x):
+    y = 5 if x == 0 else 3
+    return y
+
+
 def conditionally_nested_class(x: int):
     if x > 5:
 

@@ -132,6 +132,19 @@ def test_add_cmp_predicate_lambda(simple_module):
     tracer.entered_code_object.assert_has_calls([call(0), call(1)], any_order=True)
 
 
+def test_conditional_assignment(simple_module):
+    tracer = Mock()
+    instr = BranchDistanceInstrumentation(tracer)
+    simple_module.conditional_assignment.__code__ = instr._instrument_code_recursive(
+        simple_module.conditional_assignment.__code__, True
+    )
+    simple_module.conditional_assignment(10)
+    tracer.predicate_exists.assert_called_once()
+    assert tracer.code_object_exists.call_count == 1
+    tracer.passed_cmp_predicate.assert_called_once()
+    tracer.entered_code_object.assert_has_calls([call(0)])
+
+
 def test_conditionally_nested_class(simple_module):
     tracer = Mock()
     instr = BranchDistanceInstrumentation(tracer)
