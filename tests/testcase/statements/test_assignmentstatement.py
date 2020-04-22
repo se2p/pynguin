@@ -45,3 +45,12 @@ def test_eq_other_type(test_case_mock, variable_reference_mock):
         test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
     )
     assert not statement.__eq__(test_case_mock)
+
+
+def test_accept(test_case_mock, variable_reference_mock):
+    statement = astmt.AssignmentStatement(
+        test_case_mock, variable_reference_mock, variable_reference_mock
+    )
+    visitor = MagicMock()
+    statement.accept(visitor)
+    visitor.visit_assignment_statement.assert_called_with(statement)
