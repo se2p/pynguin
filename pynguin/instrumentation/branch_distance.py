@@ -58,8 +58,9 @@ class BranchDistanceInstrumentation:
         # TODO(fk) Change instrumentation to make use of a visitor pattern, similar to ASM in Java.
         # The instrumentation loop is already getting really big...
 
+        code_name = self._get_code_name(code)
+        self._logger.debug("Instrumenting Code Object for %s", code_name)
         # Nested code objects are found within the consts of the CodeType.
-        self._logger.debug("Instrumenting Code Object for %s", self._get_name(code))
         code = self._instrument_inner_code_objects(code)
         instructions = Bytecode.from_code(code)
         iterator: ListIterator = ListIterator(instructions)
@@ -70,9 +71,7 @@ class BranchDistanceInstrumentation:
             if not inserted_at_start:
                 if add_global_tracer:
                     self._add_tracer_to_globals(iterator)
-                self._add_code_object_entered(
-                    iterator, current.lineno, self._get_name(code)
-                )
+                self._add_code_object_entered(iterator, current.lineno, code_name)
                 inserted_at_start = True
 
             if isinstance(current, Instr) and current.name == "FOR_ITER":
@@ -83,7 +82,10 @@ class BranchDistanceInstrumentation:
                     instruction_offset = 1
 
                 self._add_for_loop_check(
-                    iterator, instruction_offset, current.lineno,
+                    iterator,
+                    instruction_offset,
+                    self._get_predicate_name(code, current.lineno),
+                    current.lineno,
                 )
 
             if isinstance(current, Instr) and current.is_cond_jump():
@@ -94,15 +96,23 @@ class BranchDistanceInstrumentation:
                     and not iterator.previous().arg
                     in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
                 ):
-                    self._add_cmp_predicate(iterator, current.lineno)
+                    self._add_cmp_predicate(
+                        iterator,
+                        self._get_predicate_name(code, current.lineno),
+                        current.lineno,
+                    )
                 else:
-                    self._add_bool_predicate(iterator, current.lineno)
+                    self._add_bool_predicate(
+                        iterator,
+                        self._get_predicate_name(code, current.lineno),
+                        current.lineno,
+                    )
         return instructions.to_code()
 
     def _add_bool_predicate(
-        self, iterator: ListIterator, lineno: Optional[int]
+        self, iterator: ListIterator, predicate_name: str, lineno: Optional[int]
     ) -> None:
-        self._tracer.predicate_exists(self._predicate_id)
+        self._tracer.predicate_exists(self._predicate_id, predicate_name)
         iterator.insert_before(
             [
                 Instr("DUP_TOP", lineno=lineno),
@@ -121,9 +131,11 @@ class BranchDistanceInstrumentation:
         )
         self._predicate_id += 1
 
-    def _add_cmp_predicate(self, iterator: ListIterator, lineno: Optional[int]) -> None:
+    def _add_cmp_predicate(
+        self, iterator: ListIterator, predicate_name: str, lineno: Optional[int]
+    ) -> None:
         cmp_op = iterator.previous()
-        self._tracer.predicate_exists(self._predicate_id)
+        self._tracer.predicate_exists(self._predicate_id, predicate_name)
         iterator.insert_before(
             [
                 Instr("DUP_TOP_TWO", lineno=lineno),
@@ -157,9 +169,13 @@ class BranchDistanceInstrumentation:
         self._code_object_id += 1
 
     def _add_for_loop_check(
-        self, iterator: ListIterator, instruction_offset: int, lineno: Optional[int],
+        self,
+        iterator: ListIterator,
+        instruction_offset: int,
+        predicate_name: str,
+        lineno: Optional[int],
     ) -> None:
-        self._tracer.predicate_exists(self._predicate_id)
+        self._tracer.predicate_exists(self._predicate_id, predicate_name)
         # Label, if the iterator returns no value
         no_element = Label()
         # Label to the beginning of the for loop body
@@ -219,9 +235,14 @@ class BranchDistanceInstrumentation:
         )
 
     @staticmethod
-    def _get_name(code: CodeType) -> str:
+    def _get_code_name(code: CodeType) -> str:
         """Compute name to easily identify a code object."""
         return f"{code.co_filename}.{code.co_name}:{code.co_firstlineno}"
+
+    @staticmethod
+    def _get_predicate_name(code: CodeType, line_no: Optional[int]):
+        """Compute name to easily identify a predicate"""
+        return f"{code.co_filename}.{code.co_name}:{line_no}"
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module."""

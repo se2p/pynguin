@@ -49,16 +49,16 @@ def test_default_fitness(executor_mock, trace_mock, known_data_mock):
 
 def test_fitness_function_diff(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_code_objects.add(0)
-    known_data_mock.existing_code_objects.add(1)
-    known_data_mock.existing_code_objects.add(2)
+    known_data_mock.existing_code_objects[0] = ""
+    known_data_mock.existing_code_objects[1] = ""
+    known_data_mock.existing_code_objects[2] = ""
     trace_mock.covered_code_objects.add(0)
     assert ff._compute_fitness(trace_mock, known_data_mock) == 2.0
 
 
 def test_fitness_covered(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     trace_mock.covered_predicates[0] = 1
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
@@ -67,13 +67,13 @@ def test_fitness_covered(executor_mock, trace_mock, known_data_mock):
 
 def test_fitness_neither_covered(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     assert ff._compute_fitness(trace_mock, known_data_mock) == 2.0
 
 
 def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
@@ -82,7 +82,7 @@ def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
 
 def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 0
@@ -91,7 +91,7 @@ def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
 
 def test_fitness_normalized(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     trace_mock.covered_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 7.0
@@ -136,8 +136,8 @@ def test_analyze_traces_merge(trace_mock):
 
 
 def test_worst_fitness(known_data_mock):
-    known_data_mock.existing_code_objects.add(0)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_code_objects[0] = ""
+    known_data_mock.existing_predicates[0] = ""
     assert BranchDistanceSuiteFitnessFunction.get_worst_fitness(known_data_mock) == 3.0
 
 
@@ -162,27 +162,27 @@ def test_coverage_none(known_data_mock, executor_mock, trace_mock):
 
 def test_coverage_half_branch(known_data_mock, executor_mock, trace_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     trace_mock.true_distances[0] = 0.0
     assert ff._compute_coverage(trace_mock, known_data_mock) == 0.5
 
 
 def test_coverage_no_branch(known_data_mock, executor_mock, trace_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_predicates.add(0)
+    known_data_mock.existing_predicates[0] = ""
     assert ff._compute_coverage(trace_mock, known_data_mock) == 0.0
 
 
 def test_coverage_half_code_objects(known_data_mock, executor_mock, trace_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_code_objects.add(0)
-    known_data_mock.existing_code_objects.add(1)
+    known_data_mock.existing_code_objects[0] = ""
+    known_data_mock.existing_code_objects[1] = ""
     trace_mock.covered_code_objects.add(0)
     assert ff._compute_coverage(trace_mock, known_data_mock) == 0.5
 
 
 def test_coverage_no_code_objects(known_data_mock, executor_mock, trace_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
-    known_data_mock.existing_code_objects.add(0)
-    known_data_mock.existing_code_objects.add(1)
+    known_data_mock.existing_code_objects[0] = ""
+    known_data_mock.existing_code_objects[1] = ""
     assert ff._compute_coverage(trace_mock, known_data_mock) == 0.0

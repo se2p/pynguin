@@ -45,7 +45,7 @@ def test_entered_for_loop_no_jump(simple_module):
     simple_module.for_loop.__code__ = instr._instrument_code_recursive(
         simple_module.for_loop.__code__, True
     )
-    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.predicate_exists.assert_called_once()
     simple_module.for_loop(3)
     tracer.passed_bool_predicate.assert_called_with(True, 0)
 
@@ -56,7 +56,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module):
     simple_module.for_loop.__code__ = instr._instrument_code_recursive(
         simple_module.for_loop.__code__, True
     )
-    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.predicate_exists.assert_called_once()
     simple_module.for_loop(0)
     tracer.passed_bool_predicate.assert_called_with(False, 0)
 
@@ -67,7 +67,7 @@ def test_entered_for_loop_full_loop(simple_module):
     simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
         simple_module.full_for_loop.__code__, True
     )
-    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.predicate_exists.assert_called_once()
     simple_module.full_for_loop(3)
     tracer.passed_bool_predicate.assert_called_with(True, 0)
 
@@ -78,7 +78,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module):
     simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
         simple_module.full_for_loop.__code__, True
     )
-    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.predicate_exists.assert_called_once()
     simple_module.full_for_loop(0)
     tracer.passed_bool_predicate.assert_called_with(False, 0)
 
@@ -113,7 +113,7 @@ def test_add_cmp_predicate_loop_comprehension(simple_module):
     )
     call_count = 5
     simple_module.comprehension(call_count, 3)
-    tracer.predicate_exists.assert_has_calls([call(0), call(1)], any_order=True)
+    assert tracer.predicate_exists.call_count == 2
     assert tracer.passed_cmp_predicate.call_count == call_count
     tracer.passed_bool_predicate.assert_has_calls([call(True, 0)])
 
@@ -157,7 +157,7 @@ def test_conditionally_nested_class(simple_module):
     tracer.entered_code_object.assert_has_calls(
         [call(0), call(1), call(2)], any_order=True
     )
-    tracer.predicate_exists.assert_has_calls([call(0)])
+    tracer.predicate_exists.assert_called_once()
     tracer.passed_cmp_predicate.assert_called_once()
 
 
@@ -171,4 +171,4 @@ def test_avoid_duplicate_instrumentation(simple_module):
 
 def test_get_name():
     code = compile("a = 5", "somefile", "exec")
-    assert BranchDistanceInstrumentation._get_name(code) == "somefile.<module>:1"
+    assert BranchDistanceInstrumentation._get_code_name(code) == "somefile.<module>:1"

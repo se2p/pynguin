@@ -15,7 +15,7 @@
 """Provides capabilities to track branch distances."""
 import dataclasses
 import logging
-from typing import Set, Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 from math import inf
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -30,11 +30,11 @@ class KnownData:
     FIXME(fk) better class name...
     """
 
-    existing_code_objects: Set[int] = dataclasses.field(default_factory=set)
-    existing_predicates: Set[int] = dataclasses.field(default_factory=set)
+    # Maps all known ids of Code Objects to human readable debug information
+    existing_code_objects: Dict[int, str] = dataclasses.field(default_factory=dict)
 
-    # Some information to make debugging easier.
-    code_object_names: Dict[int, str] = dataclasses.field(default_factory=dict)
+    # Maps all known ids of predicates to human readable debug information
+    existing_predicates: Dict[int, str] = dataclasses.field(default_factory=dict)
 
 
 class ExecutionTracer:
@@ -108,13 +108,12 @@ class ExecutionTracer:
         """Clear trace."""
         self._init_trace()
 
-    def code_object_exists(self, code_object_id: int, name: str = "") -> None:
+    def code_object_exists(self, code_object_id: int, name: str) -> None:
         """Declare that a code object exists."""
         assert (
             code_object_id not in self._known_data.existing_code_objects
         ), "Code object is already known"
-        self._known_data.existing_code_objects.add(code_object_id)
-        self._known_data.code_object_names[code_object_id] = name
+        self._known_data.existing_code_objects[code_object_id] = name
 
     def entered_code_object(self, code_object_id: int) -> None:
         """Mark a code object as covered. This means, that the code object
@@ -124,12 +123,12 @@ class ExecutionTracer:
         ), "Cannot trace unknown code object"
         self._trace.covered_code_objects.add(code_object_id)
 
-    def predicate_exists(self, predicate: int) -> None:
+    def predicate_exists(self, predicate: int, name: str) -> None:
         """Declare that a predicate exists."""
         assert (
             predicate not in self._known_data.existing_predicates
         ), "Predicate is already known"
-        self._known_data.existing_predicates.add(predicate)
+        self._known_data.existing_predicates[predicate] = name
 
     def passed_cmp_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
