@@ -219,7 +219,7 @@ class Pynguin:
                     failing.test_chromosomes, "_failing", wrap_code=True
                 )
 
-        self._track_statistics(combined, failing)
+        self._track_statistics(non_failing, failing)
         self._collect_statistics()
         if not StatisticsTracker().write_statistics():
             self._logger.error("Failed to write statistics data")
@@ -261,13 +261,13 @@ class Pynguin:
 
     @staticmethod
     def _track_statistics(
-        combined: tsc.TestSuiteChromosome, failing: tsc.TestSuiteChromosome,
+        non_failing: tsc.TestSuiteChromosome, failing: tsc.TestSuiteChromosome,
     ) -> None:
         tracker = StatisticsTracker()
-        tracker.current_individual(combined)
-        tracker.track_output_variable(RuntimeVariable.Size, combined.size())
+        tracker.current_individual(non_failing)
+        tracker.track_output_variable(RuntimeVariable.Size, non_failing.size())
         tracker.track_output_variable(
-            RuntimeVariable.Length, combined.total_length_of_test_cases
+            RuntimeVariable.Length, non_failing.total_length_of_test_cases
         )
         tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
