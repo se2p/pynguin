@@ -61,9 +61,11 @@ class RuntimeVariable(enum.Enum):
     TotalExceptionsTimeline = "Total number of exceptions"
     BranchCoverageTimeline = "Coverage over time"
     Length = "Total number of statements in the final test suite"
+    PassingLength = "Total number of statements in the final passing test suite"
     FailingLength = "Total number of statements in the final failing test suite"
     Size = "Number of tests in the resulting test suite"
     FailingSize = "Number of tests in the resulting failing test suite"
+    PassingSize = "Number of tests in the resulting passing test suite"
     Fitness = "Fitness value of the best individual"
 
     def __init__(self, value: str) -> None:
