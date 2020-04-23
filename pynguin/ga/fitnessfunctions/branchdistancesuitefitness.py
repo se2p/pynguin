@@ -87,7 +87,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         existing += len(known_data.existing_predicates) * 2
 
         # A branch is covered if it has a distance of 0.0
-        # Must consider both branches (True and False)
+        # Must consider both branches created by a predicate, i.e. true and false.
         covered += len([v for v in trace.true_distances.values() if v == 0.0])
         covered += len([v for v in trace.false_distances.values() if v == 0.0])
 
