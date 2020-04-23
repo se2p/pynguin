@@ -81,6 +81,9 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 self._get_best_individual().get_coverage(),
             )
             generation += 1
+        StatisticsTracker().track_output_variable(
+            RuntimeVariable.AlgorithmIterations, generation
+        )
         return self.split_chromosomes()
 
     def evolve(self):
