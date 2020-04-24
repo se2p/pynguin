@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides utilities when working with types."""
+import inspect
 import numbers
 from inspect import isclass, isfunction
 from typing import Type, Optional, Callable, Any
@@ -86,3 +87,26 @@ def is_numeric(value: Any) -> bool:
 def is_string(value: Any) -> bool:
     """Check if the given value is a string."""
     return isinstance(value, str)
+
+
+def get_class_that_defined_method(method: object) -> Optional[object]:
+    """Retrieves the class that defines a method.
+
+    Taken from https://stackoverflow.com/a/25959545/4293396
+
+    :param method: The method
+    :return: The class that defines the method
+    """
+    if inspect.ismethod(method):
+        for cls in inspect.getmro(method.__self__.__class__):  # type: ignore
+            if cls.__dict__.get(method.__name__) is method:  # type: ignore
+                return cls
+        method = method.__func__  # type: ignore  # fallback to __qualname__ parsing
+    if inspect.isfunction(method):
+        cls = getattr(
+            inspect.getmodule(method),
+            method.__qualname__.split(".<locals>", 1)[0].rsplit(".", 1)[0],  # type: ignore
+        )
+        if isinstance(cls, type):
+            return cls
+    return getattr(method, "__objclass__", None)  # handle special descriptor objs

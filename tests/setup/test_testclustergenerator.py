@@ -23,7 +23,11 @@ from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericMethod,
+    GenericAccessibleObject,
+)
 
 
 def convert_to_str_count_dict(dic: Dict[Type, Set]) -> Dict[str, int]:
@@ -138,3 +142,22 @@ def test_initialise_unknown_type_inference_strategies():
     config.INSTANCE.type_inference_strategy = "foo"
     with pytest.raises(ConfigurationException):
         TestClusterGenerator("")
+
+
+def test_overridden_inherited_methods():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.overridden_inherited_methods"
+    ).generate_cluster()
+    accessible_objects = cluster.accessible_objects_under_test
+    methods = _extract_method_names(accessible_objects)
+    expected = {"Foo.__init__", "Foo.foo", "Foo.__iter__", "Bar.__init__", "Bar.foo"}
+    assert methods == expected
+
+
+def _extract_method_names(accessible_objects: Set[GenericAccessibleObject]) -> Set[str]:
+    return {
+        f"{elem.owner.__name__}.{elem.callable.__name__}"
+        if isinstance(elem, GenericMethod)
+        else f"{elem.owner.__name__}.__init__"
+        for elem in accessible_objects
+    }

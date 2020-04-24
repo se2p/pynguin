@@ -40,6 +40,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     class_in_module,
     function_in_module,
+    get_class_that_defined_method,
 )
 
 
@@ -160,11 +161,15 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         for method_name, method in inspect.getmembers(klass, inspect.isfunction):
             # TODO(fk) why does inspect.ismethod not work here?!
             self._logger.debug("Analyzing method %s", method_name)
-            if method_name == "__init__":
-                # The constructor is handled elsewhere.
-                continue
-            if method_name.startswith("_") and not method_name.startswith("__"):
-                self._logger.debug("Skip private method %s", method_name)
+            if (
+                self._is_constructor(method_name)
+                or not self._is_method_defined_in_class(klass, method)
+                or self._is_private_method(method_name)
+            ):
+                # Skip methods that should not be added to the cluster here.
+                # Constructors are handled elsewhere; inherited methods should not be
+                # part of the cluster, only overridden methods; private methods should
+                # neither be part of the cluster.
                 continue
 
             generic_method = GenericMethod(
@@ -176,6 +181,18 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                 self._test_cluster.add_accessible_object_under_test(generic_method)
             self._add_callable_dependencies(generic_method, recursion_level)
         # TODO(fk) how do we find attributes?
+
+    @staticmethod
+    def _is_constructor(method_name: str) -> bool:
+        return method_name == "__init__"
+
+    @staticmethod
+    def _is_method_defined_in_class(class_: type, method: object) -> bool:
+        return class_ == get_class_that_defined_method(method)
+
+    @staticmethod
+    def _is_private_method(method_name: str) -> bool:
+        return method_name.startswith("_") and not method_name.startswith("__")
 
     def _resolve_dependencies_recursive(self):
         """Resolve the currently open dependencies."""
