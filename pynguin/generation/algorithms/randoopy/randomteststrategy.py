@@ -77,9 +77,9 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         self._logger.info("Finish generating sequences with random algorithm")
         timer.stop()
-        self._logger.debug("Generated %d passing test cases", test_chromosome.size)
+        self._logger.debug("Generated %d passing test cases", test_chromosome.size())
         self._logger.debug(
-            "Generated %d failing test cases", failing_test_chromosome.size
+            "Generated %d failing test cases", failing_test_chromosome.size()
         )
         self._logger.debug("Number of algorithm iterations: %d", execution_counter)
         StatisticsTracker().track_output_variable(
