@@ -89,11 +89,10 @@ class StatisticsTracker:
         return cls._instance
 
     def track_output_variable(self, runtime_variable: RuntimeVariable, value: Any):
-        """
+        """Tracks a run-time variable for output.
 
-        :param runtime_variable:
-        :param value:
-        :return:
+        :param runtime_variable: The run-time variable
+        :param value: The value to track for the variable
         """
         self._variables.put((runtime_variable, value))
 
