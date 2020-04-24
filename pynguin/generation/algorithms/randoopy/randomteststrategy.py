@@ -143,7 +143,6 @@ class RandomTestStrategy(TestGenerationStrategy):
             failing_test_chromosome.add_test(new_test)
         else:
             test_chromosome.add_test(new_test)
-            # StatisticsTracker().current_individual(test_chromosome)
             # TODO(sl) What about extensible flags?
         self._track_current_individual(test_chromosome, failing_test_chromosome)
         self._execution_results.append(exec_result)
@@ -154,10 +153,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         passing_chromosome: tsc.TestSuiteChromosome,
         failing_chromosome: tsc.TestSuiteChromosome,
     ) -> None:
-        combined = tsc.TestSuiteChromosome()
-        for fitness_function in passing_chromosome.get_fitness_functions():
-            combined.add_fitness_function(fitness_function)
-        combined.add_tests(passing_chromosome.test_chromosomes)
+        combined = passing_chromosome.clone()
         combined.add_tests(failing_chromosome.test_chromosomes)
         StatisticsTracker().current_individual(combined)
 
