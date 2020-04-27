@@ -65,6 +65,7 @@ class BranchDistanceInstrumentation:
         instructions = Bytecode.from_code(code)
         iterator: ListIterator = ListIterator(instructions)
         inserted_at_start = False
+        # pylint: disable=not-callable
         while iterator.next():
             current = iterator.current()
 
