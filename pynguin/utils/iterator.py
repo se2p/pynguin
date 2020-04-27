@@ -26,7 +26,7 @@ class ListIterator:
         self.elements: List[Any] = elements
         self.idx = -1
 
-    def next(self):
+    def next(self) -> bool:
         """
         Checks if there is a next element. If so, returns True and sets current to the next element.
         Otherwise False is returned.
