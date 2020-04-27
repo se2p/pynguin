@@ -84,7 +84,7 @@ class BranchDistanceInstrumentation:
                 self._add_for_loop_check(
                     iterator,
                     instruction_offset,
-                    self._get_predicate_name(code, current.lineno),
+                    self._get_name(code, current.lineno),
                     current.lineno,
                 )
 
@@ -97,15 +97,11 @@ class BranchDistanceInstrumentation:
                     in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
                 ):
                     self._add_cmp_predicate(
-                        iterator,
-                        self._get_predicate_name(code, current.lineno),
-                        current.lineno,
+                        iterator, self._get_name(code, current.lineno), current.lineno,
                     )
                 else:
                     self._add_bool_predicate(
-                        iterator,
-                        self._get_predicate_name(code, current.lineno),
-                        current.lineno,
+                        iterator, self._get_name(code, current.lineno), current.lineno,
                     )
         return instructions.to_code()
 
@@ -237,10 +233,10 @@ class BranchDistanceInstrumentation:
     @staticmethod
     def _get_code_name(code: CodeType) -> str:
         """Compute name to easily identify a code object."""
-        return f"{code.co_filename}.{code.co_name}:{code.co_firstlineno}"
+        return BranchDistanceInstrumentation._get_name(code, code.co_firstlineno)
 
     @staticmethod
-    def _get_predicate_name(code: CodeType, line_no: Optional[int]):
+    def _get_name(code: CodeType, line_no: Optional[int]):
         """Compute name to easily identify a predicate"""
         return f"{code.co_filename}.{code.co_name}:{line_no}"
 

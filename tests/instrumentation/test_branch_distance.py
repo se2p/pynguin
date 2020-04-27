@@ -169,6 +169,18 @@ def test_avoid_duplicate_instrumentation(simple_module):
         instr.instrument_module(already_instrumented)
 
 
-def test_get_name():
-    code = compile("a = 5", "somefile", "exec")
+def test_get_code_name():
+    code = MagicMock(co_filename="somefile", co_name="<module>", co_firstlineno=1)
     assert BranchDistanceInstrumentation._get_code_name(code) == "somefile.<module>:1"
+
+
+def test_get_name_no_line():
+    code = MagicMock(co_filename="somefile", co_name="<module>")
+    assert (
+        BranchDistanceInstrumentation._get_name(code, None) == "somefile.<module>:None"
+    )
+
+
+def test_get_name():
+    code = MagicMock(co_filename="somefile", co_name="<module>")
+    assert BranchDistanceInstrumentation._get_name(code, 42) == "somefile.<module>:42"
