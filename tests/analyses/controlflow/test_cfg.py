@@ -113,5 +113,5 @@ def test_integration_create_cfg(conditional_jump_example):
     assert cfg.cyclomatic_complexity == 2
     assert cfg.entry_node
     assert cfg.exit_node
-    assert len(cfg.edges) == 4
-    assert len(cfg.nodes) == 4
+    assert len(cfg.edges) == 5
+    assert len(cfg.nodes) == 5

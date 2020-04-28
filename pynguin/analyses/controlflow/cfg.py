@@ -15,6 +15,7 @@
 """Provides a control-flow graph implementation consisting of nodes and edges."""
 from __future__ import annotations
 
+import sys
 from typing import Any, List, Optional, Dict, cast, Tuple
 
 from bytecode import Instr, BasicBlock, Bytecode, ControlFlowGraph
@@ -186,6 +187,7 @@ class CFG:
             node for node in nodes.values()  # pylint: disable=unnecessary-comprehension
         ]
         cfg._edges = new_edges
+        cfg = CFG._insert_dummy_exit_node(cfg)
         return cfg
 
     @staticmethod
@@ -215,6 +217,21 @@ class CFG:
                 next_index = blocks.get_block_index(target_block)
                 edges[node_index].append(next_index)
         return edges, nodes
+
+    @staticmethod
+    def _insert_dummy_exit_node(cfg: CFG) -> CFG:
+        dummy_exit_node = CFGNode(index=sys.maxsize)
+        exit_nodes = [node for node in cfg.nodes if node.is_exit_node()]
+        new_edges: List[CFGEdge] = []
+        index = max([edge.index for edge in cfg.edges]) + 1
+        for exit_node in exit_nodes:
+            new_edge = CFGEdge(index, predecessor=exit_node, successor=dummy_exit_node)
+            exit_node.add_outgoing_edge(new_edge)
+            dummy_exit_node.add_incoming_edge(new_edge)
+            new_edges.append(new_edge)
+        cfg._nodes.append(dummy_exit_node)
+        cfg._edges.extend(new_edges)
+        return cfg
 
     @staticmethod
     def _create_and_insert_edges(
