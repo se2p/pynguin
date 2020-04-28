@@ -20,8 +20,14 @@ from typing import Any, List, Optional, Dict, cast, Tuple
 
 from bytecode import Instr, BasicBlock, Bytecode, ControlFlowGraph
 
+from pynguin.analyses.controlflow.programgraph import (
+    ProgramGraph,
+    ProgramGraphEdge,
+    ProgramGraphNode,
+)
 
-class CFGNode:
+
+class CFGNode(ProgramGraphNode):
     """A node in the control-flow graph."""
 
     # pylint: disable=too-many-arguments
@@ -33,26 +39,9 @@ class CFGNode:
         instructions: Optional[List[Instr]] = None,
         basic_block: Optional[BasicBlock] = None,
     ) -> None:
-        self._index = index
-        self._incoming_edges = incoming_edges if incoming_edges else []
-        self._outgoing_edges = outgoing_edges if outgoing_edges else []
+        super().__init__(index, incoming_edges, outgoing_edges)
         self._instructions = instructions if instructions else []
         self._basic_block = basic_block
-
-    @property
-    def index(self) -> int:
-        """Provides the index of the node."""
-        return self._index
-
-    @property
-    def incoming_edges(self) -> List[CFGEdge]:
-        """Return the list of incoming edges."""
-        return self._incoming_edges
-
-    @property
-    def outgoing_edges(self) -> List[CFGEdge]:
-        """Returns the list of outgoing edges."""
-        return self._outgoing_edges
 
     @property
     def instructions(self) -> Optional[List[Instr]]:
@@ -63,22 +52,6 @@ class CFGNode:
     def basic_block(self) -> Optional[BasicBlock]:
         """Returns the original basic-block object."""
         return self._basic_block
-
-    def add_incoming_edge(self, edge: CFGEdge) -> None:
-        """Adds an incoming edge to this node."""
-        self._incoming_edges.append(edge)
-
-    def add_outgoing_edge(self, edge: CFGEdge) -> None:
-        """Adds an outgoing edge to this node."""
-        self._outgoing_edges.append(edge)
-
-    def is_entry_node(self) -> bool:
-        """Checks whether or not the node is an entry node."""
-        return not self._incoming_edges
-
-    def is_exit_node(self) -> bool:
-        """Checks whether or not the node is an exit node."""
-        return not self._outgoing_edges
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, CFGNode):
@@ -113,35 +86,8 @@ class CFGNode:
         )
 
 
-class CFGEdge:
+class CFGEdge(ProgramGraphEdge):
     """An edge in the control-flow graph"""
-
-    def __init__(
-        self,
-        index: int,
-        predecessor: Optional[CFGNode] = None,
-        successor: Optional[CFGNode] = None,
-    ) -> None:
-        self._index = index
-        self._predecessor = predecessor
-        self._successor = successor
-
-    @property
-    def index(self) -> int:
-        """Provides the edge's index."""
-        return self._index
-
-    @property
-    def predecessor(self) -> CFGNode:
-        """Provides the optional predecessor node."""
-        assert self._predecessor, "Invalid edge without predecessor"
-        return self._predecessor
-
-    @property
-    def successor(self) -> CFGNode:
-        """Provides the optional successor node."""
-        assert self._successor, "Invalid edge without successor"
-        return self._successor
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, CFGEdge):
@@ -172,12 +118,8 @@ class CFGEdge:
         )
 
 
-class CFG:
+class CFG(ProgramGraph):
     """The control-flow graph implementation"""
-
-    def __init__(self) -> None:
-        self._nodes: List[CFGNode] = []
-        self._edges: List[CFGEdge] = []
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -318,16 +260,6 @@ class CFG:
         exit_nodes = [node for node in self._nodes if node.is_exit_node()]
         assert len(exit_nodes) == 1, "Cannot work with more than one exit node!"
         return exit_nodes[0]
-
-    @property
-    def edges(self) -> List[CFGEdge]:
-        """Provides a list of all edges of this control-flow graph."""
-        return self._edges
-
-    @property
-    def nodes(self) -> List[CFGNode]:
-        """Provides a list of all nodes of this control-flow graph."""
-        return self._nodes
 
     @property
     def cyclomatic_complexity(self) -> int:
