@@ -20,14 +20,10 @@ from typing import Any, List, Optional, Dict, cast, Tuple
 
 from bytecode import Instr, BasicBlock, Bytecode, ControlFlowGraph
 
-from pynguin.analyses.controlflow.programgraph import (
-    ProgramGraph,
-    ProgramGraphEdge,
-    ProgramGraphNode,
-)
+import pynguin.analyses.controlflow.programgraph as pg
 
 
-class CFGNode(ProgramGraphNode):
+class CFGNode(pg.ProgramGraphNode):
     """A node in the control-flow graph."""
 
     # pylint: disable=too-many-arguments
@@ -86,7 +82,7 @@ class CFGNode(ProgramGraphNode):
         )
 
 
-class CFGEdge(ProgramGraphEdge):
+class CFGEdge(pg.ProgramGraphEdge):
     """An edge in the control-flow graph"""
 
     def __eq__(self, other: Any) -> bool:
@@ -118,7 +114,7 @@ class CFGEdge(ProgramGraphEdge):
         )
 
 
-class CFG(ProgramGraph):
+class CFG(pg.ProgramGraph):
     """The control-flow graph implementation"""
 
     @staticmethod
