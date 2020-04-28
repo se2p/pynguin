@@ -54,6 +54,16 @@ class CFGNode:
         """Returns the list of outgoing edges."""
         return self._outgoing_edges
 
+    @property
+    def instructions(self) -> Optional[List[Instr]]:
+        """Returns the list of instructions attached to this block."""
+        return self._instructions
+
+    @property
+    def basic_block(self) -> Optional[BasicBlock]:
+        """Returns the original basic-block object."""
+        return self._basic_block
+
     def add_incoming_edge(self, edge: CFGEdge) -> None:
         """Adds an incoming edge to this node."""
         self._incoming_edges.append(edge)
@@ -122,13 +132,15 @@ class CFGEdge:
         return self._index
 
     @property
-    def predecessor(self) -> Optional[CFGNode]:
+    def predecessor(self) -> CFGNode:
         """Provides the optional predecessor node."""
+        assert self._predecessor, "Invalid edge without predecessor"
         return self._predecessor
 
     @property
-    def successor(self) -> Optional[CFGNode]:
+    def successor(self) -> CFGNode:
         """Provides the optional successor node."""
+        assert self._successor, "Invalid edge without successor"
         return self._successor
 
     def __eq__(self, other: Any) -> bool:
@@ -189,6 +201,46 @@ class CFG:
         cfg._edges = new_edges
         cfg = CFG._insert_dummy_exit_node(cfg)
         return cfg
+
+    @staticmethod
+    def reverse(cfg: CFG) -> CFG:
+        """Reverses a control-flow graph, i.e., entry nodes be come exit nodes and
+        vice versa.
+
+        :param cfg: The control-flow graph to reverse
+        :return: The reversed control-flow graph
+        """
+
+        def get_node_by_index(nodes: List[CFGNode], index: int) -> CFGNode:
+            node = [n for n in nodes if n.index == index]
+            assert len(node) == 1
+            return node[0]
+
+        reversed_cfg = CFG()
+        reversed_cfg._nodes = [
+            CFGNode(
+                index=node.index,
+                instructions=node.instructions,
+                basic_block=node.basic_block,
+            )
+            for node in cfg.nodes
+        ]
+        edge_index = 0
+        edges: List[CFGEdge] = []
+        for edge in cfg.edges:
+            old_predecessor_index = edge.predecessor.index
+            old_successor_index = edge.successor.index
+            new_predecessor = get_node_by_index(reversed_cfg.nodes, old_successor_index)
+            new_successor = get_node_by_index(reversed_cfg.nodes, old_predecessor_index)
+            new_edge = CFGEdge(
+                index=edge_index, predecessor=new_predecessor, successor=new_successor
+            )
+            new_predecessor.add_outgoing_edge(new_edge)
+            new_successor.add_incoming_edge(new_edge)
+            edges.append(new_edge)
+            edge_index += 1
+        reversed_cfg._edges = edges
+        return reversed_cfg
 
     @staticmethod
     def _create_nodes(

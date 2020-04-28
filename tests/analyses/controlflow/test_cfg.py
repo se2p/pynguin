@@ -12,6 +12,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import sys
+from unittest.mock import MagicMock
+
 import pytest
 from bytecode import Bytecode, Label, Instr, ControlFlowGraph
 
@@ -84,11 +87,13 @@ def test_edge_index(edge):
 
 
 def test_edge_predecessor(edge):
-    assert edge.predecessor is None
+    with pytest.raises(AssertionError):
+        edge.predecessor
 
 
 def test_edge_successor(edge):
-    assert edge.successor is None
+    with pytest.raises(AssertionError):
+        edge.successor
 
 
 def test_edge_hash(edge):
@@ -104,7 +109,11 @@ def test_edge_equals_self(edge):
 
 
 def test_edge_equals_other_edge(edge):
-    other = CFGEdge(index=42)
+    predecessor = MagicMock(CFGNode)
+    successor = MagicMock(CFGNode)
+    edge._predecessor = predecessor
+    edge._successor = successor
+    other = CFGEdge(index=42, predecessor=predecessor, successor=successor)
     assert edge.__eq__(other)
 
 
@@ -115,3 +124,12 @@ def test_integration_create_cfg(conditional_jump_example):
     assert cfg.exit_node
     assert len(cfg.edges) == 5
     assert len(cfg.nodes) == 5
+
+
+def test_integration_reverse_cfg(conditional_jump_example):
+    cfg = CFG.from_bytecode(conditional_jump_example)
+    reversed_cfg = CFG.reverse(cfg)
+    assert reversed_cfg.entry_node.index == sys.maxsize
+    assert reversed_cfg.exit_node.index == 0
+    assert len(reversed_cfg.edges) == 5
+    assert len(reversed_cfg.nodes) == 5
