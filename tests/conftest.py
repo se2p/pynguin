@@ -14,11 +14,13 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
 import inspect
+import sys
 from collections import defaultdict
 from typing import Dict, Callable, Any
 from unittest.mock import MagicMock
 
 import pytest
+from bytecode import Bytecode, Label, Instr
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
@@ -26,6 +28,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.analyses.controlflow.cfg import CFG, CFGNode, CFGEdge
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -183,6 +186,64 @@ def reset_test_cluster():
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
     StatisticsTracker._instance = None
+
+
+@pytest.fixture(scope="module")
+def conditional_jump_example_bytecode() -> Bytecode:
+    label_else = Label()
+    label_print = Label()
+    byte_code = Bytecode(
+        [
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL_FUNCTION", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ]
+    )
+    return byte_code
+
+
+@pytest.fixture(scope="module")
+def small_control_flow_graph() -> CFG:
+    cfg = CFG()
+    entry = CFGNode(index=0)
+    n6 = CFGNode(index=6)
+    n5 = CFGNode(index=5)
+    n4 = CFGNode(index=4)
+    n3 = CFGNode(index=3)
+    n2 = CFGNode(index=2)
+    exit_node = CFGNode(index=sys.maxsize)
+    e0 = CFGEdge(index=0, predecessor=entry, successor=n6)
+    e1 = CFGEdge(index=1, predecessor=n6, successor=n5)
+    e2 = CFGEdge(index=2, predecessor=n5, successor=n4)
+    e3 = CFGEdge(index=3, predecessor=n5, successor=n3)
+    e4 = CFGEdge(index=4, predecessor=n4, successor=n2)
+    e5 = CFGEdge(index=5, predecessor=n3, successor=n2)
+    e6 = CFGEdge(index=6, predecessor=n2, successor=exit_node)
+    entry.add_outgoing_edge(e0)
+    n6.add_incoming_edge(e0)
+    n6.add_outgoing_edge(e1)
+    n5.add_incoming_edge(e1)
+    n5.add_outgoing_edge(e2)
+    n5.add_outgoing_edge(e3)
+    n4.add_incoming_edge(e2)
+    n4.add_outgoing_edge(e4)
+    n3.add_incoming_edge(e3)
+    n3.add_outgoing_edge(e5)
+    n2.add_incoming_edge(e4)
+    n2.add_incoming_edge(e5)
+    n2.add_outgoing_edge(e6)
+    exit_node.add_incoming_edge(e6)
+    cfg._nodes = [entry, n6, n5, n4, n3, n2, exit_node]
+    cfg._edges = [e0, e1, e2, e3, e4, e5, e6]
+    return cfg
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

@@ -15,8 +15,8 @@
 """Provides base classes of a program graph."""
 from typing import List, TypeVar, Generic, Optional
 
-N = TypeVar("N")  # pylint: disable=invalid-name
-E = TypeVar("E")  # pylint: disable=invalid-name
+N = TypeVar("N", bound="ProgramGraphNode")  # pylint: disable=invalid-name
+E = TypeVar("E", bound="ProgramGraphEdge")  # pylint: disable=invalid-name
 
 
 class ProgramGraphNode(Generic[E]):
@@ -111,3 +111,25 @@ class ProgramGraph(Generic[E, N]):
     def nodes(self) -> List[N]:
         """Provides a list of all nodes of this program graph."""
         return self._nodes
+
+    @property
+    def entry_node(self) -> N:
+        """Provides the entry node of the control-flow graph."""
+        entry_nodes = [node for node in self._nodes if node.is_entry_node()]
+        assert len(entry_nodes) == 1, "Cannot work with more than one entry node!"
+        return entry_nodes[0]
+
+    @property
+    def exit_node(self) -> N:
+        """Provides a list of all exit nodes of the control-flow graph."""
+        exit_nodes = [node for node in self._nodes if node.is_exit_node()]
+        assert len(exit_nodes) == 1, "Cannot work with more than one exit node!"
+        return exit_nodes[0]
+
+    def add_node(self, node: N) -> None:
+        """Adds a node to the graph."""
+        self._nodes.append(node)
+
+    def add_edge(self, edge: E) -> None:
+        """Adds an edge to the graph."""
+        self._edges.append(edge)

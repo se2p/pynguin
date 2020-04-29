@@ -54,23 +54,10 @@ class CFGNode(pg.ProgramGraphNode):
             return False
         if other is self:
             return True
-        return (
-            self._index == other.index
-            and self._incoming_edges == other.incoming_edges
-            and self._outgoing_edges == other.outgoing_edges
-        )
+        return self._index == other.index
 
     def __hash__(self) -> int:
-        return (
-            31
-            + 17 * self._index
-            + sum(
-                [
-                    17 * hash(elem)
-                    for elem in self._incoming_edges + self._outgoing_edges
-                ]
-            )
-        )
+        return 31 + 17 * self._index
 
     def __str__(self) -> str:
         return f"CFGNode({self._index})"
@@ -242,20 +229,6 @@ class CFG(pg.ProgramGraph):
                 new_edges.append(edge)
                 index += 1
         return new_edges
-
-    @property
-    def entry_node(self) -> CFGNode:
-        """Provides the entry node of the control-flow graph."""
-        entry_nodes = [node for node in self._nodes if node.is_entry_node()]
-        assert len(entry_nodes) == 1, "Cannot work with more than one entry node!"
-        return entry_nodes[0]
-
-    @property
-    def exit_node(self) -> CFGNode:
-        """Provides a list of all exit nodes of the control-flow graph."""
-        exit_nodes = [node for node in self._nodes if node.is_exit_node()]
-        assert len(exit_nodes) == 1, "Cannot work with more than one exit node!"
-        return exit_nodes[0]
 
     @property
     def cyclomatic_complexity(self) -> int:
