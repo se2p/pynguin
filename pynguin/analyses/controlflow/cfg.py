@@ -12,97 +12,19 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provides a control-flow graph implementation consisting of nodes and edges."""
+"""Provides a control-flow graph implementation."""
 from __future__ import annotations
 
 import sys
-from typing import Any, List, Optional, Dict, cast, Tuple
+from typing import Tuple, Dict, List, cast
 
-from bytecode import Instr, BasicBlock, Bytecode, ControlFlowGraph
+from bytecode import Bytecode, ControlFlowGraph
 
 import pynguin.analyses.controlflow.programgraph as pg
 
 
-class CFGNode(pg.ProgramGraphNode):
-    """A node in the control-flow graph."""
-
-    # pylint: disable=too-many-arguments
-    def __init__(
-        self,
-        index: int,
-        incoming_edges: Optional[List[CFGEdge]] = None,
-        outgoing_edges: Optional[List[CFGEdge]] = None,
-        instructions: Optional[List[Instr]] = None,
-        basic_block: Optional[BasicBlock] = None,
-    ) -> None:
-        super().__init__(index, incoming_edges, outgoing_edges)
-        self._instructions = instructions if instructions else []
-        self._basic_block = basic_block
-
-    @property
-    def instructions(self) -> Optional[List[Instr]]:
-        """Returns the list of instructions attached to this block."""
-        return self._instructions
-
-    @property
-    def basic_block(self) -> Optional[BasicBlock]:
-        """Returns the original basic-block object."""
-        return self._basic_block
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, CFGNode):
-            return False
-        if other is self:
-            return True
-        return self._index == other.index
-
-    def __hash__(self) -> int:
-        return 31 + 17 * self._index
-
-    def __str__(self) -> str:
-        return f"CFGNode({self._index})"
-
-    def __repr__(self) -> str:
-        return (
-            f"CFGNode(index={self._index}, incoming_edges={self._incoming_edges}, "
-            f"outgoing_edges={self._outgoing_edges})"
-        )
-
-
-class CFGEdge(pg.ProgramGraphEdge):
-    """An edge in the control-flow graph"""
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, CFGEdge):
-            return False
-        if other is self:
-            return True
-        return (
-            self._index == other.index
-            and self._predecessor == other.predecessor
-            and self._successor == other.successor
-        )
-
-    def __hash__(self) -> int:
-        return (
-            31
-            + 17 * self._index
-            + 17 * id(self._predecessor)
-            + 17 * id(self._successor)
-        )
-
-    def __str__(self) -> str:
-        return f"CFGEdge({self._index}; {self._predecessor} -> {self._successor})"
-
-    def __repr__(self) -> str:
-        return (
-            f"CFGEdge(index={self._index}, predecessor={self._predecessor}, "
-            f"successor={self._successor}"
-        )
-
-
 class CFG(pg.ProgramGraph):
-    """The control-flow graph implementation"""
+    """The control-flow graph implementation based on the program graph."""
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -117,65 +39,59 @@ class CFG(pg.ProgramGraph):
         # Create the nodes and a mapping of all edges to generate
         edges, nodes = CFG._create_nodes(blocks)
 
-        # Create all edges between the previously generated nodes
-        new_edges = CFG._create_and_insert_edges(edges, nodes)
+        # Insert all edges between the previously generated nodes
+        CFG._create_graph(cfg, edges, nodes)
 
-        cfg._nodes = [
-            node for node in nodes.values()  # pylint: disable=unnecessary-comprehension
-        ]
-        cfg._edges = new_edges
+        # Insert dummy exit node
         cfg = CFG._insert_dummy_exit_node(cfg)
         return cfg
 
     @staticmethod
     def reverse(cfg: CFG) -> CFG:
-        """Reverses a control-flow graph, i.e., entry nodes be come exit nodes and
+        """Reverses a control-flow graph, i.e., entry nodes become exit nodes and
         vice versa.
 
         :param cfg: The control-flow graph to reverse
         :return: The reversed control-flow graph
         """
-
-        def get_node_by_index(nodes: List[CFGNode], index: int) -> CFGNode:
-            node = [n for n in nodes if n.index == index]
-            assert len(node) == 1
-            return node[0]
-
         reversed_cfg = CFG()
-        reversed_cfg._nodes = [
-            CFGNode(
-                index=node.index,
-                instructions=node.instructions,
-                basic_block=node.basic_block,
-            )
-            for node in cfg.nodes
-        ]
-        edge_index = 0
-        edges: List[CFGEdge] = []
-        for edge in cfg.edges:
-            old_predecessor_index = edge.predecessor.index
-            old_successor_index = edge.successor.index
-            new_predecessor = get_node_by_index(reversed_cfg.nodes, old_successor_index)
-            new_successor = get_node_by_index(reversed_cfg.nodes, old_predecessor_index)
-            new_edge = CFGEdge(
-                index=edge_index, predecessor=new_predecessor, successor=new_successor
-            )
-            new_predecessor.add_outgoing_edge(new_edge)
-            new_successor.add_incoming_edge(new_edge)
-            edges.append(new_edge)
-            edge_index += 1
-        reversed_cfg._edges = edges
+        reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
+
+    def reversed(self) -> CFG:
+        """Provides the reversed graph of this graph.
+
+        :return: The reversed graph
+        """
+        return CFG.reverse(self)
+
+    @staticmethod
+    def copy_graph(cfg: CFG) -> CFG:
+        """Provides a copy of the control-flow graph.
+
+        :param cfg: The original graph
+        :return: The copied graph
+        """
+        copy = CFG()
+        copy._graph = cfg._graph.copy()
+        return copy
+
+    def copy(self) -> CFG:
+        """Provides a copy of the control-flow graph.
+
+        :return: The copied graph
+        """
+        return CFG.copy_graph(self)
 
     @staticmethod
     def _create_nodes(
         blocks: ControlFlowGraph,
-    ) -> Tuple[Dict[int, List[int]], Dict[int, CFGNode]]:
-        nodes: Dict[int, CFGNode] = {}
+    ) -> Tuple[Dict[int, List[int]], Dict[int, pg.ProgramGraphNode]]:
+        nodes: Dict[int, pg.ProgramGraphNode] = {}
         edges: Dict[int, List[int]] = {}
         for node_index, block in enumerate(blocks):
-            node = CFGNode(
-                node_index,
+            node = pg.ProgramGraphNode(
+                index=node_index,
                 instructions=[
                     instruction
                     for instruction in block  # pylint: disable=unnecessary-comprehension
@@ -196,26 +112,14 @@ class CFG(pg.ProgramGraph):
         return edges, nodes
 
     @staticmethod
-    def _insert_dummy_exit_node(cfg: CFG) -> CFG:
-        dummy_exit_node = CFGNode(index=sys.maxsize)
-        exit_nodes = [node for node in cfg.nodes if node.is_exit_node()]
-        new_edges: List[CFGEdge] = []
-        index = max([edge.index for edge in cfg.edges]) + 1
-        for exit_node in exit_nodes:
-            new_edge = CFGEdge(index, predecessor=exit_node, successor=dummy_exit_node)
-            exit_node.add_outgoing_edge(new_edge)
-            dummy_exit_node.add_incoming_edge(new_edge)
-            new_edges.append(new_edge)
-        cfg._nodes.append(dummy_exit_node)
-        cfg._edges.extend(new_edges)
-        return cfg
+    def _create_graph(
+        cfg: CFG, edges: Dict[int, List[int]], nodes: Dict[int, pg.ProgramGraphNode]
+    ):
+        # add nodes to graph
+        for node in nodes.values():
+            cfg.add_node(node)
 
-    @staticmethod
-    def _create_and_insert_edges(
-        edges: Dict[int, List[int]], nodes: Dict[int, CFGNode]
-    ) -> List[CFGEdge]:
-        index = 0
-        new_edges: List[CFGEdge] = []
+        # add edges to graph
         for predecessor in edges.keys():
             successors = edges.get(predecessor)
             for successor in cast(List[int], successors):
@@ -223,17 +127,21 @@ class CFG(pg.ProgramGraph):
                 successor_node = nodes.get(successor)
                 assert predecessor_node
                 assert successor_node
-                edge = CFGEdge(index, predecessor_node, successor_node)
-                predecessor_node.add_outgoing_edge(edge)
-                successor_node.add_incoming_edge(edge)
-                new_edges.append(edge)
-                index += 1
-        return new_edges
+                cfg.add_edge(predecessor_node, successor_node)
+
+    @staticmethod
+    def _insert_dummy_exit_node(cfg: CFG) -> CFG:
+        dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize)
+        exit_nodes = cfg.exit_nodes
+        cfg.add_node(dummy_exit_node)
+        for exit_node in exit_nodes:
+            cfg.add_edge(exit_node, dummy_exit_node)
+        return cfg
 
     @property
     def cyclomatic_complexity(self) -> int:
-        """Calculates McCabe's cyclomatic complexity for this control-flow graph.
+        """Calculates McCabe's cyclomatic complexity for this control-flow graph
 
-        :return: McCabe's cyclomatic complexity number
+        :return: McCabe's cyclocmatic complexity number
         """
-        return len(self._edges) - len(self._nodes) + 2
+        return len(self._graph.edges) - len(self._graph.nodes) + 2
