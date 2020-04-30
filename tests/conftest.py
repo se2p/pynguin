@@ -14,11 +14,13 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
 import inspect
+import sys
 from collections import defaultdict
 from typing import Dict, Callable, Any
 from unittest.mock import MagicMock
 
 import pytest
+from bytecode import Bytecode, Label, Instr
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
@@ -26,6 +28,8 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.analyses.controlflow.cfg import CFG
+from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -183,6 +187,55 @@ def reset_test_cluster():
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
     StatisticsTracker._instance = None
+
+
+@pytest.fixture(scope="module")
+def conditional_jump_example_bytecode() -> Bytecode:
+    label_else = Label()
+    label_print = Label()
+    byte_code = Bytecode(
+        [
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL_FUNCTION", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ]
+    )
+    return byte_code
+
+
+@pytest.fixture(scope="module")
+def small_control_flow_graph() -> CFG:
+    cfg = CFG()
+    entry = ProgramGraphNode(index=0)
+    n2 = ProgramGraphNode(index=2)
+    n3 = ProgramGraphNode(index=3)
+    n4 = ProgramGraphNode(index=4)
+    n5 = ProgramGraphNode(index=5)
+    n6 = ProgramGraphNode(index=6)
+    exit_node = ProgramGraphNode(index=sys.maxsize)
+    cfg.add_node(entry)
+    cfg.add_node(n2)
+    cfg.add_node(n3)
+    cfg.add_node(n4)
+    cfg.add_node(n5)
+    cfg.add_node(n6)
+    cfg.add_node(exit_node)
+    cfg.add_edge(entry, n6)
+    cfg.add_edge(n6, n5)
+    cfg.add_edge(n5, n4)
+    cfg.add_edge(n5, n3)
+    cfg.add_edge(n4, n2)
+    cfg.add_edge(n3, n2)
+    cfg.add_edge(n2, exit_node)
+    return cfg
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
