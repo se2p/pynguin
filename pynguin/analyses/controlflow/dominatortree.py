@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Provides an implementation of a post-dominator tree."""
+"""Provides an implementation of a dominator tree."""
 from __future__ import annotations
 
 import queue
@@ -22,32 +22,41 @@ import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.programgraph as pg
 
 
-class PostDominatorTree(pg.ProgramGraph):
-    """Implements a post-dominator tree."""
+class DominatorTree(pg.ProgramGraph):
+    """Implements a dominator tree."""
 
     @staticmethod
-    def compute(graph: cfg.CFG) -> PostDominatorTree:
+    def compute(graph: cfg.CFG) -> DominatorTree:
+        """Computes the dominator tree for a control-flow graph.
+
+        :param graph: The control-flow graph
+        :return: The dominator tree for the control-flow graph
+        """
+        return DominatorTree.compute_dominance_tree(graph)
+
+    @staticmethod
+    def compute_post_dominator_tree(graph: cfg.CFG) -> DominatorTree:
         """Computes the post-dominator tree for a control-flow graph.
 
         :param graph: The control-flow graph
         :return: The post-dominator tree for the control-flow graph
         """
-        reversed_graph = graph.reversed()
-        return PostDominatorTree.compute_post_dominance_tree(reversed_graph)
+        reversed_cfg = graph.reversed()
+        return DominatorTree.compute(reversed_cfg)
 
     @staticmethod
-    def compute_post_dominance_tree(graph: cfg.CFG) -> PostDominatorTree:
-        """Computes the post-dominance tree for a control-flow graph.
+    def compute_dominance_tree(graph: cfg.CFG) -> DominatorTree:
+        """Computes the dominance tree for a control-flow graph.
 
         :param graph: The control-flow graph
-        :return: The post-dominance tree for the control-flow graph
+        :return: The dominance tree for the control-flow graph
         """
-        post_dominance: Dict[
+        dominance: Dict[
             pg.ProgramGraphNode, Set[pg.ProgramGraphNode]
-        ] = PostDominatorTree._calculate_post_dominance(graph)
-        for post_dominance_node, nodes in post_dominance.items():
-            nodes.remove(post_dominance_node)
-        dominance_tree = PostDominatorTree()
+        ] = DominatorTree._calculate_dominance(graph)
+        for dominance_node, nodes in dominance.items():
+            nodes.remove(dominance_node)
+        dominance_tree = DominatorTree()
         entry_node = graph.entry_node
         dominance_tree.add_node(entry_node)
 
@@ -55,7 +64,7 @@ class PostDominatorTree(pg.ProgramGraph):
         node_queue.put(entry_node)
         while not node_queue.empty():
             node: pg.ProgramGraphNode = node_queue.get()
-            for current, dominators in post_dominance.items():
+            for current, dominators in dominance.items():
                 if node in dominators:
                     dominators.remove(node)
                     if len(dominators) == 0:
@@ -65,7 +74,7 @@ class PostDominatorTree(pg.ProgramGraph):
         return dominance_tree
 
     @staticmethod
-    def _calculate_post_dominance(
+    def _calculate_dominance(
         graph: cfg.CFG,
     ) -> Dict[pg.ProgramGraphNode, Set[pg.ProgramGraphNode]]:
         dominance_map: Dict[pg.ProgramGraphNode, Set[pg.ProgramGraphNode]] = {}
@@ -87,7 +96,7 @@ class PostDominatorTree(pg.ProgramGraph):
                 if node == entry:
                     continue
                 current_dominators = dominance_map.get(node)
-                new_dominators = PostDominatorTree._calculate_dominators(
+                new_dominators = DominatorTree._calculate_dominators(
                     graph, dominance_map, node
                 )
 

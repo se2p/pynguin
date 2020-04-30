@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Set
 
 import pynguin.analyses.controlflow.cfg as cfg
-import pynguin.analyses.controlflow.postdominatortree as pdt
+import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
 
 
@@ -33,7 +33,7 @@ class ControlDependenceGraph(pg.ProgramGraph):
         :param graph: The control-flow graph
         :return: The control-dependence graph
         """
-        post_dominator_tree = pdt.PostDominatorTree.compute(graph)
+        post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(graph)
         cdg = ControlDependenceGraph()
         nodes = graph.nodes
 

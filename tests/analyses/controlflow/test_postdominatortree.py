@@ -15,12 +15,14 @@
 import sys
 
 import pynguin.analyses.controlflow.cfg as cfg
-import pynguin.analyses.controlflow.postdominatortree as pdt
+import pynguin.analyses.controlflow.dominatortree as pdt
 
 
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
     control_flow_graph = cfg.CFG.from_bytecode(conditional_jump_example_bytecode)
-    post_dominator_tree = pdt.PostDominatorTree.compute(control_flow_graph)
+    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
+        control_flow_graph
+    )
     dot_representation = post_dominator_tree.to_dot()
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
@@ -39,7 +41,9 @@ def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
 
 
 def test_integration(small_control_flow_graph):
-    post_dominator_tree = pdt.PostDominatorTree.compute(small_control_flow_graph)
+    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
+        small_control_flow_graph
+    )
     dot_representation = post_dominator_tree.to_dot()
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
