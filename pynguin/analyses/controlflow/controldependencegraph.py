@@ -40,6 +40,7 @@ class ControlDependenceGraph(pg.ProgramGraph):
         for node in nodes:
             cdg.add_node(node)
 
+        # Find matching edges in the CFG.
         edges: Set[ControlDependenceGraph._Edge] = set()
         for source in nodes:
             for target in graph.get_successors(source):
@@ -48,6 +49,7 @@ class ControlDependenceGraph(pg.ProgramGraph):
                         ControlDependenceGraph._Edge(source=source, target=target)
                     )
 
+        # Mark nodes in the PDT and construct edges for them.
         for edge in edges:
             least_common_ancestor = post_dominator_tree.get_least_common_ancestor(
                 edge.source, edge.target
