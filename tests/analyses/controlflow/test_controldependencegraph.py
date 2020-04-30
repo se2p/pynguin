@@ -24,10 +24,15 @@ def test_integration(small_control_flow_graph):
 "ProgramGraphNode(2)";
 "ProgramGraphNode(4)";
 "ProgramGraphNode(6)";
+"ProgramGraphNode(-9223372036854775807)";
 "ProgramGraphNode(3)";
 "ProgramGraphNode(9223372036854775807)";
 "ProgramGraphNode(5)";
 "ProgramGraphNode(0)";
+"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(0)";
+"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(6)";
+"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(5)";
+"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(2)";
 "ProgramGraphNode(5)" -> "ProgramGraphNode(3)";
 "ProgramGraphNode(5)" -> "ProgramGraphNode(4)";
 }
