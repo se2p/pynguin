@@ -208,10 +208,10 @@ class DefaultTestCase(tc.TestCase):
             assert self._test_factory
             max_position = self._get_last_mutatable_statement()
             if max_position is None:
-                # No mutable statement found, so start at the first position.
+                # No mutatable statement found, so start at the first position.
                 max_position = 0
             else:
-                # Also include the position after the last mutable statement.
+                # Also include the position after the last mutatable statement.
                 max_position += 1
 
             position = self._test_factory.insert_random_statement(self, max_position)
@@ -221,7 +221,7 @@ class DefaultTestCase(tc.TestCase):
         return changed
 
     def _get_last_mutatable_statement(self) -> Optional[int]:
-        """Provides the index of the last mutable statement.
+        """Provides the index of the last mutatable statement.
         If there was an exception during the last execution, this includes all statement
         up to the one that caused the exception (included)."""
         # We are empty, so there can't be a last mutatable statement.
