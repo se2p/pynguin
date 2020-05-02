@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Union, Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from pynguin.setup.testcluster import TestCluster
+from pynguin.utils import type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
@@ -110,3 +112,24 @@ def test_get_random_accessible_two():
     cluster.add_accessible_object_under_test(modifier)
     cluster.add_accessible_object_under_test(modifier2)
     assert cluster.get_random_accessible() in {modifier, modifier2}
+
+
+@pytest.mark.parametrize(
+    "type_, result",
+    [
+        pytest.param(None, [None]),
+        pytest.param(bool, [bool]),
+        pytest.param(Union[int, float], [int, float]),
+        pytest.param(Union, [None]),
+    ],
+)
+def test_select_concrete_type_union_unary(type_, result):
+    assert TestCluster().select_concrete_type(type_) in result
+
+
+def test_select_concrete_type_any():
+    cluster = TestCluster()
+    cluster._generators[MagicMock] = MagicMock
+    assert cluster.select_concrete_type(Any) in list(type_utils.PRIMITIVES) + [
+        MagicMock
+    ]

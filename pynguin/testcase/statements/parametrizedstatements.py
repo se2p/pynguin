@@ -164,8 +164,9 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         :return True, if the parameter was mutated.
         """
         to_mutate = self._get_argument(arg)
+        param_type = self._get_parameter_type(arg)
         possible_replacements = self.test_case.get_objects(
-            to_mutate.variable_type, self.get_position()
+            param_type, self.get_position()
         )
 
         if to_mutate in possible_replacements:
@@ -173,10 +174,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
         # Consider duplicating an existing statement/variable.
         copy: Optional[stmt.Statement] = None
-        if (
-            self._param_count_of_type(to_mutate.variable_type)
-            > len(possible_replacements) + 1
-        ):
+        if self._param_count_of_type(param_type) > len(possible_replacements) + 1:
             original_param_source = self.test_case.get_statement(
                 to_mutate.get_statement_position()
             )
@@ -184,6 +182,9 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             copy.mutate()
             possible_replacements.append(copy.return_value)
 
+        # TODO(fk) Use param_type instead of to_mutate.variable_type,
+        # to make the selection broader, but this requires access to
+        # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
         none_statement = prim.NoneStatement(self.test_case, to_mutate.variable_type)
         possible_replacements.append(none_statement.return_value)
@@ -210,12 +211,21 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if not type_:
             return 0
         for var_ref in self.args:
-            if var_ref.variable_type == type_:
+            if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         for _, var_ref in self.kwargs.items():
-            if var_ref.variable_type == type_:
+            if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         return count
+
+    def _get_parameter_type(self, arg: Union[int, str]) -> Optional[Type]:
+        """Get the type of the parameter."""
+        parameters = self._generic_callable.inferred_signature.parameters
+        if isinstance(arg, int):
+            # As of Python 3.7, Dictionaries preserve insertion order.
+            # So we can access the values by index.
+            return list(parameters.values())[arg]
+        return parameters[arg]
 
     def _get_argument(self, arg: Union[int, str]) -> vr.VariableReference:
         """Returns the arg or kwarg, depending on the parameter type."""

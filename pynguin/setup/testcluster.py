@@ -14,11 +14,14 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a test cluster."""
 from __future__ import annotations
-from typing import Type, Set, Dict, cast, Optional
+from typing import Type, Set, Dict, cast, Optional, Any, List
+
+from typing_inspect import is_union_type, get_args
 
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.utils.type_utils import PRIMITIVES
 
 
 class TestCluster:
@@ -107,7 +110,26 @@ class TestCluster:
 
     def get_random_call_for(self, type_: Type) -> GenericAccessibleObject:
         """Get a random modifier for the given type."""
-        accessibles = self.get_modifiers_for(type_)
-        if len(accessibles) == 0:
+        accessible_objects = self.get_modifiers_for(type_)
+        if len(accessible_objects) == 0:
             raise ConstructionFailedException("No modifiers for " + str(type_))
-        return randomness.choice(list(accessibles))
+        return randomness.choice(list(accessible_objects))
+
+    def get_all_generatable_types(self) -> List[Type]:
+        """Provides all types that can be generated, including primitives."""
+        generatable = list(self._generators.keys())
+        generatable.extend(PRIMITIVES)
+        return generatable
+
+    def select_concrete_type(self, select_from: Optional[Type]) -> Optional[Type]:
+        """Select a concrete type from the given type.
+        This is required e.g. when handling union types.
+        Currently only unary types, Any and Union are handled."""
+        if select_from == Any:
+            return randomness.choice(self.get_all_generatable_types())
+        if is_union_type(select_from):
+            possible_types = get_args(select_from)
+            if possible_types is not None and len(possible_types) > 0:
+                return randomness.choice(possible_types)
+            return None
+        return select_from

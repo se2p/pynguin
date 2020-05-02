@@ -151,7 +151,9 @@ def test_add_constructor(provide_callables_from_fixtures_modules):
             parameters={"foo": int},
         ),
     )
-    factory = tf.TestFactory(MagicMock(TestCluster))
+    cluster = MagicMock(TestCluster)
+    cluster.select_concrete_type.side_effect = lambda x: x
+    factory = tf.TestFactory(cluster)
     result = factory.add_constructor(test_case, generic_constructor, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Basket"]
     assert test_case.size() == 2
@@ -178,7 +180,9 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
             parameters={"sentence": str},
         ),
     )
+    test_cluster_mock.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(test_cluster_mock)
+    config.INSTANCE.none_probability = 1.0
     result = factory.add_method(test_case, generic_method, position=0)
     assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
     assert test_case.size() == 3
@@ -207,7 +211,9 @@ def test_add_function(provide_callables_from_fixtures_modules):
             parameters={"x": int, "y": int, "z": int},
         ),
     )
-    factory = tf.TestFactory(MagicMock(TestCluster))
+    cluster = MagicMock(TestCluster)
+    cluster.select_concrete_type.side_effect = lambda x: x
+    factory = tf.TestFactory(cluster)
     result = factory.add_function(test_case, generic_function, position=0)
     assert isinstance(result.variable_type, type(None))
     assert test_case.size() <= 4
@@ -244,7 +250,9 @@ def test_attempt_generation_for_type(test_case_mock):
 
 
 def test_attempt_generation_for_no_type(test_case_mock):
-    factory = tf.TestFactory(MagicMock(TestCluster))
+    cluster = MagicMock(TestCluster)
+    cluster.select_concrete_type.side_effect = lambda x: x
+    factory = tf.TestFactory(cluster)
     result = factory._attempt_generation(test_case_mock, None, 0, 0, True)
     assert result is None
 
@@ -959,3 +967,10 @@ def test_should_skip_parameter(param_name, result):
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
     assert tf.TestFactory._should_skip_parameter(inf_sig, param_name) == result
+
+
+def test_create_or_reuse_variable_no_guessing(test_case_mock):
+    cluster = MagicMock(TestCluster)
+    factory = tf.TestFactory(cluster)
+    config.INSTANCE.guess_unknown_types = False
+    assert factory._create_or_reuse_variable(test_case_mock, None, 1, 1, True) is None

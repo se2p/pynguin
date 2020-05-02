@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union
+from typing import Union, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,7 +24,6 @@ from pynguin.utils.type_utils import (
     is_none_type,
     is_assignable_to,
     is_type_unknown,
-    select_concrete_type,
     is_numeric,
     is_string,
 )
@@ -90,23 +89,12 @@ def test_function_in_module(module, result):
         pytest.param(float, Union[int, float], True),
         pytest.param(float, int, False),
         pytest.param(float, Union[str, int], False),
+        pytest.param(float, Any, True),
+        pytest.param(int, Any, True),
     ],
 )
 def test_is_assignable_to(from_type, to_type, result):
     assert is_assignable_to(from_type, to_type) == result
-
-
-@pytest.mark.parametrize(
-    "type_, result",
-    [
-        pytest.param(None, [None]),
-        pytest.param(bool, [bool]),
-        pytest.param(Union[int, float], [int, float]),
-        pytest.param(Union, [None]),
-    ],
-)
-def test_select_concrete_type(type_, result):
-    assert select_concrete_type(type_) in result
 
 
 @pytest.mark.parametrize(

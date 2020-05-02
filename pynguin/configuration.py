@@ -160,6 +160,13 @@ class Configuration:
     # [0,1]
     none_probability: float = 0.1
 
+    # Should we guess unknown types while constructing parameters?
+    # This might happen in the following cases:
+    # The parameter type is unknown, e.g. a parameter is missing a type hint.
+    # The parameter is not primitive and cannot be created from the test cluster,
+    # e.g. Callable[...]
+    guess_unknown_types: bool = True
+
     # Probability of replacing parameters when mutating a method or constructor statement
     # in a test case.  Expects values in [0,1]
     change_parameter_probability: float = 0.1
