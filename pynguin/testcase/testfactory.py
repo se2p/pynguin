@@ -868,6 +868,10 @@ class TestFactory:
         if not parameter_type:
             return None
 
+        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
+            return self._create_none(
+                test_case, parameter_type, position, recursion_depth
+            )
         if is_primitive_type(parameter_type):
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
@@ -875,10 +879,6 @@ class TestFactory:
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(
                 test_case, position, recursion_depth, allow_none, type_generators
-            )
-        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
-            return self._create_none(
-                test_case, parameter_type, position, recursion_depth
             )
         return None
 
