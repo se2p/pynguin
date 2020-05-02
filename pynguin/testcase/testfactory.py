@@ -64,21 +64,21 @@ class TestFactory:
         if isinstance(statement, par_stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
-                statement.constructor,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.MethodStatement):
             self.add_method(
                 test_case,
-                statement.method,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.FunctionStatement):
             self.add_function(
                 test_case,
-                statement.function,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
@@ -189,7 +189,7 @@ class TestFactory:
             position = position + new_length - length
 
             statement = par_stmt.ConstructorStatement(
-                test_case=test_case, constructor=constructor, args=parameters,
+                test_case=test_case, generic_callable=constructor, args=parameters,
             )
             return test_case.add_statement(statement, position)
         except BaseException as exception:
@@ -249,7 +249,10 @@ class TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.MethodStatement(
-            test_case=test_case, method=method, callee=callee, args=parameters,
+            test_case=test_case,
+            generic_callable=method,
+            callee=callee,
+            args=parameters,
         )
         return test_case.add_statement(statement, position)
 
@@ -337,7 +340,7 @@ class TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.FunctionStatement(
-            test_case=test_case, function=function, args=parameters,
+            test_case=test_case, generic_callable=function, args=parameters,
         )
         return test_case.add_statement(statement, position)
 
