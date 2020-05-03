@@ -21,6 +21,7 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.utils import type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.type_utils import PRIMITIVES
 
 
 def test_add_generator_primitive():
@@ -133,3 +134,14 @@ def test_select_concrete_type_any():
     assert cluster.select_concrete_type(Any) in list(type_utils.PRIMITIVES) + [
         MagicMock
     ]
+
+
+def test_get_all_generatable_types_only_primitive():
+    cluster = TestCluster()
+    assert cluster.get_all_generatable_types() == list(PRIMITIVES)
+
+
+def test_get_all_generatable_types():
+    cluster = TestCluster()
+    cluster._generators[MagicMock] = MagicMock
+    assert cluster.get_all_generatable_types() == [MagicMock] + list(PRIMITIVES)
