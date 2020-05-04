@@ -26,6 +26,9 @@ import pynguin.analyses.controlflow.programgraph as pg
 class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     """The control-flow graph implementation based on the program graph."""
 
+    # Attribute where the predicate id of the instrumentation is stored
+    PREDICATE_ID: str = "predicate_id"
+
     def __init__(self, bytecode_cfg: ControlFlowGraph):
         """Create new CFG. Do not call directly, use static factory methods.
         :param bytecode_cfg the control flow graph of the underlying bytecode."""

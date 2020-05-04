@@ -116,6 +116,11 @@ class ProgramGraph(Generic[N]):
         }
 
     @property
+    def graph(self) -> nx.DiGraph:
+        """The internal graph."""
+        return self._graph
+
+    @property
     def entry_node(self) -> Optional[N]:
         """Provides the entry node of the graph."""
         for node in self._graph.nodes:
