@@ -13,18 +13,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides iterators that are more Java-esque."""
-from typing import List, Any
+from typing import List, TypeVar, Generic
+
+T = TypeVar("T")  # pylint:disable=invalid-name
 
 
-class ListIterator:
+class ListIterator(Generic[T]):
     """Small iterator that allows to modify the underlying list while iterating over it."""
 
-    def __init__(self, elements: List[Any]) -> None:
+    def __init__(self, elements: List[T]) -> None:
         """Initialize iterator with the given list."""
 
         assert isinstance(elements, list), "Only works on lists"
-        self.elements: List[Any] = elements
-        self.idx = -1
+        self._elements: List[T] = elements
+        self._idx = -1
 
     def next(self) -> bool:
         """
@@ -32,45 +34,49 @@ class ListIterator:
         Otherwise False is returned.
         """
         if self.can_peek():
-            self.idx += 1
+            self._idx += 1
             return True
         return False
 
-    def current(self):
+    def current(self) -> T:
         """Get the current element."""
-        return self.elements[self.idx]
+        return self._elements[self._idx]
+
+    def current_index(self) -> int:
+        """Return current index."""
+        return self._idx
 
     def has_previous(self):
         """Check if there is a previous element."""
-        return self.idx > 0
+        return self._idx > 0
 
-    def previous(self):
+    def previous(self) -> T:
         """Get the previous element."""
         assert self.has_previous(), "No previous element"
-        return self.elements[self.idx - 1]
+        return self._elements[self._idx - 1]
 
-    def insert_before(self, insert: List[Any], offset: int = 0):
+    def insert_before(self, insert: List[T], offset: int = 0) -> None:
         """
         Insert another list before the current element.
         Offset can be used to insert the list earlier in the list.
         """
         assert offset >= 0, "Offset must be non negative"
-        assert self.idx - offset >= 0, "Cannot insert out of range"
-        self.elements[self.idx - offset : self.idx - offset] = insert
-        self.idx += len(insert)
+        assert self._idx - offset >= 0, "Cannot insert out of range"
+        self._elements[self._idx - offset : self._idx - offset] = insert
+        self._idx += len(insert)
 
     def can_peek(self, distance: int = 1) -> bool:
         """Is there a next element?"""
-        return self.idx + distance < len(self.elements)
+        return self._idx + distance < len(self._elements)
 
-    def peek(self, distance: int = 1) -> Any:
+    def peek(self, distance: int = 1) -> T:
         """Provide the element that is next in the list, without
         moving the current pointer"""
         assert self.can_peek(distance), "Cannot peek"
-        return self.elements[self.idx + distance]
+        return self._elements[self._idx + distance]
 
-    def insert_after_current(self, insert: List[Any], offset: int = 0) -> None:
+    def insert_after_current(self, insert: List[T], offset: int = 0) -> None:
         """Insert a list of elements. Warning! the inserted elements will be visited again
         when the iterator is further traversed."""
         assert offset >= 0, "Offset must be non negative"
-        self.elements[self.idx + offset + 1 : self.idx + offset + 1] = insert
+        self._elements[self._idx + offset + 1 : self._idx + offset + 1] = insert

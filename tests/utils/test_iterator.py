@@ -170,3 +170,10 @@ def test_insert_after_current_seen_again():
     assert it.current() == 42
     assert it.next()
     assert it.current() == 1337
+
+
+def test_current_index():
+    test = [1, 2]
+    it = ListIterator(test)
+    it.next()
+    assert it.current_index() == 0
