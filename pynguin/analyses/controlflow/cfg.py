@@ -23,8 +23,14 @@ from bytecode import Bytecode, ControlFlowGraph
 import pynguin.analyses.controlflow.programgraph as pg
 
 
-class CFG(pg.ProgramGraph):
+class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     """The control-flow graph implementation based on the program graph."""
+
+    def __init__(self, bytecode_cfg: ControlFlowGraph):
+        """Create new CFG. Do not call directly, use static factory methods.
+        :param bytecode_cfg the control flow graph of the underlying bytecode."""
+        super().__init__()
+        self._bytecode_cfg = bytecode_cfg
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -34,7 +40,7 @@ class CFG(pg.ProgramGraph):
         :return: The control-flow graph for the segment
         """
         blocks = ControlFlowGraph.from_bytecode(bytecode)
-        cfg = CFG()
+        cfg = CFG(blocks)
 
         # Create the nodes and a mapping of all edges to generate
         edges, nodes = CFG._create_nodes(blocks)
@@ -46,6 +52,11 @@ class CFG(pg.ProgramGraph):
         cfg = CFG._insert_dummy_exit_node(cfg)
         return cfg
 
+    def bytecode_cfg(self) -> ControlFlowGraph:
+        """Provide the raw control flow graph from the code object.
+        Can be used to instrument the control flow."""
+        return self._bytecode_cfg
+
     @staticmethod
     def reverse(cfg: CFG) -> CFG:
         """Reverses a control-flow graph, i.e., entry nodes become exit nodes and
@@ -54,7 +65,8 @@ class CFG(pg.ProgramGraph):
         :param cfg: The control-flow graph to reverse
         :return: The reversed control-flow graph
         """
-        reversed_cfg = CFG()
+        reversed_cfg = CFG(cfg.bytecode_cfg())
+        # pylint: disable=attribute-defined-outside-init
         reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
@@ -72,7 +84,10 @@ class CFG(pg.ProgramGraph):
         :param cfg: The original graph
         :return: The copied graph
         """
-        copy = CFG()
+        copy = CFG(
+            ControlFlowGraph()
+        )  # TODO(fk) Cloning the bytecode cfg is complicated.
+        # pylint: disable=attribute-defined-outside-init
         copy._graph = cfg._graph.copy()
         return copy
 
@@ -90,14 +105,7 @@ class CFG(pg.ProgramGraph):
         nodes: Dict[int, pg.ProgramGraphNode] = {}
         edges: Dict[int, List[int]] = {}
         for node_index, block in enumerate(blocks):
-            node = pg.ProgramGraphNode(
-                index=node_index,
-                instructions=[
-                    instruction
-                    for instruction in block  # pylint: disable=unnecessary-comprehension
-                ],
-                basic_block=block,
-            )
+            node = pg.ProgramGraphNode(index=node_index, basic_block=block)
             nodes[node_index] = node
             if node_index not in edges:
                 edges[node_index] = []

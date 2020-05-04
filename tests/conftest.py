@@ -213,7 +213,7 @@ def conditional_jump_example_bytecode() -> Bytecode:
 
 @pytest.fixture(scope="module")
 def small_control_flow_graph() -> CFG:
-    cfg = CFG()
+    cfg = CFG(MagicMock())
     entry = ProgramGraphNode(index=0)
     n2 = ProgramGraphNode(index=2)
     n3 = ProgramGraphNode(index=3)
