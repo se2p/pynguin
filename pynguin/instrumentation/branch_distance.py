@@ -86,7 +86,7 @@ class BranchDistanceInstrumentation:
         dominator_tree = DominatorTree.compute(cfg)
         assert cfg.entry_node is not None, "Entry node cannot be None."
         assert cfg.entry_node.basic_block is not None, "Entry node cannot be None."
-        self._add_code_object_entered(cfg.entry_node.basic_block, code, code_object_id)
+        self._add_code_object_entered(cfg.entry_node.basic_block, code_object_id)
         if add_global_tracer:
             self._add_tracer_to_globals(cfg.entry_node.basic_block)
         node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = dict()
@@ -173,27 +173,27 @@ class BranchDistanceInstrumentation:
         return predicate_id
 
     @staticmethod
-    def _add_code_object_entered(
-        block: BasicBlock, code: CodeType, code_object_id: int
-    ) -> int:
+    def _add_code_object_entered(block: BasicBlock, code_object_id: int) -> int:
+        lineno = block[0].lineno
         block[0:0] = [
-            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=code.co_firstlineno),
+            Instr("LOAD_GLOBAL", TRACER_NAME, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
                 ExecutionTracer.entered_code_object.__name__,
-                lineno=code.co_firstlineno,
+                lineno=lineno,
             ),
-            Instr("LOAD_CONST", code_object_id, lineno=code.co_firstlineno),
-            Instr("CALL_METHOD", 1, lineno=code.co_firstlineno),
-            Instr("POP_TOP", lineno=code.co_firstlineno),
+            Instr("LOAD_CONST", code_object_id, lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
         ]
         return code_object_id
 
     def _add_tracer_to_globals(self, block: BasicBlock) -> None:
         """Add the tracer to the globals."""
+        lineno = block[0].lineno
         block[0:0] = [
-            Instr("LOAD_CONST", self._tracer),
-            Instr("STORE_GLOBAL", TRACER_NAME),
+            Instr("LOAD_CONST", self._tracer, lineno=lineno),
+            Instr("STORE_GLOBAL", TRACER_NAME, lineno=lineno),
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
