@@ -240,7 +240,7 @@ def small_control_flow_graph() -> CFG:
 
 @pytest.fixture(scope="module")
 def larger_control_flow_graph() -> CFG:
-    graph = CFG()
+    graph = CFG(MagicMock())
     entry = ProgramGraphNode(index=-sys.maxsize)
     n_1 = ProgramGraphNode(index=1)
     n_2 = ProgramGraphNode(index=2)
