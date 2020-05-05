@@ -42,6 +42,16 @@ def full_for_loop(length: int):
         print(x)
 
 
+def multi_loop(x: int) -> int:
+    the_sum = 0
+    for i in range(x):
+        for j in range(x):
+            the_sum += 1
+    for i in range(x - x):
+        the_sum += 1
+    return the_sum
+
+
 def comprehension(y, z):
     return [x for x in range(y) if x != z]
 

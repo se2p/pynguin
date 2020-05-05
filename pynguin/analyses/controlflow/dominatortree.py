@@ -22,7 +22,7 @@ import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.programgraph as pg
 
 
-class DominatorTree(pg.ProgramGraph):
+class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     """Implements a dominator tree."""
 
     @staticmethod
@@ -55,9 +55,10 @@ class DominatorTree(pg.ProgramGraph):
             pg.ProgramGraphNode, Set[pg.ProgramGraphNode]
         ] = DominatorTree._calculate_dominance(graph)
         for dominance_node, nodes in dominance.items():
-            nodes.remove(dominance_node)
+            nodes.discard(dominance_node)
         dominance_tree = DominatorTree()
         entry_node = graph.entry_node
+        assert entry_node is not None
         dominance_tree.add_node(entry_node)
 
         node_queue: queue.SimpleQueue = queue.SimpleQueue()
@@ -122,7 +123,7 @@ class DominatorTree(pg.ProgramGraph):
         first_time: bool = True
         for predecessor in predecessors:
             predecessor_dominators = dominance_map.get(predecessor)
-            assert predecessor_dominators, "Cannot be None"
+            assert predecessor_dominators is not None, "Cannot be None"
             if first_time:
                 intersection = intersection.union(predecessor_dominators)
                 first_time = False

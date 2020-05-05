@@ -60,11 +60,6 @@ def test_node_index(node):
     assert node.index == 42
 
 
-def test_node_instructions(mock_instructions):
-    node = ProgramGraphNode(index=42, instructions=mock_instructions)
-    assert node.instructions == mock_instructions
-
-
 def test_node_basic_block(mock_basic_block):
     node = ProgramGraphNode(index=42, basic_block=mock_basic_block)
     assert node.basic_block == mock_basic_block

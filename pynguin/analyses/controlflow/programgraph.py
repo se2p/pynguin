@@ -13,38 +13,25 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides base classes of a program graph."""
-from typing import List, TypeVar, Generic, Optional, Any, Set
+from typing import TypeVar, Generic, Optional, Any, Set
 
 import networkx as nx
-from bytecode import Instr, BasicBlock
+from bytecode import BasicBlock
 from networkx import lowest_common_ancestor
 from networkx.drawing.nx_pydot import to_pydot
-
-N = TypeVar("N", bound="ProgramGraphNode")  # pylint: disable=invalid-name
 
 
 class ProgramGraphNode:
     """A base class for a node of the program graph."""
 
-    def __init__(
-        self,
-        index: int,
-        instructions: Optional[List[Instr]] = None,
-        basic_block: Optional[BasicBlock] = None,
-    ) -> None:
+    def __init__(self, index: int, basic_block: Optional[BasicBlock] = None,) -> None:
         self._index = index
-        self._instructions = instructions
         self._basic_block = basic_block
 
     @property
     def index(self) -> int:
         """Provides the index of the node."""
         return self._index
-
-    @property
-    def instructions(self) -> Optional[List[Instr]]:
-        """Provides the instructions attached to this node."""
-        return self._instructions
 
     @property
     def basic_block(self) -> Optional[BasicBlock]:
@@ -65,10 +52,10 @@ class ProgramGraphNode:
         return f"ProgramGraphNode({self._index})"
 
     def __repr__(self) -> str:
-        return (
-            f"ProgramGraphNode(index={self._index}, instructions="
-            f"{self._instructions}, basic_block={self._basic_block})"
-        )
+        return f"ProgramGraphNode(index={self._index}, basic_block={self._basic_block})"
+
+
+N = TypeVar("N", bound=ProgramGraphNode)  # pylint: disable=invalid-name
 
 
 class ProgramGraph(Generic[N]):
@@ -127,6 +114,11 @@ class ProgramGraph(Generic[N]):
             node
             for node in self._graph.nodes  # pylint: disable=unnecessary-comprehension
         }
+
+    @property
+    def graph(self) -> nx.DiGraph:
+        """The internal graph."""
+        return self._graph
 
     @property
     def entry_node(self) -> Optional[N]:
