@@ -24,7 +24,8 @@ import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
 
 
-class ControlDependenceGraph(pg.ProgramGraph):
+# pylint:disable=too-few-public-methods.
+class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
     """Implements a control-dependence graph."""
 
     @staticmethod

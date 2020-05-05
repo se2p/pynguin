@@ -63,3 +63,31 @@ def test_integration(small_control_flow_graph):
 """
     assert dot_representation == graph
     assert post_dominator_tree.entry_node.index == sys.maxsize
+
+
+def test_integration_post_domination(larger_control_flow_graph):
+    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
+        larger_control_flow_graph
+    )
+    node = [n for n in larger_control_flow_graph.nodes if n.index == 110][0]
+    successors = post_dominator_tree.get_transitive_successors(node)
+    successor_indices = {n.index for n in successors}
+    expected_indices = {
+        -sys.maxsize,
+        1,
+        2,
+        3,
+        5,
+        100,
+        120,
+        130,
+        140,
+        150,
+        160,
+        170,
+        180,
+        190,
+        200,
+        210,
+    }
+    assert successor_indices == expected_indices

@@ -97,12 +97,7 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
         return self._return_value == other._return_value and self._value == other._value
 
     def __hash__(self) -> int:
-        return (
-            31
-            + 17 * hash(self._test_case)
-            + hash(self._return_value)
-            + hash(self._value)
-        )
+        return 31 + hash(self._return_value) + hash(self._value)
 
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):

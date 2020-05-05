@@ -15,13 +15,44 @@
 """Provides capabilities to track branch distances."""
 import dataclasses
 import logging
-from typing import Any, Callable, Dict, Tuple
+from types import CodeType
+from typing import Any, Callable, Dict, Tuple, Optional
 from math import inf
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 
+from pynguin.analyses.controlflow.cfg import CFG
+from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.utils.type_utils import is_numeric, is_string
+
+
+@dataclasses.dataclass
+class CodeObjectMetaData:
+    """Stores meta data of a code object."""
+
+    # The raw code object.
+    code_object: CodeType
+
+    # Id of the parent code object, if any
+    parent_code_object_id: Optional[int]
+
+    # CFG of this Code Object
+    cfg: CFG
+
+    # CDG of this Code Object
+    cdg: ControlDependenceGraph
+
+
+@dataclasses.dataclass
+class PredicateMetaData:
+    """Stores meta data of a predicate."""
+
+    # Line number where the predicate is defined.
+    line_no: Optional[int]
+
+    # Id of the code object where the predicate was defined.
+    code_object_id: int
 
 
 @dataclasses.dataclass
@@ -30,11 +61,15 @@ class KnownData:
     FIXME(fk) better class name...
     """
 
-    # Maps all known ids of Code Objects to human readable debug information
-    existing_code_objects: Dict[int, str] = dataclasses.field(default_factory=dict)
+    # Maps all known ids of Code Objects to meta information
+    existing_code_objects: Dict[int, CodeObjectMetaData] = dataclasses.field(
+        default_factory=dict
+    )
 
-    # Maps all known ids of predicates to human readable debug information
-    existing_predicates: Dict[int, str] = dataclasses.field(default_factory=dict)
+    # Maps all known ids of predicates to meta information
+    existing_predicates: Dict[int, PredicateMetaData] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 class ExecutionTracer:
@@ -68,6 +103,8 @@ class ExecutionTracer:
 
         self._init_trace()
         self._enabled = True
+        self._code_object_id_counter = 0
+        self._predicate_id_counter = 0
 
     def get_known_data(self) -> KnownData:
         """Provide known data."""
@@ -108,12 +145,14 @@ class ExecutionTracer:
         """Clear trace."""
         self._init_trace()
 
-    def code_object_exists(self, code_object_id: int, name: str) -> None:
-        """Declare that a code object exists."""
-        assert (
-            code_object_id not in self._known_data.existing_code_objects
-        ), "Code object is already known"
-        self._known_data.existing_code_objects[code_object_id] = name
+    def register_code_object(self, meta: CodeObjectMetaData) -> int:
+        """Declare that a code object exists.
+        :returns the id of the code object, which can be used to identify the object
+        during instrumentation."""
+        code_object_id = self._code_object_id_counter
+        self._known_data.existing_code_objects[code_object_id] = meta
+        self._code_object_id_counter += 1
+        return code_object_id
 
     def entered_code_object(self, code_object_id: int) -> None:
         """Mark a code object as covered. This means, that the code object
@@ -123,12 +162,14 @@ class ExecutionTracer:
         ), "Cannot trace unknown code object"
         self._trace.covered_code_objects.add(code_object_id)
 
-    def predicate_exists(self, predicate: int, name: str) -> None:
-        """Declare that a predicate exists."""
-        assert (
-            predicate not in self._known_data.existing_predicates
-        ), "Predicate is already known"
-        self._known_data.existing_predicates[predicate] = name
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        """Declare that a predicate exists.
+        :returns the id of the predicate, which can be used to identify the predicate
+        during instrumentation."""
+        predicate_id = self._predicate_id_counter
+        self._known_data.existing_predicates[predicate_id] = meta
+        self._predicate_id_counter += 1
+        return predicate_id
 
     def passed_cmp_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare

@@ -1,5 +1,10 @@
 image: python:${PYTHON_VERSION}
 
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID           # Execute jobs in merge request context
+    - if: $CI_COMMIT_BRANCH == 'master'  # Execute jobs when a new commit is pushed to master branch
+
 stages:
   - build
   - test
@@ -87,5 +92,5 @@ pages:
     paths:
       - public
     expire_in: 30 days
-  only:
-    - master
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'master'
