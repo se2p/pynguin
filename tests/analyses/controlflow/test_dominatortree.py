@@ -14,8 +14,11 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import sys
 
+from bytecode import Bytecode
+
 import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.dominatortree as pdt
+from tests.fixtures.programgraph.samples import for_loop
 
 
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
@@ -91,3 +94,10 @@ def test_integration_post_domination(larger_control_flow_graph):
         210,
     }
     assert successor_indices == expected_indices
+
+
+def test_integration_dominator_tree():
+    for_loop_cfg = cfg.CFG.from_bytecode(Bytecode.from_code(for_loop.__code__))
+    dom_tree = pdt.DominatorTree.compute(for_loop_cfg)
+    # Every node of the cfg should be in the dominator tree
+    assert for_loop_cfg.nodes == dom_tree.nodes
