@@ -15,7 +15,6 @@
 """Provides a factory for test-case generation."""
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import List, Type, Optional, Set, cast
 
@@ -36,6 +35,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     is_type_unknown,
     is_assignable_to,
+    should_skip_parameter,
 )
 
 
@@ -617,7 +617,7 @@ class TestFactory:
         """Find specified parameters from existing objects."""
         found = []
         for parameter_name, parameter_type in inf_signature.parameters.items():
-            if TestFactory._should_skip_parameter(inf_signature, parameter_name):
+            if should_skip_parameter(inf_signature, parameter_name):
                 continue
             assert parameter_type
             found.append(test_case.get_random_object(parameter_type, position))
@@ -710,7 +710,7 @@ class TestFactory:
 
             previous_length = test_case.size()
 
-            if self._should_skip_parameter(signature, parameter_name):
+            if should_skip_parameter(signature, parameter_name):
                 # TODO Implement generation for positional parameters of variable length
                 # TODO Implement generation for keyword parameters of variable length
                 self._logger.info("Skip parameter %s", parameter_name)
@@ -947,13 +947,3 @@ class TestFactory:
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
-
-    @staticmethod
-    def _should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
-        """There are some parameter types (*args, **kwargs) that are not handled as of now.
-        This is a simple utility method to check if such a parameter should be skipped."""
-        parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
-        return parameter.kind in (
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD,
-        )

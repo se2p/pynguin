@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
+import inspect
 from typing import Union, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.type_utils import (
     is_primitive_type,
     class_in_module,
@@ -26,6 +28,7 @@ from pynguin.utils.type_utils import (
     is_type_unknown,
     is_numeric,
     is_string,
+    should_skip_parameter,
 )
 
 
@@ -109,3 +112,19 @@ def test_is_numeric(value, result):
 )
 def test_is_string(value, result):
     assert is_string(value) == result
+
+
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        pytest.param("normal", False),
+        pytest.param("args", True),
+        pytest.param("kwargs", True),
+    ],
+)
+def test_should_skip_parameter(param_name, result):
+    def inner_func(normal: str, *args, **kwargs):
+        pass
+
+    inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
+    assert should_skip_parameter(inf_sig, param_name) == result

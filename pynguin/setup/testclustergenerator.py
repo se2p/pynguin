@@ -41,6 +41,7 @@ from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
     get_class_that_defined_method,
+    should_skip_parameter,
 )
 
 
@@ -97,13 +98,17 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         for function_name, funktion in inspect.getmembers(
             module, function_in_module(self._module_name)
         ):
-            if function_name.startswith("_") and not function_name.startswith("__"):
-                self._logger.debug("Skip private function %s", function_name)
-                continue
-            self._logger.debug("Analyzing function %s", function_name)
+
             generic_function = GenericFunction(
                 funktion, self._inference.infer_type_info(funktion)[0]
             )
+            if self._is_protected(
+                function_name
+            ) or self._discard_accessible_with_missing_type_hints(generic_function):
+                self._logger.debug("Skip function %s", function_name)
+                continue
+
+            self._logger.debug("Analyzing function %s", function_name)
             self._test_cluster.add_generator(generic_function)
             self._test_cluster.add_accessible_object_under_test(generic_function)
             self._add_callable_dependencies(generic_function, 1)
@@ -153,6 +158,9 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         generic_constructor = GenericConstructor(
             klass, self._inference.infer_type_info(klass.__init__)[0]
         )
+        if self._discard_accessible_with_missing_type_hints(generic_constructor):
+            return
+
         self._test_cluster.add_generator(generic_constructor)
         if add_to_test:
             self._test_cluster.add_accessible_object_under_test(generic_constructor)
@@ -161,10 +169,16 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         for method_name, method in inspect.getmembers(klass, inspect.isfunction):
             # TODO(fk) why does inspect.ismethod not work here?!
             self._logger.debug("Analyzing method %s", method_name)
+
+            generic_method = GenericMethod(
+                klass, method, self._inference.infer_type_info(method)[0]
+            )
+
             if (
                 self._is_constructor(method_name)
                 or not self._is_method_defined_in_class(klass, method)
-                or self._is_private_method(method_name)
+                or self._is_protected(method_name)
+                or self._discard_accessible_with_missing_type_hints(generic_method)
             ):
                 # Skip methods that should not be added to the cluster here.
                 # Constructors are handled elsewhere; inherited methods should not be
@@ -172,9 +186,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                 # neither be part of the cluster.
                 continue
 
-            generic_method = GenericMethod(
-                klass, method, self._inference.infer_type_info(method)[0]
-            )
             self._test_cluster.add_generator(generic_method)
             self._test_cluster.add_modifier(klass, generic_method)
             if add_to_test:
@@ -191,8 +202,25 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         return class_ == get_class_that_defined_method(method)
 
     @staticmethod
-    def _is_private_method(method_name: str) -> bool:
+    def _is_protected(method_name: str) -> bool:
         return method_name.startswith("_") and not method_name.startswith("__")
+
+    @staticmethod
+    def _discard_accessible_with_missing_type_hints(
+        accessible_object: GenericCallableAccessibleObject,
+    ) -> bool:
+        """Should we discard accessible objects that are not fully type hinted?
+        :param accessible_object: the object to check
+        """
+        if config.INSTANCE.guess_unknown_types:
+            return False
+        inf_sig = accessible_object.inferred_signature
+        return any(
+            [
+                not should_skip_parameter(inf_sig, param) and type_ is None
+                for param, type_ in inf_sig.parameters.items()
+            ]
+        )
 
     def _resolve_dependencies_recursive(self):
         """Resolve the currently open dependencies."""

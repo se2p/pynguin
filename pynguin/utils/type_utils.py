@@ -22,6 +22,8 @@ from typing import Type, Optional, Callable, Any
 import typing
 from typing_inspect import is_union_type, get_args
 
+from pynguin.typeinference.strategy import InferredSignature
+
 PRIMITIVES = {int, str, bool, float, complex}
 
 
@@ -101,3 +103,13 @@ def get_class_that_defined_method(method: object) -> Optional[object]:
         if isinstance(cls, type):
             return cls
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
+
+
+def should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
+    """There are some parameter types (*args, **kwargs) that are not handled as of now.
+    This is a simple utility method to check if such a parameter should be skipped."""
+    parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
+    return parameter.kind in (
+        inspect.Parameter.VAR_POSITIONAL,
+        inspect.Parameter.VAR_KEYWORD,
+    )
