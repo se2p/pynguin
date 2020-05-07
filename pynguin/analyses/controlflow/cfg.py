@@ -51,6 +51,9 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         # Insert all edges between the previously generated nodes
         CFG._create_graph(cfg, edges, nodes)
 
+        # Filter all dead-code nodes
+        cfg = CFG._filter_dead_code_nodes(cfg)
+
         # Insert dummy exit node
         cfg = CFG._insert_dummy_exit_node(cfg)
         return cfg
@@ -148,6 +151,16 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, dummy_exit_node)
         return cfg
+
+    @staticmethod
+    def _filter_dead_code_nodes(graph: CFG) -> CFG:
+        for node in graph.nodes:
+            if graph.get_predecessors(node) == set() and node.index != 0:
+                # The only node in the graph that is allowed to have no predecessor
+                # is the entry node, i.e., the node with index 0.  All other nodes
+                # without predecessors are considered dead code and thus removed.
+                graph._graph.remove_node(node)
+        return graph
 
     @property
     def cyclomatic_complexity(self) -> int:
