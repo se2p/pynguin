@@ -157,7 +157,9 @@ class Pynguin:
             return False
         self._logger.debug("Setting up path for %s", config.INSTANCE.project_path)
         sys.path.insert(0, config.INSTANCE.project_path)
-        self._logger.debug("Setting up instrumentation for %s", config.INSTANCE.project_path)
+        self._logger.debug(
+            "Setting up instrumentation for %s", config.INSTANCE.project_path
+        )
         install_import_hook(config.INSTANCE.module_name)
         return True
 
