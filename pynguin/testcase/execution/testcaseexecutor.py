@@ -37,8 +37,7 @@ class TestCaseExecutor:
 
     def __init__(self):
         """Load the module under test."""
-        imported = importlib.import_module(config.INSTANCE.module_name)
-        importlib.reload(imported)
+        importlib.import_module(config.INSTANCE.module_name)
 
     @staticmethod
     def get_tracer() -> ExecutionTracer:
