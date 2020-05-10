@@ -17,7 +17,6 @@ import contextlib
 import importlib
 import logging
 import os
-import sys
 from typing import List
 
 import astor
@@ -26,7 +25,6 @@ import pynguin.configuration as config
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.execution.executioncontext as ctx
-from pynguin.instrumentation.basis import get_tracer
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -35,14 +33,14 @@ class TestCaseExecutor:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self):
+    def __init__(self, tracer: ExecutionTracer):
         """Load the module under test."""
         importlib.import_module(config.INSTANCE.module_name)
+        self._tracer = tracer
 
-    @staticmethod
-    def get_tracer() -> ExecutionTracer:
+    def get_tracer(self) -> ExecutionTracer:
         """Provide access to the execution tracer."""
-        return get_tracer(sys.modules[config.INSTANCE.module_name])
+        return self._tracer
 
     def execute(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
@@ -51,7 +49,7 @@ class TestCaseExecutor:
         :return: Result of the execution
         """
         result = res.ExecutionResult()
-        self.get_tracer().clear_trace()
+        self._tracer.clear_trace()
 
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
@@ -79,12 +77,10 @@ class TestCaseExecutor:
                 result.report_new_thrown_exception(idx, err)
                 break
 
-    @staticmethod
-    def _collect_execution_trace(result: res.ExecutionResult):
+    def _collect_execution_trace(self, result: res.ExecutionResult):
         """
         Collect the fitness after each execution.
         Also clear the tracking results so far.
         """
-        tracer = TestCaseExecutor.get_tracer()
-        result.execution_trace = tracer.get_trace()
-        tracer.clear_trace()
+        result.execution_trace = self._tracer.get_trace()
+        self._tracer.clear_trace()
