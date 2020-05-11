@@ -143,7 +143,11 @@ class BranchDistanceInstrumentation:
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
-        if node.basic_block is not None and len(node.basic_block) > 0:
+        if not node.is_artificial:
+            assert (
+                node.basic_block is not None
+            ), "Non artificial node does not have a basic block."
+            assert len(node.basic_block) > 0, "Empty basic block in CFG."
             maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
             maybe_compare: Optional[Instr] = node.basic_block[
                 self._COMPARE_OP_POS
