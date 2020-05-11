@@ -56,14 +56,14 @@ def test_fitness_function_diff(executor_mock, trace_mock, known_data_mock):
     known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
     known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
     known_data_mock.existing_code_objects[2] = MagicMock(CodeObjectMetaData)
-    trace_mock.covered_code_objects.add(0)
+    trace_mock.executed_code_objects.add(0)
     assert ff._compute_fitness(trace_mock, known_data_mock) == 2.0
 
 
 def test_fitness_covered(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    trace_mock.covered_predicates[0] = 1
+    trace_mock.executed_predicates[0] = 1
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
     assert ff._compute_fitness(trace_mock, known_data_mock) == 1.0
@@ -78,7 +78,7 @@ def test_fitness_neither_covered(executor_mock, trace_mock, known_data_mock):
 def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    trace_mock.covered_predicates[0] = 2
+    trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
     assert ff._compute_fitness(trace_mock, known_data_mock) == 0.5
@@ -87,7 +87,7 @@ def test_fitness_covered_twice(executor_mock, trace_mock, known_data_mock):
 def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    trace_mock.covered_predicates[0] = 2
+    trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 0
     assert ff._compute_fitness(trace_mock, known_data_mock) == 0.0
@@ -96,7 +96,7 @@ def test_fitness_covered_both(executor_mock, trace_mock, known_data_mock):
 def test_fitness_normalized(executor_mock, trace_mock, known_data_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    trace_mock.covered_predicates[0] = 2
+    trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 7.0
     assert ff._compute_fitness(trace_mock, known_data_mock) == 0.875
@@ -130,8 +130,8 @@ def test_analyze_traces_merge(trace_mock):
     result.has_test_exceptions.return_value = False
     trace_mock.true_distances[0] = 1
     trace_mock.true_distances[1] = 2
-    trace_mock.covered_predicates[0] = 1
-    trace_mock.covered_code_objects.add(0)
+    trace_mock.executed_predicates[0] = 1
+    trace_mock.executed_code_objects.add(0)
     result.execution_trace = trace_mock
     results.append(result)
     has_exception, trace = BranchDistanceSuiteFitnessFunction.analyze_traces(results)
@@ -181,7 +181,7 @@ def test_coverage_half_code_objects(known_data_mock, executor_mock, trace_mock):
     ff = BranchDistanceSuiteFitnessFunction(executor_mock)
     known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
     known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
-    trace_mock.covered_code_objects.add(0)
+    trace_mock.executed_code_objects.add(0)
     assert ff._compute_coverage(trace_mock, known_data_mock) == 0.5
 
 

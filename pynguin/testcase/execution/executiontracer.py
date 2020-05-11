@@ -156,13 +156,13 @@ class ExecutionTracer:
         self._known_data.existing_code_objects[code_object_id] = meta
         return code_object_id
 
-    def entered_code_object(self, code_object_id: int) -> None:
-        """Mark a code object as covered. This means, that the code object
-        was at least entered once."""
+    def executed_code_object(self, code_object_id: int) -> None:
+        """Mark a code object as executed. This means, that the routine which refers
+        to this code object was at least called once."""
         assert (
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
-        self._trace.covered_code_objects.add(code_object_id)
+        self._trace.executed_code_objects.add(code_object_id)
 
     def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
@@ -172,10 +172,10 @@ class ExecutionTracer:
         self._known_data.existing_predicates[predicate_id] = meta
         return predicate_id
 
-    def passed_cmp_predicate(
+    def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
-        """A predicate that is based on a comparision was passed."""
+        """A predicate that is based on a comparision was executed."""
         if self._is_disabled():
             return
 
@@ -192,8 +192,8 @@ class ExecutionTracer:
         finally:
             self._enable()
 
-    def passed_bool_predicate(self, value, predicate: int):
-        """A predicate that is based on a boolean value was passed."""
+    def executed_bool_predicate(self, value, predicate: int):
+        """A predicate that is based on a boolean value was executed."""
         if self._is_disabled():
             return
 
@@ -224,8 +224,8 @@ class ExecutionTracer:
         assert (distance_true == 0.0) ^ (
             distance_false == 0.0
         ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
-        self._trace.covered_predicates[predicate] = (
-            self._trace.covered_predicates.get(predicate, 0) + 1
+        self._trace.executed_predicates[predicate] = (
+            self._trace.executed_predicates.get(predicate, 0) + 1
         )
         self._trace.true_distances[predicate] = min(
             self._trace.true_distances.get(predicate, inf), distance_true

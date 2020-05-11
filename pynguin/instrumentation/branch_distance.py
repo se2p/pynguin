@@ -101,7 +101,7 @@ class BranchDistanceInstrumentation:
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-        self._add_code_object_entered(real_entry_node.basic_block, code_object_id)
+        self._add_code_object_executed(real_entry_node.basic_block, code_object_id)
 
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
@@ -154,7 +154,7 @@ class BranchDistanceInstrumentation:
             ] if len(node.basic_block) > 1 else None
             if isinstance(maybe_jump, Instr):
                 if maybe_jump.name == "FOR_ITER":
-                    predicate_id = self._transform_for_loop(
+                    predicate_id = self._instrument_for_loop(
                         cfg, dominator_tree, node, code_object_id
                     )
                 elif maybe_jump.is_cond_jump():
@@ -182,10 +182,12 @@ class BranchDistanceInstrumentation:
             and maybe_compare.arg
             not in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
         ):
-            return self._add_cmp_predicate(block, code_object_id)
-        return self._add_bool_predicate(block, code_object_id)
+            return self._instrument_bool_based_conditional_jump(block, code_object_id)
+        return self._instrument_compare_based_conditional_jump(block, code_object_id)
 
-    def _add_bool_predicate(self, block: BasicBlock, code_object_id: int) -> int:
+    def _instrument_compare_based_conditional_jump(
+        self, block: BasicBlock, code_object_id: int
+    ) -> int:
         """We add a call to the tracer which reports the value on which the conditional
         jump will be based.
         :param block: The containing basic block.
@@ -204,7 +206,7 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.passed_bool_predicate.__name__,
+                ExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -215,7 +217,9 @@ class BranchDistanceInstrumentation:
         ]
         return predicate_id
 
-    def _add_cmp_predicate(self, block: BasicBlock, code_object_id: int) -> int:
+    def _instrument_bool_based_conditional_jump(
+        self, block: BasicBlock, code_object_id: int
+    ) -> int:
         """We add a call to the tracer which reports the values that will be used
         in the following comparision operation on which the conditional jump is based.
         :param block: The containing basic block.
@@ -235,7 +239,7 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.passed_cmp_predicate.__name__,
+                ExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -247,7 +251,7 @@ class BranchDistanceInstrumentation:
         ]
         return predicate_id
 
-    def _add_code_object_entered(self, block: BasicBlock, code_object_id: int) -> None:
+    def _add_code_object_executed(self, block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
         :param block: The entry basic block of a code object, i.e. the first basic block.
@@ -262,7 +266,7 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.entered_code_object.__name__,
+                ExecutionTracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
             Instr("LOAD_CONST", code_object_id, lineno=lineno),
@@ -279,7 +283,7 @@ class BranchDistanceInstrumentation:
                 assert False, "Tried to instrument already instrumented module."
         return self._instrument_code_recursive(module_code)
 
-    def _transform_for_loop(
+    def _instrument_for_loop(
         self,
         cfg: CFG,
         dominator_tree: DominatorTree,
@@ -341,7 +345,7 @@ class BranchDistanceInstrumentation:
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.passed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", True, lineno=lineno),
@@ -357,7 +361,7 @@ class BranchDistanceInstrumentation:
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.passed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", False, lineno=lineno),

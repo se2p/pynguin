@@ -23,16 +23,16 @@ from typing import Set, Dict
 class ExecutionTrace:
     """Stores trace information about the execution."""
 
-    covered_code_objects: Set[int] = field(default_factory=set)
-    covered_predicates: Dict[int, int] = field(default_factory=dict)
+    executed_code_objects: Set[int] = field(default_factory=set)
+    executed_predicates: Dict[int, int] = field(default_factory=dict)
     true_distances: Dict[int, float] = field(default_factory=dict)
     false_distances: Dict[int, float] = field(default_factory=dict)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace."""
-        self.covered_code_objects.update(other.covered_code_objects)
-        for key, value in other.covered_predicates.items():
-            self.covered_predicates[key] = self.covered_predicates.get(key, 0) + value
+        self.executed_code_objects.update(other.executed_code_objects)
+        for key, value in other.executed_predicates.items():
+            self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
 

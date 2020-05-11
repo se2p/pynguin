@@ -43,7 +43,7 @@ def test_module_instrumentation_integration():
         asyncio.run(mixed.coroutine(5))
         asyncio.run(run_async_generator(mixed.async_generator()))
 
-        assert len(tracer.get_trace().covered_code_objects) == 10
+        assert len(tracer.get_trace().executed_code_objects) == 10
 
 
 async def run_async_generator(gen):
