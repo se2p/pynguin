@@ -39,6 +39,19 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def from_bytecode(bytecode: Bytecode) -> CFG:
         """Generates a new control-flow graph from a bytecode segment.
 
+        Besides generating a node for each block in the bytecode segment, as returned by
+        `bytecode`'s `ControlFlowGraph` implementation, we add two artificial nodes to
+        the generated CFG:
+         - an artificial entry node, having index -1, that is guaranteed to fulfill the
+           property of an entry node, i.e., there is no incoming edge, and
+         - an artificial exit node, having index `sys.maxsize`, that is guaranteed to
+           fulfill the property of an exit node, i.e., there is no outgoing edge, and
+           that is the only such node in the graph, which is important, e.g., for graph
+           reversal.
+        The index values are chosen that they do not appear in regular graphs, thus one
+        can easily distinguish them from the normal nodes in the graph by checking for
+        their index-property's value.
+
         :param bytecode: The bytecode segment
         :return: The control-flow graph for the segment
         """
