@@ -24,7 +24,6 @@ from inspect import isclass
 from types import CodeType
 from typing import cast
 
-from pynguin.instrumentation.basis import get_tracer
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
@@ -32,9 +31,14 @@ from pynguin.testcase.execution.executiontracer import ExecutionTracer
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
+    def __init__(self, fullname, path, tracer: ExecutionTracer):
+        super().__init__(fullname, path)
+        self._tracer = tracer
+
     def exec_module(self, module):
+        self._tracer.reset()
         super(InstrumentationLoader, self).exec_module(module)
-        get_tracer(module).store_import_trace()
+        self._tracer.store_import_trace()
 
     def get_code(self, fullname) -> CodeType:
         """Add instrumentation instructions to the code of the module
@@ -43,7 +47,8 @@ class InstrumentationLoader(SourceFileLoader):
             CodeType, super(InstrumentationLoader, self).get_code(fullname)
         )
         assert to_instrument, "Failed to get code object of module."
-        instrumentation = BranchDistanceInstrumentation(ExecutionTracer())
+        # TODO(fk) apply different instrumentations here
+        instrumentation = BranchDistanceInstrumentation(self._tracer)
         return instrumentation.instrument_module(to_instrument)
 
 
@@ -56,7 +61,9 @@ class InstrumentationFinder(MetaPathFinder):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, original_pathfinder, module_to_instrument: str):
+    def __init__(
+        self, original_pathfinder, module_to_instrument: str, tracer: ExecutionTracer
+    ):
         """
         Wraps the given path finder.
         :param original_pathfinder: the original pathfinder that is wrapped.
@@ -64,6 +71,7 @@ class InstrumentationFinder(MetaPathFinder):
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
+        self._tracer = tracer
 
     def _should_instrument(self, module_name: str):
         return module_name == self._module_to_instrument
@@ -80,7 +88,7 @@ class InstrumentationFinder(MetaPathFinder):
             if spec is not None:
                 if isinstance(spec.loader, FileLoader):
                     spec.loader = InstrumentationLoader(
-                        spec.loader.name, spec.loader.path
+                        spec.loader.name, spec.loader.path, self._tracer
                     )
                     return spec
                 self._logger.error(
@@ -110,10 +118,13 @@ class ImportHookContextManager:
             pass  # already removed
 
 
-def install_import_hook(module_to_instrument: str) -> ImportHookContextManager:
+def install_import_hook(
+    module_to_instrument: str, tracer: ExecutionTracer
+) -> ImportHookContextManager:
     """
     Install the InstrumentationFinder in the meta path.
     :param module_to_instrument: The module that shall be instrumented.
+    :param tracer: The tracer where the instrumentation should report its data.
     :return a context manager which can be used to uninstall the hook.
     """
     to_wrap = None
@@ -129,6 +140,6 @@ def install_import_hook(module_to_instrument: str) -> ImportHookContextManager:
     if not to_wrap:
         raise RuntimeError("Cannot find a PathFinder in sys.meta_path")
 
-    hook = InstrumentationFinder(to_wrap, module_to_instrument)
+    hook = InstrumentationFinder(to_wrap, module_to_instrument, tracer)
     sys.meta_path.insert(0, hook)
     return ImportHookContextManager(hook)
