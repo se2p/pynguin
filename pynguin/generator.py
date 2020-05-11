@@ -47,6 +47,7 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -127,9 +128,9 @@ class Pynguin:
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
 
-    def _setup_executor(self) -> Optional[TestCaseExecutor]:
+    def _setup_executor(self, tracer: ExecutionTracer) -> Optional[TestCaseExecutor]:
         try:
-            executor = TestCaseExecutor()
+            executor = TestCaseExecutor(tracer)
         except ImportError as ex:
             # A module could not be imported because some dependencies
             # are missing or it is malformed
@@ -147,21 +148,22 @@ class Pynguin:
                 return None
             return test_cluster
 
-    def _setup_path_and_hook(self) -> bool:
+    def _setup_path_and_hook(self) -> Optional[ExecutionTracer]:
         """Inserts the path to the SUT into the path list.
         Also installs the import hook."""
         if not os.path.isdir(config.INSTANCE.project_path):
             self._logger.error(
                 "%s is not a valid project path", config.INSTANCE.project_path
             )
-            return False
+            return None
         self._logger.debug("Setting up path for %s", config.INSTANCE.project_path)
         sys.path.insert(0, config.INSTANCE.project_path)
         self._logger.debug(
             "Setting up instrumentation for %s", config.INSTANCE.module_name
         )
-        install_import_hook(config.INSTANCE.module_name)
-        return True
+        tracer = ExecutionTracer()
+        install_import_hook(config.INSTANCE.module_name, tracer)
+        return tracer
 
     def _setup_random_number_generator(self) -> None:
         """Setup RNG."""
@@ -180,9 +182,9 @@ class Pynguin:
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
         Perform setup and some sanity checks."""
-        if not self._setup_path_and_hook():
+        if (tracer := self._setup_path_and_hook()) is None:
             return None
-        if (executor := self._setup_executor()) is None:
+        if (executor := self._setup_executor(tracer)) is None:
             return None
         if (test_cluster := self._setup_test_cluster()) is None:
             return None

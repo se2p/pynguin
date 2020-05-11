@@ -12,7 +12,7 @@ description = "A small Python module for determining appropriate platform-specif
 name = "appdirs"
 optional = false
 python-versions = "*"
-version = "1.4.3"
+version = "1.4.4"
 
 [[package]]
 category = "main"
@@ -150,7 +150,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.11.0"
+version = "5.12.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -583,8 +583,8 @@ apipkg = [
     {file = "apipkg-1.5.tar.gz", hash = "sha256:37228cda29411948b422fae072f57e31d3396d2ee1c9783775980ee9c9990af6"},
 ]
 appdirs = [
-    {file = "appdirs-1.4.3-py2.py3-none-any.whl", hash = "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e"},
-    {file = "appdirs-1.4.3.tar.gz", hash = "sha256:9e5896d1372858f8dd3344faf4e5014d21849c756c8d5701f78f8a103b372d92"},
+    {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
+    {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
 ]
 astor = [
     {file = "astor-0.8.1-py2.py3-none-any.whl", hash = "sha256:070a54e890cefb5b3739d19f30f5a5ec840ffc9c50ffa7d23cc9fc1a38ebbfc5"},
@@ -664,8 +664,8 @@ execnet = [
     {file = "execnet-1.7.1.tar.gz", hash = "sha256:cacb9df31c9680ec5f95553976c4da484d407e85e41c83cb812aa014f0eddc50"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.11.0-py3-none-any.whl", hash = "sha256:ca2adce26816d6ef690f607650f3035814281a0c37b8c8616a1dd058d23c0268"},
-    {file = "hypothesis-5.11.0.tar.gz", hash = "sha256:66c4b6267444b7443ca3fd07064164f7665c940f2847c71b2ed9ca68e2142af5"},
+    {file = "hypothesis-5.12.0-py3-none-any.whl", hash = "sha256:bf1f3a6bcd7a484b3646f35dca17a962412f536de516b6ee3eac8d9d251d971e"},
+    {file = "hypothesis-5.12.0.tar.gz", hash = "sha256:df8bc0071838e98cdf205a340e29f217ba98f20ab53a11290b8fb0e33c1619b2"},
 ]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},

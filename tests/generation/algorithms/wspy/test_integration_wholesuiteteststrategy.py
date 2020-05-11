@@ -25,6 +25,7 @@ from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
 )
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
@@ -49,12 +50,13 @@ def test_integrate_wspy(module_name: str):
     config.INSTANCE.min_initial_tests = 1
     config.INSTANCE.max_initial_tests = 1
     logger = MagicMock(Logger)
-    with install_import_hook(module_name):
+    tracer = ExecutionTracer()
+    with install_import_hook(module_name, tracer):
         # Need to force reload in order to apply instrumentation.
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor()
+        executor = TestCaseExecutor(tracer)
         algorithm = WholeSuiteTestStrategy(
             executor, TestClusterGenerator(module_name).generate_cluster()
         )

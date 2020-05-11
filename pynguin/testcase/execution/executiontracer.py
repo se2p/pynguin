@@ -97,18 +97,21 @@ class ExecutionTracer:
 
     def __init__(self) -> None:
         self._known_data = KnownData()
-
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
-
         self._init_trace()
         self._enabled = True
-        self._code_object_id_counter = 0
-        self._predicate_id_counter = 0
 
     def get_known_data(self) -> KnownData:
         """Provide known data."""
         return self._known_data
+
+    def reset(self) -> None:
+        """Resets everything. Should be called before instrumentation.
+        Clears all data, so we can handle a reload of the SUT."""
+        self._known_data = KnownData()
+        self._import_trace = ExecutionTrace()
+        self._init_trace()
 
     def store_import_trace(self) -> None:
         """Stores the current trace as the import trace.
@@ -149,9 +152,8 @@ class ExecutionTracer:
         """Declare that a code object exists.
         :returns the id of the code object, which can be used to identify the object
         during instrumentation."""
-        code_object_id = self._code_object_id_counter
+        code_object_id = len(self._known_data.existing_code_objects)
         self._known_data.existing_code_objects[code_object_id] = meta
-        self._code_object_id_counter += 1
         return code_object_id
 
     def entered_code_object(self, code_object_id: int) -> None:
@@ -166,9 +168,8 @@ class ExecutionTracer:
         """Declare that a predicate exists.
         :returns the id of the predicate, which can be used to identify the predicate
         during instrumentation."""
-        predicate_id = self._predicate_id_counter
+        predicate_id = len(self._known_data.existing_predicates)
         self._known_data.existing_predicates[predicate_id] = meta
-        self._predicate_id_counter += 1
         return predicate_id
 
     def passed_cmp_predicate(
@@ -232,6 +233,9 @@ class ExecutionTracer:
         self._trace.false_distances[predicate] = min(
             self._trace.false_distances.get(predicate, inf), distance_false
         )
+
+    def __repr__(self) -> str:
+        return "ExecutionTracer"
 
 
 def _eq(val1, val2) -> float:
