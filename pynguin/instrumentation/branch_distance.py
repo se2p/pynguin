@@ -24,7 +24,6 @@ from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.testcase.execution.executiontracer import (
     ExecutionTracer,
     CodeObjectMetaData,
@@ -85,10 +84,7 @@ class BranchDistanceInstrumentation:
         return code.replace(co_consts=tuple(new_consts))
 
     def _instrument_code_recursive(
-        self,
-        code: CodeType,
-        add_global_tracer: bool = False,
-        parent_code_object_id: Optional[int] = None,
+        self, code: CodeType, parent_code_object_id: Optional[int] = None,
     ) -> CodeType:
         """Instrument the given Code Object recursively."""
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
@@ -105,9 +101,6 @@ class BranchDistanceInstrumentation:
         assert cfg.entry_node is not None, "Entry node cannot be None."
         assert cfg.entry_node.basic_block is not None, "Basic block cannot be None."
         self._add_code_object_entered(cfg.entry_node.basic_block, code_object_id)
-        if add_global_tracer:
-            self._add_tracer_to_globals(cfg.entry_node.basic_block)
-
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
@@ -271,20 +264,6 @@ class BranchDistanceInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
 
-    def _add_tracer_to_globals(self, block: BasicBlock) -> None:
-        """Add instructions at the beginning of the given basic block which store
-        the tracer object under the specified name. This makes the tracer
-        accessible from the outside, e.g., via the modules __dict__.
-        TODO(fk) Maybe store the tracer elsewhere, since it is already passed in to
-        the constructor."""
-        # Use line number of first instruction
-        lineno = block[0].lineno
-        # Insert instructions at the beginning.
-        block[0:0] = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr("STORE_GLOBAL", TRACER_NAME, lineno=lineno),
-        ]
-
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module."""
         for const in module_code.co_consts:
@@ -292,7 +271,7 @@ class BranchDistanceInstrumentation:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
                 assert False, "Tried to instrument already instrumented module."
-        return self._instrument_code_recursive(module_code, True)
+        return self._instrument_code_recursive(module_code)
 
     def _transform_for_loop(
         self,
