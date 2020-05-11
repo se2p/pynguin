@@ -103,10 +103,11 @@ class BranchDistanceInstrumentation:
             )
         )
         assert cfg.entry_node is not None, "Entry node cannot be None."
-        assert cfg.entry_node.basic_block is not None, "Basic block cannot be None."
-        self._add_code_object_entered(cfg.entry_node.basic_block, code_object_id)
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+        self._add_code_object_entered(real_entry_node.basic_block, code_object_id)
         if add_global_tracer:
-            self._add_tracer_to_globals(cfg.entry_node.basic_block)
+            self._add_tracer_to_globals(real_entry_node.basic_block)
 
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(

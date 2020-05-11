@@ -54,8 +54,9 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         # Filter all dead-code nodes
         cfg = CFG._filter_dead_code_nodes(cfg)
 
-        # Insert dummy exit node
+        # Insert dummy exit and entry nodes
         cfg = CFG._insert_dummy_exit_node(cfg)
+        cfg = CFG._insert_dummy_entry_node(cfg)
         return cfg
 
     def bytecode_cfg(self) -> ControlFlowGraph:
@@ -144,9 +145,23 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
                 cfg.add_edge(predecessor_node, successor_node)
 
     @staticmethod
+    def _insert_dummy_entry_node(cfg: CFG) -> CFG:
+        dummy_entry_node = pg.ProgramGraphNode(index=-1)
+        entry_node = cfg.entry_node
+        if not entry_node and len(cfg.nodes) == 1:
+            entry_node = cfg.nodes.pop()  # There is only one candidate to pop
+        elif not entry_node:
+            entry_node = [n for n in cfg.nodes if n.index == 0][0]
+        cfg.add_node(dummy_entry_node)
+        cfg.add_edge(dummy_entry_node, entry_node)
+        return cfg
+
+    @staticmethod
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
         dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize)
         exit_nodes = cfg.exit_nodes
+        if not exit_nodes and len(cfg.nodes) == 1:
+            exit_nodes = cfg.nodes
         cfg.add_node(dummy_exit_node)
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, dummy_exit_node)

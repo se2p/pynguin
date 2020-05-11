@@ -33,10 +33,12 @@ def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
 "ProgramGraphNode(2)";
 "ProgramGraphNode(1)";
 "ProgramGraphNode(0)";
+"ProgramGraphNode(-1)";
 "ProgramGraphNode(9223372036854775807)" -> "ProgramGraphNode(3)";
 "ProgramGraphNode(3)" -> "ProgramGraphNode(2)";
 "ProgramGraphNode(3)" -> "ProgramGraphNode(1)";
 "ProgramGraphNode(3)" -> "ProgramGraphNode(0)";
+"ProgramGraphNode(0)" -> "ProgramGraphNode(-1)";
 }
 """
     assert dot_representation == graph
