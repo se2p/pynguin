@@ -233,6 +233,9 @@ class ExecutionTracer:
             self._trace.false_distances.get(predicate, inf), distance_false
         )
 
+    def __repr__(self) -> str:
+        return "ExecutionTracer"
+
 
 def _eq(val1, val2) -> float:
     """Distance computation for '=='"""
