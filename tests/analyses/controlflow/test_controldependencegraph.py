@@ -38,3 +38,4 @@ def test_integration(small_control_flow_graph):
 }
 """
     assert dot_representation == graph
+    assert control_dependence_graph.entry_node.is_artificial

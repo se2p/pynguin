@@ -24,9 +24,15 @@ from networkx.drawing.nx_pydot import to_pydot
 class ProgramGraphNode:
     """A base class for a node of the program graph."""
 
-    def __init__(self, index: int, basic_block: Optional[BasicBlock] = None,) -> None:
+    def __init__(
+        self,
+        index: int,
+        basic_block: Optional[BasicBlock] = None,
+        is_artificial: bool = False,
+    ) -> None:
         self._index = index
         self._basic_block = basic_block
+        self._is_artificial = is_artificial
 
     @property
     def index(self) -> int:
@@ -37,6 +43,11 @@ class ProgramGraphNode:
     def basic_block(self) -> Optional[BasicBlock]:
         """Provides the basic block attached to this node."""
         return self._basic_block
+
+    @property
+    def is_artificial(self) -> bool:
+        """Whether or not a node is artificially inserted into the graph."""
+        return self._is_artificial
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ProgramGraphNode):

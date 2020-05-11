@@ -159,7 +159,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
 
     @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> CFG:
-        dummy_entry_node = pg.ProgramGraphNode(index=-1)
+        dummy_entry_node = pg.ProgramGraphNode(index=-1, is_artificial=True)
         entry_node = cfg.entry_node
         if not entry_node and len(cfg.nodes) == 1:
             entry_node = cfg.nodes.pop()  # There is only one candidate to pop
@@ -171,7 +171,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
 
     @staticmethod
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
-        dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize)
+        dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize, is_artificial=True)
         exit_nodes = cfg.exit_nodes
         if not exit_nodes and len(cfg.nodes) == 1:
             exit_nodes = cfg.nodes
