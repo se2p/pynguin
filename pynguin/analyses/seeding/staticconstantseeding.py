@@ -19,7 +19,7 @@ import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Union, Set, Optional, Dict, cast
+from typing import Union, Set, Optional, Dict, cast, Any
 
 from setuptools import find_packages
 
@@ -127,6 +127,7 @@ class StaticConstantSeeding:
         return randomness.choice(tuple(self._constants[type_]))
 
 
+# pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     def __init__(self) -> None:
         self._constants: Dict[str, Set[Types]] = {
@@ -134,16 +135,38 @@ class _ConstantCollector(ast.NodeVisitor):
             "int": set(),
             "str": set(),
         }
+        self._string_expressions: Set[str] = set()
 
-    def visit_Constant(self, node: ast.Constant) -> None:
+    def visit_Constant(self, node: ast.Constant) -> Any:
         if isinstance(node.value, str):
             self._constants["str"].add(node.value)
         elif isinstance(node.value, float):
             self._constants["float"].add(node.value)
         elif isinstance(node.value, int):
             self._constants["int"].add(node.value)
+        return self.generic_visit(node)
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        return self._visit_doc_string(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        return self._visit_doc_string(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        return self._visit_doc_string(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Any:
+        return self._visit_doc_string(node)
+
+    def _visit_doc_string(self, node: ast.AST) -> Any:
+        self._string_expressions.add(ast.get_docstring(node))
+        return self.generic_visit(node)
 
     @property
     def constants(self) -> Dict[str, Set[Types]]:
         """Provides the collected constants."""
+        self._remove_docstrings()
         return self._constants
+
+    def _remove_docstrings(self) -> None:
+        self._constants["str"] = self._constants["str"] - self._string_expressions
