@@ -99,8 +99,10 @@ class BranchDistanceInstrumentation:
             )
         )
         assert cfg.entry_node is not None, "Entry node cannot be None."
-        assert cfg.entry_node.basic_block is not None, "Basic block cannot be None."
-        self._add_code_object_entered(cfg.entry_node.basic_block, code_object_id)
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+        self._add_code_object_entered(real_entry_node.basic_block, code_object_id)
+
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
@@ -141,7 +143,11 @@ class BranchDistanceInstrumentation:
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
-        if node.basic_block is not None and len(node.basic_block) > 0:
+        if not node.is_artificial:
+            assert (
+                node.basic_block is not None
+            ), "Non artificial node does not have a basic block."
+            assert len(node.basic_block) > 0, "Empty basic block in CFG."
             maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
             maybe_compare: Optional[Instr] = node.basic_block[
                 self._COMPARE_OP_POS
