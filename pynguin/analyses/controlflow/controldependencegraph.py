@@ -80,7 +80,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         assert entry_node, "Cannot work with CFG without entry node"
         exit_nodes = graph.exit_nodes
         augmented_graph = graph.copy()
-        start_node = pg.ProgramGraphNode(index=-sys.maxsize)
+        start_node = pg.ProgramGraphNode(index=-sys.maxsize, is_artificial=True)
         augmented_graph.add_node(start_node)
         augmented_graph.add_edge(start_node, entry_node)
         for exit_node in exit_nodes:

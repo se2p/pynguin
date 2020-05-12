@@ -37,8 +37,8 @@ def test_functions_exists():
 def test_entered_function():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock(CodeObjectMetaData))
-    tracer.entered_code_object(0)
-    assert 0 in tracer.get_trace().covered_code_objects
+    tracer.executed_code_object(0)
+    assert 0 in tracer.get_trace().executed_code_objects
 
 
 def test_predicate_exists():
@@ -51,9 +51,9 @@ def test_predicate_exists():
 def test_update_metrics_covered():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
-    tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
-    assert (0, 2) in tracer.get_trace().covered_predicates.items()
+    tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
+    tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
+    assert (0, 2) in tracer.get_trace().executed_predicates.items()
 
 
 @pytest.mark.parametrize("true_dist,false_dist", [(-1, 0), (0, -1), (0, 0), (1, 1)])
@@ -67,26 +67,26 @@ def test_update_metrics_assertions(true_dist, false_dist):
 def test_update_metrics_true_dist_min():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_cmp_predicate(5, 0, 0, Compare.EQ)
+    tracer.executed_compare_predicate(5, 0, 0, Compare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
-    tracer.passed_cmp_predicate(4, 0, 0, Compare.EQ)
+    tracer.executed_compare_predicate(4, 0, 0, Compare.EQ)
     assert (0, 4) in tracer.get_trace().true_distances.items()
 
 
 def test_update_metrics_false_dist_min():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_cmp_predicate(3, 1, 0, Compare.NE)
+    tracer.executed_compare_predicate(3, 1, 0, Compare.NE)
     assert (0, 2) in tracer.get_trace().false_distances.items()
-    tracer.passed_cmp_predicate(2, 1, 0, Compare.NE)
+    tracer.executed_compare_predicate(2, 1, 0, Compare.NE)
     assert (0, 1) in tracer.get_trace().false_distances.items()
 
 
 def test_passed_cmp_predicate():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_cmp_predicate(1, 0, 0, Compare.EQ)
-    assert (0, 1) in tracer.get_trace().covered_predicates.items()
+    tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
+    assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
 @pytest.mark.parametrize(
@@ -121,7 +121,7 @@ def test_passed_cmp_predicate():
 def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_cmp_predicate(val1, val2, 0, cmp)
+    tracer.executed_compare_predicate(val1, val2, 0, cmp)
     assert (0, true_dist) in tracer.get_trace().true_distances.items()
     assert (0, false_dist) in tracer.get_trace().false_distances.items()
 
@@ -130,20 +130,20 @@ def test_unknown_comp():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
     with pytest.raises(Exception):
-        tracer.passed_cmp_predicate(1, 1, 0, Compare.EXC_MATCH)
+        tracer.executed_compare_predicate(1, 1, 0, Compare.EXC_MATCH)
 
 
 def test_passed_bool_predicate():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_bool_predicate(True, 0)
-    assert (0, 1) in tracer.get_trace().covered_predicates.items()
+    tracer.executed_bool_predicate(True, 0)
+    assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
 def test_bool_distance_true():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_bool_predicate(True, 0)
+    tracer.executed_bool_predicate(True, 0)
     assert (0, 0.0) in tracer.get_trace().true_distances.items()
     assert (0, 1.0) in tracer.get_trace().false_distances.items()
 
@@ -151,7 +151,7 @@ def test_bool_distance_true():
 def test_bool_distance_false():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    tracer.passed_bool_predicate(False, 0)
+    tracer.executed_bool_predicate(False, 0)
     assert (0, 1.0) in tracer.get_trace().true_distances.items()
     assert (0, 0.0) in tracer.get_trace().false_distances.items()
 
@@ -159,7 +159,7 @@ def test_bool_distance_false():
 def test_clear():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock(CodeObjectMetaData))
-    tracer.entered_code_object(0)
+    tracer.executed_code_object(0)
     trace = tracer.get_trace()
     tracer.clear_trace()
     assert tracer.get_trace() != trace
@@ -168,29 +168,29 @@ def test_clear():
 def test_enable_disable_cmp():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    assert len(tracer.get_trace().covered_predicates) == 0
+    assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer._disable()
-    tracer.passed_cmp_predicate(0, 0, 0, Compare.EQ)
-    assert len(tracer.get_trace().covered_predicates) == 0
+    tracer.executed_compare_predicate(0, 0, 0, Compare.EQ)
+    assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer._enable()
-    tracer.passed_cmp_predicate(0, 0, 0, Compare.EQ)
-    assert len(tracer.get_trace().covered_predicates) == 1
+    tracer.executed_compare_predicate(0, 0, 0, Compare.EQ)
+    assert len(tracer.get_trace().executed_predicates) == 1
 
 
 def test_enable_disable_bool():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(PredicateMetaData))
-    assert len(tracer.get_trace().covered_predicates) == 0
+    assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer._disable()
-    tracer.passed_bool_predicate(True, 0)
-    assert len(tracer.get_trace().covered_predicates) == 0
+    tracer.executed_bool_predicate(True, 0)
+    assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer._enable()
-    tracer.passed_bool_predicate(True, 0)
-    assert len(tracer.get_trace().covered_predicates) == 1
+    tracer.executed_bool_predicate(True, 0)
+    assert len(tracer.get_trace().executed_predicates) == 1
 
 
 @pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", inf)])

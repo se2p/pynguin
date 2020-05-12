@@ -24,7 +24,6 @@ from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.instrumentation.basis import TRACER_NAME
 from pynguin.testcase.execution.executiontracer import (
     ExecutionTracer,
     CodeObjectMetaData,
@@ -85,10 +84,7 @@ class BranchDistanceInstrumentation:
         return code.replace(co_consts=tuple(new_consts))
 
     def _instrument_code_recursive(
-        self,
-        code: CodeType,
-        add_global_tracer: bool = False,
-        parent_code_object_id: Optional[int] = None,
+        self, code: CodeType, parent_code_object_id: Optional[int] = None,
     ) -> CodeType:
         """Instrument the given Code Object recursively."""
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
@@ -103,10 +99,9 @@ class BranchDistanceInstrumentation:
             )
         )
         assert cfg.entry_node is not None, "Entry node cannot be None."
-        assert cfg.entry_node.basic_block is not None, "Basic block cannot be None."
-        self._add_code_object_entered(cfg.entry_node.basic_block, code_object_id)
-        if add_global_tracer:
-            self._add_tracer_to_globals(cfg.entry_node.basic_block)
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+        self._add_code_object_executed(real_entry_node.basic_block, code_object_id)
 
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
@@ -148,14 +143,18 @@ class BranchDistanceInstrumentation:
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
-        if node.basic_block is not None and len(node.basic_block) > 0:
+        if not node.is_artificial:
+            assert (
+                node.basic_block is not None
+            ), "Non artificial node does not have a basic block."
+            assert len(node.basic_block) > 0, "Empty basic block in CFG."
             maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
             maybe_compare: Optional[Instr] = node.basic_block[
                 self._COMPARE_OP_POS
             ] if len(node.basic_block) > 1 else None
             if isinstance(maybe_jump, Instr):
                 if maybe_jump.name == "FOR_ITER":
-                    predicate_id = self._transform_for_loop(
+                    predicate_id = self._instrument_for_loop(
                         cfg, dominator_tree, node, code_object_id
                     )
                 elif maybe_jump.is_cond_jump():
@@ -183,10 +182,12 @@ class BranchDistanceInstrumentation:
             and maybe_compare.arg
             not in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
         ):
-            return self._add_cmp_predicate(block, code_object_id)
-        return self._add_bool_predicate(block, code_object_id)
+            return self._instrument_bool_based_conditional_jump(block, code_object_id)
+        return self._instrument_compare_based_conditional_jump(block, code_object_id)
 
-    def _add_bool_predicate(self, block: BasicBlock, code_object_id: int) -> int:
+    def _instrument_compare_based_conditional_jump(
+        self, block: BasicBlock, code_object_id: int
+    ) -> int:
         """We add a call to the tracer which reports the value on which the conditional
         jump will be based.
         :param block: The containing basic block.
@@ -205,7 +206,7 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.passed_bool_predicate.__name__,
+                ExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -216,7 +217,9 @@ class BranchDistanceInstrumentation:
         ]
         return predicate_id
 
-    def _add_cmp_predicate(self, block: BasicBlock, code_object_id: int) -> int:
+    def _instrument_bool_based_conditional_jump(
+        self, block: BasicBlock, code_object_id: int
+    ) -> int:
         """We add a call to the tracer which reports the values that will be used
         in the following comparision operation on which the conditional jump is based.
         :param block: The containing basic block.
@@ -236,7 +239,7 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.passed_cmp_predicate.__name__,
+                ExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -248,7 +251,7 @@ class BranchDistanceInstrumentation:
         ]
         return predicate_id
 
-    def _add_code_object_entered(self, block: BasicBlock, code_object_id: int) -> None:
+    def _add_code_object_executed(self, block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
         :param block: The entry basic block of a code object, i.e. the first basic block.
@@ -263,26 +266,12 @@ class BranchDistanceInstrumentation:
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.entered_code_object.__name__,
+                ExecutionTracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
             Instr("LOAD_CONST", code_object_id, lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
-        ]
-
-    def _add_tracer_to_globals(self, block: BasicBlock) -> None:
-        """Add instructions at the beginning of the given basic block which store
-        the tracer object under the specified name. This makes the tracer
-        accessible from the outside, e.g., via the modules __dict__.
-        TODO(fk) Maybe store the tracer elsewhere, since it is already passed in to
-        the constructor."""
-        # Use line number of first instruction
-        lineno = block[0].lineno
-        # Insert instructions at the beginning.
-        block[0:0] = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr("STORE_GLOBAL", TRACER_NAME, lineno=lineno),
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
@@ -292,9 +281,9 @@ class BranchDistanceInstrumentation:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
                 assert False, "Tried to instrument already instrumented module."
-        return self._instrument_code_recursive(module_code, True)
+        return self._instrument_code_recursive(module_code)
 
-    def _transform_for_loop(
+    def _instrument_for_loop(
         self,
         cfg: CFG,
         dominator_tree: DominatorTree,
@@ -356,7 +345,7 @@ class BranchDistanceInstrumentation:
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.passed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", True, lineno=lineno),
@@ -372,7 +361,7 @@ class BranchDistanceInstrumentation:
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.passed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", False, lineno=lineno),

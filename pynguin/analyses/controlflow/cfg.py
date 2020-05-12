@@ -39,6 +39,19 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def from_bytecode(bytecode: Bytecode) -> CFG:
         """Generates a new control-flow graph from a bytecode segment.
 
+        Besides generating a node for each block in the bytecode segment, as returned by
+        `bytecode`'s `ControlFlowGraph` implementation, we add two artificial nodes to
+        the generated CFG:
+         - an artificial entry node, having index -1, that is guaranteed to fulfill the
+           property of an entry node, i.e., there is no incoming edge, and
+         - an artificial exit node, having index `sys.maxsize`, that is guaranteed to
+           fulfill the property of an exit node, i.e., there is no outgoing edge, and
+           that is the only such node in the graph, which is important, e.g., for graph
+           reversal.
+        The index values are chosen that they do not appear in regular graphs, thus one
+        can easily distinguish them from the normal nodes in the graph by checking for
+        their index-property's value.
+
         :param bytecode: The bytecode segment
         :return: The control-flow graph for the segment
         """
@@ -54,8 +67,9 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         # Filter all dead-code nodes
         cfg = CFG._filter_dead_code_nodes(cfg)
 
-        # Insert dummy exit node
+        # Insert dummy exit and entry nodes
         cfg = CFG._insert_dummy_exit_node(cfg)
+        cfg = CFG._insert_dummy_entry_node(cfg)
         return cfg
 
     def bytecode_cfg(self) -> ControlFlowGraph:
@@ -144,9 +158,23 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
                 cfg.add_edge(predecessor_node, successor_node)
 
     @staticmethod
+    def _insert_dummy_entry_node(cfg: CFG) -> CFG:
+        dummy_entry_node = pg.ProgramGraphNode(index=-1, is_artificial=True)
+        entry_node = cfg.entry_node
+        if not entry_node and len(cfg.nodes) == 1:
+            entry_node = cfg.nodes.pop()  # There is only one candidate to pop
+        elif not entry_node:
+            entry_node = [n for n in cfg.nodes if n.index == 0][0]
+        cfg.add_node(dummy_entry_node)
+        cfg.add_edge(dummy_entry_node, entry_node)
+        return cfg
+
+    @staticmethod
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
-        dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize)
+        dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize, is_artificial=True)
         exit_nodes = cfg.exit_nodes
+        if not exit_nodes and len(cfg.nodes) == 1:
+            exit_nodes = cfg.nodes
         cfg.add_node(dummy_exit_node)
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, dummy_exit_node)

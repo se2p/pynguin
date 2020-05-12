@@ -97,18 +97,21 @@ class ExecutionTracer:
 
     def __init__(self) -> None:
         self._known_data = KnownData()
-
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
-
         self._init_trace()
         self._enabled = True
-        self._code_object_id_counter = 0
-        self._predicate_id_counter = 0
 
     def get_known_data(self) -> KnownData:
         """Provide known data."""
         return self._known_data
+
+    def reset(self) -> None:
+        """Resets everything. Should be called before instrumentation.
+        Clears all data, so we can handle a reload of the SUT."""
+        self._known_data = KnownData()
+        self._import_trace = ExecutionTrace()
+        self._init_trace()
 
     def store_import_trace(self) -> None:
         """Stores the current trace as the import trace.
@@ -149,32 +152,30 @@ class ExecutionTracer:
         """Declare that a code object exists.
         :returns the id of the code object, which can be used to identify the object
         during instrumentation."""
-        code_object_id = self._code_object_id_counter
+        code_object_id = len(self._known_data.existing_code_objects)
         self._known_data.existing_code_objects[code_object_id] = meta
-        self._code_object_id_counter += 1
         return code_object_id
 
-    def entered_code_object(self, code_object_id: int) -> None:
-        """Mark a code object as covered. This means, that the code object
-        was at least entered once."""
+    def executed_code_object(self, code_object_id: int) -> None:
+        """Mark a code object as executed. This means, that the routine which refers
+        to this code object was at least called once."""
         assert (
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
-        self._trace.covered_code_objects.add(code_object_id)
+        self._trace.executed_code_objects.add(code_object_id)
 
     def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
         :returns the id of the predicate, which can be used to identify the predicate
         during instrumentation."""
-        predicate_id = self._predicate_id_counter
+        predicate_id = len(self._known_data.existing_predicates)
         self._known_data.existing_predicates[predicate_id] = meta
-        self._predicate_id_counter += 1
         return predicate_id
 
-    def passed_cmp_predicate(
+    def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
-        """A predicate that is based on a comparision was passed."""
+        """A predicate that is based on a comparision was executed."""
         if self._is_disabled():
             return
 
@@ -191,8 +192,8 @@ class ExecutionTracer:
         finally:
             self._enable()
 
-    def passed_bool_predicate(self, value, predicate: int):
-        """A predicate that is based on a boolean value was passed."""
+    def executed_bool_predicate(self, value, predicate: int):
+        """A predicate that is based on a boolean value was executed."""
         if self._is_disabled():
             return
 
@@ -223,8 +224,8 @@ class ExecutionTracer:
         assert (distance_true == 0.0) ^ (
             distance_false == 0.0
         ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
-        self._trace.covered_predicates[predicate] = (
-            self._trace.covered_predicates.get(predicate, 0) + 1
+        self._trace.executed_predicates[predicate] = (
+            self._trace.executed_predicates.get(predicate, 0) + 1
         )
         self._trace.true_distances[predicate] = min(
             self._trace.true_distances.get(predicate, inf), distance_true
@@ -232,6 +233,9 @@ class ExecutionTracer:
         self._trace.false_distances[predicate] = min(
             self._trace.false_distances.get(predicate, inf), distance_false
         )
+
+    def __repr__(self) -> str:
+        return "ExecutionTracer"
 
 
 def _eq(val1, val2) -> float:

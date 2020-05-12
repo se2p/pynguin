@@ -15,20 +15,23 @@
 import asyncio
 import importlib
 
-from pynguin.instrumentation.basis import get_tracer
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 def test_hook():
-    with install_import_hook("tests.fixtures.instrumentation.mixed"):
+    tracer = ExecutionTracer()
+    with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
         module = importlib.import_module("tests.fixtures.instrumentation.mixed")
         importlib.reload(module)
+        assert len(tracer.get_known_data().existing_code_objects) > 0
         assert module.function(6) == 0
 
 
 def test_module_instrumentation_integration():
     """Small integration test, which tests the instrumentation for various function types."""
-    with install_import_hook("tests.fixtures.instrumentation.mixed"):
+    tracer = ExecutionTracer()
+    with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
         mixed = importlib.import_module("tests.fixtures.instrumentation.mixed")
         mixed = importlib.reload(mixed)
 
@@ -40,7 +43,7 @@ def test_module_instrumentation_integration():
         asyncio.run(mixed.coroutine(5))
         asyncio.run(run_async_generator(mixed.async_generator()))
 
-        assert len(get_tracer(mixed).get_trace().covered_code_objects) == 10
+        assert len(tracer.get_trace().executed_code_objects) == 10
 
 
 async def run_async_generator(gen):

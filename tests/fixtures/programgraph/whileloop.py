@@ -12,22 +12,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-"""Defines the name of the tracer and utilities to get/set it."""
-from types import ModuleType
-
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
-
-TRACER_NAME: str = "pynguin_tracer"
 
 
-def get_tracer(module: ModuleType) -> ExecutionTracer:
-    """Get the tracer which is attached to the given module."""
-    return getattr(module, TRACER_NAME)
-
-
-def set_tracer(module: ModuleType, tracer: ExecutionTracer) -> None:
-    """Set the tracer of the given module.
-    :param module: the module whose tracer shall be set.
-    :param tracer: the tracer that should be set.
-    """
-    setattr(module, TRACER_NAME, tracer)
+class Foo:
+    def receive(self):
+        """A dummy docstring."""
+        while True:
+            print("True")

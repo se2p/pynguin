@@ -135,7 +135,7 @@ def test_setup_executor_failed():
         "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
     ) as exec_mock:
         exec_mock.side_effect = ModuleNotFoundError()
-        assert generator._setup_executor() is None
+        assert generator._setup_executor(MagicMock()) is None
 
 
 def test_setup_executor_success():
@@ -144,7 +144,7 @@ def test_setup_executor_success():
         "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
     ) as exec_mock:
         exec_mock.return_value = None
-        assert generator._setup_executor()
+        assert generator._setup_executor(MagicMock())
 
 
 def test_setup_test_cluster_empty():
@@ -183,7 +183,7 @@ def test_setup_path_and_hook_invalid_dir(tmp_path):
     generator = gen.Pynguin(
         configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")
     )
-    assert not generator._setup_path_and_hook()
+    assert generator._setup_path_and_hook() is None
 
 
 def test_setup_path_and_hook_valid_dir(tmp_path):
@@ -196,5 +196,5 @@ def test_setup_path_and_hook_valid_dir(tmp_path):
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
         with mock.patch("sys.path") as path_mock:
             assert generator._setup_path_and_hook()
-            hook_mock.assert_called_with(module_name)
+            hook_mock.assert_called_once()
             path_mock.insert.assert_called_with(0, tmp_path)

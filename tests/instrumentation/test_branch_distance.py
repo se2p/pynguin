@@ -42,7 +42,7 @@ def test_entered_function(simple_module, tracer_mock):
     )
     simple_module.simple_function(1)
     tracer_mock.register_code_object.assert_called_once()
-    tracer_mock.entered_code_object.assert_called_once()
+    tracer_mock.executed_code_object.assert_called_once()
 
 
 def test_entered_for_loop_no_jump(simple_module, tracer_mock):
@@ -52,7 +52,7 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(3)
-    tracer_mock.passed_bool_predicate.assert_called_with(True, 0)
+    tracer_mock.executed_bool_predicate.assert_called_with(True, 0)
 
 
 def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
@@ -62,7 +62,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(0)
-    tracer_mock.passed_bool_predicate.assert_called_with(False, 0)
+    tracer_mock.executed_bool_predicate.assert_called_with(False, 0)
 
 
 def test_entered_for_loop_full_loop(simple_module, tracer_mock):
@@ -72,8 +72,8 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
-    tracer_mock.passed_bool_predicate.assert_called_with(True, 0)
-    assert tracer_mock.passed_bool_predicate.call_count == 1
+    tracer_mock.executed_bool_predicate.assert_called_with(True, 0)
+    assert tracer_mock.executed_bool_predicate.call_count == 1
 
 
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
@@ -83,7 +83,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
-    tracer_mock.passed_bool_predicate.assert_called_with(False, 0)
+    tracer_mock.executed_bool_predicate.assert_called_with(False, 0)
 
 
 def test_add_bool_predicate(simple_module, tracer_mock):
@@ -93,7 +93,7 @@ def test_add_bool_predicate(simple_module, tracer_mock):
     )
     simple_module.bool_predicate(True)
     tracer_mock.register_predicate.assert_called_once()
-    tracer_mock.passed_bool_predicate.assert_called_once()
+    tracer_mock.executed_bool_predicate.assert_called_once()
 
 
 def test_add_cmp_predicate(simple_module, tracer_mock):
@@ -103,7 +103,7 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
     )
     simple_module.cmp_predicate(1, 2)
     tracer_mock.register_predicate.assert_called_once()
-    tracer_mock.passed_cmp_predicate.assert_called_once()
+    tracer_mock.executed_compare_predicate.assert_called_once()
 
 
 def test_transform_for_loop_multi(simple_module, tracer_mock):
@@ -122,8 +122,8 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
         call(True, 1),
         call(False, 2),
     ]
-    assert tracer_mock.passed_bool_predicate.call_count == len(calls)
-    tracer_mock.passed_bool_predicate.assert_has_calls(calls)
+    assert tracer_mock.executed_bool_predicate.call_count == len(calls)
+    tracer_mock.executed_bool_predicate.assert_has_calls(calls)
 
 
 def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
@@ -134,8 +134,8 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     call_count = 5
     simple_module.comprehension(call_count, 3)
     assert tracer_mock.register_predicate.call_count == 2
-    assert tracer_mock.passed_cmp_predicate.call_count == call_count
-    tracer_mock.passed_bool_predicate.assert_has_calls([call(True, 1)])
+    assert tracer_mock.executed_compare_predicate.call_count == call_count
+    tracer_mock.executed_bool_predicate.assert_has_calls([call(True, 1)])
 
 
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
@@ -147,8 +147,10 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
     lam(5)
     tracer_mock.register_predicate.assert_called_once()
     assert tracer_mock.register_code_object.call_count == 2
-    tracer_mock.passed_cmp_predicate.assert_called_once()
-    tracer_mock.entered_code_object.assert_has_calls([call(0), call(1)], any_order=True)
+    tracer_mock.executed_compare_predicate.assert_called_once()
+    tracer_mock.executed_code_object.assert_has_calls(
+        [call(0), call(1)], any_order=True
+    )
 
 
 def test_conditional_assignment(simple_module, tracer_mock):
@@ -159,8 +161,8 @@ def test_conditional_assignment(simple_module, tracer_mock):
     simple_module.conditional_assignment(10)
     tracer_mock.register_predicate.assert_called_once()
     assert tracer_mock.register_code_object.call_count == 1
-    tracer_mock.passed_cmp_predicate.assert_called_once()
-    tracer_mock.entered_code_object.assert_has_calls([call(0)])
+    tracer_mock.executed_compare_predicate.assert_called_once()
+    tracer_mock.executed_code_object.assert_has_calls([call(0)])
 
 
 def test_conditionally_nested_class(simple_module, tracer_mock):
@@ -171,11 +173,11 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
     assert tracer_mock.register_code_object.call_count == 3
 
     simple_module.conditionally_nested_class(6)
-    tracer_mock.entered_code_object.assert_has_calls(
+    tracer_mock.executed_code_object.assert_has_calls(
         [call(0), call(1), call(2)], any_order=True
     )
     tracer_mock.register_predicate.assert_called_once()
-    tracer_mock.passed_cmp_predicate.assert_called_once()
+    tracer_mock.executed_compare_predicate.assert_called_once()
 
 
 def test_avoid_duplicate_instrumentation(simple_module):

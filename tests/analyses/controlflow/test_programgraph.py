@@ -136,3 +136,8 @@ def test_get_predecessors(graph, node, second_node):
     graph.add_edge(node, second_node)
     result = graph.get_predecessors(second_node)
     assert result == {node}
+
+
+def test_is_artificial():
+    node = ProgramGraphNode(index=42, is_artificial=True)
+    assert node.is_artificial

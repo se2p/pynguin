@@ -40,9 +40,9 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
 
     @staticmethod
     def _compute_fitness(trace: ExecutionTrace, known_data: KnownData) -> float:
-        # Check if all code objects were entered.
+        # Check if all code objects were executed.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
-            trace.covered_code_objects
+            trace.executed_code_objects
         )
         assert (
             code_objects_missing >= 0.0
@@ -67,8 +67,8 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         if predicate in branch_distances and branch_distances[predicate] == 0.0:
             return 0.0
         if (
-            predicate in trace.covered_predicates
-            and trace.covered_predicates[predicate] >= 2
+            predicate in trace.executed_predicates
+            and trace.executed_predicates[predicate] >= 2
         ):
             return BranchDistanceSuiteFitnessFunction.normalise(
                 branch_distances[predicate]
@@ -80,7 +80,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         """Computes branch coverage on bytecode instructions
          which should equal decision coverage on source."""
 
-        covered = len(trace.covered_code_objects)
+        covered = len(trace.executed_code_objects)
         existing = len(known_data.existing_code_objects)
 
         # Every predicate creates two branches
