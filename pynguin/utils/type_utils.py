@@ -106,10 +106,11 @@ def get_class_that_defined_method(method: object) -> Optional[object]:
         method = method.__func__  # fallback to __qualname__ parsing
     if inspect.isfunction(method):
         assert isinstance(method, types.FunctionType)
-        cls = getattr(
-            inspect.getmodule(method),
-            method.__qualname__.split(".<locals>", 1)[0].rsplit(".", 1)[0],
-        )
+        module = inspect.getmodule(method)
+        attribute_name = method.__qualname__.split(".<locals>", 1)[0].rsplit(".", 1)[0]
+        if not hasattr(module, attribute_name):
+            return None
+        cls = getattr(module, attribute_name)
         if isinstance(cls, type):
             return cls
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
