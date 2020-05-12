@@ -16,5 +16,6 @@
 
 class Foo:
     def receive(self):
+        """A dummy docstring."""
         while True:
             print("True")
