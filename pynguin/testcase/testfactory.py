@@ -489,15 +489,14 @@ class TestFactory:
         We try to find replacements for the variable that is provided by this statement"""
         variable = test_case.get_statement(position).return_value
 
-        alternatives = test_case.get_objects(variable.variable_type, position)
-        try:
-            alternatives.remove(variable)
-        except ValueError:
-            pass
-
         changed = False
-        if len(alternatives) > 0:
-            for i in range(position + 1, test_case.size()):
+        for i in range(position + 1, test_case.size()):
+            alternatives = test_case.get_objects(variable.variable_type, i)
+            try:
+                alternatives.remove(variable)
+            except ValueError:
+                pass
+            if len(alternatives) > 0:
                 statement = test_case.get_statement(i)
                 if statement.references(variable):
                     statement.replace(variable, randomness.choice(alternatives))
