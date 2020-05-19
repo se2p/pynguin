@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union
+import inspect
+from typing import Union, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.type_utils import (
     is_primitive_type,
     class_in_module,
@@ -24,9 +26,9 @@ from pynguin.utils.type_utils import (
     is_none_type,
     is_assignable_to,
     is_type_unknown,
-    select_concrete_type,
     is_numeric,
     is_string,
+    should_skip_parameter,
 )
 
 
@@ -90,23 +92,12 @@ def test_function_in_module(module, result):
         pytest.param(float, Union[int, float], True),
         pytest.param(float, int, False),
         pytest.param(float, Union[str, int], False),
+        pytest.param(float, Any, True),
+        pytest.param(int, Any, True),
     ],
 )
 def test_is_assignable_to(from_type, to_type, result):
     assert is_assignable_to(from_type, to_type) == result
-
-
-@pytest.mark.parametrize(
-    "type_, result",
-    [
-        pytest.param(None, [None]),
-        pytest.param(bool, [bool]),
-        pytest.param(Union[int, float], [int, float]),
-        pytest.param(Union, [None]),
-    ],
-)
-def test_select_concrete_type(type_, result):
-    assert select_concrete_type(type_) in result
 
 
 @pytest.mark.parametrize(
@@ -121,3 +112,19 @@ def test_is_numeric(value, result):
 )
 def test_is_string(value, result):
     assert is_string(value) == result
+
+
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        pytest.param("normal", False),
+        pytest.param("args", True),
+        pytest.param("kwargs", True),
+    ],
+)
+def test_should_skip_parameter(param_name, result):
+    def inner_func(normal: str, *args, **kwargs):
+        pass
+
+    inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
+    assert should_skip_parameter(inf_sig, param_name) == result

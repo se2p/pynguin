@@ -119,17 +119,16 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
     ) -> None:
-        assert stmt.constructor.owner
+        owner = stmt.accessible_object().owner
+        assert owner
         self._ast_nodes.append(
             ast.Assign(
                 targets=[self._create_var_name(stmt.return_value, False)],
                 value=ast.Call(
                     func=ast.Attribute(
-                        attr=stmt.constructor.owner.__name__,
+                        attr=owner.__name__,
                         ctx=ast.Load(),
-                        value=self._create_module_alias(
-                            stmt.constructor.owner.__module__
-                        ),
+                        value=self._create_module_alias(owner.__module__),
                     ),
                     args=self._create_args(stmt),
                     keywords=self._create_kw_args(stmt),
@@ -140,7 +139,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_method_statement(self, stmt: param_stmt.MethodStatement) -> None:
         call = ast.Call(
             func=ast.Attribute(
-                attr=stmt.method.callable.__name__,
+                attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
                 value=self._create_var_name(stmt.callee, True),
             ),
@@ -158,9 +157,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_function_statement(self, stmt: param_stmt.FunctionStatement) -> None:
         call = ast.Call(
             func=ast.Attribute(
-                attr=stmt.function.callable.__name__,
+                attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
-                value=self._create_module_alias(stmt.function.callable.__module__),
+                value=self._create_module_alias(
+                    stmt.accessible_object().callable.__module__
+                ),
             ),
             args=self._create_args(stmt),
             keywords=self._create_kw_args(stmt),

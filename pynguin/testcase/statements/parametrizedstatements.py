@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Optional, Any, Union, Set
+from typing import Type, List, Dict, Optional, Any, Union, Set, cast
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -27,9 +27,10 @@ from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericMethod,
-    GenericAccessibleObject,
     GenericFunction,
+    GenericCallableAccessibleObject,
 )
+from pynguin.utils.type_utils import is_assignable_to
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
@@ -42,7 +43,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def __init__(
         self,
         test_case: tc.TestCase,
-        return_type: Optional[Type] = None,
+        generic_callable: GenericCallableAccessibleObject,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ):
@@ -50,11 +51,14 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         Create a new statement with parameters.
 
         :param test_case: the containing test case.
-        :param return_type: the return type.
         :param args: the positional parameters.
         :param kwargs: the keyword parameters.
         """
-        super().__init__(test_case, vri.VariableReferenceImpl(test_case, return_type))
+        super().__init__(
+            test_case,
+            vri.VariableReferenceImpl(test_case, generic_callable.generated_type()),
+        )
+        self._generic_callable = generic_callable
         self._args = args if args else []
         self._kwargs = kwargs if kwargs else {}
 
@@ -160,8 +164,9 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         :return True, if the parameter was mutated.
         """
         to_mutate = self._get_argument(arg)
+        param_type = self._get_parameter_type(arg)
         possible_replacements = self.test_case.get_objects(
-            to_mutate.variable_type, self.get_position()
+            param_type, self.get_position()
         )
 
         if to_mutate in possible_replacements:
@@ -169,10 +174,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
         # Consider duplicating an existing statement/variable.
         copy: Optional[stmt.Statement] = None
-        if (
-            self._param_count_of_type(to_mutate.variable_type)
-            > len(possible_replacements) + 1
-        ):
+        if self._param_count_of_type(param_type) > len(possible_replacements) + 1:
             original_param_source = self.test_case.get_statement(
                 to_mutate.get_statement_position()
             )
@@ -180,6 +182,9 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             copy.mutate()
             possible_replacements.append(copy.return_value)
 
+        # TODO(fk) Use param_type instead of to_mutate.variable_type,
+        # to make the selection broader, but this requires access to
+        # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
         none_statement = prim.NoneStatement(self.test_case, to_mutate.variable_type)
         possible_replacements.append(none_statement.return_value)
@@ -206,12 +211,21 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if not type_:
             return 0
         for var_ref in self.args:
-            if var_ref.variable_type == type_:
+            if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         for _, var_ref in self.kwargs.items():
-            if var_ref.variable_type == type_:
+            if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         return count
+
+    def _get_parameter_type(self, arg: Union[int, str]) -> Optional[Type]:
+        """Get the type of the parameter."""
+        parameters = self._generic_callable.inferred_signature.parameters
+        if isinstance(arg, int):
+            # As of Python 3.7, Dictionaries preserve insertion order.
+            # So we can access the values by index.
+            return list(parameters.values())[arg]
+        return parameters[arg]
 
     def _get_argument(self, arg: Union[int, str]) -> vr.VariableReference:
         """Returns the arg or kwarg, depending on the parameter type."""
@@ -251,20 +265,10 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 class ConstructorStatement(ParametrizedStatement):
     """A statement that constructs an object."""
 
-    def __init__(
-        self,
-        test_case: tc.TestCase,
-        constructor: GenericConstructor,
-        args: Optional[List[vr.VariableReference]] = None,
-        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
-    ):
-        super().__init__(test_case, constructor.generated_type(), args, kwargs)
-        self._constructor = constructor
-
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return ConstructorStatement(
             test_case,
-            self._constructor,
+            self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
         )
@@ -272,22 +276,18 @@ class ConstructorStatement(ParametrizedStatement):
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_constructor_statement(self)
 
-    def accessible_object(self) -> Optional[GenericAccessibleObject]:
-        return self._constructor
-
-    @property
-    def constructor(self) -> GenericConstructor:
+    def accessible_object(self) -> GenericConstructor:
         """The used constructor."""
-        return self._constructor
+        return cast(GenericConstructor, self._generic_callable)
 
     def __repr__(self) -> str:
         return (
             f"ConstructorStatement({self._test_case}, "
-            f"{self._constructor}(args={self._args}, kwargs={self._kwargs})"
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
-        return f"{self._constructor}(args={self._args}, kwargs={self._kwargs}) -> None"
+        return f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> None"
 
 
 class MethodStatement(ParametrizedStatement):
@@ -297,7 +297,7 @@ class MethodStatement(ParametrizedStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        method: GenericMethod,
+        generic_callable: GenericMethod,
         callee: vr.VariableReference,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
@@ -310,13 +310,13 @@ class MethodStatement(ParametrizedStatement):
         :param kwargs: the keyword arguments
         """
         super().__init__(
-            test_case, method.generated_type(), args, kwargs,
+            test_case, generic_callable, args, kwargs,
         )
-        self._method = method
         self._callee = callee
 
-    def accessible_object(self) -> Optional[GenericAccessibleObject]:
-        return self._method
+    def accessible_object(self) -> GenericMethod:
+        """The used method."""
+        return cast(GenericMethod, self._generic_callable)
 
     def _mutable_argument_count(self) -> int:
         # We add +1 to the count, because the callee itself can also be mutated.
@@ -347,11 +347,6 @@ class MethodStatement(ParametrizedStatement):
             self._callee = new
 
     @property
-    def method(self) -> GenericMethod:
-        """The used method."""
-        return self._method
-
-    @property
     def callee(self) -> vr.VariableReference:
         """Provides the variable on which the method is invoked."""
         return self._callee
@@ -364,7 +359,7 @@ class MethodStatement(ParametrizedStatement):
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return MethodStatement(
             test_case,
-            self._method,
+            self.accessible_object(),
             self._callee.clone(test_case, offset),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
@@ -376,46 +371,28 @@ class MethodStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"MethodStatement({self._test_case}, "
-            f"{self._method}, {self._callee.variable_type}, "
+            f"{self._generic_callable}, {self._callee.variable_type}, "
             f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._method}(args={self._args}, kwargs={self._kwargs}) -> "
-            f"{self._method.generated_type()}"
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._generic_callable.generated_type()}"
         )
 
 
 class FunctionStatement(ParametrizedStatement):
     """A statement that calls a function."""
 
-    # pylint: disable=too-many-arguments
-    def __init__(
-        self,
-        test_case: tc.TestCase,
-        function: GenericFunction,
-        args: Optional[List[vr.VariableReference]] = None,
-        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
-    ) -> None:
-        """
-
-        """
-        super().__init__(test_case, function.generated_type(), args, kwargs)
-        self._function = function
-
-    def accessible_object(self) -> Optional[GenericAccessibleObject]:
-        return self._function
-
-    @property
-    def function(self) -> GenericFunction:
+    def accessible_object(self) -> GenericFunction:
         """The used function."""
-        return self._function
+        return cast(GenericFunction, self._generic_callable)
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FunctionStatement(
             test_case,
-            self._function,
+            self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
         )
@@ -426,12 +403,12 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._function}, {self._return_value.variable_type}, "
+            f"{self._generic_callable}, {self._return_value.variable_type}, "
             f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._function}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
             f"{self._return_value.variable_type}"
         )

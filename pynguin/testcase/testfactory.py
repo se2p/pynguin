@@ -15,7 +15,6 @@
 """Provides a factory for test-case generation."""
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import List, Type, Optional, Set, cast
 
@@ -34,10 +33,9 @@ from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
     is_primitive_type,
-    PRIMITIVES,
     is_type_unknown,
-    select_concrete_type,
     is_assignable_to,
+    should_skip_parameter,
 )
 
 
@@ -64,21 +62,21 @@ class TestFactory:
         if isinstance(statement, par_stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
-                statement.constructor,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.MethodStatement):
             self.add_method(
                 test_case,
-                statement.method,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.FunctionStatement):
             self.add_function(
                 test_case,
-                statement.function,
+                statement.accessible_object(),
                 position=test_case.size(),
                 allow_none=allow_none,
             )
@@ -189,7 +187,7 @@ class TestFactory:
             position = position + new_length - length
 
             statement = par_stmt.ConstructorStatement(
-                test_case=test_case, constructor=constructor, args=parameters,
+                test_case=test_case, generic_callable=constructor, args=parameters,
             )
             return test_case.add_statement(statement, position)
         except BaseException as exception:
@@ -249,7 +247,10 @@ class TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.MethodStatement(
-            test_case=test_case, method=method, callee=callee, args=parameters,
+            test_case=test_case,
+            generic_callable=method,
+            callee=callee,
+            args=parameters,
         )
         return test_case.add_statement(statement, position)
 
@@ -337,7 +338,7 @@ class TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.FunctionStatement(
-            test_case=test_case, function=function, args=parameters,
+            test_case=test_case, generic_callable=function, args=parameters,
         )
         return test_case.add_statement(statement, position)
 
@@ -615,7 +616,7 @@ class TestFactory:
         """Find specified parameters from existing objects."""
         found = []
         for parameter_name, parameter_type in inf_signature.parameters.items():
-            if TestFactory._should_skip_parameter(inf_signature, parameter_name):
+            if should_skip_parameter(inf_signature, parameter_name):
                 continue
             assert parameter_type
             found.append(test_case.get_random_object(parameter_type, position))
@@ -708,7 +709,7 @@ class TestFactory:
 
             previous_length = test_case.size()
 
-            if self._should_skip_parameter(signature, parameter_name):
+            if should_skip_parameter(signature, parameter_name):
                 # TODO Implement generation for positional parameters of variable length
                 # TODO Implement generation for keyword parameters of variable length
                 self._logger.info("Skip parameter %s", parameter_name)
@@ -749,6 +750,56 @@ class TestFactory:
         self._logger.debug("Satisfied %d parameters", len(parameters))
         return parameters
 
+    def _reuse_variable(
+        self, test_case: tc.TestCase, parameter_type: Optional[Type], position: int
+    ) -> Optional[vr.VariableReference]:
+        """Reuse an existing variable, if possible."""
+
+        objects = test_case.get_objects(parameter_type, position)
+        probability = (
+            config.INSTANCE.primitive_reuse_probability
+            if is_primitive_type(parameter_type)
+            else config.INSTANCE.object_reuse_probability
+        )
+        if objects and randomness.next_float() <= probability:
+            var = randomness.choice(objects)
+            self._logger.debug("Reusing variable %s for type %s", var, parameter_type)
+            return var
+        return None
+
+    def _get_variable_fallback(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Optional[Type],
+        position: int,
+        recursion_depth: int,
+        allow_none: bool,
+    ) -> Optional[vr.VariableReference]:
+        """Best effort approach to return some kind of matching variable."""
+        objects = test_case.get_objects(parameter_type, position)
+
+        # No objects to choose from, so either create random type variable or use None.
+        if not objects:
+            if config.INSTANCE.guess_unknown_types and randomness.next_float() <= 0.85:
+                return self._create_random_type_variable(
+                    test_case, position, recursion_depth, allow_none
+                )
+            if allow_none:
+                return self._create_none(
+                    test_case, parameter_type, position, recursion_depth
+                )
+            raise ConstructionFailedException(f"No objects for type {parameter_type}")
+
+        # Could not create, so re-use an existing variable.
+        self._logger.debug(
+            "Choosing from %d existing objects: %s", len(objects), objects
+        )
+        reference = randomness.choice(objects)
+        self._logger.debug(
+            "Use existing object of type %s: %s", parameter_type, reference
+        )
+        return reference
+
     # pylint: disable=too-many-arguments, unused-argument, too-many-return-statements
     def _create_or_reuse_variable(
         self,
@@ -759,60 +810,32 @@ class TestFactory:
         allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
-        reuse = randomness.next_float()
-        objects = test_case.get_objects(parameter_type, position)
-        is_primitive = is_primitive_type(parameter_type)
-        if (
-            is_primitive
-            and objects
-            and reuse <= config.INSTANCE.primitive_reuse_probability
-        ):
-            self._logger.debug("Reusing primitive of type %s", parameter_type)
-            return randomness.choice(objects)
-        if (
-            not is_primitive
-            and objects
-            and reuse <= config.INSTANCE.object_reuse_probability
-        ):
-            self._logger.debug(
-                "Choosing from %d existing objects %s", len(objects), objects
-            )
-            return randomness.choice(objects)
-
-        all_objects = test_case.get_all_objects(position)
-        if len(all_objects) > 0 and is_type_unknown(parameter_type) and not objects:
-            self._logger.debug(
-                "Picking a random object from test case as parameter value"
-            )
-            return randomness.choice(all_objects)
-
-        # if chosen to not re-use existing variable, try to create a new one
-        created = self._create_variable(
-            test_case, parameter_type, position, recursion_depth, allow_none, exclude
-        )
-        if created:
-            return created
-
-        # could not create, so go back in trying to re-use an existing variable
-        if not objects:
-            if randomness.next_float() <= 0.85:
-                return self._create_random_type_variable(
-                    test_case, position, recursion_depth, allow_none
+        if is_type_unknown(parameter_type):
+            if config.INSTANCE.guess_unknown_types:
+                parameter_type = randomness.choice(
+                    self._test_cluster.get_all_generatable_types()
                 )
-            if allow_none:
-                return self._create_none(
-                    test_case, parameter_type, position, recursion_depth
-                )
-            raise ConstructionFailedException(f"No objects for type {parameter_type}")
+            else:
+                return None
 
-        self._logger.debug(
-            "Choosing from %d existing objects: %s", len(objects), objects
+        if (
+            reused_variable := self._reuse_variable(test_case, parameter_type, position)
+        ) is not None:
+            return reused_variable
+        if (
+            created_variable := self._create_variable(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+                allow_none,
+                exclude,
+            )
+        ) is not None:
+            return created_variable
+        return self._get_variable_fallback(
+            test_case, parameter_type, position, recursion_depth, allow_none
         )
-        reference = randomness.choice(objects)
-        self._logger.debug(
-            "Use existing object of type %s: %s", parameter_type, reference
-        )
-        return reference
 
     # pylint: disable=too-many-arguments
     def _create_variable(
@@ -839,11 +862,15 @@ class TestFactory:
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
         # We only select a concrete type e.g. from a union, when we are forced to choose one.
-        parameter_type = select_concrete_type(parameter_type)
+        parameter_type = self._test_cluster.select_concrete_type(parameter_type)
 
         if not parameter_type:
             return None
 
+        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
+            return self._create_none(
+                test_case, parameter_type, position, recursion_depth
+            )
         if is_primitive_type(parameter_type):
             return self._create_primitive(
                 test_case, parameter_type, position, recursion_depth,
@@ -851,10 +878,6 @@ class TestFactory:
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(
                 test_case, position, recursion_depth, allow_none, type_generators
-            )
-        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
-            return self._create_none(
-                test_case, parameter_type, position, recursion_depth
             )
         return None
 
@@ -882,12 +905,11 @@ class TestFactory:
         recursion_depth: int,
         allow_none: bool,
     ) -> Optional[vr.VariableReference]:
-        generator_types = list(self._test_cluster.generators.keys())
-        generator_types.extend(PRIMITIVES)
-        generator_type = randomness.RNG.choice(generator_types)
         return self._create_or_reuse_variable(
             test_case=test_case,
-            parameter_type=generator_type,
+            parameter_type=randomness.choice(
+                self._test_cluster.get_all_generatable_types()
+            ),
             position=position,
             recursion_depth=recursion_depth + 1,
             allow_none=allow_none,
@@ -924,13 +946,3 @@ class TestFactory:
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
-
-    @staticmethod
-    def _should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
-        """There are some parameter types (*args, **kwargs) that are not handled as of now.
-        This is a simple utility method to check if such a parameter should be skipped."""
-        parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
-        return parameter.kind in (
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD,
-        )
