@@ -56,11 +56,17 @@ def test_generate_sequences_exception(executor):
     def raise_exception(*args):
         raise GenerationException("Exception Test")
 
+    def _combine_current_individual(*args):
+        chromosome = MagicMock(tsc.TestSuiteChromosome)
+        chromosome.get_fitness.return_value = 1.0
+        return chromosome
+
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
     algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
+    algorithm._combine_current_individual = _combine_current_individual
     algorithm.generate_sequence = raise_exception
     algorithm.generate_sequences()
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]

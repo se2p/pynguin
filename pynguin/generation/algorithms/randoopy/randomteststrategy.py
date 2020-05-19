@@ -55,7 +55,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
-        execution_counter: int = 0
+        generation: int = 0
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
         fitness_functions = self.get_fitness_functions()
@@ -63,12 +63,29 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
 
-        while not self.is_fulfilled(stopping_condition):
+        combined_chromosome = self._combine_current_individual(
+            test_chromosome, failing_test_chromosome
+        )
+
+        while (
+            not self.is_fulfilled(stopping_condition)
+            and combined_chromosome.get_fitness() != 0.0
+        ):
             try:
-                execution_counter += 1
+                generation += 1
                 stopping_condition.iterate()
                 self.generate_sequence(
-                    test_chromosome, failing_test_chromosome, execution_counter,
+                    test_chromosome, failing_test_chromosome, generation,
+                )
+                combined_chromosome = self._combine_current_individual(
+                    test_chromosome, failing_test_chromosome
+                )
+                self._track_current_individual(combined_chromosome)
+                self._logger.info(
+                    "Generation: %5i. Best fitness: %5f, Best coverage %5f",
+                    generation,
+                    combined_chromosome.get_fitness(),
+                    combined_chromosome.get_coverage(),
                 )
             except (ConstructionFailedException, GenerationException) as exception:
                 self._logger.debug(
@@ -81,9 +98,9 @@ class RandomTestStrategy(TestGenerationStrategy):
         self._logger.debug(
             "Generated %d failing test cases", failing_test_chromosome.size()
         )
-        self._logger.debug("Number of algorithm iterations: %d", execution_counter)
+        self._logger.debug("Number of algorithm iterations: %d", generation)
         StatisticsTracker().track_output_variable(
-            RuntimeVariable.AlgorithmIterations, execution_counter
+            RuntimeVariable.AlgorithmIterations, generation
         )
 
         return test_chromosome, failing_test_chromosome
@@ -144,18 +161,21 @@ class RandomTestStrategy(TestGenerationStrategy):
         else:
             test_chromosome.add_test(new_test)
             # TODO(sl) What about extensible flags?
-        self._track_current_individual(test_chromosome, failing_test_chromosome)
         self._execution_results.append(exec_result)
         timer.stop()
 
     @staticmethod
-    def _track_current_individual(
+    def _track_current_individual(chromosome: tsc.TestSuiteChromosome) -> None:
+        StatisticsTracker().current_individual(chromosome)
+
+    @staticmethod
+    def _combine_current_individual(
         passing_chromosome: tsc.TestSuiteChromosome,
         failing_chromosome: tsc.TestSuiteChromosome,
-    ) -> None:
+    ) -> tsc.TestSuiteChromosome:
         combined = passing_chromosome.clone()
         combined.add_tests(failing_chromosome.test_chromosomes)
-        StatisticsTracker().current_individual(combined)
+        return combined
 
     def send_statistics(self):
         super().send_statistics()
