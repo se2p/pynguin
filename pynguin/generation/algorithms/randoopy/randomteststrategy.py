@@ -80,7 +80,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 combined_chromosome = self._combine_current_individual(
                     test_chromosome, failing_test_chromosome
                 )
-                self._track_current_individual(combined_chromosome)
+                StatisticsTracker().current_individual(combined_chromosome)
                 self._logger.info(
                     "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                     generation,
@@ -163,10 +163,6 @@ class RandomTestStrategy(TestGenerationStrategy):
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
         timer.stop()
-
-    @staticmethod
-    def _track_current_individual(chromosome: tsc.TestSuiteChromosome) -> None:
-        StatisticsTracker().current_individual(chromosome)
 
     @staticmethod
     def _combine_current_individual(
