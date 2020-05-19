@@ -15,9 +15,10 @@
 """Provides capabilities to track branch distances."""
 import dataclasses
 import logging
-from types import CodeType
-from typing import Any, Callable, Dict, Tuple, Optional
 from math import inf
+from types import CodeType
+from typing import Any, Callable, Dict, Optional, Tuple
+
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 

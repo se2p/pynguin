@@ -14,6 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an implementation for a test suite chromosome"""
 from __future__ import annotations
+
 import pynguin.testsuite.abstracttestsuitechromosome as atsc
 
 

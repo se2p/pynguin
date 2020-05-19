@@ -13,9 +13,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
-from unittest.mock import Mock, call, MagicMock
+
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 

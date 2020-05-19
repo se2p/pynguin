@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A mixin handling the execution of a test case with MonkeyType."""
 import logging
-from typing import List, Callable, Union, Tuple, Optional
+from typing import Callable, List, Optional, Tuple, Union
 
 import monkeytype.typing as mtt
 from monkeytype.tracing import CallTrace

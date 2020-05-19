@@ -15,7 +15,7 @@
 """Provides a proxy that wraps objects to inspect them."""
 import logging
 import operator
-from typing import Any, TypeVar, Iterator
+from typing import Any, Iterator, TypeVar
 
 Num = TypeVar("Num", int, float, complex)
 T = TypeVar("T")  # pylint: disable=invalid-name

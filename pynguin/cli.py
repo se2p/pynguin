@@ -23,7 +23,7 @@ from typing import List
 
 import simple_parsing
 
-from pynguin import __version__, Configuration
+from pynguin import Configuration, __version__
 from pynguin.generator import Pynguin
 
 

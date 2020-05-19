@@ -17,14 +17,14 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.testcase.execution.testcaseexecutor as executor
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
-import pynguin.testcase.execution.testcaseexecutor as executor
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
 from pynguin.setup.testcluster import TestCluster
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 
 
 @pytest.fixture

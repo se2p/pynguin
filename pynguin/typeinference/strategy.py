@@ -15,7 +15,7 @@
 """Provides an inference strategy for types."""
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from inspect import Signature, Parameter
+from inspect import Parameter, Signature
 from typing import Callable, Dict, Optional
 
 

@@ -16,9 +16,9 @@ from typing import List
 from unittest.mock import MagicMock
 
 import pytest
-from bytecode import Instr, BasicBlock
+from bytecode import BasicBlock, Instr
 
-from pynguin.analyses.controlflow.programgraph import ProgramGraphNode, ProgramGraph
+from pynguin.analyses.controlflow.programgraph import ProgramGraph, ProgramGraphNode
 
 
 @pytest.fixture

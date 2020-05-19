@@ -14,11 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a strategy implementation that uses type hints."""
 import inspect
+import typing
 from typing import Callable, Dict, Optional
 
-import typing
-
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
+from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 
 
 # pylint: disable=too-few-public-methods

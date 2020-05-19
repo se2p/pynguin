@@ -15,7 +15,7 @@
 """An export implementation creating unittest test cases from the statements."""
 import ast
 import os
-from typing import List, Union, Sequence
+from typing import List, Sequence, Union
 
 import pynguin.testcase.testcase as tc
 from pynguin.generation.export.abstractexporter import AbstractTestExporter

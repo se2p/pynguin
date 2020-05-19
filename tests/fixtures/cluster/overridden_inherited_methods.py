@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import List, Iterator
+from typing import Iterator, List
 
 
 class Foo:

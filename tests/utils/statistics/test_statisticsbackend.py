@@ -16,9 +16,9 @@ from unittest.mock import MagicMock
 
 import pynguin.configuration as config
 from pynguin.utils.statistics.statisticsbackend import (
-    OutputVariable,
-    CSVStatisticsBackend,
     ConsoleStatisticsBackend,
+    CSVStatisticsBackend,
+    OutputVariable,
 )
 
 

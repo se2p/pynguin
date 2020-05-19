@@ -41,8 +41,11 @@ mypy:
 black:
 	black .
 
+isort:
+	isort
+
 build-docker:
 	docker build -t $(APP_NAME) .
 	docker tag $(APP_NAME) $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
 
-check: black mypy pylint test
+check: isort black mypy pylint test

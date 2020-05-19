@@ -14,9 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a test cluster."""
 from __future__ import annotations
-from typing import Type, Set, Dict, cast, Optional, Any, List
 
-from typing_inspect import is_union_type, get_args
+from typing import Any, Dict, List, Optional, Set, Type, cast
+
+from typing_inspect import get_args, is_union_type
 
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException

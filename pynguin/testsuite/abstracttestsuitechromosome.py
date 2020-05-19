@@ -14,12 +14,12 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract base class for a test suite chromosome."""
 from abc import ABCMeta, abstractmethod
-from typing import List, Any, Optional
+from typing import Any, List, Optional
 
-import pynguin.testcase.testcase as tc
-import pynguin.ga.testcasefactory as tcf
-import pynguin.ga.chromosome as chrom
 import pynguin.configuration as config
+import pynguin.ga.chromosome as chrom
+import pynguin.ga.testcasefactory as tcf
+import pynguin.testcase.testcase as tc
 from pynguin.utils import randomness
 
 

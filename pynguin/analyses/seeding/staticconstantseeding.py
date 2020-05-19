@@ -19,7 +19,7 @@ import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Union, Set, Optional, Dict, cast, Any
+from typing import Any, Dict, Optional, Set, Union, cast
 
 from setuptools import find_packages
 

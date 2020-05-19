@@ -12,8 +12,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union, Tuple
 import typing
+from typing import Tuple, Union
 
 def typed_dummy(a: int, b: float, c) -> str: ...
 def union_dummy(a: Union[int, float], b: Union[int, float]) -> Union[int, float]: ...

@@ -16,7 +16,7 @@
 import inspect
 from typing import Callable, Dict, Optional
 
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
+from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 
 
 # pylint: disable=too-few-public-methods

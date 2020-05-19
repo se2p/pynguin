@@ -16,11 +16,11 @@
 import inspect
 import numbers
 import types
-from inspect import isclass, isfunction
-from typing import Type, Optional, Callable, Any
-
 import typing
-from typing_inspect import is_union_type, get_args
+from inspect import isclass, isfunction
+from typing import Any, Callable, Optional, Type
+
+from typing_inspect import get_args, is_union_type
 
 from pynguin.typeinference.strategy import InferredSignature
 

@@ -14,8 +14,8 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import time
 
-import pytest
 import hypothesis.strategies as st
+import pytest
 from hypothesis import given
 
 import pynguin.configuration as config

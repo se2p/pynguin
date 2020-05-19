@@ -14,10 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an access component to type inference strategies."""
 import importlib
-from typing import Optional, List, Callable
+from typing import Callable, List, Optional
 
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
+from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 
 
 # pylint: disable=too-few-public-methods

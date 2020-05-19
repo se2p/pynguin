@@ -17,7 +17,7 @@ Provide wrappers around constructors, methods, function and fields.
 Think of these like the reflection classes in Java.
 """
 import abc
-from typing import Optional, Type, Callable, Set
+from typing import Callable, Optional, Set, Type
 
 from pynguin.typeinference.strategy import InferredSignature
 

@@ -15,10 +15,11 @@
 """Factory for chromosome used by the genetic algorithm."""
 from abc import abstractmethod
 from typing import Generic, TypeVar
-import pynguin.ga.chromosome as chrom
-import pynguin.testsuite.testsuitechromosome as tsc
+
 import pynguin.configuration as config
+import pynguin.ga.chromosome as chrom
 import pynguin.ga.testcasefactory as tcf
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 T = TypeVar("T", bound=chrom.Chromosome)  # pylint: disable=invalid-name

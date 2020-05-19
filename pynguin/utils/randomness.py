@@ -15,7 +15,7 @@
 """Provides a singleton instance of Random that can be seeded."""
 import random
 import string
-from typing import Sequence, Any, Optional
+from typing import Any, Optional, Sequence
 
 
 class Random(random.Random):

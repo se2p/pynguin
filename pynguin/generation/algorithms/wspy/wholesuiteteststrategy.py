@@ -14,29 +14,27 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import Tuple, List
-import pynguin.testsuite.testsuitechromosome as tsc
+from typing import List, Tuple
+
+import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasefactory as tcf
-import pynguin.configuration as config
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
-
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
-
-
-# pylint: disable=too-few-public-methods
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 
 
+# pylint: disable=too-few-public-methods
 class WholeSuiteTestStrategy(TestGenerationStrategy):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 

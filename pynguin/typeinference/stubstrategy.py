@@ -18,9 +18,9 @@ import inspect
 import os
 import sys
 from pydoc import locate
-from typing import Union, Callable, Optional, Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple, Union
 
-from pynguin.typeinference.strategy import TypeInferenceStrategy, InferredSignature
+from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 
 

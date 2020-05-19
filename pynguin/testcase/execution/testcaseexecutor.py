@@ -22,9 +22,9 @@ from typing import List
 import astor
 
 import pynguin.configuration as config
+import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.execution.executioncontext as ctx
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 

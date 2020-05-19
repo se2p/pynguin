@@ -19,11 +19,11 @@ import pytest
 from bytecode import Compare
 
 from pynguin.testcase.execution.executiontracer import (
+    CodeObjectMetaData,
     ExecutionTracer,
+    PredicateMetaData,
     _le,
     _lt,
-    CodeObjectMetaData,
-    PredicateMetaData,
 )
 
 

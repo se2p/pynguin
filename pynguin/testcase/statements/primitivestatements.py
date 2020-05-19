@@ -15,19 +15,18 @@
 """Provides primitive statements."""
 import math
 from abc import abstractmethod
-from typing import Type, Any, Optional, List, Set, TypeVar, Generic
+from typing import Any, Generic, List, Optional, Set, Type, TypeVar
 
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.statements.statementvisitor as sv
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
-import pynguin.configuration as config
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-
 
 # pylint:disable=invalid-name
 T = TypeVar("T")

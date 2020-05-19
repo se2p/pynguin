@@ -15,18 +15,18 @@
 """Provides capabilities to perform branch instrumentation."""
 import logging
 from types import CodeType
-from typing import Set, Optional, Tuple, List, Dict
+from typing import Dict, List, Optional, Set, Tuple
 
 import networkx as nx
-from bytecode import Instr, Bytecode, Compare, BasicBlock, ControlFlowGraph
+from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.testcase.execution.executiontracer import (
-    ExecutionTracer,
     CodeObjectMetaData,
+    ExecutionTracer,
     PredicateMetaData,
 )
 

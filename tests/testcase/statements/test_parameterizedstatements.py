@@ -17,12 +17,12 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.parametrizedstatements as ps
+import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.statementvisitor as sv
+import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 def test_constructor_statement_no_args(

@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 from pynguin.utils.statistics.timer import Timer
 
 

@@ -17,7 +17,7 @@ import ast
 import os
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import List, Tuple, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import astor
 

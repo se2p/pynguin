@@ -14,15 +14,15 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from ast import Module
 from unittest.mock import MagicMock
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.fieldstatement as field_stmt
 
 import astor
 import pytest
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.statements.fieldstatement as field_stmt
+import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
 
 

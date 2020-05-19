@@ -14,9 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an execution trace"""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from math import inf
-from typing import Set, Dict
+from typing import Dict, Set
 
 
 @dataclass()

@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Tuple, Dict, List, cast
+from typing import Dict, List, Tuple, cast
 
 from bytecode import Bytecode, ControlFlowGraph
 

@@ -14,15 +14,16 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a default implementation of a test case."""
 from __future__ import annotations
-import logging
-from typing import List, Any, Optional
 
+import logging
+from typing import Any, List, Optional
+
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.testfactory as tf
-import pynguin.configuration as config
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 

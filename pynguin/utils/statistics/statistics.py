@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import enum
 import queue
-from typing import Optional, Any, Generator, Tuple, Dict
+from typing import Any, Dict, Generator, Optional, Tuple
 
 import pynguin.ga.chromosome as chrom
 import pynguin.utils.statistics.searchstatistics as ss  # pylint: disable=cyclic-import

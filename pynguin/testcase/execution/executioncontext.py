@@ -16,7 +16,7 @@
 import ast
 import sys
 from types import ModuleType
-from typing import List, Dict, Iterator, Any
+from typing import Any, Dict, Iterator, List
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.testcase as tc

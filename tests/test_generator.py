@@ -21,6 +21,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.generator as gen
 from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
     RandomTestMonkeyTypeStrategy,
 )
@@ -28,7 +29,6 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
 )
-import pynguin.generator as gen
 from pynguin.utils.exceptions import ConfigurationException
 
 

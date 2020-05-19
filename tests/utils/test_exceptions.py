@@ -15,9 +15,9 @@
 import pytest
 
 from pynguin.utils.exceptions import (
-    GenerationException,
     ConfigurationException,
     ConstructionFailedException,
+    GenerationException,
 )
 
 

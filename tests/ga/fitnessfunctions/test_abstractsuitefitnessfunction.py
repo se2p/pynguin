@@ -15,8 +15,8 @@
 from unittest.mock import MagicMock
 
 import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
-import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.ga.fitnessfunction import FitnessValues
 
 

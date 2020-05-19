@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Type, Optional, Set, cast
+from typing import List, Optional, Set, Type, cast
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.fieldstatement as f_stmt
@@ -32,9 +32,9 @@ from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
+    is_assignable_to,
     is_primitive_type,
     is_type_unknown,
-    is_assignable_to,
     should_skip_parameter,
 )
 

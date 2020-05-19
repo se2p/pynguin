@@ -17,17 +17,17 @@ import contextlib
 import logging
 import os
 import sys
-from typing import List, Optional, Iterable, Dict, Any
+from typing import Any, Dict, Iterable, List, Optional
 
 import astor
 from monkeytype.config import DefaultConfig
 from monkeytype.db.base import CallTraceStore, CallTraceThunk
-from monkeytype.encoding import serialize_traces, CallTraceRow
-from monkeytype.tracing import CallTraceLogger, CallTrace, CallTracer
+from monkeytype.encoding import CallTraceRow, serialize_traces
+from monkeytype.tracing import CallTrace, CallTraceLogger, CallTracer
 
 import pynguin.configuration as config
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.execution.executioncontext as ctx
+import pynguin.testcase.testcase as tc
 
 
 class _MonkeyTypeCallTraceStore(CallTraceStore):

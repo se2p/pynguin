@@ -12,16 +12,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Set, Type, Optional
+from typing import Optional, Set, Type
 from unittest.mock import MagicMock
 
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericConstructor,
-    GenericMethod,
-    GenericFunction,
-    GenericField,
     GenericAccessibleObject,
+    GenericConstructor,
+    GenericField,
+    GenericFunction,
+    GenericMethod,
 )
 from tests.fixtures.accessibles.accessible import SomeType
 

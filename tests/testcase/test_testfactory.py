@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
-from inspect import Signature, Parameter
+from inspect import Parameter, Signature
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -25,8 +25,8 @@ import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.testcase.testfactory as tf
+import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature

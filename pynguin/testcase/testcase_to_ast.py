@@ -16,9 +16,9 @@
 from ast import stmt
 from typing import List
 
-from pynguin.testcase.testcasevisitor import TestCaseVisitor
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+from pynguin.testcase.testcasevisitor import TestCaseVisitor
 from pynguin.utils.namingscope import NamingScope
 
 

@@ -15,7 +15,6 @@
 """An exported implementation creating PyTest test cases from the statements."""
 import ast
 import os
-
 from typing import List, Union
 
 import pynguin.testcase.testcase as tc

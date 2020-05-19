@@ -13,14 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provide a fitness function based on branch distances."""
-from typing import Dict, Tuple, List
+from typing import Dict, List, Tuple
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import KnownData, ExecutionTracer
+from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
 
 
 class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):

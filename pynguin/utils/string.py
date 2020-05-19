@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a wrapping string type to capture already observed strings."""
-from typing import List, Any, Union, Text, Tuple, Optional
+from typing import Any, List, Optional, Text, Tuple, Union
 
 
 class String(str):

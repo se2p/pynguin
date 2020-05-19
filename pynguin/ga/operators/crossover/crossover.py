@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provide various crossover functions for genetic algorithms."""
 from abc import abstractmethod
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
 

@@ -14,9 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
+import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
 import pynguin.testcase.testfactory as tf
-import pynguin.configuration as config
 
 
 def test_get_test_case_max_attempts():

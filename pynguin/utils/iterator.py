@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides iterators that are more Java-esque."""
-from typing import List, TypeVar, Generic
+from typing import Generic, List, TypeVar
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 

@@ -14,13 +14,14 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract base class for a test generation algorithm."""
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, List
+from typing import List, Tuple
 
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
-import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.ga.fitnessfunctions.branchdistancesuitefitness as bdsf
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.testfactory as tf
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -32,7 +33,6 @@ from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
 )
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
-import pynguin.testcase.testfactory as tf
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 

@@ -14,12 +14,12 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provide rank selection."""
 from math import sqrt
-from typing import TypeVar, List
+from typing import List, TypeVar
 
+import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.utils import randomness
-import pynguin.configuration as config
 
 T = TypeVar("T", bound=chrom.Chromosome)  # pylint:disable=invalid-name
 

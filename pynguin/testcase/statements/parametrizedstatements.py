@@ -14,21 +14,21 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Type, List, Dict, Optional, Any, Union, Set, cast
+from typing import Any, Dict, List, Optional, Set, Type, Union, cast
 
+import pynguin.configuration as config
+import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.configuration as config
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericConstructor,
-    GenericMethod,
-    GenericFunction,
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
 from pynguin.utils.type_utils import is_assignable_to
 

@@ -18,8 +18,8 @@ Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importh
 """
 import logging
 import sys
+from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
-from importlib.abc import MetaPathFinder, FileLoader
 from inspect import isclass
 from types import CodeType
 from typing import cast

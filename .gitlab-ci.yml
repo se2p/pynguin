@@ -73,6 +73,12 @@ black:
   script:
     - poetry run black --check .
 
+isort:
+  stage: build
+  image: python:3.8
+  script:
+    - poetry run isort **/*.py -c -v
+
 pages:
   stage: deploy
   variables:

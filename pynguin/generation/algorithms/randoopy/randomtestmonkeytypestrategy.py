@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A random test generation strategy that utilises MonkeyType after the generation."""
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
@@ -25,7 +25,7 @@ from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTest
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 
 
 class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):

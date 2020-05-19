@@ -15,6 +15,7 @@
 """Provides an abstract statement visitor"""
 # pylint: disable=cyclic-import
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 

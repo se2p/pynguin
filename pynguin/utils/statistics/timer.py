@@ -17,6 +17,7 @@
 Based on the implementation of https://github.com/realpython/codetiming
 """
 from __future__ import annotations
+
 import math
 import time
 from contextlib import ContextDecorator

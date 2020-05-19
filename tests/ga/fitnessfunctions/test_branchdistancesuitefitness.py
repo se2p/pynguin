@@ -24,8 +24,8 @@ from pynguin.ga.fitnessfunctions.branchdistancesuitefitness import (
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.testcase.execution.executiontracer import (
-    KnownData,
     CodeObjectMetaData,
+    KnownData,
     PredicateMetaData,
 )
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor

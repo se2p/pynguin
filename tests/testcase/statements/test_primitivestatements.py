@@ -17,11 +17,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.testcase as tc
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 @pytest.mark.parametrize(

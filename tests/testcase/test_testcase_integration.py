@@ -16,9 +16,9 @@
 import pytest
 
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.assignmentstatement as assign
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.statements.assignmentstatement as assign
 from pynguin.utils.exceptions import ConstructionFailedException
 
 

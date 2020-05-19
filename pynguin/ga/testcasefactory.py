@@ -16,10 +16,10 @@
 
 from abc import abstractmethod
 
+import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.configuration as config
 from pynguin.utils import randomness
 
 

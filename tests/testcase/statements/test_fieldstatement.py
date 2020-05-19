@@ -15,14 +15,14 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pynguin.testcase.statements.fieldstatement as fstmt
+import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.fieldstatement as fstmt
 import pynguin.testcase.statements.parametrizedstatements as ps
+import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.configuration as config
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):

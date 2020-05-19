@@ -17,16 +17,16 @@ Provides a statement that accesses public fields/properties.
 """
 from typing import Any, Optional, Set
 
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.configuration as config
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericField,
     GenericAccessibleObject,
+    GenericField,
 )
 
 

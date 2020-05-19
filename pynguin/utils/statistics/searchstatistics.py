@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom

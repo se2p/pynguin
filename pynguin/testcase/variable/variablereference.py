@@ -15,8 +15,9 @@
 """Provides a base implementation of a variable in a test case."""
 # pylint: disable=cyclic-import
 from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
-from typing import Type, Optional, Any
+from typing import Any, Optional, Type
 
 import pynguin.testcase.testcase as tc
 from pynguin.utils import type_utils

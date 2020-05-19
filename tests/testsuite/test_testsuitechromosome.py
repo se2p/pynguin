@@ -17,11 +17,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.configuration as config
+import pynguin.ga.testcasefactory as tcf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
-import pynguin.ga.testcasefactory as tcf
-import pynguin.configuration as config
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 

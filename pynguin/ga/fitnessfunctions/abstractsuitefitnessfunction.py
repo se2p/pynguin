@@ -15,6 +15,7 @@
 """Provides an abstract fitness function for test suites."""
 from abc import ABCMeta
 from typing import List
+
 import pynguin.ga.fitnessfunction as ff
 from pynguin.testcase.execution.executionresult import ExecutionResult
 

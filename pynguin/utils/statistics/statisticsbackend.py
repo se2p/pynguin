@@ -19,7 +19,7 @@ import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeVar, Dict, Generic
+from typing import Dict, Generic, TypeVar
 
 import pynguin.configuration as config
 

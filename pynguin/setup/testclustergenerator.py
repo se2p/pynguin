@@ -17,30 +17,29 @@ import dataclasses
 import importlib
 import inspect
 import logging
+from typing import List, Set, Type
 
-from typing import Type, Set, List
+from typing_inspect import get_args, is_union_type
 
-from typing_inspect import is_union_type, get_args
-
+import pynguin.configuration as config
+from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference import typeinference
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 from pynguin.typeinference.strategy import TypeInferenceStrategy
 from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
-import pynguin.configuration as config
-from pynguin.setup.testcluster import TestCluster
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericMethod,
-    GenericFunction,
-    GenericConstructor,
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
 from pynguin.utils.type_utils import (
-    is_primitive_type,
     class_in_module,
     function_in_module,
     get_class_that_defined_method,
+    is_primitive_type,
     should_skip_parameter,
 )
 

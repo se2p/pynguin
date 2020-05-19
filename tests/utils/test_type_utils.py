@@ -13,21 +13,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
-from typing import Union, Any
+from typing import Any, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.type_utils import (
-    is_primitive_type,
     class_in_module,
     function_in_module,
-    is_none_type,
     is_assignable_to,
-    is_type_unknown,
+    is_none_type,
     is_numeric,
+    is_primitive_type,
     is_string,
+    is_type_unknown,
     should_skip_parameter,
 )
 

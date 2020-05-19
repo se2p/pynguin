@@ -20,8 +20,8 @@ import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.monkeytypeexecutor import (
     MonkeyTypeExecutor,
-    _MonkeyTypeCallTraceStore,
     _MonkeyTypeCallTraceLogger,
+    _MonkeyTypeCallTraceStore,
     _MonkeyTypeConfig,
 )
 

@@ -18,8 +18,8 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.ga.fitnessfunction as ff
+import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils.statistics.searchstatistics import SearchStatistics
 from pynguin.utils.statistics.statistics import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import (

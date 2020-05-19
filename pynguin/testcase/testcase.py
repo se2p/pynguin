@@ -14,22 +14,21 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides an implementation for a test case."""
 from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
-from typing import List, Type, Optional
+from typing import List, Optional, Type
 
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.testcasevisitor as tcv
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
-
-
-# pylint: disable=too-many-public-methods
 from pynguin.utils.type_utils import is_assignable_to
 
 
+# pylint: disable=too-many-public-methods
 class TestCase(metaclass=ABCMeta):
     """An abstract base implementation for a test case.
 

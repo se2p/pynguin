@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides base classes of a program graph."""
-from typing import TypeVar, Generic, Optional, Any, Set
+from typing import Any, Generic, Optional, Set, TypeVar
 
 import networkx as nx
 from bytecode import BasicBlock

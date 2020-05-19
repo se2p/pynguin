@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provide abstract selection function."""
 from abc import abstractmethod
-from typing import TypeVar, Generic, List
+from typing import Generic, List, TypeVar
 
 import pynguin.ga.chromosome as chrom
 

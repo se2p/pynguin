@@ -14,9 +14,10 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides abstract factories for output variables"""
 from __future__ import annotations
+
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Generic, TypeVar
+from typing import Generic, List, TypeVar
 
 import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc

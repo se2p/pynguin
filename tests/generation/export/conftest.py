@@ -15,9 +15,9 @@
 """Provide some fixtures for the export tests."""
 import pytest
 
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
-import pynguin.testcase.defaulttestcase as dtc
 
 
 @pytest.fixture

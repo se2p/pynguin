@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import os
-from typing import Dict, Type, Set
+from typing import Dict, Set, Type
 
 import pytest
 
@@ -24,9 +24,9 @@ from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
     GenericConstructor,
     GenericMethod,
-    GenericAccessibleObject,
 )
 
 

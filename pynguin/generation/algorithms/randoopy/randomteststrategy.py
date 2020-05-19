@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a random test generation algorithm similar to Randoop."""
 import logging
-from typing import List, Tuple, Set
+from typing import List, Set, Tuple
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
@@ -26,8 +26,8 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import GenerationException, ConstructionFailedException
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 from pynguin.utils.statistics.timer import Timer
 
 

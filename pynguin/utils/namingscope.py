@@ -14,7 +14,7 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """Provides a naming scope."""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class NamingScope:

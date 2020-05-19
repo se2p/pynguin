@@ -16,11 +16,11 @@ import importlib
 import inspect
 import sys
 from collections import defaultdict
-from typing import Dict, Callable, Any
+from typing import Any, Callable, Dict
 from unittest.mock import MagicMock
 
 import pytest
-from bytecode import Bytecode, Label, Instr
+from bytecode import Bytecode, Instr, Label
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
@@ -34,13 +34,12 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
-    GenericMethod,
-    GenericFunction,
     GenericField,
+    GenericFunction,
+    GenericMethod,
 )
 from pynguin.utils.statistics.statistics import StatisticsTracker
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
-
 
 # -- FIXTURES --------------------------------------------------------------------------
 

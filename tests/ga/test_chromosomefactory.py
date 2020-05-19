@@ -14,9 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
+import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasefactory as tcf
-import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
 
 

@@ -19,8 +19,8 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils.statistics.outputvariablefactory import (
-    DirectSequenceOutputVariableFactory,
     ChromosomeOutputVariableFactory,
+    DirectSequenceOutputVariableFactory,
     SequenceOutputVariableFactory,
 )
 from pynguin.utils.statistics.statistics import RuntimeVariable

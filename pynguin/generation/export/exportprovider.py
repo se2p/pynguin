@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A generic exporter that selects its export strategy based on configuration."""
-from typing import Dict, Callable
+from typing import Callable, Dict
 
 import pynguin.configuration as config
 from pynguin.generation.export.abstractexporter import AbstractTestExporter

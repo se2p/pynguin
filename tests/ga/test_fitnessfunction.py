@@ -14,10 +14,9 @@
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import MagicMock
 
+import hypothesis.strategies as st
 import pytest
 from hypothesis import given
-
-import hypothesis.strategies as st
 
 import pynguin.ga.fitnessfunction as ff
 

@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union, Tuple, Optional
+from typing import Optional, Tuple, Union
 
 from tests.fixtures.cluster.complex_dependency import SomeOtherType, YetAnotherType
 from tests.fixtures.cluster.dependency import SomeArgumentType

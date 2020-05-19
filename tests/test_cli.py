@@ -15,7 +15,7 @@
 import argparse
 from unittest import mock
 
-from pynguin.cli import main, _create_argument_parser
+from pynguin.cli import _create_argument_parser, main
 
 
 def test_main_empty_argv():

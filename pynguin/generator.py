@@ -29,7 +29,7 @@ import enum
 import logging
 import os
 import sys
-from typing import Union, List, Dict, Callable, Tuple, Optional
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -51,7 +51,7 @@ from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.statistics.statistics import StatisticsTracker, RuntimeVariable
+from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 from pynguin.utils.statistics.timer import Timer
 
 
