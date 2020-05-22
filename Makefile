@@ -136,7 +136,7 @@ docker:
 	@echo Building docker $(IMAGE):$(VERSION) ...
 	docker build \
 	  -t $(IMAGE):$(VERSION) . \
-	  -t ./docker/Dockerfile --no-cache
+	  -f ./docker/Dockerfile --no-cache
 
 .PHONY: clean_docker
 clean_docker:
