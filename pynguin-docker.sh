@@ -2,6 +2,7 @@
 
 INPUT_DIR="/input"
 OUTPUT_DIR="/output"
+PACKAGE_DIR="/package"
 
 function help_message {
   echo ""
@@ -13,8 +14,9 @@ function help_message {
   echo "In order to use this, you have to provide two mount points with your Docker run"
   echo "command:"
   echo "docker run \\"
-  echo "    --mount type=bind,source=/path/to/project,target=${INPUT_DIR} \\"
-  echo "    --mount type=bind,source=/path/for/output,target=${OUTPUT_DIR} \\"
+  echo "    -v /path/to/project:${INPUT_DIR}:ro \\"
+  echo "    -v /path/for/output:${OUTPUT_DIR} \\"
+  echo "    -v /path/to/package.txt:${PACKAGE_DIR}:ro \\"
   echo "    ..."
   echo ""
 }
@@ -54,12 +56,16 @@ then
   exit 1
 fi
 
-# Install dependencies from requirements.txt file, if present in /input
-if [[ -f "${INPUT_DIR}/requirements.txt" ]]
+# Check if the /package mount point is present
+if [[ ! -d ${PACKAGE_DIR} && ! -f ${PACKAGE_DIR}/package.txt ]]
 then
-  echo "Install requirements"
-  pip install -r "${INPUT_DIR}/requirements.txt"
+  error_echo "You need to specify a mount to ${PACKAGE_DIR} containing package.txt"
+  help_message
+  exit 1
 fi
+
+# Install dependencies by installing the package
+pip install -r "${PACKAGE_DIR}/package.txt"
 
 # Execute Pynguin with all arguments passed to this script
 pynguin "$@"
