@@ -68,7 +68,7 @@ class TestCaseExecutor:
                     self._logger.debug("Executing %s", astor.to_source(node))
                 code = compile(node, "<ast>", "exec")
                 # pylint: disable=exec-used
-                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)
+                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
             except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
                 TestCaseExecutor._logger.debug(

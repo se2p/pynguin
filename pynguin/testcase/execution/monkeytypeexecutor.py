@@ -124,7 +124,7 @@ class MonkeyTypeExecutor:
                 code = compile(node, "<ast>", "exec")
                 sys.setprofile(self._tracer)
                 # pylint: disable=exec-used
-                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)
+                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
             except BaseException as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
                 self._logger.info(
