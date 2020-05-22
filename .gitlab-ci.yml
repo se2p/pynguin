@@ -79,6 +79,18 @@ isort:
   script:
     - poetry run isort **/*.py -c -v
 
+safety:
+  stage: build
+  image: python:3.8
+  script:
+    - poetry run safety check --full-report
+
+bandit:
+  stage: build
+  image: python:3.8
+  script:
+    - poetry run bandit -ll -r pynguin
+
 pages:
   stage: deploy
   variables:
