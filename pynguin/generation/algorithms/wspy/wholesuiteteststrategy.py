@@ -57,9 +57,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def generate_sequences(
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
-        StatisticsTracker().track_output_variable(
-            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
-        )
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
         self._population = self._get_random_population()

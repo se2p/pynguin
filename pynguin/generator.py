@@ -29,6 +29,7 @@ import enum
 import logging
 import os
 import sys
+import time
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pynguin.configuration as config
@@ -203,7 +204,14 @@ class Pynguin:
             algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
                 executor, test_cluster
             )
+            self._logger.info(
+                "Start generating sequences using %s", config.INSTANCE.algorithm
+            )
+            StatisticsTracker().set_sequence_start_time(time.time_ns())
             non_failing, failing = algorithm.generate_sequences()
+            self._logger.info(
+                "Stop generating sequences using %s", config.INSTANCE.algorithm
+            )
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
@@ -217,11 +225,17 @@ class Pynguin:
                 )
 
             with Timer(name="Export time", logger=None):
-                self._logger.info("Export successful test cases")
-                self._export_test_cases(non_failing.test_chromosomes)
-                self._logger.info("Export failing test cases")
-                self._export_test_cases(
+                written_to = self._export_test_cases(non_failing.test_chromosomes)
+                self._logger.info(
+                    "Export %i successful test cases to %s",
+                    non_failing.size(),
+                    written_to,
+                )
+                written_to = self._export_test_cases(
                     failing.test_chromosomes, "_failing", wrap_code=True
+                )
+                self._logger.info(
+                    "Export %i failing test cases to %s", failing.size(), written_to
                 )
 
         self._track_statistics(non_failing, failing, combined)
@@ -256,6 +270,9 @@ class Pynguin:
     def _collect_statistics() -> None:
         tracker = StatisticsTracker()
         tracker.track_output_variable(
+            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+        )
+        tracker.track_output_variable(
             RuntimeVariable.Random_Seed, randomness.RNG.get_seed()
         )
         tracker.track_output_variable(
@@ -288,7 +305,7 @@ class Pynguin:
     @staticmethod
     def _export_test_cases(
         test_cases: List[tc.TestCase], suffix: str = "", wrap_code: bool = False
-    ) -> None:
+    ) -> str:
         """Export the given test cases.
 
         :param test_cases: A list of test cases to export
@@ -302,6 +319,7 @@ class Pynguin:
             "test_" + config.INSTANCE.module_name.replace(".", "_") + suffix + ".py",
         )
         exporter.export_sequences(target_file, test_cases)
+        return target_file
 
     @staticmethod
     def _setup_logging(
