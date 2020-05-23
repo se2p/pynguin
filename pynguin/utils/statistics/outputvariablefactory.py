@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Generic, List, TypeVar
+from typing import Generic, List, TypeVar, Tuple
 
 import pynguin.configuration as config
 import pynguin.testsuite.testsuitechromosome as tsc
@@ -81,15 +81,13 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._time_stamps.append(time.time_ns() - self._start_time)
         self._values.append(self.get_value(individual))
 
-    def get_variable_names(self) -> List[str]:
+    def get_variable_names_indices(self) -> List[Tuple[int, str]]:
         """Provides a list of variable names
 
-        :return: A list of variable names
+        :return: A list of pairs consisting of variable names and their index.
         """
-        return [
-            f"{self._variable.name}{suffix}"
-            for suffix in self._get_time_line_header_suffixes()
-        ]
+        return [(i+1, f"{self._variable.name}_T{i + 1}")
+                for i in range(self._calculate_number_of_intervals())]
 
     def get_output_variables(self) -> List[sb.OutputVariable[T]]:
         """Provides the output variables
@@ -98,17 +96,16 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         """
         return [
             sb.OutputVariable(
-                name=variable_name, value=self._get_time_line_value(variable_name)
+                name=variable_name, value=self._get_time_line_value(variable_index)
             )
-            for variable_name in self.get_variable_names()
+            for variable_index, variable_name in self.get_variable_names_indices()
         ]
 
-    def _get_time_line_value(self, name: str) -> T:
+    def _get_time_line_value(self, index: int) -> T:
         if not self._time_stamps:
             # No data, if this is even possible.
             return 0
         interval = config.INSTANCE.timeline_interval
-        index = int(name.split("_T")[1])
         preferred_time = interval * index
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
@@ -137,9 +134,6 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
         # no time stamp was higher, just use the last value seen
         return self._values[-1]
-
-    def _get_time_line_header_suffixes(self) -> List[str]:
-        return [f"_T{i + 1}" for i in range(self._calculate_number_of_intervals())]
 
     @staticmethod
     def _calculate_number_of_intervals() -> int:
