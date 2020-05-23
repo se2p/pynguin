@@ -86,8 +86,10 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
         :return: A list of pairs consisting of variable names and their index.
         """
-        return [(i+1, f"{self._variable.name}_T{i + 1}")
-                for i in range(self._calculate_number_of_intervals())]
+        return [
+            (i + 1, f"{self._variable.name}_T{i + 1}")
+            for i in range(self._calculate_number_of_intervals())
+        ]
 
     def get_output_variables(self) -> List[sb.OutputVariable[T]]:
         """Provides the output variables
