@@ -188,9 +188,26 @@ class Pynguin:
             return None
         if (test_cluster := self._setup_test_cluster()) is None:
             return None
+        self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
         return executor, test_cluster
+
+    @staticmethod
+    def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
+        """Track data from the SUT."""
+        tracker = StatisticsTracker()
+        tracker.track_output_variable(
+            RuntimeVariable.CodeObjects,
+            len(tracer.get_known_data().existing_code_objects),
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.Predicates, len(tracer.get_known_data().existing_predicates)
+        )
+        tracker.track_output_variable(
+            RuntimeVariable.AccessibleObjectsUnderTest,
+            test_cluster.num_accessible_objects_under_test(),
+        )
 
     def _run(self) -> int:
         status = ReturnCodes.OK.value

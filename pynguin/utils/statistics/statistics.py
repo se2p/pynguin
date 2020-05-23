@@ -67,6 +67,11 @@ class RuntimeVariable(enum.Enum):
     FailingSize = "Number of tests in the resulting failing test suite"
     PassingSize = "Number of tests in the resulting passing test suite"
     Fitness = "Fitness value of the best individual"
+    CodeObjects = "Code Objects in the SUT"
+    Predicates = "Predicates in the bytecode of the SUT"
+    AccessibleObjectsUnderTest = (
+        "Accessible objects under test (e.g., methods and functions)"
+    )
 
     def __init__(self, value: str) -> None:
         self._value = value
