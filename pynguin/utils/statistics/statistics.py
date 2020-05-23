@@ -112,6 +112,10 @@ class StatisticsTracker:
         """Provides the internal search statistics instance"""
         return self._search_statistics
 
+    def set_sequence_start_time(self, start_time: int):
+        """This should only be called once, before any sequence data was generated."""
+        self._search_statistics.set_sequence_output_variable_start_time(start_time)
+
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
 
