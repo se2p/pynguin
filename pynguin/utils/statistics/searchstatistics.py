@@ -53,7 +53,7 @@ class SearchStatistics:
         )
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
-        self._set_sequence_output_variable_start_time()
+        self.set_sequence_output_variable_start_time(self._start_time)
         self._best_individual: Optional[tsc.TestSuiteChromosome] = None
 
     @staticmethod
@@ -98,9 +98,10 @@ class SearchStatistics:
             stat.RuntimeVariable.TotalExceptionsTimeline
         )
 
-    def _set_sequence_output_variable_start_time(self) -> None:
+    def set_sequence_output_variable_start_time(self, start_time: int) -> None:
+        """Set start time for sequence data."""
         for factory in self._sequence_output_variable_factories.values():
-            factory.set_start_time(self._start_time)
+            factory.set_start_time(start_time)
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.

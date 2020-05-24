@@ -49,7 +49,7 @@ def test_generate_sequences(executor):
     test_cases, failing_test_cases = algorithm.generate_sequences()
     assert test_cases.size() == 0
     assert failing_test_cases.size() == 0
-    assert len(logger.method_calls) == 7
+    assert len(logger.method_calls) == 1
 
 
 def test_generate_sequences_exception(executor):

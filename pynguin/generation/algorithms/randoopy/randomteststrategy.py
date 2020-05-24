@@ -44,20 +44,11 @@ class RandomTestStrategy(TestGenerationStrategy):
     def generate_sequences(
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
-        self._logger.info("Start generating sequences using random algorithm")
-        timer = Timer(name="Sequences generation time", logger=None)
-        timer.start()
-        self._logger.debug("Time limit: %d", config.INSTANCE.budget)
-        self._logger.debug("Module: %s", config.INSTANCE.module_name)
-        StatisticsTracker().track_output_variable(
-            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
-        )
-
+        stopping_condition = self.get_stopping_condition()
+        stopping_condition.reset()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         generation: int = 0
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
         fitness_functions = self.get_fitness_functions()
         for fitness_function in fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
@@ -92,12 +83,6 @@ class RandomTestStrategy(TestGenerationStrategy):
                     "Generate test case failed with exception %s", exception
                 )
 
-        self._logger.info("Finish generating sequences with random algorithm")
-        timer.stop()
-        self._logger.debug("Generated %d passing test cases", test_chromosome.size())
-        self._logger.debug(
-            "Generated %d failing test cases", failing_test_chromosome.size()
-        )
         self._logger.debug("Number of algorithm iterations: %d", generation)
         StatisticsTracker().track_output_variable(
             RuntimeVariable.AlgorithmIterations, generation
