@@ -121,12 +121,16 @@ mypy:
 pylint:
 	poetry run pylint pynguin
 
+.PHONY: isort
+isort:
+	poetry run isort
+
 .PHONY: black
 black:
 	poetry run black .
 
 .PHONY: check
-check: lint pylint test
+check: isort black mypy pylint test
 
 .PHONY: lint
 lint: test check-safety check-style
