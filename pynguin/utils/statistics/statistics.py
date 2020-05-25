@@ -106,6 +106,9 @@ class RuntimeVariable(enum.Enum):
         obj.description = description
         return obj
 
+    def __repr__(self):
+        return f"{self.name}"
+
 
 class StatisticsTracker:
     """A singleton tracker for statistics."""
