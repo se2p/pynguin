@@ -74,25 +74,6 @@ def test_output_variable(search_statistics):
     assert len(variables) == 2
 
 
-def test_get_all_output_variable_names(search_statistics):
-    names = search_statistics._get_all_output_variable_names()
-    assert "TARGET_CLASS" in names
-    assert RuntimeVariable.Coverage.name in names
-
-
-def test_get_output_variable_names_not_output_variables(search_statistics):
-    names = search_statistics._get_output_variable_names()
-    assert "TARGET_CLASS" in names
-    assert RuntimeVariable.Coverage.name in names
-
-
-def test_get_output_variable_names_output_variables(search_statistics):
-    config.INSTANCE.output_variables = "Size, Length"
-    names = search_statistics._get_output_variable_names()
-    assert "Size" in names
-    assert "Length" in names
-
-
 def test_write_statistics_no_backend():
     config.INSTANCE.statistics_backend = None
     statistics = SearchStatistics()
@@ -114,9 +95,12 @@ def test_write_statistics_with_individual(capsys, chromosome):
 
 
 def test_get_output_variables(chromosome, search_statistics):
-    config.INSTANCE.output_variables = (
-        "Coverage,CoverageTimeline,Length,configuration_id"
-    )
+    config.INSTANCE.output_variables = [
+        RuntimeVariable.Coverage,
+        RuntimeVariable.CoverageTimeline,
+        RuntimeVariable.Length,
+        RuntimeVariable.ConfigurationId,
+    ]
     config.INSTANCE.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
@@ -125,12 +109,12 @@ def test_get_output_variables(chromosome, search_statistics):
         RuntimeVariable.Coverage, 0.75
     )
     search_statistics.set_output_variable_for_runtime_variable(
-        RuntimeVariable.TARGET_CLASS, "foo"
+        RuntimeVariable.TargetModule, "foo"
     )
     variables = search_statistics._get_output_variables(chromosome, skip_missing=True)
     assert variables[RuntimeVariable.Coverage.name].value == 0.75
     assert variables[RuntimeVariable.Length.name].value == 0
-    assert variables["configuration_id"].value == ""
+    assert variables["ConfigurationId"].value == ""
 
 
 def test_current_individual_no_backend(chromosome):

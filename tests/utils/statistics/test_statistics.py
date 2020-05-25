@@ -25,22 +25,22 @@ def test_singleton():
 
 
 def test_runtime_variable():
-    variable = RuntimeVariable.total_time
-    assert variable.value == "Total time spent by Pynguin to generate tests"
+    variable = RuntimeVariable.TotalTime
+    assert variable.description == "Total time spent by Pynguin to generate tests"
 
 
 def test_tracker():
     tracker = StatisticsTracker()
     value = MagicMock(Timer)
-    tracker.track_output_variable(RuntimeVariable.total_time, value)
-    assert tracker.variables.get() == (RuntimeVariable.total_time, value)
+    tracker.track_output_variable(RuntimeVariable.TotalTime, value)
+    assert tracker.variables.get() == (RuntimeVariable.TotalTime, value)
 
 
 def test_variables_generator():
     tracker = StatisticsTracker()
     value_1 = MagicMock(Timer)
     value_2 = MagicMock(Timer)
-    tracker.track_output_variable(RuntimeVariable.total_time, value_1)
-    tracker.track_output_variable(RuntimeVariable.total_time, value_2)
+    tracker.track_output_variable(RuntimeVariable.TotalTime, value_1)
+    tracker.track_output_variable(RuntimeVariable.TotalTime, value_2)
     result = [v for _, v in tracker.variables_generator]
     assert result == [value_1, value_2]
