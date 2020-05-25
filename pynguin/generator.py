@@ -287,13 +287,13 @@ class Pynguin:
     def _collect_statistics() -> None:
         tracker = StatisticsTracker()
         tracker.track_output_variable(
-            RuntimeVariable.TARGET_CLASS, config.INSTANCE.module_name
+            RuntimeVariable.TargetModule, config.INSTANCE.module_name
         )
         tracker.track_output_variable(
-            RuntimeVariable.Random_Seed, randomness.RNG.get_seed()
+            RuntimeVariable.RandomSeed, randomness.RNG.get_seed()
         )
         tracker.track_output_variable(
-            RuntimeVariable.configuration_id, config.INSTANCE.configuration_id
+            RuntimeVariable.ConfigurationId, config.INSTANCE.configuration_id
         )
         for runtime_variable, value in tracker.variables_generator:
             tracker.set_output_variable_for_runtime_variable(runtime_variable, value)

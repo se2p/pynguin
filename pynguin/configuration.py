@@ -15,7 +15,9 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
-from typing import Optional
+from typing import List, Optional
+
+import pynguin.utils.statistics.statistics as stat  # pylint:disable=cyclic-import
 
 
 class ExportStrategy(enum.Enum):
@@ -100,9 +102,13 @@ class Configuration:
     # Interpolate timeline values
     timeline_interpolation: bool = True
 
-    # List of variables to output to CSV file.  Variables are separated by commas.
-    # None represents default values.
-    output_variables: Optional[str] = None
+    # List of variables to output to the statistics backend.
+    output_variables: List[stat.RuntimeVariable] = dataclasses.field(
+        default_factory=lambda: [
+            stat.RuntimeVariable.TargetModule,
+            stat.RuntimeVariable.Coverage,
+        ]
+    )
 
     # Label that identifies the used configuration of Pynguin.  This is only done
     # when running experiments.

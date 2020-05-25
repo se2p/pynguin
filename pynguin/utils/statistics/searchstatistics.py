@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -49,7 +49,7 @@ class SearchStatistics:
         ] = {}
         self._init_factories()
         self.set_output_variable_for_runtime_variable(
-            stat.RuntimeVariable.Random_Seed, config.INSTANCE.seed
+            stat.RuntimeVariable.RandomSeed, config.INSTANCE.seed
         )
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
@@ -151,28 +151,13 @@ class SearchStatistics:
         """Provides the output variables"""
         return self._output_variables
 
-    @staticmethod
-    def _get_all_output_variable_names() -> List[str]:
-        return [
-            "TARGET_CLASS",
-            stat.RuntimeVariable.Coverage.name,
-        ]
-
-    def _get_output_variable_names(self) -> List[str]:
-        variable_names: List[str] = []
-        if not config.INSTANCE.output_variables:
-            variable_names.extend(self._get_all_output_variable_names())
-        else:
-            for entry in config.INSTANCE.output_variables.split(","):
-                variable_names.append(entry.strip())
-        return variable_names
-
     def _get_output_variables(
         self, individual, skip_missing: bool = True
     ) -> Dict[str, sb.OutputVariable]:
         variables: Dict[str, sb.OutputVariable] = {}
 
-        for variable_name in self._get_output_variable_names():
+        for variable in config.INSTANCE.output_variables:
+            variable_name = variable.name
             if variable_name in self._output_variables:
                 # Values directly sent
                 variables[variable_name] = self._output_variables[variable_name]
@@ -210,10 +195,8 @@ class SearchStatistics:
         if not self._backend:
             return False
 
-        self._output_variables[
-            stat.RuntimeVariable.total_time.name
-        ] = sb.OutputVariable(
-            name=stat.RuntimeVariable.total_time.name,
+        self._output_variables[stat.RuntimeVariable.TotalTime.name] = sb.OutputVariable(
+            name=stat.RuntimeVariable.TotalTime.name,
             value=time.time_ns() - self._start_time,
         )
 

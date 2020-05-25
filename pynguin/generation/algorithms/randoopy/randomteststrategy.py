@@ -162,7 +162,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         super().send_statistics()
         tracker = StatisticsTracker()
         tracker.track_output_variable(
-            RuntimeVariable.execution_results, self._execution_results
+            RuntimeVariable.ExecutionResults, self._execution_results
         )
 
     @staticmethod
