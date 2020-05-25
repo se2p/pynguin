@@ -102,7 +102,7 @@ class Configuration:
     # Interpolate timeline values
     timeline_interpolation: bool = True
 
-    # List of variables to output to statistics backend.
+    # List of variables to output to the statistics backend.
     output_variables: List[stat.RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             stat.RuntimeVariable.TargetModule,
