@@ -101,6 +101,7 @@ class Pynguin:
         if configuration:
             config.INSTANCE = configuration
         elif argument_parser and arguments:
+            arguments = self._expand_arguments_if_necessary(arguments)
             parsed = argument_parser.parse_args(arguments)
             config.INSTANCE = parsed.config
             verbosity = parsed.verbosity
@@ -109,6 +110,17 @@ class Pynguin:
                 "Cannot initialise test generator without proper configuration."
             )
         self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
+
+    @staticmethod
+    def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
+        if "--output_variables" not in arguments:
+            return arguments
+        index = arguments.index("--output_variables")
+        if "," not in arguments[index + 1]:
+            return arguments
+        variables = arguments[index + 1].split(",")
+        output = arguments[: index + 1] + variables + arguments[index + 2 :]
+        return output
 
     def run(self) -> int:
         """Run the test generation.
