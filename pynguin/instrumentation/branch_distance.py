@@ -182,10 +182,12 @@ class BranchDistanceInstrumentation:
             and maybe_compare.arg
             not in BranchDistanceInstrumentation._IGNORED_COMPARE_OPS
         ):
-            return self._instrument_bool_based_conditional_jump(block, code_object_id)
-        return self._instrument_compare_based_conditional_jump(block, code_object_id)
+            return self._instrument_compare_based_conditional_jump(
+                block, code_object_id
+            )
+        return self._instrument_bool_based_conditional_jump(block, code_object_id)
 
-    def _instrument_compare_based_conditional_jump(
+    def _instrument_bool_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int
     ) -> int:
         """We add a call to the tracer which reports the value on which the conditional
@@ -217,7 +219,7 @@ class BranchDistanceInstrumentation:
         ]
         return predicate_id
 
-    def _instrument_bool_based_conditional_jump(
+    def _instrument_compare_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int
     ) -> int:
         """We add a call to the tracer which reports the values that will be used
