@@ -99,9 +99,9 @@ class RuntimeVariable(enum.Enum):
         "AccessibleObjectsUnderTest",
         "Accessible objects under test (e.g., methods and functions)",
     )
-    GenerableTypes = (
-        "GenerableTypes",
-        "Number of all generable types, i.e., the types we can generate values for",
+    GeneratableTypes = (
+        "GeneratableTypes",
+        "Number of all generatable types, i.e., the types we can generate values for",
     )
 
     def __new__(cls, name: str, description: str) -> RuntimeVariable:

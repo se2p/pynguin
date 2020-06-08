@@ -222,7 +222,7 @@ class Pynguin:
             test_cluster.num_accessible_objects_under_test(),
         )
         tracker.track_output_variable(
-            RuntimeVariable.GenerableTypes,
+            RuntimeVariable.GeneratableTypes,
             len(test_cluster.get_all_generatable_types()),
         )
 
