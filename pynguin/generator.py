@@ -221,6 +221,10 @@ class Pynguin:
             RuntimeVariable.AccessibleObjectsUnderTest,
             test_cluster.num_accessible_objects_under_test(),
         )
+        tracker.track_output_variable(
+            RuntimeVariable.GenerableTypes,
+            len(test_cluster.get_all_generatable_types()),
+        )
 
     def _run(self) -> int:
         status = ReturnCodes.OK.value
