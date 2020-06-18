@@ -29,8 +29,9 @@ class Timers(collections.UserDict):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """A private dictionary keeping track of all timings.
 
-        :param args: A list of positional arguments
-        :param kwargs: A dictionary of named arguments
+        Args:
+            args: A list of positional arguments
+            kwargs: A dictionary of named arguments
         """
         super().__init__(*args, **kwargs)
         self._timings: Dict[str, List[float]] = collections.defaultdict(list)
@@ -38,8 +39,9 @@ class Timers(collections.UserDict):
     def add(self, name: str, value: float) -> None:
         """Add a timing value to the given timer.
 
-        :param name: The name of the timer
-        :param value: The value that shall be added
+        Args:
+            name: The name of the timer
+            value: The value that shall be added
         """
         self._timings[name].append(value)
         self.data.setdefault(name, 0)
@@ -51,7 +53,15 @@ class Timers(collections.UserDict):
         self._timings.clear()
 
     def __setitem__(self, key: str, value: float) -> None:
-        """Disallow setting of timer values."""
+        """Disallow setting of timer values.
+
+        Args:
+            key: the name of the property
+            value: the value to be set
+
+        Raises:
+            TypeError: always as it is not allowed to set timer value
+        """
         raise TypeError(
             f"{self.__class__.__name__!r} does not support item assignment. "
             "Use '.add()' to update values."
@@ -60,9 +70,15 @@ class Timers(collections.UserDict):
     def apply(self, func: Callable[[List[float]], float], name: str) -> float:
         """Apply a function to the results of one named timer.
 
-        :param func: The function that should be applied
-        :param name: The name of the timer
-        :return: The result of the function application
+        Args:
+            func: The function that should be applied
+            name: The name of the timer
+
+        Returns:
+            The result of the function application
+
+        Raises:
+            KeyError: if the timer was not found
         """
         if name in self._timings:
             return func(self._timings[name])
@@ -71,56 +87,80 @@ class Timers(collections.UserDict):
     def count(self, name: str) -> float:
         """Number of timings.
 
-        :param name: The name of the timer
-        :return: The number of timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The number of timings
         """
         return self.apply(len, name=name)
 
     def total(self, name: str) -> float:
         """Total time for timers.
 
-        :param name: The name of the timer
-        :return: The total time for the timer
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The total time for the timer
         """
         return self.apply(sum, name=name)
 
     def min(self, name: str) -> float:
         """Minimal value of timings.
 
-        :param name: The name of the timer
-        :return: The minimal value of the timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The minimal value of the timings
         """
         return self.apply(lambda values: min(values or [0]), name=name)
 
     def max(self, name: str) -> float:
         """Maximal value of timings.
 
-        :param name: The name of the timer
-        :return: The maximal value of the timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The maximal value of the timings
         """
         return self.apply(lambda values: max(values or [0]), name=name)
 
     def mean(self, name: str) -> float:
         """Mean value of timings.
 
-        :param name: The name of the timer
-        :return: The mean value of the timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The mean value of the timings
         """
         return self.apply(lambda values: statistics.mean(values or [0]), name=name)
 
     def median(self, name: str) -> float:
         """Median value of timings.
 
-        :param name: The name of the timer
-        :return: The median value of the timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The median value of the timings
         """
         return self.apply(lambda values: statistics.median(values or [0]), name=name)
 
     def std_dev(self, name: str) -> float:
         """Standard deviation of timings.
 
-        :param name: The name of the timer
-        :return: The standard deviation of timings
+        Args:
+            name: The name of the timer
+
+        Returns:
+            The standard deviation of timings
+
+        Raises:
+            KeyError: if the timer was not found
         """
         if name in self._timings:
             value = self._timings[name]

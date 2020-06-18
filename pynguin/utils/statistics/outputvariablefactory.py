@@ -35,17 +35,23 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
     @abstractmethod
     def get_data(self, individual: tsc.TestSuiteChromosome) -> T:
-        """Returns the data value from the individual
+        """Returns the data value from the individual.
 
-        :param individual: The individual to query
-        :return: The current value of the variable in the individual
+        Args:
+            individual: The individual to query
+
+        Returns:
+            The current value of the variable in the individual  # noqa: DAR202
         """
 
     def get_variable(self, individual: tsc.TestSuiteChromosome) -> sb.OutputVariable[T]:
         """Provides the output variable
 
-        :param individual: The individual
-        :return: The output variable for the individual
+        Args:
+            individual: The individual
+
+        Returns:
+            The output variable for the individual
         """
         return sb.OutputVariable(
             name=self._variable.name, value=self.get_data(individual)
@@ -62,21 +68,29 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._start_time: int = 0
 
     def set_start_time(self, start_time: int) -> None:
-        """Sets the start time."""
+        """Sets the start time.
+
+        Args:
+            start_time: the start time
+        """
         self._start_time = start_time
 
     @abstractmethod
     def get_value(self, individual: tsc.TestSuiteChromosome) -> T:
         """Returns the current value of the variable for the selected individual
 
-        :param individual: The individual to query
-        :return: The current value of the variable in the individual
+        Args:
+            individual: The individual to query
+
+        Returns:
+            The current value of the variable in the individual  # noqa: DAR202
         """
 
     def update(self, individual: tsc.TestSuiteChromosome) -> None:
         """Updates the values for an individual
 
-        :param individual: The individual
+        Args:
+            individual: The individual
         """
         self._time_stamps.append(time.time_ns() - self._start_time)
         self._values.append(self.get_value(individual))
@@ -84,7 +98,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     def get_variable_names_indices(self) -> List[Tuple[int, str]]:
         """Provides a list of variable names
 
-        :return: A list of pairs consisting of variable names and their index.
+        Returns:
+            A list of pairs consisting of variable names and their index.
         """
         return [
             (i + 1, f"{self._variable.name}_T{i + 1}")
@@ -94,7 +109,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     def get_output_variables(self) -> List[sb.OutputVariable[T]]:
         """Provides the output variables
 
-        :return: A list of output variables
+        Returns:
+            A list of output variables
         """
         return [
             sb.OutputVariable(
@@ -157,19 +173,37 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
         return self._value
 
     def set_value(self, value: T) -> None:
-        """Sets the value directly"""
+        """Sets the value directly.
+
+        Args:
+            value: the value to be set
+        """
         self._value = value
 
     @staticmethod
     def get_float(
         variable: stat.RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
-        """Creates a factory for a float variable"""
+        """Creates a factory for a float variable.
+
+        Args:
+            variable: the runtime variable
+
+        Returns:
+            A factory for that variable
+        """
         return DirectSequenceOutputVariableFactory(variable, 0.0)
 
     @staticmethod
     def get_integer(
         variable: stat.RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
-        """Creates a factory for an integer variable"""
+        """Creates a factory for an integer variable.
+
+        Args:
+            variable: the runtime variable
+
+        Returns:
+            A factory for that variable
+        """
         return DirectSequenceOutputVariableFactory(variable, 0)

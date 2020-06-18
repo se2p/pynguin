@@ -37,19 +37,32 @@ class Chromosome(metaclass=abc.ABCMeta):
     def size(self) -> int:
         """Return length of individual
 
-        :return: The length of an individual
+        Returns:
+            The length of an individual  # noqa: DAR202
         """
 
     def has_changed(self) -> bool:
-        """Has this chromosome changed since the last evaluation?"""
+        """Has this chromosome changed since the last evaluation?
+
+        Returns:
+            Whether or not this chromosome change since the last evaluation
+        """
         return self._changed
 
     def set_changed(self, changed: bool) -> None:
-        """Set changed status to parameter value"""
+        """Set changed status to parameter value.
+
+        Args:
+            changed: Then change state of this chromosome
+        """
         self._changed = changed
 
     def get_fitness_functions(self) -> List[ff.FitnessFunction]:
-        """Provide the currently configured fitness function of this chromosome."""
+        """Provide the currently configured fitness function of this chromosome.
+
+        Returns:
+            The list of currently configured fitness functions
+        """
         return self._fitness_functions
 
     def _check_for_new_evaluation(self) -> None:
@@ -67,8 +80,16 @@ class Chromosome(metaclass=abc.ABCMeta):
 
     def _update_fitness_values(
         self, fitness_function: ff.FitnessFunction, new_value: ff.FitnessValues
-    ):
-        """Update the fitness values for the given function."""
+    ) -> None:
+        """Update the fitness values for the given function.
+
+        Args:
+            fitness_function: The fitness function to update
+            new_value: The new fitness values
+
+        Raises:
+            RuntimeError: in case the validation of the new value was not successful
+        """
         assert (
             fitness_function in self._fitness_functions
         ), "Cannot update unknown fitness function."
@@ -80,42 +101,80 @@ class Chromosome(metaclass=abc.ABCMeta):
 
     def add_fitness_function(self, fitness_function: ff.FitnessFunction,) -> None:
         """Adds a fitness function.
-        :param fitness_function: A fitness function
+
+        Args:
+            fitness_function: A fitness function
         """
         self._fitness_functions.append(fitness_function)
 
     def get_fitness(self) -> float:
-        """Provide a sum of the current fitness values"""
+        """Provide a sum of the current fitness values
+
+        Returns:
+            The sum of the current fitness values
+        """
         self._check_for_new_evaluation()
         return sum([value.fitness for value in self._current_values.values()])
 
     def get_fitness_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Returns the fitness values of a specific fitness function.
 
-        :param fitness_function: The fitness function
-        :return: Its fitness value
+        Args:
+            fitness_function: The fitness function
+
+        Returns:
+            Its fitness value
         """
         self._check_for_new_evaluation()
         return self._current_values[fitness_function].fitness
 
     def get_coverage(self) -> float:
-        """Provides the mean coverage value."""
+        """Provides the mean coverage value.
+
+        Returns:
+            The mean coverage value
+        """
         self._check_for_new_evaluation()
         return mean([value.coverage for value in self._current_values.values()])
 
     def get_coverage_for(self, fitness_function: ff.FitnessFunction) -> float:
-        """Provides the coverage value for a certain fitness function"""
+        """Provides the coverage value for a certain fitness function
+
+        Args:
+            fitness_function: The fitness function who's coverage value shall be
+                returned
+
+        Returns:
+            The coverage value for the fitness function
+        """
         self._check_for_new_evaluation()
         return self._current_values[fitness_function].coverage
 
     def get_number_of_evaluations(self):
-        """Provide the number of times this chromosome was evaluated."""
+        """Provide the number of times this chromosome was evaluated.
+
+        Returns:
+            The number of times this chromosome was evaluated
+        """
         return self._number_of_evaluations
 
     @abstractmethod
     def cross_over(self, other: Chromosome, position1: int, position2: int) -> None:
-        """Single point cross over."""
+        """Single point cross over.
+
+        This chromosome will be split at `position1`, the other at `position2`,
+        and the crossover will be performed with these pre- and suffixes.
+
+        Args:
+            other: The other chromosome to perform the crossover with
+            position1: The point in the first chromosome
+            position2: The point in the second chromosome
+        """
 
     @abstractmethod
     def clone(self) -> Chromosome:
-        """Create a clone of this chromosome."""
+        """Create a clone of this chromosome.
+
+        Returns:
+            The cloned chromosome  # noqa: DAR202
+        """

@@ -40,21 +40,33 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
+        """Initialises the test-generation strategy.
+
+        Args:
+            executor: The executor the execute the generated test cases
+            test_cluster: A cluster storing the available types and methods for test
+                generation
         """
-        :param test_cluster: A cluster storing the available types and methods for
-        test generation"""
         self._executor = executor
         self._test_cluster = test_cluster
         self._test_factory = tf.TestFactory(test_cluster)
 
     @property
     def test_cluster(self) -> TestCluster:
-        """Provide the test cluster."""
+        """Provide the test cluster.
+
+        Returns:
+            The test cluster
+        """
         return self._test_cluster
 
     @property
     def test_factory(self) -> tf.TestFactory:
-        """Provide the test factory."""
+        """Provide the test factory.
+
+        Returns:
+            The test factory
+        """
         return self._test_factory
 
     @abstractmethod
@@ -63,8 +75,9 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         """Generates sequences for a given module until the time limit is reached.
 
-        :return: A two-tuple of lists; the former containing the successful test
-        cases, the latter containing the failing test cases.
+        Returns:  # noqa: DAR202
+            A two-tuple of lists; the former containing the successful test
+            cases, the latter containing the failing test cases.
         """
 
     def send_statistics(self):
@@ -77,8 +90,11 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         A type violation is an exception that indicates such a violation, i.e.,
         `TypeError` or `Attribute` error.
 
-        :param exceptions: A list of exceptions
-        :return: Whether or not the list contains a type violations
+        Args:
+            exceptions: A list of exceptions
+
+        Returns:
+            Whether or not the list contains a type violations
         """
         for exception in exceptions:
             if isinstance(exception, (TypeError, AttributeError)):
@@ -102,9 +118,12 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         list of the result tuple will be empty then, the second will be a list of all
         test cases.
 
-        :param test_cases: A list of test cases
-        :return: A tuple of two lists of test cases.  The first contains test cases
-        that where purged, the second contains the remaining test cases
+        Args:
+            test_cases: A list of test cases
+
+        Returns:
+            A tuple of two lists of test cases.  The first contains test cases
+            that where purged, the second contains the remaining test cases
         """
         if config.INSTANCE.counter_threshold <= 0:
             return [], test_cases
@@ -122,7 +141,8 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     def get_stopping_condition() -> StoppingCondition:
         """Instantiates the stopping condition depending on the configuration settings
 
-        :return: A stopping condition
+        Returns:
+            A stopping condition
         """
         stopping_condition = config.INSTANCE.stopping_condition
         if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
@@ -134,7 +154,10 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         return MaxTimeStoppingCondition()
 
     def get_fitness_functions(self) -> List[ff.FitnessFunction]:
-        """Converts a criterion into a test suite fitness function
+        """Converts a criterion into a test suite fitness function.
+
+        Returns:
+            A list of fitness functions
         """
         return [bdsf.BranchDistanceSuiteFitnessFunction(self._executor)]
 
@@ -142,7 +165,10 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:
         """Checks whether a stopping condition is fulfilled.
 
-        :param stopping_condition: The stopping condition
-        :return: Whether or not the stopping condition is fulfilled
+        Args:
+            stopping_condition: The stopping condition
+
+        Returns:
+            Whether or not the stopping condition is fulfilled
         """
         return stopping_condition.is_fulfilled()

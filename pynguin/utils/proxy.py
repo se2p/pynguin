@@ -29,9 +29,12 @@ def mark_error():
     It captures all raised exceptions during function execution, keeps track of them,
     and rethrows the exceptions.
 
-    :return: A decorating function
-    :raises: TypeError: Raises the thrown exception to the outside since it is a user
-     problem.  We only want to keep track of such occasions.
+    Returns:
+        A decorating function
+
+    Raises:  # noqa: DAR401
+        TypeError: Raises the thrown exception to the outside since it is a user
+            problem.  We only want to keep track of such occasions.
     """
 
     def decorate(function):
@@ -195,7 +198,7 @@ class Proxy:
         for name in cls._special_names:
             if hasattr(the_class, name) and not hasattr(cls, name):
                 namespace[name] = make_method(name)
-        return type("%s(%s)" % (cls.__name__, the_class.__name__), (cls,), namespace)
+        return type(f"{cls.__name__}({the_class.__name__})", (cls,), namespace)
 
     # pylint: disable=unused-argument
     def __new__(cls, obj, *args, **kwargs):

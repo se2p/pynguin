@@ -28,11 +28,20 @@ class TestCaseFactory:
     """Abstract class for test case factories."""
 
     def __init__(self, test_factory: tf.TestFactory):
+        """Instantiates the factory.
+
+        Args:
+            test_factory: The used test factory
+        """
         self._test_factory = test_factory
 
     @abstractmethod
     def get_test_case(self) -> tc.TestCase:
-        """Create a new random test case."""
+        """Create a new random test case.
+
+        Returns:
+            A new random test case  # noqa: DAR202
+        """
 
 
 class RandomLengthTestCaseFactory(TestCaseFactory):

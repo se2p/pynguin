@@ -39,6 +39,7 @@ from pynguin.utils.type_utils import (
 )
 
 
+# pylint: disable=too-many-lines  # TODO split this monster!
 class TestFactory:
     """A factory for test-case generation."""
 
@@ -55,9 +56,13 @@ class TestFactory:
     ) -> None:
         """Appends a statement to a test case.
 
-        :param test_case: The test case
-        :param statement: The statement to append
-        :param allow_none: Whether or not parameter variables can hold None values
+        Args:
+            test_case: The test case
+            statement: The statement to append
+            allow_none: Whether or not parameter variables can hold None values
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         if isinstance(statement, par_stmt.ConstructorStatement):
             self.add_constructor(
@@ -100,13 +105,19 @@ class TestFactory:
     ) -> Optional[vr.VariableReference]:
         """Appends a generic accessible object to a test case.
 
-        :param test_case: The test case
-        :param statement: The object to append
-        :param position: The position to insert the statement, default is at the end
-        of the test case
-        :param recursion_depth: The recursion depth for search
-        :param allow_none: Whether or not parameter variables can hold None values
-        :return: An optional variable reference to the added statement
+        Args:
+            test_case: The test case
+            statement: The object to append
+            position: The position to insert the statement, default is at the end
+                of the test case
+            recursion_depth: The recursion depth for search
+            allow_none: Whether or not parameter variables can hold None values
+
+        Returns:
+            An optional variable reference to the added statement
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
         if isinstance(statement, gao.GenericConstructor):
@@ -157,13 +168,19 @@ class TestFactory:
         the test case.  A given recursion depth controls how far the factory searches
         for suitable parameter values.
 
-        :param test_case: The test case
-        :param constructor: The constructor to add to the test case
-        :param position: The position where to put the statement in the test case,
-        defaults to the end of the test case
-        :param recursion_depth: A recursion limit for the search of parameter values
-        :param allow_none: Whether or not a variable can be an None value
-        :return: A variable reference to the constructor
+        Args:
+            test_case: The test case
+            constructor: The constructor to add to the test case
+            position: The position where to put the statement in the test case,
+                defaults to the end of the test case
+            recursion_depth: A recursion limit for the search of parameter values
+            allow_none: Whether or not a variable can be an None value
+
+        Returns:
+            A variable reference to the constructor
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding constructor %s", constructor)
         if recursion_depth > config.INSTANCE.max_recursion:
@@ -211,14 +228,20 @@ class TestFactory:
         the test case.  A given recursion depth controls how far the factory searches
         for suitable parameter values.
 
-        :param test_case: The test case
-        :param method: The method call to add to the test case
-        :param position: The position where to put the statement in the test case,
-        defaults to the end of the test case
-        :param recursion_depth: A recursion limit for the search of parameter values
-        :param allow_none: Whether or not a variable can hold a None value
-        :param callee: The callee, if it is already known.
-        :return: A variable reference to the method call's result
+        Args:
+            test_case: The test case
+            method: The method call to add to the test case
+            position: The position where to put the statement in the test case,
+                defaults to the end of the test case
+            recursion_depth: A recursion limit for the search of parameter values
+            allow_none: Whether or not a variable can hold a None value
+            callee: The callee, if it is already known.
+
+        Returns:
+            A variable reference to the method call's result
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding method %s", method)
         if recursion_depth > config.INSTANCE.max_recursion:
@@ -268,13 +291,19 @@ class TestFactory:
         the test case.  A given recursion depth controls how far the factory searches
         for suitable parameter values.
 
-        :param test_case: The test case
-        :param field: The field access to add to the test case
-        :param position: The position where to put the statement in the test case,
-        defaults to the end of the test case
-        :param recursion_depth: A recursion limit for the search of values
-        :param callee: The callee, if it is already known.
-        :return: A variable reference to the field value
+        Args:
+            test_case: The test case
+            field: The field access to add to the test case
+            position: The position where to put the statement in the test case,
+                defaults to the end of the test case
+            recursion_depth: A recursion limit for the search of values
+            callee: The callee, if it is already known.
+
+        Returns:
+            A variable reference to the field value
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding field %s", field)
         if recursion_depth > config.INSTANCE.max_recursion:
@@ -309,13 +338,19 @@ class TestFactory:
         of the test case.  A given recursion depth controls how far the factory
         searches for suitable parameter values.
 
-        :param test_case: The test case
-        :param function: The function call to add to the test case
-        :param position: the position where to put the statement in the test case,
-        defaults to the end of the test case
-        :param recursion_depth: A recursion limit for the search of parameter values
-        :param allow_none: Whether or not a variable can hold a None value
-        :return: A variable reference to the function call's result
+        Args:
+            test_case: The test case
+            function: The function call to add to the test case
+            position: the position where to put the statement in the test case,
+                defaults to the end of the test case
+            recursion_depth: A recursion limit for the search of parameter values
+            allow_none: Whether or not a variable can hold a None value
+
+        Returns:
+            A variable reference to the function call's result
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding function %s", function)
         if recursion_depth > config.INSTANCE.max_recursion:
@@ -352,11 +387,14 @@ class TestFactory:
 
         If no position is given the statement will be put at the end of the test case.
 
-        :param test_case: The test case to add the statement to
-        :param primitive: The primitive statement itself
-        :param position: The position where to put the statement, if none is given,
-        the statement will be appended to the end of the test case
-        :return: A reference to the statement
+        Args:
+            test_case: The test case to add the statement to
+            primitive: The primitive statement itself
+            position: The position where to put the statement, if none is given,
+                the statement will be appended to the end of the test case
+
+        Returns:
+            A reference to the statement
         """
         if position < 0:
             position = test_case.size()
@@ -369,8 +407,17 @@ class TestFactory:
         self, test_case: tc.TestCase, last_position: int
     ) -> int:
         """Insert a random statement up to the given position.
+
         If the insertion was successful, the position at which the statement was inserted
-        is returned, otherwise -1."""
+        is returned, otherwise -1.
+
+        Args:
+            test_case: The test case to add the statement to
+            last_position: The last position before that the statement is inserted
+
+        Returns:
+            The index the statement was inserted to, otherwise -1
+        """
         old_size = test_case.size()
         rand = randomness.next_float()
 
@@ -389,7 +436,15 @@ class TestFactory:
     def insert_random_call_on_object(
         self, test_case: tc.TestCase, position: int
     ) -> bool:
-        """Insert a random call on an object that already exists within the test case."""
+        """Insert a random call on an object that already exists within the test case.
+
+        Args:
+            test_case: The test case to add the call to
+            position: The last position before that the call is inserted
+
+        Returns:
+            Whether or not the insertion was successful
+        """
         variable = self._select_random_variable_for_call(test_case, position)
         success = False
         if variable is not None:
@@ -404,7 +459,16 @@ class TestFactory:
     def insert_random_call_on_object_at(
         self, test_case: tc.TestCase, variable: vr.VariableReference, position: int
     ) -> bool:
-        """Add a random call on the passed variable."""
+        """Add a random call on the passed variable.
+
+        Args:
+            test_case: The test case to add the call to
+            variable: The object the method is called from
+            position: The last position before that the call is inserted
+
+        Returns:
+            Whether or not the insertion was successful
+        """
         assert (
             variable.variable_type
         ), "Cannot insert random call on variable of unknown type."
@@ -422,7 +486,20 @@ class TestFactory:
         accessible: gao.GenericAccessibleObject,
         position: int,
     ) -> bool:
-        """Add a call for the given accessible object."""
+        """Add a call for the given accessible object.
+
+        Args:
+            test_case: The test case to add the call to
+            callee: The callee
+            accessible: The accessible object
+            position: The last position
+
+        Returns:
+            Whether or not the insertion was successful
+
+        Raises:
+            RuntimeError: in case of an unknown accessible
+        """
         previous_length = test_case.size()
         try:
             if accessible.is_method():
@@ -443,7 +520,16 @@ class TestFactory:
         test_case: tc.TestCase, position: int
     ) -> Optional[vr.VariableReference]:
         """Randomly select one of the variables in the test defined up to
-        position to insert a call for."""
+        position to insert a call for.
+
+
+        Args:
+            test_case: The test case
+            position: The last position
+
+        Returns:
+            A candidate, if found
+        """
         candidates: List[vr.VariableReference] = [
             var
             for var in test_case.get_all_objects(position)
@@ -461,7 +547,15 @@ class TestFactory:
         return randomness.choice(candidates)
 
     def insert_random_call(self, test_case: tc.TestCase, position: int) -> bool:
-        """Insert a random call for the unit under test at the given position."""
+        """Insert a random call for the unit under test at the given position.
+
+        Args:
+            test_case: The test case the call will be inserted
+            position: The position of the insertion
+
+        Returns:
+            Whether or not the insertion was successful
+        """
         previous_length = test_case.size()
         accessible = self._test_cluster.get_random_accessible()
         if accessible is None:
@@ -477,8 +571,15 @@ class TestFactory:
     @staticmethod
     def _rollback_changes(test_case: tc.TestCase, previous_length: int, position: int):
         """Rollback any changes that were made on the given test case.
+
         This means that we remove any extra statements that were added.
-        TODO(fk) there should be a better way to do this?"""
+        TODO(fk) there should be a better way to do this?
+
+        Args:
+            test_case: The test case
+            previous_length: The length before the modification
+            position: The position
+        """
         length_difference = test_case.size() - previous_length
         assert length_difference >= 0, "Cannot rollback from negative size difference."
         for i in reversed(range(length_difference)):
@@ -487,7 +588,16 @@ class TestFactory:
     @staticmethod
     def delete_statement_gracefully(test_case: tc.TestCase, position: int) -> bool:
         """Try to delete the statement that is defined at the given index.
-        We try to find replacements for the variable that is provided by this statement"""
+
+        We try to find replacements for the variable that is provided by this statement
+
+        Args:
+            test_case: The test case
+            position: The position
+
+        Returns:
+            Whether or not the deletion was successful
+        """
         variable = test_case.get_statement(position).return_value
 
         changed = False
@@ -509,7 +619,15 @@ class TestFactory:
     @staticmethod
     def delete_statement(test_case: tc.TestCase, position: int) -> bool:
         """Delete the statement at position from the test case and remove all
-        references to it."""
+        references to it.
+
+        Args:
+            test_case: The test case
+            position: The position
+
+        Returns:
+            Whether or not the deletion was successful
+        """
         to_delete: Set[int] = set()
         TestFactory._recursive_delete_inclusion(test_case, to_delete, position)
         for index in sorted(list(to_delete), reverse=True):
@@ -545,7 +663,15 @@ class TestFactory:
     def change_random_call(
         self, test_case: tc.TestCase, statement: stmt.Statement
     ) -> bool:
-        """Change the call represented by this statement to another one."""
+        """Change the call represented by this statement to another one.
+
+        Args:
+            test_case: The test case
+            statement: The new statement
+
+        Returns:
+            Whether or not the operation was successful
+        """
         if statement.return_value.is_type_unknown():
             return False
 
@@ -574,7 +700,13 @@ class TestFactory:
         statement: stmt.Statement,
         call: gao.GenericAccessibleObject,
     ):
-        """Change the call of the given statement to the one that is given."""
+        """Change the call of the given statement to the one that is given.
+
+        Args:
+            test_case: The test case
+            statement: The given statement
+            call: The new call
+        """
         position = statement.return_value.get_statement_position()
         return_value = statement.return_value
         replacement: Optional[stmt.Statement] = None
@@ -613,7 +745,16 @@ class TestFactory:
     def _get_reuse_parameters(
         test_case: tc.TestCase, inf_signature: InferredSignature, position: int
     ) -> List[vr.VariableReference]:
-        """Find specified parameters from existing objects."""
+        """Find specified parameters from existing objects.
+
+        Args:
+            test_case: The test case
+            inf_signature: The inferred signature information
+            position: The position
+
+        Returns:
+            A list of existing objects
+        """
         found = []
         for parameter_name, parameter_type in inf_signature.parameters.items():
             if should_skip_parameter(inf_signature, parameter_name):
@@ -646,7 +787,14 @@ class TestFactory:
     ) -> List[gao.GenericAccessibleObject]:
         """Retrieve all the replacement calls that can be inserted at this position
          without changing the length.
-         :param objects: The objects that are available as parameters."""
+
+         Args:
+            return_type: The return type
+            objects: The objects that are available as parameters.
+
+        Returns:
+            A list of possible replacement calls
+        """
         calls: List[gao.GenericAccessibleObject] = []
         try:
             all_calls = self._test_cluster.get_generators_for(return_type)
@@ -661,7 +809,16 @@ class TestFactory:
     def _dependencies_satisfied(
         dependencies: Set[Type], objects: List[vr.VariableReference]
     ) -> bool:
-        """Determine if the set of objects is sufficient to satisfy the set of dependencies"""
+        """Determine if the set of objects is sufficient to satisfy the set of
+        dependencies.
+
+        Args:
+            dependencies: a set of types
+            objects: A list of objects
+
+        Returns:
+            Whether or not the objects are sufficient to satisfy the dependencies
+         """
         for type_ in dependencies:
             found = False
             for var in objects:
@@ -684,15 +841,21 @@ class TestFactory:
     ) -> List[vr.VariableReference]:
         """Satisfy a list of parameters by reusing or creating variables.
 
-        :param test_case: The test case
-        :param signature: The inferred signature of the method
-        :param callee: The callee of the method
-        :param position: The current position in the test case
-        :param recursion_depth: The recursion depth
-        :param allow_none: Whether or not a variable can be a None value
-        :param can_reuse_existing_variables: Whether or not existing variables shall
-        be reused.
-        :return: A list of variable references for the parameters
+        Args:
+            test_case: The test case
+            signature: The inferred signature of the method
+            callee: The callee of the method
+            position: The current position in the test case
+            recursion_depth: The recursion depth
+            allow_none: Whether or not a variable can be a None value
+            can_reuse_existing_variables: Whether or not existing variables shall
+                be reused.
+
+        Returns:
+            A list of variable references for the parameters
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
         """
         if position < 0:
             position = test_case.size()
@@ -753,7 +916,16 @@ class TestFactory:
     def _reuse_variable(
         self, test_case: tc.TestCase, parameter_type: Optional[Type], position: int
     ) -> Optional[vr.VariableReference]:
-        """Reuse an existing variable, if possible."""
+        """Reuse an existing variable, if possible.
+
+        Args:
+            test_case: the test case to take the variable from
+            parameter_type: the type of the variable that is needed
+            position: the position to limit the search
+
+        Returns:
+            A matching existing variable, if existing
+        """
 
         objects = test_case.get_objects(parameter_type, position)
         probability = (
@@ -775,7 +947,21 @@ class TestFactory:
         recursion_depth: int,
         allow_none: bool,
     ) -> Optional[vr.VariableReference]:
-        """Best effort approach to return some kind of matching variable."""
+        """Best effort approach to return some kind of matching variable.
+
+        Args:
+            test_case: The test case to take the variable from
+            parameter_type: the type of the variable that is needed
+            position: the position to limit the search
+            recursion_depth: the current recursion level
+            allow_none: whether or not a None value is allowed
+
+        Returns:
+            A variable if found
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
+        """
         objects = test_case.get_objects(parameter_type, position)
 
         # No objects to choose from, so either create random type variable or use None.

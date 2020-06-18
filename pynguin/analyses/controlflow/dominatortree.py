@@ -29,8 +29,11 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     def compute(graph: cfg.CFG) -> DominatorTree:
         """Computes the dominator tree for a control-flow graph.
 
-        :param graph: The control-flow graph
-        :return: The dominator tree for the control-flow graph
+        Args:
+            graph: The control-flow graph
+
+        Returns:
+            The dominator tree for the control-flow graph
         """
         return DominatorTree.compute_dominance_tree(graph)
 
@@ -38,8 +41,11 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     def compute_post_dominator_tree(graph: cfg.CFG) -> DominatorTree:
         """Computes the post-dominator tree for a control-flow graph.
 
-        :param graph: The control-flow graph
-        :return: The post-dominator tree for the control-flow graph
+        Args:
+            graph: The control-flow graph
+
+        Returns:
+            The post-dominator tree for the control-flow graph
         """
         reversed_cfg = graph.reversed()
         return DominatorTree.compute(reversed_cfg)
@@ -48,8 +54,11 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     def compute_dominance_tree(graph: cfg.CFG) -> DominatorTree:
         """Computes the dominance tree for a control-flow graph.
 
-        :param graph: The control-flow graph
-        :return: The dominance tree for the control-flow graph
+        Args:
+            graph: The control-flow graph
+
+        Returns:
+            The dominance tree for the control-flow graph
         """
         dominance: Dict[
             pg.ProgramGraphNode, Set[pg.ProgramGraphNode]

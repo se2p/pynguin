@@ -32,12 +32,20 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
         self._test_case_factory = test_case_factory
 
     def add_test(self, test: tc.TestCase) -> None:
-        """Adds a test case to the test suite"""
+        """Adds a test case to the test suite.
+
+        Args:
+            test: the test case to be added
+        """
         self._tests.append(test)
         self.set_changed(True)
 
     def delete_test(self, test: tc.TestCase) -> None:
-        """Delete a test case from the test suite"""
+        """Delete a test case from the test suite.
+
+        Args:
+            test: the test to delete
+        """
         try:
             self._tests.remove(test)
             self.set_changed(True)
@@ -45,43 +53,85 @@ class AbstractTestSuiteChromosome(chrom.Chromosome, metaclass=ABCMeta):
             pass
 
     def add_tests(self, tests: List[tc.TestCase]) -> None:
-        """Adds a list of test cases to the test suite"""
+        """Adds a list of test cases to the test suite.
+
+        Args:
+            tests: A list of test cases to add
+        """
         self._tests.extend(tests)
         if tests:
             self.set_changed(True)
 
     @abstractmethod
     def clone(self) -> chrom.Chromosome:
-        """Clones the chromosome"""
+        """Clones the chromosome.
+
+        Returns:
+            The clone of the chromosome  # noqa: DAR202
+        """
 
     def get_test_chromosome(self, index: int) -> tc.TestCase:
-        """Provides the test chromosome at a certain index"""
+        """Provides the test chromosome at a certain index.
+
+        Args:
+            index: the index to select
+
+        Returns:
+            The test case at the given index
+        """
         return self._tests[index]
 
     @property
     def test_chromosomes(self) -> List[tc.TestCase]:
-        """Provides all test chromosomes"""
+        """Provides all test chromosomes.
+
+        Returns:
+            The list of all test cases
+        """
         return self._tests
 
     def set_test_chromosome(self, index: int, test: tc.TestCase) -> None:
-        """Sets a test chromosome at a certain index"""
+        """Sets a test chromosome at a certain index.
+
+        Args:
+            index: the index to set the chromosome
+            test: the test case to set
+        """
         self._tests[index] = test
         self.set_changed(True)
 
     @property
     def total_length_of_test_cases(self) -> int:
-        """Provides the sum of the lengths of the test cases."""
+        """Provides the sum of the lengths of the test cases.
+
+        Returns:
+            The total length of the test cases
+        """
         return sum([test.size() for test in self._tests])
 
     def size(self) -> int:
-        """Provides the size of the chromosome, i.e., its number of test cases."""
+        """Provides the size of the chromosome, i.e., its number of test cases.
+
+        Returns:
+            The size of the chromosome
+        """
         return len(self._tests)
 
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
     ) -> None:
-        """
-        Keep tests up to position1. Append copies of tests from other from position2 onwards.
+        """Performs the crossover with another chromosome.
+
+        Keep tests up to position1. Append copies of tests from other from position2
+        onwards.
+
+        Args:
+            other: the other chromosome
+            position1: the position in the first chromosome
+            position2: the position in the second chromosome
+
+        Raises:
+            RuntimeError: If other is not an instance of AbstractTestSuiteChromosome
         """
         if not isinstance(other, AbstractTestSuiteChromosome):
             raise RuntimeError("Cannot perform crossover with " + str(type(other)))

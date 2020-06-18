@@ -50,7 +50,6 @@ class RandomTestMonkeyTypeStrategy(RandomTestStrategy, MonkeyTypeHandlerMixin):
         ] = []
         self._return_type_updates: List[Tuple[str, Optional[type], Optional[type]]] = []
 
-    # pylint: disable=too-many-arguments
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,

@@ -99,7 +99,11 @@ class SearchStatistics:
         )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
-        """Set start time for sequence data."""
+        """Set start time for sequence data.
+
+        Args:
+            start_time: the start time
+        """
         for factory in self._sequence_output_variable_factories.values():
             factory.set_start_time(start_time)
 
@@ -108,7 +112,8 @@ class SearchStatistics:
 
         The individual represents the best individual of the current generation.
 
-        :param individual: The best individual of the current generation
+        Args:
+            individual: The best individual of the current generation
         """
         if not self._backend:
             return
@@ -127,7 +132,8 @@ class SearchStatistics:
     def set_output_variable(self, variable: sb.OutputVariable) -> None:
         """Sets an output variable to a value directly
 
-        :param variable: The variable to be set
+        Args:
+            variable: The variable to be set
         """
         if variable.name in self._sequence_output_variable_factories:
             var = self._sequence_output_variable_factories[variable.name]
@@ -141,14 +147,19 @@ class SearchStatistics:
     ) -> None:
         """Sets an output variable to a value directly
 
-        :param variable: The variable to be set
-        :param value: the value to be set
+        Args:
+            variable: The variable to be set
+            value: the value to be set
         """
         self.set_output_variable(sb.OutputVariable(name=variable.name, value=value))
 
     @property
     def output_variables(self) -> Dict[str, sb.OutputVariable]:
-        """Provides the output variables"""
+        """Provides the output variables.
+
+        Returns:
+            The output variables
+        """
         return self._output_variables
 
     def _get_output_variables(
@@ -189,7 +200,8 @@ class SearchStatistics:
     def write_statistics(self) -> bool:
         """Write result to disk using selected backend
 
-        :return: True if the writing was successful
+        Returns:
+            True if the writing was successful
         """
         self._logger.info("Writing statistics")
         if not self._backend:

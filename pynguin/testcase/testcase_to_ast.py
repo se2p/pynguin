@@ -29,7 +29,11 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     """
 
     def __init__(self, wrap_code: bool = False) -> None:
-        """The module aliases are shared between test cases."""
+        """The module aliases are shared between test cases.
+
+        Args:
+            wrap_code: Whether or not exported code shall be wrapped
+        """
         self._module_aliases = NamingScope("module")
         self._test_case_asts: List[List[stmt]] = []
         self._wrap_code = wrap_code
@@ -44,10 +48,18 @@ class TestCaseToAstVisitor(TestCaseVisitor):
 
     @property
     def test_case_asts(self) -> List[List[stmt]]:
-        """Provides the generated asts for each test case."""
+        """Provides the generated asts for each test case.
+
+        Returns:
+            A list of the generated ASTs for each test case
+        """
         return self._test_case_asts
 
     @property
     def module_aliases(self) -> NamingScope:
-        """Provides the module aliases that were used when transforming all test cases."""
+        """Provides the module aliases that were used when transforming all test cases.
+
+        Returns:
+            The module aliases
+        """
         return self._module_aliases

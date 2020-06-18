@@ -31,13 +31,22 @@ class ChromosomeFactory(Generic[T]):
 
     @abstractmethod
     def get_chromosome(self) -> T:
-        """Create a new chromosome."""
+        """Create a new chromosome.
+
+        Returns:
+            A new chromosome  # noqa: DAR202
+        """
 
 
 class TestSuiteChromosomeFactory(ChromosomeFactory[tsc.TestSuiteChromosome]):
     """A factory that provides new test suite chromosomes of random length."""
 
     def __init__(self, test_case_factory: tcf.TestCaseFactory):
+        """Instantiates a new factory
+
+        Args:
+            test_case_factory: The internal test case factory
+        """
         self._test_case_factory = test_case_factory
 
     def get_chromosome(self) -> tsc.TestSuiteChromosome:

@@ -21,7 +21,6 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
-
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
@@ -104,20 +103,29 @@ class ExecutionTracer:
         self._enabled = True
 
     def get_known_data(self) -> KnownData:
-        """Provide known data."""
+        """Provide known data.
+
+        Returns:
+            The known data about the execution
+        """
         return self._known_data
 
     def reset(self) -> None:
-        """Resets everything. Should be called before instrumentation.
-        Clears all data, so we can handle a reload of the SUT."""
+        """Resets everything.
+
+        Should be called before instrumentation. Clears all data, so we can handle a
+        reload of the SUT.
+        """
         self._known_data = KnownData()
         self._import_trace = ExecutionTrace()
         self._init_trace()
 
     def store_import_trace(self) -> None:
         """Stores the current trace as the import trace.
-        Should only be done once, after a module was loaded.
-        The import trace will be merged into every subsequently recorded trace."""
+
+        Should only be done once, after a module was loaded. The import trace will be
+        merged into every subsequently recorded trace.
+        """
         self._import_trace = self._trace
         self._init_trace()
 
@@ -129,8 +137,13 @@ class ExecutionTracer:
 
     def _is_disabled(self) -> bool:
         """Should we track anything?
+
         We might have to disable tracing, e.g. when calling __eq__ ourselves.
-        Otherwise we create an endless recursion."""
+        Otherwise we create an endless recursion.
+
+        Returns:
+            Whether or not we should track anything
+        """
         return not self._enabled
 
     def _enable(self) -> None:
@@ -142,7 +155,11 @@ class ExecutionTracer:
         self._enabled = False
 
     def get_trace(self) -> ExecutionTrace:
-        """Get the trace with the current information."""
+        """Get the trace with the current information.
+
+        Returns:
+            The current execution trace
+        """
         return self._trace
 
     def clear_trace(self) -> None:
@@ -151,15 +168,27 @@ class ExecutionTracer:
 
     def register_code_object(self, meta: CodeObjectMetaData) -> int:
         """Declare that a code object exists.
-        :returns the id of the code object, which can be used to identify the object
-        during instrumentation."""
+
+        Args:
+            meta: the code objects existing
+
+        Returns:
+            the id of the code object, which can be used to identify the object
+            during instrumentation.
+        """
         code_object_id = len(self._known_data.existing_code_objects)
         self._known_data.existing_code_objects[code_object_id] = meta
         return code_object_id
 
     def executed_code_object(self, code_object_id: int) -> None:
-        """Mark a code object as executed. This means, that the routine which refers
-        to this code object was at least called once."""
+        """Mark a code object as executed.
+
+        This means, that the routine which refers to this code object was at least
+        called once.
+
+        Args:
+            code_object_id: the code object id to mark
+        """
         assert (
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
@@ -167,8 +196,14 @@ class ExecutionTracer:
 
     def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
-        :returns the id of the predicate, which can be used to identify the predicate
-        during instrumentation."""
+
+        Args:
+            meta: Meta data about the predicates
+
+        Returns:
+            the id of the predicate, which can be used to identify the predicate
+            during instrumentation.
+        """
         predicate_id = len(self._known_data.existing_predicates)
         self._known_data.existing_predicates[predicate_id] = meta
         return predicate_id
@@ -176,7 +211,14 @@ class ExecutionTracer:
     def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
-        """A predicate that is based on a comparision was executed."""
+        """A predicate that is based on a comparision was executed.
+
+        Args:
+            value1: the first value
+            value2: the second value
+            predicate: the predicate
+            cmp_op: the compare operation
+        """
         if self._is_disabled():
             return
 
@@ -194,7 +236,12 @@ class ExecutionTracer:
             self._enable()
 
     def executed_bool_predicate(self, value, predicate: int):
-        """A predicate that is based on a boolean value was executed."""
+        """A predicate that is based on a boolean value was executed.
+
+        Args:
+            value: the value
+            predicate: the predicate
+        """
         if self._is_disabled():
             return
 
@@ -240,7 +287,15 @@ class ExecutionTracer:
 
 
 def _eq(val1, val2) -> float:
-    """Distance computation for '=='"""
+    """Distance computation for '=='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 == val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
@@ -251,14 +306,30 @@ def _eq(val1, val2) -> float:
 
 
 def _neq(val1, val2) -> float:
-    """Distance computation for '!='"""
+    """Distance computation for '!='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 != val2:
         return 0.0
     return 1.0
 
 
 def _lt(val1, val2) -> float:
-    """Distance computation for '<'"""
+    """Distance computation for '<'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 < val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
@@ -267,7 +338,15 @@ def _lt(val1, val2) -> float:
 
 
 def _le(val1, val2) -> float:
-    """Distance computation for '<='"""
+    """Distance computation for '<='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 <= val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
@@ -276,7 +355,15 @@ def _le(val1, val2) -> float:
 
 
 def _in(val1, val2) -> float:
-    """Distance computation for 'in'"""
+    """Distance computation for 'in'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     # TODO(fk) iterate over elements and return smallest distance?
     if val1 in val2:
         return 0.0
@@ -284,21 +371,45 @@ def _in(val1, val2) -> float:
 
 
 def _nin(val1, val2) -> float:
-    """Distance computation for 'not in'"""
+    """Distance computation for 'not in'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 not in val2:
         return 0.0
     return 1.0
 
 
 def _is(val1, val2) -> float:
-    """Distance computation for 'is'"""
+    """Distance computation for 'is'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 is val2:
         return 0.0
     return 1.0
 
 
 def _isn(val1, val2) -> float:
-    """Distance computation for 'is not'"""
+    """Distance computation for 'is not'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
     if val1 is not val2:
         return 0.0
     return 1.0

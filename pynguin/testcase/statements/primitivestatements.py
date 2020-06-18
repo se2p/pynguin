@@ -48,7 +48,11 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
 
     @property
     def value(self) -> Optional[T]:
-        """Provides the primitive value of this statement"""
+        """Provides the primitive value of this statement.
+
+        Returns:
+            The primitive value
+        """
         return self._value
 
     @value.setter

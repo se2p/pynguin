@@ -93,10 +93,14 @@ class Pynguin:
         command-line arguments.  If none of these is present, the generator cannot be
         initialised and will thus raise a `ConfigurationException`.
 
-        :param argument_parser: An optional argument parser.
-        :param arguments: An optional list of command-line arguments.
-        :param configuration: An optional pre-generated configuration.
-        :raises ConfigurationException: In case there is no proper configuration
+        Args:
+            argument_parser: An optional argument parser.
+            arguments: An optional list of command-line arguments.
+            configuration: An optional pre-generated configuration.
+            verbosity: The verbosity level
+
+        Raises:
+            ConfigurationException: In case there is no proper configuration
         """
         if configuration:
             config.INSTANCE = configuration
@@ -130,7 +134,11 @@ class Pynguin:
         signals some errors.  This is, e.g., the case if the framework was not able
         to generate one successfully running test case for the class under test.
 
-        :return: See ReturnCodes.
+        Returns:
+            See ReturnCodes.
+
+        Raises:
+            ConfigurationException: In case the configuration is illegal
         """
         if not self._logger:
             raise ConfigurationException()
@@ -163,7 +171,12 @@ class Pynguin:
 
     def _setup_path_and_hook(self) -> Optional[ExecutionTracer]:
         """Inserts the path to the SUT into the path list.
-        Also installs the import hook."""
+
+        Also installs the import hook.
+
+        Returns:
+            An optional execution tracer
+        """
         if not os.path.isdir(config.INSTANCE.project_path):
             self._logger.error(
                 "%s is not a valid project path", config.INSTANCE.project_path
@@ -194,7 +207,12 @@ class Pynguin:
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
-        Perform setup and some sanity checks."""
+
+        Perform setup and some sanity checks.
+
+        Returns:
+            An optional tuple of test-case executor and test cluster
+        """
         if (tracer := self._setup_path_and_hook()) is None:
             return None
         if (executor := self._setup_executor(tracer)) is None:
@@ -208,7 +226,12 @@ class Pynguin:
 
     @staticmethod
     def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
-        """Track data from the SUT."""
+        """Track data from the SUT.
+
+        Args:
+            tracer: the execution tracer
+            test_cluster: the test cluster
+        """
         tracker = StatisticsTracker()
         tracker.track_output_variable(
             RuntimeVariable.CodeObjects,
@@ -341,10 +364,14 @@ class Pynguin:
     ) -> str:
         """Export the given test cases.
 
-        :param test_cases: A list of test cases to export
-        :param suffix: Suffix that can be added to the file name to distinguish
-            between different results e.g., failing and succeeding test cases.
-        :param wrap_code: Whether or not the generated code shall be wrapped
+        Args:
+            test_cases: A list of test cases to export
+            suffix: Suffix that can be added to the file name to distinguish
+                between different results e.g., failing and succeeding test cases.
+            wrap_code: Whether or not the generated code shall be wrapped
+
+        Returns:
+            The name of the target file
         """
         exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
         target_file = os.path.join(

@@ -27,7 +27,14 @@ class AbstractSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
 
     def _run_test_suite(self, individual) -> List[ExecutionResult]:
         """Runs a test suite and updates the execution results for
-        all test cases that were changed."""
+        all test cases that were changed.
+
+        Args:
+            individual: The individual to run
+
+        Returns:
+            A list of execution results
+        """
         results: List[ExecutionResult] = []
         for test_case in individual.test_chromosomes:
             if test_case.has_changed() or test_case.get_last_execution_result() is None:

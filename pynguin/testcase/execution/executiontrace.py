@@ -30,7 +30,11 @@ class ExecutionTrace:
     false_distances: Dict[int, float] = field(default_factory=dict)
 
     def merge(self, other: ExecutionTrace) -> None:
-        """Merge the values from the other trace."""
+        """Merge the values from the other trace.
+
+        Args:
+            other: Merges the other traces into this trace
+        """
         self.executed_code_objects.update(other.executed_code_objects)
         for key, value in other.executed_predicates.items():
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
@@ -39,6 +43,11 @@ class ExecutionTrace:
 
     @staticmethod
     def _merge_min(target: Dict[int, float], source: Dict[int, float]) -> None:
-        """Merge source into target. Minimum value wins."""
+        """Merge source into target. Minimum value wins.
+
+        Args:
+            target: the target to merge the values in
+            source: the source of the merge
+        """
         for key, value in source.items():
             target[key] = min(target.get(key, inf), value)

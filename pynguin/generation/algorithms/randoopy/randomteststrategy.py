@@ -31,14 +31,13 @@ from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTrack
 from pynguin.utils.statistics.timer import Timer
 
 
-# pylint: disable=too-few-public-methods
 class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super(RandomTestStrategy, self).__init__(executor, test_cluster)
+        super().__init__(executor, test_cluster)
         self._execution_results: List[ExecutionResult] = []
 
     def generate_sequences(
@@ -98,9 +97,13 @@ class RandomTestStrategy(TestGenerationStrategy):
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
 
-        :param test_chromosome: The list of currently successful test cases
-        :param failing_test_chromosome: The list of currently not successful test cases
-        :param execution_counter: A current number of algorithm iterations
+        Args:
+            test_chromosome: The list of currently successful test cases
+            failing_test_chromosome: The list of currently not successful test cases
+            execution_counter: A current number of algorithm iterations
+
+        Raises:
+            GenerationException: In case an error occurs during generation
         """
         self._logger.info("Algorithm iteration %d", execution_counter)
         timer = Timer(name="Sequence generation", logger=None)

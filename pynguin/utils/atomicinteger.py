@@ -34,7 +34,8 @@ class AtomicInteger:
     def inc(self) -> int:
         """Increments the value of the integer by one and returns the new value.
 
-        :return: The new value of the atomic integer
+        Returns:
+            The new value of the atomic integer
         """
         with self._lock:
             self._value += 1
@@ -43,7 +44,8 @@ class AtomicInteger:
     def dec(self) -> int:
         """Decrements the value of the integer by one and returns the new value.
 
-        :return: The new value of the atomic integer
+        Returns:
+            The new value of the atomic integer
         """
         with self._lock:
             self._value -= 1
@@ -53,7 +55,8 @@ class AtomicInteger:
     def value(self) -> int:
         """Provides the current value of the atomic integer.
 
-        :return: The current value of the atomic integer
+        Returns:
+            The current value of the atomic integer
         """
         with self._lock:
             return self._value
@@ -62,7 +65,8 @@ class AtomicInteger:
     def value(self, value: int) -> None:
         """Sets the current value of the atomic integer and returns it.
 
-        :param value: The new value for the atomic integer
+        Args:
+            value: The new value for the atomic integer
         """
         with self._lock:
             self._value = value

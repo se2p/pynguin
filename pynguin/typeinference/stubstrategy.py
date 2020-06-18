@@ -93,14 +93,22 @@ class _FunctionListener(ast.NodeVisitor):
 
     @property
     def param_type_matches(self) -> Dict[str, Optional[type]]:
-        """Provides the matched parameter types."""
+        """Provides the matched parameter types.
+
+        Returns:
+            The matched parameter types
+        """
         if "self" in self._param_type_matches:
             del self._param_type_matches["self"]
         return self._param_type_matches
 
     @property
     def return_type(self) -> Optional[type]:
-        """Provides the return type."""
+        """Provides the return type.
+
+        Returns:
+            Teh inferred return type
+        """
         return self._return_type
 
     # pylint: disable=invalid-name, missing-function-docstring
@@ -142,7 +150,11 @@ class _ImportVisitor(ast.NodeVisitor):
 
     @property
     def full_qualified_name(self) -> Optional[str]:
-        """Provides the inferred fully-qualified name."""
+        """Provides the inferred fully-qualified name.
+
+        Returns:
+            The fully-qualified name
+        """
         return self._full_qualified_name
 
     # pylint: disable=invalid-name, missing-function-docstring
@@ -164,7 +176,11 @@ class _ClassListener(ast.NodeVisitor):
 
     @property
     def param_type_matches(self) -> Dict[str, Optional[type]]:
-        """Provides the matched parameter types."""
+        """Provides the matched parameter types.
+
+        Returns:
+            The matched parameter types
+        """
         return self._param_type_matches
 
     # pylint: disable=invalid-name, missing-function-docstring

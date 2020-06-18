@@ -31,9 +31,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 
 
 class FieldStatement(stmt.Statement):
-    """
-    A statement which accesses a public field or a property of an object.
-    """
+    """A statement which accesses a public field or a property of an object."""
 
     def __init__(
         self, test_case: tc.TestCase, field: GenericField, source: vr.VariableReference,
@@ -46,15 +44,19 @@ class FieldStatement(stmt.Statement):
 
     @property
     def source(self) -> vr.VariableReference:
-        """
-        Provides the variable that is accessed.
+        """Provides the variable that is accessed.
+
+        Returns:
+            The variable that is accessed
         """
         return self._source
 
     @source.setter
     def source(self, new_source: vr.VariableReference) -> None:
-        """
-        Set new source.
+        """Set new source.
+
+        Args:
+            new_source: The new variable to access
         """
         self._source = new_source
 
@@ -76,7 +78,11 @@ class FieldStatement(stmt.Statement):
 
     @property
     def field(self) -> GenericField:
-        """The used field."""
+        """The used field.
+
+        Returns:
+            The used field
+        """
         return self._field
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:

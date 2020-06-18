@@ -101,7 +101,7 @@ check-safety:
 .PHONY: check-style
 check-style:
 	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
-#!	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 **/*.py
+	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 pynguin/**/*.py
 	$(ISORT_COMMAND_FLAG)poetry run isort --check-only
 	$(MYPY_COMMAND_FLAG)poetry run mypy pynguin
 
@@ -129,8 +129,12 @@ isort:
 black:
 	poetry run black .
 
+.PHONY: darglint
+darglint:
+	poetry run darglint -v 2 pynguin/**/*.py
+
 .PHONY: check
-check: isort black mypy pylint test
+check: isort black mypy pylint darglint test
 
 .PHONY: lint
 lint: test check-safety check-style

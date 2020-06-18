@@ -40,8 +40,9 @@ class TypeInference:
 
         If neither parameter is given, a default strategy will be initialised and used.
 
-        :param strategies: An optional list of already initialised strategies
-        :param strategy_names: An optional list of fully-qualified strategy names
+        Args:
+            strategies: An optional list of already initialised strategies
+            strategy_names: An optional list of fully-qualified strategy names
         """
         if strategies:
             _strategies = strategies
@@ -71,8 +72,11 @@ class TypeInference:
         It returns a list of `InferredSignature`s that could be inferred for the
         given callable.
 
-        :param method: The callable we try to infer type information for
-        :return: A list of InferredSignature
+        Args:
+            method: The callable we try to infer type information for
+
+        Returns:
+            A list of InferredSignature
         """
         method_types: List[InferredSignature] = []
         for strategy in self._strategies:

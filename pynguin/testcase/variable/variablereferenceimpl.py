@@ -19,9 +19,7 @@ import pynguin.testcase.variable.variablereference as vr
 
 
 class VariableReferenceImpl(vr.VariableReference):
-    """
-    Basic implementation of a variable reference.
-    """
+    """Basic implementation of a variable reference."""
 
     def clone(
         self, new_test_case: tc.TestCase, offset: int = 0

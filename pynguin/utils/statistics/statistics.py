@@ -33,8 +33,8 @@ class RuntimeVariable(enum.Enum):
     branches).
 
     It is perfectly fine to add new runtime variables in this enum, in any position, but
-    it is essential to provide a unique name and a description for each new variable, because this
-    description will become the text in the result.
+    it is essential to provide a unique name and a description for each new variable,
+    because this description will become the text in the result.
     """
 
     TargetModule = (
@@ -121,7 +121,7 @@ class StatisticsTracker:
 
     def __new__(cls) -> StatisticsTracker:
         if cls._instance is None:
-            cls._instance = super(StatisticsTracker, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._variables: queue.Queue = queue.Queue()
             cls._search_statistics: ss.SearchStatistics = ss.SearchStatistics()
         return cls._instance
@@ -129,29 +129,46 @@ class StatisticsTracker:
     def track_output_variable(self, runtime_variable: RuntimeVariable, value: Any):
         """Tracks a run-time variable for output.
 
-        :param runtime_variable: The run-time variable
-        :param value: The value to track for the variable
+        Args:
+            runtime_variable: The run-time variable
+            value: The value to track for the variable
         """
         self._variables.put((runtime_variable, value))
 
     @property
     def variables(self) -> queue.Queue:
-        """Provides the queue of tracked variables"""
+        """Provides the queue of tracked variables.
+
+        Returns:
+            The queue of tracked variables
+        """
         return self._variables
 
     @property
     def variables_generator(self) -> Generator[Tuple[RuntimeVariable, Any], None, None]:
-        """Provides a generator"""
+        """Provides a generator.
+
+        Yields:
+            A generator for iteration
+        """
         while not self._variables.empty():
             yield self._variables.get()
 
     @property
     def search_statistics(self) -> ss.SearchStatistics:
-        """Provides the internal search statistics instance"""
+        """Provides the internal search statistics instance.
+
+        Returns:
+            The search statistics instance
+        """
         return self._search_statistics
 
-    def set_sequence_start_time(self, start_time: int):
-        """This should only be called once, before any sequence data was generated."""
+    def set_sequence_start_time(self, start_time: int) -> None:
+        """This should only be called once, before any sequence data was generated.
+
+        Args:
+            start_time: the start time
+        """
         self._search_statistics.set_sequence_output_variable_start_time(start_time)
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
@@ -159,14 +176,16 @@ class StatisticsTracker:
 
         The individual represents the best individual of the current generation.
 
-        :param individual: The best individual of the current generation
+        Args:
+            individual: The best individual of the current generation
         """
         self._search_statistics.current_individual(individual)
 
     def set_output_variable(self, variable: sb.OutputVariable) -> None:
         """Sets an output variable to a value directly
 
-        :param variable: The variable to be set
+        Args:
+            variable: The variable to be set
         """
         self._search_statistics.set_output_variable(variable)
 
@@ -175,8 +194,9 @@ class StatisticsTracker:
     ) -> None:
         """Sets an output variable to a value directly
 
-        :param variable: The variable to be set
-        :param value: the value to be set
+        Args:
+            variable: The variable to be set
+            value: the value to be set
         """
         self._search_statistics.set_output_variable_for_runtime_variable(
             variable, value
@@ -184,12 +204,17 @@ class StatisticsTracker:
 
     @property
     def output_variables(self) -> Dict[str, sb.OutputVariable]:
-        """Provides the output variables"""
+        """Provides the output variables.
+
+        Returns:
+            The output variables
+        """
         return self._search_statistics.output_variables
 
     def write_statistics(self) -> bool:
         """Write result to disk using selected backend
 
-        :return: True if the writing was successful
+        Returns:
+            True if the writing was successful
         """
         return self._search_statistics.write_statistics()

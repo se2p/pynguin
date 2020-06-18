@@ -19,7 +19,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
-
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
@@ -66,9 +65,13 @@ class BranchDistanceInstrumentation:
         self, code: CodeType, parent_code_object_id: int
     ) -> CodeType:
         """Apply the instrumentation to all constants of the given code object.
-        :param code: the Code Object that should be instrumented.
-        :param parent_code_object_id: the id of the parent code object, if any.
-        :return: the code object whose constants were instrumented.
+
+        Args:
+            code: the Code Object that should be instrumented.
+            parent_code_object_id: the id of the parent code object, if any.
+
+        Returns:
+            the code object whose constants were instrumented.
         """
         new_consts = []
         for const in code.co_consts:
@@ -86,7 +89,15 @@ class BranchDistanceInstrumentation:
     def _instrument_code_recursive(
         self, code: CodeType, parent_code_object_id: Optional[int] = None,
     ) -> CodeType:
-        """Instrument the given Code Object recursively."""
+        """Instrument the given Code Object recursively.
+
+        Args:
+            code: The code object that should be instrumented
+            parent_code_object_id: The ID of the optional parent code object
+
+        Returns:
+            The instrumented code object
+        """
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
         cdg = ControlDependenceGraph.compute(cfg)
@@ -110,8 +121,10 @@ class BranchDistanceInstrumentation:
 
     def _instrument_cfg(self, cfg: CFG, code_object_id: int) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
-        :param cfg: The CFG that overlays the bytecode cfg.
-        :param code_object_id: The id of the code object which contains this CFG.
+
+        Args:
+            cfg: The CFG that overlays the bytecode cfg.
+            code_object_id: The id of the code object which contains this CFG.
         """
         # Required to transform for loops.
         dominator_tree = DominatorTree.compute(cfg)
@@ -132,14 +145,18 @@ class BranchDistanceInstrumentation:
         dominator_tree: DominatorTree,
         node: ProgramGraphNode,
     ) -> Optional[int]:
-        """
-        Instrument a single node in the CFG.
+        """Instrument a single node in the CFG.
+
         Currently we only instrument conditional jumps and for loops.
-        :param cfg: The containing CFG.
-        :param code_object_id: The containing Code Object
-        :param dominator_tree: The dominator tree of the CFG
-        :param node: The node that should be instrumented.
-        :return: A predicate id, if the contained a predicate which was instrumented.
+
+        Args:
+            cfg: The containing CFG.
+            code_object_id: The containing Code Object
+            dominator_tree: The dominator tree of the CFG
+            node: The node that should be instrumented.
+
+        Returns:
+            A predicate id, if the contained a predicate which was instrumented.
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
@@ -166,14 +183,19 @@ class BranchDistanceInstrumentation:
     def _instrument_cond_jump(
         self, code_object_id: int, maybe_compare: Optional[Instr], block: BasicBlock
     ) -> int:
-        """
-        Instrument a conditional jump. If it is based on a prior comparision, we track
+        """Instrument a conditional jump.
+
+        If it is based on a prior comparision, we track
         the compared values, otherwise we just track the truthiness of the value on top
         of the stack.
-        :param code_object_id: The id of the containing Code Object.
-        :param maybe_compare: The comparision operation, if any.
-        :param block: The containing basic block.
-        :return: The id that was assigned to the predicate.
+
+        Args:
+            code_object_id: The id of the containing Code Object.
+            maybe_compare: The comparision operation, if any.
+            block: The containing basic block.
+
+        Returns:
+            The id that was assigned to the predicate.
         """
         if (
             maybe_compare is not None
@@ -190,11 +212,17 @@ class BranchDistanceInstrumentation:
     def _instrument_bool_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int
     ) -> int:
-        """We add a call to the tracer which reports the value on which the conditional
+        """Instrument boolean-based conditional jumps.
+
+        We add a call to the tracer which reports the value on which the conditional
         jump will be based.
-        :param block: The containing basic block.
-        :param code_object_id: The id of the containing Code Object.
-        :return: The id assigned to the predicate.
+
+        Args:
+            block: The containing basic block.
+            code_object_id: The id of the containing Code Object.
+
+        Returns:
+            The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
@@ -222,11 +250,17 @@ class BranchDistanceInstrumentation:
     def _instrument_compare_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int
     ) -> int:
-        """We add a call to the tracer which reports the values that will be used
+        """Instrument compare-based conditional jumps.
+
+        We add a call to the tracer which reports the values that will be used
         in the following comparision operation on which the conditional jump is based.
-        :param block: The containing basic block.
-        :param code_object_id: The id of the containing Code Object.
-        :return: The id assigned to the predicate.
+
+        Args:
+            block: The containing basic block.
+            code_object_id: The id of the containing Code Object.
+
+        Returns:
+            The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
@@ -256,10 +290,11 @@ class BranchDistanceInstrumentation:
     def _add_code_object_executed(self, block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
-        :param block: The entry basic block of a code object, i.e. the first basic block.
-        :param code_object_id: The id that the tracer has assigned to the code object
-        which contains the given basic block.
-        :return:
+
+        Args:
+            block: The entry basic block of a code object, i.e. the first basic block.
+            code_object_id: The id that the tracer has assigned to the code object
+                which contains the given basic block.
         """
         # Use line number of first instruction
         lineno = block[0].lineno
@@ -277,7 +312,14 @@ class BranchDistanceInstrumentation:
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
-        """Instrument the given code object of a module."""
+        """Instrument the given code object of a module.
+
+        Args:
+            module_code: The code objects of the module
+
+        Returns:
+            The instrumented code objects of the module
+        """
         for const in module_code.co_consts:
             if isinstance(const, ExecutionTracer):
                 # Abort instrumentation, since we have already
@@ -308,8 +350,8 @@ class BranchDistanceInstrumentation:
         The third block acts as the new internal header of the for loop. It consists
         of a copy of the original "FOR_ITER" instruction of the loop.
 
-        The original loop header is changed such that it either falls through to the first
-        block or jumps to the second, if no element is yielded.
+        The original loop header is changed such that it either falls through to the
+        first block or jumps to the second, if no element is yielded.
 
         Since Python is a structured programming language, there can be no jumps
         directly into the loop that bypass the loop header (e.g., GOTO).
@@ -319,11 +361,14 @@ class BranchDistanceInstrumentation:
         to be redirected to the new internal header (3rd new block).
         We use a dominator tree to find and redirect the jumps of such instructions.
 
-        :param cfg: The CFG that contains the loop
-        :param dominator_tree: The dominator tree of the given CFG.
-        :param node: The node which contains the header of the for loop.
-        :param code_object_id: The id of the containing Code Object.
-        :return:
+        Args:
+            cfg: The CFG that contains the loop
+            dominator_tree: The dominator tree of the given CFG.
+            node: The node which contains the header of the for loop.
+            code_object_id: The id of the containing Code Object.
+
+        Returns:
+            The ID of the instrumented predicate
         """
         assert node.basic_block is not None, "Basic block of for loop cannot be None."
         for_instr = node.basic_block[self._JUMP_OP_POS]
@@ -389,9 +434,18 @@ class BranchDistanceInstrumentation:
     def _create_consecutive_blocks(
         bytecode_cfg: ControlFlowGraph, first: BasicBlock, amount: int
     ) -> Tuple[BasicBlock, ...]:
-        """Split the given basic block into more blocks, which are
-        consecutive in the list of basic blocks.
-        :param amount: The amount of consecutive blocks that should be created."""
+        """Split the given basic block into more blocks.
+
+        The blocks are consecutive in the list of basic blocks.
+
+        Args:
+            bytecode_cfg: The control-flow graph
+            first: The first basic block
+            amount: The amount of consecutive blocks that should be created.
+
+        Returns:
+            A tuple of consecutive basic blocks
+        """
         assert amount > 0, "Amount of created basic blocks must be positive."
         current: BasicBlock = first
         nodes: List[BasicBlock] = []

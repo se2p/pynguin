@@ -20,14 +20,13 @@ import sys
 from typing import Any, Dict, Iterable, List, Optional
 
 import astor
+import pynguin.configuration as config
+import pynguin.testcase.execution.executioncontext as ctx
+import pynguin.testcase.testcase as tc
 from monkeytype.config import DefaultConfig
 from monkeytype.db.base import CallTraceStore, CallTraceThunk
 from monkeytype.encoding import CallTraceRow, serialize_traces
 from monkeytype.tracing import CallTrace, CallTraceLogger, CallTracer
-
-import pynguin.configuration as config
-import pynguin.testcase.execution.executioncontext as ctx
-import pynguin.testcase.testcase as tc
 
 
 class _MonkeyTypeCallTraceStore(CallTraceStore):
@@ -78,7 +77,11 @@ class _MonkeyTypeCallTraceLogger(CallTraceLogger):
 
     @property
     def traces(self) -> List[CallTrace]:
-        """Provides the collected traces"""
+        """Provides the collected traces
+
+        Returns:
+            The list of collected traces
+        """
         return self._traces
 
 
@@ -107,7 +110,14 @@ class MonkeyTypeExecutor:
         self._call_traces: List[CallTrace] = []
 
     def execute(self, test_cases: List[tc.TestCase]) -> List[CallTrace]:
-        """Execute the given test cases."""
+        """Execute the given test cases.
+
+        Args:
+            test_cases: A list of test cases to execute
+
+        Returns:
+            A list of call traces of the results
+        """
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 for test_case in test_cases:

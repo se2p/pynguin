@@ -29,7 +29,11 @@ class ExecutionContext:
     the AST representation of the statements that should be executed."""
 
     def __init__(self, test_case: tc.TestCase) -> None:
-        """Create new execution context for the given test case."""
+        """Create new execution context for the given test case.
+
+        Args:
+            test_case: the executed test case
+        """
         self._local_namespace: Dict[str, Any] = dict()
         self._variable_names = NamingScope()
         self._modules_aliases = NamingScope(prefix="module")
@@ -40,16 +44,28 @@ class ExecutionContext:
 
     @property
     def local_namespace(self) -> Dict[str, Any]:
-        """The local namespace."""
+        """The local namespace.
+
+        Returns:
+            The local namespace
+        """
         return self._local_namespace
 
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:
-        """The global namespace."""
+        """The global namespace.
+
+        Returns:
+            The global namespace
+        """
         return self._global_namespace
 
     def executable_nodes(self) -> Iterator[ast.Module]:
-        """An iterator that generates executable nodes on demand"""
+        """An iterator that generates executable nodes on demand
+
+        Yields:
+            An iterator over the executable AST nodes
+        """
         for node in self._ast_nodes:
             yield ExecutionContext._wrap_node_in_module(node)
 
@@ -61,10 +77,13 @@ class ExecutionContext:
     ) -> List[ast.stmt]:
         """Transforms the given test case into a list of ast nodes.
 
-        :param test_case: The current test case
-        :param variable_names: The scope of the variable names
-        :param modules_aliases: The cope of the module alias names
-        :return: A list of ast nodes
+        Args:
+            test_case: The current test case
+            variable_names: The scope of the variable names
+            modules_aliases: The cope of the module alias names
+
+        Returns:
+            A list of ast nodes
         """
         visitor = stmt_to_ast.StatementToAstVisitor(modules_aliases, variable_names)
         for statement in test_case.statements:
@@ -75,8 +94,11 @@ class ExecutionContext:
     def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
         """Wraps the given node in a module, such that it can be executed.
 
-        :param node: The node to wrap
-        :return: The module wrapping the node
+        Args:
+            node: The node to wrap
+
+        Returns:
+            The module wrapping the node
         """
         ast.fix_missing_locations(node)
         wrapper = ast.parse("")
@@ -89,8 +111,11 @@ class ExecutionContext:
     ) -> Dict[str, ModuleType]:
         """Provides the required modules under the given aliases.
 
-        :param modules_aliases: The module aliases
-        :return: A dictionary of module aliases and the corresponding module
+        Args:
+            modules_aliases: The module aliases
+
+        Returns:
+            A dictionary of module aliases and the corresponding module
         """
         global_namespace: Dict[str, ModuleType] = {}
         for required_module in modules_aliases.known_name_indices:

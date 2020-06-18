@@ -18,9 +18,8 @@ from __future__ import annotations
 import sys
 from typing import Dict, List, Tuple, cast
 
-from bytecode import Bytecode, ControlFlowGraph
-
 import pynguin.analyses.controlflow.programgraph as pg
+from bytecode import Bytecode, ControlFlowGraph
 
 
 class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
@@ -31,7 +30,10 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
 
     def __init__(self, bytecode_cfg: ControlFlowGraph):
         """Create new CFG. Do not call directly, use static factory methods.
-        :param bytecode_cfg the control flow graph of the underlying bytecode."""
+
+        Args:
+            bytecode_cfg: the control flow graph of the underlying bytecode.
+        """
         super().__init__()
         self._bytecode_cfg = bytecode_cfg
 
@@ -52,8 +54,11 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         can easily distinguish them from the normal nodes in the graph by checking for
         their index-property's value.
 
-        :param bytecode: The bytecode segment
-        :return: The control-flow graph for the segment
+        Args:
+            bytecode: The bytecode segment
+
+        Returns:
+            The control-flow graph for the segment
         """
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         cfg = CFG(blocks)
@@ -74,7 +79,11 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
 
     def bytecode_cfg(self) -> ControlFlowGraph:
         """Provide the raw control flow graph from the code object.
-        Can be used to instrument the control flow."""
+        Can be used to instrument the control flow.
+
+        Returns:
+            The raw control-flow graph from the code object
+        """
         return self._bytecode_cfg
 
     @staticmethod
@@ -82,8 +91,11 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         """Reverses a control-flow graph, i.e., entry nodes become exit nodes and
         vice versa.
 
-        :param cfg: The control-flow graph to reverse
-        :return: The reversed control-flow graph
+        Args:
+            cfg: The control-flow graph to reverse
+
+        Returns:
+            The reversed control-flow graph
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
         # pylint: disable=attribute-defined-outside-init
@@ -93,7 +105,8 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def reversed(self) -> CFG:
         """Provides the reversed graph of this graph.
 
-        :return: The reversed graph
+        Returns:
+            The reversed graph
         """
         return CFG.reverse(self)
 
@@ -101,8 +114,11 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def copy_graph(cfg: CFG) -> CFG:
         """Provides a copy of the control-flow graph.
 
-        :param cfg: The original graph
-        :return: The copied graph
+        Args:
+            cfg: The original graph
+
+        Returns:
+            The copied graph
         """
         copy = CFG(
             ControlFlowGraph()
@@ -114,7 +130,8 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def copy(self) -> CFG:
         """Provides a copy of the control-flow graph.
 
-        :return: The copied graph
+        Returns:
+            The copied graph
         """
         return CFG.copy_graph(self)
 
@@ -194,6 +211,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def cyclomatic_complexity(self) -> int:
         """Calculates McCabe's cyclomatic complexity for this control-flow graph
 
-        :return: McCabe's cyclocmatic complexity number
+        Returns:
+            McCabe's cyclocmatic complexity number
         """
         return len(self._graph.edges) - len(self._graph.nodes) + 2

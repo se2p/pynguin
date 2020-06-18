@@ -36,17 +36,29 @@ class ProgramGraphNode:
 
     @property
     def index(self) -> int:
-        """Provides the index of the node."""
+        """Provides the index of the node.
+
+        Returns:
+            The index of the node
+        """
         return self._index
 
     @property
     def basic_block(self) -> Optional[BasicBlock]:
-        """Provides the basic block attached to this node."""
+        """Provides the basic block attached to this node.
+
+        Returns:
+            The optional basic block attached to this node
+        """
         return self._basic_block
 
     @property
     def is_artificial(self) -> bool:
-        """Whether or not a node is artificially inserted into the graph."""
+        """Whether or not a node is artificially inserted into the graph.
+
+        Returns:
+            Whether or not a node is artificially inserted into the graph
+        """
         return self._is_artificial
 
     def __eq__(self, other: Any) -> bool:
@@ -82,25 +94,30 @@ class ProgramGraph(Generic[N]):
     def add_node(self, node: N, **attr: Any) -> None:
         """Add a node to the graph
 
-        :param node: The node
-        :param attr: A dict of attributes that will be attached to the node
+        Args:
+            node: The node
+            attr: A dict of attributes that will be attached to the node
         """
         self._graph.add_node(node, **attr)
 
     def add_edge(self, start: N, end: N, **attr: Any) -> None:
-        """Add an edge between two nodes to the graph.
+        """Add an edge between two nodes to the graph
 
-        :param start: The start node of the edge
-        :param end: The end node of the edge
-        :param attr: A dict of attributes that will be attached to the edge
+        Args:
+            start: The start node of the edge
+            end: The end node of the edge
+            attr: A dict of attributes that will be attached to the edge.
         """
         self._graph.add_edge(start, end, **attr)
 
     def get_predecessors(self, node: N) -> Set[N]:
         """Provides a set of all direct predecessors of a node.
 
-        :param node: The node to start
-        :return: A set of direct predecessors of the node
+        Args:
+            node: The node to start
+
+        Returns:
+            A set of direct predecessors of the node
         """
         predecessors: Set[N] = set()
         for predecessor in self._graph.predecessors(node):
@@ -110,8 +127,11 @@ class ProgramGraph(Generic[N]):
     def get_successors(self, node: N) -> Set[N]:
         """Provides a set of all direct successors of a node.
 
-        :param node: The node to start
-        :return: A set of direct successors of the node
+        Args:
+            node: The node to start
+
+        Returns:
+            A set of direct successors of the node
         """
         successors: Set[N] = set()
         for successor in self._graph.successors(node):
@@ -120,7 +140,11 @@ class ProgramGraph(Generic[N]):
 
     @property
     def nodes(self) -> Set[N]:
-        """Provides all nodes in the graph."""
+        """Provides all nodes in the graph.
+
+        Returns:
+            The set of all nodes in the graph
+        """
         return {
             node
             for node in self._graph.nodes  # pylint: disable=unnecessary-comprehension
@@ -128,12 +152,20 @@ class ProgramGraph(Generic[N]):
 
     @property
     def graph(self) -> nx.DiGraph:
-        """The internal graph."""
+        """The internal graph.
+
+        Returns:
+            The internal graph
+        """
         return self._graph
 
     @property
     def entry_node(self) -> Optional[N]:
-        """Provides the entry node of the graph."""
+        """Provides the entry node of the graph.
+
+        Returns:
+            The entry node of the graph
+        """
         for node in self._graph.nodes:
             if len(self.get_predecessors(node)) == 0:
                 return node
@@ -141,7 +173,11 @@ class ProgramGraph(Generic[N]):
 
     @property
     def exit_nodes(self) -> Set[N]:
-        """Provides the exit nodes of the graph."""
+        """Provides the exit nodes of the graph.
+
+        Returns:
+            The set of exit nodes of the graph
+        """
         exit_nodes: Set[N] = set()
         for node in self._graph.nodes:
             if len(self.get_successors(node)) == 0:
@@ -151,8 +187,11 @@ class ProgramGraph(Generic[N]):
     def get_transitive_successors(self, node: N) -> Set[N]:
         """Calculates the transitive closure (the transitive successors) of a node.
 
-        :param node: The node to start with
-        :return: The transitive closure of the node
+        Args:
+            node: The node to start with
+
+        Returns:
+            The transitive closure of the node
         """
         return self._get_transitive_successors(node, set())
 
@@ -171,16 +210,20 @@ class ProgramGraph(Generic[N]):
 
         Both nodes have to be part of the graph!
 
-        :param first: The first node
-        :param second: The second node
-        :return: The least common ancestor node of the two nodes
+        Args:
+            first: The first node
+            second: The second node
+
+        Returns:
+            The least common ancestor node of the two nodes
         """
         return lowest_common_ancestor(self._graph, first, second)
 
     def to_dot(self) -> str:
         """Provides the DOT representation of this graph.
 
-        :return: The DOT representation of this graph
+        Returns:
+            The DOT representation of this graph
         """
         dot = to_pydot(self._graph)
         return dot.to_string()

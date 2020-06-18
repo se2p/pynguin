@@ -40,7 +40,7 @@ class StaticConstantSeeding:
 
     def __new__(cls) -> StaticConstantSeeding:
         if cls._instance is None:
-            cls._instance = super(StaticConstantSeeding, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._constants = {}
         return cls._instance
 
@@ -73,8 +73,11 @@ class StaticConstantSeeding:
     ) -> Dict[str, Set[Types]]:
         """Collect all constants for a given project.
 
-        :param project_path: The path to the project's root
-        :return: A dict of type to set of constants
+        Args:
+            project_path: The path to the project's root
+
+        Returns:
+            A dict of type to set of constants
         """
         assert self._constants is not None
         collector = _ConstantCollector()
@@ -90,17 +93,29 @@ class StaticConstantSeeding:
 
     @property
     def has_strings(self) -> bool:
-        """Whether or not we have some strings collected."""
+        """Whether or not we have some strings collected.
+
+        Returns:
+            Whether or not we have some strings collected
+        """
         return self._has_constants("str")
 
     @property
     def has_ints(self) -> bool:
-        """Whether or not we have some ints collected."""
+        """Whether or not we have some ints collected.
+
+        Returns:
+            Whether or not we have some ints collected
+        """
         return self._has_constants("int")
 
     @property
     def has_floats(self) -> bool:
-        """Whether or not we have some floats collected."""
+        """Whether or not we have some floats collected.
+
+        Returns:
+            Whether or not we have some floats collected
+        """
         return self._has_constants("float")
 
     def _has_constants(self, type_: str) -> bool:
@@ -109,17 +124,29 @@ class StaticConstantSeeding:
 
     @property
     def random_string(self) -> str:
-        """Provides a random string from the set of collected strings."""
+        """Provides a random string from the set of collected strings.
+
+        Returns:
+            A random string
+        """
         return cast(str, self._random_element("str"))
 
     @property
     def random_int(self) -> int:
-        """Provides a random int from the set of collected ints."""
+        """Provides a random int from the set of collected ints.
+
+        Returns:
+            A random int
+        """
         return cast(int, self._random_element("int"))
 
     @property
     def random_float(self) -> float:
-        """Provides a random float from the set of collected floats."""
+        """Provides a random float from the set of collected floats.
+
+        Returns:
+            A random float
+        """
         return cast(float, self._random_element("float"))
 
     def _random_element(self, type_: str) -> Types:
@@ -164,7 +191,11 @@ class _ConstantCollector(ast.NodeVisitor):
 
     @property
     def constants(self) -> Dict[str, Set[Types]]:
-        """Provides the collected constants."""
+        """Provides the collected constants.
+
+        Returns:
+            The collected constants
+        """
         self._remove_docstrings()
         return self._constants
 

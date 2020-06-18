@@ -22,7 +22,6 @@ import sys
 from typing import List
 
 import simple_parsing
-
 from pynguin import Configuration, __version__
 from pynguin.generator import Pynguin
 
@@ -59,9 +58,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
 def main(argv: List[str] = None) -> int:
     """Entry point of the Pynguin automatic unit test generation framework.
 
-    :arg: argv List of command-line arguments
-    :return: An integer representing the success of the program run.  0 means
-    success, all non-zero exit codes indicate errors.
+    Args:
+        argv: List of command-line arguments
+
+    Returns:
+        An integer representing the success of the program run.  0 means
+        success, all non-zero exit codes indicate errors.
     """
     if argv is None:
         argv = sys.argv

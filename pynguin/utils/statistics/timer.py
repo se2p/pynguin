@@ -40,7 +40,11 @@ class Timer(ContextDecorator):
     last: float = field(default=math.nan, init=False, repr=False)
 
     def start(self) -> None:
-        """Start a new timer."""
+        """Start a new timer.
+
+        Raises:
+            TimerError: in case a timer is already running
+        """
         if self._start_time is not None:
             raise TimerError("Timer is running.  Use .stop() to stop it")
         self._start_time = time.perf_counter()
@@ -48,7 +52,11 @@ class Timer(ContextDecorator):
     def stop(self) -> float:
         """Stop the timer and report the elapsed time.
 
-        :return: The elapsed time
+        Returns:
+            The elapsed time
+
+        Raises:
+            TimerError: in case no timer is running
         """
         if self._start_time is None:
             raise TimerError("Timer is not running.  Use .start() to start it")
@@ -61,10 +69,18 @@ class Timer(ContextDecorator):
         return self.last
 
     def __enter__(self) -> Timer:
-        """Start a new timer as a context manager."""
+        """Start a new timer as a context manager.
+
+        Returns:
+            The timer in the context
+        """
         self.start()
         return self
 
     def __exit__(self, *exc_info: Any) -> None:
-        """Stop the context manager timer"""
+        """Stop the context manager timer
+
+        Args:
+            exc_info: any execution information
+        """
         self.stop()

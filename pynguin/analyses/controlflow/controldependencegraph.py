@@ -32,8 +32,11 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
     def compute(graph: cfg.CFG) -> ControlDependenceGraph:
         """Computes the control-dependence graph for a given control-flow graph.
 
-        :param graph: The control-flow graph
-        :return: The control-dependence graph
+        Args:
+            graph: The control-flow graph
+
+        Returns:
+            The control-dependence graph
         """
         augmented_cfg = ControlDependenceGraph._create_augmented_graph(graph)
         post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(

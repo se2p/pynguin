@@ -34,33 +34,41 @@ class VariableReference(metaclass=ABCMeta):
 
     @abstractmethod
     def clone(self, new_test_case: tc.TestCase, offset: int = 0) -> VariableReference:
-        """
-        This method is essential for the whole variable references to work while cloning.
+        """This method is essential for the whole variable references to work while
+        cloning.
+
         'self' must not be cloned. Instead we have to look for the
         corresponding variable reference in the new test case.
         Actual cloning is only performed on statement level.
-        :param new_test_case: the new test case in which we search for the corresponding
-            variable reference.
-        :param offset: Offset must be used when cloning is performed on a test case,
-            which already contains statements, i.e., when appending on test case onto another.
-            The position of the statement which defines the new reference within the new test
-            case will be different, so we have to add the offset when searching for the new
-            reference.
-        :return: The corresponding variable reference of this variable in the new test case.
+
+        Args:
+            new_test_case: the new test case in which we search for the corresponding
+                variable reference.
+            offset: Offset must be used when cloning is performed on a test case,
+                which already contains statements, i.e., when appending on test case
+                onto another. The position of the statement which defines the new
+                reference within the new test case will be different, so we have to add
+                the offset when searching for the new reference.
+
+        Returns:  # noqa: DAR202
+            The corresponding variable reference of this variable in the new test case.
         """
 
     @abstractmethod
     def get_statement_position(self) -> int:
-        """
-        Provides the position of the statement which defines this variable reference
+        """Provides the position of the statement which defines this variable reference
         in the test case.
+
+        Returns:
+            The position  # noqa: DAR202
         """
 
     @property
     def variable_type(self) -> Optional[Type]:
         """Provides the type of this variable.
 
-        :return: The type of this variable
+        Returns:
+            The type of this variable
         """
         return self._variable_type
 
@@ -68,7 +76,8 @@ class VariableReference(metaclass=ABCMeta):
     def variable_type(self, variable_type: Optional[Type]) -> None:
         """Allows to set the type of this variable.
 
-        :param variable_type: The new type of this variable
+        Args:
+            variable_type: The new type of this variable
         """
         self._variable_type = variable_type
 
@@ -76,7 +85,8 @@ class VariableReference(metaclass=ABCMeta):
     def test_case(self) -> tc.TestCase:
         """Provides the test case in which this variable reference is used.
 
-        :return: The containing test case
+        Returns:
+            The containing test case
         """
         return self._test_case
 
@@ -85,7 +95,8 @@ class VariableReference(metaclass=ABCMeta):
         """Distance metric used to select variables for mutation based on how close
         they are to the subject under test.
 
-        :return: The distance value
+        Returns:
+            The distance value
         """
         return self._distance
 
@@ -93,20 +104,33 @@ class VariableReference(metaclass=ABCMeta):
     def distance(self, distance: int) -> None:
         """Set the distance metric.
 
-        :param distance: The new distance value
+        Args:
+            distance: The new distance value
         """
         self._distance = distance
 
     def is_primitive(self) -> bool:
-        """Does this variable reference represent a primitive type."""
+        """Does this variable reference represent a primitive type.
+
+        Returns:
+            True if the variable is a primitive
+        """
         return type_utils.is_primitive_type(self._variable_type)
 
     def is_none_type(self) -> bool:
-        """Is this variable reference of type none, i.e. it does not return anything."""
+        """Is this variable reference of type none, i.e. it does not return anything.
+
+        Returns:
+            True if this variable is a none type
+        """
         return type_utils.is_none_type(self._variable_type)
 
     def is_type_unknown(self) -> bool:
-        """Is the type of this variable unknown?"""
+        """Is the type of this variable unknown?
+
+        Returns:
+            True if this variable has unknown type
+        """
         return is_type_unknown(self._variable_type)
 
     def __repr__(self) -> str:

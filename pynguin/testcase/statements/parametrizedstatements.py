@@ -34,8 +34,8 @@ from pynguin.utils.type_utils import is_assignable_to
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
-    """
-    An abstract statement that has parameters.
+    """An abstract statement that has parameters.
+
     Superclass for e.g., method or constructor statement.
     """
 
@@ -50,9 +50,11 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         """
         Create a new statement with parameters.
 
-        :param test_case: the containing test case.
-        :param args: the positional parameters.
-        :param kwargs: the keyword parameters.
+        Args:
+            test_case: the containing test case.
+            generic_callable: the callable
+            args: the positional parameters.
+            kwargs: the keyword parameters.
         """
         super().__init__(
             test_case,
@@ -64,7 +66,11 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
     @property
     def args(self) -> List[vr.VariableReference]:
-        """The positional parameters used in this statement."""
+        """The positional parameters used in this statement.
+
+        Returns:
+            A list of positional parameters
+        """
         return self._args
 
     @args.setter
@@ -73,7 +79,11 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
     @property
     def kwargs(self) -> Dict[str, vr.VariableReference]:
-        """The keyword parameters used in this statement."""
+        """The keyword parameters used in this statement.
+
+        Returns:
+            The dictionary of keyword parameters
+        """
         return self._kwargs
 
     @kwargs.setter
@@ -98,20 +108,28 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def _clone_args(
         self, new_test_case: tc.TestCase, offset: int = 0
     ) -> List[vr.VariableReference]:
-        """
-        Small helper method, to clone the args into a new test case.
-        :param new_test_case: The new test case in which the params are used.
-        :param offset: Offset when cloning into a non empty test case.
+        """Small helper method, to clone the args into a new test case.
+
+        Args:
+            new_test_case: The new test case in which the params are used.
+            offset: Offset when cloning into a non empty test case.
+
+        Returns:
+            A list of the arguments references
         """
         return [par.clone(new_test_case, offset) for par in self._args]
 
     def _clone_kwargs(
         self, new_test_case: tc.TestCase, offset: int = 0
     ) -> Dict[str, vr.VariableReference]:
-        """
-        Small helper method, to clone the args into a new test case.
-        :param new_test_case: The new test case in which the params are used.
-        :param offset: Offset when cloning into a non empty test case.
+        """Small helper method, to clone the args into a new test case.
+
+        Args:
+            new_test_case: The new test case in which the params are used.
+            offset: Offset when cloning into a non empty test case.
+
+        Returns:
+            A dictionary of key-value argument references
         """
         new_kw_args = {}
         for name, var in self._kwargs.items():
@@ -131,23 +149,34 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return changed
 
     def _mutable_argument_count(self) -> int:
-        """
-        Returns the amount of mutable parameters.
+        """Returns the amount of mutable parameters.
+
+        Returns:
+            The amount of mutable parameters
         """
         return len(self.args) + len(self.kwargs)
 
     # pylint: disable=unused-argument,no-self-use
     def _mutate_special_parameters(self, p_per_param: float) -> bool:
-        """
-        Overwrite this method to mutate any parameter, which is not in arg or kwargs.
+        """Overwrite this method to mutate any parameter, which is not in arg or kwargs.
         e.g., the callee in an instance method call.
+
+        Args:
+            p_per_param: the probability per parameter
+
+        Returns:
+            Whether or not mutation should be applied
         """
         return False
 
     def _mutate_parameters(self, p_per_param: float) -> bool:
-        """
-        Mutates args and kwargs with the given probability.
-        :param p_per_param: The probability for one parameter to be mutated.
+        """Mutates args and kwargs with the given probability.
+
+        Args:
+            p_per_param: The probability for one parameter to be mutated.
+
+        Returns:
+            Whether or not mutation changed anything
         """
         changed = False
         for arg in range(len(self.args)):
@@ -159,9 +188,14 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return changed
 
     def _mutate_parameter(self, arg: Union[int, str]) -> bool:
-        """
-        Replace the given parameter with another one that also fits the parameter type.
-        :return True, if the parameter was mutated.
+        """Replace the given parameter with another one that also fits the parameter
+        type.
+
+        Args:
+            arg: the parameter
+
+        Returns:
+            True, if the parameter was mutated.
         """
         to_mutate = self._get_argument(arg)
         param_type = self._get_parameter_type(arg)
@@ -202,10 +236,13 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return True
 
     def _param_count_of_type(self, type_: Optional[Type]) -> int:
-        """
-        Return the number of parameters that have the specified type.
-        :param type_: The type, whose occurrences should be counted.
-        :return: The number of occurrences.
+        """Return the number of parameters that have the specified type.
+
+        Args:
+            type_: The type, whose occurrences should be counted.
+
+        Returns:
+            The number of occurrences.
         """
         count = 0
         if not type_:
@@ -219,7 +256,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return count
 
     def _get_parameter_type(self, arg: Union[int, str]) -> Optional[Type]:
-        """Get the type of the parameter."""
         parameters = self._generic_callable.inferred_signature.parameters
         if isinstance(arg, int):
             # As of Python 3.7, Dictionaries preserve insertion order.
@@ -228,7 +264,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return parameters[arg]
 
     def _get_argument(self, arg: Union[int, str]) -> vr.VariableReference:
-        """Returns the arg or kwarg, depending on the parameter type."""
         if isinstance(arg, int):
             return self.args[arg]
         return self.kwargs[arg]
@@ -236,7 +271,6 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def _replace_argument(
         self, arg: Union[int, str], new_argument: vr.VariableReference
     ):
-        """Replace the arg or kwarg, depending on the parameter type."""
         if isinstance(arg, int):
             self.args[arg] = new_argument
         else:
@@ -277,7 +311,11 @@ class ConstructorStatement(ParametrizedStatement):
         visitor.visit_constructor_statement(self)
 
     def accessible_object(self) -> GenericConstructor:
-        """The used constructor."""
+        """The used constructor.
+
+        Returns:
+            The used constructor
+        """
         return cast(GenericConstructor, self._generic_callable)
 
     def __repr__(self) -> str:
@@ -302,12 +340,14 @@ class MethodStatement(ParametrizedStatement):
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
     ):
-        """
-        Create new method statement.
-        :param test_case: The containing test case
-        :param callee: the object on which the method is called
-        :param args: the positional arguments
-        :param kwargs: the keyword arguments
+        """Create new method statement.
+
+        Args:
+            test_case: The containing test case
+            generic_callable: The generic callable method
+            callee: the object on which the method is called
+            args: the positional arguments
+            kwargs: the keyword arguments
         """
         super().__init__(
             test_case, generic_callable, args, kwargs,
@@ -315,7 +355,11 @@ class MethodStatement(ParametrizedStatement):
         self._callee = callee
 
     def accessible_object(self) -> GenericMethod:
-        """The used method."""
+        """The used method.
+
+        Returns:
+            The used method
+        """
         return cast(GenericMethod, self._generic_callable)
 
     def _mutable_argument_count(self) -> int:
@@ -348,12 +392,20 @@ class MethodStatement(ParametrizedStatement):
 
     @property
     def callee(self) -> vr.VariableReference:
-        """Provides the variable on which the method is invoked."""
+        """Provides the variable on which the method is invoked.
+
+        Returns:
+            The variable on which the method is invoked
+        """
         return self._callee
 
     @callee.setter
     def callee(self, new_callee: vr.VariableReference) -> None:
-        """Set new callee on which the method is invoked."""
+        """Set new callee on which the method is invoked.
+
+        Args:
+            new_callee: Sets a new callee
+        """
         self._callee = new_callee
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
@@ -386,7 +438,11 @@ class FunctionStatement(ParametrizedStatement):
     """A statement that calls a function."""
 
     def accessible_object(self) -> GenericFunction:
-        """The used function."""
+        """The used function.
+
+        Returns:
+            The used function
+        """
         return cast(GenericFunction, self._generic_callable)
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:

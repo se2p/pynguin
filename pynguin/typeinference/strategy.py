@@ -55,8 +55,9 @@ class InferredSignature:
     ) -> None:
         """Updates the type of one parameter.
 
-        :param parameter_name: The name of the parameter
-        :param parameter_type: The new type of the parameter
+        Args:
+            parameter_name: The name of the parameter
+            parameter_type: The new type of the parameter
         """
         assert parameter_name in self.parameters
         self.parameters[parameter_name] = parameter_type
@@ -65,7 +66,8 @@ class InferredSignature:
     def update_return_type(self, return_type: Optional[type]) -> None:
         """Updates the return type
 
-        :param return_type: The new return type
+        Args:
+            return_type: The new return type
         """
         self.return_type = return_type
         self._update_signature_return_type(return_type)
@@ -98,6 +100,9 @@ class TypeInferenceStrategy(metaclass=ABCMeta):
     def infer_type_info(self, method: Callable) -> InferredSignature:
         """Infers the type information for a callable.
 
-        :param method: The callable we try to infer type information for
-        :return: A MethodType object with the inference results
+        Args:
+            method: The callable we try to infer type information for
+
+        Returns:
+            A MethodType object with the inference results  # noqa: DAR202
         """

@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import astor
-
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 from pynguin.utils.namingscope import NamingScope
@@ -39,9 +38,12 @@ class AbstractTestExporter(metaclass=ABCMeta):
     ):
         """Exports test cases to an AST module, where each test case is a method.
 
-        :param test_cases: A list of test cases.
-        :param path: Destination file for the exported test case.
-        :return: An AST module that contains the methods for these test cases.
+        Args:
+            test_cases: A list of test cases.
+            path: Destination file for the exported test case.
+
+        Returns:  # noqa: DAR202
+            An AST module that contains the methods for these test cases.
         """
 
     def _transform_to_asts(
@@ -110,8 +112,10 @@ class AbstractTestExporter(metaclass=ABCMeta):
     @staticmethod
     def _save_ast_to_file(path: Union[str, os.PathLike], module: ast.Module) -> None:
         """Saves an AST module to a file.
-        :param path: Destination file
-        :param module: The AST module
+
+        Args:
+            path: Destination file
+            module: The AST module
         """
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)

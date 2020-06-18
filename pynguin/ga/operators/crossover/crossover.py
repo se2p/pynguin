@@ -28,4 +28,9 @@ class CrossOverFunction(Generic[T]):
 
     @abstractmethod
     def cross_over(self, parent1: T, parent2: T):
-        """Perform a crossover between the two parents."""
+        """Perform a crossover between the two parents.
+
+        Args:
+            parent1: The first parent chromosome
+            parent2: The second parent chromosome
+        """

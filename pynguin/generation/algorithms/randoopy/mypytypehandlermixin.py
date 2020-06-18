@@ -21,26 +21,26 @@ from pynguin.setup.testcluster import TestCluster
 
 
 class MyPyTypeHandlerMixin:
-    """A mixin handling the execution of a test case with mypy"""
+    """A mixin handling the execution of a test case with mypy."""
 
     _logger = logging.getLogger(__name__)
 
     def retrieve_test_case_type_info_mypy(
         self, test_case: tc.TestCase, test_cluster: TestCluster
     ) -> None:
-        """
+        """Retrieve type information from a test case using mypy.
 
-        :param test_case:
-        :param test_cluster:
-        :return:
+        Args:
+            test_case: The test case
+            test_cluster: The underlying test cluster
         """
 
     def retrieve_test_suite_type_info_mypy(
         self, test_suite: List[tc.TestCase], test_cluster: TestCluster
     ) -> None:
-        """
+        """Retrieve type information from a test suite using mypy.
 
-        :param test_suite:
-        :param test_cluster:
-        :return:
+        Args:
+            test_suite: The test suite
+            test_cluster: The underlying test cluster
         """

@@ -29,8 +29,16 @@ class RankSelection(SelectionFunction[T]):
 
     def get_index(self, population: List[T]) -> int:
         """Provides an index in the population that is chosen by rank selection.
+
         Make sure that the population is sorted. The fittest chromosomes have to
-        come first."""
+        come first.
+
+        Args:
+            population: A list of chromosomes to select from
+
+        Returns:
+            The index that should be used for selection
+        """
         random_value = randomness.next_float()
         bias = config.INSTANCE.rank_bias
         return int(

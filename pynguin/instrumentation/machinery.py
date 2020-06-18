@@ -37,15 +37,20 @@ class InstrumentationLoader(SourceFileLoader):
 
     def exec_module(self, module):
         self._tracer.reset()
-        super(InstrumentationLoader, self).exec_module(module)
+        super().exec_module(module)
         self._tracer.store_import_trace()
 
     def get_code(self, fullname) -> CodeType:
         """Add instrumentation instructions to the code of the module
-        before it is executed."""
-        to_instrument = cast(
-            CodeType, super(InstrumentationLoader, self).get_code(fullname)
-        )
+        before it is executed.
+
+        Args:
+            fullname: The name of the module
+
+        Returns:
+            The modules code blocks
+        """
+        to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
         # TODO(fk) apply different instrumentations here
         instrumentation = BranchDistanceInstrumentation(self._tracer)
@@ -63,11 +68,13 @@ class InstrumentationFinder(MetaPathFinder):
 
     def __init__(
         self, original_pathfinder, module_to_instrument: str, tracer: ExecutionTracer
-    ):
-        """
-        Wraps the given path finder.
-        :param original_pathfinder: the original pathfinder that is wrapped.
-        :param module_to_instrument: the name of the module, that should be instrumented.
+    ) -> None:
+        """Wraps the given path finder.
+
+        Args:
+            original_pathfinder: the original pathfinder that is wrapped.
+            module_to_instrument: the name of the module, that should be instrumented.
+            tracer: the execution tracer
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
@@ -76,10 +83,19 @@ class InstrumentationFinder(MetaPathFinder):
     def _should_instrument(self, module_name: str):
         return module_name == self._module_to_instrument
 
-    def find_spec(self, fullname, path=None, target=None):
-        """
-        Try to find a spec for the given module.
-        If the original path finder accepts the request, we take the spec and replace the loader.
+    def find_spec(self, fullname: str, path=None, target=None):
+        """Try to find a spec for the given module.
+
+        If the original path finder accepts the request, we take the spec and replace
+        the loader.
+
+        Args:
+            fullname: The full name of the module
+            path: The path
+            target: The target
+
+        Returns:
+            An optional ModuleSpec
         """
         if self._should_instrument(fullname):
             spec: ModuleSpec = self._original_pathfinder.find_spec(
@@ -121,11 +137,17 @@ class ImportHookContextManager:
 def install_import_hook(
     module_to_instrument: str, tracer: ExecutionTracer
 ) -> ImportHookContextManager:
-    """
-    Install the InstrumentationFinder in the meta path.
-    :param module_to_instrument: The module that shall be instrumented.
-    :param tracer: The tracer where the instrumentation should report its data.
-    :return a context manager which can be used to uninstall the hook.
+    """Install the InstrumentationFinder in the meta path.
+
+    Args:
+        module_to_instrument: The module that shall be instrumented.
+        tracer: The tracer where the instrumentation should report its data.
+
+    Returns:
+        a context manager which can be used to uninstall the hook.
+
+    Raises:
+        RuntimeError: In case a PathFinder could not be found
     """
     to_wrap = None
     for finder in sys.meta_path:

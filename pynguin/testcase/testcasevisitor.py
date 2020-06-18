@@ -23,4 +23,8 @@ class TestCaseVisitor(ABC):
 
     @abstractmethod
     def visit_default_test_case(self, test_case) -> None:
-        """Visit a default test case."""
+        """Visit a default test case.
+
+        Args:
+            test_case: The test case
+        """

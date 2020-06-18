@@ -81,7 +81,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         )
         return self.split_chromosomes()
 
-    def evolve(self):
+    def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
         new_generation = []
         new_generation.extend(self.elitism())
@@ -147,16 +147,31 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self._population.sort(key=lambda x: x.get_fitness())
 
     def _get_best_individual(self) -> tsc.TestSuiteChromosome:
-        """Get the currently best individual."""
+        """Get the currently best individual.
+
+        Returns:
+            The best chromosome
+        """
         return self._population[0]
 
     @staticmethod
     def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:
-        """Check if the population is already full."""
+        """Check if the population is already full.
+
+        Args:
+            population: The list of chromosomes, i.e., the population
+
+        Returns:
+            Whether or not the population is already full
+        """
         return len(population) >= config.INSTANCE.population
 
     def elitism(self) -> List[tsc.TestSuiteChromosome]:
-        """Copy best individuals."""
+        """Copy best individuals.
+
+        Returns:
+            A list of the best chromosomes
+        """
         elite = []
         for idx in range(config.INSTANCE.elite):
             elite.append(self._population[idx].clone())
@@ -166,8 +181,13 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self,
     ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
         """Split the chromosome into two chromosomes.
+
         The first one contains the non failing test cases.
-        The second one contains the failing test cases."""
+        The second one contains the failing test cases.
+
+        Returns:
+            A tuple of passing and failing chromosomes
+        """
         best = self._get_best_individual()
         # Make sure all test cases have a cached result.
         best.get_fitness()

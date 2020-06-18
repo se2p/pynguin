@@ -19,8 +19,6 @@ import inspect
 import logging
 from typing import List, Set, Type
 
-from typing_inspect import get_args, is_union_type
-
 import pynguin.configuration as config
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference import typeinference
@@ -42,6 +40,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     should_skip_parameter,
 )
+from typing_inspect import get_args, is_union_type
 
 
 @dataclasses.dataclass(eq=True, frozen=True)
@@ -87,7 +86,11 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         raise ConfigurationException("Invalid type-inference strategy")
 
     def generate_cluster(self) -> TestCluster:
-        """Generate new test cluster from the configured modules."""
+        """Generate new test cluster from the configured modules.
+
+        Returns:
+            The new test cluster
+        """
         self._logger.debug("Generating test cluster")
         self._logger.debug("Analyzing module %s", self._module_name)
         module = importlib.import_module(self._module_name)
@@ -118,7 +121,10 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self, call: GenericCallableAccessibleObject, recursion_level: int
     ) -> None:
         """Add required dependencies.
-        :param call The object whose parameter types should be added as dependencies.
+
+        Args:
+            call: The object whose parameter types should be added as dependencies.
+            recursion_level: The current level of recursion of the search
         """
         self._logger.debug("Find dependencies for %s", call)
         if recursion_level > config.INSTANCE.max_cluster_recursion:
@@ -146,7 +152,12 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
 
     def _add_dependency(self, klass: Type, recursion_level: int, add_to_test: bool):
         """Add constructor/methods/attributes of the given type to the test cluster.
-        :param add_to_test if true, the accessible objects are also added to objects under test.
+
+        Args:
+            klass: The type of the dependency
+            recursion_level: the current recursion level of the search
+            add_to_test: whether the accessible objects are also added to objects
+                under test.
         """
         assert inspect.isclass(klass), "Can only add dependencies for classes."
         if klass in self._analyzed_classes:
@@ -209,7 +220,12 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         accessible_object: GenericCallableAccessibleObject,
     ) -> bool:
         """Should we discard accessible objects that are not fully type hinted?
-        :param accessible_object: the object to check
+
+        Args:
+            accessible_object: the object to check
+
+        Returns:
+            Whether or not the accessible should be discarded
         """
         if config.INSTANCE.guess_unknown_types:
             return False

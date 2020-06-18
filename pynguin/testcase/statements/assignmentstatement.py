@@ -25,9 +25,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 
 
 class AssignmentStatement(stmt.Statement):
-    """
-    A statement that assigns one variable to another.
-    """
+    """A statement that assigns one variable to another."""
 
     def __init__(
         self,
@@ -40,7 +38,11 @@ class AssignmentStatement(stmt.Statement):
 
     @property
     def rhs(self) -> vr.VariableReference:
-        """The variable that is used as the right hand side."""
+        """The variable that is used as the right hand side.
+
+        Returns:
+            The variable used as the right hand side
+        """
         return self._rhs
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:

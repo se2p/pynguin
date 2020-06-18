@@ -77,8 +77,16 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
 
     @staticmethod
     def _compute_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
-        """Computes branch coverage on bytecode instructions
-         which should equal decision coverage on source."""
+        """Computes branch coverage on bytecode instructions which should equal
+        decision coverage on source.
+
+        Args:
+            trace: The execution trace
+            known_data: All known data
+
+        Returns:
+            The computed coverage value
+        """
 
         covered = len(trace.executed_code_objects)
         existing = len(known_data.existing_code_objects)
@@ -104,7 +112,15 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
 
     @staticmethod
     def analyze_traces(results: List[ExecutionResult]) -> Tuple[bool, ExecutionTrace]:
-        """Analyze the given traces."""
+        """Analyze the given traces.
+
+        Args:
+            results: The list of execution results to analyse
+
+        Returns:
+            A tuple that tells whether or not a trace contained an exception and the
+            merged traces.
+        """
         has_exception = False
         merged = ExecutionTrace()
         for result in results:
@@ -118,7 +134,15 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     @staticmethod
     def get_worst_fitness(known_data: KnownData) -> float:
         """Compute the worst possible fitness value.
-        Can be used to penalize time outs."""
+
+        Can be used to penalize time outs.
+
+        Args:
+             known_data: The known data about the executions
+
+        Returns:
+            The worst fitness value
+        """
         return (
             len(known_data.existing_code_objects)
             + len(known_data.existing_predicates) * 2

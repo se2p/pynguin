@@ -19,8 +19,11 @@ import inspect
 def get_members_from_module(module):
     """Returns the members from a module.
 
-    :param module: A module
-    :return: A list of types that are members of the module
+    Args:
+        module: A module
+
+    Returns:
+        A list of types that are members of the module
     """
 
     def filter_members(member):

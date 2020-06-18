@@ -30,10 +30,25 @@ class SelectionFunction(Generic[T]):
 
     @abstractmethod
     def get_index(self, population: List[T]) -> int:
-        """Provide an index within the population."""
+        """Provide an index within the population.
+
+        Args:
+            population: A list of chromosomes, the population
+
+        Returns:
+            The index within the population  # noqa: DAR202
+        """
 
     def select(self, population: List[T], number: int = 1) -> List[T]:
-        """Return N parents."""
+        """Return N parents.
+
+        Args:
+            population: A list of chromosomes, the population
+            number: The index to select
+
+        Returns:
+            A list of chromosomes that was selected
+        """
         offspring: List[T] = []
         for _ in range(number):
             offspring.append(population[self.get_index(population)])
@@ -41,9 +56,18 @@ class SelectionFunction(Generic[T]):
 
     @property
     def maximize(self):
-        """Do we maximize fitness?"""
+        """Do we maximize fitness?
+
+        Returns:
+            Whether or not this is a maximising fitness function
+        """
         return self._maximize
 
     @maximize.setter
     def maximize(self, new_value: bool) -> None:
+        """Sets whether or not this is a maximising fitness function
+
+        Args:
+            new_value: The new value
+        """
         self._maximize = new_value

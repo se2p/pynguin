@@ -43,7 +43,11 @@ class Random(random.Random):
         super().seed(a)
 
     def get_seed(self) -> int:
-        """Provides the used seed for random-number generation."""
+        """Provides the used seed for random-number generation.
+
+        Returns:
+            Provides the used seed
+        """
         assert self._current_seed is not None
         return self._current_seed
 
@@ -53,14 +57,22 @@ RNG.seed()
 
 
 def next_char() -> str:
-    """Create a random printable ascii char."""
+    """Create a random printable ascii char.
+
+    Returns:
+        A random printable ascii char
+    """
     return RNG.choice(string.printable)
 
 
 def next_string(length: int) -> str:
-    """
-    Create a random string consisting of printable and with the given length.
-    :param length: the desired length
+    """Create a random string consisting of printable and with the given length.
+
+    Args:
+        length: the desired length
+
+    Returns:
+        A string of given length
     """
     return "".join(next_char() for _ in range(length))
 
@@ -71,8 +83,12 @@ def next_int(lower_bound=-100, upper_bound=100) -> int:
     If no lower or upper bound is given, the integer is chosen from the interval
     including -100 to excluded 100.
 
-    :param lower_bound: The lower bound for the number selection,
-    :param upper_bound: The upper bound for the number selection, excluded
+    Args:
+        lower_bound: The lower bound for the number selection,
+        upper_bound: The upper bound for the number selection, excluded
+
+    Returns:
+        A random integer from the interval
     """
     return RNG.randrange(lower_bound, upper_bound)
 
@@ -83,17 +99,22 @@ def next_float(lower_bound=0, upper_bound=1) -> float:
     If no lower or upper bound is given, the float is chosen uniformly from the
     interval [0,1].
 
-    :param lower_bound: The lower bound for the number selection
-    :param upper_bound: The upper bound for the number selection
-    :return: A random float number from the interval
+    Args:
+        lower_bound: The lower bound for the number selection
+        upper_bound: The upper bound for the number selection
+
+    Returns:
+        A random float number from the interval
     """
     return RNG.uniform(lower_bound, upper_bound)
 
 
 def next_gaussian() -> float:
-    """
-    Returns the next pseudorandom, Gaussian ("normally") distributed
+    """Returns the next pseudorandom, Gaussian ("normally") distributed
     value with mu 0.0 and sigma 1.0.
+
+    Returns:
+        The next random number
     """
     return RNG.gauss(0, 1)
 
@@ -103,7 +124,10 @@ def choice(sequence: Sequence[Any]) -> Any:
 
     If the sequence is empty, it raises an `IndexError`.
 
-    :param sequence: The non-empty sequence to choose from
-    :return: An randomly selected element of the sequence
+    Args:
+        sequence: The non-empty sequence to choose from
+
+    Returns:
+        An randomly selected element of the sequence
     """
     return RNG.choice(sequence)

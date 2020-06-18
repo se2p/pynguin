@@ -29,42 +29,65 @@ class ExecutionResult:
 
     @property
     def exceptions(self) -> Dict[int, Exception]:
-        """Provide a map of statements indices that threw an exception. """
+        """Provide a map of statements indices that threw an exception.
+
+        Returns:
+             A map of statement indices to their raised exception
+        """
         return self._exceptions
 
     @property
     def execution_trace(self) -> ExecutionTrace:
-        """The trace for this execution."""
+        """The trace for this execution.
+
+        Returns:
+            The execution race
+        """
         assert self._execution_trace, "No trace provided"
         return self._execution_trace
 
     @execution_trace.setter
     def execution_trace(self, trace: ExecutionTrace) -> None:
-        """Set new trace."""
+        """Set new trace.
+
+        Args:
+            trace: The new execution trace
+        """
         self._execution_trace = trace
         self._time_stamp = time.time_ns()
 
     @property
     def time_stamp(self) -> int:
-        """Provides the last update time of this result in nano seconds from epoch."""
+        """Provides the last update time of this result in nano seconds from epoch.
+
+        Returns:
+            The last update time
+        """
         return self._time_stamp
 
     def has_test_exceptions(self) -> bool:
-        """
-        Returns true if any exceptions were thrown during the execution.
+        """Returns true if any exceptions were thrown during the execution.
+
+        Returns:
+            Whether or not the test has exceptions
         """
         return bool(self._exceptions)
 
     def report_new_thrown_exception(self, stmt_idx: int, ex: Exception) -> None:
-        """
-        Report an exception that was thrown during execution
-        :param stmt_idx: the index of the statement, that caused the exception
-        :param ex: the exception
+        """Report an exception that was thrown during execution.
+
+        Args:
+            stmt_idx: the index of the statement, that caused the exception
+            ex: the exception
         """
         self._exceptions[stmt_idx] = ex
 
     def get_first_position_of_thrown_exception(self) -> Optional[int]:
-        """Provide the index of the first thrown exception or None."""
+        """Provide the index of the first thrown exception or None.
+
+        Returns:
+            The index of the first thrown exception, if any
+        """
         if self.has_test_exceptions():
             return min(self._exceptions.keys())
         return None

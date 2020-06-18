@@ -34,7 +34,20 @@ class ExportProvider:
 
     @classmethod
     def get_exporter(cls, wrap_code: bool = False) -> AbstractTestExporter:
-        """Provides an instance of the configured test exporter."""
+        """Provides an instance of the configured test exporter.
+
+        The flag `wrap_code` indicates whether or not the exported code should be
+        wrapped with a `try`-`except`-block.
+
+        Args:
+            wrap_code: Whether or not to wrap the generated code
+
+        Returns:
+            A test-exporter instance
+
+        Raises:
+            Exception: If no appropriate strategy could be found
+        """
         strategy = config.INSTANCE.export_strategy
         if strategy in cls._strategies:
             exp = cls._strategies.get(strategy)

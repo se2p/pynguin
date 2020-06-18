@@ -39,9 +39,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
         """Creates a new transformation visitor that transforms our internal
         statements to Python AST nodes.
 
-        :param module_aliases: A naming scope for module alias names
-        :param variable_names: A naming scope for variable names
-        :param wrap_nodes: If True, wrap the create AST nodes in a try-except block
+        Args:
+            module_aliases: A naming scope for module alias names
+            variable_names: A naming scope for variable names
+            wrap_nodes: If True, wrap the create AST nodes in a try-except block
         """
         self._ast_nodes: List[ast.stmt] = []
         self._variable_names = variable_names
@@ -59,6 +60,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
         except BaseException:
             pass
         ```
+
+        Returns:
+            A list of AST nodes
         """
         if self._wrap_nodes:
             nodes: List[ast.stmt] = [
@@ -200,8 +204,13 @@ class StatementToAstVisitor(sv.StatementVisitor):
         )
 
     def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
-        """
-        Small helper for int and float.
+        """Small helper for int and float.
+
+        Args:
+            stmt: The primitive statement
+
+        Returns:
+            The matching AST statement
         """
         return ast.Assign(
             targets=[self._create_var_name(stmt.return_value, False)],
@@ -209,7 +218,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
         )
 
     def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.Name]:
-        """Creates the positional arguments."""
+        """Creates the positional arguments.
+
+        Args:
+            stmt: The parameterised statement
+
+        Returns:
+            A list of AST statements
+        """
         args = []
         for arg in stmt.args:
             args.append(self._create_var_name(arg, True))
@@ -218,7 +234,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def _create_kw_args(
         self, stmt: param_stmt.ParametrizedStatement
     ) -> List[ast.keyword]:
-        """Creates the keyword arguments."""
+        """Creates the keyword arguments.
+
+        Args:
+            stmt: The parameterised statement
+
+        Returns:
+            A list of AST statements
+        """
         kwargs = []
         for name, value in stmt.kwargs.items():
             kwargs.append(
@@ -227,11 +250,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
         return kwargs
 
     def _create_var_name(self, var: vr.VariableReference, load: bool) -> ast.Name:
-        """
-        Create a name node for the corresponding variable.
-        :param var: the variable reference
-        :param load: load or store?
-        :return: the name node
+        """Create a name node for the corresponding variable.
+
+        Args:
+            var: the variable reference
+            load: load or store?
+
+        Returns:
+            the name node
         """
         return ast.Name(
             id=self._variable_names.get_name(var),
@@ -239,5 +265,12 @@ class StatementToAstVisitor(sv.StatementVisitor):
         )
 
     def _create_module_alias(self, module_name) -> ast.Name:
-        """Create a name node for a module alias."""
+        """Create a name node for a module alias.
+
+        Args:
+            module_name: The name of the module
+
+        Returns:
+            An AST statement
+        """
         return ast.Name(id=self._module_aliases.get_name(module_name), ctx=ast.Load())

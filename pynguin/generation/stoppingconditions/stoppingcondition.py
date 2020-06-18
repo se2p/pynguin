@@ -25,7 +25,8 @@ class StoppingCondition(metaclass=ABCMeta):
     def current_value(self) -> int:
         """Provide how much of the budget we have used.
 
-        :return: The current value of the budget
+        Returns:
+            The current value of the budget
         """
         return self._current_value
 
@@ -33,7 +34,8 @@ class StoppingCondition(metaclass=ABCMeta):
     def current_value(self, value: int) -> None:
         """Forces a specific amount of used budget.  Handle with care!
 
-        :param value: The new amount of used budget for this StoppingCondition
+        Args:
+            value: The new amount of used budget for this StoppingCondition
         """
         self._current_value = value
 
@@ -43,14 +45,16 @@ class StoppingCondition(metaclass=ABCMeta):
 
         Mainly used for `__repr__()` and `__str__()`
 
-        :return: The limit
+        Returns:
+            The limit  # noqa: DAR202
         """
 
     @abstractmethod
     def is_fulfilled(self) -> bool:
         """Returns whether the condition is fulfilled, thus the algorithm should stop
 
-        :return: True if the condition is fulfilled, False otherwise
+        Returns:
+            True if the condition is fulfilled, False otherwise  # noqa: DAR202
         """
 
     @abstractmethod
@@ -61,7 +65,8 @@ class StoppingCondition(metaclass=ABCMeta):
     def set_limit(self, limit: int) -> None:
         """Sets new upper limit of resources.
 
-        :param limit: The new upper limit
+        Args:
+            limit: The new upper limit
         """
 
     @abstractmethod

@@ -20,7 +20,6 @@ import os
 from typing import List
 
 import astor
-
 import pynguin.configuration as config
 import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
@@ -33,20 +32,31 @@ class TestCaseExecutor:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer):
-        """Load the module under test."""
+    def __init__(self, tracer: ExecutionTracer) -> None:
+        """Load the module under test.
+
+        Args:
+            tracer: the execution tracer
+        """
         importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
 
     def get_tracer(self) -> ExecutionTracer:
-        """Provide access to the execution tracer."""
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
         return self._tracer
 
     def execute(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
 
-        :param test_cases: The list of test cases that should be executed.
-        :return: Result of the execution
+        Args:
+            test_cases: The list of test cases that should be executed.
+
+        Returns:
+            Result of the execution
         """
         result = res.ExecutionResult()
         self._tracer.clear_trace()
@@ -77,10 +87,13 @@ class TestCaseExecutor:
                 result.report_new_thrown_exception(idx, err)
                 break
 
-    def _collect_execution_trace(self, result: res.ExecutionResult):
-        """
-        Collect the fitness after each execution.
+    def _collect_execution_trace(self, result: res.ExecutionResult) -> None:
+        """Collect the fitness after each execution.
+
         Also clear the tracking results so far.
+
+        Args:
+            result: The execution result
         """
         result.execution_trace = self._tracer.get_trace()
         self._tracer.clear_trace()

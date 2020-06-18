@@ -17,9 +17,8 @@ import logging
 from typing import Callable, List, Optional, Tuple, Union
 
 import monkeytype.typing as mtt
-from monkeytype.tracing import CallTrace
-
 import pynguin.testcase.testcase as tc
+from monkeytype.tracing import CallTrace
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.typeinference.strategy import InferredSignature
@@ -46,7 +45,8 @@ class MonkeyTypeHandlerMixin:
     def execute_test_case_monkey_type(
         self, test_cases: List[tc.TestCase], test_cluster: TestCluster
     ) -> None:
-        """Handles a list of test cases, i.e., executes them and propagates the results back.
+        """Handles a list of test cases, i.e., executes them and propagates the results
+        back.
 
         The test cases will be executed while MonkeyType is tracking all calls.
         Afterwards, the results, i.e., the tracked types for calls, are collected
@@ -57,8 +57,9 @@ class MonkeyTypeHandlerMixin:
         newly inferred types.  See the documentation of `typing.Union` for details on
         how these `Union`s are handled.
 
-        :param test_cases: The test cases to execute
-        :param test_cluster: The underlying test cluster
+        Args:
+            test_cases: The test cases to execute
+            test_cluster: The underlying test cluster
         """
         with Timer(name="MonkeyType execution", logger=None):
             results = self._monkey_type_executor.execute(test_cases)

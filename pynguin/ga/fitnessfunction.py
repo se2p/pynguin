@@ -30,7 +30,13 @@ class FitnessValues:
     coverage: float
 
     def validate(self) -> List[str]:
-        """Validates the given data. If it is invalid, the returned list contains the violations."""
+        """Validates the given data.
+
+        If it is invalid, the returned list contains the violations.
+
+        Returns:
+            A list of violation strings, otherwise an empty list
+        """
         violations: List[str] = []
         if math.isnan(self.fitness) or math.isinf(self.fitness) or self.fitness < 0:
             violations.append(f"Invalid value of fitness: {self.fitness}")
@@ -51,21 +57,37 @@ class FitnessFunction(metaclass=ABCMeta):
 
     def __init__(self, executor) -> None:
         """Create new fitness function.
-        :param executor: Executor that will be used by the fitness function
-        to execute chromosomes."""
+
+        Args:
+            executor: Executor that will be used by the fitness function to execute
+                chromosomes.
+        """
         self._executor = executor
 
     @abstractmethod
     def compute_fitness_values(self, individual) -> FitnessValues:
         """Calculate the new fitness values.
 
-        :param individual: An individual Chromosome
-        :return: the new fitness values
+        Args:
+            individual: An individual Chromosome
+
+        Returns:
+            the new fitness values  # noqa: DAR202
         """
 
     @staticmethod
     def normalise(value: float) -> float:
-        """Normalise a value"""
+        """Normalise a value.
+
+        Args:
+            value: The value to normalise
+
+        Returns:
+            The normalised value
+
+        Raises:
+            RuntimeError: if the value is negative
+        """
         if value < 0:
             raise RuntimeError("Values to normalise cannot be negative")
         if math.isinf(value):
@@ -76,5 +98,6 @@ class FitnessFunction(metaclass=ABCMeta):
     def is_maximisation_function(self) -> bool:
         """Do we need to maximise or minimise this function?
 
-        :return: A boolean
+        Returns:
+             Whether or not this is a maximisation function  # noqa: DAR202
         """

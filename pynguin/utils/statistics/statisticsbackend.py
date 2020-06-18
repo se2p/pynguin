@@ -40,7 +40,11 @@ class AbstractStatisticsBackend(metaclass=ABCMeta):
 
     @abstractmethod
     def write_data(self, data: Dict[str, OutputVariable]) -> None:
-        """Write the particular statistics values."""
+        """Write the particular statistics values.
+
+        Args:
+            data: the data to write
+        """
 
 
 # pylint: disable=too-few-public-methods
@@ -64,7 +68,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                 if output_file.stat().st_size == 0:  # file is empty, write CSV header
                     csv_writer.writeheader()
                 csv_writer.writerow({k: str(v.value) for k, v in data.items()})
-        except IOError as error:
+        except OSError as error:
             logging.warning("Error while writing statistics: %s", error)
 
     def _get_report_dir(self) -> Path:

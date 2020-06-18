@@ -47,7 +47,8 @@ class DefaultTestCase(tc.TestCase):
 
         Mainly useful for debugging.
 
-        :return: An unique ID representing this test case
+        Returns:
+            An unique ID representing this test case
         """
         return self._id
 
@@ -198,7 +199,11 @@ class DefaultTestCase(tc.TestCase):
 
     def _mutation_insert(self) -> bool:
         """With exponentially decreasing probability, insert statements at
-        random position."""
+        random position.
+
+        Returns:
+            Whether or not the test case was changed
+        """
         changed = False
         alpha = config.INSTANCE.statement_insertion_probability
         exponent = 1
@@ -223,8 +228,13 @@ class DefaultTestCase(tc.TestCase):
 
     def _get_last_mutatable_statement(self) -> Optional[int]:
         """Provides the index of the last mutatable statement.
+
         If there was an exception during the last execution, this includes all statement
-        up to the one that caused the exception (included)."""
+        up to the one that caused the exception (included).
+
+        Returns:
+            The index of the last mutable statement, if any.
+        """
         # We are empty, so there can't be a last mutatable statement.
         if self.size() == 0:
             return None
