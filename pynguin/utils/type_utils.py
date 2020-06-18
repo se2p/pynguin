@@ -20,8 +20,9 @@ import typing
 from inspect import isclass, isfunction
 from typing import Any, Callable, Optional, Type
 
-from pynguin.typeinference.strategy import InferredSignature
 from typing_inspect import get_args, is_union_type
+
+from pynguin.typeinference.strategy import InferredSignature
 
 PRIMITIVES = {int, str, bool, float, complex}
 

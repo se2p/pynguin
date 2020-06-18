@@ -19,6 +19,8 @@ import inspect
 import logging
 from typing import List, Set, Type
 
+from typing_inspect import get_args, is_union_type
+
 import pynguin.configuration as config
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference import typeinference
@@ -40,7 +42,6 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     should_skip_parameter,
 )
-from typing_inspect import get_args, is_union_type
 
 
 @dataclasses.dataclass(eq=True, frozen=True)

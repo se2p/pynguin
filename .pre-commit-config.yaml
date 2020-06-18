@@ -8,13 +8,6 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
 
-  - repo: https://github.com/timothycrosley/isort
-    rev: 4.3.21-2
-    hooks:
-      - id: isort
-        args: [--settings-path, ./pyproject.toml]
-        additional_dependencies: [tomlkit, toml]
-
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.4.1
     hooks:

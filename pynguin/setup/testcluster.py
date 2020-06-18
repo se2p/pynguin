@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Type, cast
 
+from typing_inspect import get_args, is_union_type
+
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import PRIMITIVES
-from typing_inspect import get_args, is_union_type
 
 
 class TestCluster:

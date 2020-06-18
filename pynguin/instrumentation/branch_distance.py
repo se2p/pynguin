@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
+
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree

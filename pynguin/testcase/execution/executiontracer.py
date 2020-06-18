@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
+
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace

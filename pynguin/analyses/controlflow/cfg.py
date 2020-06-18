@@ -18,8 +18,9 @@ from __future__ import annotations
 import sys
 from typing import Dict, List, Tuple, cast
 
-import pynguin.analyses.controlflow.programgraph as pg
 from bytecode import Bytecode, ControlFlowGraph
+
+import pynguin.analyses.controlflow.programgraph as pg
 
 
 class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):

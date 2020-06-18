@@ -17,8 +17,9 @@ import logging
 from typing import Callable, List, Optional, Tuple, Union
 
 import monkeytype.typing as mtt
-import pynguin.testcase.testcase as tc
 from monkeytype.tracing import CallTrace
+
+import pynguin.testcase.testcase as tc
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.monkeytypeexecutor import MonkeyTypeExecutor
 from pynguin.typeinference.strategy import InferredSignature
