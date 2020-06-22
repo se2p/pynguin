@@ -251,7 +251,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.16.2"
+version = "5.16.3"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -274,7 +274,7 @@ description = "File identification library for Python"
 name = "identify"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-version = "1.4.19"
+version = "1.4.20"
 
 [package.extras]
 license = ["editdistance"]
@@ -971,12 +971,12 @@ gitpython = [
     {file = "GitPython-3.1.3.tar.gz", hash = "sha256:e107af4d873daed64648b4f4beb89f89f0cfbe3ef558fc7821ed2331c2f8da1a"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.16.2-py3-none-any.whl", hash = "sha256:0addcdf1b8c2ce4114780f8d03f99fad1335123e17fa2a3b74ee14d9a4b44103"},
-    {file = "hypothesis-5.16.2.tar.gz", hash = "sha256:40a6aec202dfa7bfb90847612177e1aa5e6313b535cc6e1460cd0b917b7b5d14"},
+    {file = "hypothesis-5.16.3-py3-none-any.whl", hash = "sha256:7e8e0b7d412cb758c662dcbdcdc93cb8dccc38a9c67f2cd4bf885ba9f714f8d4"},
+    {file = "hypothesis-5.16.3.tar.gz", hash = "sha256:81f9a033900ea73c7b594173dbce7b9eb39222c04fc6278a6f33cc39c49b144a"},
 ]
 identify = [
-    {file = "identify-1.4.19-py2.py3-none-any.whl", hash = "sha256:781fd3401f5d2b17b22a8b18b493a48d5d948e3330634e82742e23f9c20234ef"},
-    {file = "identify-1.4.19.tar.gz", hash = "sha256:249ebc7e2066d6393d27c1b1be3b70433f824a120b1d8274d362f1eb419e3b52"},
+    {file = "identify-1.4.20-py2.py3-none-any.whl", hash = "sha256:acf0712ab4042642e8f44e9532d95c26fbe60c0ab8b6e5b654dd1bc6512810e0"},
+    {file = "identify-1.4.20.tar.gz", hash = "sha256:b2cd24dece806707e0b50517c1b3bcf3044e0b1cb13a72e7d34aa31c91f2a55a"},
 ]
 idna = [
     {file = "idna-2.9-py2.py3-none-any.whl", hash = "sha256:a068a21ceac8a4d63dbfd964670474107f541babbd2250d61922f029858365fa"},
