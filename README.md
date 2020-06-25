@@ -67,4 +67,4 @@ If you want to use the PyCharm IDE you have to set up a few things:
 ## License
 
 This project is licensed under the terms of the
-[GNU Lesser General Public License](LICENSE).
+[GNU Lesser General Public License](LICENSE.rst).

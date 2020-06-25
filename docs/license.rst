@@ -1,0 +1,4 @@
+License
+=======
+
+.. include:: ../license.rst
