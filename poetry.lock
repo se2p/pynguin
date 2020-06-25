@@ -163,14 +163,6 @@ version = "1.4.1"
 
 [[package]]
 category = "main"
-description = "A backport of the dataclasses module for Python 3.6"
-name = "dataclasses"
-optional = false
-python-versions = "*"
-version = "0.6"
-
-[[package]]
-category = "main"
 description = "Decorators for Humans"
 name = "decorator"
 optional = false
@@ -617,7 +609,7 @@ description = "A tool to automatically upgrade syntax for newer versions."
 name = "pyupgrade"
 optional = false
 python-versions = ">=3.6.1"
-version = "2.6.1"
+version = "2.6.2"
 
 [package.dependencies]
 tokenize-rt = ">=3.2.0"
@@ -693,10 +685,9 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.11.post6"
+version = "0.0.11.post7"
 
 [package.dependencies]
-dataclasses = "*"
 typing-inspect = "*"
 
 [[package]]
@@ -813,7 +804,7 @@ description = "Virtual Python Environment builder"
 name = "virtualenv"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-version = "20.0.24"
+version = "20.0.25"
 
 [package.dependencies]
 appdirs = ">=1.4.3,<2"
@@ -831,7 +822,7 @@ description = "Measures the displayed width of unicode strings in a terminal"
 name = "wcwidth"
 optional = false
 python-versions = "*"
-version = "0.2.4"
+version = "0.2.5"
 
 [[package]]
 category = "dev"
@@ -938,10 +929,6 @@ coverage = [
 darglint = [
     {file = "darglint-1.4.1-py3-none-any.whl", hash = "sha256:929f4127f2e5e5b8150d19eb4ceef424ee1432f747daec6b6ab295649e28abb8"},
     {file = "darglint-1.4.1.tar.gz", hash = "sha256:9147af9e6872e15209f67a70e6c7f16a821e516c0c06495fdb87e60ac0e5865a"},
-]
-dataclasses = [
-    {file = "dataclasses-0.6-py3-none-any.whl", hash = "sha256:454a69d788c7fda44efd71e259be79577822f5e3f53f029a22d08004e951dc9f"},
-    {file = "dataclasses-0.6.tar.gz", hash = "sha256:6988bd2b895eef432d562370bb707d540f32f7360ab13da45340101bc2307d84"},
 ]
 decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
@@ -1114,8 +1101,8 @@ pytest-xdist = [
     {file = "pytest_xdist-1.32.0-py2.py3-none-any.whl", hash = "sha256:ba5ec9fde3410bd9a116ff7e4f26c92e02fa3d27975ef3ad03f330b3d4b54e91"},
 ]
 pyupgrade = [
-    {file = "pyupgrade-2.6.1-py2.py3-none-any.whl", hash = "sha256:d2efb914916307ded302c99f50590899855cc0a13875f8ecfcd832a8b23a428e"},
-    {file = "pyupgrade-2.6.1.tar.gz", hash = "sha256:1d5c872625f9e906d999f4f8975308fc1a2f05ddf22458710f7565288d915e53"},
+    {file = "pyupgrade-2.6.2-py2.py3-none-any.whl", hash = "sha256:ce74bf0968e4d23e2e39df7c9bc2767959bc047bf026c07f922d392a8dbb30d6"},
+    {file = "pyupgrade-2.6.2.tar.gz", hash = "sha256:c54dd88e557f2c452d3418ee0ac1f5e5453f38c0b087532e3e0b2b6d6d100d07"},
 ]
 pyyaml = [
     {file = "PyYAML-5.3.1-cp27-cp27m-win32.whl", hash = "sha256:74809a57b329d6cc0fdccee6318f44b9b8649961fa73144a98735b0aaf029f1f"},
@@ -1166,8 +1153,8 @@ safety = [
     {file = "safety-1.9.0.tar.gz", hash = "sha256:23bf20690d4400edc795836b0c983c2b4cbbb922233108ff925b7dd7750f00c9"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.11.post6-py3-none-any.whl", hash = "sha256:706be92fd8f539ff261a777da8d9fbae387e14d6771f4e548a3412c6223935aa"},
-    {file = "simple_parsing-0.0.11.post6.tar.gz", hash = "sha256:18ee3ed4161fcc153d477d72d5ad93382424b253c5ba77f8f9e6bb5719068a3c"},
+    {file = "simple_parsing-0.0.11.post7-py3-none-any.whl", hash = "sha256:478c2a5c53c2e34fdcc89506b536d8331a1184a058ef503099cc3c73b5ccaa46"},
+    {file = "simple_parsing-0.0.11.post7.tar.gz", hash = "sha256:03186a14ed4b6ecced1c86f9cf252405af796c7d66ff617e9fb716fb5a39f34a"},
 ]
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
@@ -1237,12 +1224,12 @@ urllib3 = [
     {file = "urllib3-1.25.9.tar.gz", hash = "sha256:3018294ebefce6572a474f0604c2021e33b3fd8006ecd11d62107a5d2a963527"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.0.24-py2.py3-none-any.whl", hash = "sha256:1b253c5d0e76afe24c76ce288cdd5dd01ac7deaa55f644998c74e5a799349522"},
-    {file = "virtualenv-20.0.24.tar.gz", hash = "sha256:680011aa2995fb8b7c2bbea7da7afd8dcaf382def7a3e02a1b1fba4b402aa8cf"},
+    {file = "virtualenv-20.0.25-py2.py3-none-any.whl", hash = "sha256:ffffcb3c78a671bb3d590ac3bc67c081ea2188befeeb058870cba13e7f82911b"},
+    {file = "virtualenv-20.0.25.tar.gz", hash = "sha256:f332ba0b2dfbac9f6b1da9f11224f0036b05cdb4df23b228527c2a2d5504aeed"},
 ]
 wcwidth = [
-    {file = "wcwidth-0.2.4-py2.py3-none-any.whl", hash = "sha256:79375666b9954d4a1a10739315816324c3e73110af9d0e102d906fdb0aec009f"},
-    {file = "wcwidth-0.2.4.tar.gz", hash = "sha256:8c6b5b6ee1360b842645f336d9e5d68c55817c26d3050f46b235ef2bc650e48f"},
+    {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
+    {file = "wcwidth-0.2.5.tar.gz", hash = "sha256:c4d647b99872929fdb7bdcaa4fbe7f01413ed3d98077df798530e5b04f116c83"},
 ]
 wrapt = [
     {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
