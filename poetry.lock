@@ -182,6 +182,14 @@ version = "1.4.1"
 
 [[package]]
 category = "main"
+description = "A backport of the dataclasses module for Python 3.6"
+name = "dataclasses"
+optional = false
+python-versions = "*"
+version = "0.6"
+
+[[package]]
+category = "main"
 description = "Decorators for Humans"
 name = "decorator"
 optional = false
@@ -758,9 +766,10 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.11.post9"
+version = "0.0.11.post10"
 
 [package.dependencies]
+dataclasses = "*"
 typing-inspect = "*"
 
 [[package]]
@@ -1137,6 +1146,10 @@ darglint = [
     {file = "darglint-1.4.1-py3-none-any.whl", hash = "sha256:929f4127f2e5e5b8150d19eb4ceef424ee1432f747daec6b6ab295649e28abb8"},
     {file = "darglint-1.4.1.tar.gz", hash = "sha256:9147af9e6872e15209f67a70e6c7f16a821e516c0c06495fdb87e60ac0e5865a"},
 ]
+dataclasses = [
+    {file = "dataclasses-0.6-py3-none-any.whl", hash = "sha256:454a69d788c7fda44efd71e259be79577822f5e3f53f029a22d08004e951dc9f"},
+    {file = "dataclasses-0.6.tar.gz", hash = "sha256:6988bd2b895eef432d562370bb707d540f32f7360ab13da45340101bc2307d84"},
+]
 decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
     {file = "decorator-4.4.2.tar.gz", hash = "sha256:e3a62f0520172440ca0dcc823749319382e377f37f140a0b99ef45fecb84bfe7"},
@@ -1416,8 +1429,8 @@ safety = [
     {file = "safety-1.9.0.tar.gz", hash = "sha256:23bf20690d4400edc795836b0c983c2b4cbbb922233108ff925b7dd7750f00c9"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.11.post9-py3-none-any.whl", hash = "sha256:cbbb815f81d3be2f1ee70a19db02c8fbbf71b6ae309e2b96422a816ff7220ea3"},
-    {file = "simple_parsing-0.0.11.post9.tar.gz", hash = "sha256:43d427fc8d1ffe144aed5a3f5a403afefdff944bce3db4ce93e810500d04c95c"},
+    {file = "simple_parsing-0.0.11.post10-py3-none-any.whl", hash = "sha256:6693e9f67dc0cb3cbf7aed01060c821efdb11445eb76f0ad8b235965672ba9e0"},
+    {file = "simple_parsing-0.0.11.post10.tar.gz", hash = "sha256:e9ad8e09d78a932fdc30f46f49b775da3be84c53a38e9403d7142d8828145689"},
 ]
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
