@@ -67,6 +67,12 @@ pylint:
   script:
     - poetry run pylint pynguin
 
+flake8:
+  stage: build
+  image: python:3.8
+  script:
+    - poetry run flake8 .
+
 darglint:
   stage: build
   image: python:3.8

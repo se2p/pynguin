@@ -121,6 +121,10 @@ mypy:
 pylint:
 	poetry run pylint pynguin
 
+.PHONY: flake8
+flake8:
+	poetry run flake8 .
+
 .PHONY: isort
 isort:
 	poetry run isort
@@ -134,7 +138,7 @@ darglint:
 	poetry run darglint -v 2 pynguin/**/*.py
 
 .PHONY: check
-check: isort black mypy pylint darglint test
+check: isort black mypy flake8 pylint darglint test
 
 .PHONY: lint
 lint: test check-safety check-style
