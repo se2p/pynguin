@@ -153,7 +153,11 @@ class MonkeyTypeHandlerMixin:
 
     @staticmethod
     def _check_for_none(type_: Optional[type]) -> bool:
-        return type_ is None or isinstance(type_, type(None)) or type_ == type(None)
+        return (
+            type_ is None
+            or isinstance(type_, type(None))
+            or type_ == type(None)  # noqa
+        )
 
     def _full_name(self, callable_: Callable) -> str:
         if not hasattr(callable_, "__module__"):

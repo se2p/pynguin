@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 """A module that contains a mix of all possible functions"""
-from tests.fixtures.instrumentation.inherited import SimpleClass, some_function
+from tests.fixtures.instrumentation.inherited import SimpleClass
 
 
 class TestClass(SimpleClass):

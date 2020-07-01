@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import importlib
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, call
 
 import pytest
 

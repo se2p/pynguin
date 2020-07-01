@@ -17,7 +17,6 @@ from monkeytype.encoding import CallTraceRow
 from monkeytype.tracing import CallTrace
 
 import pynguin.configuration as config
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.monkeytypeexecutor import (
     MonkeyTypeExecutor,
     _MonkeyTypeCallTraceLogger,

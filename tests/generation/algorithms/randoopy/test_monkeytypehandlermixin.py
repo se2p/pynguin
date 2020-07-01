@@ -15,7 +15,6 @@
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.monkeytypehandlermixin import (
     MonkeyTypeHandlerMixin,
 )

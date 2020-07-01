@@ -16,11 +16,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
-    WholeSuiteTestStrategy,
-)
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
