@@ -7,6 +7,8 @@ workflow:
 
 stages:
   - build
+  - lint
+  - security
   - test
   - deploy
 
@@ -62,19 +64,19 @@ mypy:
     - poetry run mypy pynguin
 
 pylint:
-  stage: build
+  stage: lint
   image: python:3.8
   script:
     - poetry run pylint pynguin
 
 flake8:
-  stage: build
+  stage: lint
   image: python:3.8
   script:
     - poetry run flake8 .
 
 darglint:
-  stage: build
+  stage: lint
   image: python:3.8
   script:
     - poetry run darglint -v 2 pynguin/**/*.py
@@ -92,13 +94,13 @@ isort:
     - poetry run isort **/*.py -c -v
 
 safety:
-  stage: build
+  stage: security
   image: python:3.8
   script:
     - poetry run safety check --full-report
 
 bandit:
-  stage: build
+  stage: security
   image: python:3.8
   script:
     - poetry run bandit -ll -r pynguin
