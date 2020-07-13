@@ -35,8 +35,8 @@ astor = "^0.8.1"
 simple-parsing = "^0"
 bytecode = "^0"
 monkeytype = "^19.11.2"
-typing_inspect = "^0.5.0"
-jellyfish = "^0.7.2"
+typing_inspect = "^0"
+jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2.4"}
 
 [tool.poetry.dev-dependencies]
