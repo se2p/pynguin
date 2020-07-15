@@ -108,6 +108,16 @@ multi_line_output=3
 include_trailing_comma=true
 indent='    '
 
+[tool.pytest.ini_options]
+minversion = "6.0.0rc1"
+addopts = "--cov=pynguin --cov-branch --cov-report html:cov_html --cov-report=term-missing"
+testpaths = [
+  "tests",
+]
+# A lot of our own classes start with Test so pytest will pick them up during test collection.
+# But they don't actually contains tests, so we set an empty matcher for the class name.
+python_classes = ''
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
