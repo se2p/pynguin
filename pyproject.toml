@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pynguin"
-version = "0.1.0"
+version = "1.0.0"
 description = "An automated Python unit test generation tool"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0+"
@@ -14,13 +14,14 @@ keywords = [
     "search-based test generation",
 ]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
     "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.8",
     "Topic :: Education :: Testing",
