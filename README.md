@@ -15,16 +15,23 @@ test
 geNerator,
 is a tool that allows developers to generate unit tests automatically.
 
-It provides different algorithms to generate sequences that can be used to test your
-code.
-It currently does not generate any assertions though.
+Testing software is a tedious task.
+Thus, automated generation techniques have been proposed and mature tools exist—for
+statically typed languages, such as Java.
+There is, however, no fully-automated tool available that produces unit tests for
+general-purpose programs in a dynamically typed language.
+Pynguin is, to the best of our knowledge, the first tool that fills this gap
+and allows the automated generation of unit tests for Python programs.
+
+Pynguin is developed at the
+[Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
+of the [University of Passau](https://www.uni-passau.de).
 
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
 - You have installed Python 3.8
-- You have a recent Linux/macOS machine.  We have not tested the tool on Windows
-  machines although it might work.
+- You have a recent Linux/macOS/Windows machine.
  
 ## Installing Pynguin
 
@@ -39,7 +46,23 @@ not supported by Pynguin!
 
 ## Using Pynguin
 
-TODO: Write this section!
+Pynguin is a command-line application.
+Once you installed it to a virtual environment, you can invoke the tool by typing
+`pynguin` inside this virtual environment.
+Pynguin will then print a list of its command-line parameters.
+
+A minimal full command line to invoke Pynguin could be the following,
+where we assume that a project `foo` is located in `/tmp/foo`,
+we want to store Pynguin's in `/tmp/testgen`,
+and we want to generate tests using a whole-suite approach for the module `foo.bar`
+(wrapped for better readability):
+```console
+pynguin \
+  --algorithm WSPY \
+  --project_path /tmp/foo \
+  --output_path /tmp/testgen \
+  --module_name foo.bar
+```
 
 ## Contributing to Pynguin
 
