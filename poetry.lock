@@ -283,7 +283,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.19.2"
+version = "5.20.2"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -306,7 +306,7 @@ description = "File identification library for Python"
 name = "identify"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-version = "1.4.23"
+version = "1.4.24"
 
 [package.extras]
 license = ["editdistance"]
@@ -720,7 +720,7 @@ description = "A tool to automatically upgrade syntax for newer versions."
 name = "pyupgrade"
 optional = false
 python-versions = ">=3.6.1"
-version = "2.7.0"
+version = "2.7.1"
 
 [package.dependencies]
 tokenize-rt = ">=3.2.0"
@@ -957,7 +957,7 @@ description = "Manage dynamic plugins for Python applications"
 name = "stevedore"
 optional = false
 python-versions = ">=3.6"
-version = "3.1.0"
+version = "3.2.0"
 
 [package.dependencies]
 pbr = ">=2.0.0,<2.1.0 || >2.1.0"
@@ -1041,7 +1041,7 @@ description = "Virtual Python Environment builder"
 name = "virtualenv"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-version = "20.0.26"
+version = "20.0.27"
 
 [package.dependencies]
 appdirs = ">=1.4.3,<2"
@@ -1207,12 +1207,12 @@ gitpython = [
     {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.19.2-py3-none-any.whl", hash = "sha256:1c49d244580e84f187da8fcdeea85c62e30a10ffc7434fa952b736c15082edbc"},
-    {file = "hypothesis-5.19.2.tar.gz", hash = "sha256:f09da0ee85759662d797cd2a6cb760fa5e4bfc3de141bd08ad08a68982a839bd"},
+    {file = "hypothesis-5.20.2-py3-none-any.whl", hash = "sha256:8f3f74d0c3336bd6027dba15116ae9b1df10157a2f379d5b65120285d2146918"},
+    {file = "hypothesis-5.20.2.tar.gz", hash = "sha256:fd0e249421561751a9250757510d92b107a8e4665d31936b9564cdd3046d7676"},
 ]
 identify = [
-    {file = "identify-1.4.23-py2.py3-none-any.whl", hash = "sha256:882c4b08b4569517b5f2257ecca180e01f38400a17f429f5d0edff55530c41c7"},
-    {file = "identify-1.4.23.tar.gz", hash = "sha256:f89add935982d5bc62913ceee16c9297d8ff14b226e9d3072383a4e38136b656"},
+    {file = "identify-1.4.24-py2.py3-none-any.whl", hash = "sha256:5519601b70c831011fb425ffd214101df7639ba3980f24dc283f7675b19127b3"},
+    {file = "identify-1.4.24.tar.gz", hash = "sha256:06b4373546ae55eaaefdac54f006951dbd968fe2912846c00e565b09cfaed101"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
@@ -1416,8 +1416,8 @@ pytz = [
     {file = "pytz-2020.1.tar.gz", hash = "sha256:c35965d010ce31b23eeb663ed3cc8c906275d6be1a34393a1d73a41febf4a048"},
 ]
 pyupgrade = [
-    {file = "pyupgrade-2.7.0-py2.py3-none-any.whl", hash = "sha256:fe9b607891eaa8e2df4f863a0da37abf1d388d776685e78eaf8e5afe06345d53"},
-    {file = "pyupgrade-2.7.0.tar.gz", hash = "sha256:aaca2f8707b70d3f38da9b795ea77c4fdfacedef3bc117b95dcfdf18230a1010"},
+    {file = "pyupgrade-2.7.1-py2.py3-none-any.whl", hash = "sha256:eb52caf1be4052b78e7689cdc293e99de723a2346b31dd0b590a98f6866ed48a"},
+    {file = "pyupgrade-2.7.1.tar.gz", hash = "sha256:e0c5b664a756617d9e4c8f1556afd197cea524971a8a645fef06e46934e78359"},
 ]
 pyyaml = [
     {file = "PyYAML-5.3.1-cp27-cp27m-win32.whl", hash = "sha256:74809a57b329d6cc0fdccee6318f44b9b8649961fa73144a98735b0aaf029f1f"},
@@ -1450,6 +1450,7 @@ regex = [
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_i686.whl", hash = "sha256:5ea81ea3dbd6767873c611687141ec7b06ed8bab43f68fad5b7be184a920dc99"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:bbb332d45b32df41200380fff14712cb6093b61bd142272a10b16778c418e98e"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:c11d6033115dc4887c456565303f540c44197f4fc1a2bfb192224a301534888e"},
+    {file = "regex-2020.7.14-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:75aaa27aa521a182824d89e5ab0a1d16ca207318a6b65042b046053cfc8ed07a"},
     {file = "regex-2020.7.14-cp38-cp38-win32.whl", hash = "sha256:d6cff2276e502b86a25fd10c2a96973fdb45c7a977dca2138d661417f3728341"},
     {file = "regex-2020.7.14-cp38-cp38-win_amd64.whl", hash = "sha256:7a2dd66d2d4df34fa82c9dc85657c5e019b87932019947faece7983f2089a840"},
     {file = "regex-2020.7.14.tar.gz", hash = "sha256:3a3af27a8d23143c49a3420efe5b3f8cf1a48c6fc8bc6856b03f638abc1833bb"},
@@ -1519,8 +1520,8 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 stevedore = [
-    {file = "stevedore-3.1.0-py3-none-any.whl", hash = "sha256:9fb12884b510fdc25f8a883bb390b8ff82f67863fb360891a33135bcb2ce8c54"},
-    {file = "stevedore-3.1.0.tar.gz", hash = "sha256:79270bd5fb4a052e76932e9fef6e19afa77090c4000f2680eb8c2e887d2e6e36"},
+    {file = "stevedore-3.2.0-py3-none-any.whl", hash = "sha256:c8f4f0ebbc394e52ddf49de8bcc3cf8ad2b4425ebac494106bbc5e3661ac7633"},
+    {file = "stevedore-3.2.0.tar.gz", hash = "sha256:38791aa5bed922b0a844513c5f9ed37774b68edc609e5ab8ab8d8fe0ce4315e5"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
@@ -1574,8 +1575,8 @@ urllib3 = [
     {file = "urllib3-1.25.9.tar.gz", hash = "sha256:3018294ebefce6572a474f0604c2021e33b3fd8006ecd11d62107a5d2a963527"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.0.26-py2.py3-none-any.whl", hash = "sha256:c11a475400e98450403c0364eb3a2d25d42f71cf1493da64390487b666de4324"},
-    {file = "virtualenv-20.0.26.tar.gz", hash = "sha256:e10cc66f40cbda459720dfe1d334c4dc15add0d80f09108224f171006a97a172"},
+    {file = "virtualenv-20.0.27-py2.py3-none-any.whl", hash = "sha256:c51f1ba727d1614ce8fd62457748b469fbedfdab2c7e5dd480c9ae3fbe1233f1"},
+    {file = "virtualenv-20.0.27.tar.gz", hash = "sha256:26cdd725a57fef4c7c22060dba4647ebd8ca377e30d1c1cf547b30a0b79c43b4"},
 ]
 wrapt = [
     {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
