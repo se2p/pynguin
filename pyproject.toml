@@ -111,7 +111,8 @@ indent='    '
 
 [tool.pytest.ini_options]
 minversion = "6.0.0rc1"
-addopts = "--cov=pynguin --cov-branch --cov-report html:cov_html --cov-report=term-missing"
+# Always using Coverage.py disables debugging.
+# addopts = "--cov=pynguin --cov-branch --cov-report html:cov_html --cov-report=term-missing"
 testpaths = [
   "tests",
 ]
