@@ -1,5 +1,5 @@
 SHELL := /usr/bin/env bash
-IMAGE := pynguin
+IMAGE := pynguin/pynguin
 VERSION=$(shell git rev-parse --short HEAD)
 
 ifeq ($(STRICT), 1)
@@ -148,12 +148,20 @@ docker:
 	@echo Building docker $(IMAGE):$(VERSION) ...
 	docker build \
 	  -t $(IMAGE):$(VERSION) . \
-	  -f ./docker/Dockerfile --no-cache
+	  -f ./docker/Dockerfile --no-cache \
+	  && docker tag -f $(IMAGE):$(VERSION) $(IMAGE):latest
+
+.PHONY: docker-publish
+docker-publish: docker
+	@echo Publish docker $(IMAGE):$(VERSION) to Dockerhub ...
+	docker push $(IMAGE):$(VERSION) \
+	  && docker push $(IMAGE):latest
 
 .PHONY: clean_docker
 clean_docker:
 	@echo Removing docker $(IMAGE):$(VERSION) ...
 	docker rmi -f $(IMAGE):$(VERSION)
+	docker rmi -f $(IMAGE):latest
 
 .PHONY: clean_build
 clean_build:
