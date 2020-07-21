@@ -13,23 +13,82 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Pynguin.  If not, see <https://www.gnu.org/licenses/>.
 import argparse
+import importlib
+import logging
 from unittest import mock
+from unittest.mock import MagicMock, call
 
-from pynguin.cli import _create_argument_parser, main
+from pynguin.cli import _create_argument_parser, _setup_logging, main
 
 
 def test_main_empty_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
-        generator_mock.return_value.run.return_value = 0
-        assert main() == 0
+        with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
+            with mock.patch("pynguin.cli._setup_logging"):
+                generator_mock.return_value.run.return_value = 0
+                parser = MagicMock()
+                parser_mock.return_value = parser
+                main()
+                assert len(parser.parse_args.call_args[0][0]) > 0
 
 
 def test_main_with_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
-        generator_mock.return_value.run.return_value = 0
-        assert main(["--help"]) == 0
+        with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
+            with mock.patch("pynguin.cli._setup_logging"):
+                generator_mock.return_value.run.return_value = 0
+                parser = MagicMock()
+                parser_mock.return_value = parser
+                args = ["foo", "--help"]
+                main(args)
+                assert parser.parse_args.call_args == call(args[1:])
 
 
 def test__create_argument_parser():
     parser = _create_argument_parser()
     assert isinstance(parser, argparse.ArgumentParser)
+
+
+def test__setup_logging_standard_with_log_file(tmp_path):
+    logging.shutdown()
+    importlib.reload(logging)
+    _setup_logging(log_file=str(tmp_path / "pynguin-test.log"), verbosity=0)
+    logger = logging.getLogger("")
+    assert isinstance(logger, logging.Logger)
+    assert logger.level == logging.DEBUG
+    assert len(logger.handlers) == 2
+    logging.shutdown()
+    importlib.reload(logging)
+
+
+def test__setup_logging_single_verbose_without_log_file():
+    logging.shutdown()
+    importlib.reload(logging)
+    _setup_logging(1)
+    logger = logging.getLogger("")
+    assert len(logger.handlers) == 1
+    assert logger.handlers[0].level == logging.INFO
+    logging.shutdown()
+    importlib.reload(logging)
+
+
+def test__setup_logging_double_verbose_without_log_file():
+    logging.shutdown()
+    importlib.reload(logging)
+    _setup_logging(2)
+    logger = logging.getLogger("")
+    assert len(logger.handlers) == 1
+    assert logger.handlers[0].level == logging.DEBUG
+    logging.shutdown()
+    importlib.reload(logging)
+
+
+def test__setup_logging_quiet_without_log_file():
+    logging.shutdown()
+    importlib.reload(logging)
+    _setup_logging(-1)
+    logger = logging.getLogger("")
+    assert len(logger.handlers) == 1
+    assert isinstance(logger.handlers[0], logging.NullHandler)
+    logging.shutdown()
+    importlib.reload(logging)

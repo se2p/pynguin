@@ -24,13 +24,12 @@ framework.
 Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
-import argparse
 import enum
 import logging
 import os
 import sys
 import time
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
@@ -79,52 +78,25 @@ class Pynguin:
     can also be used as a library by instantiating this class directly.
     """
 
-    def __init__(
-        self,
-        argument_parser: argparse.ArgumentParser = None,
-        arguments: List[str] = None,
-        configuration: config.Configuration = None,
-        verbosity: int = -1,
-    ) -> None:
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, configuration: config.Configuration) -> None:
         """Initialises the test generator.
 
-        The generator needs a configuration, which can either be provided via the
-        `configuration` parameter or via an argument parser and a list of
-        command-line arguments.  If none of these is present, the generator cannot be
-        initialised and will thus raise a `ConfigurationException`.
+        The generator needs a configuration. If none is present, the generator
+        cannot be initialised and will thus raise a `ConfigurationException`.
 
         Args:
-            argument_parser: An optional argument parser.
-            arguments: An optional list of command-line arguments.
             configuration: An optional pre-generated configuration.
-            verbosity: The verbosity level
 
         Raises:
             ConfigurationException: In case there is no proper configuration
         """
-        if configuration:
-            config.INSTANCE = configuration
-        elif argument_parser and arguments:
-            arguments = self._expand_arguments_if_necessary(arguments)
-            parsed = argument_parser.parse_args(arguments)
-            config.INSTANCE = parsed.config
-            verbosity = parsed.verbosity
-        else:
+        if configuration is None:
             raise ConfigurationException(
                 "Cannot initialise test generator without proper configuration."
             )
-        self._logger = self._setup_logging(verbosity, config.INSTANCE.log_file)
-
-    @staticmethod
-    def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
-        if "--output_variables" not in arguments:
-            return arguments
-        index = arguments.index("--output_variables")
-        if "," not in arguments[index + 1]:
-            return arguments
-        variables = arguments[index + 1].split(",")
-        output = arguments[: index + 1] + variables + arguments[index + 2 :]
-        return output
+        config.INSTANCE = configuration
 
     def run(self) -> int:
         """Run the test generation.
@@ -140,9 +112,6 @@ class Pynguin:
         Raises:
             ConfigurationException: In case the configuration is illegal
         """
-        if not self._logger:
-            raise ConfigurationException()
-
         try:
             self._logger.info("Start Pynguin Test Generation…")
             return self._run()
@@ -380,39 +349,3 @@ class Pynguin:
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
-
-    @staticmethod
-    def _setup_logging(
-        verbosity: int, log_file: Union[str, os.PathLike] = None,
-    ) -> logging.Logger:
-        logger = logging.getLogger("pynguin")
-        logger.setLevel(logging.DEBUG)
-
-        if log_file:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(
-                logging.Formatter(
-                    "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d: "
-                    "%(message)s"
-                )
-            )
-            file_handler.setLevel(logging.DEBUG)
-            logger.addHandler(file_handler)
-
-        if verbosity < 0:
-            logger.addHandler(logging.NullHandler())
-        else:
-            level = logging.WARNING
-            if verbosity == 1:
-                level = logging.INFO
-            if verbosity >= 2:
-                level = logging.DEBUG
-
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(level)
-            console_handler.setFormatter(
-                logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
-            )
-            logger.addHandler(console_handler)
-
-        return logger

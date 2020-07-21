@@ -18,8 +18,10 @@ This module provides the main entry location for the program execution from the 
 line.
 """
 import argparse
+import logging
+import os
 import sys
-from typing import List
+from typing import List, Union
 
 import simple_parsing
 
@@ -43,6 +45,9 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="verbose output (repeat for increased verbosity)",
     )
     parser.add_argument(
+        "--log_file", type=str, default=None, help="Path to store the log file."
+    )
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_const",
@@ -54,6 +59,56 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     parser.add_arguments(Configuration, dest="config")
 
     return parser
+
+
+def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
+    """Hacky way to pass comma separated output variables.
+    Should be eliminated asap."""
+    if "--output_variables" not in arguments:
+        return arguments
+    index = arguments.index("--output_variables")
+    if "," not in arguments[index + 1]:
+        return arguments
+    variables = arguments[index + 1].split(",")
+    output = arguments[: index + 1] + variables + arguments[index + 2 :]
+    return output
+
+
+def _setup_logging(
+    verbosity: int, log_file: Union[str, os.PathLike] = None,
+):
+    # TODO(fk) use logging.basicConfig
+
+    # Configure root logger
+    logger = logging.getLogger("")
+    logger.setLevel(logging.DEBUG)
+
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
+                "%(message)s"
+            )
+        )
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+
+    if verbosity < 0:
+        logger.addHandler(logging.NullHandler())
+    else:
+        level = logging.WARNING
+        if verbosity == 1:
+            level = logging.INFO
+        if verbosity >= 2:
+            level = logging.DEBUG
+
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_handler.setFormatter(
+            logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
+        )
+        logger.addHandler(console_handler)
 
 
 def main(argv: List[str] = None) -> int:
@@ -68,10 +123,13 @@ def main(argv: List[str] = None) -> int:
     """
     if argv is None:
         argv = sys.argv
-    if len(argv) <= 1:
-        argv.append("--help")
-    parser = _create_argument_parser()
-    generator = Pynguin(parser, argv[1:])
+    argv = _expand_arguments_if_necessary(argv[1:])
+
+    argument_parser = _create_argument_parser()
+    parsed = argument_parser.parse_args(argv)
+    _setup_logging(parsed.verbosity, parsed.log_file)
+
+    generator = Pynguin(parsed.config)
     return generator.run()
 
 

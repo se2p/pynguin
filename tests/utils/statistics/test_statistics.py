@@ -24,11 +24,6 @@ def test_singleton():
     assert tracker_1 is tracker_2
 
 
-def test_runtime_variable():
-    variable = RuntimeVariable.TotalTime
-    assert variable.description == "Total time spent by Pynguin to generate tests"
-
-
 def test_tracker():
     tracker = StatisticsTracker()
     value = MagicMock(Timer)

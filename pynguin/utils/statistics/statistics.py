@@ -25,7 +25,7 @@ import pynguin.utils.statistics.statisticsbackend as sb
 
 
 @enum.unique
-class RuntimeVariable(enum.Enum):
+class RuntimeVariable(str, enum.Enum):
     """Defines all runtime variables we want to store in the result CSV files.
 
     A runtime variable is either an output of the generation (e.g., obtained coverage)
@@ -37,78 +37,93 @@ class RuntimeVariable(enum.Enum):
     because this description will become the text in the result.
     """
 
-    TargetModule = (
-        "TargetModule",
-        "The module name for which we currently generate tests",
-    )
-    ConfigurationId = (
-        "ConfigurationId",
-        "An identifier for this configuration for benchmarking",
-    )
-    TotalTime = "TotalTime", "Total time spent by Pynguin to generate tests"
-    AlgorithmIterations = (
-        "AlgorithmIterations",
-        "Number of iterations of the test-generation algorithm",
-    )
-    ExecutionResults = "ExecutionResults", "Execution results"
-    MonkeyTypeExecutions = "MonkeyTypeExecutions", "Number of MonkeyType executions"
-    ParameterTypeUpdates = "ParameterTypeUpdates", "Updated parameter types"
-    ParameterTypeUpdatesSize = (
-        "ParameterTypeUpdatesSize",
-        "Number of updated parameter types",
-    )
-    ReturnTypeUpdates = "ReturnTypeUpdates", "Updated return types"
-    ReturnTypeUpdatesSize = "ReturnTypeUpdatesSize", "Number of updated return types"
-    Coverage = "Coverage", "Obtained coverage of the chosen testing criterion"
-    RandomSeed = (
-        "RandomSeed",
-        "The random seed used during the search. "
-        "A random one was used if none was specified in the beginning",
-    )
-    CoverageTimeline = (
-        "CoverageTimeline",
-        "Obtained coverage (of the chosen testing criterion) at different points in time",
-    )
-    SizeTimeline = "SizeTimeline", "Obtained size values at different points in time"
-    LengthTimeline = (
-        "LengthTimeline",
-        "Obtained length values at different points in time",
-    )
-    FitnessTimeline = (
-        "FitnessTimeline",
-        "Obtained fitness values at different points in time",
-    )
-    TotalExceptionsTimeline = "TotalExceptionsTimeline", "Total number of exceptions"
-    BranchCoverageTimeline = "BranchCoverageTimeline", "Coverage over time"
-    Length = "Length", "Total number of statements in the final test suite"
-    PassingLength = (
-        "PassingLength",
-        "Total number of statements in the final passing test suite",
-    )
-    FailingLength = (
-        "FailingLength",
-        "Total number of statements in the final failing test suite",
-    )
-    Size = "Size", "Number of tests in the resulting test suite"
-    FailingSize = "FailingSize", "Number of tests in the resulting failing test suite"
-    PassingSize = "PassingSize", "Number of tests in the resulting passing test suite"
-    Fitness = "Fitness", "Fitness value of the best individual"
-    CodeObjects = "CodeObjects", "Code Objects in the SUT"
-    Predicates = "Predicates", "Predicates in the bytecode of the SUT"
-    AccessibleObjectsUnderTest = (
-        "AccessibleObjectsUnderTest",
-        "Accessible objects under test (e.g., methods and functions)",
-    )
-    GeneratableTypes = (
-        "GeneratableTypes",
-        "Number of all generatable types, i.e., the types we can generate values for",
-    )
+    # The module name for which we currently generate tests
+    TargetModule = "TargetModule"
 
-    def __new__(cls, name: str, description: str) -> RuntimeVariable:
-        obj = object.__new__(cls)
-        obj._value_ = name
-        obj.description = description
-        return obj
+    # An identifier for this configuration for benchmarking
+    ConfigurationId = "ConfigurationId"
+
+    # Total time spent by Pynguin to generate tests
+    TotalTime = "TotalTime"
+
+    # Number of iterations of the test-generation algorithm
+    AlgorithmIterations = "AlgorithmIterations"
+
+    # Execution results
+    ExecutionResults = "ExecutionResults"
+
+    # Number of MonkeyType executions
+    MonkeyTypeExecutions = "MonkeyTypeExecutions"
+
+    # Updated parameter types
+    ParameterTypeUpdates = "ParameterTypeUpdates"
+
+    # "Number of updated parameter types"
+    ParameterTypeUpdatesSize = "ParameterTypeUpdatesSize"
+
+    # Updated return types
+    ReturnTypeUpdates = "ReturnTypeUpdates"
+
+    # Number of updated return types
+    ReturnTypeUpdatesSize = "ReturnTypeUpdatesSize"
+
+    # Obtained coverage of the chosen testing criterion
+    Coverage = "Coverage"
+
+    # The random seed used during the search.
+    # A random one was used if none was specified in the beginning
+    RandomSeed = "RandomSeed"
+
+    # Obtained coverage (of the chosen testing criterion) at different points in time
+    CoverageTimeline = "CoverageTimeline"
+
+    # Obtained size values at different points in time
+    SizeTimeline = "SizeTimeline"
+
+    # Obtained length values at different points in time
+    LengthTimeline = "LengthTimeline"
+
+    # Obtained fitness values at different points in time
+    FitnessTimeline = "FitnessTimeline"
+
+    # Total number of exceptions
+    TotalExceptionsTimeline = "TotalExceptionsTimeline"
+
+    # Coverage over time
+    BranchCoverageTimeline = "BranchCoverageTimeline"
+
+    # Total number of statements in the final test suite
+    Length = "Length"
+
+    # Total number of statements in the final passing test suite
+    PassingLength = "PassingLength"
+
+    # Total number of statements in the final failing test suite
+    FailingLength = "FailingLength"
+
+    # Number of tests in the resulting test suite
+    Size = "Size"
+
+    # Number of tests in the resulting failing test suite
+    FailingSize = "FailingSize"
+
+    # Number of tests in the resulting passing test suite
+    PassingSize = "PassingSize"
+
+    # Fitness value of the best individual
+    Fitness = "Fitness"
+
+    # Code Objects in the SUT
+    CodeObjects = "CodeObjects"
+
+    # Predicates in the bytecode of the SUT
+    Predicates = "Predicates"
+
+    # Accessible objects under test (e.g., methods and functions)
+    AccessibleObjectsUnderTest = "AccessibleObjectsUnderTest"
+
+    # Number of all generatable types, i.e., the types we can generate values for
+    GeneratableTypes = "GeneratableTypes"
 
     def __repr__(self):
         return f"{self.name}"

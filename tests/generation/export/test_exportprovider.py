@@ -26,8 +26,8 @@ from pynguin.generation.export.unittestexporter import UnitTestExporter
 @pytest.mark.parametrize(
     "conf,instance",
     [
-        pytest.param(config.ExportStrategy.PY_TEST_EXPORTER, PyTestExporter),
-        pytest.param(config.ExportStrategy.UNIT_TEST_EXPORTER, UnitTestExporter),
+        pytest.param(config.ExportStrategy.PY_TEST, PyTestExporter),
+        pytest.param(config.ExportStrategy.UNIT_TEST, UnitTestExporter),
         pytest.param(config.ExportStrategy.NONE, NoneExporter),
     ],
 )

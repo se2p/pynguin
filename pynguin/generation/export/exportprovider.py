@@ -27,8 +27,8 @@ class ExportProvider:
     """Provides the possibility to export generated tests using a configured strategy"""
 
     _strategies: Dict[config.ExportStrategy, Callable[[bool], AbstractTestExporter]] = {
-        config.ExportStrategy.PY_TEST_EXPORTER: PyTestExporter,
-        config.ExportStrategy.UNIT_TEST_EXPORTER: UnitTestExporter,
+        config.ExportStrategy.PY_TEST: PyTestExporter,
+        config.ExportStrategy.UNIT_TEST: UnitTestExporter,
         config.ExportStrategy.NONE: NoneExporter,
     }
 

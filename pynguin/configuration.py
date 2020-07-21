@@ -17,18 +17,20 @@ import dataclasses
 import enum
 from typing import List, Optional
 
+from simple_parsing import Serializable
+
 import pynguin.utils.statistics.statistics as stat  # pylint:disable=cyclic-import
 
 
-class ExportStrategy(enum.Enum):
+class ExportStrategy(str, enum.Enum):
     """Contains all available export strategies."""
 
-    PY_TEST_EXPORTER = "PY_TEST_EXPORTER"
-    UNIT_TEST_EXPORTER = "UNIT_TEST_EXPORTER"
+    PY_TEST = "PY_TEST"
+    UNIT_TEST = "UNIT_TEST"
     NONE = "NONE"
 
 
-class Algorithm(enum.Enum):
+class Algorithm(str, enum.Enum):
     """Different algorithms."""
 
     RANDOOPY = "RANDOOPY"
@@ -36,7 +38,7 @@ class Algorithm(enum.Enum):
     WSPY = "WSPY"
 
 
-class StoppingCondition(enum.Enum):
+class StoppingCondition(str, enum.Enum):
     """The different stopping conditions for the algorithms."""
 
     MAX_TIME = "MAX_TIME"
@@ -44,25 +46,25 @@ class StoppingCondition(enum.Enum):
     MAX_TESTS = "MAX_TESTS"
 
 
-class TypeInferenceStrategy(enum.Enum):
+class TypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
 
-    NONE = "NoTypeInferenceStrategy"
-    STUB_FILES = "StubInferenceStrategy"
-    TYPE_HINTS = "TypeHintsInferenceStrategy"
+    NONE = "NONE"
+    STUB_FILES = "STUB_FILES"
+    TYPE_HINTS = "TYPE_HINTS"
 
 
-class StatisticsBackend(enum.Enum):
+class StatisticsBackend(str, enum.Enum):
     """The different available statistics backends to write statistics"""
 
-    NONE = enum.auto()
-    CONSOLE = enum.auto()
-    CSV = enum.auto()
+    NONE = "NONE"
+    CONSOLE = "CONSOLE"
+    CSV = "CSV"
 
 
 # pylint: disable=too-many-instance-attributes
 @dataclasses.dataclass(repr=True, eq=True)
-class Configuration:
+class Configuration(Serializable):
     """General configuration for the test generator."""
 
     # The algorithm that shall be used for generation
@@ -79,9 +81,6 @@ class Configuration:
 
     # A predefined seed value for the random number generator that is used.
     seed: Optional[int] = None
-
-    # Path to store the log file.
-    log_file: Optional[str] = None
 
     # Enables the debug mode.
     # Some features might behave different when it is active.
@@ -138,7 +137,7 @@ class Configuration:
 
     # The export strategy determines for which test-runner system the
     # generated tests should fit.
-    export_strategy: ExportStrategy = ExportStrategy.PY_TEST_EXPORTER
+    export_strategy: ExportStrategy = ExportStrategy.PY_TEST
 
     # Recursion depth when trying to create objects
     max_recursion: int = 10
