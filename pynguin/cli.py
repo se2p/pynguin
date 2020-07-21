@@ -123,6 +123,8 @@ def main(argv: List[str] = None) -> int:
     """
     if argv is None:
         argv = sys.argv
+    if len(argv) <= 1:
+        argv.append("--help")
     argv = _expand_arguments_if_necessary(argv[1:])
 
     argument_parser = _create_argument_parser()
