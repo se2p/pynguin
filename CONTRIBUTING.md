@@ -48,6 +48,8 @@ Command `make check-style` will run black diffs,
 darglint docstring style and mypy.
 The `make check-safety` command will look at the security of your code.
 
+*Note:* darglint on Windows only runs in `git bash` or the Linux subsystem.
+
 You can also use `STRICT=1` flag to make the check be strict.
 
 ### Before submitting
