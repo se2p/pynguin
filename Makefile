@@ -166,6 +166,12 @@ clean_docker:
 .PHONY: clean_build
 clean_build:
 	rm -rf build/
+	rm -rf .hypothesis
+	rm -rf .mypy_cache
+	rm -rf .pytest_cache
+	rm -rf cov_html
+	rm -rf dist
+	find . -name pynguin-report -type d | xargs rm -rf {};
 
 .PHONY: clean
 clean: clean_build clean_docker
