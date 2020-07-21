@@ -96,7 +96,7 @@ class MonkeyTypeHandlerMixin:
             if self._check_for_none(current_type):
                 new_type = inferred_type
             else:
-                new_type = self._rewrite_type(Union[current_type, inferred_type])
+                new_type = self._rewrite_type(Union[current_type, inferred_type])  # type: ignore
             if str(new_type) != str(current_type):
                 self._logger.debug(
                     "Update type information for %s: parameter %s, old type %s, "
@@ -130,7 +130,7 @@ class MonkeyTypeHandlerMixin:
             new_return_type = inferred_return_type
         else:
             new_return_type = self._rewrite_type(
-                Union[current_return_type, inferred_return_type]
+                Union[current_return_type, inferred_return_type]  # type: ignore
             )
         if isinstance(new_return_type, type(None)):
             new_return_type = None

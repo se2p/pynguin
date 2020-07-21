@@ -105,6 +105,7 @@ class MonkeyTypeExecutor:
         self._config = _MonkeyTypeConfig()
         self._tracer = CallTracer(
             logger=self._config.trace_logger(),
+            max_typed_dict_size=1_000_000,
             code_filter=self._config.code_filter(),
             sample_rate=self._config.sample_rate(),
         )
