@@ -16,5 +16,5 @@
 from .configuration import Configuration
 from .generator import Pynguin
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"
 __all__ = ["Pynguin", "Configuration", "__version__"]
