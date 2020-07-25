@@ -21,8 +21,12 @@ Pynguin is developed at the
 [Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
 of the [University of Passau](https://www.uni-passau.de).
 
-[![Build Status](https://gitlab.infosun.fim.uni-passau.de/lukasczy/pynguin/badges/master/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/lukasczy/pynguin/pipelines)
-[![Coverage](https://gitlab.infosun.fim.uni-passau.de/lukasczy/pynguin/badges/master/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/lukasczy/pynguin/pipelines)
+Build Status
+
+| Development version | Upstream Version |
+|---------------------|------------------|
+| [![pipeline status](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/master/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/master) [![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/master/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/master) | [![pipeline status](https://gitlab.com/pynguin/pynguin/badges/master/pipeline.svg)](https://gitlab.com/pynguin/pynguin/-/commits/master) [![coverage report](https://gitlab.com/pynguin/pynguin/badges/master/coverage.svg)](https://gitlab.com/pynguin/pynguin/-/commits/master) |
+
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org)
