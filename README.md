@@ -21,7 +21,7 @@ Pynguin is developed at the
 [Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
 of the [University of Passau](https://www.uni-passau.de).
 
-Build Status
+**Build Status**
 
 | Development version | Upstream Version |
 |---------------------|------------------|
@@ -29,7 +29,8 @@ Build Status
 
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org)
+[![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://gitlab.com/pynguin/pynguin)
 
 
 ## Prerequisites
