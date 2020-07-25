@@ -58,7 +58,7 @@ nightly-tests:python-3.9:
     PYTHON_VERSION: '3.9-rc-buster'
 
 mypy:
-  stage: build
+  stage: lint
   image: python:3.8
   script:
     - poetry run mypy pynguin
