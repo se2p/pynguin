@@ -23,8 +23,8 @@ of the [University of Passau](https://www.uni-passau.de).
 
 **Build Status**
 
-| Development version | Upstream Version |
-|---------------------|------------------|
+| Development version (only visible internally) | Upstream Version |
+|-----------------------------------------------|------------------|
 | [![pipeline status](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/master/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/master) [![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/master/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/master) | [![pipeline status](https://gitlab.com/pynguin/pynguin/badges/master/pipeline.svg)](https://gitlab.com/pynguin/pynguin/-/commits/master) [![coverage report](https://gitlab.com/pynguin/pynguin/badges/master/coverage.svg)](https://gitlab.com/pynguin/pynguin/-/commits/master) |
 
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
