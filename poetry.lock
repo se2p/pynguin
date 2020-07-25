@@ -178,7 +178,7 @@ description = "A utility for ensuring Google-style docstrings stay up to date wi
 name = "darglint"
 optional = false
 python-versions = ">=3.5,<4.0"
-version = "1.5.1"
+version = "1.5.2"
 
 [[package]]
 category = "main"
@@ -283,7 +283,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.21.0"
+version = "5.22.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -1159,8 +1159,8 @@ coverage = [
     {file = "coverage-5.2.1.tar.gz", hash = "sha256:a34cb28e0747ea15e82d13e14de606747e9e484fb28d63c999483f5d5188e89b"},
 ]
 darglint = [
-    {file = "darglint-1.5.1-py3-none-any.whl", hash = "sha256:b37be3bea80d25fa015c002ab63d4100a676441dbb75af7cd1df69b1b9324d5f"},
-    {file = "darglint-1.5.1.tar.gz", hash = "sha256:cb845b4cd046c9073be1f24935b6609abdc521270669ed7370ca0cdb112a7e1c"},
+    {file = "darglint-1.5.2-py3-none-any.whl", hash = "sha256:049a98cf3aec8cf6ea344a863c68112d80b7f8de214459b5fa6853371f89c3e7"},
+    {file = "darglint-1.5.2.tar.gz", hash = "sha256:6b9461f96694c2cf1d8edb1597a783fe6840953b0eb18cc6cc1e72a26f196d79"},
 ]
 decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
@@ -1199,8 +1199,8 @@ gitpython = [
     {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.21.0-py3-none-any.whl", hash = "sha256:b971c462bc21b83f095207213e370baf0d86b41edda2cea08408e6ba5efa9940"},
-    {file = "hypothesis-5.21.0.tar.gz", hash = "sha256:5aa113efc2227813364be42ec6c25bc01b59cc0c9b0022646dad804149895db1"},
+    {file = "hypothesis-5.22.0-py3-none-any.whl", hash = "sha256:90b95236fd6411bed8e980ee3ea7825482d4a3686610f323c55582c0e99a07a9"},
+    {file = "hypothesis-5.22.0.tar.gz", hash = "sha256:f7617bdf5d01a44f159f8d5d98fde9c223adaa98cd6e2e438c5c5ea8c87c3026"},
 ]
 identify = [
     {file = "identify-1.4.25-py2.py3-none-any.whl", hash = "sha256:ccd88716b890ecbe10920659450a635d2d25de499b9a638525a48b48261d989b"},
@@ -1446,6 +1446,7 @@ regex = [
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_i686.whl", hash = "sha256:5ea81ea3dbd6767873c611687141ec7b06ed8bab43f68fad5b7be184a920dc99"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:bbb332d45b32df41200380fff14712cb6093b61bd142272a10b16778c418e98e"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:c11d6033115dc4887c456565303f540c44197f4fc1a2bfb192224a301534888e"},
+    {file = "regex-2020.7.14-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:75aaa27aa521a182824d89e5ab0a1d16ca207318a6b65042b046053cfc8ed07a"},
     {file = "regex-2020.7.14-cp38-cp38-win32.whl", hash = "sha256:d6cff2276e502b86a25fd10c2a96973fdb45c7a977dca2138d661417f3728341"},
     {file = "regex-2020.7.14-cp38-cp38-win_amd64.whl", hash = "sha256:7a2dd66d2d4df34fa82c9dc85657c5e019b87932019947faece7983f2089a840"},
     {file = "regex-2020.7.14.tar.gz", hash = "sha256:3a3af27a8d23143c49a3420efe5b3f8cf1a48c6fc8bc6856b03f638abc1833bb"},
