@@ -8,8 +8,8 @@ workflow:
 stages:
   - build
   - lint
-  - security
   - test
+  - security
   - deploy
 
 before_script:
