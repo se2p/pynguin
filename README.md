@@ -32,6 +32,8 @@ of the [University of Passau](https://www.uni-passau.de).
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://gitlab.com/pynguin/pynguin)
 
+![Pynguin Logo](docs/source/_static/pynguin-logo.png "Pynguin Logo")
+
 
 ## Prerequisites
 
