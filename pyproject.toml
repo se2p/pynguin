@@ -5,7 +5,7 @@ description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
 readme = "README.md"
-repository = "https://gitlab.com/pynguin/pynguin"
+repository = "https://github.com/se2p/pynguin"
 keywords = [
     "unit test",
     "random testing",
