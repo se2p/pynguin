@@ -110,6 +110,9 @@ sphinx:
   image: python:3.8
   script:
     - poetry run sphinx-build docs docs/_build
+  artifacts:
+    paths:
+      - docs/_build
 
 pages:
   stage: deploy
@@ -119,6 +122,7 @@ pages:
   variables:
     PYTHON_VERSION: '3.8'
   dependencies:
+    - sphinx
     - unit-tests:python-3.8
   before_script:
     - mkdir -p ~/.ssh
