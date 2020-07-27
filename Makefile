@@ -143,6 +143,10 @@ check: isort black mypy flake8 pylint darglint test
 .PHONY: lint
 lint: test check-safety check-style
 
+.PHONY: documentation
+documentation:
+	poetry run sphinx-build docs docs/_build
+
 .PHONY: docker
 docker:
 	@echo Building docker $(IMAGE):$(VERSION) ...
@@ -171,6 +175,7 @@ clean_build:
 	rm -rf .pytest_cache
 	rm -rf cov_html
 	rm -rf dist
+	rm -rf docs/_build
 	find . -name pynguin-report -type d | xargs rm -rf {};
 
 .PHONY: clean
