@@ -123,12 +123,11 @@ pages:
     - chmod 600 ~/.ssh/id_ed25519
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\tIdentityFile ~/.ssh/id_ed25519\n\n" > ~/.ssh/config
   script:
-    - mv cov_html/ public/
-    - cp -R public pynguincoverage
+    - mv docs/_build/ public/
+    - mv cov_html pynguincoverage
     - scp -r -P 9418 pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
   artifacts:
     paths:
       - public
-    expire_in: 30 days
   rules:
     - if: $CI_COMMIT_BRANCH == 'master'
