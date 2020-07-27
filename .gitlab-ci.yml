@@ -113,6 +113,9 @@ sphinx:
 
 pages:
   stage: deploy
+  needs:
+    - unit-tests:python-3.8
+    - sphinx
   variables:
     PYTHON_VERSION: '3.8'
   dependencies:
