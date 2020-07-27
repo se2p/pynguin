@@ -105,6 +105,12 @@ bandit:
   script:
     - poetry run bandit -ll -r pynguin
 
+sphinx:
+  stage: build
+  image: python:3.8
+  script:
+    - poetry run sphinx-build docs docs/_build
+
 pages:
   stage: deploy
   variables:
