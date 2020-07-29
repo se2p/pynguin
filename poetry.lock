@@ -283,7 +283,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.22.0"
+version = "5.23.7"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -661,10 +661,11 @@ description = "run tests in isolated forked subprocesses"
 name = "pytest-forked"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "1.2.0"
+version = "1.3.0"
 
 [package.dependencies]
-pytest = ">=3.1.0"
+py = "*"
+pytest = ">=3.10"
 
 [[package]]
 category = "dev"
@@ -710,7 +711,7 @@ description = "pytest xdist plugin for distributed testing and loop-on-failing m
 name = "pytest-xdist"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "1.33.0"
+version = "1.34.0"
 
 [package.dependencies]
 execnet = ">=1.1"
@@ -1199,8 +1200,8 @@ gitpython = [
     {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.22.0-py3-none-any.whl", hash = "sha256:90b95236fd6411bed8e980ee3ea7825482d4a3686610f323c55582c0e99a07a9"},
-    {file = "hypothesis-5.22.0.tar.gz", hash = "sha256:f7617bdf5d01a44f159f8d5d98fde9c223adaa98cd6e2e438c5c5ea8c87c3026"},
+    {file = "hypothesis-5.23.7-py3-none-any.whl", hash = "sha256:b287f36ed3e3922154ee10603d1828378538e14878c2064e78fa7c19154bb330"},
+    {file = "hypothesis-5.23.7.tar.gz", hash = "sha256:be8ef81c9e5d05b3e9ac94f460aed71a7ed1e9d142d97d2acc09927d59d798f6"},
 ]
 identify = [
     {file = "identify-1.4.25-py2.py3-none-any.whl", hash = "sha256:ccd88716b890ecbe10920659450a635d2d25de499b9a638525a48b48261d989b"},
@@ -1390,8 +1391,8 @@ pytest-cov = [
     {file = "pytest_cov-2.10.0-py2.py3-none-any.whl", hash = "sha256:6e6d18092dce6fad667cd7020deed816f858ad3b49d5b5e2b1cc1c97a4dba65c"},
 ]
 pytest-forked = [
-    {file = "pytest-forked-1.2.0.tar.gz", hash = "sha256:65f96334863d9cbe53d21f73e8febc4dd61b8d1fdcac7b487d9af07a5d02a938"},
-    {file = "pytest_forked-1.2.0-py2.py3-none-any.whl", hash = "sha256:42a438336731465c5bd76ab38e1645647ac55914a08b507efbabe8783a08aa6c"},
+    {file = "pytest-forked-1.3.0.tar.gz", hash = "sha256:6aa9ac7e00ad1a539c41bec6d21011332de671e938c7637378ec9710204e37ca"},
+    {file = "pytest_forked-1.3.0-py2.py3-none-any.whl", hash = "sha256:dc4147784048e70ef5d437951728825a131b81714b398d5d52f17c7c144d8815"},
 ]
 pytest-mock = [
     {file = "pytest-mock-3.2.0.tar.gz", hash = "sha256:7122d55505d5ed5a6f3df940ad174b3f606ecae5e9bc379569cdcbd4cd9d2b83"},
@@ -1404,8 +1405,8 @@ pytest-sugar = [
     {file = "pytest-sugar-0.9.4.tar.gz", hash = "sha256:b1b2186b0a72aada6859bea2a5764145e3aaa2c1cfbb23c3a19b5f7b697563d3"},
 ]
 pytest-xdist = [
-    {file = "pytest-xdist-1.33.0.tar.gz", hash = "sha256:833b902b16473162cc0572d5bd7b63f8b843df63a4ada9c8af1270d31db17607"},
-    {file = "pytest_xdist-1.33.0-py2.py3-none-any.whl", hash = "sha256:9149b4010240643a5e206fd0ece6f0a1cd5955dae014cf04610d359e22e22453"},
+    {file = "pytest-xdist-1.34.0.tar.gz", hash = "sha256:340e8e83e2a4c0d861bdd8d05c5d7b7143f6eea0aba902997db15c2a86be04ee"},
+    {file = "pytest_xdist-1.34.0-py2.py3-none-any.whl", hash = "sha256:ba5d10729372d65df3ac150872f9df5d2ed004a3b0d499cc0164aafedd8c7b66"},
 ]
 pytz = [
     {file = "pytz-2020.1-py2.py3-none-any.whl", hash = "sha256:a494d53b6d39c3c6e44c3bec237336e14305e4f29bbf800b599253057fbb79ed"},
