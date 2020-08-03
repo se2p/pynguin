@@ -62,46 +62,46 @@ class StatisticsBackend(str, enum.Enum):
     CSV = "CSV"
 
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass(repr=True, eq=True)
 class Configuration(Serializable):
     """General configuration for the test generator."""
 
-    # The algorithm that shall be used for generation
+    """The algorithm that shall be used for generation"""
     algorithm: Algorithm
 
-    # Path to the project the generator shall create tests for.
+    """Path to the project the generator shall create tests for."""
     project_path: str
 
-    # Path to an output folder for the generated test cases.
+    """Path to an output folder for the generated test cases."""
     output_path: str
 
-    # A list of module names for that the generator shall create tests for.
+    """A list of module names for that the generator shall create tests for."""
     module_name: str
 
-    # A predefined seed value for the random number generator that is used.
+    """A predefined seed value for the random number generator that is used."""
     seed: Optional[int] = None
 
-    # Enables the debug mode.
-    # Some features might behave different when it is active.
+    """Enables the debug mode.
+    Some features might behave different when it is active."""
     debug_mode: bool = False
 
-    # Directory in which to put HTML and CSV reports
+    """Directory in which to put HTML and CSV reports"""
     report_dir: str = "pynguin-report"
 
-    # Which backend to use to collect data
+    """Which backend to use to collect data"""
     statistics_backend: StatisticsBackend = StatisticsBackend.CSV
 
-    # Time interval in nano-seconds for timeline statistics, i.e., we select a data
-    # point after each interval.  This can be interpolated, if there is no exact
-    # value stored at the time-step of the interval, see `timeline_interpolation`.
-    # The default value is every 1.00s.
+    """Time interval in nano-seconds for timeline statistics, i.e., we select a data
+    point after each interval.  This can be interpolated, if there is no exact
+    value stored at the time-step of the interval, see `timeline_interpolation`.
+    The default value is every 1.00s."""
     timeline_interval: int = 1 * 1_000_000_000
 
-    # Interpolate timeline values
+    """Interpolate timeline values"""
     timeline_interpolation: bool = True
 
-    # List of variables to output to the statistics backend.
+    """List of variables to output to the statistics backend."""
     output_variables: List[stat.RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             stat.RuntimeVariable.TargetModule,
@@ -109,135 +109,137 @@ class Configuration(Serializable):
         ]
     )
 
-    # Label that identifies the used configuration of Pynguin.  This is only done
-    # when running experiments.
+    """Label that identifies the used configuration of Pynguin.  This is only done
+    when running experiments."""
     configuration_id: str = ""
 
-    # Time budget (in seconds) that can be used for generating tests.
+    """Time budget (in seconds) that can be used for generating tests."""
     budget: int = 600
 
-    # Maximum search duration
+    """Maximum search duration"""
     search_budget: int = 60
 
-    # Maximum iterations
+    """Maximum iterations"""
     algorithm_iterations: int = 60
 
-    # Maximum seconds allowed for entire search when not using time as stopping
-    # criterion.
+    """Maximum seconds allowed for entire search when not using time as stopping
+    criterion."""
     global_timeout: int = 120
 
-    # The maximum length of sequences that are generated, 0 means infinite.
+    """The maximum length of sequences that are generated, 0 means infinite."""
     max_sequence_length: int = 10
 
-    # The maximum number of combined sequences, 0 means infinite.
+    """The maximum number of combined sequences, 0 means infinite."""
     max_sequences_combined: int = 10
 
-    # The counter threshold for purging sequences, 0 means infinite.
+    """The counter threshold for purging sequences, 0 means infinite."""
     counter_threshold: int = 10
 
-    # The export strategy determines for which test-runner system the
-    # generated tests should fit.
+    """The export strategy determines for which test-runner system the
+    generated tests should fit."""
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
 
-    # Recursion depth when trying to create objects
+    """Recursion depth when trying to create objects"""
     max_recursion: int = 10
 
-    # The maximum level of recursion when calculating the dependencies in the test
-    # cluster
+    """The maximum level of recursion when calculating the dependencies in the test
+    cluster"""
     max_cluster_recursion: int = 10
 
-    # Maximum size of delta for numbers during mutation
+    """Maximum size of delta for numbers during mutation"""
     max_delta: int = 20
 
-    # Maximum size of randomly generated integers (minimum range = -1 * max)
+    """Maximum size of randomly generated integers (minimum range = -1 * max)"""
     max_int: int = 2048
 
-    # Maximum length of randomly generated strings
+    """Maximum length of randomly generated strings"""
     string_length: int = 20
 
-    # Probability to reuse an existing primitive, if available.  Expects values in [0,1]
+    """Probability to reuse an existing primitive, if available.  Expects values in
+    [0,1]"""
     primitive_reuse_probability: float = 0.5
 
-    # Probability to reuse an existing object, if available.  Expects values in [0,1]
+    """Probability to reuse an existing object, if available.  Expects values in
+    [0,1]"""
     object_reuse_probability: float = 0.9
 
-    # Probability to use None instead of constructing an object.  Expects values in
-    # [0,1]
+    """Probability to use None instead of constructing an object.  Expects values in
+    [0,1]"""
     none_probability: float = 0.1
 
-    # Should we guess unknown types while constructing parameters?
-    # This might happen in the following cases:
-    # The parameter type is unknown, e.g. a parameter is missing a type hint.
-    # The parameter is not primitive and cannot be created from the test cluster,
-    # e.g. Callable[...]
+    """Should we guess unknown types while constructing parameters?
+    This might happen in the following cases:
+    The parameter type is unknown, e.g. a parameter is missing a type hint.
+    The parameter is not primitive and cannot be created from the test cluster,
+    e.g. Callable[...]"""
     guess_unknown_types: bool = True
 
-    # Probability of replacing parameters when mutating a method or constructor statement
-    # in a test case.  Expects values in [0,1]
+    """Probability of replacing parameters when mutating a method or constructor statement
+    in a test case.  Expects values in [0,1]"""
     change_parameter_probability: float = 0.1
 
-    # Bias for better individuals in rank selection
+    """Bias for better individuals in rank selection"""
     rank_bias: float = 1.7
 
-    # Minimum number of tests in initial test suites
+    """Minimum number of tests in initial test suites"""
     min_initial_tests: int = 1
 
-    # Maximum number of tests in initial test suites
+    """Maximum number of tests in initial test suites"""
     max_initial_tests: int = 10
 
-    # Population size of genetic algorithm
+    """Population size of genetic algorithm"""
     population: int = 50
 
-    # Chop statements after exception if length has reached maximum
+    """Chop statements after exception if length has reached maximum"""
     chop_max_length: bool = True
 
-    # Elite size for search algorithm
+    """Elite size for search algorithm"""
     elite: int = 1
 
-    # Maximum length of chromosomes during search
+    """Maximum length of chromosomes during search"""
     chromosome_length: int = 40
 
-    # Number of attempts when generating an object before giving up
+    """Number of attempts when generating an object before giving up"""
     max_attempts: int = 1000
 
-    # Score for selection of insertion of UUT calls
+    """Score for selection of insertion of UUT calls"""
     insertion_uut: float = 0.5
 
-    # Probability of crossover
+    """Probability of crossover"""
     crossover_rate: float = 0.75
 
-    # Initial probability of inserting a new test in a test suite
+    """Initial probability of inserting a new test in a test suite"""
     test_insertion_probability: float = 0.1
 
-    # Probability of deleting statements during mutation
+    """Probability of deleting statements during mutation"""
     test_delete_probability: float = 1.0 / 3.0
 
-    # Probability of changing statements during mutation
+    """Probability of changing statements during mutation"""
     test_change_probability: float = 1.0 / 3.0
 
-    # Probability of inserting new statements during mutation
+    """Probability of inserting new statements during mutation"""
     test_insert_probability: float = 1.0 / 3.0
 
-    # Initial probability of inserting a new statement in a test case
+    """Initial probability of inserting a new statement in a test case"""
     statement_insertion_probability: float = 0.5
 
-    # Maximum number of test cases in a test suite
+    """Maximum number of test cases in a test suite"""
     max_size: int = 100
 
-    # What condition should be checked to end the search/test generation.
+    """What condition should be checked to end the search/test generation."""
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
 
-    # Execute MonkeyType in each n-th iteration of the algorithm
+    """Execute MonkeyType in each n-th iteration of the algorithm"""
     monkey_type_execution: int = 1
 
-    # The strategy for type-inference that shall be used
+    """The strategy for type-inference that shall be used"""
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
 
-    # Path to the pyi-stub files for the StubInferenceStrategy
+    """Path to the pyi-stub files for the StubInferenceStrategy"""
     stub_dir: Optional[str] = None
 
-    # Should the generator use a static constant seeding technique to improve constant
-    # generation?
+    """Should the generator use a static constant seeding technique to improve constant
+    generation?"""
     constant_seeding: bool = False
 
 
