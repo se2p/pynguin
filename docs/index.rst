@@ -22,3 +22,10 @@ run this command in your terminal:
 .. code-block:: console
 
    $ pip install pynguin
+
+Indices and Tables
+------------------
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
