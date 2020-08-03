@@ -796,7 +796,7 @@ description = "A small utility for simplifying and cleaning up argument parsing 
 name = "simple-parsing"
 optional = false
 python-versions = ">=3.6"
-version = "0.0.11.post15"
+version = "0.0.11.post13"
 
 [package.dependencies]
 typing-inspect = "*"
@@ -1054,7 +1054,7 @@ python-versions = "*"
 version = "1.12.1"
 
 [metadata]
-content-hash = "e385d7bbd82ce5471f8cd3263b4177e66fb098a2f8ebfe5d17ccc73dbcfc120b"
+content-hash = "1930dc35979fc68272aa1ccb3ab2d2447d449ae73432e50cdfe7a6bce042ebc7"
 lock-version = "1.0"
 python-versions = "^3.8"
 
@@ -1462,8 +1462,8 @@ safety = [
     {file = "safety-1.9.0.tar.gz", hash = "sha256:23bf20690d4400edc795836b0c983c2b4cbbb922233108ff925b7dd7750f00c9"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.11.post15-py3-none-any.whl", hash = "sha256:6fb63655afbdf57954f1f31bde78d9c380365bfc6cddcd0ed13b623750d9f2ac"},
-    {file = "simple_parsing-0.0.11.post15.tar.gz", hash = "sha256:7e1c8bf9943e893ca2f6cc31917e71f4aeafab9fed5b761a788cfeb404763d32"},
+    {file = "simple_parsing-0.0.11.post13-py3-none-any.whl", hash = "sha256:5fe02dd754fdf57330d0aad0fde3d116e36f70470f91b5ce06f81154d5da96ff"},
+    {file = "simple_parsing-0.0.11.post13.tar.gz", hash = "sha256:e1aca19ac453cdae7e7fd7a2503b3576a26aa3783be328d552330d578473c1d9"},
 ]
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
