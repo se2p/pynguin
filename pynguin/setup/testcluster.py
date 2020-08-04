@@ -15,7 +15,7 @@
 """Provides a test cluster."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Type, cast
+from typing import Any, Dict, List, Optional, Set, Type
 
 from typing_inspect import get_args, is_union_type
 
@@ -32,12 +32,8 @@ class TestCluster:
 
     def __init__(self):
         """Create new test cluster."""
-        self._generators: Dict[Type, Set[GenericAccessibleObject]] = cast(
-            Dict[Type, Set[GenericAccessibleObject]], dict()
-        )
-        self._modifiers: Dict[Type, Set[GenericAccessibleObject]] = cast(
-            Dict[Type, Set[GenericAccessibleObject]], dict()
-        )
+        self._generators: Dict[Type, Set[GenericAccessibleObject]] = {}
+        self._modifiers: Dict[Type, Set[GenericAccessibleObject]] = {}
         self._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
