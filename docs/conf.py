@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
-import pynguin
+import pynguin  # noqa  # isort:skip
 
 project = "pynguin"
 author = "Pynguin Contributors"
