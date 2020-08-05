@@ -1,4 +1,4 @@
-Pynguin—PYthoN General Unit test geNerator
+Pynguin—PYthoN General UnIt test geNerator
 ==========================================
 
 Pynguin is a framework that allows automated unit test generation for Python.
