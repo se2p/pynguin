@@ -18,3 +18,10 @@ pynguin.configuration
 
 .. automodule:: pynguin.configuration
     :members:
+
+
+pynguin.generator
+-----------------
+
+.. automodule:: pynguin.generator
+    :members:

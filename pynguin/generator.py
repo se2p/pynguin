@@ -60,8 +60,13 @@ class ReturnCodes(enum.IntEnum):
     """Return codes for Pynguin to signal result."""
 
     OK = 0
+    """Symbolises that the execution ended as expected."""
+
     SETUP_FAILED = 1
+    """Symbolises that the execution failed in the setup phase."""
+
     NO_TESTS_GENERATED = 2
+    """Symbolises that no test could be generated."""
 
 
 # pylint: disable=too-few-public-methods
