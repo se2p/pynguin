@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pynguin"
-version = "0.5.1"
+version = "0.5.2"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
