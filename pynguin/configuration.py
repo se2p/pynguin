@@ -111,7 +111,7 @@ class Configuration(Serializable):
     """Path to an output folder for the generated test cases."""
 
     module_name: str
-    """A list of module names for that the generator shall create tests for."""
+    """Name of the module for which the generator shall create tests."""
 
     seed: Optional[int] = None
     """A predefined seed value for the random number generator that is used."""
