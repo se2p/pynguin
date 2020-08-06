@@ -56,7 +56,7 @@ from pynguin.utils.statistics.timer import Timer
 
 
 @enum.unique
-class ReturnCodes(enum.IntEnum):
+class ReturnCode(enum.IntEnum):
     """Return codes for Pynguin to signal result."""
 
     OK = 0
@@ -103,16 +103,13 @@ class Pynguin:
             )
         config.INSTANCE = configuration
 
-    def run(self) -> int:
+    def run(self) -> ReturnCode:
         """Run the test generation.
 
-        This method behaves like a standard UNIX command-line application, i.e.,
-        the return value `0` signals a successful execution.  Any other return value
-        signals some errors.  This is, e.g., the case if the framework was not able
-        to generate one successfully running test case for the class under test.
+        The result of the test generation is indicated by the resulting ReturnCode.
 
         Returns:
-            See ReturnCodes.
+            See ReturnCode.
 
         Raises:
             ConfigurationException: In case the configuration is illegal
@@ -223,11 +220,9 @@ class Pynguin:
             len(test_cluster.get_all_generatable_types()),
         )
 
-    def _run(self) -> int:
-        status = ReturnCodes.OK.value
-
+    def _run(self) -> ReturnCode:
         if (setup_result := self._setup_and_check()) is None:
-            return ReturnCodes.SETUP_FAILED.value
+            return ReturnCode.SETUP_FAILED
         executor, test_cluster = setup_result
 
         with Timer(name="Test generation time", logger=None):
@@ -274,8 +269,8 @@ class Pynguin:
             self._logger.error("Failed to write statistics data")
         if combined.size == 0:
             # not able to generate one test case
-            return ReturnCodes.NO_TESTS_GENERATED.value
-        return status
+            return ReturnCode.NO_TESTS_GENERATED
+        return ReturnCode.OK
 
     _strategies: Dict[
         config.Algorithm,

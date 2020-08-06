@@ -112,7 +112,12 @@ def _setup_logging(
 
 
 def main(argv: List[str] = None) -> int:
-    """Entry point of the Pynguin automatic unit test generation framework.
+    """Entry point for the CLI of the Pynguin automatic unit test generation framework.
+
+    This method behaves like a standard UNIX command-line application, i.e.,
+    the return value `0` signals a successful execution.  Any other return value
+    signals some errors.  This is, e.g., the case if the framework was not able
+    to generate one successfully running test case for the class under test.
 
     Args:
         argv: List of command-line arguments
@@ -132,7 +137,7 @@ def main(argv: List[str] = None) -> int:
     _setup_logging(parsed.verbosity, parsed.log_file)
 
     generator = Pynguin(parsed.config)
-    return generator.run()
+    return generator.run().value
 
 
 if __name__ == "__main__":

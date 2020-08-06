@@ -19,13 +19,14 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 from pynguin.cli import _create_argument_parser, _setup_logging, main
+from pynguin.generator import ReturnCode
 
 
 def test_main_empty_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
-                generator_mock.return_value.run.return_value = 0
+                generator_mock.return_value.run.return_value = ReturnCode.OK
                 parser = MagicMock()
                 parser_mock.return_value = parser
                 main()
@@ -36,7 +37,7 @@ def test_main_with_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
-                generator_mock.return_value.run.return_value = 0
+                generator_mock.return_value.run.return_value = ReturnCode.OK
                 parser = MagicMock()
                 parser_mock.return_value = parser
                 args = ["foo", "--help"]
