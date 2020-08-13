@@ -79,6 +79,9 @@ Pynguin uses `pytest`_ to execute the tests.
 You can find the tests in the ``tests`` folder.
 The target ``make test`` executes ``pytest`` with the appropriate parameters.
 
+We prefer a test-driven development style, which allows us to have tests in a natural
+way when developing some new functionality.
+
 To combine all analysis tools and the test execution we provide the target ``make
 check``, which executes all of them in a row.
 
