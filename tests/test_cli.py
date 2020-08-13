@@ -18,7 +18,14 @@ import logging
 from unittest import mock
 from unittest.mock import MagicMock, call
 
-from pynguin.cli import _create_argument_parser, _setup_logging, main
+import pytest
+
+from pynguin.cli import (
+    _create_argument_parser,
+    _expand_arguments_if_necessary,
+    _setup_logging,
+    main,
+)
 from pynguin.generator import ReturnCode
 
 
@@ -93,3 +100,24 @@ def test__setup_logging_quiet_without_log_file():
     assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
     importlib.reload(logging)
+
+
+@pytest.mark.parametrize(
+    "arguments, expected",
+    [
+        pytest.param(
+            ["--foo", "bar", "--bar", "foo"], ["--foo", "bar", "--bar", "foo"]
+        ),
+        pytest.param(
+            ["--foo", "bar", "--output_variables", "foo,bar,baz", "--bar", "foo"],
+            ["--foo", "bar", "--output_variables", "foo", "bar", "baz", "--bar", "foo"],
+        ),
+        pytest.param(
+            ["--foo", "bar", "--output_variables", "baz", "--bar", "foo"],
+            ["--foo", "bar", "--output_variables", "baz", "--bar", "foo"],
+        ),
+    ],
+)
+def test__expand_arguments_if_necessary(arguments, expected):
+    result = _expand_arguments_if_necessary(arguments)
+    assert result == expected
