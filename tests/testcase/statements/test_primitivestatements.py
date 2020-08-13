@@ -22,7 +22,6 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 
 
 @pytest.mark.parametrize(
@@ -386,30 +385,3 @@ def test_primitive_statement_get_position():
     statement = prim.IntPrimitiveStatement(test_case, 5)
     test_case.add_statement(statement)
     assert statement.get_position() == 0
-
-
-@pytest.mark.parametrize(
-    "constant_type, constant_value, patch_method, statement_type",
-    [
-        pytest.param("int", 42, "next_int", prim.IntPrimitiveStatement),
-        pytest.param("float", 23.42, "next_float", prim.FloatPrimitiveStatement),
-        pytest.param("str", "foo", "next_float", prim.StringPrimitiveStatement),
-    ],
-)
-def test_primitive_randomize_value_from_seeding(
-    test_case_mock, constant_type, constant_value, patch_method, statement_type
-):
-    config.INSTANCE.constant_seeding = True
-    seeding = StaticConstantSeeding()
-    seeding._constants = {constant_type: {constant_value}}
-    with mock.patch(f"pynguin.utils.randomness.{patch_method}") as randomness_mock:
-        randomness_mock.return_value = 0
-
-        with mock.patch.object(
-            StaticConstantSeeding, "_random_element"
-        ) as seeding_mock:
-            seeding_mock.return_value = constant_value
-
-            statement = statement_type(test_case_mock)
-            statement.randomize_value()
-            assert statement.value == constant_value
