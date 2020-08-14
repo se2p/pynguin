@@ -116,10 +116,6 @@ class Configuration(Serializable):
     seed: Optional[int] = None
     """A predefined seed value for the random number generator that is used."""
 
-    debug_mode: bool = False
-    """Enables the debug mode.
-    Some features might behave different when it is active."""
-
     report_dir: str = "pynguin-report"
     """Directory in which to put HTML and CSV reports"""
 
