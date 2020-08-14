@@ -283,7 +283,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.24.0"
+version = "5.24.3"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -623,7 +623,7 @@ description = "pytest: simple powerful testing with Python"
 name = "pytest"
 optional = false
 python-versions = ">=3.5"
-version = "6.0.0rc1"
+version = "6.0.1"
 
 [package.dependencies]
 atomicwrites = ">=1.0"
@@ -1054,7 +1054,7 @@ python-versions = "*"
 version = "1.12.1"
 
 [metadata]
-content-hash = "1930dc35979fc68272aa1ccb3ab2d2447d449ae73432e50cdfe7a6bce042ebc7"
+content-hash = "9bdc26b98fad5c5be2a8294c7ffba602a1bdf5118292beaaf530889f6d2a62b3"
 lock-version = "1.0"
 python-versions = "^3.8"
 
@@ -1200,8 +1200,8 @@ gitpython = [
     {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.24.0-py3-none-any.whl", hash = "sha256:b174be95ac1a8054d32de4d2cf91ff268f16fc4040dd49ed5aed1e136375e27d"},
-    {file = "hypothesis-5.24.0.tar.gz", hash = "sha256:97f38ca8967d56f36db7f4c887336044f2a9bcd37b7987c1237513c218016f79"},
+    {file = "hypothesis-5.24.3-py3-none-any.whl", hash = "sha256:04a0ed49ae7e02d876a2dcd8adaaf843157816ef2a48d317b815cc8875f1293c"},
+    {file = "hypothesis-5.24.3.tar.gz", hash = "sha256:ca691b5b93a9cb930b1daca07b7a5570a427d13f828addbfbe6a4ba660a8aa1d"},
 ]
 identify = [
     {file = "identify-1.4.25-py2.py3-none-any.whl", hash = "sha256:ccd88716b890ecbe10920659450a635d2d25de499b9a638525a48b48261d989b"},
@@ -1384,8 +1384,8 @@ pyparsing = [
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
 ]
 pytest = [
-    {file = "pytest-6.0.0rc1-py3-none-any.whl", hash = "sha256:3296b4ad0b07363f69b740edf70e40db8286f882f019179b31e6a03d896afbff"},
-    {file = "pytest-6.0.0rc1.tar.gz", hash = "sha256:c934e33079966229fd236ffae6a7a3c3415bd585693a646ba3adb62a2d695874"},
+    {file = "pytest-6.0.1-py3-none-any.whl", hash = "sha256:8b6007800c53fdacd5a5c192203f4e531eb2a1540ad9c752e052ec0f7143dbad"},
+    {file = "pytest-6.0.1.tar.gz", hash = "sha256:85228d75db9f45e06e57ef9bf4429267f81ac7c0d742cc9ed63d09886a9fe6f4"},
 ]
 pytest-cov = [
     {file = "pytest-cov-2.10.0.tar.gz", hash = "sha256:1a629dc9f48e53512fcbfda6b07de490c374b0c83c55ff7a1720b3fccff0ac87"},
@@ -1448,6 +1448,7 @@ regex = [
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_i686.whl", hash = "sha256:5ea81ea3dbd6767873c611687141ec7b06ed8bab43f68fad5b7be184a920dc99"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:bbb332d45b32df41200380fff14712cb6093b61bd142272a10b16778c418e98e"},
     {file = "regex-2020.7.14-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:c11d6033115dc4887c456565303f540c44197f4fc1a2bfb192224a301534888e"},
+    {file = "regex-2020.7.14-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:75aaa27aa521a182824d89e5ab0a1d16ca207318a6b65042b046053cfc8ed07a"},
     {file = "regex-2020.7.14-cp38-cp38-win32.whl", hash = "sha256:d6cff2276e502b86a25fd10c2a96973fdb45c7a977dca2138d661417f3728341"},
     {file = "regex-2020.7.14-cp38-cp38-win_amd64.whl", hash = "sha256:7a2dd66d2d4df34fa82c9dc85657c5e019b87932019947faece7983f2089a840"},
     {file = "regex-2020.7.14.tar.gz", hash = "sha256:3a3af27a8d23143c49a3420efe5b3f8cf1a48c6fc8bc6856b03f638abc1833bb"},
