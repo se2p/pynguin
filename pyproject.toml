@@ -6,6 +6,7 @@ authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/se2p/pynguin"
+documentation = "https://pynguin.readthedocs.io"
 keywords = [
     "unit test",
     "random testing",
