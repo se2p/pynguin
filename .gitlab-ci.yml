@@ -118,6 +118,15 @@ sphinx:
     paths:
       - docs/_build
 
+# check license declarations etc.
+reuse:
+  stage: test
+  image:
+    name: fsfe/reuse:latest
+    entrypoint: [""]
+  script:
+    - reuse lint
+
 pages:
   stage: deploy
   needs:
