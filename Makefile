@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 SHELL := /usr/bin/env bash
 IMAGE := pynguin/pynguin
 VERSION=$(shell git rev-parse --short HEAD)

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 [tool.poetry]
 name = "pynguin"
 version = "0.5.3"

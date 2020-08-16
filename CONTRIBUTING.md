@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Pynguin Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # How to contribute
 
 ## Dependencies

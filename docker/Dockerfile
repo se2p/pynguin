@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 ###############################################################################
 # Dockerfile to build a Docker container image for Pynguin.                   #
 # This is a multi-stage image, i.e., it first builds the Pynguin tar-ball     #
