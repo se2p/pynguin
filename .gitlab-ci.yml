@@ -124,6 +124,8 @@ reuse:
   image:
     name: fsfe/reuse:latest
     entrypoint: [""]
+  before_script:
+    - python --version
   script:
     - reuse lint
 
