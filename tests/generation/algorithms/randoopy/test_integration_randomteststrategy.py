@@ -13,9 +13,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
-    RandomTestMonkeyTypeStrategy,
-)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -26,7 +23,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 @pytest.mark.parametrize(
     "algorithm_to_run,module_name",
     itertools.product(
-        [RandomTestStrategy, RandomTestMonkeyTypeStrategy],
+        [RandomTestStrategy],
         [
             "tests.fixtures.examples.basket",
             "tests.fixtures.examples.dummies",

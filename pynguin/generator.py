@@ -27,9 +27,6 @@ import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
-from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
-    RandomTestMonkeyTypeStrategy,
-)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
@@ -269,7 +266,6 @@ class Pynguin:
         Callable[[TestCaseExecutor, TestCluster], TestGenerationStrategy],
     ] = {
         config.Algorithm.RANDOOPY: RandomTestStrategy,
-        config.Algorithm.RANDOOPY_MONKEYTYPE: RandomTestMonkeyTypeStrategy,
         config.Algorithm.WSPY: WholeSuiteTestStrategy,
     }
 

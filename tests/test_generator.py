@@ -11,9 +11,6 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.generator as gen
-from pynguin.generation.algorithms.randoopy.randomtestmonkeytypestrategy import (
-    RandomTestMonkeyTypeStrategy,
-)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
@@ -46,7 +43,6 @@ def test_instantiate_test_generation_strategy_unknown():
     "value,cls",
     [
         (config.Algorithm.RANDOOPY, RandomTestStrategy),
-        (config.Algorithm.RANDOOPY_MONKEYTYPE, RandomTestMonkeyTypeStrategy),
         (config.Algorithm.WSPY, WholeSuiteTestStrategy),
     ],
 )

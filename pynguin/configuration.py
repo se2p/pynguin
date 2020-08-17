@@ -41,8 +41,6 @@ class Algorithm(str, enum.Enum):
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
 
-    RANDOOPY_MONKEYTYPE = "RANDOOPY_MONKEYTYPE"
-
     WSPY = "WSPY"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
@@ -250,9 +248,6 @@ class Configuration(Serializable):
 
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
     """What condition should be checked to end the search/test generation."""
-
-    monkey_type_execution: int = 1
-    """Execute MonkeyType in each n-th iteration of the algorithm"""
 
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
