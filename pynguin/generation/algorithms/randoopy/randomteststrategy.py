@@ -153,7 +153,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         combined.add_tests(failing_chromosome.test_chromosomes)
         return combined
 
-    def send_statistics(self):
+    def send_statistics(self) -> None:
         super().send_statistics()
         tracker = StatisticsTracker()
         tracker.track_output_variable(

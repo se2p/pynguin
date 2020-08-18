@@ -72,7 +72,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             cases, the latter containing the failing test cases.
         """
 
-    def send_statistics(self):
+    def send_statistics(self) -> None:
         """Sends statistics of the current strategy to tracker."""
 
     @staticmethod
