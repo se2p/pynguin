@@ -34,6 +34,8 @@ of the [University of Passau](https://www.uni-passau.de).
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://gitlab.com/pynguin/pynguin)
 [![Documentation Status](https://readthedocs.org/projects/pynguin/badge/?version=latest)](https://pynguin.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989841.svg)](https://doi.org/10.5281/zenodo.3989841)
+
 
 ![Pynguin Logo](docs/source/_static/pynguin-logo.png "Pynguin Logo")
 
