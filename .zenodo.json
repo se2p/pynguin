@@ -1,0 +1,12 @@
+{
+  "access_right": "open",
+  "license": "LGPL-3.0-or-later",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Stephan Lukasczyk",
+      "affiliation": "Chair of Software Engineering II, Faculty of Computer Science and Mathematics, University of Passau, Germany",
+      "orcid": "0000-0002-0092-3476"
+    }
+  ]
+}
