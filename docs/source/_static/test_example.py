@@ -10,19 +10,139 @@ import example as module0
 
 
 def test_case_0():
-    var0 = 2040
-    var1 = None
-    var2 = "m^SCL5yMT*q&WBKL7KN"
-    var3 = module0.Example(var1, var2)
-    var4 = "Oyj^mH&"
-    var5 = module0.Example(var0, var4)
-    var6 = var5.first()
-    var7 = -2680
-    var8 = -877
-    var9 = var5.first()
-    var10 = "\"jam'CM+"
-    var11 = module0.Example(var8, var10)
-    var12 = None
-    var13 = module0.Example(var7, var12)
-    var14 = module0.Example(var7, var12)
-    var15 = var14.first()
+    var0 = None
+    module0.triangle(var0, var0, var0)
+
+
+def test_case_1():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -349
+    module0.triangle(var0, var1, var0)
+
+
+def test_case_2():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -2841
+    var2 = 1544
+    var3 = 264
+    module0.triangle(var1, var2, var3)
+
+
+def test_case_3():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -349
+    module0.triangle(var0, var1, var0)
+    var2 = None
+    var3 = -1122
+    module0.triangle(var2, var3, var3)
+
+
+def test_case_4():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -2841
+    var2 = 1544
+    var3 = 264
+    module0.triangle(var1, var2, var3)
+    var4 = None
+    module0.triangle(var4, var4, var4)
+    var5 = -349
+    module0.triangle(var4, var5, var4)
+    var6 = None
+    var7 = -1122
+    module0.triangle(var6, var7, var7)
+    var8 = None
+    module0.triangle(var8, var8, var8)
+    var9 = None
+    module0.triangle(var9, var9, var9)
+    var10 = -349
+    module0.triangle(var9, var10, var9)
+    var11 = 267
+    module0.triangle(var3, var11, var2)
+
+
+def test_case_5():
+    var0 = -2262
+    module0.triangle(var0, var0, var0)
+
+
+def test_case_6():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -349
+    module0.triangle(var0, var1, var0)
+    var2 = None
+    var3 = -1122
+    module0.triangle(var2, var3, var3)
+    var4 = None
+    module0.triangle(var4, var4, var4)
+    var5 = -2841
+    var6 = 1544
+    var7 = 264
+    module0.triangle(var5, var6, var7)
+    var8 = None
+    module0.triangle(var8, var8, var8)
+    var9 = -2262
+    module0.triangle(var9, var9, var9)
+    var10 = None
+    module0.triangle(var10, var10, var10)
+    var11 = -349
+    module0.triangle(var10, var11, var10)
+    var12 = -427
+    var13 = -781
+    module0.triangle(var12, var13, var3)
+
+
+def test_case_7():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -2841
+    var2 = 1544
+    var3 = 264
+    module0.triangle(var1, var2, var3)
+    var4 = None
+    module0.triangle(var4, var4, var4)
+    var5 = -1367
+    module0.triangle(var0, var5, var3)
+
+
+def test_case_8():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -349
+    module0.triangle(var0, var1, var0)
+    var2 = None
+    var3 = -1122
+    module0.triangle(var2, var3, var3)
+    var4 = None
+    module0.triangle(var4, var4, var4)
+    var5 = -2841
+    var6 = 1544
+    var7 = 264
+    module0.triangle(var5, var6, var7)
+    var8 = -2262
+    module0.triangle(var8, var8, var8)
+    var9 = None
+    module0.triangle(var9, var9, var9)
+    var10 = -349
+    module0.triangle(var9, var10, var9)
+    var11 = -2926
+    var12 = -1156
+    module0.triangle(var2, var11, var12)
+
+
+def test_case_9():
+    var0 = None
+    module0.triangle(var0, var0, var0)
+    var1 = -349
+    module0.triangle(var0, var1, var0)
+    var2 = None
+    module0.triangle(var2, var2, var2)
+    var3 = -2841
+    var4 = 1544
+    var5 = 264
+    module0.triangle(var3, var4, var5)
+    module0.triangle(var3, var3, var4)

@@ -1,108 +1,28 @@
 [INFO](pynguin.generator): Start Pynguin Test Generation…
-[INFO](pynguin.generator): No seed given. Using 1597333481093484000
-[INFO](pynguin.generator): Start generating sequences using Algorithm.WSPY
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     0. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     1. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     2. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     3. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     4. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     5. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     6. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     7. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     8. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:     9. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    10. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    11. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    12. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    13. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    14. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    15. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    16. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    17. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    18. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    19. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    20. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    21. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    22. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    23. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    24. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    25. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    26. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    27. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    28. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    29. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    30. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    31. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    32. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    33. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    34. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    35. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    36. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    37. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    38. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    39. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    40. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    41. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    42. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    43. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    44. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    45. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    46. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    47. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    48. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    49. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    50. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    51. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    52. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    53. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    54. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    55. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    56. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    57. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    58. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    59. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    60. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    61. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    62. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    63. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    64. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    65. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    66. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    67. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    68. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    69. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    70. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    71. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    72. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    73. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    74. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    75. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    76. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    77. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    78. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    79. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    80. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    81. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    82. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    83. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    84. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    85. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    86. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    87. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    88. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    89. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    90. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    91. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    92. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    93. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    94. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    95. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    96. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    97. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    98. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generation.algorithms.wspy.wholesuiteteststrategy): Generation:    99. Best fitness: 1.000000, Best coverage 0.800000
-[INFO](pynguin.generator): Stop generating sequences using Algorithm.WSPY
-[INFO](pynguin.generator): Export 1 successful test cases to /tmp/pynguin-results/test_example.py
+[INFO](pynguin.generator): No seed given. Using 1597756506179493000
+[INFO](pynguin.generator): Start generating sequences using Algorithm.RANDOOPY
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 1
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     1. Best fitness: 8.000000, Best coverage 0.333333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 2
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     2. Best fitness: 3.500000, Best coverage 0.666667
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 3
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     3. Best fitness: 2.498991, Best coverage 0.750000
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 4
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     4. Best fitness: 1.499772, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 5
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     5. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 6
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     6. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 7
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     7. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 8
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     8. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 9
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     9. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 10
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:    10. Best fitness: 0.000000, Best coverage 1.000000
+[INFO](pynguin.generator): Stop generating sequences using Algorithm.RANDOOPY
+[INFO](pynguin.generator): Export 10 successful test cases to /tmp/pynguin-results/test_example.py
 [INFO](pynguin.generator): Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py
 [INFO](pynguin.utils.statistics.searchstatistics): Writing statistics
 [INFO](pynguin.generator): Stop Pynguin Test Generation…

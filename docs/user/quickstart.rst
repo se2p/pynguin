@@ -21,10 +21,12 @@ First, let's look at the code of the example file (which is located in
 .. literalinclude:: ../source/_static/example.py
     :linenos:
     :language: python
-    :lines: 16-
+    :lines: 9-
 
-The example consists of a couple of classes in one module file, with some methods in
-each class.  Note that we have annotated all parameter and return types, according to
+The example is the classical ``triangle`` example from courses on Software Testing,
+which yields for three given integers—assumed to be the lengths of the triangle's
+edges—what type of triangle it is.
+Note that we have annotated all parameter and return types, according to
 :pep:`484`.
 
 Before we can start, we create a directory for the output (this assumes you are on a
@@ -32,12 +34,12 @@ Linux or macOS machine, but similar can be done on Windows) using the command li
 
    $ mkdir -p /tmp/pynguin-results
 
-We will now invoke Pynguin (using its whole-suite test-generation algorithm) to let
+We will now invoke Pynguin (using its random test-generation algorithm) to let
 it generate test cases (we use ``\`` and the line breaks for better readability here,
 you can just omit them and type everything in one line)::
 
    $ pynguin \
-       --algorithm WSPY \
+       --algorithm RANDOOPY \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example
@@ -46,7 +48,7 @@ This runs for quite a while without showing any output.  Thus, to have some outp
 well as a more limited time (10 seconds here), we add some more parameters::
 
    $ pynguin \
-       --algorithm WSPY \
+       --algorithm RANDOOPY \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example \
@@ -56,13 +58,18 @@ well as a more limited time (10 seconds here), we add some more parameters::
 The output on the command line might be something like the following:
 
 .. literalinclude:: ../source/_static/example-stdout.txt
-    :emphasize-lines: 1-3,104-108
+    :emphasize-lines: 1-3,24-28
 
 The first three line show that Pynguin starts, that it has not gotten any seed—that
 is a fixed start number of its (pseudo) random-number generator, and that it starts
-sequence generation using the *WSPY* algorithm.
-It then yields that it generated 100 generations, and concludes with its results:
-one test case was written to ``/tmp/pynguin/results/test_example.py``, which looks
+sequence generation using the *RANDOOPY* algorithm.
+It then yields that it took 10 algorithm iterations, and concludes with its results:
+ten test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
+    :linenos:
+    :language: python
+    :lines: 8-
+
+Note that Pynguin currently is not able to generate assertions!
