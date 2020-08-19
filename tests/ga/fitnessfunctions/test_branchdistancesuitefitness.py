@@ -17,7 +17,7 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
-    KnownData,
+    ExecutionResultData,
     PredicateMetaData,
 )
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
@@ -35,7 +35,7 @@ def trace_mock():
 
 @pytest.fixture()
 def known_data_mock():
-    return KnownData()
+    return ExecutionResultData()
 
 
 def test_default_fitness(executor_mock, trace_mock, known_data_mock):

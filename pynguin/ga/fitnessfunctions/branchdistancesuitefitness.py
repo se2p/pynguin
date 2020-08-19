@@ -12,7 +12,10 @@ import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
+from pynguin.testcase.execution.executiontracer import (
+    ExecutionResultData,
+    ExecutionTracer,
+)
 
 
 class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
@@ -31,7 +34,9 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         )
 
     @staticmethod
-    def _compute_fitness(trace: ExecutionTrace, known_data: KnownData) -> float:
+    def _compute_fitness(
+        trace: ExecutionTrace, known_data: ExecutionResultData
+    ) -> float:
         # Check if all code objects were executed.
         code_objects_missing: float = len(known_data.existing_code_objects) - len(
             trace.executed_code_objects
@@ -68,7 +73,9 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         return 1.0
 
     @staticmethod
-    def _compute_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+    def _compute_coverage(
+        trace: ExecutionTrace, known_data: ExecutionResultData
+    ) -> float:
         """Computes branch coverage on bytecode instructions which should equal
         decision coverage on source.
 
@@ -124,7 +131,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
         return has_exception, merged
 
     @staticmethod
-    def get_worst_fitness(known_data: KnownData) -> float:
+    def get_worst_fitness(known_data: ExecutionResultData) -> float:
         """Compute the worst possible fitness value.
 
         Can be used to penalize time outs.

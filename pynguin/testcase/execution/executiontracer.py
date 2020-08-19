@@ -49,10 +49,8 @@ class PredicateMetaData:
 
 
 @dataclasses.dataclass
-class KnownData:
-    """Contains known code objects and predicates.
-    FIXME(fk) better class name...
-    """
+class ExecutionResultData:
+    """Contains the result data from the execution."""
 
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: Dict[int, CodeObjectMetaData] = dataclasses.field(
@@ -89,13 +87,13 @@ class ExecutionTracer:
     }
 
     def __init__(self) -> None:
-        self._known_data = KnownData()
+        self._known_data = ExecutionResultData()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
         self._init_trace()
         self._enabled = True
 
-    def get_known_data(self) -> KnownData:
+    def get_known_data(self) -> ExecutionResultData:
         """Provide known data.
 
         Returns:
@@ -109,7 +107,7 @@ class ExecutionTracer:
         Should be called before instrumentation. Clears all data, so we can handle a
         reload of the SUT.
         """
-        self._known_data = KnownData()
+        self._known_data = ExecutionResultData()
         self._import_trace = ExecutionTrace()
         self._init_trace()
 
