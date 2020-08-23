@@ -50,7 +50,7 @@ def mark_error():
                     " because the result seems to be very strange"
                 )
                 object.__setattr__(args[0], "_hasError", True)
-                raise TypeError(error)
+                raise TypeError() from error
 
         return wrapper
 

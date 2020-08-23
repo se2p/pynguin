@@ -201,8 +201,8 @@ class TestFactory:
             return test_case.add_statement(statement, position)
         except BaseException as exception:
             raise ConstructionFailedException(
-                f"Failed to add constructor for {constructor} " f"due to {exception}."
-            )
+                f"Failed to add constructor for {constructor}"
+            ) from exception
 
     # pylint: disable=too-many-arguments
     def add_method(

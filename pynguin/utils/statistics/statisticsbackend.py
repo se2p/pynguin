@@ -68,10 +68,10 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
         if not report_dir.exists():
             try:
                 report_dir.mkdir(parents=True, exist_ok=True)
-            except OSError:
+            except OSError as exception:
                 msg = "Cannot create report dir %s", config.INSTANCE.report_dir
                 self._logger.error(msg)
-                raise RuntimeError(msg)
+                raise RuntimeError(msg) from exception
         return report_dir
 
 

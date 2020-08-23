@@ -54,8 +54,8 @@ class TypeInference:
                 module_path, class_name = strategy.rsplit(".", 1)
                 module = importlib.import_module(module_path)
                 strategies.append(getattr(module, class_name))
-            except (ImportError, AttributeError):
-                raise ImportError(strategy)
+            except (ImportError, AttributeError) as exception:
+                raise ImportError(strategy) from exception
         return strategies
 
     def infer_type_info(self, method: Callable) -> List[InferredSignature]:
