@@ -79,7 +79,9 @@ class TestFactory:
             )
         elif isinstance(statement, f_stmt.FieldStatement):
             self.add_field(
-                test_case, statement.field, position=test_case.size(),
+                test_case,
+                statement.field,
+                position=test_case.size(),
             )
         elif isinstance(statement, prim.PrimitiveStatement):
             self.add_primitive(test_case, statement, position=test_case.size())
@@ -196,7 +198,9 @@ class TestFactory:
             position = position + new_length - length
 
             statement = par_stmt.ConstructorStatement(
-                test_case=test_case, generic_callable=constructor, args=parameters,
+                test_case=test_case,
+                generic_callable=constructor,
+                args=parameters,
             )
             return test_case.add_statement(statement, position)
         except BaseException as exception:
@@ -365,7 +369,9 @@ class TestFactory:
         position = position + new_length - length
 
         statement = par_stmt.FunctionStatement(
-            test_case=test_case, generic_callable=function, args=parameters,
+            test_case=test_case,
+            generic_callable=function,
+            args=parameters,
         )
         return test_case.add_statement(statement, position)
 
@@ -1051,7 +1057,10 @@ class TestFactory:
             )
         if is_primitive_type(parameter_type):
             return self._create_primitive(
-                test_case, parameter_type, position, recursion_depth,
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
             )
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(

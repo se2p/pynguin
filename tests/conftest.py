@@ -300,7 +300,9 @@ def larger_control_flow_graph() -> CFG:
 def pytest_addoption(parser):
     group = parser.getgroup("pynguin")
     group.addoption(
-        "--integration", action="store_true", help="Run integration tests.",
+        "--integration",
+        action="store_true",
+        help="Run integration tests.",
     )
     group.addoption(
         "--slow",

@@ -26,7 +26,10 @@ class FieldStatement(stmt.Statement):
     """A statement which accesses a public field or a property of an object."""
 
     def __init__(
-        self, test_case: tc.TestCase, field: GenericField, source: vr.VariableReference,
+        self,
+        test_case: tc.TestCase,
+        field: GenericField,
+        source: vr.VariableReference,
     ):
         super().__init__(
             test_case, vri.VariableReferenceImpl(test_case, field.generated_type())

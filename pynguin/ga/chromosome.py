@@ -91,7 +91,10 @@ class Chromosome(metaclass=abc.ABCMeta):
             raise RuntimeError(", ".join(violations))
         self._current_values[fitness_function] = new_value
 
-    def add_fitness_function(self, fitness_function: ff.FitnessFunction,) -> None:
+    def add_fitness_function(
+        self,
+        fitness_function: ff.FitnessFunction,
+    ) -> None:
         """Adds a fitness function.
 
         Args:

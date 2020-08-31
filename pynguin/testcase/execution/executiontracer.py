@@ -76,16 +76,46 @@ class ExecutionTracer:
     # The returned tuple for each computation is (true distance, false distance).
     # pylint: disable=arguments-out-of-order
     _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
-        Compare.EQ: lambda val1, val2: (_eq(val1, val2), _neq(val1, val2),),
-        Compare.NE: lambda val1, val2: (_neq(val1, val2), _eq(val1, val2),),
-        Compare.LT: lambda val1, val2: (_lt(val1, val2), _le(val2, val1),),
-        Compare.LE: lambda val1, val2: (_le(val1, val2), _lt(val2, val1),),
-        Compare.GT: lambda val1, val2: (_lt(val2, val1), _le(val1, val2),),
-        Compare.GE: lambda val1, val2: (_le(val2, val1), _lt(val1, val2),),
-        Compare.IN: lambda val1, val2: (_in(val1, val2), _nin(val1, val2),),
-        Compare.NOT_IN: lambda val1, val2: (_nin(val1, val2), _in(val1, val2),),
-        Compare.IS: lambda val1, val2: (_is(val1, val2), _isn(val1, val2),),
-        Compare.IS_NOT: lambda val1, val2: (_isn(val1, val2), _is(val1, val2),),
+        Compare.EQ: lambda val1, val2: (
+            _eq(val1, val2),
+            _neq(val1, val2),
+        ),
+        Compare.NE: lambda val1, val2: (
+            _neq(val1, val2),
+            _eq(val1, val2),
+        ),
+        Compare.LT: lambda val1, val2: (
+            _lt(val1, val2),
+            _le(val2, val1),
+        ),
+        Compare.LE: lambda val1, val2: (
+            _le(val1, val2),
+            _lt(val2, val1),
+        ),
+        Compare.GT: lambda val1, val2: (
+            _lt(val2, val1),
+            _le(val1, val2),
+        ),
+        Compare.GE: lambda val1, val2: (
+            _le(val2, val1),
+            _lt(val1, val2),
+        ),
+        Compare.IN: lambda val1, val2: (
+            _in(val1, val2),
+            _nin(val1, val2),
+        ),
+        Compare.NOT_IN: lambda val1, val2: (
+            _nin(val1, val2),
+            _in(val1, val2),
+        ),
+        Compare.IS: lambda val1, val2: (
+            _is(val1, val2),
+            _isn(val1, val2),
+        ),
+        Compare.IS_NOT: lambda val1, val2: (
+            _isn(val1, val2),
+            _is(val1, val2),
+        ),
     }
 
     def __init__(self) -> None:

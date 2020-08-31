@@ -93,7 +93,8 @@ def test_distance(test_case_mock):
 
 
 @pytest.mark.parametrize(
-    "type_,result", [pytest.param(int, True), pytest.param(MagicMock, False)],
+    "type_,result",
+    [pytest.param(int, True), pytest.param(MagicMock, False)],
 )
 def test_is_primitive(test_case_mock, type_, result):
     ref = vri.VariableReferenceImpl(test_case_mock, type_)
@@ -101,7 +102,8 @@ def test_is_primitive(test_case_mock, type_, result):
 
 
 @pytest.mark.parametrize(
-    "type_,result", [pytest.param(None, True), pytest.param(MagicMock, False)],
+    "type_,result",
+    [pytest.param(None, True), pytest.param(MagicMock, False)],
 )
 def test_is_type_unknown(test_case_mock, type_, result):
     ref = vri.VariableReferenceImpl(test_case_mock, type_)
@@ -109,7 +111,8 @@ def test_is_type_unknown(test_case_mock, type_, result):
 
 
 @pytest.mark.parametrize(
-    "type_,result", [pytest.param(type(None), True), pytest.param(MagicMock, False)],
+    "type_,result",
+    [pytest.param(type(None), True), pytest.param(MagicMock, False)],
 )
 def test_is_none_type(test_case_mock, type_, result):
     ref = vri.VariableReferenceImpl(test_case_mock, type_)

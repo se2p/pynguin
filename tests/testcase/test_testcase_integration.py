@@ -19,7 +19,10 @@ def test_method_statement_clone(method_mock):
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     str_prim = prim.StringPrimitiveStatement(test_case, "TestThis")
     method_stmt = ps.MethodStatement(
-        test_case, method_mock, str_prim.return_value, [int_prim.return_value],
+        test_case,
+        method_mock,
+        str_prim.return_value,
+        [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)
@@ -34,7 +37,9 @@ def test_constructor_statement_clone(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     method_stmt = ps.ConstructorStatement(
-        test_case, constructor_mock, [int_prim.return_value],
+        test_case,
+        constructor_mock,
+        [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(method_stmt)

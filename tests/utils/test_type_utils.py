@@ -53,7 +53,8 @@ def test_is_none_type(type_, result):
 
 
 @pytest.mark.parametrize(
-    "type_,result", [pytest.param(None, True), pytest.param(MagicMock, False)],
+    "type_,result",
+    [pytest.param(None, True), pytest.param(MagicMock, False)],
 )
 def test_is_type_unknown(type_, result):
     assert is_type_unknown(type_) == result
@@ -93,14 +94,16 @@ def test_is_assignable_to(from_type, to_type, result):
 
 
 @pytest.mark.parametrize(
-    "value, result", [(5, True), (5.5, True), ("test", False), (None, False)],
+    "value, result",
+    [(5, True), (5.5, True), ("test", False), (None, False)],
 )
 def test_is_numeric(value, result):
     assert is_numeric(value) == result
 
 
 @pytest.mark.parametrize(
-    "value, result", [(5, False), (5.5, False), ("test", True), (None, False)],
+    "value, result",
+    [(5, False), (5.5, False), ("test", True), (None, False)],
 )
 def test_is_string(value, result):
     assert is_string(value) == result

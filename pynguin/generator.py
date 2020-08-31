@@ -308,7 +308,8 @@ class Pynguin:
         )
         tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
-            RuntimeVariable.FailingLength, failing.total_length_of_test_cases,
+            RuntimeVariable.FailingLength,
+            failing.total_length_of_test_cases,
         )
         tracker.track_output_variable(RuntimeVariable.PassingSize, non_failing.size())
         tracker.track_output_variable(

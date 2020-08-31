@@ -22,8 +22,8 @@ def test_get_test_case_max_attempts():
 
 def test_get_test_case_success():
     test_factory = MagicMock(tf.TestFactory)
-    test_factory.insert_random_statement.side_effect = lambda test_case, pos: test_case.add_statement(
-        MagicMock(), 0
+    test_factory.insert_random_statement.side_effect = (
+        lambda test_case, pos: test_case.add_statement(MagicMock(), 0)
     )
     test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory)
     test_case_factory.get_test_case()

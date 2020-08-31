@@ -115,7 +115,9 @@ def test_generate_sequence(has_exceptions, executor):
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
-            tsc.TestSuiteChromosome(), tsc.TestSuiteChromosome(), 0,
+            tsc.TestSuiteChromosome(),
+            tsc.TestSuiteChromosome(),
+            0,
         )
 
 
@@ -128,5 +130,7 @@ def test_generate_sequence_duplicate(executor):
     algorithm._random_test_cases = lambda x: [test_case]
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
-            tsc.TestSuiteChromosome(), tsc.TestSuiteChromosome(), 0,
+            tsc.TestSuiteChromosome(),
+            tsc.TestSuiteChromosome(),
+            0,
         )

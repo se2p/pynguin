@@ -342,7 +342,10 @@ class MethodStatement(ParametrizedStatement):
             kwargs: the keyword arguments
         """
         super().__init__(
-            test_case, generic_callable, args, kwargs,
+            test_case,
+            generic_callable,
+            args,
+            kwargs,
         )
         self._callee = callee
 

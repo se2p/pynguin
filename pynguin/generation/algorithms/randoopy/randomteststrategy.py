@@ -57,7 +57,9 @@ class RandomTestStrategy(TestGenerationStrategy):
                 generation += 1
                 stopping_condition.iterate()
                 self.generate_sequence(
-                    test_chromosome, failing_test_chromosome, generation,
+                    test_chromosome,
+                    failing_test_chromosome,
+                    generation,
                 )
                 combined_chromosome = self._combine_current_individual(
                     test_chromosome, failing_test_chromosome

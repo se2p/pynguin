@@ -68,7 +68,8 @@ def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
 
 
 def _setup_logging(
-    verbosity: int, log_file: Union[str, os.PathLike] = None,
+    verbosity: int,
+    log_file: Union[str, os.PathLike] = None,
 ):
     # TODO(fk) use logging.basicConfig
 

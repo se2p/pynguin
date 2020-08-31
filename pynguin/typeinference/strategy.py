@@ -65,7 +65,9 @@ class InferredSignature:
         self._update_signature_return_type(return_type)
 
     def _update_signature_parameter(
-        self, parameter_name: str, parameter_type: Optional[type],
+        self,
+        parameter_name: str,
+        parameter_type: Optional[type],
     ):
         current_parameter: Optional[Parameter] = self.signature.parameters.get(
             parameter_name

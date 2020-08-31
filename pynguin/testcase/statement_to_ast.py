@@ -146,7 +146,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)], value=call,
+                targets=[self._create_var_name(stmt.return_value, False)],
+                value=call,
             )
         self._ast_nodes.append(node)
 
@@ -166,7 +167,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)], value=call,
+                targets=[self._create_var_name(stmt.return_value, False)],
+                value=call,
             )
         self._ast_nodes.append(node)
 
@@ -237,7 +239,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
         kwargs = []
         for name, value in stmt.kwargs.items():
             kwargs.append(
-                ast.keyword(arg=name, value=self._create_var_name(value, True),)
+                ast.keyword(
+                    arg=name,
+                    value=self._create_var_name(value, True),
+                )
             )
         return kwargs
 

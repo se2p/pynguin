@@ -24,7 +24,9 @@ def signature():
 @pytest.fixture
 def inferred_signature(signature):
     return InferredSignature(
-        signature=signature, parameters={"x": int, "y": int}, return_type=int,
+        signature=signature,
+        parameters={"x": int, "y": int},
+        return_type=int,
     )
 
 

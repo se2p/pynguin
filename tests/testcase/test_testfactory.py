@@ -223,7 +223,10 @@ def test_add_function(provide_callables_from_fixtures_modules):
 def test_create_primitive(type_, statement_type):
     factory = tf.TestFactory(MagicMock(TestCluster))
     result = factory._create_primitive(
-        dtc.DefaultTestCase(), type_, position=0, recursion_depth=0,
+        dtc.DefaultTestCase(),
+        type_,
+        position=0,
+        recursion_depth=0,
     )
     assert result.variable_type == statement_type
 

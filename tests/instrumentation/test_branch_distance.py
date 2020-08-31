@@ -160,8 +160,10 @@ def test_conditional_assignment(simple_module, tracer_mock):
 
 def test_conditionally_nested_class(simple_module, tracer_mock):
     instr = BranchDistanceInstrumentation(tracer_mock)
-    simple_module.conditionally_nested_class.__code__ = instr._instrument_code_recursive(
-        simple_module.conditionally_nested_class.__code__, True
+    simple_module.conditionally_nested_class.__code__ = (
+        instr._instrument_code_recursive(
+            simple_module.conditionally_nested_class.__code__, True
+        )
     )
     assert tracer_mock.register_code_object.call_count == 3
 

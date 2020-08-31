@@ -19,7 +19,8 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     """A fitness function based on branch distances and entered code objects."""
 
     def compute_fitness_values(
-        self, individual: tsc.TestSuiteChromosome,
+        self,
+        individual: tsc.TestSuiteChromosome,
     ) -> ff.FitnessValues:
         results = self._run_test_suite(individual)
         _, merged_trace = self.analyze_traces(results)

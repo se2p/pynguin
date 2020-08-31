@@ -122,7 +122,9 @@ def test_statement_to_ast_constructor_kwargs(
     statement_to_ast_visitor, test_case_mock, variable_reference_mock, constructor_mock
 ):
     constr_stmt = param_stmt.ConstructorStatement(
-        test_case_mock, constructor_mock, kwargs={"param1": variable_reference_mock},
+        test_case_mock,
+        constructor_mock,
+        kwargs={"param1": variable_reference_mock},
     )
     statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
     assert (

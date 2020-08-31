@@ -40,7 +40,8 @@ class AbstractTestExporter(metaclass=ABCMeta):
         """
 
     def _transform_to_asts(
-        self, test_cases: List[tc.TestCase],
+        self,
+        test_cases: List[tc.TestCase],
     ) -> Tuple[List[List[ast.stmt]], NamingScope]:
         visitor = tc_to_ast.TestCaseToAstVisitor(wrap_code=self._wrap_code)
         for test_case in test_cases:

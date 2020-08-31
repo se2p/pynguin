@@ -80,7 +80,9 @@ class BranchDistanceInstrumentation:
         return code.replace(co_consts=tuple(new_consts))
 
     def _instrument_code_recursive(
-        self, code: CodeType, parent_code_object_id: Optional[int] = None,
+        self,
+        code: CodeType,
+        parent_code_object_id: Optional[int] = None,
     ) -> CodeType:
         """Instrument the given Code Object recursively.
 

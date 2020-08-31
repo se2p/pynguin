@@ -63,7 +63,9 @@ class TestCaseExecutor:
         return result
 
     def _execute_nodes(
-        self, exec_ctx: ctx.ExecutionContext, result: res.ExecutionResult,
+        self,
+        exec_ctx: ctx.ExecutionContext,
+        result: res.ExecutionResult,
     ):
         for idx, node in enumerate(exec_ctx.executable_nodes()):
             try:

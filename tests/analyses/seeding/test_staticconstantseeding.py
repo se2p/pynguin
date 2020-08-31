@@ -21,7 +21,10 @@ def seeding():
 @pytest.fixture
 def fixture_dir():
     return os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "fixtures",
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        "fixtures",
     )
 
 
