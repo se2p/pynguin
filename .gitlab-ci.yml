@@ -120,7 +120,7 @@ sphinx:
 
 # check license declarations etc.
 reuse:
-  stage: test
+  stage: lint
   image:
     name: fsfe/reuse:latest
     entrypoint: [""]
