@@ -14,8 +14,7 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 
 # pylint: disable=abstract-method
 class AbstractSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
-    """Abstract fitness function for test suites.
-    """
+    """Abstract fitness function for test suites."""
 
     def _run_test_suite(self, individual) -> List[ExecutionResult]:
         """Runs a test suite and updates the execution results for

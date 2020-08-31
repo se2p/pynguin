@@ -46,7 +46,7 @@ networkx = {extras = ["pydot"], version = "^2.4"}
 [tool.poetry.dev-dependencies]
 coverage = "^5.2"
 pytest = "^6.0"
-black = {version = "^19.10b0", allow-prereleases = true}
+black = {version = "^20.8b1", allow-prereleases = true}
 pytest-cov = "^2.10"
 pylint = "^2.5"
 pytest-sugar = "^0.9.4"

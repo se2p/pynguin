@@ -159,9 +159,11 @@ class BranchDistanceInstrumentation:
             ), "Non artificial node does not have a basic block."
             assert len(node.basic_block) > 0, "Empty basic block in CFG."
             maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
-            maybe_compare: Optional[Instr] = node.basic_block[
-                self._COMPARE_OP_POS
-            ] if len(node.basic_block) > 1 else None
+            maybe_compare: Optional[Instr] = (
+                node.basic_block[self._COMPARE_OP_POS]
+                if len(node.basic_block) > 1
+                else None
+            )
             if isinstance(maybe_jump, Instr):
                 if maybe_jump.name == "FOR_ITER":
                     predicate_id = self._instrument_for_loop(

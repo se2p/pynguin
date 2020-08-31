@@ -215,8 +215,8 @@ class Pynguin:
         executor, test_cluster = setup_result
 
         with Timer(name="Test generation time", logger=None):
-            algorithm: TestGenerationStrategy = self._instantiate_test_generation_strategy(
-                executor, test_cluster
+            algorithm: TestGenerationStrategy = (
+                self._instantiate_test_generation_strategy(executor, test_cluster)
             )
             self._logger.info(
                 "Start generating sequences using %s", config.INSTANCE.algorithm

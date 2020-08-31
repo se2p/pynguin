@@ -810,7 +810,7 @@ class TestFactory:
 
         Returns:
             Whether or not the objects are sufficient to satisfy the dependencies
-         """
+        """
         for type_ in dependencies:
             found = False
             for var in objects:
