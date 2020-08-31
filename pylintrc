@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
 [MASTER]
 
 # A comma-separated list of package or module names from where C extensions may

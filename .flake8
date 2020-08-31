@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+
 [flake8]
 ignore = E203, E266, E501, W503
 show-source = true
