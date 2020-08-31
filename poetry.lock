@@ -282,7 +282,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.29.0"
+version = "5.30.0"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -435,7 +435,7 @@ description = "More routines for operating on iterables, beyond itertools"
 name = "more-itertools"
 optional = false
 python-versions = ">=3.5"
-version = "8.4.0"
+version = "8.5.0"
 
 [[package]]
 category = "dev"
@@ -1201,8 +1201,8 @@ gitpython = [
     {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.29.0-py3-none-any.whl", hash = "sha256:fc0f087e403175e6a9db36e1361bf336592f7641be21d51535a2537610410ac7"},
-    {file = "hypothesis-5.29.0.tar.gz", hash = "sha256:67f6261176d22019bbb82dea463d9c3890dcc9722607cb2a7869f16c05d076ec"},
+    {file = "hypothesis-5.30.0-py3-none-any.whl", hash = "sha256:4a57b7add9203c6244912ce6d67a2dc040fabb600d90268a022b2c7ca3bce046"},
+    {file = "hypothesis-5.30.0.tar.gz", hash = "sha256:d810af02dcb0edabb36dd77f3db01b89a4028098dad237bafeaf23060e1dd5be"},
 ]
 identify = [
     {file = "identify-1.4.29-py2.py3-none-any.whl", hash = "sha256:b1aa2e05863dc80242610d46a7b49105e2eafe00ef0c8ff311c1828680760c76"},
@@ -1306,8 +1306,8 @@ monkeytype = [
     {file = "MonkeyType-20.5.0.tar.gz", hash = "sha256:fe596bebc5e1b6a64eae71a40b880688de433e4f70507a31ada48510195251dd"},
 ]
 more-itertools = [
-    {file = "more-itertools-8.4.0.tar.gz", hash = "sha256:68c70cc7167bdf5c7c9d8f6954a7837089c6a36bf565383919bb595efb8a17e5"},
-    {file = "more_itertools-8.4.0-py3-none-any.whl", hash = "sha256:b78134b2063dd214000685165d81c154522c3ee0a1c0d4d113c80361c234c5a2"},
+    {file = "more-itertools-8.5.0.tar.gz", hash = "sha256:6f83822ae94818eae2612063a5101a7311e68ae8002005b5e05f03fd74a86a20"},
+    {file = "more_itertools-8.5.0-py3-none-any.whl", hash = "sha256:9b30f12df9393f0d28af9210ff8efe48d10c94f73e5daf886f10c4b0b0b4f03c"},
 ]
 mypy = [
     {file = "mypy-0.782-cp35-cp35m-macosx_10_6_x86_64.whl", hash = "sha256:2c6cde8aa3426c1682d35190b59b71f661237d74b053822ea3d748e2c9578a7c"},
