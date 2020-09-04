@@ -273,7 +273,7 @@ description = "Python Git Library"
 name = "gitpython"
 optional = false
 python-versions = ">=3.4"
-version = "3.1.7"
+version = "3.1.8"
 
 [package.dependencies]
 gitdb = ">=4.0.1,<5"
@@ -284,7 +284,7 @@ description = "A library for property-based testing"
 name = "hypothesis"
 optional = false
 python-versions = ">=3.5.2"
-version = "5.30.0"
+version = "5.30.1"
 
 [package.dependencies]
 attrs = ">=19.2.0"
@@ -1199,12 +1199,12 @@ gitdb = [
     {file = "gitdb-4.0.5.tar.gz", hash = "sha256:c9e1f2d0db7ddb9a704c2a0217be31214e91a4fe1dea1efad19ae42ba0c285c9"},
 ]
 gitpython = [
-    {file = "GitPython-3.1.7-py3-none-any.whl", hash = "sha256:fa3b92da728a457dd75d62bb5f3eb2816d99a7fe6c67398e260637a40e3fafb5"},
-    {file = "GitPython-3.1.7.tar.gz", hash = "sha256:2db287d71a284e22e5c2846042d0602465c7434d910406990d5b74df4afb0858"},
+    {file = "GitPython-3.1.8-py3-none-any.whl", hash = "sha256:1858f4fd089abe92ae465f01d5aaaf55e937eca565fb2c1fce35a51b5f85c910"},
+    {file = "GitPython-3.1.8.tar.gz", hash = "sha256:080bf8e2cf1a2b907634761c2eaefbe83b69930c94c66ad11b65a8252959f912"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.30.0-py3-none-any.whl", hash = "sha256:4a57b7add9203c6244912ce6d67a2dc040fabb600d90268a022b2c7ca3bce046"},
-    {file = "hypothesis-5.30.0.tar.gz", hash = "sha256:d810af02dcb0edabb36dd77f3db01b89a4028098dad237bafeaf23060e1dd5be"},
+    {file = "hypothesis-5.30.1-py3-none-any.whl", hash = "sha256:3336db344208946dff460f0a3e62d6f6afece321acb6c4a9676c1c857ec2ea20"},
+    {file = "hypothesis-5.30.1.tar.gz", hash = "sha256:d603423f46c2c1f54e089e4f9f92f7d6460dc1ad40450a3b38669404fea85efd"},
 ]
 identify = [
     {file = "identify-1.4.30-py2.py3-none-any.whl", hash = "sha256:f9f84a4ff44e29b9cc23c4012c2c8954089860723f80ce63d760393e5f197108"},
