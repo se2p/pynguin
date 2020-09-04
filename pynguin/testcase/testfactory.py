@@ -251,7 +251,7 @@ class TestFactory:
         length = test_case.size()
         if callee is None:
             callee = self._create_or_reuse_variable(
-                test_case, method.owner, position, recursion_depth, allow_none=True
+                test_case, method.owner, position, recursion_depth, allow_none=False
             )
         assert callee, "The callee must not be None"
         parameters: List[vr.VariableReference] = self.satisfy_parameters(

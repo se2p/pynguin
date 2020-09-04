@@ -175,9 +175,11 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
     test_cluster_mock.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(test_cluster_mock)
     config.INSTANCE.none_probability = 1.0
-    result = factory.add_method(test_case, generic_method, position=0)
+    result = factory.add_method(
+        test_case, generic_method, position=0, callee=MagicMock()
+    )
     assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
-    assert test_case.size() == 3
+    assert test_case.size() == 2
 
 
 def test_add_function(provide_callables_from_fixtures_modules):
