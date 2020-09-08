@@ -201,7 +201,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_duck_mock_artificial_statement(
         self, stmt: art_stmt.DuckMockArtificialStatement
     ) -> None:
-        pass
+        raise NotImplementedError("This functionality is currently not implemented!")
 
     def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
         """Small helper for int and float.
