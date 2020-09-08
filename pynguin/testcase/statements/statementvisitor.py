@@ -93,3 +93,11 @@ class StatementVisitor(ABC):
         Args:
             stmt: the statement to visit
         """
+
+    @abstractmethod
+    def visit_duck_mock_artificial_statement(self, stmt) -> None:
+        """Visit a duck mock artificial statement.
+
+        Args:
+            stmt: the statement to visit
+        """

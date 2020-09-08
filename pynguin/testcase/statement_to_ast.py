@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 from typing import List
 
+import pynguin.testcase.statements.artificialstatements as art_stmt
 import pynguin.testcase.statements.assignmentstatement as assign_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
@@ -196,6 +197,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 value=self._create_var_name(stmt.rhs, True),
             )
         )
+
+    def visit_duck_mock_artificial_statement(
+        self, stmt: art_stmt.DuckMockArtificialStatement
+    ) -> None:
+        pass
 
     def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
         """Small helper for int and float.
