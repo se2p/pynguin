@@ -11,7 +11,6 @@ import astor
 import pytest
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.statements.artificialstatements as art_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.statement as stmt
@@ -231,10 +230,3 @@ def test_statement_to_ast_with_wrap():
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "try:\n    var0 = 5\nexcept BaseException:\n    pass\n"
     )
-
-
-def test_statement_to_ast_duck_mock_artificial_statement(statement_to_ast_visitor):
-    with pytest.raises(NotImplementedError):
-        statement_to_ast_visitor.visit_duck_mock_artificial_statement(
-            MagicMock(art_stmt.DuckMockArtificialStatement)
-        )
