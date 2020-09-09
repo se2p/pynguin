@@ -16,7 +16,6 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
-from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -272,7 +271,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
 class NoneStatement(PrimitiveStatement):
     """A statement serving as a None reference."""
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> Statement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return NoneStatement(test_case, self.return_value.variable_type)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
