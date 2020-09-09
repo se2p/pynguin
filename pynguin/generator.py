@@ -26,6 +26,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
+from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -165,6 +166,14 @@ class Pynguin:
             self._logger.info("Collecting constants from SUT.")
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
+    def _setup_type_analysis(self) -> Optional[TypeAnalysis]:
+        if config.INSTANCE.duck_type_analysis:
+            self._logger.info("Analysing classes and methods in SUT.")
+            analysis = TypeAnalysis(config.INSTANCE.module_name)
+            analysis.analyse()
+            return analysis
+        return None
+
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -182,6 +191,11 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
+        type_analysis = (  # noqa  # pylint: disable=unused-variable
+            self._setup_type_analysis()
+        )
+        if type_analysis is not None:
+            executor.type_analysis = type_analysis
         return executor, test_cluster
 
     @staticmethod

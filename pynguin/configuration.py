@@ -259,6 +259,10 @@ class Configuration(Serializable):
     """Should the generator use a static constant seeding technique to improve constant
     generation?"""
 
+    duck_type_analysis: bool = False
+    """Should the duck-type analysis be used for type inference during test
+    generation?"""
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(

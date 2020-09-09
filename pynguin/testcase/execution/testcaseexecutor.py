@@ -9,7 +9,7 @@ import contextlib
 import importlib
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import astor
 
@@ -17,6 +17,7 @@ import pynguin.configuration as config
 import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
+from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -33,6 +34,7 @@ class TestCaseExecutor:
         """
         importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
+        self._type_analysis: Optional[TypeAnalysis] = None
 
     def get_tracer(self) -> ExecutionTracer:
         """Provide access to the execution tracer.
@@ -41,6 +43,25 @@ class TestCaseExecutor:
             The execution tracer
         """
         return self._tracer
+
+    @property
+    def type_analysis(self) -> Optional[TypeAnalysis]:
+        """Provide access to the optional type analysis.
+
+        Returns:
+            The optional type analysis
+        """
+        return self._type_analysis
+
+    @type_analysis.setter
+    def type_analysis(self, type_analysis: TypeAnalysis) -> None:
+        """Sets the type analysis.
+
+        Args:
+            type_analysis: A type-instance, must not be `None`
+        """
+        assert type_analysis is not None
+        self._type_analysis = type_analysis
 
     def execute(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
