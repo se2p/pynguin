@@ -194,7 +194,8 @@ class Pynguin:
         type_analysis = (  # noqa  # pylint: disable=unused-variable
             self._setup_type_analysis()
         )
-        # TODO(sl) inject type analysis into executor
+        if type_analysis is not None:
+            executor.type_analysis = type_analysis
         return executor, test_cluster
 
     @staticmethod
