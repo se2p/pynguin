@@ -191,10 +191,7 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
-        type_analysis = (  # noqa  # pylint: disable=unused-variable
-            self._setup_type_analysis()
-        )
-        if type_analysis is not None:
+        if (type_analysis := self._setup_type_analysis()) is not None:
             executor.type_analysis = type_analysis
         return executor, test_cluster
 
