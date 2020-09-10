@@ -46,7 +46,6 @@ class TypeAnalysis:
             return inspect.ismethod(obj) or inspect.isfunction(obj)
 
         module = importlib.import_module(self._module_name)
-        module = importlib.reload(module)  # reload to be sure... necessary?
         for class_name, class_obj in inspect.getmembers(module, inspect.isclass):
             defining_class = DefiningClass(class_name, class_obj)
             for method_name, method_obj in inspect.getmembers(class_obj, is_member):
