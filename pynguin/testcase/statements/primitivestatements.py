@@ -77,7 +77,7 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
     def __repr__(self) -> str:
         return (
             f"PrimitiveStatement({self._test_case}, {self._return_value}, "
-            f"{self._value})"
+            + f"{self._value})"
         )
 
     def __str__(self) -> str:

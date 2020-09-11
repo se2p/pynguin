@@ -196,7 +196,7 @@ class GenericMethod(GenericCallableAccessibleObject):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}({self.owner},"
-            f" {self._callable.__name__}, {self.inferred_signature})"
+            + f" {self._callable.__name__}, {self.inferred_signature})"
         )
 
 

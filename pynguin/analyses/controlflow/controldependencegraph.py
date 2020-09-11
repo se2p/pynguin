@@ -60,7 +60,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
                 predecessors = post_dominator_tree.get_predecessors(current)
                 assert len(predecessors) == 1, (
                     "Cannot have more than one predecessor in a tree, this violates a "
-                    "tree invariant"
+                    + "tree invariant"
                 )
                 current = predecessors.pop()
 

@@ -65,7 +65,7 @@ def test_insert():
     it = ListIterator(test_list)
     it.next()
     it.insert_before([1, 3, 5, 7, 11])
-    assert all([a == b for a, b in zip(test_list, [1, 3, 5, 7, 11, 42, 1337])])
+    assert all(a == b for a, b in zip(test_list, [1, 3, 5, 7, 11, 42, 1337]))
 
 
 def test_insert_offset():
@@ -74,7 +74,7 @@ def test_insert_offset():
     it.next()
     it.next()
     it.insert_before([1, 3, 5], 1)
-    assert all([a == b for a, b in zip(test_list, [1, 3, 5, 42, 1337])])
+    assert all(a == b for a, b in zip(test_list, [1, 3, 5, 42, 1337]))
 
 
 def test_insert_current():

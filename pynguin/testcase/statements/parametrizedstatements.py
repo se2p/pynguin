@@ -313,7 +313,7 @@ class ConstructorStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"ConstructorStatement({self._test_case}, "
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs})"
+            + f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
@@ -418,14 +418,14 @@ class MethodStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"MethodStatement({self._test_case}, "
-            f"{self._generic_callable}, {self._callee.variable_type}, "
-            f"args={self._args}, kwargs={self._kwargs})"
+            + f"{self._generic_callable}, {self._callee.variable_type}, "
+            + f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
             f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
-            f"{self._generic_callable.generated_type()}"
+            + f"{self._generic_callable.generated_type()}"
         )
 
 
@@ -454,12 +454,12 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._generic_callable}, {self._return_value.variable_type}, "
-            f"args={self._args}, kwargs={self._kwargs})"
+            + f"{self._generic_callable}, {self._return_value.variable_type}, "
+            + f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
             f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
-            f"{self._return_value.variable_type}"
+            + f"{self._return_value.variable_type}"
         )

@@ -20,7 +20,7 @@ class Chromosome(metaclass=abc.ABCMeta):
 
     def __init__(self):
         self._fitness_functions: List[ff.FitnessFunction] = []
-        self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = dict()
+        self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
 
         self._number_of_evaluations: int = 0
         self._changed: bool = True

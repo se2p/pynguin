@@ -87,7 +87,7 @@ class ExecutionResult:
     def __str__(self) -> str:
         return (
             f"ExecutionResult(exceptions: {self._exceptions}, "
-            f"trace: {self._execution_trace})"
+            + f"trace: {self._execution_trace})"
         )
 
     def __repr__(self) -> str:

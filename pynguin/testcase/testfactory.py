@@ -900,8 +900,10 @@ class TestFactory:
                 )
             if not var:
                 raise ConstructionFailedException(
-                    f"Failed to create variable for type {parameter_type} "
-                    f"at position {position}",
+                    (
+                        f"Failed to create variable for type {parameter_type} "
+                        + f"at position {position}"
+                    ),
                 )
 
             parameters.append(var)

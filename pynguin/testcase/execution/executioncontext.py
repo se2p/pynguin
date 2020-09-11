@@ -26,7 +26,7 @@ class ExecutionContext:
         Args:
             test_case: the executed test case
         """
-        self._local_namespace: Dict[str, Any] = dict()
+        self._local_namespace: Dict[str, Any] = {}
         self._variable_names = NamingScope()
         self._modules_aliases = NamingScope(prefix="module")
         self._ast_nodes = self._to_ast_nodes(

@@ -81,8 +81,10 @@ def _setup_logging(
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(
             logging.Formatter(
-                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
-                "%(message)s"
+                (
+                    "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
+                    + "%(message)s"
+                )
             )
         )
         file_handler.setLevel(logging.DEBUG)

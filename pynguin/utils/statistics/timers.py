@@ -55,8 +55,10 @@ class Timers(collections.UserDict):
             TypeError: always as it is not allowed to set timer value
         """
         raise TypeError(
-            f"{self.__class__.__name__!r} does not support item assignment. "
-            "Use '.add()' to update values."
+            (
+                f"{self.__class__.__name__!r} does not support item assignment. "
+                + "Use '.add()' to update values."
+            )
         )
 
     def apply(self, func: Callable[[List[float]], float], name: str) -> float:

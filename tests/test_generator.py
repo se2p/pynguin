@@ -27,9 +27,8 @@ def test_init_with_configuration():
 def test_init_without_params():
     with pytest.raises(ConfigurationException) as exception:
         gen.Pynguin(None)
-    assert (
-        exception.value.args[0] == "Cannot initialise test generator without "
-        "proper configuration."
+    assert exception.value.args[0] == (
+        "Cannot initialise test generator without " + "proper configuration."
     )
 
 

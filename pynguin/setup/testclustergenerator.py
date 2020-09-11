@@ -224,10 +224,8 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             return False
         inf_sig = accessible_object.inferred_signature
         return any(
-            [
-                not should_skip_parameter(inf_sig, param) and type_ is None
-                for param, type_ in inf_sig.parameters.items()
-            ]
+            not should_skip_parameter(inf_sig, param) and type_ is None
+            for param, type_ in inf_sig.parameters.items()
         )
 
     def _resolve_dependencies_recursive(self):
