@@ -122,3 +122,12 @@ def test_setup_path_and_hook_valid_dir(tmp_path):
             assert generator._setup_path_and_hook()
             hook_mock.assert_called_once()
             path_mock.insert.assert_called_with(0, tmp_path)
+
+
+def test_run(tmp_path):
+    generator = gen.Pynguin(
+        configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")
+    )
+    with mock.patch.object(gen.Pynguin, "_run") as run_mock:
+        generator.run()
+        run_mock.assert_called_once()
