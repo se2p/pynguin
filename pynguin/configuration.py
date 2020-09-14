@@ -195,8 +195,8 @@ class Configuration(Serializable):
     e.g. Callable[...]"""
 
     change_parameter_probability: float = 0.1
-    """Probability of replacing parameters when mutating a method or constructor statement
-    in a test case.  Expects values in [0,1]"""
+    """Probability of replacing parameters when mutating a method or constructor
+    statement in a test case.  Expects values in [0,1]"""
 
     rank_bias: float = 1.7
     """Bias for better individuals in rank selection"""
