@@ -37,6 +37,7 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.testcase.execution.ducktestcaseexecutor import DuckTestCaseExecutor
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
@@ -112,7 +113,10 @@ class Pynguin:
 
     def _setup_executor(self, tracer: ExecutionTracer) -> Optional[TestCaseExecutor]:
         try:
-            executor = TestCaseExecutor(tracer)
+            if config.INSTANCE.duck_type_analysis:
+                executor: TestCaseExecutor = DuckTestCaseExecutor(tracer)
+            else:
+                executor = TestCaseExecutor(tracer)
         except ImportError as ex:
             # A module could not be imported because some dependencies
             # are missing or it is malformed
@@ -192,6 +196,7 @@ class Pynguin:
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
         if (type_analysis := self._setup_type_analysis()) is not None:
+            assert isinstance(executor, DuckTestCaseExecutor)
             executor.type_analysis = type_analysis
         return executor, test_cluster
 

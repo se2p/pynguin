@@ -4,60 +4,56 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides an executor that executes generated sequences."""
+"""A test-case executor utilising duck mocks."""
 import contextlib
-import importlib
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import astor
 
-import pynguin.configuration as config
-import pynguin.testcase.execution.executioncontext as ctx
+import pynguin.testcase.execution.duckexecutioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
+from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
-class TestCaseExecutor:
-    """An executor that executes the generated test cases."""
-
-    _logger = logging.getLogger(__name__)
+class DuckTestCaseExecutor(TestCaseExecutor):
+    """A test-case executor utilising duck mocks."""
 
     def __init__(self, tracer: ExecutionTracer) -> None:
-        """Load the module under test.
+        super().__init__(tracer)
+        self._type_analysis: Optional[TypeAnalysis] = None
 
-        Args:
-            tracer: the execution tracer
-        """
-        importlib.import_module(config.INSTANCE.module_name)
-        self._tracer = tracer
-
-    def get_tracer(self) -> ExecutionTracer:
-        """Provide access to the execution tracer.
+    @property
+    def type_analysis(self) -> Optional[TypeAnalysis]:
+        """Provide access to the optional type analysis.
 
         Returns:
-            The execution tracer
+            The optional type analysis
         """
-        return self._tracer
+        return self._type_analysis
+
+    @type_analysis.setter
+    def type_analysis(self, type_analysis: TypeAnalysis) -> None:
+        """Sets the type analysis.
+
+        Args:
+            type_analysis: A type-analysis instance, must not be `None`
+        """
+        assert type_analysis is not None
+        self._type_analysis = type_analysis
 
     def execute(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
-        """Executes all statements of all test cases in a test suite.
-
-        Args:
-            test_cases: The list of test cases that should be executed.
-
-        Returns:
-            Result of the execution
-        """
         result = res.ExecutionResult()
         self._tracer.clear_trace()
 
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 for test_case in test_cases:
-                    exec_ctx = ctx.ExecutionContext(test_case)
+                    exec_ctx = ctx.DuckExecutionContext(test_case)
                     self._execute_nodes(exec_ctx, result)
                 self._collect_execution_trace(result)
         return result
@@ -74,21 +70,15 @@ class TestCaseExecutor:
                 code = compile(node, "<ast>", "exec")
                 # pylint: disable=exec-used
                 exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
+                # TODO(sl) extract information from duck now
+                self._extract_duck_information()
             except Exception as err:  # pylint: disable=broad-except
                 failed_stmt = astor.to_source(node)
-                TestCaseExecutor._logger.debug(
+                self._logger.debug(
                     "Failed to execute statement:\n%s%s", failed_stmt, err.args
                 )
                 result.report_new_thrown_exception(idx, err)
                 break
 
-    def _collect_execution_trace(self, result: res.ExecutionResult) -> None:
-        """Collect the fitness after each execution.
-
-        Also clear the tracking results so far.
-
-        Args:
-            result: The execution result
-        """
-        result.execution_trace = self._tracer.get_trace()
-        self._tracer.clear_trace()
+    def _extract_duck_information(self):
+        pass
