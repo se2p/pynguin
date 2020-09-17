@@ -11,6 +11,8 @@ import inspect
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Set
 
+from pynguin.setup.testcluster import TestCluster
+
 
 @dataclasses.dataclass(eq=True, frozen=True)
 class DefiningClass:
@@ -30,7 +32,7 @@ class MethodBinding:
     signature: inspect.Signature
 
 
-class TypeAnalysis:
+class DuckMockAnalysis:
     """Provides an analysis that collects all methods provided by classes."""
 
     _logger = logging.getLogger(__name__)
@@ -109,3 +111,13 @@ class TypeAnalysis:
 
         result = set.intersection(*defining_classes) if defining_classes else None
         return result
+
+    def update_test_cluster(self, test_cluster: TestCluster) -> None:
+        """
+
+        Args:
+            test_cluster:
+
+        Returns:
+
+        """

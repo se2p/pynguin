@@ -26,7 +26,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
+from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -37,7 +37,6 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.testcase.execution.ducktestcaseexecutor import DuckTestCaseExecutor
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
@@ -113,10 +112,7 @@ class Pynguin:
 
     def _setup_executor(self, tracer: ExecutionTracer) -> Optional[TestCaseExecutor]:
         try:
-            if config.INSTANCE.duck_type_analysis:
-                executor: TestCaseExecutor = DuckTestCaseExecutor(tracer)
-            else:
-                executor = TestCaseExecutor(tracer)
+            executor = TestCaseExecutor(tracer)
         except ImportError as ex:
             # A module could not be imported because some dependencies
             # are missing or it is malformed
@@ -170,11 +166,14 @@ class Pynguin:
             self._logger.info("Collecting constants from SUT.")
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
-    def _setup_type_analysis(self) -> Optional[TypeAnalysis]:
+    def _setup_type_analysis(
+        self, test_cluster: TestCluster
+    ) -> Optional[DuckMockAnalysis]:
         if config.INSTANCE.duck_type_analysis:
             self._logger.info("Analysing classes and methods in SUT.")
-            analysis = TypeAnalysis(config.INSTANCE.module_name)
+            analysis = DuckMockAnalysis(config.INSTANCE.module_name)
             analysis.analyse()
+            analysis.update_test_cluster(test_cluster)
             return analysis
         return None
 
@@ -195,9 +194,8 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
-        if (type_analysis := self._setup_type_analysis()) is not None:
-            assert isinstance(executor, DuckTestCaseExecutor)
-            executor.type_analysis = type_analysis
+        if (type_analysis := self._setup_type_analysis(test_cluster)) is not None:
+            self._export_type_analysis_results(type_analysis)
         return executor, test_cluster
 
     @staticmethod
@@ -354,3 +352,7 @@ class Pynguin:
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
+
+    @staticmethod
+    def _export_type_analysis_results(type_analysis: DuckMockAnalysis):
+        pass
