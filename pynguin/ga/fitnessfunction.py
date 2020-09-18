@@ -35,8 +35,7 @@ class FitnessValues:
         if (
             math.isnan(self.coverage)
             or math.isinf(self.coverage)
-            or self.coverage < 0
-            or self.coverage > 1
+            or not (0 <= self.coverage <= 1)
         ):
             violations.append(f"Invalid value for coverage: {self.fitness}")
         return violations
