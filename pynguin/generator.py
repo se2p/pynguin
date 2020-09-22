@@ -267,7 +267,7 @@ class Pynguin:
         self._collect_statistics()
         if not StatisticsTracker().write_statistics():
             self._logger.error("Failed to write statistics data")
-        if combined.size == 0:
+        if combined.size() == 0:
             # not able to generate one test case
             return ReturnCode.NO_TESTS_GENERATED
         return ReturnCode.OK
