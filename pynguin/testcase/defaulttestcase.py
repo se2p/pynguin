@@ -23,10 +23,11 @@ from pynguin.utils import randomness
 class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
+    _logger = logging.getLogger(__name__)
+
     # pylint: disable=invalid-name
     def __init__(self, test_factory: Optional[tf.TestFactory] = None) -> None:
         super().__init__()
-        self._logger = logging.getLogger(__name__)
         self._id = self._id_generator.inc()
         self._changed = True
         self._test_factory = test_factory
