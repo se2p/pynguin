@@ -156,18 +156,6 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def is_failing(self) -> bool:
-        """Checks if the test case is a failing test or not
-
-        Returns:
-            Whether or not the test case is failing  # noqa: DAR202
-        """
-
-    @abstractmethod
-    def set_failing(self) -> None:
-        """Marks the test case as a failing test."""
-
-    @abstractmethod
     def size(self) -> int:
         """Provides the number of statements in the test case.
 

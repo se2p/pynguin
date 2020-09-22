@@ -27,7 +27,6 @@ class DefaultTestCase(tc.TestCase):
     def __init__(self, test_factory: Optional[tf.TestFactory] = None) -> None:
         super().__init__()
         self._logger = logging.getLogger(__name__)
-        self._is_failing: bool = False
         self._id = self._id_generator.inc()
         self._changed = True
         self._test_factory = test_factory
@@ -102,18 +101,11 @@ class DefaultTestCase(tc.TestCase):
         test_case = DefaultTestCase()
         for statement in self._statements:
             test_case._statements.append(statement.clone(test_case))
-        test_case._is_failing = self._is_failing
         test_case._id = self._id_generator.inc()
         test_case._test_factory = self._test_factory
         test_case._last_execution_result = self._last_execution_result
         test_case._changed = self._changed
         return test_case
-
-    def is_failing(self) -> bool:
-        return self._is_failing
-
-    def set_failing(self) -> None:
-        self._is_failing = True
 
     def size(self) -> int:
         return len(self._statements)

@@ -67,12 +67,6 @@ def test_id(default_test_case):
     assert default_test_case.id >= 0
 
 
-def test_failing(default_test_case):
-    assert not default_test_case.is_failing()
-    default_test_case.set_failing()
-    assert default_test_case.is_failing()
-
-
 def test_chop(default_test_case):
     stmt_1 = MagicMock(st.Statement)
     stmt_2 = MagicMock(st.Statement)
