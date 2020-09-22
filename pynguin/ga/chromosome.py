@@ -18,12 +18,20 @@ import pynguin.ga.fitnessfunction as ff
 class Chromosome(metaclass=abc.ABCMeta):
     """An abstract base class for chromosomes"""
 
-    def __init__(self):
+    def __init__(self, orig: Chromosome = None):
+        """
+        Args:
+            orig: Original, if we clone an existing chromosome.
+        """
         self._fitness_functions: List[ff.FitnessFunction] = []
         self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
-
         self._number_of_evaluations: int = 0
         self._changed: bool = True
+        if orig is not None:
+            self._fitness_functions = list(orig._fitness_functions)
+            self._current_values = dict(orig._current_values)
+            self._number_of_evaluations = orig._number_of_evaluations
+            self._changed = orig._changed
 
     @abstractmethod
     def size(self) -> int:
