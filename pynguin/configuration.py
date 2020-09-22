@@ -160,11 +160,11 @@ class Configuration(Serializable):
     generated tests should fit."""
 
     max_recursion: int = 10
-    """Recursion depth when trying to create objects"""
+    """Recursion depth when trying to create objects in a test case."""
 
     max_cluster_recursion: int = 10
     """The maximum level of recursion when calculating the dependencies in the test
-    cluster"""
+    cluster."""
 
     max_delta: int = 20
     """Maximum size of delta for numbers during mutation"""
@@ -176,15 +176,15 @@ class Configuration(Serializable):
     """Maximum length of randomly generated strings"""
 
     primitive_reuse_probability: float = 0.5
-    """Probability to reuse an existing primitive, if available.  Expects values in
+    """Probability to reuse an existing primitive in a test case, if available.  Expects values in
     [0,1]"""
 
     object_reuse_probability: float = 0.9
-    """Probability to reuse an existing object, if available.  Expects values in
+    """Probability to reuse an existing object in a test case, if available.  Expects values in
     [0,1]"""
 
     none_probability: float = 0.1
-    """Probability to use None instead of constructing an object.  Expects values in
+    """Probability to use None in a test case instead of constructing an object.  Expects values in
     [0,1]"""
 
     guess_unknown_types: bool = True
