@@ -22,7 +22,7 @@ class TestSuiteChromosome(chrom.Chromosome):
     def __init__(
         self,
         test_case_factory: Optional[tcf.TestCaseFactory] = None,
-        orig: TestSuiteChromosome = None,
+        orig: Optional[TestSuiteChromosome] = None,
     ):
         """
 

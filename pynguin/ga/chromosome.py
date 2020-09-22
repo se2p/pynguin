@@ -10,7 +10,7 @@ from __future__ import annotations
 import abc
 from abc import abstractmethod
 from statistics import mean
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pynguin.ga.fitnessfunction as ff
 
@@ -18,7 +18,7 @@ import pynguin.ga.fitnessfunction as ff
 class Chromosome(metaclass=abc.ABCMeta):
     """An abstract base class for chromosomes"""
 
-    def __init__(self, orig: Chromosome = None):
+    def __init__(self, orig: Optional[Chromosome] = None):
         """
         Args:
             orig: Original, if we clone an existing chromosome.
