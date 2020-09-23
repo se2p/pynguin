@@ -9,8 +9,9 @@ import logging
 from typing import List, Tuple
 
 import pynguin.configuration as config
-import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
+import pynguin.ga.testsuitechromosomefactory as tscf
 import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
@@ -34,8 +35,10 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
         super().__init__(executor, test_cluster)
-        self._chromosome_factory = cf.TestSuiteChromosomeFactory(
-            tcf.RandomLengthTestCaseFactory(self._test_factory)
+        self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
+            tccf.TestCaseChromosomeFactory(
+                self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
+            )
         )
         self._population: List[tsc.TestSuiteChromosome] = []
         self._selection_function: SelectionFunction[
@@ -190,12 +193,12 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             non_failing.add_fitness_function(fitness_function)
             failing.add_fitness_function(fitness_function)
 
-        for test_case in best.test_chromosomes:
-            result = test_case.get_last_execution_result()
+        for test_case_chromosome in best.test_case_chromosomes:
+            result = test_case_chromosome.get_last_execution_result()
             assert result is not None
             if result.has_test_exceptions():
-                failing.add_test(test_case.clone())
+                failing.add_test_case_chromosome(test_case_chromosome.clone())
             else:
-                non_failing.add_test(test_case.clone())
+                non_failing.add_test_case_chromosome(test_case_chromosome.clone())
 
         return non_failing, failing

@@ -13,7 +13,6 @@ from typing import List, Optional, Type
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcasevisitor as tcv
 import pynguin.testcase.variable.variablereference as vr
-from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -232,39 +231,3 @@ class TestCase(metaclass=ABCMeta):
                 f"Found no variables of type {parameter_type} at position {position}"
             )
         return randomness.choice(variables)
-
-    @abstractmethod
-    def mutate(self) -> None:
-        """Mutate this test case."""
-
-    @abstractmethod
-    def has_changed(self) -> bool:
-        """Has this test case changed since the last execution?
-
-        Returns:  # noqa: DAR202
-            Whether or not this test case changed since the last execution
-        """
-
-    @abstractmethod
-    def set_changed(self, value: bool) -> None:
-        """Mark this test case as changed.
-
-        Args:
-            value: the new change value
-        """
-
-    @abstractmethod
-    def get_last_execution_result(self) -> Optional[ExecutionResult]:
-        """Get the last execution result.
-
-        Returns:
-            The last execution result if any  # noqa: DAR202
-        """
-
-    @abstractmethod
-    def set_last_execution_result(self, result: ExecutionResult) -> None:
-        """Set the last execution result.
-
-        Args:
-            result: The last execution result
-        """

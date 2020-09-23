@@ -117,7 +117,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         # Pick a random public method from objects under test
         method = self._random_public_method(objects_under_test)
         # Select random test cases from existing ones to base generation on
-        tests = self._random_test_cases(test_chromosome.test_chromosomes)
+        tests = self._random_test_cases(test_chromosome.test_case_chromosomes)
         new_test: tc.TestCase = dtc.DefaultTestCase()
         for test in tests:
             new_test.append_test_case(test)
@@ -128,8 +128,8 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         # Discard duplicates
         if (
-            new_test in test_chromosome.test_chromosomes
-            or new_test in failing_test_chromosome.test_chromosomes
+            new_test in test_chromosome.test_case_chromosomes
+            or new_test in failing_test_chromosome.test_case_chromosomes
         ):
             return
 
@@ -152,7 +152,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         failing_chromosome: tsc.TestSuiteChromosome,
     ) -> tsc.TestSuiteChromosome:
         combined = passing_chromosome.clone()
-        combined.add_tests(failing_chromosome.test_chromosomes)
+        combined.add_test_case_chromosomes(failing_chromosome.test_case_chromosomes)
         return combined
 
     def send_statistics(self) -> None:

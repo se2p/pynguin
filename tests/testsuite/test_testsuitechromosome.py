@@ -25,34 +25,34 @@ def chromosome() -> tsc.TestSuiteChromosome:
 def test_clone(chromosome):
     chromosome.add_test(dtc.DefaultTestCase())
     result = chromosome.clone()
-    assert len(result._tests) == 1
+    assert len(result._test_case_chromosomes) == 1
 
 
 def test_add_delete_tests(chromosome):
     test_1 = dtc.DefaultTestCase()
     test_2 = dtc.DefaultTestCase()
-    chromosome.add_tests([test_1, test_2])
-    chromosome.delete_test(test_2)
-    assert chromosome.test_chromosomes == [test_1]
+    chromosome.add_test_case_chromosomes([test_1, test_2])
+    chromosome.delete_test_case_chromosome(test_2)
+    assert chromosome.test_case_chromosomes == [test_1]
 
 
 def test_delete_non_existing_test(chromosome):
     chromosome.changed = False
-    chromosome.delete_test(dtc.DefaultTestCase())
+    chromosome.delete_test_case_chromosome(dtc.DefaultTestCase())
     assert not chromosome.changed
 
 
 def test_add_empty_tests(chromosome):
     chromosome.changed = False
-    chromosome.add_tests([])
+    chromosome.add_test_case_chromosomes([])
     assert not chromosome.changed
 
 
 def test_set_get_test_chromosome(chromosome):
     test = dtc.DefaultTestCase()
     chromosome.add_test(MagicMock(dtc.DefaultTestCase))
-    chromosome.set_test_chromosome(0, test)
-    assert chromosome.get_test_chromosome(0) == test
+    chromosome.set_test_case_chromosome(0, test)
+    assert chromosome.get_test_case_chromosome(0) == test
 
 
 def test_total_length_of_test_cases(chromosome):
@@ -60,7 +60,7 @@ def test_total_length_of_test_cases(chromosome):
     test_1.size.return_value = 2
     test_2 = MagicMock(tc.TestCase)
     test_2.size.return_value = 3
-    chromosome.add_tests([test_1, test_2])
+    chromosome.add_test_case_chromosomes([test_1, test_2])
     assert chromosome.total_length_of_test_cases == 5
     assert chromosome.size() == 2
 
@@ -90,8 +90,8 @@ def test_eq_different_tests(chromosome):
     test_2 = dtc.DefaultTestCase()
     test_3 = MagicMock(tc.TestCase)
     other = tsc.TestSuiteChromosome()
-    chromosome.add_tests([test_1, test_2])
-    other.add_tests([test_1, test_3])
+    chromosome.add_test_case_chromosomes([test_1, test_2])
+    other.add_test_case_chromosomes([test_1, test_3])
     assert not chromosome.__eq__(other)
 
 
@@ -111,16 +111,16 @@ def test_crossover(chromosome):
     cases_a = [dtc.DefaultTestCase() for _ in range(5)]
     cases_b = [dtc.DefaultTestCase() for _ in range(5)]
 
-    chromosome.add_tests(cases_a)
+    chromosome.add_test_case_chromosomes(cases_a)
 
     other = tsc.TestSuiteChromosome()
-    other.add_tests(cases_b)
+    other.add_test_case_chromosomes(cases_b)
     pos1 = randomness.next_int(len(cases_a))
     pos2 = randomness.next_int(len(cases_b))
 
     chromosome.set_changed(False)
     chromosome.cross_over(other, pos1, pos2)
-    assert chromosome.test_chromosomes == cases_a[:pos1] + cases_b[pos2:]
+    assert chromosome.test_case_chromosomes == cases_a[:pos1] + cases_b[pos2:]
     assert chromosome.has_changed()
 
 
@@ -199,7 +199,7 @@ def test_mutate_remove_empty():
         # Prevent any other mutations/insertions.
         float_mock.side_effect = [1.0, 1.0, 1.0]
         chromosome.mutate()
-    assert chromosome.test_chromosomes == [test_1]
+    assert chromosome.test_case_chromosomes == [test_1]
     # A test case can only have a size of zero if it was mutated, but this already sets changed to True
     # So this check is valid
     assert not chromosome.has_changed()
@@ -217,5 +217,5 @@ def test_mutate_no_changes():
         # Prevent any other mutations/insertions.
         float_mock.side_effect = [1.0, 1.0, 1.0]
         chromosome.mutate()
-    assert chromosome.test_chromosomes == [test_1]
+    assert chromosome.test_case_chromosomes == [test_1]
     assert not chromosome.has_changed()

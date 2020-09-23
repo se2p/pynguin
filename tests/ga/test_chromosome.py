@@ -21,6 +21,9 @@ def fitness_function():
 @pytest.fixture
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
+        def mutate(self):
+            pass
+
         def size(self) -> int:
             return 0
 

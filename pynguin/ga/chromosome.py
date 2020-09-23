@@ -23,11 +23,12 @@ class Chromosome(metaclass=abc.ABCMeta):
         Args:
             orig: Original, if we clone an existing chromosome.
         """
-        self._fitness_functions: List[ff.FitnessFunction] = []
-        self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
-        self._number_of_evaluations: int = 0
-        self._changed: bool = True
-        if orig is not None:
+        if orig is None:
+            self._fitness_functions: List[ff.FitnessFunction] = []
+            self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
+            self._number_of_evaluations: int = 0
+            self._changed: bool = True
+        else:
             self._fitness_functions = list(orig._fitness_functions)
             self._current_values = dict(orig._current_values)
             self._number_of_evaluations = orig._number_of_evaluations
@@ -173,6 +174,10 @@ class Chromosome(metaclass=abc.ABCMeta):
             position1: The point in the first chromosome
             position2: The point in the second chromosome
         """
+
+    @abstractmethod
+    def mutate(self) -> None:
+        """Mutate this chromosome."""
 
     @abstractmethod
     def clone(self) -> Chromosome:

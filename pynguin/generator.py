@@ -243,21 +243,25 @@ class Pynguin:
                 combined = tsc.TestSuiteChromosome()
                 for fitness_func in non_failing.get_fitness_functions():
                     combined.add_fitness_function(fitness_func)
-                combined.add_tests(non_failing.test_chromosomes)
-                combined.add_tests(failing.test_chromosomes)
+                combined.add_test_case_chromosomes(non_failing.test_case_chromosomes)
+                combined.add_test_case_chromosomes(failing.test_case_chromosomes)
                 StatisticsTracker().track_output_variable(
                     RuntimeVariable.Coverage, combined.get_coverage()
                 )
 
             with Timer(name="Export time", logger=None):
-                written_to = self._export_test_cases(non_failing.test_chromosomes)
+                written_to = self._export_test_cases(
+                    [t.test_case for t in non_failing.test_case_chromosomes]
+                )
                 self._logger.info(
                     "Export %i successful test cases to %s",
                     non_failing.size(),
                     written_to,
                 )
                 written_to = self._export_test_cases(
-                    failing.test_chromosomes, "_failing", wrap_code=True
+                    [t.test_case for t in failing.test_case_chromosomes],
+                    "_failing",
+                    wrap_code=True,
                 )
                 self._logger.info(
                     "Export %i failing test cases to %s", failing.size(), written_to
