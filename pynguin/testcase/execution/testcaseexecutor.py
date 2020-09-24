@@ -16,8 +16,10 @@ import astor
 import pynguin.configuration as config
 import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
+import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
+from pynguin.testcase.execution.executionobserver import ExecutionObserver
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -34,7 +36,16 @@ class TestCaseExecutor:
         """
         importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
+        self._observers: List[ExecutionObserver] = []
         self._type_analysis: Optional[TypeAnalysis] = None
+
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        """Add an execution observer.
+
+        Args:
+            observer: the observer to be added.
+        """
+        self._observers.append(observer)
 
     def get_tracer(self) -> ExecutionTracer:
         """Provide access to the execution tracer.
@@ -79,20 +90,21 @@ class TestCaseExecutor:
             with contextlib.redirect_stdout(null_file):
                 for test_case in test_cases:
                     exec_ctx = ctx.ExecutionContext(test_case)
-                    self._execute_nodes(exec_ctx, result)
+                    self._execute_nodes(exec_ctx, test_case, result)
                 self._collect_execution_trace(result)
         return result
 
     def _execute_nodes(
         self,
         exec_ctx: ctx.ExecutionContext,
+        test_case: tc.TestCase,
         result: res.ExecutionResult,
     ):
         for idx, node in enumerate(exec_ctx.executable_nodes()):
+            if self._logger.isEnabledFor(logging.DEBUG):
+                self._logger.debug("Executing %s", astor.to_source(node))
+            code = compile(node, "<ast>", "exec")
             try:
-                if self._logger.isEnabledFor(logging.DEBUG):
-                    self._logger.debug("Executing %s", astor.to_source(node))
-                code = compile(node, "<ast>", "exec")
                 # pylint: disable=exec-used
                 exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
             except Exception as err:  # pylint: disable=broad-except
@@ -102,10 +114,10 @@ class TestCaseExecutor:
                 )
                 result.report_new_thrown_exception(idx, err)
                 break
+            self._observe_after(test_case.get_statement(idx), exec_ctx)
 
     def _collect_execution_trace(self, result: res.ExecutionResult) -> None:
-        """Collect the fitness after each execution.
-
+        """Collect the execution trace after each executed test case.
         Also clear the tracking results so far.
 
         Args:
@@ -113,3 +125,11 @@ class TestCaseExecutor:
         """
         result.execution_trace = self._tracer.get_trace()
         self._tracer.clear_trace()
+
+    def _observe_after(self, statement: stmt.Statement, exec_ctx: ctx.ExecutionContext):
+        self._tracer.disable()
+        try:
+            for observer in self._observers:
+                observer.after_statement_execution(statement, exec_ctx)
+        finally:
+            self._tracer.enable()
