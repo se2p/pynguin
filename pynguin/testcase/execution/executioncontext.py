@@ -32,6 +32,9 @@ class ExecutionContext:
         self._ast_nodes = self._to_ast_nodes(
             test_case, self._variable_names, self._modules_aliases
         )
+        assert (
+            len(self._ast_nodes) == test_case.size()
+        ), "Expected one ast node per statement."
         self._global_namespace = self._prepare_global_namespace(self._modules_aliases)
 
     @property
