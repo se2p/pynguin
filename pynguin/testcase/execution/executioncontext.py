@@ -93,9 +93,7 @@ class ExecutionContext:
             The module wrapping the node
         """
         ast.fix_missing_locations(node)
-        wrapper = ast.parse("")
-        wrapper.body = [node]
-        return wrapper
+        return ast.Module(body=[node], type_ignores=[])
 
     @staticmethod
     def _prepare_global_namespace(
