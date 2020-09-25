@@ -74,11 +74,11 @@ class TestCaseExecutor:
         assert type_analysis is not None
         self._type_analysis = type_analysis
 
-    def execute(self, test_cases: List[tc.TestCase]) -> res.ExecutionResult:
+    def execute(self, test_case: tc.TestCase) -> res.ExecutionResult:
         """Executes all statements of all test cases in a test suite.
 
         Args:
-            test_cases: The list of test cases that should be executed.
+            test_case: the test case that should be executed.
 
         Returns:
             Result of the execution
@@ -88,9 +88,8 @@ class TestCaseExecutor:
 
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
-                for test_case in test_cases:
-                    exec_ctx = ctx.ExecutionContext(test_case)
-                    self._execute_nodes(exec_ctx, test_case, result)
+                exec_ctx = ctx.ExecutionContext(test_case)
+                self._execute_nodes(exec_ctx, test_case, result)
                 self._collect_execution_trace(result)
         return result
 

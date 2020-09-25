@@ -29,7 +29,7 @@ class AbstractSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
         results: List[ExecutionResult] = []
         for test_case in individual.test_chromosomes:
             if test_case.has_changed() or test_case.get_last_execution_result() is None:
-                test_case.set_last_execution_result(self._executor.execute([test_case]))
+                test_case.set_last_execution_result(self._executor.execute(test_case))
                 test_case.set_changed(False)
             result = test_case.get_last_execution_result()
             assert result
