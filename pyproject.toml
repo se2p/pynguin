@@ -41,9 +41,8 @@ simple-parsing = "^0.0.11.post18"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
-networkx = {extras = ["pydot"], version = "^2.4"}
-pydot = "^1.4.1"
 networkx = {extras = ["pydot"], version = "^2.5"}
+pydot = "^1.4.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.3"
