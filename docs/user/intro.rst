@@ -24,7 +24,9 @@ Publications on Pynguin
 
 * S. Lukasczyk, F. Kroiß, and G. Fraser. **Automated Unit Test Generation for Python.**
   In *Proceedings of the 12th Symposium on Search-based Software Engineering.*
-  Springer, 2020. (to appear)
+  Lecture Notes in Computer Science, vol. 12420, pp. 9–24.
+  Springer, 2020.
+  DOI: `10.1007/978-3-030-59762-7_2 <https://doi.org/10.1007/978-3-030-59762-7_2>`_.
   `Preprint <https://arxiv.org/abs/2007.14049>`_
 
   BibTeX entry:
@@ -38,6 +40,9 @@ Publications on Pynguin
         year      = {2020},
         publisher = {Springer},
         series    = {Lecture Notes in Computer Science},
+        volume    = {12420},
+        pages     = {9--24},
+        doi       = {10.1007/978-3-030-59762-7\_2},
       }
 
 .. _`lgpl`:
