@@ -33,7 +33,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """The type which owns this accessible object.
 
         Returns:
-            The owner of thie accessible object
+            The owner of this accessible object
         """
         return self._owner
 

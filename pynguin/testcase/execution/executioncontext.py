@@ -8,10 +8,11 @@
 import ast
 import sys
 from types import ModuleType
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Optional
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.testcase as tc
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
 
 
@@ -20,22 +21,12 @@ class ExecutionContext:
     e.g. the used variables, modules and
     the AST representation of the statements that should be executed."""
 
-    def __init__(self, test_case: tc.TestCase) -> None:
-        """Create new execution context for the given test case.
-
-        Args:
-            test_case: the executed test case
-        """
+    def __init__(self) -> None:
+        """Create new execution context."""
         self._local_namespace: Dict[str, Any] = {}
         self._variable_names = NamingScope()
         self._modules_aliases = NamingScope(prefix="module")
-        self._ast_nodes = self._to_ast_nodes(
-            test_case, self._variable_names, self._modules_aliases
-        )
-        assert (
-            len(self._ast_nodes) == test_case.size()
-        ), "Expected one ast node per statement."
-        self._global_namespace = self._prepare_global_namespace(self._modules_aliases)
+        self._global_namespace: Dict[str, ModuleType] = {}
 
     @property
     def local_namespace(self) -> Dict[str, Any]:
@@ -46,6 +37,20 @@ class ExecutionContext:
         """
         return self._local_namespace
 
+    def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
+        """Returns the value that is assigned to the given variable in the local namespace, if any.
+
+        Args:
+            variable: the variable whose value we want
+
+        Returns: the assigned value or None.
+        """
+        if variable in self._variable_names.known_name_indices:
+            name = self._variable_names.get_name(variable)
+            if name in self._local_namespace:
+                return self._local_namespace.get(name)
+        return None
+
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:
         """The global namespace.
@@ -55,35 +60,33 @@ class ExecutionContext:
         """
         return self._global_namespace
 
-    def executable_nodes(self) -> Iterator[ast.Module]:
-        """An iterator that generates executable nodes on demand
-
-        Yields:
-            An iterator over the executable AST nodes
-        """
-        for node in self._ast_nodes:
-            yield ExecutionContext._wrap_node_in_module(node)
-
-    @staticmethod
-    def _to_ast_nodes(
-        test_case: tc.TestCase,
-        variable_names: NamingScope,
-        modules_aliases: NamingScope,
-    ) -> List[ast.stmt]:
-        """Transforms the given test case into a list of ast nodes.
+    def executable_node_for(
+        self,
+        statement: stmt.Statement,
+    ) -> ast.Module:
+        """Transforms the given statement in an executable ast node.
 
         Args:
-            test_case: The current test case
-            variable_names: The scope of the variable names
-            modules_aliases: The cope of the module alias names
+            statement: The statement that should be converted.
 
         Returns:
-            A list of ast nodes
+            An executable ast node.
         """
-        visitor = stmt_to_ast.StatementToAstVisitor(modules_aliases, variable_names)
-        for statement in test_case.statements:
-            statement.accept(visitor)
-        return visitor.ast_nodes
+        modules_before = len(self._modules_aliases.known_name_indices)
+        visitor = stmt_to_ast.StatementToAstVisitor(
+            self._modules_aliases, self._variable_names
+        )
+        statement.accept(visitor)
+        if modules_before != len(self._modules_aliases.known_name_indices):
+            # new module added
+            # TODO(fk) cleaner solution?
+            self._global_namespace = ExecutionContext._create_global_namespace(
+                self._modules_aliases
+            )
+        assert (
+            len(visitor.ast_nodes) == 1
+        ), "Expected statement to produce exactly one ast node"
+        return ExecutionContext._wrap_node_in_module(visitor.ast_nodes[0])
 
     @staticmethod
     def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
@@ -99,7 +102,7 @@ class ExecutionContext:
         return ast.Module(body=[node], type_ignores=[])
 
     @staticmethod
-    def _prepare_global_namespace(
+    def _create_global_namespace(
         modules_aliases: NamingScope,
     ) -> Dict[str, ModuleType]:
         """Provides the required modules under the given aliases.

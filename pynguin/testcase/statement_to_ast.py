@@ -15,7 +15,7 @@ import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.utils.ast_util as au
 from pynguin.utils.namingscope import NamingScope
 
 
@@ -40,6 +40,16 @@ class StatementToAstVisitor(sv.StatementVisitor):
         self._variable_names = variable_names
         self._module_aliases = module_aliases
         self._wrap_nodes = wrap_nodes
+
+    def append_nodes(self, statements: List[ast.stmt]) -> None:
+        """Add additional nodes to the already generated nodes.
+
+        Args:
+            statements: the ast statements that are appended.
+
+        """
+        # TODO(fk) cleaner solution with nested visitors?
+        self._ast_nodes.extend(statements)
 
     @property
     def ast_nodes(self) -> List[ast.stmt]:
@@ -77,40 +87,25 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_int_primitive_statement(
         self, stmt: prim_stmt.IntPrimitiveStatement
     ) -> None:
-        self._ast_nodes.append(self._create_numeric(stmt))
+        self._ast_nodes.append(self._create_constant(stmt))
 
     def visit_float_primitive_statement(
         self, stmt: prim_stmt.FloatPrimitiveStatement
     ) -> None:
-        self._ast_nodes.append(self._create_numeric(stmt))
+        self._ast_nodes.append(self._create_constant(stmt))
 
     def visit_string_primitive_statement(
         self, stmt: prim_stmt.StringPrimitiveStatement
     ) -> None:
-        self._ast_nodes.append(
-            ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=ast.Str(s=stmt.value),
-            )
-        )
+        self._ast_nodes.append(self._create_constant(stmt))
 
     def visit_boolean_primitive_statement(
         self, stmt: prim_stmt.BooleanPrimitiveStatement
     ) -> None:
-        self._ast_nodes.append(
-            ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=ast.NameConstant(value=stmt.value),
-            )
-        )
+        self._ast_nodes.append(self._create_constant(stmt))
 
     def visit_none_statement(self, stmt: prim_stmt.NoneStatement) -> None:
-        self._ast_nodes.append(
-            ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=ast.NameConstant(value=None),
-            )
-        )
+        self._ast_nodes.append(self._create_constant(stmt))
 
     def visit_constructor_statement(
         self, stmt: param_stmt.ConstructorStatement
@@ -119,7 +114,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
         assert owner
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
+                targets=[
+                    au.create_var_name(self._variable_names, stmt.return_value, False)
+                ],
                 value=ast.Call(
                     func=ast.Attribute(
                         attr=owner.__name__,
@@ -137,7 +134,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             func=ast.Attribute(
                 attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
-                value=self._create_var_name(stmt.callee, True),
+                value=au.create_var_name(self._variable_names, stmt.callee, True),
             ),
             args=self._create_args(stmt),
             keywords=self._create_kw_args(stmt),
@@ -146,7 +143,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
+                targets=[
+                    au.create_var_name(self._variable_names, stmt.return_value, False)
+                ],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -167,7 +166,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
+                targets=[
+                    au.create_var_name(self._variable_names, stmt.return_value, False)
+                ],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -184,7 +185,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 value=ast.Attribute(
                     attr=stmt.field,
                     ctx=ast.Load(),
-                    value=self._create_var_name(stmt.source, True),
+                    value=au.create_var_name(self._variable_names, stmt.source, True),
                 ),
             )
         )
@@ -192,13 +193,15 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_assignment_statement(self, stmt: assign_stmt.AssignmentStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[self._create_var_name(stmt.return_value, False)],
-                value=self._create_var_name(stmt.rhs, True),
+                targets=[
+                    au.create_var_name(self._variable_names, stmt.return_value, False)
+                ],
+                value=au.create_var_name(self._variable_names, stmt.rhs, True),
             )
         )
 
-    def _create_numeric(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
-        """Small helper for int and float.
+    def _create_constant(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
+        """All primitive values are constants.
 
         Args:
             stmt: The primitive statement
@@ -207,8 +210,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
             The matching AST statement
         """
         return ast.Assign(
-            targets=[self._create_var_name(stmt.return_value, False)],
-            value=ast.Num(n=stmt.value),
+            targets=[
+                au.create_var_name(self._variable_names, stmt.return_value, False)
+            ],
+            value=ast.Constant(value=stmt.value),
         )
 
     def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.Name]:
@@ -222,7 +227,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
         """
         args = []
         for arg in stmt.args:
-            args.append(self._create_var_name(arg, True))
+            args.append(au.create_var_name(self._variable_names, arg, True))
         return args
 
     def _create_kw_args(
@@ -241,25 +246,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
             kwargs.append(
                 ast.keyword(
                     arg=name,
-                    value=self._create_var_name(value, True),
+                    value=au.create_var_name(self._variable_names, value, True),
                 )
             )
         return kwargs
-
-    def _create_var_name(self, var: vr.VariableReference, load: bool) -> ast.Name:
-        """Create a name node for the corresponding variable.
-
-        Args:
-            var: the variable reference
-            load: load or store?
-
-        Returns:
-            the name node
-        """
-        return ast.Name(
-            id=self._variable_names.get_name(var),
-            ctx=ast.Load() if load else ast.Store(),
-        )
 
     def _create_module_alias(self, module_name) -> ast.Name:
         """Create a name node for a module alias.

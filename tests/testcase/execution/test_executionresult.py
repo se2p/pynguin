@@ -4,8 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import time
-
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
@@ -31,12 +29,6 @@ def test_fitness_setter():
     result = ExecutionResult()
     result.fitness = 5.0
     assert result.fitness == 5.0
-
-
-def test_time_stamp():
-    current = time.time_ns()
-    result = ExecutionResult()
-    assert current <= result.time_stamp
 
 
 def test_get_first_position_of_ex():

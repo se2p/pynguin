@@ -24,7 +24,7 @@ class BranchDistanceSuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
     ) -> ff.FitnessValues:
         results = self._run_test_suite(individual)
         _, merged_trace = self.analyze_traces(results)
-        tracer: ExecutionTracer = self._executor.get_tracer()
+        tracer: ExecutionTracer = self._executor.tracer
 
         return ff.FitnessValues(
             self._compute_fitness(merged_trace, tracer.get_known_data()),
