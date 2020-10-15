@@ -103,9 +103,9 @@ class TestCaseExecutor:
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ctx.ExecutionContext
     ) -> None:
-        # We need to disable the tracer, because an observer might interact with an object of
-        # the SUT via the ExecutionContext and trigger code execution, which is not caused
-        # by the test case and should therefore not be in the trace.
+        # We need to disable the tracer, because an observer might interact with an
+        # object of the SUT via the ExecutionContext and trigger code execution, which
+        # is not caused by the test case and should therefore not be in the trace.
         self._tracer.disable()
         try:
             for observer in self._observers:

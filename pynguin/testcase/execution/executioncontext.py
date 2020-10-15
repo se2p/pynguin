@@ -38,7 +38,8 @@ class ExecutionContext:
         return self._local_namespace
 
     def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
-        """Returns the value that is assigned to the given variable in the local namespace, if any.
+        """Returns the value that is assigned to the given variable in the local
+        namespace, if any.
 
         Args:
             variable: the variable whose value we want
