@@ -16,10 +16,10 @@ from pynguin.utils.namingscope import NamingScope
 
 
 class TestCaseToAstVisitor(TestCaseVisitor):
-    """
-    A test case visitor that transforms an arbitrary number of test cases into their according
-    AST representation. The modules that are required by the individual test cases are gathered
-    and given an alias.
+    """Transforms an arbitrary number of test cases to AST statements.
+
+    The modules that are required by the individual test cases are gathered and given
+    an alias.
     """
 
     def __init__(self, wrap_code: bool = False) -> None:

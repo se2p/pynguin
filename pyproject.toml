@@ -41,25 +41,25 @@ simple-parsing = "^0.0.11.post18"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
-networkx = {extras = ["pydot"], version = "^2.4"}
+networkx = {extras = ["pydot"], version = "^2.5"}
 pydot = "^1.4.1"
 
 [tool.poetry.dev-dependencies]
-coverage = "^5.2"
+coverage = "^5.3"
 pytest = "^6.0"
 black = {version = "^20.8b1", allow-prereleases = true}
 pytest-cov = "^2.10"
-pylint = "^2.5"
+pylint = "^2.6"
 pytest-sugar = "^0.9.4"
 pytest-picked = "^0.4.4"
-pytest-xdist = "^1.34"
-hypothesis = "^5.24"
-pytest-mock = "^3.2.0"
+pytest-xdist = "^2.1"
+hypothesis = "^5.35"
+pytest-mock = "^3.3"
 monkeytype = "^20.5.0"
 mypy = "^0.782"
-isort = {extras = ["pyproject"], version = "^4.3.21"}
-pre-commit = "^2.6.0"
-darglint = "^1.5.2"
+isort = {extras = ["pyproject"], version = "^5.5"}
+pre-commit = "^2.7"
+darglint = "^1.5"
 pyupgrade = "^2.7.2"
 bandit = "^1.6.2"
 safety = "^1.9.0"

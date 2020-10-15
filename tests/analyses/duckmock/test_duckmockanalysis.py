@@ -6,12 +6,12 @@
 #
 import pytest
 
-from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
+from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 
 
 @pytest.fixture(scope="module")
-def analysis() -> TypeAnalysis:
-    analysis = TypeAnalysis("pynguin.setup.testclustergenerator")
+def analysis() -> DuckMockAnalysis:
+    analysis = DuckMockAnalysis("pynguin.setup.testclustergenerator")
     analysis.analyse()
     return analysis
 

@@ -222,7 +222,10 @@ class GenericFunction(GenericCallableAccessibleObject):
         return hash(self._callable)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._callable.__name__}, {self.inferred_signature})"
+        return (
+            f"{self.__class__.__name__}({self._callable.__name__}, "
+            + f"{self.inferred_signature})"
+        )
 
 
 class GenericField(GenericAccessibleObject):
@@ -263,4 +266,7 @@ class GenericField(GenericAccessibleObject):
         return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.owner}, {self._field}, {self._field_type})"
+        return (
+            f"{self.__class__.__name__}({self.owner}, {self._field},"
+            + f" {self._field_type})"
+        )

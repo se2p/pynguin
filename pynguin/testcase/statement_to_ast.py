@@ -261,3 +261,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             An AST statement
         """
         return ast.Name(id=self._module_aliases.get_name(module_name), ctx=ast.Load())
+
+
+class DuckStatementToAstVisitor(StatementToAstVisitor):
+    """A visitor """

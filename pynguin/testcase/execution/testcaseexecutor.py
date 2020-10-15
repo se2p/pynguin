@@ -9,7 +9,7 @@ import contextlib
 import importlib
 import logging
 import os
-from typing import List, Optional
+from typing import List
 
 import astor
 
@@ -18,7 +18,6 @@ import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin.analyses.duckmock.typeanalysis import TypeAnalysis
 from pynguin.testcase.execution.executionobserver import ExecutionObserver
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
@@ -38,7 +37,6 @@ class TestCaseExecutor:
         importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
         self._observers: List[ExecutionObserver] = []
-        self._type_analysis: Optional[TypeAnalysis] = None
 
     def add_observer(self, observer: ExecutionObserver) -> None:
         """Add an execution observer.
@@ -56,26 +54,6 @@ class TestCaseExecutor:
             The execution tracer
         """
         return self._tracer
-
-    @property
-    def type_analysis(self) -> Optional[TypeAnalysis]:
-        """Provide access to the optional type analysis.
-
-        Returns:
-            The optional type analysis
-        """
-        # TODO(fk) type analysis could also be implemented as an observer?
-        return self._type_analysis
-
-    @type_analysis.setter
-    def type_analysis(self, type_analysis: TypeAnalysis) -> None:
-        """Sets the type analysis.
-
-        Args:
-            type_analysis: A type-instance, must not be `None`
-        """
-        assert type_analysis is not None
-        self._type_analysis = type_analysis
 
     def execute(self, test_case: tc.TestCase) -> res.ExecutionResult:
         """Executes all statements of the given test case.

@@ -39,7 +39,8 @@ class BranchDistanceInstrumentation:
     # As of CPython 3.8, there are a few compare ops for which we can't really
     # compute a sensible branch distance. So for now, we just ignore those
     # comparisons and just track their boolean value.
-    # TODO(fk) update this to work with the bytecode for CPython 3.9, once it is released.
+    # TODO(fk) update this to work with the bytecode for CPython 3.9, once it is
+    #  released.
     _IGNORED_COMPARE_OPS: Set[Compare] = {Compare.EXC_MATCH}
 
     # Conditional jump operations are the last operation within a basic block
