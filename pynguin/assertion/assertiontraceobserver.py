@@ -13,13 +13,13 @@ import pynguin.assertion.outputtrace as ot
 import pynguin.assertion.outputtraceentry as ote
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executionobserver import ExecutionObserver
+import pynguin.testcase.execution.executionobserver as eo
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=ote.OutputTraceEntry)
 
 
-class AssertionTraceObserver(Generic[T], ExecutionObserver, ABC):
+class AssertionTraceObserver(Generic[T], eo.ExecutionObserver, ABC):
     """Abstract base class for assertion observers.
     Observes the execution of a test case and generates assertions from it."""
 

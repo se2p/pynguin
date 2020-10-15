@@ -9,7 +9,7 @@ import contextlib
 import importlib
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import astor
 
@@ -18,7 +18,7 @@ import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executionobserver import ExecutionObserver
+import pynguin.testcase.execution.executionobserver as eo
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -36,9 +36,9 @@ class TestCaseExecutor:
         # TODO(fk) executor should not be responsible for loading SUT?
         importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
-        self._observers: List[ExecutionObserver] = []
+        self._observers: List[eo.ExecutionObserver] = []
 
-    def add_observer(self, observer: ExecutionObserver) -> None:
+    def add_observer(self, observer: eo.ExecutionObserver) -> None:
         """Add an execution observer.
 
         Args:
@@ -71,7 +71,6 @@ class TestCaseExecutor:
                 self._after_test_case_execution(test_case, result)
         return result
 
-    # pylint:disable = unused-argument
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
         self._tracer.clear_trace()
         for observer in self._observers:
