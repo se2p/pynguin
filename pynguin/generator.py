@@ -255,10 +255,9 @@ class Pynguin:
 
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
-                for test_case in non_failing.test_chromosomes:
-                    generator.add_assertions(test_case)
-                for test_case in failing.test_chromosomes:
-                    generator.add_assertions(test_case)
+                for chromosome in [non_failing, failing]:
+                    for test_case in chromosome.test_chromosomes:
+                        generator.add_assertions(test_case)
 
             with Timer(name="Export time", logger=None):
                 written_to = self._export_test_cases(non_failing.test_chromosomes)
