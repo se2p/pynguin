@@ -17,6 +17,7 @@ Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
 import enum
+import importlib
 import logging
 import os
 import sys
@@ -113,6 +114,7 @@ class Pynguin:
 
     def _setup_executor(self, tracer: ExecutionTracer) -> Optional[TestCaseExecutor]:
         try:
+            importlib.import_module(config.INSTANCE.module_name)
             executor = TestCaseExecutor(tracer)
         except ImportError as ex:
             # A module could not be imported because some dependencies

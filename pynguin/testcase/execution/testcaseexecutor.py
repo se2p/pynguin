@@ -6,14 +6,12 @@
 #
 """Provides an executor that executes generated sequences."""
 import contextlib
-import importlib
 import logging
 import os
 from typing import List, Optional
 
 import astor
 
-import pynguin.configuration as config
 import pynguin.testcase.execution.executioncontext as ctx
 import pynguin.testcase.execution.executionobserver as eo
 import pynguin.testcase.execution.executionresult as res
@@ -28,13 +26,11 @@ class TestCaseExecutor:
     _logger = logging.getLogger(__name__)
 
     def __init__(self, tracer: ExecutionTracer) -> None:
-        """Load the module under test.
+        """Create new test case executor.
 
         Args:
             tracer: the execution tracer
         """
-        # TODO(fk) executor should not be responsible for loading SUT?
-        importlib.import_module(config.INSTANCE.module_name)
         self._tracer = tracer
         self._observers: List[eo.ExecutionObserver] = []
 

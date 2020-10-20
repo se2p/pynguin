@@ -28,7 +28,7 @@ def test_init_without_params():
     with pytest.raises(ConfigurationException) as exception:
         gen.Pynguin(None)
     assert exception.value.args[0] == (
-        "Cannot initialise test generator without " + "proper configuration."
+        "Cannot initialise test generator without proper configuration."
     )
 
 
@@ -54,20 +54,15 @@ def test_instantiate_test_generation_strategy_actual(value, cls):
 
 
 def test_setup_executor_failed():
-    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
-    with mock.patch(
-        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
-    ) as exec_mock:
-        exec_mock.side_effect = ModuleNotFoundError()
-        assert generator._setup_executor(MagicMock()) is None
+    generator = gen.Pynguin(
+        configuration=MagicMock(log_file=None, module_name="this.does.not.exist")
+    )
+    assert generator._setup_executor(MagicMock()) is None
 
 
 def test_setup_executor_success():
     generator = gen.Pynguin(configuration=MagicMock(log_file=None))
-    with mock.patch(
-        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
-    ) as exec_mock:
-        exec_mock.return_value = None
+    with mock.patch("importlib.import_module"):
         assert generator._setup_executor(MagicMock())
 
 
