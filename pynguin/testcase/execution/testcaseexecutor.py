@@ -15,10 +15,10 @@ import astor
 
 import pynguin.configuration as config
 import pynguin.testcase.execution.executioncontext as ctx
+import pynguin.testcase.execution.executionobserver as eo
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.execution.executionobserver as eo
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 

@@ -11,9 +11,9 @@ from typing import Generic, TypeVar
 
 import pynguin.assertion.outputtrace as ot
 import pynguin.assertion.outputtraceentry as ote
+import pynguin.testcase.execution.executionobserver as eo
 import pynguin.testcase.execution.executionresult as res
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.execution.executionobserver as eo
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=ote.OutputTraceEntry)
