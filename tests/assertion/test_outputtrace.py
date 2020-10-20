@@ -43,7 +43,7 @@ def sample_trace_assertion():
     variable.get_statement_position.return_value = 42
     entry = MagicMock()
     assertion = MagicMock()
-    entry.get_assertions.return_value = ({assertion})
+    entry.get_assertions.return_value = {assertion}
     trace.add_entry(1337, variable, entry)
     return trace, assertion
 
