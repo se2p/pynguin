@@ -6,6 +6,8 @@
 #
 from unittest.mock import MagicMock
 
+import pytest
+
 import pynguin.assertion.outputtrace as ot
 import pynguin.configuration as config
 
@@ -34,12 +36,20 @@ def test_add_entry_same_position():
     assert trace._trace == {1337: {42: entry}}
 
 
-def test_add_assertions_test_case_to_long():
+@pytest.fixture
+def sample_trace_assertion():
     trace = ot.OutputTrace()
     variable = MagicMock()
     variable.get_statement_position.return_value = 42
     entry = MagicMock()
+    assertion = MagicMock()
+    entry.get_assertions.return_value = ({assertion})
     trace.add_entry(1337, variable, entry)
+    return trace, assertion
+
+
+def test_add_assertions_test_case_to_long(sample_trace_assertion):
+    trace, assertion = sample_trace_assertion
 
     test_case = MagicMock()
     test_case.size_with_assertions.return_value = 7
@@ -49,14 +59,8 @@ def test_add_assertions_test_case_to_long():
     test_case.get_statement.assert_not_called()
 
 
-def test_add_assertions_test_case_small():
-    trace = ot.OutputTrace()
-    variable = MagicMock()
-    variable.get_statement_position.return_value = 42
-    entry = MagicMock()
-    assertion = MagicMock()
-    entry.get_assertions.return_value = ({assertion})
-    trace.add_entry(1337, variable, entry)
+def test_add_assertions_test_case_small(sample_trace_assertion):
+    trace, assertion = sample_trace_assertion
 
     test_case = MagicMock()
     statement = MagicMock()
