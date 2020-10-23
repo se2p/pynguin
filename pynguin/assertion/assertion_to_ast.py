@@ -47,6 +47,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             assertion: the assertion that is visited.
 
         """
+        # TODO use delta for float assertions
         if isinstance(assertion.value, bool):
             self._nodes.append(
                 self._create_assert(assertion.source, ast.Is(), assertion.value)
