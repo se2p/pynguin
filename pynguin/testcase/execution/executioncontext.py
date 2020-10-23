@@ -39,18 +39,22 @@ class ExecutionContext:
 
     def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
         """Returns the value that is assigned to the given variable in the local
-        namespace, if any.
+        namespace.
 
         Args:
             variable: the variable whose value we want
 
-        Returns: the assigned value or None.
+        Raises:
+            ValueError, if the requested variable has no assigned value in this context.
+
+        Returns:
+            the assigned value.
         """
         if variable in self._variable_names.known_name_indices:
             name = self._variable_names.get_name(variable)
             if name in self._local_namespace:
                 return self._local_namespace.get(name)
-        return None
+        raise ValueError()
 
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:
