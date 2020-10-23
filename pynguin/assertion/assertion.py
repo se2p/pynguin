@@ -66,11 +66,7 @@ class Assertion:
         """
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Assertion):
-            return False
-        if self is other:
-            return True
-        return self._source == other._source and self._value == other._value
+        return isinstance(other, Assertion) and self._source == other._source and self._value == other._value
 
     def __hash__(self) -> int:
         return hash((self._source, self._value))
