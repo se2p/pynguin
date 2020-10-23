@@ -13,7 +13,6 @@ from pynguin.testcase import testcase as tc
 
 
 class FooAssertion(ass.Assertion):
-
     def accept(self, visitor: av.AssertionVisitor) -> None:
         pass
 
@@ -27,7 +26,7 @@ def test_eq():
 
 
 def test_neq():
-    assert FooAssertion(MagicMock(), True)  != FooAssertion(MagicMock(), True)
+    assert FooAssertion(MagicMock(), True) != FooAssertion(MagicMock(), True)
 
 
 def test_hash():
@@ -36,4 +35,6 @@ def test_hash():
 
 
 def test_neq_hash():
-    assert hash(FooAssertion(MagicMock(), True)) != hash(FooAssertion(MagicMock(), True))
+    assert hash(FooAssertion(MagicMock(), True)) != hash(
+        FooAssertion(MagicMock(), True)
+    )
