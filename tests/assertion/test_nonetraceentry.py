@@ -21,8 +21,7 @@ def test_clone():
     variable = MagicMock()
     entry = nte.NoneTraceEntry(variable, True)
     cloned = entry.clone()
-    assert entry._variable == cloned._variable
-    assert entry._is_none == cloned._is_none
+    assert cloned == nte.NoneTraceEntry(variable, True)
 
 
 def test_get_assertions():
@@ -30,3 +29,27 @@ def test_get_assertions():
     entry = nte.NoneTraceEntry(variable, True)
     assertions = entry.get_assertions()
     assert assertions == {nas.NoneAssertion(variable, True)}
+
+
+def test_eq():
+    variable = MagicMock()
+    assert nte.NoneTraceEntry(variable, True) == nte.NoneTraceEntry(variable, True)
+
+
+def test_neq():
+    variable = MagicMock()
+    assert nte.NoneTraceEntry(variable, False) != nte.NoneTraceEntry(variable, True)
+
+
+def test_hash():
+    variable = MagicMock()
+    assert hash(nte.NoneTraceEntry(variable, True)) == hash(
+        nte.NoneTraceEntry(variable, True)
+    )
+
+
+def test_hash_neq():
+    variable = MagicMock()
+    assert hash(nte.NoneTraceEntry(variable, False)) != hash(
+        nte.NoneTraceEntry(variable, True)
+    )

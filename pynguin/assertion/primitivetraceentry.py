@@ -27,3 +27,13 @@ class PrimitiveTraceEntry(ote.OutputTraceEntry):
 
     def get_assertions(self) -> Set[ass.Assertion]:
         return {pas.PrimitiveAssertion(self._variable, self._value)}
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, PrimitiveTraceEntry)
+            and self._value == other._value
+            and self._variable == other._variable
+        )
+
+    def __hash__(self):
+        return hash((self._variable, self._value))

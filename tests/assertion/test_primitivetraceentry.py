@@ -21,8 +21,7 @@ def test_clone():
     variable = MagicMock()
     entry = pte.PrimitiveTraceEntry(variable, True)
     cloned = entry.clone()
-    assert entry._variable == cloned._variable
-    assert entry._value == cloned._value
+    assert cloned == pte.PrimitiveTraceEntry(variable, True)
 
 
 def test_get_assertions():
@@ -30,3 +29,31 @@ def test_get_assertions():
     entry = pte.PrimitiveTraceEntry(variable, True)
     assertions = entry.get_assertions()
     assert assertions == {pas.PrimitiveAssertion(variable, True)}
+
+
+def test_eq():
+    variable = MagicMock()
+    assert pte.PrimitiveTraceEntry(variable, True) == pte.PrimitiveTraceEntry(
+        variable, True
+    )
+
+
+def test_neq():
+    variable = MagicMock()
+    assert pte.PrimitiveTraceEntry(variable, False) != pte.PrimitiveTraceEntry(
+        variable, True
+    )
+
+
+def test_hash():
+    variable = MagicMock()
+    assert hash(pte.PrimitiveTraceEntry(variable, True)) == hash(
+        pte.PrimitiveTraceEntry(variable, True)
+    )
+
+
+def test_hash_neq():
+    variable = MagicMock()
+    assert hash(pte.PrimitiveTraceEntry(variable, False)) != hash(
+        pte.PrimitiveTraceEntry(variable, True)
+    )

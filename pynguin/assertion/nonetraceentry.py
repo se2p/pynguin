@@ -33,3 +33,13 @@ class NoneTraceEntry(ote.OutputTraceEntry):
 
     def get_assertions(self) -> Set[ass.Assertion]:
         return {nas.NoneAssertion(self._variable, self._is_none)}
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, NoneTraceEntry)
+            and self._is_none == other._is_none
+            and self._variable == other._variable
+        )
+
+    def __hash__(self):
+        return hash((self._variable, self._is_none))
