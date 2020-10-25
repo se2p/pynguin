@@ -178,7 +178,7 @@ class TestCase(metaclass=ABCMeta):
 
     @abstractmethod
     def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
-        """Provides all variables that var depends on.
+        """Provides all variables on which var depends.
 
         Args:
             var: the variable whose dependencies we are looking for.

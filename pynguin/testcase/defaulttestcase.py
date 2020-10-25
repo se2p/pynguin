@@ -115,6 +115,7 @@ class DefaultTestCase(tc.TestCase):
     def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
         dependencies = set()
 
+        # TODO(fk) a variable will be a dependency of itself?!
         dependent_stmts = {self.get_statement(var.get_statement_position())}
         for idx in range(var.get_statement_position(), -1, -1):
             new_stmts = set()
@@ -123,6 +124,7 @@ class DefaultTestCase(tc.TestCase):
                     new_stmts.add(self.get_statement(idx))
                     dependencies.add(self.get_statement(idx).return_value)
                     break
+            dependent_stmts.update(new_stmts)
 
         return dependencies
 
