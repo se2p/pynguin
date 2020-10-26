@@ -73,3 +73,11 @@ like the following (the result can differ on your machine):
     :lines: 8-
 
 Note that Pynguin currently is not able to generate assertions!
+
+A Note on Reproducible Runs
+---------------------------
+
+According to the `Python documentation <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONHASHSEED>`_
+it is necessary to set the environment variable ``PYTHONHASHSEED=0`` in order to
+achieve a truly deterministic behaviour and computation.
+Furthermore, it is necessary to set the ``--seed`` command-line option to a fixed value.
