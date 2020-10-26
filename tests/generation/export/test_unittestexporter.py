@@ -23,9 +23,11 @@ class GeneratedTestSuite(unittest.TestCase):
     def test_case_0(self):
         var0 = 5
         var1 = module0.SomeType(var0)
+        assert var1 == 5
 
     def test_case_1(self):
         var0 = 5
         var1 = module0.SomeType(var0)
+        assert var1 == 5
 """
     )

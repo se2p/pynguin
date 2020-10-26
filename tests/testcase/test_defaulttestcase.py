@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
+import pynguin.assertion.primitiveassertion as pas
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
@@ -17,7 +18,6 @@ import pynguin.testcase.statements.statement as st
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.assertion.primitiveassertion as pas
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
