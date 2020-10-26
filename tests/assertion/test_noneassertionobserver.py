@@ -24,8 +24,6 @@ import pynguin.assertion.nonetraceentry as nte
         ("visit_constructor_statement", 1),
         ("visit_method_statement", 1),
         ("visit_function_statement", 1),
-        ("visit_field_statement", 0),
-        ("visit_assignment_statement", 0),
     ],
 )
 def test_visits(method, call_count):
@@ -38,6 +36,25 @@ def test_visits(method, call_count):
     with mock.patch.object(visitor, "handle") as handle_mock:
         getattr(visitor, method)(statement)
         assert handle_mock.call_count == call_count
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        "visit_field_statement",
+        "visit_assignment_statement",
+    ],
+)
+def test_visits_unimplemented(method):
+    exec_ctx = MagicMock()
+    exec_ctx.get_variable_value.return_value = 5
+    variable = MagicMock()
+    trace = MagicMock()
+    visitor = nao.NoneAssertionVisitor(exec_ctx, variable, trace)
+    statement = MagicMock()
+    with mock.patch.object(visitor, "handle"):
+        with pytest.raises(NotImplementedError):
+            getattr(visitor, method)(statement)
 
 
 def test_handle_primitive():
