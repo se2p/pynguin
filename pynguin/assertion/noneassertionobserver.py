@@ -78,12 +78,10 @@ class NoneAssertionVisitor(stmt_sv.StatementVisitor):
         self.handle(stmt)
 
     def visit_field_statement(self, stmt) -> None:
-        # TODO(fk) fields not yet implemented
-        pass
+        raise NotImplementedError()
 
     def visit_assignment_statement(self, stmt) -> None:
-        # TODO(fk) assignment not yet implemented
-        pass
+        raise NotImplementedError()
 
     def handle(self, statement: st.Statement) -> None:
         """Actually handle the given statement.
