@@ -31,7 +31,7 @@ The following contracts should hold (adopted from the Java API documentation):
   * The relation is *reflexive*: for any non-null reference value ``x``,
     ``x.__eq__(x)`` should return ``True``
   * The relation is *symmetric*: for any non-null reference values ``x`` and ``y``,
-    ``x.__eq__(y)``should return ``True`` if and only if ``y.__eq__(x)`` returns
+    ``x.__eq__(y)`` should return ``True`` if and only if ``y.__eq__(x)`` returns
     ``True``.
   * The relation is *transitive*: for any non-null reference values ``x``, ``y``, and
     ``z``, if ``x.__eq__(y)`` returns ``True`` and ``y.__eq__(z)`` returns ``True``,
