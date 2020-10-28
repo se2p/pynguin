@@ -7,11 +7,11 @@
 """Provides an output trace."""
 from __future__ import annotations
 
-from typing import Dict, Generic, TypeVar, cast
+from typing import Dict, Generic, Set, TypeVar, cast
 
+import pynguin.assertion.assertion as ass
 import pynguin.assertion.outputtraceentry as ote
-import pynguin.configuration as config
-import pynguin.testcase.testcase as tc  # pylint:disable=cyclic-import
+import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
 
 # pylint:disable=invalid-name
@@ -42,22 +42,22 @@ class OutputTrace(Generic[T]):
 
         self._trace[position][variable.get_statement_position()] = entry
 
-    def add_assertions(self, test_case: tc.TestCase) -> None:
-        """Add all assertions contained within this trace to the given test case.
+    def get_assertions(self, statement: stmt.Statement) -> Set[ass.Assertion]:
+        """Get all assertions contained within this trace for the given statement.
 
         Args:
-            test_case: the test case to which we add the observed assertions.
+            statement: the statement for which all recorded assertions
+                       should be generated.
 
+        Returns:
+            All assertions in this trace for the given statement.
         """
-        for statement, value in self._trace.items():
-            for _, entry in value.items():
-                for assertion in entry.get_assertions():
-                    if (
-                        test_case.size_with_assertions()
-                        >= config.INSTANCE.max_length_test_case
-                    ):
-                        return
-                    test_case.get_statement(statement).add_assertion(assertion)
+        position = statement.get_position()
+        assertions = set()
+        if position in self._trace:
+            for _, entry in self._trace[position].items():
+                assertions.update(entry.get_assertions())
+        return assertions
 
     def clear(self) -> None:
         """Clear this trace."""

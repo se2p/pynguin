@@ -6,6 +6,8 @@
 #
 from typing import Union
 
+static_state = 0
+
 
 class Human:
     def __init__(self, name: str, number: Union[int, float]) -> None:
@@ -20,3 +22,8 @@ class Human:
 
     def get_number(self) -> Union[int, float]:
         return self._number
+
+    def static_state(self) -> float:
+        global static_state
+        static_state += 1
+        return static_state * self._number
