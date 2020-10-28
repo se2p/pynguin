@@ -30,6 +30,8 @@ class UnitTestExporter(AbstractTestExporter):
             module_aliases, common_modules
         )
         functions = AbstractTestExporter._create_functions(asts, True)
+        if len(functions) == 0:
+            functions = [ast.Pass()]
         module = ast.Module(
             body=import_node + [UnitTestExporter._create_unit_test_class(functions)]
         )

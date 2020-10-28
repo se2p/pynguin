@@ -76,6 +76,8 @@ class AbstractTestExporter(metaclass=ABCMeta):
         functions: List[ast.stmt] = []
         for i, nodes in enumerate(asts):
             function_name = f"case_{i}"
+            if len(nodes) == 0:
+                nodes = [ast.Pass()]
             function_node = AbstractTestExporter.__create_function_node(
                 function_name, nodes, with_self_arg
             )
