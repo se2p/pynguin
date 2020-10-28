@@ -6,11 +6,12 @@
 #
 """Provides an assertion visitor to transform assertions to AST."""
 import ast
-from typing import Any, List
+from typing import Any, List, Set
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
 import pynguin.assertion.primitiveassertion as pa
+import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.ast_util as au
 from pynguin.utils.namingscope import NamingScope
@@ -19,13 +20,16 @@ from pynguin.utils.namingscope import NamingScope
 class AssertionToAstVisitor(av.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes."""
 
-    def __init__(self, variable_names: NamingScope):
+    def __init__(self, common_modules: Set[str], variable_names: NamingScope):
         """Create a new assertion visitor.
 
         Args:
             variable_names: the naming scope that is used to resolve the names
                             of the variables used in the assertions.
+            common_modules: the set of common modules that are used. Modules may be
+                            added when transforming the assertions.
         """
+        self._common_modules = common_modules
         self._variable_names = variable_names
         self._nodes: List[ast.stmt] = []
 
@@ -50,11 +54,19 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         # TODO use delta for float assertions
         if isinstance(assertion.value, bool):
             self._nodes.append(
-                self._create_assert(assertion.source, ast.Is(), assertion.value)
+                self._create_constant_assert(
+                    assertion.source, ast.Is(), assertion.value
+                )
+            )
+        elif isinstance(assertion.value, float):
+            self._nodes.append(
+                self._create_float_delta_assert(assertion.source, assertion.value)
             )
         else:
             self._nodes.append(
-                self._create_assert(assertion.source, ast.Eq(), assertion.value)
+                self._create_constant_assert(
+                    assertion.source, ast.Eq(), assertion.value
+                )
             )
 
     def visit_none_assertion(self, assertion: na.NoneAssertion) -> None:
@@ -65,11 +77,15 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             assertion: the assertion that is visited.
         """
         if assertion.value:
-            self._nodes.append(self._create_assert(assertion.source, ast.Is(), None))
+            self._nodes.append(
+                self._create_constant_assert(assertion.source, ast.Is(), None)
+            )
         else:
-            self._nodes.append(self._create_assert(assertion.source, ast.IsNot(), None))
+            self._nodes.append(
+                self._create_constant_assert(assertion.source, ast.IsNot(), None)
+            )
 
-    def _create_assert(
+    def _create_constant_assert(
         self, var: vr.VariableReference, operator: ast.cmpop, value: Any
     ) -> ast.Assert:
         return ast.Assert(
@@ -77,6 +93,34 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                 left=au.create_var_name(self._variable_names, var, load=True),
                 ops=[operator],
                 comparators=[ast.Constant(value=value, kind=None)],
+            ),
+            msg=None,
+        )
+
+    def _create_float_delta_assert(
+        self, var: vr.VariableReference, value: Any
+    ) -> ast.Assert:
+        self._common_modules.add("math")
+        # TODO(fk) maybe use something more specific for pytest or UnitTest?
+        return ast.Assert(
+            test=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="math", ctx=ast.Load()),
+                    attr="isclose",
+                    ctx=ast.Load(),
+                ),
+                args=[
+                    au.create_var_name(self._variable_names, var, load=True),
+                    ast.Constant(value=value, kind=None),
+                ],
+                keywords=[
+                    ast.keyword(
+                        arg="abs_tol",
+                        value=ast.Constant(
+                            value=config.INSTANCE.float_precision, kind=None
+                        ),
+                    )
+                ],
             ),
             msg=None,
         )

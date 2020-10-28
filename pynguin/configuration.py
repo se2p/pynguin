@@ -270,6 +270,9 @@ class Configuration(Serializable):
     generate_assertions: bool = True
     """Should assertions be generated?"""
 
+    float_precision: float = 0.01
+    """Precision to use in float comparisons and assertions"""
+
     duck_mock_module_only: bool = False
     """Do only parse module dependencies for duck mocks, not whole class path."""
 

@@ -6,7 +6,7 @@
 #
 """Provides a visitor that transforms test cases to asts."""
 from ast import stmt
-from typing import List
+from typing import List, Set
 
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.defaulttestcase as dtc
@@ -29,6 +29,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             wrap_code: Whether or not exported code shall be wrapped
         """
         self._module_aliases = NamingScope("module")
+        # Common modules (e.g. math) are not aliased.
+        self._common_modules: Set[str] = set()
         self._test_case_asts: List[List[stmt]] = []
         self._wrap_code = wrap_code
 
@@ -40,7 +42,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         for statement in test_case.statements:
             statement.accept(statement_visitor)
             # TODO(fk) better way. Nest visitors?
-            assertion_visitor = ata.AssertionToAstVisitor(variables)
+            assertion_visitor = ata.AssertionToAstVisitor(
+                self._common_modules, variables
+            )
             for assertion in statement.assertions:
                 assertion.accept(assertion_visitor)
             statement_visitor.append_nodes(assertion_visitor.nodes)
@@ -63,3 +67,13 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             The module aliases
         """
         return self._module_aliases
+
+    @property
+    def common_modules(self) -> Set[str]:
+        """Provides the common modules that were used when transforming all test cases.
+        This is used, because common modules (e.g., math) should not be aliased.
+
+        Returns:
+            A set of the modules names
+        """
+        return self._common_modules

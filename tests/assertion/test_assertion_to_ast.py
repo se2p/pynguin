@@ -17,7 +17,7 @@ from pynguin.utils.namingscope import NamingScope
 @pytest.fixture
 def assertion_to_ast() -> ata.AssertionToAstVisitor:
     scope = NamingScope()
-    return ata.AssertionToAstVisitor(scope)
+    return ata.AssertionToAstVisitor(set(), scope)
 
 
 def test_none(assertion_to_ast):
@@ -42,6 +42,15 @@ def test_primitive_bool(assertion_to_ast):
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var0 is True\n"
+    )
+
+
+def test_primitive_float(assertion_to_ast):
+    assertion = MagicMock(value=1.5)
+    assertion_to_ast.visit_primitive_assertion(assertion)
+    assert (
+        astor.to_source(Module(body=assertion_to_ast.nodes))
+        == "assert math.isclose(var0, 1.5, abs_tol=0.01)\n"
     )
 
 
