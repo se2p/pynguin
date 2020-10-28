@@ -36,7 +36,7 @@ def test_singleton():
 
 @pytest.mark.parametrize(
     "type_, result",
-    [pytest.param("str", 24), pytest.param("int", 6), pytest.param("float", 1)],
+    [pytest.param("str", 29), pytest.param("int", 6), pytest.param("float", 1)],
 )
 def test_collect_constants(type_, result, seeding, fixture_dir):
     constants = seeding.collect_constants(fixture_dir)
