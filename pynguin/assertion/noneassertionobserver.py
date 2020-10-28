@@ -29,7 +29,7 @@ class NoneTraceObserver(ato.AssertionTraceObserver[nte.NoneTraceEntry]):
         self,
         statement: st.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception],
+        exception: Optional[Exception] = None,
     ) -> None:
         if exception is not None:
             return
@@ -78,10 +78,10 @@ class NoneAssertionVisitor(stmt_sv.StatementVisitor):
         self.handle(stmt)
 
     def visit_field_statement(self, stmt) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError("Fields are not supported yet")
 
     def visit_assignment_statement(self, stmt) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError("Assignments are not supported yet")
 
     def handle(self, statement: st.Statement) -> None:
         """Actually handle the given statement.

@@ -43,7 +43,7 @@ class ExecutionObserver:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception],
+        exception: Optional[Exception] = None,
     ) -> None:
         """
         Called after a statement was executed.

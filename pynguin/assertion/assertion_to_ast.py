@@ -75,14 +75,11 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         Args:
             assertion: the assertion that is visited.
         """
-        if assertion.value:
-            self._nodes.append(
-                self._create_constant_assert(assertion.source, ast.Is(), None)
+        self._nodes.append(
+            self._create_constant_assert(
+                assertion.source, ast.Is() if assertion.value else ast.IsNot(), None
             )
-        else:
-            self._nodes.append(
-                self._create_constant_assert(assertion.source, ast.IsNot(), None)
-            )
+        )
 
     def _create_constant_assert(
         self, var: vr.VariableReference, operator: ast.cmpop, value: Any

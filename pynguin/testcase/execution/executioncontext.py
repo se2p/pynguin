@@ -54,7 +54,7 @@ class ExecutionContext:
             name = self._variable_names.get_name(variable)
             if name in self._local_namespace:
                 return self._local_namespace.get(name)
-        raise ValueError()
+        raise ValueError("Variable is not defined in this context")
 
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:

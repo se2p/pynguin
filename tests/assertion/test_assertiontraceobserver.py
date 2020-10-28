@@ -23,7 +23,7 @@ class FooObserver(ato.AssertionTraceObserver):
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception],
+        exception: Optional[Exception] = None,
     ) -> None:
         pass
 

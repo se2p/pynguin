@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an assertion generator"""
+import logging
 from typing import List
 
 import pynguin.assertion.noneassertionobserver as nao
@@ -12,14 +13,14 @@ import pynguin.assertion.primitiveassertionobserver as pao
 import pynguin.configuration as config
 import pynguin.testcase.execution.testcaseexecutor as ex
 import pynguin.testcase.testcase as tc
-
-# pylint:disable=too-few-public-methods
 from pynguin.utils import randomness
 
 
 class AssertionGenerator:
     """A simple assertion generator.
     Creates all regression assertions."""
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(self, executor: ex.TestCaseExecutor):
         """
@@ -55,6 +56,10 @@ class AssertionGenerator:
                         test_case.size_with_assertions()
                         >= config.INSTANCE.max_length_test_case
                     ):
+                        self._logger.debug(
+                            "No more assertions are added, because the maximum length "
+                            "of a test case with its assertions was reached"
+                        )
                         return
                     statement.add_assertion(assertion)
 
