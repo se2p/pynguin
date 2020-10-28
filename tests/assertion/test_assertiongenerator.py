@@ -62,6 +62,15 @@ def test__add_assertions_long(generator_setup):
     statement.add_assertion.assert_not_called()
 
 
+def test__filter_failing_assertions(generator_setup):
+    test_case, executor, statement, _ = generator_setup
+
+    statement.assertions = {MagicMock}
+    generator = ag.AssertionGenerator(executor)
+    generator._filter_failing_assertions(test_case)
+    assert statement.assertions == set()
+
+
 def test_filter_assertions():
     executor = MagicMock()
     generator = ag.AssertionGenerator(executor)
