@@ -58,12 +58,12 @@ well as a more limited time (10 seconds here), we add some more parameters::
 The output on the command line might be something like the following:
 
 .. literalinclude:: ../source/_static/example-stdout.txt
-    :emphasize-lines: 1-3,24-28
+    :emphasize-lines: 1-3,16-20
 
 The first three line show that Pynguin starts, that it has not gotten any seed—that
 is a fixed start number of its (pseudo) random-number generator, and that it starts
 sequence generation using the *RANDOOPY* algorithm.
-It then yields that it took 10 algorithm iterations, and concludes with its results:
+It then yields that it took six algorithm iterations, and concludes with its results:
 ten test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
@@ -72,7 +72,9 @@ like the following (the result can differ on your machine):
     :language: python
     :lines: 8-
 
-Note that Pynguin currently is not able to generate assertions!
+As of version 0.6.0, Pynguin is now also able to generate assertions for simple data
+types (``int``, ``float``, ``str``, and ``bool``), as well as checks for ``None``
+return values.
 
 A Note on Reproducible Runs
 ---------------------------

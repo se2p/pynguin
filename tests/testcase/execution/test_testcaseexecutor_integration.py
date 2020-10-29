@@ -5,6 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Integration tests for the executor."""
+import importlib
+from unittest.mock import MagicMock
+
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
@@ -18,10 +21,12 @@ def test_simple_execution():
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
     with install_import_hook(config.INSTANCE.module_name, tracer):
+        module = importlib.import_module(config.INSTANCE.module_name)
+        importlib.reload(module)
         test_case = dtc.DefaultTestCase()
         test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case, 5))
         executor = TestCaseExecutor(tracer)
-        assert not executor.execute([test_case]).has_test_exceptions()
+        assert not executor.execute(test_case).has_test_exceptions()
 
 
 def test_illegal_call(method_mock):
@@ -35,8 +40,10 @@ def test_illegal_call(method_mock):
     test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()
     with install_import_hook(config.INSTANCE.module_name, tracer):
+        module = importlib.import_module(config.INSTANCE.module_name)
+        importlib.reload(module)
         executor = TestCaseExecutor(tracer)
-        result = executor.execute([test_case])
+        result = executor.execute(test_case)
         assert result.has_test_exceptions()
 
 
@@ -44,6 +51,20 @@ def test_no_exceptions(short_test_case):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
     with install_import_hook(config.INSTANCE.module_name, tracer):
+        module = importlib.import_module(config.INSTANCE.module_name)
+        importlib.reload(module)
         executor = TestCaseExecutor(tracer)
-        result = executor.execute([short_test_case])
+        result = executor.execute(short_test_case)
         assert not result.has_test_exceptions()
+
+
+def test_observers(short_test_case):
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    observer = MagicMock()
+    executor.add_observer(observer)
+    executor.execute(short_test_case)
+    assert observer.before_test_case_execution.call_count == 1
+    assert observer.before_statement_execution.call_count == 2
+    assert observer.after_statement_execution.call_count == 2
+    assert observer.after_test_case_execution.call_count == 1

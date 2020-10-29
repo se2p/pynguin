@@ -162,11 +162,11 @@ def test_enable_disable_cmp():
     tracer.register_predicate(MagicMock(PredicateMetaData))
     assert len(tracer.get_trace().executed_predicates) == 0
 
-    tracer._disable()
+    tracer.disable()
     tracer.executed_compare_predicate(0, 0, 0, Compare.EQ)
     assert len(tracer.get_trace().executed_predicates) == 0
 
-    tracer._enable()
+    tracer.enable()
     tracer.executed_compare_predicate(0, 0, 0, Compare.EQ)
     assert len(tracer.get_trace().executed_predicates) == 1
 
@@ -176,11 +176,11 @@ def test_enable_disable_bool():
     tracer.register_predicate(MagicMock(PredicateMetaData))
     assert len(tracer.get_trace().executed_predicates) == 0
 
-    tracer._disable()
+    tracer.disable()
     tracer.executed_bool_predicate(True, 0)
     assert len(tracer.get_trace().executed_predicates) == 0
 
-    tracer._enable()
+    tracer.enable()
     tracer.executed_bool_predicate(True, 0)
     assert len(tracer.get_trace().executed_predicates) == 1
 

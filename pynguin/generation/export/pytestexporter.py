@@ -20,8 +20,14 @@ class PyTestExporter(AbstractTestExporter):
     def export_sequences(
         self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
     ):
-        asts, module_aliases = self._transform_to_asts(test_cases)
-        import_nodes = AbstractTestExporter._create_ast_imports(module_aliases)
+        (
+            module_aliases,
+            common_modules,
+            asts,
+        ) = self._transform_to_asts(test_cases)
+        import_nodes = AbstractTestExporter._create_ast_imports(
+            module_aliases, common_modules
+        )
         functions = AbstractTestExporter._create_functions(asts, False)
         module = ast.Module(body=import_nodes + functions)
         AbstractTestExporter._save_ast_to_file(path, module)

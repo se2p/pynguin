@@ -12,6 +12,7 @@ import logging
 from abc import ABCMeta, abstractmethod
 from typing import Any, Optional, Set
 
+import pynguin.assertion.assertion as ass
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
@@ -21,12 +22,14 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 class Statement(metaclass=ABCMeta):
     """An abstract base class of a statement representation."""
 
+    _logger = logging.getLogger(__name__)
+
     def __init__(
         self, test_case: tc.TestCase, return_value: vr.VariableReference
     ) -> None:
         self._test_case = test_case
         self._return_value = return_value
-        self._logger = logging.getLogger(__name__)
+        self._assertions: Set[ass.Assertion] = set()
 
     @property
     def return_value(self) -> vr.VariableReference:
@@ -128,6 +131,29 @@ class Statement(metaclass=ABCMeta):
             The position of this statement
         """
         return self._return_value.get_statement_position()
+
+    def add_assertion(self, assertion: ass.Assertion) -> None:
+        """Add the given assertion to this statement."""
+        self._assertions.add(assertion)
+
+    def copy_assertions(
+        self, new_test_case: tc.TestCase, offset: int
+    ) -> Set[ass.Assertion]:
+        """Returns a copy of the assertions of this statement."""
+        copy = set()
+        for assertion in self._assertions:
+            copy.add(assertion.clone(new_test_case, offset))
+        return copy
+
+    @property
+    def assertions(self) -> Set[ass.Assertion]:
+        """Provides the assertions of this statement, which are expected
+        to hold after the execution of this statement."""
+        return self._assertions
+
+    @assertions.setter
+    def assertions(self, assertions: Set[ass.Assertion]) -> None:
+        self._assertions = assertions
 
     def __eq__(self, other: Any) -> bool:
         raise NotImplementedError("You need to override __eq__ for your statement type")

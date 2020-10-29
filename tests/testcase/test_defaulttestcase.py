@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
+import pynguin.assertion.primitiveassertion as pas
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
@@ -496,3 +497,61 @@ def test_mutate_all(default_test_case, func, rand, result):
             default_test_case.mutate()
             assert default_test_case.has_changed() == result
             mock_func.assert_called_once()
+
+
+def test_get_dependencies_self_empty(default_test_case, constructor_mock):
+    const0 = ps.ConstructorStatement(default_test_case, constructor_mock)
+    default_test_case.add_statement(const0)
+    dependencies = default_test_case.get_dependencies(const0.return_value)
+    assert dependencies == {const0.return_value}
+
+
+def test_get_dependencies_chained(default_test_case, function_mock):
+    unused_float = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(unused_float)
+
+    float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(float0)
+
+    func0 = ps.FunctionStatement(
+        default_test_case, function_mock, [float0.return_value]
+    )
+    default_test_case.add_statement(func0)
+
+    func1 = ps.FunctionStatement(default_test_case, function_mock, [func0.return_value])
+    default_test_case.add_statement(func1)
+    dependencies = default_test_case.get_dependencies(func1.return_value)
+    assert dependencies == {float0.return_value, func0.return_value, func1.return_value}
+
+
+def test_get_assertions_empty(default_test_case):
+    assert default_test_case.get_assertions() == []
+
+
+@pytest.fixture()
+def default_test_case_with_assertions(default_test_case):
+    float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(float0)
+    float0ass0 = pas.PrimitiveAssertion(float0.return_value, 5.5)
+    float0ass1 = pas.PrimitiveAssertion(float0.return_value, 6)
+    float0.add_assertion(float0ass0)
+    float0.add_assertion(float0ass1)
+
+    float1 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(float1)
+
+    float2 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(float2)
+    float2ass0 = pas.PrimitiveAssertion(float2.return_value, 5.5)
+    float2.add_assertion(float2ass0)
+    return default_test_case, {float0ass0, float0ass1, float2ass0}
+
+
+def test_get_assertions_multiple_statements(default_test_case_with_assertions):
+    test_case, assertions = default_test_case_with_assertions
+    assert set(test_case.get_assertions()) == assertions
+
+
+def test_get_size_with_assertions(default_test_case_with_assertions):
+    test_case, assertions = default_test_case_with_assertions
+    assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions
