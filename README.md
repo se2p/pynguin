@@ -37,7 +37,7 @@ of the [University of Passau](https://www.uni-passau.de).
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989840.svg)](https://doi.org/10.5281/zenodo.3989840)
 
 
-![Pynguin Logo](docs/source/_static/pynguin-logo.png "Pynguin Logo")
+![Pynguin Logo](https://raw.githubusercontent.com/se2p/pynguin/master/docs/source/_static/pynguin-logo.png "Pynguin Logo")
 
 
 ## Prerequisites
