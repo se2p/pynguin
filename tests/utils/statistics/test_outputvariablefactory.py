@@ -109,3 +109,36 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
 
 def test_get_time_line_value_without_timestamps(sequence_factory):
     assert sequence_factory._get_time_line_value("foo") == 0
+
+
+def test_get_time_line_value_first(sequence_factory):
+    start_time = time.time_ns()
+    sequence_factory._time_stamps = [start_time + i for i in range(3)]
+    sequence_factory._values = [f"val_{i}" for i in range(3)]
+    assert sequence_factory._get_time_line_value(0) == "val_0"
+
+
+def test_get_time_line_value_last(sequence_factory):
+    start_time = time.time_ns()
+    sequence_factory._time_stamps = [start_time + i for i in range(3)]
+    sequence_factory._values = [f"val_{i}" for i in range(3)]
+    assert sequence_factory._get_time_line_value(start_time * 2) == "val_2"
+
+
+def test_get_time_line_value_interpolation(sequence_factory):
+    config.INSTANCE.timeline_interval = 1
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [start_time + i for i in range(3)]
+    sequence_factory._values = [i for i in range(3)]
+    assert sequence_factory._get_time_line_value(start_time + 1) == 1.0
+
+
+def test_get_time_line_value_no_interpolation(sequence_factory):
+    config.INSTANCE.timeline_interval = 1
+    config.INSTANCE.timeline_interpolation = False
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [start_time + i for i in range(3)]
+    sequence_factory._values = [i for i in range(3)]
+    assert sequence_factory._get_time_line_value(start_time + 1) == 0

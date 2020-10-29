@@ -6,10 +6,10 @@
 #
 
 
-def triangle(x: int, y: int, z: int) -> None:
+def triangle(x: int, y: int, z: int) -> str:
     if x == y == z:
-        print("Equilateral triangle")
+        return "Equilateral triangle"
     elif x == y or y == z or x == z:
-        print("Isosceles triangle")
+        return "Isosceles triangle"
     else:
-        print("Scalene triangle")
+        return "Scalene triangle"

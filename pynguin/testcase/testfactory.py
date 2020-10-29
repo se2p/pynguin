@@ -406,8 +406,8 @@ class TestFactory:
     ) -> int:
         """Insert a random statement up to the given position.
 
-        If the insertion was successful, the position at which the statement was inserted
-        is returned, otherwise -1.
+        If the insertion was successful, the position at which the statement was
+        inserted is returned, otherwise -1.
 
         Args:
             test_case: The test case to add the statement to
@@ -1047,7 +1047,8 @@ class TestFactory:
         allow_none: bool,
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
-        # We only select a concrete type e.g. from a union, when we are forced to choose one.
+        # We only select a concrete type e.g. from a union, when we are forced to
+        # choose one.
         parameter_type = self._test_cluster.select_concrete_type(parameter_type)
 
         if not parameter_type:

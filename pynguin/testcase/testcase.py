@@ -8,8 +8,9 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Type
+from typing import List, Optional, Set, Type
 
+import pynguin.assertion.assertion as ass
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcasevisitor as tcv
 import pynguin.testcase.variable.variablereference as vr
@@ -160,6 +161,29 @@ class TestCase(metaclass=ABCMeta):
 
         Returns:
             The number of statements in the test case  # noqa: DAR202
+        """
+
+    @abstractmethod
+    def size_with_assertions(self) -> int:
+        """Provides the number of statements and assertions in the test case.
+
+        Returns:
+            The number of statements and assertions in the test case # noqa: DAR202
+        """
+
+    @abstractmethod
+    def get_assertions(self) -> List[ass.Assertion]:
+        """Get all assertions that exist for this test case."""
+
+    @abstractmethod
+    def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
+        """Provides all variables on which var depends.
+
+        Args:
+            var: the variable whose dependencies we are looking for.
+
+        Returns:
+            a set of variables on which var depends on. # noqa: DAR202
         """
 
     def get_objects(

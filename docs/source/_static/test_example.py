@@ -10,139 +10,72 @@ import example as module0
 
 
 def test_case_0():
-    var0 = None
-    module0.triangle(var0, var0, var0)
+    var0 = -2603
+    var1 = module0.triangle(var0, var0, var0)
+    assert var1 == "Equilateral triangle"
 
 
 def test_case_1():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -349
-    module0.triangle(var0, var1, var0)
+    var0 = -2603
+    var1 = module0.triangle(var0, var0, var0)
+    assert var1 == "Equilateral triangle"
+    var2 = 1272
+    var3 = module0.triangle(var0, var2, var2)
+    assert var3 == "Isosceles triangle"
 
 
 def test_case_2():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -2841
-    var2 = 1544
-    var3 = 264
-    module0.triangle(var1, var2, var3)
+    var0 = -32
+    var1 = None
+    var2 = module0.triangle(var0, var1, var0)
+    assert var2 == "Isosceles triangle"
 
 
 def test_case_3():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -349
-    module0.triangle(var0, var1, var0)
-    var2 = None
-    var3 = -1122
-    module0.triangle(var2, var3, var3)
+    var0 = -32
+    var1 = None
+    var2 = module0.triangle(var0, var1, var0)
+    assert var2 == "Isosceles triangle"
+    var3 = -2603
+    var4 = module0.triangle(var3, var3, var3)
+    assert var4 == "Equilateral triangle"
+    var5 = 1272
+    var6 = module0.triangle(var3, var5, var5)
+    assert var6 == "Isosceles triangle"
+    var7 = -38
+    var8 = module0.triangle(var5, var7, var3)
+    assert var8 == "Scalene triangle"
 
 
 def test_case_4():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -2841
-    var2 = 1544
-    var3 = 264
-    module0.triangle(var1, var2, var3)
-    var4 = None
-    module0.triangle(var4, var4, var4)
-    var5 = -349
-    module0.triangle(var4, var5, var4)
-    var6 = None
-    var7 = -1122
-    module0.triangle(var6, var7, var7)
-    var8 = None
-    module0.triangle(var8, var8, var8)
-    var9 = None
-    module0.triangle(var9, var9, var9)
-    var10 = -349
-    module0.triangle(var9, var10, var9)
-    var11 = 267
-    module0.triangle(var3, var11, var2)
+    var0 = -32
+    var1 = None
+    var2 = module0.triangle(var0, var1, var0)
+    assert var2 == "Isosceles triangle"
+    var3 = -2603
+    var4 = module0.triangle(var3, var3, var3)
+    assert var4 == "Equilateral triangle"
+    var5 = 1272
+    var6 = module0.triangle(var3, var5, var5)
+    assert var6 == "Isosceles triangle"
+    var7 = -38
+    var8 = module0.triangle(var5, var7, var3)
+    assert var8 == "Scalene triangle"
+    var9 = -4217
+    var10 = module0.triangle(var9, var1, var1)
+    assert var10 == "Isosceles triangle"
 
 
 def test_case_5():
-    var0 = -2262
-    module0.triangle(var0, var0, var0)
-
-
-def test_case_6():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -349
-    module0.triangle(var0, var1, var0)
-    var2 = None
-    var3 = -1122
-    module0.triangle(var2, var3, var3)
-    var4 = None
-    module0.triangle(var4, var4, var4)
-    var5 = -2841
-    var6 = 1544
-    var7 = 264
-    module0.triangle(var5, var6, var7)
-    var8 = None
-    module0.triangle(var8, var8, var8)
-    var9 = -2262
-    module0.triangle(var9, var9, var9)
-    var10 = None
-    module0.triangle(var10, var10, var10)
-    var11 = -349
-    module0.triangle(var10, var11, var10)
-    var12 = -427
-    var13 = -781
-    module0.triangle(var12, var13, var3)
-
-
-def test_case_7():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -2841
-    var2 = 1544
-    var3 = 264
-    module0.triangle(var1, var2, var3)
-    var4 = None
-    module0.triangle(var4, var4, var4)
-    var5 = -1367
-    module0.triangle(var0, var5, var3)
-
-
-def test_case_8():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -349
-    module0.triangle(var0, var1, var0)
-    var2 = None
-    var3 = -1122
-    module0.triangle(var2, var3, var3)
-    var4 = None
-    module0.triangle(var4, var4, var4)
-    var5 = -2841
-    var6 = 1544
-    var7 = 264
-    module0.triangle(var5, var6, var7)
-    var8 = -2262
-    module0.triangle(var8, var8, var8)
-    var9 = None
-    module0.triangle(var9, var9, var9)
-    var10 = -349
-    module0.triangle(var9, var10, var9)
-    var11 = -2926
-    var12 = -1156
-    module0.triangle(var2, var11, var12)
-
-
-def test_case_9():
-    var0 = None
-    module0.triangle(var0, var0, var0)
-    var1 = -349
-    module0.triangle(var0, var1, var0)
-    var2 = None
-    module0.triangle(var2, var2, var2)
-    var3 = -2841
-    var4 = 1544
-    var5 = 264
-    module0.triangle(var3, var4, var5)
-    module0.triangle(var3, var3, var4)
+    var0 = -32
+    var1 = None
+    var2 = module0.triangle(var0, var1, var0)
+    assert var2 == "Isosceles triangle"
+    var3 = -2603
+    var4 = module0.triangle(var3, var3, var3)
+    assert var4 == "Equilateral triangle"
+    var5 = 1272
+    var6 = module0.triangle(var3, var5, var5)
+    assert var6 == "Isosceles triangle"
+    var7 = module0.triangle(var0, var0, var1)
+    assert var7 == "Isosceles triangle"

@@ -11,9 +11,9 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.8.5-slim-buster AS build
+FROM python:3.8.6-slim-buster AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
-ENV POETRY_VERSION "1.0.10"
+ENV POETRY_VERSION "1.1.4"
 
 RUN pip install poetry==$POETRY_VERSION \
     && poetry config virtualenvs.create false
@@ -26,8 +26,8 @@ CMD ["poetry", "build"]
 
 
 # Execution stage for Pynguin
-FROM python:3.8.5-slim-buster AS execute
-ENV PYNGUIN_VERSION "0.5.4"
+FROM python:3.8.6-slim-buster AS execute
+ENV PYNGUIN_VERSION "0.6.1"
 
 WORKDIR /pynguin
 

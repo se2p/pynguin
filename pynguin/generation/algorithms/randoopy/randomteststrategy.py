@@ -135,7 +135,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         with Timer(name="Execution time", logger=None):
             # Execute new sequence
-            exec_result = self._executor.execute([new_test])
+            exec_result = self._executor.execute(new_test)
 
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():

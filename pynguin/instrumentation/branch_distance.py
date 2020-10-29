@@ -39,7 +39,8 @@ class BranchDistanceInstrumentation:
     # As of CPython 3.8, there are a few compare ops for which we can't really
     # compute a sensible branch distance. So for now, we just ignore those
     # comparisons and just track their boolean value.
-    # TODO(fk) update this to work with the bytecode for CPython 3.9, once it is released.
+    # TODO(fk) update this to work with the bytecode for CPython 3.9, once it is
+    #  released.
     _IGNORED_COMPARE_OPS: Set[Compare] = {Compare.EXC_MATCH}
 
     # Conditional jump operations are the last operation within a basic block
@@ -182,13 +183,13 @@ class BranchDistanceInstrumentation:
     ) -> int:
         """Instrument a conditional jump.
 
-        If it is based on a prior comparision, we track
+        If it is based on a prior comparison, we track
         the compared values, otherwise we just track the truthiness of the value on top
         of the stack.
 
         Args:
             code_object_id: The id of the containing Code Object.
-            maybe_compare: The comparision operation, if any.
+            maybe_compare: The comparison operation, if any.
             block: The containing basic block.
 
         Returns:
@@ -250,7 +251,7 @@ class BranchDistanceInstrumentation:
         """Instrument compare-based conditional jumps.
 
         We add a call to the tracer which reports the values that will be used
-        in the following comparision operation on which the conditional jump is based.
+        in the following comparison operation on which the conditional jump is based.
 
         Args:
             block: The containing basic block.

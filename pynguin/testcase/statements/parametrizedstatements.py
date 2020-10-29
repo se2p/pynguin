@@ -221,7 +221,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             # The chosen replacement is a copy, so we have to add it to the test case.
             self.test_case.add_statement(copy, self.get_position())
         elif replacement is none_statement.return_value:
-            # The chosen replacement is a none statement, so we have to add it to the test case.
+            # The chosen replacement is a none statement, so we have to add it to the
+            # test case.
             self.test_case.add_statement(none_statement, self.get_position())
 
         self._replace_argument(arg, replacement)
@@ -317,7 +318,10 @@ class ConstructorStatement(ParametrizedStatement):
         )
 
     def __str__(self) -> str:
-        return f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> None"
+        return (
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) "
+            + "-> None"
+        )
 
 
 class MethodStatement(ParametrizedStatement):

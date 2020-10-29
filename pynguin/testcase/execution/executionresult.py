@@ -5,9 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides the result of an execution run."""
-import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Type
 
+import pynguin.assertion.outputtrace as ot
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 
 
@@ -16,7 +16,7 @@ class ExecutionResult:
 
     def __init__(self) -> None:
         self._exceptions: Dict[int, Exception] = {}
-        self._time_stamp: int = time.time_ns()
+        self._output_traces: Dict[Type, ot.OutputTrace] = {}
         self._execution_trace: Optional[ExecutionTrace] = None
 
     @property
@@ -27,6 +27,16 @@ class ExecutionResult:
              A map of statement indices to their raised exception
         """
         return self._exceptions
+
+    @property
+    def output_traces(self) -> Dict[Type, ot.OutputTrace]:
+        """Provides the gathered output traces.
+
+        Returns:
+            the gathered output traces.
+
+        """
+        return self._output_traces
 
     @property
     def execution_trace(self) -> ExecutionTrace:
@@ -46,16 +56,16 @@ class ExecutionResult:
             trace: The new execution trace
         """
         self._execution_trace = trace
-        self._time_stamp = time.time_ns()
 
-    @property
-    def time_stamp(self) -> int:
-        """Provides the last update time of this result in nano seconds from epoch.
+    def add_output_trace(self, trace_type: Type, trace: ot.OutputTrace) -> None:
+        """Add the given trace to the recorded output traces.
 
-        Returns:
-            The last update time
+        Args:
+            trace_type: the type of trace.
+            trace: the trace to store.
+
         """
-        return self._time_stamp
+        self._output_traces[trace_type] = trace
 
     def has_test_exceptions(self) -> bool:
         """Returns true if any exceptions were thrown during the execution.

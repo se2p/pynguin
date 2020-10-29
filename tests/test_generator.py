@@ -24,14 +24,6 @@ def test_init_with_configuration():
     assert config.INSTANCE == conf
 
 
-def test_init_without_params():
-    with pytest.raises(ConfigurationException) as exception:
-        gen.Pynguin(None)
-    assert exception.value.args[0] == (
-        "Cannot initialise test generator without " + "proper configuration."
-    )
-
-
 def test_instantiate_test_generation_strategy_unknown():
     config.INSTANCE.algorithm = MagicMock()
     with pytest.raises(ConfigurationException):
@@ -53,22 +45,17 @@ def test_instantiate_test_generation_strategy_actual(value, cls):
     assert isinstance(instance, cls)
 
 
-def test_setup_executor_failed():
-    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
-    with mock.patch(
-        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
-    ) as exec_mock:
-        exec_mock.side_effect = ModuleNotFoundError()
-        assert generator._setup_executor(MagicMock()) is None
+def test__load_sut_failed():
+    generator = gen.Pynguin(
+        configuration=MagicMock(log_file=None, module_name="this.does.not.exist")
+    )
+    assert generator._load_sut() is False
 
 
-def test_setup_executor_success():
+def test__load_sut_success():
     generator = gen.Pynguin(configuration=MagicMock(log_file=None))
-    with mock.patch(
-        "pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor.__init__"
-    ) as exec_mock:
-        exec_mock.return_value = None
-        assert generator._setup_executor(MagicMock())
+    with mock.patch("importlib.import_module"):
+        assert generator._load_sut()
 
 
 def test_setup_test_cluster_empty():
@@ -103,25 +90,33 @@ def test_setup_test_cluster_not_empty():
         assert generator._setup_test_cluster()
 
 
-def test_setup_path_and_hook_invalid_dir(tmp_path):
+def test_setup_path_invalid_dir(tmp_path):
     generator = gen.Pynguin(
         configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")
     )
-    assert generator._setup_path_and_hook() is None
+    assert generator._setup_path() is False
 
 
-def test_setup_path_and_hook_valid_dir(tmp_path):
+def test_setup_path_valid_dir(tmp_path):
     module_name = "test_module"
     generator = gen.Pynguin(
         configuration=MagicMock(
             log_file=None, project_path=tmp_path, module_name=module_name
         )
     )
+    with mock.patch("sys.path") as path_mock:
+        assert generator._setup_path() is True
+        path_mock.insert.assert_called_with(0, tmp_path)
+
+
+def test_setup_hook():
+    module_name = "test_module"
+    generator = gen.Pynguin(
+        configuration=MagicMock(log_file=None, module_name=module_name)
+    )
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
-        with mock.patch("sys.path") as path_mock:
-            assert generator._setup_path_and_hook()
-            hook_mock.assert_called_once()
-            path_mock.insert.assert_called_with(0, tmp_path)
+        assert generator._setup_import_hook()
+        hook_mock.assert_called_once()
 
 
 def test_run(tmp_path):

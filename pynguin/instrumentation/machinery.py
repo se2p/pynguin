@@ -100,7 +100,8 @@ class InstrumentationFinder(MetaPathFinder):
                     )
                     return spec
                 self._logger.error(
-                    "Loader for module under test is not a FileLoader, cannot instrument."
+                    "Loader for module under test is not a FileLoader,"
+                    " cannot instrument."
                 )
 
         return None

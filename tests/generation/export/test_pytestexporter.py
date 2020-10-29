@@ -20,10 +20,12 @@ import tests.fixtures.accessibles.accessible as module0
 def test_case_0():
     var0 = 5
     var1 = module0.SomeType(var0)
+    assert var1 == 5
 
 
 def test_case_1():
     var0 = 5
     var1 = module0.SomeType(var0)
+    assert var1 == 5
 """
     )

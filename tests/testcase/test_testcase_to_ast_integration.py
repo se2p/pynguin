@@ -9,6 +9,7 @@ from ast import Module
 import astor
 import pytest
 
+import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
@@ -22,6 +23,9 @@ def simple_test_case(constructor_mock):
     constructor_stmt = param_stmt.ConstructorStatement(
         test_case, constructor_mock, [int_stmt.return_value]
     )
+    constructor_stmt.add_assertion(
+        pas.PrimitiveAssertion(constructor_stmt.return_value, 3)
+    )
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
     return test_case
@@ -33,7 +37,7 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\n"
+        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
     )
 
 
@@ -43,11 +47,11 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\n"
+        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
     )
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[1]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\n"
+        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
     )
 
 

@@ -7,7 +7,7 @@ image: python:${PYTHON_VERSION}
 workflow:
   rules:
     - if: $CI_MERGE_REQUEST_ID           # Execute jobs in merge request context
-    - if: $CI_COMMIT_BRANCH == 'master'  # Execute jobs when a new commit is pushed to master branch
+    - if: $CI_COMMIT_BRANCH == 'develop'  # Execute jobs when a new commit is pushed to develop branch
 
 stages:
   - build
@@ -152,4 +152,4 @@ pages:
     paths:
       - public
   rules:
-    - if: $CI_COMMIT_BRANCH == 'master'
+    - if: $CI_COMMIT_BRANCH == 'develop'

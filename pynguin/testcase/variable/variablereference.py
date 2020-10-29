@@ -142,4 +142,12 @@ class VariableReference(metaclass=ABCMeta):
         )
 
     def __hash__(self) -> int:
+        # Hash and equals implementation use different fields here on purpose.  The
+        # statement position is computed depending on the test case, which is
+        # reasonable and necessary for equality—such that we can filter out equal
+        # statements.  For hash computation, however, this cannot be done as it would
+        # cause infinite loops in the computation.  It should not affect behaviour
+        # anyway.  We could, however, inspect whether we are able to come up with a
+        # different way of comparing equality and computing hash codes for variable
+        # references in the future...
         return 31 * 17 + hash(self._variable_type)
