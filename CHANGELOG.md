@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Pynguin Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Pynguin Changelog
 
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
