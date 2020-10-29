@@ -169,11 +169,11 @@ class ExecutionTracer:
         """
         return not self._enabled
 
-    def _enable(self) -> None:
+    def enable(self) -> None:
         """Enable tracing."""
         self._enabled = True
 
-    def _disable(self) -> None:
+    def disable(self) -> None:
         """Disable tracing."""
         self._enabled = False
 
@@ -246,7 +246,7 @@ class ExecutionTracer:
             return
 
         try:
-            self._disable()
+            self.disable()
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
@@ -256,7 +256,7 @@ class ExecutionTracer:
 
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
-            self._enable()
+            self.enable()
 
     def executed_bool_predicate(self, value, predicate: int):
         """A predicate that is based on a boolean value was executed.
@@ -269,7 +269,7 @@ class ExecutionTracer:
             return
 
         try:
-            self._disable()
+            self.disable()
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
@@ -282,7 +282,7 @@ class ExecutionTracer:
 
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
-            self._enable()
+            self.enable()
 
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int

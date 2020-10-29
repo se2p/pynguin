@@ -20,11 +20,18 @@ class UnitTestExporter(AbstractTestExporter):
     def export_sequences(
         self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
     ):
-        asts, module_aliases = self._transform_to_asts(test_cases)
+        (
+            module_aliases,
+            common_modules,
+            asts,
+        ) = self._transform_to_asts(test_cases)
+        common_modules.add("unittest")
         import_node = AbstractTestExporter._create_ast_imports(
-            module_aliases, "unittest"
+            module_aliases, common_modules
         )
         functions = AbstractTestExporter._create_functions(asts, True)
+        if len(functions) == 0:
+            functions = [ast.Pass()]
         module = ast.Module(
             body=import_node + [UnitTestExporter._create_unit_test_class(functions)]
         )

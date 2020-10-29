@@ -9,7 +9,7 @@ import ast
 import os
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 import astor
 
@@ -42,21 +42,20 @@ class AbstractTestExporter(metaclass=ABCMeta):
     def _transform_to_asts(
         self,
         test_cases: List[tc.TestCase],
-    ) -> Tuple[List[List[ast.stmt]], NamingScope]:
+    ) -> Tuple[NamingScope, Set[str], List[List[ast.stmt]]]:
         visitor = tc_to_ast.TestCaseToAstVisitor(wrap_code=self._wrap_code)
         for test_case in test_cases:
             test_case.accept(visitor)
-        return visitor.test_case_asts, visitor.module_aliases
+        return visitor.module_aliases, visitor.common_modules, visitor.test_case_asts
 
     @staticmethod
     def _create_ast_imports(
-        module_aliases: NamingScope, additional_import: Optional[str] = None
+        module_aliases: NamingScope, common_modules: Optional[Set[str]] = None
     ) -> List[ast.stmt]:
         imports: List[ast.stmt] = []
-        if additional_import:
-            imports.append(
-                ast.Import(names=[ast.alias(name=additional_import, asname=None)])
-            )
+        if common_modules is not None:
+            for module in common_modules:
+                imports.append(ast.Import(names=[ast.alias(name=module, asname=None)]))
         for module_name in module_aliases.known_name_indices:
             imports.append(
                 ast.Import(
@@ -77,6 +76,8 @@ class AbstractTestExporter(metaclass=ABCMeta):
         functions: List[ast.stmt] = []
         for i, nodes in enumerate(asts):
             function_name = f"case_{i}"
+            if len(nodes) == 0:
+                nodes = [ast.Pass()]
             function_node = AbstractTestExporter.__create_function_node(
                 function_name, nodes, with_self_arg
             )

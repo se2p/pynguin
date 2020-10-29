@@ -17,12 +17,14 @@ Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
 import enum
+import importlib
 import logging
 import os
 import sys
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
+import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
 import pynguin.testsuite.testsuitechromosome as tsc
@@ -76,21 +78,11 @@ class Pynguin:
     _logger = logging.getLogger(__name__)
 
     def __init__(self, configuration: config.Configuration) -> None:
-        """Initialises the test generator.
-
-        The generator needs a configuration. If none is present, the generator
-        cannot be initialised and will thus raise a `ConfigurationException`.
+        """Initialises the test generator with the given configuration.
 
         Args:
-            configuration: An optional pre-generated configuration.
-
-        Raises:
-            ConfigurationException: In case there is no proper configuration
+            configuration: The configuration to use.
         """
-        if configuration is None:
-            raise ConfigurationException(
-                "Cannot initialise test generator without proper configuration."
-            )
         config.INSTANCE = configuration
 
     def run(self) -> ReturnCode:
@@ -110,16 +102,6 @@ class Pynguin:
         finally:
             self._logger.info("Stop Pynguin Test Generation…")
 
-    def _setup_executor(self, tracer: ExecutionTracer) -> Optional[TestCaseExecutor]:
-        try:
-            executor = TestCaseExecutor(tracer)
-        except ImportError as ex:
-            # A module could not be imported because some dependencies
-            # are missing or it is malformed
-            self._logger.error("Failed to load SUT: %s", ex)
-            return None
-        return executor
-
     def _setup_test_cluster(self) -> Optional[TestCluster]:
         with Timer(name="Test-cluster generation time", logger=None):
             test_cluster = TestClusterGenerator(
@@ -130,27 +112,39 @@ class Pynguin:
                 return None
             return test_cluster
 
-    def _setup_path_and_hook(self) -> Optional[ExecutionTracer]:
-        """Inserts the path to the SUT into the path list.
-
-        Also installs the import hook.
+    def _setup_path(self) -> bool:
+        """Inserts the path to the SUT into the path list, installs the import hook and
+        tries to load the SUT.
 
         Returns:
-            An optional execution tracer
+            An optional execution tracer, if loading was successful, None otherwise.
         """
         if not os.path.isdir(config.INSTANCE.project_path):
             self._logger.error(
                 "%s is not a valid project path", config.INSTANCE.project_path
             )
-            return None
+            return False
         self._logger.debug("Setting up path for %s", config.INSTANCE.project_path)
         sys.path.insert(0, config.INSTANCE.project_path)
+        return True
+
+    def _setup_import_hook(self) -> ExecutionTracer:
         self._logger.debug(
             "Setting up instrumentation for %s", config.INSTANCE.module_name
         )
         tracer = ExecutionTracer()
         install_import_hook(config.INSTANCE.module_name, tracer)
         return tracer
+
+    def _load_sut(self) -> bool:
+        try:
+            importlib.import_module(config.INSTANCE.module_name)
+        except ImportError as ex:
+            # A module could not be imported because some dependencies
+            # are missing or it is malformed
+            self._logger.error("Failed to load SUT: %s", ex)
+            return False
+        return True
 
     def _setup_random_number_generator(self) -> None:
         """Setup RNG."""
@@ -185,12 +179,15 @@ class Pynguin:
         Returns:
             An optional tuple of test-case executor and test cluster
         """
-        if (tracer := self._setup_path_and_hook()) is None:
+
+        if not self._setup_path():
             return None
-        if (executor := self._setup_executor(tracer)) is None:
+        tracer = self._setup_import_hook()
+        if not self._load_sut():
             return None
         if (test_cluster := self._setup_test_cluster()) is None:
             return None
+        executor = TestCaseExecutor(tracer)
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
@@ -251,6 +248,12 @@ class Pynguin:
                 StatisticsTracker().track_output_variable(
                     RuntimeVariable.Coverage, combined.get_coverage()
                 )
+
+            if config.INSTANCE.generate_assertions:
+                generator = ag.AssertionGenerator(executor)
+                for chromosome in [non_failing, failing]:
+                    generator.add_assertions(chromosome.test_chromosomes)
+                    generator.filter_failing_assertions(chromosome.test_chromosomes)
 
             with Timer(name="Export time", logger=None):
                 written_to = self._export_test_cases(non_failing.test_chromosomes)

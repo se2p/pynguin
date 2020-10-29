@@ -8,8 +8,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 
+import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -20,6 +21,7 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 
 
+# pylint:disable=too-many-public-methods
 class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
@@ -101,12 +103,39 @@ class DefaultTestCase(tc.TestCase):
     def clone(self) -> tc.TestCase:
         test_case = DefaultTestCase()
         for statement in self._statements:
-            test_case._statements.append(statement.clone(test_case))
+            copy = statement.clone(test_case)
+            copy.assertions = statement.copy_assertions(test_case, 0)
+            test_case._statements.append(copy)
         test_case._id = self._id_generator.inc()
         test_case._test_factory = self._test_factory
         test_case._last_execution_result = self._last_execution_result
         test_case._changed = self._changed
         return test_case
+
+    def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
+        dependencies = set()
+
+        # TODO(fk) a variable will be a dependency of itself?!
+        dependent_stmts = {self.get_statement(var.get_statement_position())}
+        for idx in range(var.get_statement_position(), -1, -1):
+            new_stmts = set()
+            for statement in dependent_stmts:
+                if statement.references(self.get_statement(idx).return_value):
+                    new_stmts.add(self.get_statement(idx))
+                    dependencies.add(self.get_statement(idx).return_value)
+                    break
+            dependent_stmts.update(new_stmts)
+
+        return dependencies
+
+    def get_assertions(self) -> List[ass.Assertion]:
+        assertions: List[ass.Assertion] = []
+        for statement in self._statements:
+            assertions.extend(statement.assertions)
+        return assertions
+
+    def size_with_assertions(self) -> int:
+        return self.size() + len(self.get_assertions())
 
     def size(self) -> int:
         return len(self._statements)

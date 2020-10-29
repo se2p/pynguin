@@ -219,6 +219,10 @@ class Configuration(Serializable):
     chromosome_length: int = 40
     """Maximum length of chromosomes during search"""
 
+    max_length_test_case = 2500
+    """The maximum number of statement in as test case (normal + assertion
+    statements)"""
+
     max_attempts: int = 1000
     """Number of attempts when generating an object before giving up"""
 
@@ -262,6 +266,12 @@ class Configuration(Serializable):
     duck_type_analysis: bool = False
     """Should the duck-type analysis be used for type inference during test
     generation?"""
+
+    generate_assertions: bool = True
+    """Should assertions be generated?"""
+
+    float_precision: float = 0.01
+    """Precision to use in float comparisons and assertions"""
 
     duck_mock_module_only: bool = False
     """Do only parse module dependencies for duck mocks, not whole class path."""

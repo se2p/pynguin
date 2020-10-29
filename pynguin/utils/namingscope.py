@@ -41,7 +41,7 @@ class NamingScope:
 
     @property
     def known_name_indices(self) -> Dict[Any, int]:
-        """Provides a dict of objects and their corresponding name.
+        """Provides a dict of objects and their corresponding index.
 
         Returns:
             A dict of objects and their corresponding name
