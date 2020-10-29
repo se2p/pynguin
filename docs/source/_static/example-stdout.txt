@@ -1,28 +1,20 @@
 [INFO](pynguin.generator): Start Pynguin Test Generation…
-[INFO](pynguin.generator): No seed given. Using 1597756506179493000
+[INFO](pynguin.generator): No seed given. Using 1603954861397284000
 [INFO](pynguin.generator): Start generating sequences using Algorithm.RANDOOPY
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 1
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     1. Best fitness: 8.000000, Best coverage 0.333333
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 2
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     2. Best fitness: 3.500000, Best coverage 0.666667
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     2. Best fitness: 4.500000, Best coverage 0.583333
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 3
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     3. Best fitness: 2.498991, Best coverage 0.750000
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     3. Best fitness: 2.499742, Best coverage 0.750000
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 4
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     4. Best fitness: 1.499772, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     4. Best fitness: 1.499237, Best coverage 0.833333
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 5
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     5. Best fitness: 1.250000, Best coverage 0.833333
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     5. Best fitness: 1.499237, Best coverage 0.833333
 [INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 6
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     6. Best fitness: 1.250000, Best coverage 0.833333
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 7
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     7. Best fitness: 1.250000, Best coverage 0.833333
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 8
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     8. Best fitness: 1.250000, Best coverage 0.833333
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 9
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     9. Best fitness: 1.250000, Best coverage 0.833333
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Algorithm iteration 10
-[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:    10. Best fitness: 0.000000, Best coverage 1.000000
+[INFO](pynguin.generation.algorithms.randoopy.randomteststrategy): Generation:     6. Best fitness: 0.000000, Best coverage 1.000000
 [INFO](pynguin.generator): Stop generating sequences using Algorithm.RANDOOPY
-[INFO](pynguin.generator): Export 10 successful test cases to /tmp/pynguin-results/test_example.py
+[INFO](pynguin.generator): Export 6 successful test cases to /tmp/pynguin-results/test_example.py
 [INFO](pynguin.generator): Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py
 [INFO](pynguin.utils.statistics.searchstatistics): Writing statistics
 [INFO](pynguin.generator): Stop Pynguin Test Generation…
