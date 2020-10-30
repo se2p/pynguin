@@ -6,7 +6,11 @@
 #
 import pytest
 
-from pynguin.analyses.duckmock.duckmockanalysis import _SourceCodeAnalyser
+import pynguin.configuration as config
+from pynguin.analyses.duckmock.duckmockanalysis import (
+    DuckMockAnalysis,
+    _SourceCodeAnalyser,
+)
 
 
 @pytest.fixture
@@ -25,3 +29,10 @@ def test_source_code_analysis(
     source_code_analyser.analyse_code()
     bindings = source_code_analyser.method_bindings
     assert len(bindings) == number_of_bindings
+
+
+def test_integrate_source_code_analysis():
+    config.INSTANCE.duck_mock_module_only = True
+    analysis = DuckMockAnalysis("tests.fixtures.duckmock.complex")
+    bindings = analysis._source_analysis()
+    assert len(bindings) == 15
