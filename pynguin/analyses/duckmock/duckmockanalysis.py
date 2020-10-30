@@ -32,7 +32,7 @@ class MethodBinding:
     signature: inspect.Signature
 
 
-class SourceCodeAnalyser:
+class _SourceCodeAnalyser:
     """Analyses source code for defined types."""
 
     def __init__(self, module_name: str, module_only_analysis: bool = False) -> None:

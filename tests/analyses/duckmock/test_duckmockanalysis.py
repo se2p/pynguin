@@ -6,12 +6,12 @@
 #
 import pytest
 
-from pynguin.analyses.duckmock.duckmockanalysis import SourceCodeAnalyser
+from pynguin.analyses.duckmock.duckmockanalysis import _SourceCodeAnalyser
 
 
 @pytest.fixture
-def source_code_analyser() -> SourceCodeAnalyser:
-    return SourceCodeAnalyser("tests.fixtures.duckmock.complex")
+def source_code_analyser() -> _SourceCodeAnalyser:
+    return _SourceCodeAnalyser("tests.fixtures.duckmock.complex")
 
 
 @pytest.mark.parametrize(
