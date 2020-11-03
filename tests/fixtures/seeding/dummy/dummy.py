@@ -11,7 +11,7 @@ def dummy():
     """A dummy method in the test fixture."""
     foo = "bar"  # noqa
     bar = 23  # noqa
-    baz = 23.42  # noqa
+    baz = 42.23  # noqa
 
 
 class Dummy:
