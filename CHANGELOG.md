@@ -9,6 +9,12 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.6.1
+
+- Add attention note to documentation on executing arbitrary code
+- Fix URL of logo in read me
+- Fix build issues
+
 ## Pynguin 0.6.0
 
 - Add support for simple assertion generation (thanks to [@Wooza](https://github.com/Wooza)).

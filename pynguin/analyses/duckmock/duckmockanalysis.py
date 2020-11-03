@@ -11,6 +11,7 @@ import inspect
 import logging
 from typing import Any, Dict, Set
 
+import pynguin.configuration as config
 from pynguin.setup.testcluster import TestCluster
 
 
@@ -32,7 +33,7 @@ class MethodBinding:
     signature: inspect.Signature
 
 
-class SourceCodeAnalyser:
+class _SourceCodeAnalyser:
     """Analyses source code for defined types."""
 
     def __init__(self, module_name: str, module_only_analysis: bool = False) -> None:
@@ -111,3 +112,11 @@ class DuckMockAnalysis:
         Returns:
 
         """
+
+    def _source_analysis(self) -> Dict[str, MethodBinding]:
+        source_code_analysis = _SourceCodeAnalyser(
+            self._module_name,
+            config.INSTANCE.duck_mock_module_only,
+        )
+        source_code_analysis.analyse_code()
+        return source_code_analysis.method_bindings
