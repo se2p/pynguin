@@ -35,6 +35,7 @@ from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationS
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
     WholeSuiteTestStrategy,
 )
+from pynguin.generation.algorithms.wspy.wholeteststrategy import WholeTestTestStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
@@ -291,6 +292,7 @@ class Pynguin:
     ] = {
         config.Algorithm.RANDOOPY: RandomTestStrategy,
         config.Algorithm.WSPY: WholeSuiteTestStrategy,
+        config.Algorithm.WPY: WholeTestTestStrategy,
     }
 
     @classmethod

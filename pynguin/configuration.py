@@ -46,6 +46,8 @@ class Algorithm(str, enum.Enum):
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
     Object-Oriented Software. Proc. ESEC/FSE 2011)."""
 
+    WPY = "WPY"
+
 
 class StoppingCondition(str, enum.Enum):
     """The different stopping conditions for the algorithms."""

@@ -67,7 +67,27 @@ class TestCaseChromosome(chrom.Chromosome):
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
     ) -> None:
-        raise NotImplementedError()
+        assert isinstance(
+            other, TestCaseChromosome
+        ), "Cannot perform crossover with " + str(type(other))
+        offspring = self.clone()
+        offspring.test_case.statements.clear()
+
+        assert self._test_factory is not None, "Crossover requires a test factory."
+
+        for i in range(position1):
+            offspring.test_case.add_statement(
+                self.test_case.get_statement(i).clone(offspring.test_case)
+            )
+
+        for j in range(position2, other.test_case.size()):
+            self._test_factory.append_statement(
+                offspring.test_case, other.test_case.get_statement(j)
+            )
+
+        if offspring.test_case.size() < config.INSTANCE.chromosome_length:
+            self._test_case = offspring.test_case
+            self.set_changed(True)
 
     def mutate(self) -> None:
         changed = False
