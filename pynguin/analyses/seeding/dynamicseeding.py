@@ -197,7 +197,6 @@ class DynamicSeedingInstrumentation:
     def has_value(self) -> bool:
         """Returns True if at least one value was collected."""
         if len(self._dynamic_pool) > 0:
-            self._logger.info("yes")
             return True
         else:
             return False
