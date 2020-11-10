@@ -37,7 +37,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 astor = "^0.8.1"
-simple-parsing = "^0.0.11.post18"
+simple-parsing = "^0.0.12.post1"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
