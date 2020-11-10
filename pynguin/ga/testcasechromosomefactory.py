@@ -4,13 +4,18 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+"""Provides a factory to create test case chromosomes."""
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasefactory as tcf
 import pynguin.testcase.testfactory as tf
 
 
-class TestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):
+class TestCaseChromosomeFactory(
+    cf.ChromosomeFactory[tcc.TestCaseChromosome]
+):  # pylint:disable=too-few-public-methods.
+    """A factory that creates test case chromosomes."""
+
     def __init__(
         self, test_factory: tf.TestFactory, test_case_factory: tcf.TestCaseFactory
     ) -> None:

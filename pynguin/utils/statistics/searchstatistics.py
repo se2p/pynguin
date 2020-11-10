@@ -13,7 +13,6 @@ from typing import Any, Dict, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.testsuite.testsuitechromosome as tsc
 import pynguin.utils.statistics.outputvariablefactory as ovf
 import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
 import pynguin.utils.statistics.statisticsbackend as sb
@@ -46,7 +45,7 @@ class SearchStatistics:
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
         self.set_sequence_output_variable_start_time(self._start_time)
-        self._best_individual: Optional[tsc.TestSuiteChromosome] = None
+        self._best_individual: Optional[chrom.Chromosome] = None
 
     @staticmethod
     def _initialise_backend() -> Optional[sb.AbstractStatisticsBackend]:
@@ -110,7 +109,7 @@ class SearchStatistics:
         if not self._backend:
             return
 
-        if not isinstance(individual, tsc.TestSuiteChromosome):
+        if not isinstance(individual, chrom.Chromosome):
             self._logger.warning("SearchStatistics expected a TestSuiteChromosome")
             return
 
@@ -220,28 +219,28 @@ class SearchStatistics:
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Length)
 
-        def get_data(self, individual: tsc.TestSuiteChromosome) -> int:
-            return individual.total_length_of_test_cases
+        def get_data(self, individual: chrom.Chromosome) -> int:
+            return individual.length()
 
     class _ChromosomeSizeOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Size)
 
-        def get_data(self, individual: tsc.TestSuiteChromosome) -> int:
+        def get_data(self, individual: chrom.Chromosome) -> int:
             return individual.size()
 
     class _ChromosomeCoverageOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Coverage)
 
-        def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
+        def get_data(self, individual: chrom.Chromosome) -> float:
             return individual.get_coverage()
 
     class _ChromosomeFitnessOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.Fitness)
 
-        def get_data(self, individual: tsc.TestSuiteChromosome) -> float:
+        def get_data(self, individual: chrom.Chromosome) -> float:
             return individual.get_fitness()
 
     class _CoverageSequenceOutputVariableFactory(
@@ -250,22 +249,22 @@ class SearchStatistics:
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.CoverageTimeline, 0.0)
 
-        def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
+        def get_value(self, individual: chrom.Chromosome) -> float:
             return individual.get_coverage()
 
     class _SizeSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.SizeTimeline, 0)
 
-        def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
+        def get_value(self, individual: chrom.Chromosome) -> int:
             return individual.size()
 
     class _LengthSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.LengthTimeline, 0)
 
-        def get_value(self, individual: tsc.TestSuiteChromosome) -> int:
-            return individual.total_length_of_test_cases
+        def get_value(self, individual: chrom.Chromosome) -> int:
+            return individual.length()
 
     class _FitnessSequenceOutputVariableFactory(
         ovf.DirectSequenceOutputVariableFactory
@@ -273,5 +272,5 @@ class SearchStatistics:
         def __init__(self) -> None:
             super().__init__(stat.RuntimeVariable.FitnessTimeline, 0.0)
 
-        def get_value(self, individual: tsc.TestSuiteChromosome) -> float:
+        def get_value(self, individual: chrom.Chromosome) -> float:
             return individual.get_fitness()

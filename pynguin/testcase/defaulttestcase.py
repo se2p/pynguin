@@ -95,8 +95,6 @@ class DefaultTestCase(tc.TestCase):
             test_case._statements.append(copy)
         test_case._id = self._id_generator.inc()
         return test_case
-        # FIXME: Make sure execution works outside of chromosomes?
-        # i.e. without a changed flag in DTC.
 
     def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
         dependencies = set()

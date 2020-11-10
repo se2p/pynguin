@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+"""Provides a factory to create test suite chromosomes."""
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosomefactory as tccf
@@ -11,7 +12,9 @@ import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 
-class TestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome]):
+class TestSuiteChromosomeFactory(
+    cf.ChromosomeFactory[tsc.TestSuiteChromosome]
+):  # pylint:disable=too-few-public-methods.
     """A factory that provides new test suite chromosomes of random length."""
 
     def __init__(self, test_case_chromosome_factory: tccf.TestCaseChromosomeFactory):

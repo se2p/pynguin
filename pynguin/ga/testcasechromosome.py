@@ -36,10 +36,11 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         super().__init__(orig=orig)
         if orig is None:
-            assert test_case is not None
+            assert (
+                test_case is not None
+            ), "Cannot create test case chromosome without test case"
             self._test_case: tc.TestCase = test_case
-            assert test_factory is not None
-            self._test_factory: tf.TestFactory = test_factory
+            self._test_factory: Optional[tf.TestFactory] = test_factory
             self._changed = True
             self._last_execution_result: Optional[ExecutionResult] = None
         else:
@@ -50,10 +51,18 @@ class TestCaseChromosome(chrom.Chromosome):
 
     @property
     def test_case(self) -> tc.TestCase:
+        """The test case that is wrapped by this chromosome.
+
+        Returns:
+            the wrapped test case.
+        """
         return self._test_case
 
     def size(self) -> int:
         return self._test_case.size()
+
+    def length(self) -> int:
+        return self.size()
 
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
@@ -102,7 +111,7 @@ class TestCaseChromosome(chrom.Chromosome):
         return changed
 
     def _delete_statement(self, idx: int) -> bool:
-        assert self._test_factory, "Requires a test factory."
+        assert self._test_factory, "Mutation requires a test factory."
         modified = self._test_factory.delete_statement_gracefully(self._test_case, idx)
         return modified
 
@@ -121,7 +130,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 if statement.mutate():
                     changed = True
                 else:
-                    assert self._test_factory
+                    assert self._test_factory, "Mutation requires a test factory."
                     if self._test_factory.change_random_call(
                         self._test_case, statement
                     ):
@@ -146,7 +155,7 @@ class TestCaseChromosome(chrom.Chromosome):
             randomness.next_float() <= pow(alpha, exponent)
             and self.size() < config.INSTANCE.chromosome_length
         ):
-            assert self._test_factory
+            assert self._test_factory, "Mutation requires a test factory."
             max_position = self._get_last_mutatable_statement()
             if max_position is None:
                 # No mutatable statement found, so start at the first position.
@@ -186,12 +195,6 @@ class TestCaseChromosome(chrom.Chromosome):
         # No exception, so the entire test case can be mutated.
         return self.size() - 1
 
-    def has_changed(self) -> bool:
-        return self._changed
-
-    def set_changed(self, value: bool) -> None:
-        self._changed = value
-
     def get_last_execution_result(self) -> Optional[ExecutionResult]:
         """Get the last execution result.
 
@@ -210,3 +213,13 @@ class TestCaseChromosome(chrom.Chromosome):
 
     def clone(self) -> TestCaseChromosome:
         return TestCaseChromosome(orig=self)
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, TestCaseChromosome):
+            return False
+        return self._test_case == other._test_case
+
+    def __hash__(self):
+        return hash(self._test_case)

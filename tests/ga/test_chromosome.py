@@ -35,6 +35,15 @@ def chromosome():
         ) -> None:
             pass
 
+        def __hash__(self):
+            return 0
+
+        def __eq__(self, other):
+            return True
+
+        def length(self) -> int:
+            return 0
+
     return DummyChromosome()
 
 

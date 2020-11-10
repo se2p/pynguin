@@ -252,8 +252,11 @@ class Pynguin:
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
                 for chromosome in [non_failing, failing]:
-                    generator.add_assertions(chromosome.test_chromosomes)
-                    generator.filter_failing_assertions(chromosome.test_chromosomes)
+                    test_cases = [
+                        chrom.test_case for chrom in chromosome.test_case_chromosomes
+                    ]
+                    generator.add_assertions(test_cases)
+                    generator.filter_failing_assertions(test_cases)
 
             with Timer(name="Export time", logger=None):
                 written_to = self._export_test_cases(
@@ -324,17 +327,15 @@ class Pynguin:
         tracker = StatisticsTracker()
         tracker.current_individual(combined)
         tracker.track_output_variable(RuntimeVariable.Size, combined.size())
-        tracker.track_output_variable(
-            RuntimeVariable.Length, combined.total_length_of_test_cases
-        )
+        tracker.track_output_variable(RuntimeVariable.Length, combined.length())
         tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
             RuntimeVariable.FailingLength,
-            failing.total_length_of_test_cases,
+            failing.length(),
         )
         tracker.track_output_variable(RuntimeVariable.PassingSize, non_failing.size())
         tracker.track_output_variable(
-            RuntimeVariable.PassingLength, non_failing.total_length_of_test_cases
+            RuntimeVariable.PassingLength, non_failing.length()
         )
 
     @staticmethod

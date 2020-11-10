@@ -25,18 +25,20 @@ class TestSuiteChromosome(chrom.Chromosome):
         orig: Optional[TestSuiteChromosome] = None,
     ):
         """
+        Create new test suite chromosome.
 
         Args:
-            test_case_chromosome_factory: Factory that produces new test case chromosomes.
+            test_case_chromosome_factory: Factory that produces new test case
+                chromosomes. Required, if you want to mutated this
+                chromosome.
             orig: Original, if we clone an existing chromosome.
         """
         super().__init__(orig=orig)
 
         if orig is None:
-            assert test_case_chromosome_factory is not None
-            self._test_case_chromosome_factory: tccf.TestCaseChromosomeFactory = (
-                test_case_chromosome_factory
-            )
+            self._test_case_chromosome_factory: Optional[
+                tccf.TestCaseChromosomeFactory
+            ] = test_case_chromosome_factory
             self._test_case_chromosomes: List[tcc.TestCaseChromosome] = []
         else:
             self._test_case_chromosomes = [
@@ -79,7 +81,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         """Clones the chromosome.
 
         Returns:
-            The clone of the chromosome  # noqa: DAR202
+            A clone of the chromosome  # noqa: DAR202
         """
         return TestSuiteChromosome(orig=self)
 
@@ -115,15 +117,6 @@ class TestSuiteChromosome(chrom.Chromosome):
         self._test_case_chromosomes[index] = test
         self.set_changed(True)
 
-    @property
-    def total_length_of_test_cases(self) -> int:
-        """Provides the sum of the lengths of the test cases.
-
-        Returns:
-            The total length of the test cases
-        """
-        return sum([test.size() for test in self._test_case_chromosomes])
-
     def size(self) -> int:
         """Provides the size of the chromosome, i.e., its number of test cases.
 
@@ -131,6 +124,9 @@ class TestSuiteChromosome(chrom.Chromosome):
             The size of the chromosome
         """
         return len(self._test_case_chromosomes)
+
+    def length(self) -> int:
+        return sum([test.length() for test in self._test_case_chromosomes])
 
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
@@ -144,9 +140,6 @@ class TestSuiteChromosome(chrom.Chromosome):
             other: the other chromosome
             position1: the position in the first chromosome
             position2: the position in the second chromosome
-
-        Raises:
-            RuntimeError: If other is not an instance of TestSuiteChromosome
         """
         assert isinstance(
             other, TestSuiteChromosome
@@ -159,6 +152,10 @@ class TestSuiteChromosome(chrom.Chromosome):
 
     def mutate(self) -> None:
         """Apply mutation at test suite level."""
+        assert (
+            self._test_case_chromosome_factory is not None
+        ), "Mutation is not possibly without test case chromosome factory"
+
         changed = False
 
         # Mutate existing test cases.

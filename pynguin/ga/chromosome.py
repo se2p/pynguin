@@ -25,21 +25,31 @@ class Chromosome(metaclass=abc.ABCMeta):
         """
         if orig is None:
             self._fitness_functions: List[ff.FitnessFunction] = []
-            self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
+            self._fitness_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
             self._number_of_evaluations: int = 0
             self._changed: bool = True
         else:
             self._fitness_functions = list(orig._fitness_functions)
-            self._current_values = dict(orig._current_values)
+            self._fitness_values = dict(orig._fitness_values)
             self._number_of_evaluations = orig._number_of_evaluations
             self._changed = orig._changed
 
     @abstractmethod
     def size(self) -> int:
-        """Return length of individual
+        """Return the size of an individual.
+        This should be number of elements it contains.
 
         Returns:
-            The length of an individual  # noqa: DAR202
+            The size of an individual  # noqa: DAR202
+        """
+
+    @abstractmethod
+    def length(self) -> int:
+        """Provide the length of an individual.
+        This should be the total length of all contained elements and possible
+        sub-elements. Look at the implementation to see the difference to size().
+
+        Returns: The length of this individual.
         """
 
     def has_changed(self) -> bool:
@@ -98,7 +108,7 @@ class Chromosome(metaclass=abc.ABCMeta):
         violations = new_value.validate()
         if len(violations) > 0:
             raise RuntimeError(", ".join(violations))
-        self._current_values[fitness_function] = new_value
+        self._fitness_values[fitness_function] = new_value
 
     def add_fitness_function(
         self,
@@ -118,7 +128,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The sum of the current fitness values
         """
         self._check_for_new_evaluation()
-        return sum([value.fitness for value in self._current_values.values()])
+        return sum([value.fitness for value in self._fitness_values.values()])
 
     def get_fitness_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Returns the fitness values of a specific fitness function.
@@ -130,7 +140,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             Its fitness value
         """
         self._check_for_new_evaluation()
-        return self._current_values[fitness_function].fitness
+        return self._fitness_values[fitness_function].fitness
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.
@@ -139,7 +149,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The mean coverage value
         """
         self._check_for_new_evaluation()
-        return mean([value.coverage for value in self._current_values.values()])
+        return mean([value.coverage for value in self._fitness_values.values()])
 
     def get_coverage_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Provides the coverage value for a certain fitness function
@@ -152,7 +162,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The coverage value for the fitness function
         """
         self._check_for_new_evaluation()
-        return self._current_values[fitness_function].coverage
+        return self._fitness_values[fitness_function].coverage
 
     def get_number_of_evaluations(self):
         """Provide the number of times this chromosome was evaluated.
@@ -186,3 +196,11 @@ class Chromosome(metaclass=abc.ABCMeta):
         Returns:
             The cloned chromosome  # noqa: DAR202
         """
+
+    @abstractmethod
+    def __eq__(self, other):
+        pass
+
+    @abstractmethod
+    def __hash__(self):
+        pass

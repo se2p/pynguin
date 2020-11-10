@@ -99,13 +99,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
             fitness_parents = min(parent1.get_fitness(), parent2.get_fitness())
             fitness_offspring = min(offspring1.get_fitness(), offspring2.get_fitness())
-            length_parents = (
-                parent1.total_length_of_test_cases + parent2.total_length_of_test_cases
-            )
-            length_offspring = (
-                offspring1.total_length_of_test_cases
-                + offspring2.total_length_of_test_cases
-            )
+            length_parents = parent1.length() + parent2.length()
+            length_offspring = offspring1.length() + offspring2.length()
             best_individual = self._get_best_individual()
 
             if (fitness_offspring < fitness_parents) or (
@@ -113,10 +108,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 and length_offspring <= length_parents
             ):
                 for offspring in [offspring1, offspring2]:
-                    if (
-                        offspring.total_length_of_test_cases
-                        <= 2 * best_individual.total_length_of_test_cases
-                    ):
+                    if offspring.length() <= 2 * best_individual.length():
                         new_generation.append(offspring)
                     else:
                         new_generation.append(randomness.choice([parent1, parent2]))
