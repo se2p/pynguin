@@ -10,6 +10,7 @@ Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importh
 """
 import logging
 import sys
+import pynguin.configuration as config
 from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
@@ -17,6 +18,7 @@ from types import CodeType
 from typing import cast
 
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
+from pynguin.analyses.seeding.dynamicseeding import DynamicSeedingInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
@@ -45,6 +47,9 @@ class InstrumentationLoader(SourceFileLoader):
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
         # TODO(fk) apply different instrumentations here
+        if config.INSTANCE.dynamic_constant_seeding:
+            dynamic_seeding_instr = DynamicSeedingInstrumentation()
+            to_instrument = dynamic_seeding_instr.instrument_module(to_instrument)
         instrumentation = BranchDistanceInstrumentation(self._tracer)
         return instrumentation.instrument_module(to_instrument)
 

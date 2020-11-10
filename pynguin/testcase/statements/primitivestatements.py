@@ -16,6 +16,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.analyses.seeding.dynamicseeding import DynamicSeedingInstrumentation
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -102,6 +103,15 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
 
     def randomize_value(self) -> None:
         if (
+            config.INSTANCE.dynamic_constant_seeding
+            and DynamicSeedingInstrumentation().has_value()
+            and randomness.next_float() <= 0.90
+            and config.INSTANCE.constant_seeding
+            and StaticConstantSeeding().has_ints
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = DynamicSeedingInstrumentation().random_value()
+        elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
             and randomness.next_float() <= 0.90

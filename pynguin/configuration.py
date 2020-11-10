@@ -276,6 +276,9 @@ class Configuration(Serializable):
     duck_mock_module_only: bool = False
     """Do only parse module dependencies for duck mocks, not whole class path."""
 
+    dynamic_constant_seeding: bool = False
+    """Enables seeding of constants at runtime."""
+
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(
