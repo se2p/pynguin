@@ -8,7 +8,7 @@
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 
@@ -21,7 +21,10 @@ class TestSuiteChromosomeFactory(
         """Instantiates a new factory
 
         Args:
-            test_case_chromosome_factory: The internal test case chromosome factory
+            test_case_chromosome_factory: The internal test case chromosome factory,
+                                          which provides the test case chromosomes that
+                                          will be part of a newly generated test suite
+                                          chromosome
         """
         self.test_case_chromosome_factory = test_case_chromosome_factory
 

@@ -26,8 +26,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy

@@ -10,10 +10,10 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.executionresult import ExecutionResult

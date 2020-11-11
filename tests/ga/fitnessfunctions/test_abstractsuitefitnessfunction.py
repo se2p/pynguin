@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.fitnessfunction import FitnessValues
 
 

@@ -12,9 +12,9 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasechromosomefactory as tccf
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
 
 
 @pytest.fixture

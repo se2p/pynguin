@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosomefactory as tccf
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
-import pynguin.testsuite.testsuitechromosome as tsc
 
 
 def test_get_chromosome():

@@ -11,9 +11,9 @@ from typing import List, Tuple
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.branchdistancesuitefitness as bdsf
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
