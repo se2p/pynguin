@@ -23,7 +23,8 @@ class TestCaseChromosomeFactory(
 
         Args:
             test_factory: The internal factory required for the mutation.
-            test_case_factory: The internal test case factory.
+            test_case_factory: The internal test case factory required for creation
+                               of test cases.
         """
         self._test_factory = test_factory
         self._test_case_factory = test_case_factory
