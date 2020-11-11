@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData

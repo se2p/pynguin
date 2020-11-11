@@ -8,7 +8,7 @@
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
 
