@@ -278,3 +278,42 @@ def test_mutate_all(test_case_chromosome, func, rand, result):
             test_case_chromosome.mutate()
             assert test_case_chromosome.has_changed() == result
             mock_func.assert_called_once()
+
+
+def test_crossover_wrong_type(test_case_chromosome):
+    with pytest.raises(AssertionError):
+        test_case_chromosome.cross_over(MagicMock(), 0, 0)
+
+
+def test_crossover_success():
+    test_factory = MagicMock()
+    test_case0 = MagicMock(dtc.DefaultTestCase)
+    test_case0_clone = MagicMock(dtc.DefaultTestCase)
+    test_case0_clone.size.return_value = 5
+    test_case0.clone.return_value = test_case0_clone
+    test_case1 = MagicMock(dtc.DefaultTestCase)
+    test_case1.size.return_value = 7
+    left = tcc.TestCaseChromosome(test_case0, test_factory=test_factory)
+    right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
+
+    left.cross_over(right, 4, 3)
+    assert test_case0.get_statement.call_count == 4
+    assert test_case0_clone.add_statement.call_count == 4
+    assert test_case1.get_statement.call_count == 4
+    assert test_factory.append_statement.call_count == 4
+
+
+def test_crossover_too_large():
+    test_factory = MagicMock()
+    test_case0 = MagicMock(dtc.DefaultTestCase)
+    test_case0_clone = MagicMock(dtc.DefaultTestCase)
+    test_case0_clone.size.return_value = 5
+    test_case0.clone.return_value = test_case0_clone
+    test_case1 = MagicMock(dtc.DefaultTestCase)
+    test_case1.size.return_value = 7
+    left = tcc.TestCaseChromosome(test_case0, test_factory=test_factory)
+    right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
+    config.INSTANCE.chromosome_length = 3
+    left.set_changed(False)
+    left.cross_over(right, 1, 2)
+    assert not left.has_changed()
