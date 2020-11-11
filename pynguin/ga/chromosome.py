@@ -119,6 +119,9 @@ class Chromosome(metaclass=abc.ABCMeta):
         Args:
             fitness_function: A fitness function
         """
+        assert (
+            not fitness_function.is_maximisation_function()
+        ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
     def get_fitness(self) -> float:

@@ -13,10 +13,10 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 # pylint: disable=abstract-method
-class AbstractSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
-    """Abstract fitness function for test suites."""
+class AbstractTestSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
+    """Abstract fitness function for test suite chromosomes."""
 
-    def _run_test_suite(self, individual) -> List[ExecutionResult]:
+    def _run_test_suite_chromosome(self, individual) -> List[ExecutionResult]:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 

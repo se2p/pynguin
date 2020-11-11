@@ -6,27 +6,27 @@
 #
 from unittest.mock import MagicMock
 
-import pynguin.ga.fitnessfunctions.abstractsuitefitnessfunction as asff
+import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.fitnessfunction import FitnessValues
 
 
-class DummySuiteFitnessFunction(asff.AbstractSuiteFitnessFunction):
+class DummyTestSuiteFitnessFunction(atsff.AbstractTestSuiteFitnessFunction):
     def compute_fitness_values(self, individual) -> FitnessValues:
         pass
 
     def is_maximisation_function(self) -> bool:
-        pass
+        return False
 
 
-def test_run_test_suite():
+def test_run_test_suite_chromosome():
     executor = MagicMock()
     result0 = MagicMock()
     result1 = MagicMock()
     result2 = MagicMock()
     executor.execute.side_effect = [result0, result1]
-    ff = DummySuiteFitnessFunction(executor)
+    ff = DummyTestSuiteFitnessFunction(executor)
     indiv = tsc.TestSuiteChromosome()
     test_case0 = tcc.TestCaseChromosome(MagicMock())
     test_case0.set_changed(True)
@@ -38,6 +38,6 @@ def test_run_test_suite():
     indiv.add_test_case_chromosome(test_case0)
     indiv.add_test_case_chromosome(test_case1)
     indiv.add_test_case_chromosome(test_case2)
-    assert ff._run_test_suite(indiv) == [result0, result1, result2]
+    assert ff._run_test_suite_chromosome(indiv) == [result0, result1, result2]
     assert test_case0.get_last_execution_result() == result0
     assert test_case1.get_last_execution_result() == result1
