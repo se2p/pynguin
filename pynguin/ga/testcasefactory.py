@@ -40,7 +40,7 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
     def get_test_case(self) -> tc.TestCase:
-        test_case = dtc.DefaultTestCase(self._test_factory)
+        test_case = dtc.DefaultTestCase()
         attempts = 0
         size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
 

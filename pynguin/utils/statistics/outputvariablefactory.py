@@ -12,7 +12,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Generic, List, Tuple, TypeVar
 
 import pynguin.configuration as config
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.chromosome as chrom
 import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
 import pynguin.utils.statistics.statisticsbackend as sb
 
@@ -26,7 +26,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._variable = variable
 
     @abstractmethod
-    def get_data(self, individual: tsc.TestSuiteChromosome) -> T:
+    def get_data(self, individual: chrom.Chromosome) -> T:
         """Returns the data value from the individual.
 
         Args:
@@ -36,7 +36,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             The current value of the variable in the individual  # noqa: DAR202
         """
 
-    def get_variable(self, individual: tsc.TestSuiteChromosome) -> sb.OutputVariable[T]:
+    def get_variable(self, individual: chrom.Chromosome) -> sb.OutputVariable[T]:
         """Provides the output variable
 
         Args:
@@ -68,7 +68,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._start_time = start_time
 
     @abstractmethod
-    def get_value(self, individual: tsc.TestSuiteChromosome) -> T:
+    def get_value(self, individual: chrom.Chromosome) -> T:
         """Returns the current value of the variable for the selected individual
 
         Args:
@@ -78,7 +78,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             The current value of the variable in the individual  # noqa: DAR202
         """
 
-    def update(self, individual: tsc.TestSuiteChromosome) -> None:
+    def update(self, individual: chrom.Chromosome) -> None:
         """Updates the values for an individual
 
         Args:
