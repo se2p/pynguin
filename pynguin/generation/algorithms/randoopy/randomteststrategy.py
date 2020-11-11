@@ -124,13 +124,13 @@ class RandomTestStrategy(TestGenerationStrategy):
                 for chromosome in test_chromosome.test_case_chromosomes
             ]
         )
-        new_test: tc.TestCase = dtc.DefaultTestCase()
+        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase())
         for test in tests:
-            new_test.append_test_case(test)
+            new_test.test_case.append_test_case(test)
 
         # Generate random values as input for the previously picked random method
         # Extend the test case by the new method call
-        self.test_factory.append_generic_accessible(new_test, method)
+        self.test_factory.append_generic_accessible(new_test.test_case, method)
 
         # Discard duplicates
         if (
@@ -141,15 +141,13 @@ class RandomTestStrategy(TestGenerationStrategy):
 
         with Timer(name="Execution time", logger=None):
             # Execute new sequence
-            exec_result = self._executor.execute(new_test)
+            exec_result = self._executor.execute(new_test.test_case)
 
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
-            failing_test_chromosome.add_test_case_chromosome(
-                tcc.TestCaseChromosome(new_test)
-            )
+            failing_test_chromosome.add_test_case_chromosome(new_test)
         else:
-            test_chromosome.add_test_case_chromosome(tcc.TestCaseChromosome(new_test))
+            test_chromosome.add_test_case_chromosome(new_test)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
         timer.stop()
