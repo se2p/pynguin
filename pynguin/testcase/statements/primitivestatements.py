@@ -107,10 +107,10 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
             and DynamicSeedingInstrumentation().has_value()
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
-            and StaticConstantSeeding().has_ints
+            # and StaticConstantSeeding().has_ints
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_value()
+            self._value = DynamicSeedingInstrumentation().random_int()
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
@@ -187,6 +187,15 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
 
     def randomize_value(self) -> None:
         if (
+            config.INSTANCE.dynamic_constant_seeding
+            and DynamicSeedingInstrumentation().has_value()
+            and randomness.next_float() <= 0.90
+            and config.INSTANCE.constant_seeding
+            # and StaticConstantSeeding().has_strings
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = DynamicSeedingInstrumentation().random_string
+        elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings
             and randomness.next_float() <= 0.90

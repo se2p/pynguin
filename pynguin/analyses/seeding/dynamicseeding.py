@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import string
 from types import CodeType
 from typing import Dict, Optional, Set, cast
 
@@ -24,6 +25,12 @@ from pynguin.utils import randomness
 class DynamicSeedingInstrumentation:
     """Instruments code objects to enable dynamic constant seeding.
 
+    Supported is collecting values of the types int, float and string.
+
+    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the two string methods "startswith" and
+    "endswith". This means, if one of the above operations and methods is used in an if-conditional, corresponding
+    values are added to the dynamic constant pool.
+
     General notes:
 
     When calling a method on an object, the arguments have to be on top of the stack.
@@ -36,6 +43,11 @@ class DynamicSeedingInstrumentation:
     # Compare operations are only followed by one jump operation, hence they are on the second to last position of the
     # block.
     _COMPARE_OP_POS = -2
+
+    # If one of the considered string functions (startswith, endswith) is used in the if statement, it will be loaded
+    # in the fourth last position. After it comes the load of the argument, the call of the method and the jump
+    # operation.
+    _STRING_FUNC_POS = -4
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeedingInstrumentation] = None
@@ -137,6 +149,34 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented compare_op")
         return predicate_id
 
+    def instrument_startswith_func(self, block: BasicBlock):
+        """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
+           value 'string2 + string1' in the _dynamic_pool.
+
+        Args:
+            block: The basic block where the new instructions are inserted.
+
+        Returns:
+            The id that was assigned to the predicate.
+        """
+        predicate_id = self._predicate_id_counter
+        self._predicate_id_counter = self._predicate_id_counter + 1
+        insert_pos = self._STRING_FUNC_POS + 1
+        lineno = block[insert_pos].lineno
+        block[insert_pos: insert_pos] = [
+            Instr("DUP_TOP_TWO", lineno=lineno),
+            Instr("ROT_TWO", lineno=lineno),
+            Instr("BINARY_ADD", lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
+            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
+        self._logger.info("Instrumented startswith function")
+        return predicate_id
+
     def _instrument_cfg(self, cfg: CFG) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
@@ -169,6 +209,7 @@ class DynamicSeedingInstrumentation:
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
+        # TODO: check if last instruction of the block is a jump instruction.
         if not node.is_artificial:
             assert (
                 node.basic_block is not None
@@ -179,8 +220,19 @@ class DynamicSeedingInstrumentation:
                 if len(node.basic_block) > 1
                 else None
             )
+            maybe_string_func: Optional[Instr] = (
+                node.basic_block[self._STRING_FUNC_POS]
+                if len(node.basic_block) > 3
+                else None
+            )
             if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
                 predicate_id = self.instrument_compare_op(node.basic_block)
+            if (
+                isinstance(maybe_string_func, Instr) and
+                maybe_string_func.name == "LOAD_METHOD" and
+                maybe_string_func.arg == "startswith"
+            ):
+                predicate_id = self.instrument_startswith_func(node.basic_block)
         return predicate_id
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
@@ -201,6 +253,10 @@ class DynamicSeedingInstrumentation:
         else:
             return False
 
-    def random_value(self):
+    def random_int(self) -> int:
         rand_value = cast(int, randomness.choice(tuple(self._dynamic_pool)))
+        return rand_value
+
+    def random_string(self) -> string:
+        rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool)))
         return rand_value
