@@ -194,7 +194,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
             # and StaticConstantSeeding().has_strings
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_string
+            self._value = DynamicSeedingInstrumentation().random_string()
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings

@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import string
 from types import CodeType
-from typing import Dict, Optional, Set, cast
+from typing import Dict, Optional, Set, cast, AnyStr
 
 import pynguin.configuration as config
 import networkx as nx
@@ -161,7 +161,7 @@ class DynamicSeedingInstrumentation:
         """
         predicate_id = self._predicate_id_counter
         self._predicate_id_counter = self._predicate_id_counter + 1
-        insert_pos = self._STRING_FUNC_POS + 1
+        insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -257,6 +257,6 @@ class DynamicSeedingInstrumentation:
         rand_value = cast(int, randomness.choice(tuple(self._dynamic_pool)))
         return rand_value
 
-    def random_string(self) -> string:
+    def random_string(self) -> AnyStr:
         rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool)))
         return rand_value
