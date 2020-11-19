@@ -37,9 +37,8 @@ def test_generate_sequences(executor):
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm.generate_sequence = lambda t, f, e: None
-    test_cases, failing_test_cases = algorithm.generate_sequences()
+    test_cases = algorithm.generate_sequences()
     assert test_cases.size() == 0
-    assert failing_test_cases.size() == 0
     assert len(logger.method_calls) == 1
 
 

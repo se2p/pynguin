@@ -236,32 +236,28 @@ class Pynguin:
                 "Start generating sequences using %s", config.INSTANCE.algorithm
             )
             StatisticsTracker().set_sequence_start_time(time.time_ns())
-            non_failing, failing = algorithm.generate_sequences()
+            generation_result = algorithm.generate_sequences()
             self._logger.info(
                 "Stop generating sequences using %s", config.INSTANCE.algorithm
             )
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                combined = tsc.TestSuiteChromosome()
-                for fitness_func in non_failing.get_fitness_functions():
-                    combined.add_fitness_function(fitness_func)
-                combined.add_test_case_chromosomes(non_failing.test_case_chromosomes)
-                combined.add_test_case_chromosomes(failing.test_case_chromosomes)
                 StatisticsTracker().track_output_variable(
-                    RuntimeVariable.Coverage, combined.get_coverage()
+                    RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
 
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
-                for chromosome in [non_failing, failing]:
-                    test_cases = [
-                        chrom.test_case for chrom in chromosome.test_case_chromosomes
-                    ]
-                    generator.add_assertions(test_cases)
-                    generator.filter_failing_assertions(test_cases)
+                test_cases = [
+                    chromosome.test_case
+                    for chromosome in generation_result.test_case_chromosomes
+                ]
+                generator.add_assertions(test_cases)
+                generator.filter_failing_assertions(test_cases)
 
             with Timer(name="Export time", logger=None):
+                non_failing, failing = self._split_chromosome(generation_result)
                 written_to = self._export_test_cases(
                     [t.test_case for t in non_failing.test_case_chromosomes]
                 )
@@ -279,11 +275,11 @@ class Pynguin:
                     "Export %i failing test cases to %s", failing.size(), written_to
                 )
 
-        self._track_statistics(non_failing, failing, combined)
+        self._track_statistics(non_failing, failing, generation_result)
         self._collect_statistics()
         if not StatisticsTracker().write_statistics():
             self._logger.error("Failed to write statistics data")
-        if combined.size() == 0:
+        if generation_result.size() == 0:
             # not able to generate one test case
             return ReturnCode.NO_TESTS_GENERATED
         return ReturnCode.OK

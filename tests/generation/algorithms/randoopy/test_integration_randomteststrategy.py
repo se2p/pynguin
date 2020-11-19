@@ -52,6 +52,5 @@ def test_integrate_randoopy(algorithm_to_run: Callable, module_name: str):
             executor, TestClusterGenerator(module_name).generate_cluster()
         )
         algorithm._logger = logger
-        test_cases, failing_test_cases = algorithm.generate_sequences()
+        test_cases = algorithm.generate_sequences()
         assert test_cases.size() >= 0
-        assert failing_test_cases.size() >= 0

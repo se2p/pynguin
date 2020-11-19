@@ -6,7 +6,7 @@
 #
 """Provides a random test generation algorithm similar to Randoop."""
 import logging
-from typing import List, Set, Tuple
+from typing import List, Set
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -35,7 +35,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     def generate_sequences(
         self,
-    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
+    ) -> tsc.TestSuiteChromosome:
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
@@ -82,7 +82,10 @@ class RandomTestStrategy(TestGenerationStrategy):
             RuntimeVariable.AlgorithmIterations, generation
         )
 
-        return test_chromosome, failing_test_chromosome
+        combined_chromosome = self._combine_current_individual(
+            test_chromosome, failing_test_chromosome
+        )
+        return combined_chromosome
 
     def generate_sequence(
         self,
