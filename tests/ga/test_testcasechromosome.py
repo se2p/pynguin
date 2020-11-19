@@ -317,3 +317,16 @@ def test_crossover_too_large():
     left.set_changed(False)
     left.cross_over(right, 1, 2)
     assert not left.has_changed()
+
+
+def test_is_failing(test_case_chromosome_with_test):
+    chromosome, _ = test_case_chromosome_with_test
+    result = MagicMock(ExecutionResult)
+    result.has_test_exceptions.return_value = True
+    chromosome.set_last_execution_result(result)
+    assert chromosome.is_failing()
+
+
+def test_is_failing_without_execution_result(test_case_chromosome_with_test):
+    chromosome, _ = test_case_chromosome_with_test
+    assert not chromosome.is_failing()

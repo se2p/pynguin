@@ -231,6 +231,11 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         self._last_execution_result = result
 
+    def is_failing(self) -> bool:
+        if not self._last_execution_result:
+            return False
+        return self._last_execution_result.has_test_exceptions()
+
     def clone(self) -> TestCaseChromosome:
         return TestCaseChromosome(orig=self)
 

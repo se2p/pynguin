@@ -186,6 +186,11 @@ class TestSuiteChromosome(chrom.Chromosome):
         if changed:
             self.set_changed(True)
 
+    def is_failing(self) -> bool:
+        raise NotImplementedError(
+            "Unsupported operation is_failing on test-suite chromosome!"
+        )
+
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True

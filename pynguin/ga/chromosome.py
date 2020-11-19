@@ -201,6 +201,17 @@ class Chromosome(metaclass=abc.ABCMeta):
         """
 
     @abstractmethod
+    def is_failing(self) -> bool:
+        """Returns whether or not the encapsulated test case is a failing test.
+
+        A failing test is a test that raises an exception.
+        TODO(sl) what about test cases raising exceptions on purpose?
+
+        Returns:
+            Whether or not the encapsulated test case is a failing test.  # noqa: DAR202
+        """
+
+    @abstractmethod
     def __eq__(self, other):
         pass
 
