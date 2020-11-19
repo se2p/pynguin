@@ -426,6 +426,14 @@ libcst = ">=0.3.5"
 mypy-extensions = "*"
 
 [[package]]
+name = "more-itertools"
+version = "8.6.0"
+description = "More routines for operating on iterables, beyond itertools"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
 name = "mypy"
 version = "0.790"
 description = "Optional static typing for Python"
@@ -1039,7 +1047,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "10d9d5a1459b57f269c0490636c451755d0cc6f462e989b45bd4702e3147a10f"
+content-hash = "8a946067058defeac5678285ac50227d1bc84593dcd93f8e5c7c25f8de8d2464"
 
 [metadata.files]
 alabaster = [
@@ -1285,6 +1293,10 @@ mccabe = [
 monkeytype = [
     {file = "MonkeyType-20.5.0-py3-none-any.whl", hash = "sha256:b8ed88485d2ffb05fb1597a6e5eacb05ba5420de682054403c06fac84fdc4038"},
     {file = "MonkeyType-20.5.0.tar.gz", hash = "sha256:fe596bebc5e1b6a64eae71a40b880688de433e4f70507a31ada48510195251dd"},
+]
+more-itertools = [
+    {file = "more-itertools-8.6.0.tar.gz", hash = "sha256:b3a9005928e5bed54076e6e549c792b306fddfe72b2d1d22dd63d42d5d3899cf"},
+    {file = "more_itertools-8.6.0-py3-none-any.whl", hash = "sha256:8e1a2a43b2f2727425f2b5839587ae37093f19153dc26c0927d1048ff6557330"},
 ]
 mypy = [
     {file = "mypy-0.790-cp35-cp35m-macosx_10_6_x86_64.whl", hash = "sha256:bd03b3cf666bff8d710d633d1c56ab7facbdc204d567715cb3b9f85c6e94f669"},

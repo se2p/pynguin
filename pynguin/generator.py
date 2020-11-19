@@ -24,8 +24,11 @@ import sys
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
+from more_itertools import partition
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
+import pynguin.ga.chromosome as chrom
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
@@ -360,6 +363,37 @@ class Pynguin:
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
+
+    @staticmethod
+    def _split_chromosome(
+        chromosome: tsc.TestSuiteChromosome,
+    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
+        """Splits a test suite into a passing and a failing test suite.
+
+        The passing test suite contains only those test cases that did not raise an
+        exception during execution.  The failing test suite the remaining test cases.
+        TODO(sl) Take care for test cases that raise an exception on purpose.
+
+        Args:
+            chromosome: The test suite to split
+
+        Returns:
+            A pair of passing and failing test suite
+        """
+
+        def is_failing(element: chrom.Chromosome) -> bool:
+            return element.is_failing()
+
+        passing = tsc.TestSuiteChromosome()
+        failing = tsc.TestSuiteChromosome()
+
+        passing_items, failing_items = partition(
+            is_failing, chromosome.test_case_chromosomes
+        )
+        passing.add_test_case_chromosomes(list(passing_items))
+        failing.add_test_case_chromosomes(list(failing_items))
+
+        return passing, failing
 
     @staticmethod
     def _export_type_analysis_results(type_analysis: DuckMockAnalysis):
