@@ -27,12 +27,14 @@ Pynguin is developed at the
 [Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
 of the [University of Passau](https://www.uni-passau.de).
 
+<!--
 [![pipeline status](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/develop/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/develop)
 [![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/develop/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/develop)
+-->
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
-[![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://gitlab.com/pynguin/pynguin)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://github.com/se2p/pynguin)
 [![Documentation Status](https://readthedocs.org/projects/pynguin/badge/?version=latest)](https://pynguin.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989840.svg)](https://doi.org/10.5281/zenodo.3989840)
 
@@ -46,6 +48,9 @@ Before you begin, ensure you have met the following requirements:
 - You have installed Python 3.8 (we have not yet tested with Python 3.9, there might
   be some problems due to changed internals regarding the byte-code instrumentation).
 - You have a recent Linux/macOS/Windows machine.
+
+Please consider reading the [online documentation](https://pynguin.readthedocs.io)
+to start your Pynguin adventure.
  
 ## Installing Pynguin
 

@@ -10,10 +10,10 @@ from typing import List, Tuple
 
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchdistancesuitefitness as bdsf
+import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-import pynguin.testsuite.testsuitechromosome as tsc
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -151,7 +151,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         Returns:
             A list of fitness functions
         """
-        return [bdsf.BranchDistanceSuiteFitnessFunction(self._executor)]
+        return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:

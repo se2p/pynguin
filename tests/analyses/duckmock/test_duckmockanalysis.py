@@ -6,46 +6,33 @@
 #
 import pytest
 
-from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
+import pynguin.configuration as config
+from pynguin.analyses.duckmock.duckmockanalysis import (
+    DuckMockAnalysis,
+    _SourceCodeAnalyser,
+)
 
 
-@pytest.fixture(scope="module")
-def analysis() -> DuckMockAnalysis:
-    analysis = DuckMockAnalysis("pynguin.setup.testclustergenerator")
-    analysis.analyse()
-    return analysis
+@pytest.fixture
+def source_code_analyser() -> _SourceCodeAnalyser:
+    return _SourceCodeAnalyser("tests.fixtures.duckmock.complex")
 
 
-def test_analysis(analysis):
-    bindings = analysis.method_bindings
-    assert len(bindings) == 36
+@pytest.mark.parametrize(
+    "module_only_analysis, number_of_bindings",
+    [pytest.param(False, 33), pytest.param(True, 15)],
+)
+def test_source_code_analysis(
+    source_code_analyser, module_only_analysis, number_of_bindings
+):
+    source_code_analyser._module_only_analysis = module_only_analysis
+    source_code_analyser.analyse_code()
+    bindings = source_code_analyser.method_bindings
+    assert len(bindings) == number_of_bindings
 
 
-def test_get_classes_for_method(analysis):
-    classes_for_method = analysis.get_classes_for_method("__init__")
-    assert len(classes_for_method) == 8
-
-
-def test_get_classes_for_methods(analysis):
-    classes_for_methods = analysis.get_classes_for_methods(
-        [
-            "is_function",
-            "is_method",
-        ]
-    )
-    assert len(classes_for_methods) == 4
-
-
-def test_get_classes_for_non_existing_method(analysis):
-    assert analysis.get_classes_for_method("non_existing_method") is None
-
-
-def test_get_classes_for_non_existing_methods(analysis):
-    classes_for_methods = analysis.get_classes_for_methods(
-        [
-            "is_function",
-            "non_existing_method",
-            "is_method",
-        ]
-    )
-    assert len(classes_for_methods) == 4
+def test_integrate_source_code_analysis():
+    config.INSTANCE.duck_mock_module_only = True
+    analysis = DuckMockAnalysis("tests.fixtures.duckmock.complex")
+    bindings = analysis._source_analysis()
+    assert len(bindings) == 15

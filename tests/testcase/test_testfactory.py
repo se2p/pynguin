@@ -105,7 +105,7 @@ def test_append_generic_statement(test_case_mock, statement):
     factory.add_function = mock_method
     factory.add_field = mock_method
     factory.add_primitive = mock_method
-    result = factory.append_generic_statement(test_case_mock, statement)
+    result = factory.append_generic_accessible(test_case_mock, statement)
     assert result is None
     assert called
 
@@ -113,7 +113,7 @@ def test_append_generic_statement(test_case_mock, statement):
 def test_append_illegal_generic_statement(test_case_mock):
     factory = tf.TestFactory(MagicMock(TestCluster))
     with pytest.raises(ConstructionFailedException):
-        factory.append_generic_statement(
+        factory.append_generic_accessible(
             test_case_mock, MagicMock(prim.PrimitiveStatement), position=42
         )
 
@@ -240,7 +240,7 @@ def test_attempt_generation_for_type(test_case_mock):
         assert allow_none
 
     factory = tf.TestFactory(MagicMock(TestCluster))
-    factory.append_generic_statement = mock_method
+    factory.append_generic_accessible = mock_method
     factory._attempt_generation_for_type(
         test_case_mock, 0, 0, True, {MagicMock(gao.GenericAccessibleObject)}
     )
@@ -755,7 +755,7 @@ def test_insert_random_call_success(test_case_mock):
     acc = MagicMock(gao.GenericAccessibleObject)
     test_cluster.get_random_accessible.return_value = acc
     test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "append_generic_statement") as append_mock:
+    with mock.patch.object(test_factory, "append_generic_accessible") as append_mock:
         assert test_factory.insert_random_call(test_case_mock, 0)
         append_mock.assert_called_with(test_case_mock, acc, 0)
 
@@ -773,7 +773,7 @@ def test_insert_random_call_rollback(test_case_mock):
     test_cluster = MagicMock(TestCluster)
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(
-        test_factory, "append_generic_statement"
+        test_factory, "append_generic_accessible"
     ) as append_generic_mock:
         append_generic_mock.side_effect = side_effect
         assert not test_factory.insert_random_call(test_case, 0)

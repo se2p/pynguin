@@ -89,10 +89,10 @@ class TestFactory:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
     # pylint: disable=too-many-arguments
-    def append_generic_statement(
+    def append_generic_accessible(
         self,
         test_case: tc.TestCase,
-        statement: gao.GenericAccessibleObject,
+        accessible: gao.GenericAccessibleObject,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -101,7 +101,7 @@ class TestFactory:
 
         Args:
             test_case: The test case
-            statement: The object to append
+            accessible: The accessible to append
             position: The position to insert the statement, default is at the end
                 of the test case
             recursion_depth: The recursion depth for search
@@ -114,38 +114,38 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
-        if isinstance(statement, gao.GenericConstructor):
+        if isinstance(accessible, gao.GenericConstructor):
             return self.add_constructor(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericMethod):
+        if isinstance(accessible, gao.GenericMethod):
             return self.add_method(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericFunction):
+        if isinstance(accessible, gao.GenericFunction):
             return self.add_function(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericField):
+        if isinstance(accessible, gao.GenericField):
             return self.add_field(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 recursion_depth=recursion_depth,
             )
-        raise ConstructionFailedException(f"Unknown statement type: {statement}")
+        raise ConstructionFailedException(f"Unknown accessible type: {accessible}")
 
     # pylint: disable=too-many-arguments
     def add_constructor(
@@ -560,7 +560,7 @@ class TestFactory:
             return False
 
         try:
-            self.append_generic_statement(test_case, accessible, position)
+            self.append_generic_accessible(test_case, accessible, position)
         except ConstructionFailedException:
             self._rollback_changes(test_case, previous_length, position)
             return False
@@ -1080,7 +1080,7 @@ class TestFactory:
         type_generators: Set[GenericAccessibleObject],
     ) -> Optional[vr.VariableReference]:
         type_generator = randomness.choice(list(type_generators))
-        return self.append_generic_statement(
+        return self.append_generic_accessible(
             test_case,
             type_generator,
             position=position,

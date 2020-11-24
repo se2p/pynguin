@@ -9,8 +9,9 @@ import dataclasses
 import importlib
 import inspect
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Set
 
+import pynguin.configuration as config
 from pynguin.setup.testcluster import TestCluster
 
 
@@ -32,6 +33,64 @@ class MethodBinding:
     signature: inspect.Signature
 
 
+class _SourceCodeAnalyser:
+    """Analyses source code for defined types."""
+
+    def __init__(self, module_name: str, module_only_analysis: bool = False) -> None:
+        """Instantiates the analysis.
+
+        Args:
+            module_name: The name of the module to analyse
+            module_only_analysis: Whether or not the analysis should only be done on
+                                  this particular module or also on all included (via
+                                  import) modules.
+        """
+        self._module_name = module_name
+        self._module_only_analysis = module_only_analysis
+        self._method_bindings: Dict[str, MethodBinding] = {}
+
+    @property
+    def method_bindings(self) -> Dict[str, MethodBinding]:
+        """Provides access to the found method bindings per method name
+
+        Returns:
+            A dictionary that maps method names to method bindings
+        """
+        return self._method_bindings
+
+    def analyse_code(self) -> None:
+        """Analyses the source code.
+
+        Depending on the value of the `module_only_analysis` parameter this analyser
+        instance was created with, the result of the analysis will only incorporate
+        types defined in the particular module or also all types that are defined by
+        included modules.
+        """
+
+        def is_member(obj: object) -> bool:
+            return inspect.ismethod(obj) or inspect.isfunction(obj)
+
+        module = importlib.import_module(self._module_name)
+        for class_name, class_obj in inspect.getmembers(module, inspect.isclass):
+            if self._module_only_analysis and class_obj.__module__ != self._module_name:
+                continue
+
+            defining_class = DefiningClass(class_name, class_obj)
+            for method_name, method_obj in inspect.getmembers(class_obj, is_member):
+                signature = inspect.signature(method_obj)
+                if method_name not in self._method_bindings:
+                    method_binding = MethodBinding(
+                        method_name=method_name,
+                        method_obj=method_obj,
+                        defining_classes={defining_class},
+                        signature=signature,
+                    )
+                else:
+                    method_binding = self._method_bindings[method_name]
+                    method_binding.defining_classes.add(defining_class)
+                self._method_bindings[method_name] = method_binding
+
+
 class DuckMockAnalysis:
     """Provides an analysis that collects all methods provided by classes."""
 
@@ -44,74 +103,6 @@ class DuckMockAnalysis:
     def analyse(self) -> None:
         """Do the analysis."""
 
-        def is_member(obj: object) -> bool:
-            return inspect.ismethod(obj) or inspect.isfunction(obj)
-
-        module = importlib.import_module(self._module_name)
-        for class_name, class_obj in inspect.getmembers(module, inspect.isclass):
-            defining_class = DefiningClass(class_name, class_obj)
-            for method_name, method_obj in inspect.getmembers(class_obj, is_member):
-                signature = inspect.signature(method_obj)
-                if method_name not in self._method_bindings:
-                    method_binding = MethodBinding(
-                        method_name=method_name,
-                        method_obj=method_obj,
-                        defining_classes={defining_class},
-                        signature=signature,
-                    )
-                    self._method_bindings[method_name] = method_binding
-                else:
-                    method_binding = self._method_bindings[method_name]
-                    # TODO(sl) check signatures
-                    method_binding.defining_classes.add(defining_class)
-                    self._method_bindings[method_name] = method_binding
-
-    @property
-    def method_bindings(self) -> Dict[str, MethodBinding]:
-        """Provides access to the method-bindings dictionary.
-
-        Returns:
-            The method-bindings dictionary
-        """
-        return self._method_bindings
-
-    def get_classes_for_method(self, method_name: str) -> Optional[Set[DefiningClass]]:
-        """Extracts all classes that provide a certain method.
-
-        If no class provides an appropriate method, `None` is returned.
-
-        Args:
-            method_name: the name of the method
-
-        Returns:
-            A set of defining classes, if any
-        """
-        if method_name not in self._method_bindings:
-            return None
-        return self._method_bindings[method_name].defining_classes
-
-    def get_classes_for_methods(
-        self, method_names: Iterable[str]
-    ) -> Optional[Set[DefiningClass]]:
-        """Extracts all classes that provide a given selection of methods.
-
-        If no class provides all methods, `None` is returned.
-
-        Args:
-            method_names: the names of the methods as iterable
-
-        Returns:
-            A set of defining classes, if any
-        """
-        defining_classes: List[Set[DefiningClass]] = []
-        for method_name in method_names:
-            defining_class = self.get_classes_for_method(method_name)
-            if defining_class is not None:
-                defining_classes.append(defining_class)
-
-        result = set.intersection(*defining_classes) if defining_classes else None
-        return result
-
     def update_test_cluster(self, test_cluster: TestCluster) -> None:
         """
 
@@ -121,3 +112,11 @@ class DuckMockAnalysis:
         Returns:
 
         """
+
+    def _source_analysis(self) -> Dict[str, MethodBinding]:
+        source_code_analysis = _SourceCodeAnalyser(
+            self._module_name,
+            config.INSTANCE.duck_mock_module_only,
+        )
+        source_code_analysis.analyse_code()
+        return source_code_analysis.method_bindings

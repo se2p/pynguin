@@ -9,7 +9,7 @@ import time
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils.statistics.outputvariablefactory import (
     ChromosomeOutputVariableFactory,
     DirectSequenceOutputVariableFactory,
