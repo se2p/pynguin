@@ -9,9 +9,10 @@ import logging
 from typing import List, Tuple
 
 import pynguin.configuration as config
-import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosomefactory as tscf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
@@ -34,8 +35,10 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
         super().__init__(executor, test_cluster)
-        self._chromosome_factory = cf.TestSuiteChromosomeFactory(
-            tcf.RandomLengthTestCaseFactory(self._test_factory)
+        self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
+            tccf.TestCaseChromosomeFactory(
+                self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
+            )
         )
         self._population: List[tsc.TestSuiteChromosome] = []
         self._selection_function: SelectionFunction[
@@ -96,13 +99,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
             fitness_parents = min(parent1.get_fitness(), parent2.get_fitness())
             fitness_offspring = min(offspring1.get_fitness(), offspring2.get_fitness())
-            length_parents = (
-                parent1.total_length_of_test_cases + parent2.total_length_of_test_cases
-            )
-            length_offspring = (
-                offspring1.total_length_of_test_cases
-                + offspring2.total_length_of_test_cases
-            )
+            length_parents = parent1.length() + parent2.length()
+            length_offspring = offspring1.length() + offspring2.length()
             best_individual = self._get_best_individual()
 
             if (fitness_offspring < fitness_parents) or (
@@ -110,10 +108,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 and length_offspring <= length_parents
             ):
                 for offspring in [offspring1, offspring2]:
-                    if (
-                        offspring.total_length_of_test_cases
-                        <= 2 * best_individual.total_length_of_test_cases
-                    ):
+                    if offspring.length() <= 2 * best_individual.length():
                         new_generation.append(offspring)
                     else:
                         new_generation.append(randomness.choice([parent1, parent2]))
@@ -190,12 +185,12 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             non_failing.add_fitness_function(fitness_function)
             failing.add_fitness_function(fitness_function)
 
-        for test_case in best.test_chromosomes:
-            result = test_case.get_last_execution_result()
+        for test_case_chromosome in best.test_case_chromosomes:
+            result = test_case_chromosome.get_last_execution_result()
             assert result is not None
             if result.has_test_exceptions():
-                failing.add_test(test_case.clone())
+                failing.add_test_case_chromosome(test_case_chromosome.clone())
             else:
-                non_failing.add_test(test_case.clone())
+                non_failing.add_test_case_chromosome(test_case_chromosome.clone())
 
         return non_failing, failing

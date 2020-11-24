@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.6.1"
+version = "0.6.2"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -37,7 +37,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 astor = "^0.8.1"
-simple-parsing = "^0.0.11.post18"
+simple-parsing = "^0.0.12.post1"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
@@ -46,26 +46,26 @@ pydot = "^1.4.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.3"
-pytest = "^6.0"
+pytest = "^6.1"
 black = {version = "^20.8b1", allow-prereleases = true}
 pytest-cov = "^2.10"
 pylint = "^2.6"
 pytest-sugar = "^0.9.4"
 pytest-picked = "^0.4.4"
 pytest-xdist = "^2.1"
-hypothesis = "^5.35"
+hypothesis = "^5.41"
 pytest-mock = "^3.3"
 monkeytype = "^20.5.0"
-mypy = "^0.782"
-isort = {extras = ["pyproject"], version = "^5.5"}
-pre-commit = "^2.7"
+mypy = "^0.790"
+isort = {extras = ["pyproject"], version = "^5.6"}
+pre-commit = "^2.8"
 darglint = "^1.5"
-pyupgrade = "^2.7.2"
+pyupgrade = "^2.7"
 bandit = "^1.6.2"
 safety = "^1.9.0"
-sphinx = "^3.2"
-sphinx-autodoc-typehints = "^1.11.0"
-flake8 = "^3.8.3"
+sphinx = "^3.3"
+sphinx-autodoc-typehints = "^1.11"
+flake8 = "^3.8"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

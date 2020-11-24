@@ -8,7 +8,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.ga.operators.crossover.singlepointrelativecrossover as cross
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosome as tsc
 
 
 def test_single_point_relative_crossover_to_small():

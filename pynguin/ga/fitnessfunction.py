@@ -66,25 +66,6 @@ class FitnessFunction(metaclass=ABCMeta):
             the new fitness values  # noqa: DAR202
         """
 
-    @staticmethod
-    def normalise(value: float) -> float:
-        """Normalise a value.
-
-        Args:
-            value: The value to normalise
-
-        Returns:
-            The normalised value
-
-        Raises:
-            RuntimeError: if the value is negative
-        """
-        if value < 0:
-            raise RuntimeError("Values to normalise cannot be negative")
-        if math.isinf(value):
-            return 1.0
-        return value / (1.0 + value)
-
     @abstractmethod
     def is_maximisation_function(self) -> bool:
         """Do we need to maximise or minimise this function?

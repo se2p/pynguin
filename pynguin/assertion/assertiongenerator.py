@@ -64,7 +64,7 @@ class AssertionGenerator:
                     statement.add_assertion(assertion)
 
     def filter_failing_assertions(self, test_cases: List[tc.TestCase]) -> None:
-        """Removes assertions from the given list of assertions, which do not hold in
+        """Removes assertions from the given list of test cases, which do not hold in
         every execution.
 
         Args:
