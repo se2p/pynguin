@@ -49,7 +49,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         ] = SinglePointRelativeCrossOver()
         self._fitness_functions = self.get_fitness_functions()
 
-    def generate_sequences(
+    def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
         stopping_condition = self.get_stopping_condition()

@@ -11,6 +11,7 @@ from typing import Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 from pynguin.testcase.execution.executionresult import ExecutionResult
@@ -232,9 +233,20 @@ class TestCaseChromosome(chrom.Chromosome):
         self._last_execution_result = result
 
     def is_failing(self) -> bool:
+        """Returns whether or not the encapsulated test case is a failing test.
+
+        A failing test is a test that raises an exception.
+        TODO(sl) what about test cases raising exceptions on purpose?
+
+        Returns:
+            Whether or not the encapsulated test case is a failing test.  # noqa: DAR202
+        """
         if not self._last_execution_result:
             return False
         return self._last_execution_result.has_test_exceptions()
+
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        visitor.visit_test_case_chromosome(self)
 
     def clone(self) -> TestCaseChromosome:
         return TestCaseChromosome(orig=self)

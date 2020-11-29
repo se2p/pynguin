@@ -24,12 +24,10 @@ import sys
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
-from more_itertools import partition
-
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.testsuitechromosome as tsc
+import pynguin.ga.chromosomeconverter as cc
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
@@ -236,7 +234,7 @@ class Pynguin:
                 "Start generating sequences using %s", config.INSTANCE.algorithm
             )
             StatisticsTracker().set_sequence_start_time(time.time_ns())
-            generation_result = algorithm.generate_sequences()
+            generation_result = algorithm.generate_tests()
             self._logger.info(
                 "Stop generating sequences using %s", config.INSTANCE.algorithm
             )
@@ -249,21 +247,19 @@ class Pynguin:
 
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
-                test_cases = [
-                    chromosome.test_case
-                    for chromosome in generation_result.test_case_chromosomes
-                ]
-                generator.add_assertions(test_cases)
-                generator.filter_failing_assertions(test_cases)
+                generation_result.accept(generator)
 
             with Timer(name="Export time", logger=None):
-                non_failing, failing = self._split_chromosome(generation_result)
+                converter = cc.ChromosomeConverter()
+                generation_result.accept(converter)
+                failing = converter.failing_test_suite
+                passing = converter.passing_test_suite
                 written_to = self._export_test_cases(
-                    [t.test_case for t in non_failing.test_case_chromosomes]
+                    [t.test_case for t in passing.test_case_chromosomes]
                 )
                 self._logger.info(
                     "Export %i successful test cases to %s",
-                    non_failing.size(),
+                    passing.size(),
                     written_to,
                 )
                 written_to = self._export_test_cases(
@@ -275,7 +271,7 @@ class Pynguin:
                     "Export %i failing test cases to %s", failing.size(), written_to
                 )
 
-        self._track_statistics(non_failing, failing, generation_result)
+        self._track_statistics(passing, failing, generation_result)
         self._collect_statistics()
         if not StatisticsTracker().write_statistics():
             self._logger.error("Failed to write statistics data")
@@ -319,23 +315,21 @@ class Pynguin:
 
     @staticmethod
     def _track_statistics(
-        non_failing: tsc.TestSuiteChromosome,
-        failing: tsc.TestSuiteChromosome,
-        combined: tsc.TestSuiteChromosome,
+        passing: chrom.Chromosome,
+        failing: chrom.Chromosome,
+        result: chrom.Chromosome,
     ) -> None:
         tracker = StatisticsTracker()
-        tracker.current_individual(combined)
-        tracker.track_output_variable(RuntimeVariable.Size, combined.size())
-        tracker.track_output_variable(RuntimeVariable.Length, combined.length())
+        tracker.current_individual(result)
+        tracker.track_output_variable(RuntimeVariable.Size, result.size())
+        tracker.track_output_variable(RuntimeVariable.Length, result.length())
         tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
             RuntimeVariable.FailingLength,
             failing.length(),
         )
-        tracker.track_output_variable(RuntimeVariable.PassingSize, non_failing.size())
-        tracker.track_output_variable(
-            RuntimeVariable.PassingLength, non_failing.length()
-        )
+        tracker.track_output_variable(RuntimeVariable.PassingSize, passing.size())
+        tracker.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
     @staticmethod
     def _export_test_cases(
@@ -359,37 +353,6 @@ class Pynguin:
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
-
-    @staticmethod
-    def _split_chromosome(
-        chromosome: tsc.TestSuiteChromosome,
-    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
-        """Splits a test suite into a passing and a failing test suite.
-
-        The passing test suite contains only those test cases that did not raise an
-        exception during execution.  The failing test suite the remaining test cases.
-        TODO(sl) Take care for test cases that raise an exception on purpose.
-
-        Args:
-            chromosome: The test suite to split
-
-        Returns:
-            A pair of passing and failing test suite
-        """
-
-        def is_failing(element: chrom.Chromosome) -> bool:
-            return element.is_failing()
-
-        passing = tsc.TestSuiteChromosome()
-        failing = tsc.TestSuiteChromosome()
-
-        passing_items, failing_items = partition(
-            is_failing, chromosome.test_case_chromosomes
-        )
-        passing.add_test_case_chromosomes(list(passing_items))
-        failing.add_test_case_chromosomes(list(failing_items))
-
-        return passing, failing
 
     @staticmethod
     def _export_type_analysis_results(type_analysis: DuckMockAnalysis):

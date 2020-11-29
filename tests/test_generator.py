@@ -10,8 +10,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generator as gen
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
@@ -128,18 +126,3 @@ def test_run(tmp_path):
     with mock.patch.object(gen.Pynguin, "_run") as run_mock:
         generator.run()
         run_mock.assert_called_once()
-
-
-def test_split_chromosome():
-    generator = gen.Pynguin(configuration=MagicMock(log_file=None))
-    passing = MagicMock(tcc.TestCaseChromosome)
-    passing.is_failing.return_value = False
-    failing = MagicMock(tcc.TestCaseChromosome)
-    failing.is_failing.return_value = True
-    chromosome = tsc.TestSuiteChromosome()
-    chromosome.add_test_case_chromosomes([failing, passing])
-
-    passing_suite, failing_suite = generator._split_chromosome(chromosome)
-
-    assert passing_suite.test_case_chromosomes == [passing]
-    assert failing_suite.test_case_chromosomes == [failing]

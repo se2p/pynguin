@@ -213,8 +213,3 @@ def test_mutate_no_changes():
         chromosome.mutate()
     assert chromosome.test_case_chromosomes == [test_1]
     assert not chromosome.has_changed()
-
-
-def test_is_failing(chromosome):
-    with pytest.raises(NotImplementedError):
-        chromosome.is_failing()

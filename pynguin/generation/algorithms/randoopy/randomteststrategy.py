@@ -33,7 +33,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         super().__init__(executor, test_cluster)
         self._execution_results: List[ExecutionResult] = []
 
-    def generate_sequences(
+    def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
         stopping_condition = self.get_stopping_condition()

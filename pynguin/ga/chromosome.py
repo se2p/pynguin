@@ -12,6 +12,7 @@ from abc import abstractmethod
 from statistics import mean
 from typing import Dict, List, Optional
 
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.fitnessfunction as ff
 
 
@@ -201,14 +202,11 @@ class Chromosome(metaclass=abc.ABCMeta):
         """
 
     @abstractmethod
-    def is_failing(self) -> bool:
-        """Returns whether or not the encapsulated test case is a failing test.
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        """Accept a chromosome visitor.
 
-        A failing test is a test that raises an exception.
-        TODO(sl) what about test cases raising exceptions on purpose?
-
-        Returns:
-            Whether or not the encapsulated test case is a failing test.  # noqa: DAR202
+        Args:
+            visitor: the visitor that is accepted.
         """
 
     @abstractmethod
