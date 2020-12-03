@@ -28,6 +28,7 @@ import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
+import pynguin.ga.postprocess as pp
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
@@ -244,6 +245,11 @@ class Pynguin:
                 StatisticsTracker().track_output_variable(
                     RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
+
+            if config.INSTANCE.post_process:
+                postprocessor = pp.ExceptionTruncation()
+                generation_result.accept(postprocessor)
+                # TODO(fk) add more postprocessing stuff.
 
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)

@@ -50,13 +50,13 @@ def test_set_last_execution_result(test_case_chromosome):
 
 
 def test_get_last_mutatable_statement_empty(test_case_chromosome):
-    assert test_case_chromosome._get_last_mutatable_statement() is None
+    assert test_case_chromosome.get_last_mutatable_statement() is None
 
 
 def test_get_last_mutatable_statement_max(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    assert chromosome._get_last_mutatable_statement() == 0
+    assert chromosome.get_last_mutatable_statement() == 0
 
 
 def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
@@ -68,7 +68,7 @@ def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 1
     chromosome.set_last_execution_result(result)
-    assert chromosome._get_last_mutatable_statement() == 1
+    assert chromosome.get_last_mutatable_statement() == 1
 
 
 def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
@@ -79,7 +79,7 @@ def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 4
     chromosome.set_last_execution_result(result)
-    assert chromosome._get_last_mutatable_statement() == chromosome.size() - 1
+    assert chromosome.get_last_mutatable_statement() == chromosome.size() - 1
 
 
 def test_mutation_insert_none(test_case_chromosome):
@@ -222,7 +222,7 @@ def test_mutation_delete_skipping():
     chromosome = tcc.TestCaseChromosome(test_case)
     with mock.patch.object(chromosome, "_delete_statement") as delete_mock:
         delete_mock.return_value = True
-        with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+        with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
             mut_mock.return_value = 3
             assert not chromosome._mutation_delete()
             assert delete_mock.call_count == 0
@@ -236,7 +236,7 @@ def test_mutate_chop(test_case_chromosome_with_test):
     config.INSTANCE.test_insert_probability = 0.0
     config.INSTANCE.test_change_probability = 0.0
     config.INSTANCE.test_delete_probability = 0.0
-    with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+    with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = 5
         chromosome.mutate()
         assert chromosome.has_changed()
@@ -251,7 +251,7 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     config.INSTANCE.test_insert_probability = 0.0
     config.INSTANCE.test_change_probability = 0.0
     config.INSTANCE.test_delete_probability = 0.0
-    with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+    with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = None
         chromosome.mutate()
         assert len(test_case.statements) == 50

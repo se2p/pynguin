@@ -270,6 +270,10 @@ class Configuration(Serializable):
     generate_assertions: bool = True
     """Should assertions be generated?"""
 
+    post_process: bool = True
+    """Should the results be post processed? For example, truncate test cases after
+    statements that raise an exception."""
+
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
