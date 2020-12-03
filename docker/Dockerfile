@@ -27,7 +27,7 @@ CMD ["poetry", "build"]
 
 # Execution stage for Pynguin
 FROM python:3.8.6-slim-buster AS execute
-ENV PYNGUIN_VERSION "0.6.2"
+ENV PYNGUIN_VERSION "0.6.4"
 
 WORKDIR /pynguin
 

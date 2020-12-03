@@ -93,7 +93,7 @@ To start developing, follow these steps:
 5. Run `poetry shell` to switch to the virtual environment in your current shell
 6. Run `make check` to verify that your changes pass all checks
 
-   Please see the `poetry` documentation for more information on this tool.
+   Please see the [`poetry` documentation](https://python-poetry.org/docs/) for more information on this tool.
 
 ### Development using PyCharm.
 
