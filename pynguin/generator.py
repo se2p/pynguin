@@ -30,7 +30,6 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.postprocess as pp
 import pynguin.testcase.testcase as tc
-from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
@@ -165,17 +164,6 @@ class Pynguin:
             self._logger.info("Collecting constants from SUT.")
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
-    def _setup_type_analysis(
-        self, test_cluster: TestCluster
-    ) -> Optional[DuckMockAnalysis]:
-        if config.INSTANCE.duck_type_analysis:
-            self._logger.info("Analysing classes and methods in SUT.")
-            analysis = DuckMockAnalysis(config.INSTANCE.module_name)
-            analysis.analyse()
-            analysis.update_test_cluster(test_cluster)
-            return analysis
-        return None
-
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -196,8 +184,6 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
-        if (type_analysis := self._setup_type_analysis(test_cluster)) is not None:
-            self._export_type_analysis_results(type_analysis)
         return executor, test_cluster
 
     @staticmethod
@@ -363,7 +349,3 @@ class Pynguin:
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
-
-    @staticmethod
-    def _export_type_analysis_results(type_analysis: DuckMockAnalysis):
-        pass
