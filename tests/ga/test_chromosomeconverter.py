@@ -12,6 +12,12 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 
 
+def test_no_result():
+    converter = cc.ChromosomeConverter()
+    assert converter.passing_test_suite.size() == 0
+    assert converter.failing_test_suite.size() == 0
+
+
 def test_simple_conversion():
     passing = tcc.TestCaseChromosome(dtc.DefaultTestCase())
     failing = tcc.TestCaseChromosome(dtc.DefaultTestCase())
