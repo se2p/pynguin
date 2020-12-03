@@ -4,12 +4,12 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List, Tuple
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.configuration as config
+import pynguin.ga.chromosome as chrom
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -30,7 +30,7 @@ class _TestGenerationStrategy(TestGenerationStrategy):
     def __init__(self):
         super().__init__(MagicMock(), MagicMock(TestCluster))
 
-    def generate_sequences(self) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
+    def generate_tests(self) -> chrom.Chromosome:
         raise NotImplementedError(
             "This class is not intended for usage but only for testing"
         )

@@ -11,6 +11,7 @@ from typing import Any, List, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasechromosomefactory as tccf
 from pynguin.utils import randomness
@@ -185,6 +186,9 @@ class TestSuiteChromosome(chrom.Chromosome):
 
         if changed:
             self.set_changed(True)
+
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        visitor.visit_test_suite_chromosome(self)
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

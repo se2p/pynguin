@@ -12,6 +12,7 @@ from abc import abstractmethod
 from statistics import mean
 from typing import Dict, List, Optional
 
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.fitnessfunction as ff
 
 
@@ -198,6 +199,14 @@ class Chromosome(metaclass=abc.ABCMeta):
 
         Returns:
             The cloned chromosome  # noqa: DAR202
+        """
+
+    @abstractmethod
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        """Accept a chromosome visitor.
+
+        Args:
+            visitor: the visitor that is accepted.
         """
 
     @abstractmethod

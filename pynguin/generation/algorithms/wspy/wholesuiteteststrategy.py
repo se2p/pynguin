@@ -6,7 +6,7 @@
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import List, Tuple
+from typing import List
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosomefactory as tccf
@@ -49,9 +49,9 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         ] = SinglePointRelativeCrossOver()
         self._fitness_functions = self.get_fitness_functions()
 
-    def generate_sequences(
+    def generate_tests(
         self,
-    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
+    ) -> tsc.TestSuiteChromosome:
         stopping_condition = self.get_stopping_condition()
         stopping_condition.reset()
         self._population = self._get_random_population()
@@ -74,7 +74,10 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         StatisticsTracker().track_output_variable(
             RuntimeVariable.AlgorithmIterations, generation
         )
-        return self.split_chromosomes()
+        best = self._get_best_individual()
+        # Make sure all test cases have a cached result.
+        best.get_fitness()
+        return best
 
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
@@ -163,34 +166,3 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         for idx in range(config.INSTANCE.elite):
             elite.append(self._population[idx].clone())
         return elite
-
-    def split_chromosomes(
-        self,
-    ) -> Tuple[tsc.TestSuiteChromosome, tsc.TestSuiteChromosome]:
-        """Split the chromosome into two chromosomes.
-
-        The first one contains the non failing test cases.
-        The second one contains the failing test cases.
-
-        Returns:
-            A tuple of passing and failing chromosomes
-        """
-        best = self._get_best_individual()
-        # Make sure all test cases have a cached result.
-        best.get_fitness()
-        non_failing = tsc.TestSuiteChromosome()
-        failing = tsc.TestSuiteChromosome()
-
-        for fitness_function in self._fitness_functions:
-            non_failing.add_fitness_function(fitness_function)
-            failing.add_fitness_function(fitness_function)
-
-        for test_case_chromosome in best.test_case_chromosomes:
-            result = test_case_chromosome.get_last_execution_result()
-            assert result is not None
-            if result.has_test_exceptions():
-                failing.add_test_case_chromosome(test_case_chromosome.clone())
-            else:
-                non_failing.add_test_case_chromosome(test_case_chromosome.clone())
-
-        return non_failing, failing

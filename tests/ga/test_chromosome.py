@@ -46,6 +46,9 @@ def chromosome():
         def length(self) -> int:
             return 0
 
+        def accept(self, visitor) -> None:
+            pass
+
     return DummyChromosome()
 
 

@@ -7,6 +7,7 @@
 """Some integration tests for the testcase/statements"""
 import pytest
 
+import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.assignmentstatement as assign
 import pynguin.testcase.statements.parametrizedstatements as ps
@@ -75,6 +76,7 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.5)
     func = ps.FunctionStatement(test_case, function_mock, [float_prim.return_value])
+    func.add_assertion(pas.PrimitiveAssertion(func.return_value, 3.1415))
     string_prim = prim.StringPrimitiveStatement(test_case, "Test")
     string_prim.return_value.variable_type = type(None)
     test_case.add_statement(int_prim)
@@ -83,6 +85,11 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     test_case.add_statement(func)
     test_case.add_statement(string_prim)
     return test_case
+
+
+def test_clone_with_assertion(simple_test_case):
+    cloned = simple_test_case.clone()
+    assert len(cloned.get_statement(3).assertions) == 1
 
 
 def test_test_case_equals_on_different_prim(
@@ -105,7 +112,7 @@ def test_test_case_equals_on_different_prim(
         )
     )
 
-    # Even thought they both point to an int, they are not equal
+    # Even though they both point to an int, they are not equal
     assert not simple_test_case == cloned
 
 

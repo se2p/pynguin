@@ -26,7 +26,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
-import pynguin.ga.testsuitechromosome as tsc
+import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomeconverter as cc
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
@@ -233,38 +234,32 @@ class Pynguin:
                 "Start generating sequences using %s", config.INSTANCE.algorithm
             )
             StatisticsTracker().set_sequence_start_time(time.time_ns())
-            non_failing, failing = algorithm.generate_sequences()
+            generation_result = algorithm.generate_tests()
             self._logger.info(
                 "Stop generating sequences using %s", config.INSTANCE.algorithm
             )
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                combined = tsc.TestSuiteChromosome()
-                for fitness_func in non_failing.get_fitness_functions():
-                    combined.add_fitness_function(fitness_func)
-                combined.add_test_case_chromosomes(non_failing.test_case_chromosomes)
-                combined.add_test_case_chromosomes(failing.test_case_chromosomes)
                 StatisticsTracker().track_output_variable(
-                    RuntimeVariable.Coverage, combined.get_coverage()
+                    RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
 
             if config.INSTANCE.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
-                for chromosome in [non_failing, failing]:
-                    test_cases = [
-                        chrom.test_case for chrom in chromosome.test_case_chromosomes
-                    ]
-                    generator.add_assertions(test_cases)
-                    generator.filter_failing_assertions(test_cases)
+                generation_result.accept(generator)
 
             with Timer(name="Export time", logger=None):
+                converter = cc.ChromosomeConverter()
+                generation_result.accept(converter)
+                failing = converter.failing_test_suite
+                passing = converter.passing_test_suite
                 written_to = self._export_test_cases(
-                    [t.test_case for t in non_failing.test_case_chromosomes]
+                    [t.test_case for t in passing.test_case_chromosomes]
                 )
                 self._logger.info(
                     "Export %i successful test cases to %s",
-                    non_failing.size(),
+                    passing.size(),
                     written_to,
                 )
                 written_to = self._export_test_cases(
@@ -276,11 +271,11 @@ class Pynguin:
                     "Export %i failing test cases to %s", failing.size(), written_to
                 )
 
-        self._track_statistics(non_failing, failing, combined)
+        self._track_statistics(passing, failing, generation_result)
         self._collect_statistics()
         if not StatisticsTracker().write_statistics():
             self._logger.error("Failed to write statistics data")
-        if combined.size() == 0:
+        if generation_result.size() == 0:
             # not able to generate one test case
             return ReturnCode.NO_TESTS_GENERATED
         return ReturnCode.OK
@@ -320,23 +315,21 @@ class Pynguin:
 
     @staticmethod
     def _track_statistics(
-        non_failing: tsc.TestSuiteChromosome,
-        failing: tsc.TestSuiteChromosome,
-        combined: tsc.TestSuiteChromosome,
+        passing: chrom.Chromosome,
+        failing: chrom.Chromosome,
+        result: chrom.Chromosome,
     ) -> None:
         tracker = StatisticsTracker()
-        tracker.current_individual(combined)
-        tracker.track_output_variable(RuntimeVariable.Size, combined.size())
-        tracker.track_output_variable(RuntimeVariable.Length, combined.length())
+        tracker.current_individual(result)
+        tracker.track_output_variable(RuntimeVariable.Size, result.size())
+        tracker.track_output_variable(RuntimeVariable.Length, result.length())
         tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
         tracker.track_output_variable(
             RuntimeVariable.FailingLength,
             failing.length(),
         )
-        tracker.track_output_variable(RuntimeVariable.PassingSize, non_failing.size())
-        tracker.track_output_variable(
-            RuntimeVariable.PassingLength, non_failing.length()
-        )
+        tracker.track_output_variable(RuntimeVariable.PassingSize, passing.size())
+        tracker.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
     @staticmethod
     def _export_test_cases(

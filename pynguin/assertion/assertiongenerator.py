@@ -11,12 +11,15 @@ from typing import List
 import pynguin.assertion.noneassertionobserver as nao
 import pynguin.assertion.primitiveassertionobserver as pao
 import pynguin.configuration as config
+import pynguin.ga.chromosomevisitor as cv
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.execution.testcaseexecutor as ex
 import pynguin.testcase.testcase as tc
 from pynguin.utils import randomness
 
 
-class AssertionGenerator:
+class AssertionGenerator(cv.ChromosomeVisitor):
     """A simple assertion generator.
     Creates all regression assertions."""
 
@@ -32,6 +35,18 @@ class AssertionGenerator:
         self._executor = executor
         self._executor.add_observer(pao.PrimitiveTraceObserver())
         self._executor.add_observer(nao.NoneTraceObserver())
+
+    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+        self.add_assertions(
+            [chrom.test_case for chrom in chromosome.test_case_chromosomes]
+        )
+        self.filter_failing_assertions(
+            [chrom.test_case for chrom in chromosome.test_case_chromosomes]
+        )
+
+    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+        self.add_assertions([chromosome.test_case])
+        self.filter_failing_assertions([chromosome.test_case])
 
     def add_assertions(self, test_cases: List[tc.TestCase]) -> None:
         """Adds assertions to the given test cases

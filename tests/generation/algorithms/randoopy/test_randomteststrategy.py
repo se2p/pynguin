@@ -37,9 +37,8 @@ def test_generate_sequences(executor):
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm.generate_sequence = lambda t, f, e: None
-    test_cases, failing_test_cases = algorithm.generate_sequences()
+    test_cases = algorithm.generate_tests()
     assert test_cases.size() == 0
-    assert failing_test_cases.size() == 0
     assert len(logger.method_calls) == 1
 
 
@@ -59,7 +58,7 @@ def test_generate_sequences_exception(executor):
     algorithm._find_objects_under_test = lambda x: x
     algorithm._combine_current_individual = _combine_current_individual
     algorithm.generate_sequence = raise_exception
-    algorithm.generate_sequences()
+    algorithm.generate_tests()
     assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
 
 
