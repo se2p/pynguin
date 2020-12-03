@@ -213,3 +213,9 @@ def test_mutate_no_changes():
         chromosome.mutate()
     assert chromosome.test_case_chromosomes == [test_1]
     assert not chromosome.has_changed()
+
+
+def test_accept(chromosome):
+    visitor = MagicMock()
+    chromosome.accept(visitor)
+    visitor.visit_test_suite_chromosome.assert_called_once_with(chromosome)
