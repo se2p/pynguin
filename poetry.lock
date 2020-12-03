@@ -279,7 +279,7 @@ gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "hypothesis"
-version = "5.41.3"
+version = "5.41.4"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -383,7 +383,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
 name = "libcst"
-version = "0.3.14"
+version = "0.3.15"
 description = "A concrete syntax tree with AST-like properties for Python 3.5, 3.6, 3.7 and 3.8 programs."
 category = "dev"
 optional = false
@@ -484,7 +484,7 @@ python-versions = "*"
 
 [[package]]
 name = "packaging"
-version = "20.4"
+version = "20.7"
 description = "Core utilities for Python packages"
 category = "dev"
 optional = false
@@ -492,7 +492,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [package.dependencies]
 pyparsing = ">=2.0.2"
-six = "*"
 
 [[package]]
 name = "pathspec"
@@ -523,7 +522,7 @@ dev = ["pre-commit", "tox"]
 
 [[package]]
 name = "pre-commit"
-version = "2.9.0"
+version = "2.9.2"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
@@ -936,7 +935,7 @@ test = ["pytest"]
 
 [[package]]
 name = "stevedore"
-version = "3.2.2"
+version = "3.3.0"
 description = "Manage dynamic plugins for Python applications"
 category = "dev"
 optional = false
@@ -1182,8 +1181,8 @@ gitpython = [
     {file = "GitPython-3.1.11.tar.gz", hash = "sha256:befa4d101f91bad1b632df4308ec64555db684c360bd7d2130b4807d49ce86b8"},
 ]
 hypothesis = [
-    {file = "hypothesis-5.41.3-py3-none-any.whl", hash = "sha256:989162a9e0715c624b99ad9b2b4206765879b40eb51eef17b1e37de3e898370a"},
-    {file = "hypothesis-5.41.3.tar.gz", hash = "sha256:6a3471ff74864ab04a0650c75500ef15f2f4a901d49ccbb7cbec668365736688"},
+    {file = "hypothesis-5.41.4-py3-none-any.whl", hash = "sha256:fdc490f98d81861e218c77f222ae889c993ff9d6d579dd4c9bb7b75e2dc63852"},
+    {file = "hypothesis-5.41.4.tar.gz", hash = "sha256:7ef22dd2ae4a906ef1e237dcd6806aa7f97e30c37f924a0e6d595f4639350b53"},
 ]
 identify = [
     {file = "identify-1.5.10-py2.py3-none-any.whl", hash = "sha256:cc86e6a9a390879dcc2976cef169dd9cc48843ed70b7380f321d1b118163c60e"},
@@ -1239,8 +1238,8 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.4.3-cp38-cp38-win_amd64.whl", hash = "sha256:59f79fef100b09564bc2df42ea2d8d21a64fdcda64979c0fa3db7bdaabaf6239"},
 ]
 libcst = [
-    {file = "libcst-0.3.14-py3-none-any.whl", hash = "sha256:f6250eaf4dadeb55943739fddb7fdfdfa118201e90c15f9ccd20679877b404ae"},
-    {file = "libcst-0.3.14.tar.gz", hash = "sha256:2ce363a6c46ac0100f6b0f72f6a4dd2116e1e1d84259e229d580d30a6d086d84"},
+    {file = "libcst-0.3.15-py3-none-any.whl", hash = "sha256:786757e9eb05f0b3349d279eb27c9a371f24e849f0cc7be119c1e6b958cd85ed"},
+    {file = "libcst-0.3.15.tar.gz", hash = "sha256:73e94ac2e7a78960ddca4d4e5250dc2e02e7ba85b29e7b2ac1b1d2bce90b4cee"},
 ]
 markupsafe = [
     {file = "MarkupSafe-1.1.1-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:09027a7803a62ca78792ad89403b1b7a73a01c8cb65909cd876f7fcebd79b161"},
@@ -1314,8 +1313,8 @@ nodeenv = [
     {file = "nodeenv-1.5.0.tar.gz", hash = "sha256:ab45090ae383b716c4ef89e690c41ff8c2b257b85b309f01f3654df3d084bd7c"},
 ]
 packaging = [
-    {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},
-    {file = "packaging-20.4.tar.gz", hash = "sha256:4357f74f47b9c12db93624a82154e9b120fa8293699949152b22065d556079f8"},
+    {file = "packaging-20.7-py2.py3-none-any.whl", hash = "sha256:eb41423378682dadb7166144a4926e443093863024de508ca5c9737d6bc08376"},
+    {file = "packaging-20.7.tar.gz", hash = "sha256:05af3bb85d320377db281cf254ab050e1a7ebcbf5410685a9a407e18a1f81236"},
 ]
 pathspec = [
     {file = "pathspec-0.8.1-py2.py3-none-any.whl", hash = "sha256:aa0cb481c4041bf52ffa7b0d8fa6cd3e88a2ca4879c533c9153882ee2556790d"},
@@ -1330,8 +1329,8 @@ pluggy = [
     {file = "pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0"},
 ]
 pre-commit = [
-    {file = "pre_commit-2.9.0-py2.py3-none-any.whl", hash = "sha256:4aee0db4808fa48d2458cedd5b9a084ef24dda1a0fa504432a11977a4d1cfd0a"},
-    {file = "pre_commit-2.9.0.tar.gz", hash = "sha256:b2d106d51c6ba6217e859d81774aae33fd825fe7de0dcf0c46e2586333d7a92e"},
+    {file = "pre_commit-2.9.2-py2.py3-none-any.whl", hash = "sha256:949b13efb7467ae27e2c8f9e83434dacf2682595124d8902554a4e18351e5781"},
+    {file = "pre_commit-2.9.2.tar.gz", hash = "sha256:e31c04bc23741194a7c0b983fe512801e151a0638c6001c49f2bd034f8a664a1"},
 ]
 py = [
     {file = "py-1.9.0-py2.py3-none-any.whl", hash = "sha256:366389d1db726cd2fcfc79732e75410e5fe4d31db13692115529d34069a043c2"},
@@ -1512,8 +1511,8 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 stevedore = [
-    {file = "stevedore-3.2.2-py3-none-any.whl", hash = "sha256:5e1ab03eaae06ef6ce23859402de785f08d97780ed774948ef16c4652c41bc62"},
-    {file = "stevedore-3.2.2.tar.gz", hash = "sha256:f845868b3a3a77a2489d226568abe7328b5c2d4f6a011cc759dfa99144a521f0"},
+    {file = "stevedore-3.3.0-py3-none-any.whl", hash = "sha256:50d7b78fbaf0d04cd62411188fa7eedcb03eb7f4c4b37005615ceebe582aa82a"},
+    {file = "stevedore-3.3.0.tar.gz", hash = "sha256:3a5bbd0652bf552748871eaa73a4a8dc2899786bc497a2aa1fcb4dcdb0debeee"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},
