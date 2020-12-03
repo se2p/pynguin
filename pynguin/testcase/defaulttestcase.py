@@ -91,8 +91,8 @@ class DefaultTestCase(tc.TestCase):
         test_case = DefaultTestCase()
         for statement in self._statements:
             copy = statement.clone(test_case)
-            copy.assertions = statement.copy_assertions(test_case, 0)
             test_case._statements.append(copy)
+            copy.assertions = statement.copy_assertions(test_case, 0)
         test_case._id = self._id_generator.inc()
         return test_case
 
