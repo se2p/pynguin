@@ -209,7 +209,7 @@ class TestCase(metaclass=ABCMeta):
         bound = min(len(self._statements), position)
         for i in range(bound):
             statement = self._statements[i]
-            var = statement.return_value
+            var = statement.ret_val
             if not var.is_none_type() and is_assignable_to(
                 var.variable_type, parameter_type
             ):
@@ -229,7 +229,7 @@ class TestCase(metaclass=ABCMeta):
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
-            var = self.get_statement(i).return_value
+            var = self.get_statement(i).ret_val
             if not var.is_none_type():
                 variables.append(var)
         return variables

@@ -596,7 +596,7 @@ class TestFactory:
         Returns:
             Whether or not the deletion was successful
         """
-        variable = test_case.get_statement(position).return_value
+        variable = test_case.get_statement(position).ret_val
 
         changed = False
         for i in range(position + 1, test_case.size()):
@@ -648,12 +648,12 @@ class TestFactory:
     def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:
         references = set()
         positions = set()
-        references.add(test_case.get_statement(position).return_value)
+        references.add(test_case.get_statement(position).ret_val)
         for i in range(position, test_case.size()):
             temp = set()
             for var in references:
                 if test_case.get_statement(i).references(var):
-                    temp.add(test_case.get_statement(i).return_value)
+                    temp.add(test_case.get_statement(i).ret_val)
                     positions.add(i)
             references.update(temp)
         return positions
@@ -670,11 +670,11 @@ class TestFactory:
         Returns:
             Whether or not the operation was successful
         """
-        if statement.return_value.is_type_unknown():
+        if statement.ret_val.is_type_unknown():
             return False
 
         objects = test_case.get_all_objects(statement.get_position())
-        type_ = statement.return_value.variable_type
+        type_ = statement.ret_val.variable_type
         assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
         acc_object = statement.accessible_object()
@@ -705,8 +705,8 @@ class TestFactory:
             statement: The given statement
             call: The new call
         """
-        position = statement.return_value.get_statement_position()
-        return_value = statement.return_value
+        position = statement.ret_val.get_statement_position()
+        return_value = statement.ret_val
         replacement: Optional[stmt.Statement] = None
         if call.is_method():
             method = cast(gao.GenericMethod, call)
@@ -736,7 +736,7 @@ class TestFactory:
         if replacement is None:
             assert False, f"Unhandled call type {call}"
         else:
-            replacement.return_value = return_value
+            replacement.ret_val = return_value
             test_case.set_statement(replacement, position)
 
     @staticmethod
@@ -1114,7 +1114,7 @@ class TestFactory:
     ) -> vr.VariableReference:
         statement = prim.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
-        ret = test_case.get_statement(position).return_value
+        ret = test_case.get_statement(position).ret_val
         ret.distance = recursion_depth
         return ret
 

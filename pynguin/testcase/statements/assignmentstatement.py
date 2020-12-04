@@ -40,7 +40,7 @@ class AssignmentStatement(stmt.Statement):
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return AssignmentStatement(
             test_case,
-            self.return_value.clone(test_case, offset),
+            self.ret_val.clone(test_case, offset),
             self._rhs.clone(test_case, offset),
         )
 
@@ -54,20 +54,20 @@ class AssignmentStatement(stmt.Statement):
         raise Exception("Implement me")
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
-        return {self.return_value, self._rhs}
+        return {self.ret_val, self._rhs}
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.return_value == old:
-            self.return_value = new
+        if self.ret_val == old:
+            self.ret_val = new
         if self._rhs == old:
             self._rhs = new
 
     def __hash__(self) -> int:
-        return 31 + 17 * hash(self._return_value) + 17 * hash(self._rhs)
+        return 31 + 17 * hash(self._ret_val) + 17 * hash(self._rhs)
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, AssignmentStatement):
             return False
-        return self._return_value == other._return_value and self._rhs == other._rhs
+        return self._ret_val == other._ret_val and self._rhs == other._rhs

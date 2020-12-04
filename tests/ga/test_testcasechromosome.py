@@ -152,12 +152,12 @@ def test_mutation_change_nothing_to_change(test_case_chromosome):
 def test_mutation_change_single_prim(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     int0 = prim.IntPrimitiveStatement(test_case, 5)
-    int0.return_value.distance = 5
+    int0.ret_val.distance = 5
     test_case.add_statement(int0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0]
         assert chromosome._mutation_change()
-        assert int0.return_value.distance == 5
+        assert int0.ret_val.distance == 5
 
 
 @pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
@@ -167,7 +167,7 @@ def test_mutation_change_call_success(constructor_mock, result):
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=factory)
     const0 = ps.ConstructorStatement(test_case, constructor_mock)
-    const0.return_value.distance = 5
+    const0.ret_val.distance = 5
     test_case.add_statement(const0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
@@ -175,7 +175,7 @@ def test_mutation_change_call_success(constructor_mock, result):
             mutate_mock.return_value = False
             assert chromosome._mutation_change() == result
             mutate_mock.assert_called_once()
-            assert const0.return_value.distance == 5
+            assert const0.ret_val.distance == 5
 
 
 def test_mutation_change_no_change(test_case_chromosome_with_test):
