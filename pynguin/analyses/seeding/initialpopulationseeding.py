@@ -4,30 +4,30 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Implements a simple static constant seeding strategy."""
+"""Implements seeding of the initial population with previously existing testcases."""
 from __future__ import annotations
 
 import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Any, Dict, Optional, Set, Union, cast
+from typing import Any, Dict, Optional, Set, Union, cast, List
 
 from setuptools import find_packages
 
+from pynguin.testcase.testcase import TestCase
 from pynguin.utils import randomness
 
 Types = Union[float, int, str]
 
 
 class InitialPopulationSeeding:
-    """A simple static constant seeding strategy.
-
-    Extracts all constants from a set of modules by using an AST visitor.
+    """Class for seeding the initial population with previously existing testcases.
     """
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[InitialPopulationSeeding] = None
+    _testcases: List[TestCase] = []
 
     def __new__(cls) -> InitialPopulationSeeding:
         if cls._instance is None:
@@ -58,27 +58,27 @@ class InitialPopulationSeeding:
                     modules.add(f"{package_path}/{name}.py")
         return modules
 
-    def collect_constants(
+    def get_ast_tree(
         self, project_path: Union[str, os.PathLike]
-    ) -> Dict[str, Set[Types]]:
-        """Collect all constants for a given project.
+    ) -> ast.AST:
+        """Returns the ast tree from a module
 
         Args:
             project_path: The path to the project's root
 
         Returns:
-            A dict of type to set of constants
+            The ast tree of the given module.
         """
-        assert self._constants is not None
         for module in self._find_modules(project_path):
             with open(os.path.join(project_path, module)) as module_file:
                 try:
                     tree = ast.parse(module_file.read())
-                    #collector.visit(tree)
                 except BaseException as exception:  # pylint: disable=broad-except
-                    self._logger.debug("Cannot collect constants: %s", exception)
-        self._constants = None #collector.constants
-        return self._constants
+                    self._logger.debug("Cannot read module: %s", exception)
+        return tree
 
+    def get_internal_representation(self, tree: ast.AST):
+        """Returns the initial representation of the given AST."""
 
-
+    def collect_testcases(self, project_path: Union[str, os.PathLike]):
+        pass

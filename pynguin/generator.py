@@ -29,6 +29,7 @@ import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
+from pynguin.analyses.seeding.initialpopulationseeding import InitialPopulationSeeding
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -160,6 +161,12 @@ class Pynguin:
             self._logger.info("Collecting constants from SUT.")
             StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
 
+    def _setup_initial_population_seeding(self):
+        """Collect and parse tests for seeding the initial population"""
+        if config.INSTANCE.initial_population_seeding:
+            self._logger.info("Collecting and parsing provided testcases.")
+            InitialPopulationSeeding().collect_testcases(config.INSTANCE.project_path)
+
     def _setup_type_analysis(
         self, test_cluster: TestCluster
     ) -> Optional[DuckMockAnalysis]:
@@ -191,6 +198,7 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
+        self._setup_initial_population_seeding()
         if (type_analysis := self._setup_type_analysis(test_cluster)) is not None:
             self._export_type_analysis_results(type_analysis)
         return executor, test_cluster

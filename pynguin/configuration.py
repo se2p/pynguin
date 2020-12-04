@@ -263,6 +263,9 @@ class Configuration(Serializable):
     """Should the generator use a static constant seeding technique to improve constant
     generation?"""
 
+    initial_population_seeding: bool = False
+    """Should the generator use previously existing testcases to seed the initial population?"""
+
     duck_type_analysis: bool = False
     """Should the duck-type analysis be used for type inference during test
     generation?"""
