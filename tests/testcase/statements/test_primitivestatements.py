@@ -94,7 +94,9 @@ def test_primitive_statement_clone(statement_type, test_case, new_test_case, val
     statement = statement_type(test_case, value)
     new_statement = statement.clone(new_test_case)
     assert new_statement.test_case == new_test_case
-    assert new_statement.ret_val.variable_type == statement.ret_val.variable_type
+    assert (
+        new_statement.return_value.variable_type == statement.return_value.variable_type
+    )
     assert new_statement.value == statement.value
 
 
@@ -352,22 +354,22 @@ def test_primitive_statement_accessible(test_case_mock):
 
 def test_primitive_statement_references(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
-    assert {statement.ret_val} == statement.get_variable_references()
+    assert {statement.return_value} == statement.get_variable_references()
 
 
 def test_primitive_statement_replace(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
     new = vri.VariableReferenceImpl(test_case_mock, int)
-    statement.replace(statement.ret_val, new)
-    assert statement.ret_val == new
+    statement.replace(statement.return_value, new)
+    assert statement.return_value == new
 
 
 def test_primitive_statement_replace_ignore(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
-    new = prim.FloatPrimitiveStatement(test_case_mock, 0).ret_val
-    old = statement.ret_val
+    new = prim.FloatPrimitiveStatement(test_case_mock, 0).return_value
+    old = statement.return_value
     statement.replace(new, new)
-    assert statement.ret_val == old
+    assert statement.return_value == old
 
 
 def test_primitive_statement_get_position():

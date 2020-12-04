@@ -147,7 +147,7 @@ class TestCaseChromosome(chrom.Chromosome):
         while position <= last_mutatable_statement:
             if randomness.next_float() < p_per_statement:
                 statement = self._test_case.get_statement(position)
-                old_distance = statement.ret_val.distance
+                old_distance = statement.return_value.distance
                 if statement.mutate():
                     changed = True
                 else:
@@ -156,7 +156,7 @@ class TestCaseChromosome(chrom.Chromosome):
                         self._test_case, statement
                     ):
                         changed = True
-                statement.ret_val.distance = old_distance
+                statement.return_value.distance = old_distance
                 position = statement.get_position()
             position += 1
 

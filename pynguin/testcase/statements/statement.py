@@ -24,30 +24,30 @@ class Statement(metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference) -> None:
+    def __init__(
+        self, test_case: tc.TestCase, return_value: vr.VariableReference
+    ) -> None:
         self._test_case = test_case
-        self._ret_val = ret_val
+        self._return_value = return_value
         self._assertions: Set[ass.Assertion] = set()
 
     @property
-    def ret_val(self) -> vr.VariableReference:
+    def return_value(self) -> vr.VariableReference:
         """Provides the return value of this statement.
-        This is intentionally not named 'return_value' because that name is reserved by
-        the mocking framework which is used in our tests.
 
         Returns:
             The return value of the statement execution
         """
-        return self._ret_val
+        return self._return_value
 
-    @ret_val.setter
-    def ret_val(self, reference: vr.VariableReference) -> None:
+    @return_value.setter
+    def return_value(self, reference: vr.VariableReference) -> None:
         """Updates the return value of this statement.
 
         Args:
             reference: The new return value
         """
-        self._ret_val = reference
+        self._return_value = reference
 
     @property
     def test_case(self) -> tc.TestCase:
@@ -130,7 +130,7 @@ class Statement(metaclass=ABCMeta):
         Returns:
             The position of this statement
         """
-        return self._ret_val.get_statement_position()
+        return self._return_value.get_statement_position()
 
     def add_assertion(self, assertion: ass.Assertion) -> None:
         """Add the given assertion to this statement."""

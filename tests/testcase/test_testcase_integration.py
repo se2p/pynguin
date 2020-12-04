@@ -22,8 +22,8 @@ def test_method_statement_clone(method_mock):
     method_stmt = ps.MethodStatement(
         test_case,
         method_mock,
-        str_prim.ret_val,
-        [int_prim.ret_val],
+        str_prim.return_value,
+        [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)
@@ -40,7 +40,7 @@ def test_constructor_statement_clone(constructor_mock):
     method_stmt = ps.ConstructorStatement(
         test_case,
         constructor_mock,
-        [int_prim.ret_val],
+        [int_prim.return_value],
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(method_stmt)
@@ -48,7 +48,7 @@ def test_constructor_statement_clone(constructor_mock):
     cloned = test_case.clone()
     assert isinstance(cloned.statements[1], ps.ConstructorStatement)
     assert cloned.statements[1] is not method_stmt
-    assert cloned.statements[0].ret_val is not test_case.statements[0].ret_val
+    assert cloned.statements[0].return_value is not test_case.statements[0].return_value
 
 
 def test_assignment_statement_clone():
@@ -58,7 +58,7 @@ def test_assignment_statement_clone():
     # TODO(fk) the assignment statement from EvoSuite might not be fitting for our case?
     # Because currently we can only overwrite existing values?
     assignment_stmt = assign.AssignmentStatement(
-        test_case, int_prim.ret_val, int_prim2.ret_val
+        test_case, int_prim.return_value, int_prim2.return_value
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
@@ -75,10 +75,10 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.5)
-    func = ps.FunctionStatement(test_case, function_mock, [float_prim.ret_val])
-    func.add_assertion(pas.PrimitiveAssertion(func.ret_val, 3.1415))
+    func = ps.FunctionStatement(test_case, function_mock, [float_prim.return_value])
+    func.add_assertion(pas.PrimitiveAssertion(func.return_value, 3.1415))
     string_prim = prim.StringPrimitiveStatement(test_case, "Test")
-    string_prim.ret_val.variable_type = type(None)
+    string_prim.return_value.variable_type = type(None)
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
     test_case.add_statement(float_prim)
@@ -102,13 +102,13 @@ def test_test_case_equals_on_different_prim(
         ps.ConstructorStatement(
             simple_test_case,
             constructor_mock,
-            [simple_test_case.statements[0].ret_val],
+            [simple_test_case.statements[0].return_value],
         )
     )
     # Clone points to int at 1
     cloned.add_statement(
         ps.ConstructorStatement(
-            cloned, constructor_mock, [cloned.statements[1].ret_val]
+            cloned, constructor_mock, [cloned.statements[1].return_value]
         )
     )
 
@@ -118,26 +118,26 @@ def test_test_case_equals_on_different_prim(
 
 def test_get_all_objects_short(simple_test_case):
     assert simple_test_case.get_all_objects(2) == [
-        simple_test_case.statements[0].ret_val,
-        simple_test_case.statements[1].ret_val,
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
     ]
 
 
 def test_get_all_objects_full_length(simple_test_case):
     assert simple_test_case.get_all_objects(simple_test_case.size()) == [
-        simple_test_case.statements[0].ret_val,
-        simple_test_case.statements[1].ret_val,
-        simple_test_case.statements[2].ret_val,
-        simple_test_case.statements[3].ret_val,
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+        simple_test_case.statements[2].return_value,
+        simple_test_case.statements[3].return_value,
     ]
 
 
 def test_get_all_objects_over_max_size(simple_test_case):
     assert simple_test_case.get_all_objects(2000) == [
-        simple_test_case.statements[0].ret_val,
-        simple_test_case.statements[1].ret_val,
-        simple_test_case.statements[2].ret_val,
-        simple_test_case.statements[3].ret_val,
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
+        simple_test_case.statements[2].return_value,
+        simple_test_case.statements[3].return_value,
     ]
 
 
@@ -149,12 +149,12 @@ def test_get_random_object_none_found(simple_test_case):
 def test_get_random_object_one(simple_test_case):
     assert (
         simple_test_case.get_random_object(int, 1)
-        == simple_test_case.statements[0].ret_val
+        == simple_test_case.statements[0].return_value
     )
 
 
 def test_get_random_object_all(simple_test_case):
     assert simple_test_case.get_random_object(int, simple_test_case.size()) in [
-        simple_test_case.statements[0].ret_val,
-        simple_test_case.statements[1].ret_val,
+        simple_test_case.statements[0].return_value,
+        simple_test_case.statements[1].return_value,
     ]

@@ -33,7 +33,9 @@ def test_illegal_call(method_mock):
     config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    method_stmt = param_stmt.MethodStatement(test_case, method_mock, int_stmt.ret_val)
+    method_stmt = param_stmt.MethodStatement(
+        test_case, method_mock, int_stmt.return_value
+    )
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()

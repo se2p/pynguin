@@ -88,26 +88,28 @@ def test_constructor_replace_kwargs(constructor_mock):
     const = ps.ConstructorStatement(
         test_case,
         constructor_mock,
-        kwargs={"test": int0.ret_val, "test2": int1.ret_val},
+        kwargs={"test": int0.return_value, "test2": int1.return_value},
     )
     test_case.add_statement(int0)
     test_case.add_statement(int1)
     test_case.add_statement(new_value)
     test_case.add_statement(const)
-    const.replace(int0.ret_val, new_value.ret_val)
-    assert const.kwargs == {"test": new_value.ret_val, "test2": int1.ret_val}
+    const.replace(int0.return_value, new_value.return_value)
+    assert const.kwargs == {"test": new_value.return_value, "test2": int1.return_value}
 
 
 def test_constructor_replace_args(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int0 = prim.IntPrimitiveStatement(test_case, 0)
     new_value = prim.IntPrimitiveStatement(test_case, 0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, args=[int0.ret_val])
+    const = ps.ConstructorStatement(
+        test_case, constructor_mock, args=[int0.return_value]
+    )
     test_case.add_statement(int0)
     test_case.add_statement(new_value)
     test_case.add_statement(const)
-    const.replace(int0.ret_val, new_value.ret_val)
-    assert const.args == [new_value.ret_val]
+    const.replace(int0.return_value, new_value.return_value)
+    assert const.args == [new_value.return_value]
 
 
 def test_constructor_replace_return_value(constructor_mock):
@@ -116,8 +118,8 @@ def test_constructor_replace_return_value(constructor_mock):
     const = ps.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(new_value)
     test_case.add_statement(const)
-    const.replace(const.ret_val, new_value.ret_val)
-    assert const.ret_val == new_value.ret_val
+    const.replace(const.return_value, new_value.return_value)
+    assert const.return_value == new_value.return_value
 
 
 def test_constructor_clone_kwargs(constructor_mock):
@@ -239,27 +241,27 @@ def test_constructor_mutate_parameters_kwargs(
 def test_constructor_mutate_parameter_get_objects(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(const, "_test_case") as tc:
-        tc.get_objects.return_value = [float0.ret_val]
+        tc.get_objects.return_value = [float0.return_value]
         assert const._mutate_parameter(0)
         tc.get_objects.assert_called_with(
-            float0.ret_val.variable_type, const.get_position()
+            float0.return_value.variable_type, const.get_position()
         )
 
 
 def test_constructor_mutate_parameter_not_included(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(test_case, "get_objects") as get_objs:
         get_objs.return_value = []
         assert const._mutate_parameter(0)
-        get_objs.assert_called_with(float0.ret_val.variable_type, 1)
+        get_objs.assert_called_with(float0.return_value.variable_type, 1)
         assert isinstance(
             test_case.get_statement(const.args[0].get_statement_position()),
             prim.NoneStatement,
@@ -269,7 +271,7 @@ def test_constructor_mutate_parameter_not_included(constructor_mock):
 def test_constructor_mutate_parameter_add_copy(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(const, "_param_count_of_type") as param_count_of_type:
@@ -277,14 +279,14 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock):
             choice_mock.side_effect = lambda coll: coll[0]
             param_count_of_type.return_value = 5
             assert const._mutate_parameter(0)
-            param_count_of_type.assert_called_with(float0.ret_val.variable_type)
-            assert const.args[0] != float0.ret_val
+            param_count_of_type.assert_called_with(float0.return_value.variable_type)
+            assert const.args[0] != float0.return_value
 
 
 def test_constructor_mutate_parameter_choose_none(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     test_case.add_statement(float0)
     test_case.add_statement(const)
     assert const._mutate_parameter(0)
@@ -298,7 +300,7 @@ def test_constructor_mutate_parameter_choose_existing(constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     test_case.add_statement(const)
@@ -425,40 +427,40 @@ def test_method_mutate_special_parameters_no_mutation(
 def test_method_mutate_special_parameters_none_found(method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const0 = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const0 = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     int0 = prim.IntPrimitiveStatement(test_case, 5)
-    meth = ps.MethodStatement(test_case, method_mock, const0.ret_val)
+    meth = ps.MethodStatement(test_case, method_mock, const0.return_value)
     test_case.add_statement(float0)
     test_case.add_statement(const0)
     test_case.add_statement(int0)
     test_case.add_statement(meth)
     with mock.patch.object(meth, "_test_case") as tc:
-        tc.get_objects.return_value = [const0.ret_val]
+        tc.get_objects.return_value = [const0.return_value]
         assert not meth._mutate_special_parameters(1.0)
         tc.get_objects.assert_called_with(
-            const0.ret_val.variable_type, meth.get_position()
+            const0.return_value.variable_type, meth.get_position()
         )
 
 
 def test_method_mutate_special_parameters_one_found(method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
     float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const0 = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
-    const1 = ps.ConstructorStatement(test_case, constructor_mock, [float0.ret_val])
+    const0 = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
+    const1 = ps.ConstructorStatement(test_case, constructor_mock, [float0.return_value])
     int0 = prim.IntPrimitiveStatement(test_case, 5)
-    meth = ps.MethodStatement(test_case, method_mock, const0.ret_val)
+    meth = ps.MethodStatement(test_case, method_mock, const0.return_value)
     test_case.add_statement(float0)
     test_case.add_statement(const0)
     test_case.add_statement(const1)
     test_case.add_statement(int0)
     test_case.add_statement(meth)
     with mock.patch.object(meth, "_test_case") as tc:
-        tc.get_objects.return_value = [const0.ret_val, const1.ret_val]
+        tc.get_objects.return_value = [const0.return_value, const1.return_value]
         assert meth._mutate_special_parameters(1.0)
         tc.get_objects.assert_called_with(
-            const0.ret_val.variable_type, meth.get_position()
+            const0.return_value.variable_type, meth.get_position()
         )
-        assert meth.callee == const1.ret_val
+        assert meth.callee == const1.return_value
 
 
 def test_method_get_variable_references(method_mock):
@@ -469,19 +471,19 @@ def test_method_get_variable_references(method_mock):
     meth = ps.MethodStatement(
         test_case,
         method_mock,
-        float2.ret_val,
-        args=[float0.ret_val],
-        kwargs={"test": float1.ret_val},
+        float2.return_value,
+        args=[float0.return_value],
+        kwargs={"test": float1.return_value},
     )
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     test_case.add_statement(float2)
     test_case.add_statement(meth)
     assert meth.get_variable_references() == {
-        float0.ret_val,
-        float1.ret_val,
-        float2.ret_val,
-        meth.ret_val,
+        float0.return_value,
+        float1.return_value,
+        float2.return_value,
+        meth.return_value,
     }
 
 
@@ -494,18 +496,18 @@ def test_method_get_variable_replace(method_mock):
     meth = ps.MethodStatement(
         test_case,
         method_mock,
-        float2.ret_val,
-        args=[float0.ret_val],
-        kwargs={"test": float1.ret_val},
+        float2.return_value,
+        args=[float0.return_value],
+        kwargs={"test": float1.return_value},
     )
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     test_case.add_statement(float2)
     test_case.add_statement(float3)
     test_case.add_statement(meth)
-    meth.replace(float2.ret_val, float3.ret_val)
-    meth.replace(float1.ret_val, float3.ret_val)
-    assert meth.callee == float3.ret_val
+    meth.replace(float2.return_value, float3.return_value)
+    meth.replace(float1.return_value, float3.return_value)
+    assert meth.callee == float3.return_value
 
 
 def test_function_accessible_object(test_case_mock, function_mock):

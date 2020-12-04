@@ -33,10 +33,12 @@ class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]
     ) -> None:
         if exception is not None:
             return
-        if statement.ret_val.is_none_type():
+        if statement.return_value.is_none_type():
             return
 
-        visitor = PrimitiveAssertionVisitor(exec_ctx, statement.ret_val, self._trace)
+        visitor = PrimitiveAssertionVisitor(
+            exec_ctx, statement.return_value, self._trace
+        )
         statement.accept(visitor)
 
 
