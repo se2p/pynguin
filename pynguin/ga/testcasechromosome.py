@@ -97,7 +97,7 @@ class TestCaseChromosome(chrom.Chromosome):
             config.INSTANCE.chop_max_length
             and self.size() >= config.INSTANCE.chromosome_length
         ):
-            last_mutatable_position = self._get_last_mutatable_statement()
+            last_mutatable_position = self.get_last_mutatable_statement()
             if last_mutatable_position is not None:
                 self._test_case.chop(last_mutatable_position)
                 changed = True
@@ -118,7 +118,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self.set_changed(True)
 
     def _mutation_delete(self) -> bool:
-        last_mutatable_statement = self._get_last_mutatable_statement()
+        last_mutatable_statement = self.get_last_mutatable_statement()
         if last_mutatable_statement is None:
             return False
 
@@ -137,7 +137,7 @@ class TestCaseChromosome(chrom.Chromosome):
         return modified
 
     def _mutation_change(self) -> bool:
-        last_mutatable_statement = self._get_last_mutatable_statement()
+        last_mutatable_statement = self.get_last_mutatable_statement()
         if last_mutatable_statement is None:
             return False
 
@@ -177,7 +177,7 @@ class TestCaseChromosome(chrom.Chromosome):
             and self.size() < config.INSTANCE.chromosome_length
         ):
             assert self._test_factory, "Mutation requires a test factory."
-            max_position = self._get_last_mutatable_statement()
+            max_position = self.get_last_mutatable_statement()
             if max_position is None:
                 # No mutatable statement found, so start at the first position.
                 max_position = 0
@@ -193,14 +193,14 @@ class TestCaseChromosome(chrom.Chromosome):
                 changed = True
         return changed
 
-    def _get_last_mutatable_statement(self) -> Optional[int]:
-        """Provides the index of the last mutatable statement.
+    def get_last_mutatable_statement(self) -> Optional[int]:
+        """Provides the index of the last mutatable statement of the wrapped test case.
 
         If there was an exception during the last execution, this includes all statement
         up to the one that caused the exception (included).
 
         Returns:
-            The index of the last mutable statement, if any.
+            The index of the last mutatable statement, if any.
         """
         # We are empty, so there can't be a last mutatable statement.
         if self.size() == 0:
