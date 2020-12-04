@@ -216,13 +216,13 @@ def test_append_test_case(default_test_case):
 def test_get_objects(default_test_case):
     stmt_1 = MagicMock(st.Statement)
     vri_1 = vri.VariableReferenceImpl(default_test_case, int)
-    stmt_1.return_value = vri_1
+    stmt_1.ret_val = vri_1
     stmt_2 = MagicMock(st.Statement)
     vri_2 = vri.VariableReferenceImpl(default_test_case, float)
-    stmt_2.return_value = vri_2
+    stmt_2.ret_val = vri_2
     stmt_3 = MagicMock(st.Statement)
     vri_3 = vri.VariableReferenceImpl(default_test_case, int)
-    stmt_3.return_value = vri_3
+    stmt_3.ret_val = vri_3
     default_test_case._statements = [stmt_1, stmt_2, stmt_3]
     result = default_test_case.get_objects(int, 2)
     assert result == [vri_1]
@@ -243,15 +243,15 @@ def test_set_statement_valid(default_test_case):
     int1 = prim.IntPrimitiveStatement(default_test_case, 5)
     default_test_case.add_statement(int0)
     default_test_case.add_statement(int1)
-    assert default_test_case.set_statement(int1, 0) == int1.return_value
+    assert default_test_case.set_statement(int1, 0) == int1.ret_val
     assert default_test_case.get_statement(0) == int1
 
 
 def test_get_dependencies_self_empty(default_test_case, constructor_mock):
     const0 = ps.ConstructorStatement(default_test_case, constructor_mock)
     default_test_case.add_statement(const0)
-    dependencies = default_test_case.get_dependencies(const0.return_value)
-    assert dependencies == {const0.return_value}
+    dependencies = default_test_case.get_dependencies(const0.ret_val)
+    assert dependencies == {const0.ret_val}
 
 
 def test_get_dependencies_chained(default_test_case, function_mock):
@@ -261,15 +261,13 @@ def test_get_dependencies_chained(default_test_case, function_mock):
     float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
 
-    func0 = ps.FunctionStatement(
-        default_test_case, function_mock, [float0.return_value]
-    )
+    func0 = ps.FunctionStatement(default_test_case, function_mock, [float0.ret_val])
     default_test_case.add_statement(func0)
 
-    func1 = ps.FunctionStatement(default_test_case, function_mock, [func0.return_value])
+    func1 = ps.FunctionStatement(default_test_case, function_mock, [func0.ret_val])
     default_test_case.add_statement(func1)
-    dependencies = default_test_case.get_dependencies(func1.return_value)
-    assert dependencies == {float0.return_value, func0.return_value, func1.return_value}
+    dependencies = default_test_case.get_dependencies(func1.ret_val)
+    assert dependencies == {float0.ret_val, func0.ret_val, func1.ret_val}
 
 
 def test_get_assertions_empty(default_test_case):
@@ -280,8 +278,8 @@ def test_get_assertions_empty(default_test_case):
 def default_test_case_with_assertions(default_test_case):
     float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
-    float0ass0 = pas.PrimitiveAssertion(float0.return_value, 5.5)
-    float0ass1 = pas.PrimitiveAssertion(float0.return_value, 6)
+    float0ass0 = pas.PrimitiveAssertion(float0.ret_val, 5.5)
+    float0ass1 = pas.PrimitiveAssertion(float0.ret_val, 6)
     float0.add_assertion(float0ass0)
     float0.add_assertion(float0ass1)
 
@@ -290,7 +288,7 @@ def default_test_case_with_assertions(default_test_case):
 
     float2 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float2)
-    float2ass0 = pas.PrimitiveAssertion(float2.return_value, 5.5)
+    float2ass0 = pas.PrimitiveAssertion(float2.ret_val, 5.5)
     float2.add_assertion(float2ass0)
     return default_test_case, {float0ass0, float0ass1, float2ass0}
 

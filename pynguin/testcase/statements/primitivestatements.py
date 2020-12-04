@@ -60,11 +60,11 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
         return True
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
-        return {self.return_value}
+        return {self.ret_val}
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.return_value == old:
-            self.return_value = new
+        if self.ret_val == old:
+            self.ret_val = new
 
     @abstractmethod
     def randomize_value(self) -> None:
@@ -76,22 +76,22 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
 
     def __repr__(self) -> str:
         return (
-            f"PrimitiveStatement({self._test_case}, {self._return_value}, "
+            f"PrimitiveStatement({self._test_case}, {self._ret_val}, "
             + f"{self._value})"
         )
 
     def __str__(self) -> str:
-        return f"{self._value}: {self._return_value}"
+        return f"{self._value}: {self._ret_val}"
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, PrimitiveStatement):
             return False
-        return self._return_value == other._return_value and self._value == other._value
+        return self._ret_val == other._ret_val and self._value == other._value
 
     def __hash__(self) -> int:
-        return 31 + hash(self._return_value) + hash(self._value)
+        return 31 + hash(self._ret_val) + hash(self._value)
 
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):
@@ -272,7 +272,7 @@ class NoneStatement(PrimitiveStatement):
     """A statement serving as a None reference."""
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
-        return NoneStatement(test_case, self.return_value.variable_type)
+        return NoneStatement(test_case, self.ret_val.variable_type)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_none_statement(self)

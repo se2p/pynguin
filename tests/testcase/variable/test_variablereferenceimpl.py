@@ -29,13 +29,13 @@ def test_setters(test_case_mock):
 def test_clone(test_case_mock):
     orig_ref = vri.VariableReferenceImpl(test_case_mock, int)
     orig_statement = MagicMock(stmt.Statement)
-    orig_statement.return_value = orig_ref
+    orig_statement.ret_val = orig_ref
     test_case_mock.statements = [orig_statement]
 
     new_test_case = MagicMock(tc.TestCase)
     new_ref = vri.VariableReferenceImpl(new_test_case, int)
     new_statement = MagicMock(stmt.Statement)
-    new_statement.return_value = new_ref
+    new_statement.ret_val = new_ref
     new_test_case.get_statement.return_value = new_statement
 
     clone = orig_ref.clone(new_test_case)
@@ -45,7 +45,7 @@ def test_clone(test_case_mock):
 def test_clone_with_offset(test_case_mock):
     orig_ref = vri.VariableReferenceImpl(test_case_mock, int)
     orig_statement = MagicMock(stmt.Statement)
-    orig_statement.return_value = orig_ref
+    orig_statement.ret_val = orig_ref
     test_case_mock.statements = [orig_statement]
 
     new_test_case = MagicMock(tc.TestCase)
@@ -58,7 +58,7 @@ def test_get_position(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
     ref._test_case = test_case_mock
     statement = MagicMock(stmt.Statement)
-    statement.return_value = ref
+    statement.ret_val = ref
     test_case_mock.statements = [statement]
     assert ref.get_statement_position() == 0
 

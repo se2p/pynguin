@@ -49,7 +49,7 @@ class DefaultTestCase(tc.TestCase):
             self._statements.append(statement)
         else:
             self._statements.insert(position, statement)
-        return statement.return_value
+        return statement.ret_val
 
     def add_statements(self, statements: List[stmt.Statement]) -> None:
         self._statements.extend(statements)
@@ -82,7 +82,7 @@ class DefaultTestCase(tc.TestCase):
     ) -> vr.VariableReference:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
-        return statement.return_value
+        return statement.ret_val
 
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
@@ -104,9 +104,9 @@ class DefaultTestCase(tc.TestCase):
         for idx in range(var.get_statement_position(), -1, -1):
             new_stmts = set()
             for statement in dependent_stmts:
-                if statement.references(self.get_statement(idx).return_value):
+                if statement.references(self.get_statement(idx).ret_val):
                     new_stmts.add(self.get_statement(idx))
-                    dependencies.add(self.get_statement(idx).return_value)
+                    dependencies.add(self.get_statement(idx).ret_val)
                     break
             dependent_stmts.update(new_stmts)
 

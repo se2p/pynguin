@@ -76,7 +76,7 @@ def test_statement_to_ast_none(statement_to_ast_visitor):
 
 def test_statement_to_ast_assignment(variable_reference_mock, statement_to_ast_visitor):
     assign_stmt = MagicMock(stmt.Statement)
-    assign_stmt.return_value = variable_reference_mock
+    assign_stmt.ret_val = variable_reference_mock
     assign_stmt.rhs = variable_reference_mock
     statement_to_ast_visitor.visit_assignment_statement(assign_stmt)
     assert (
