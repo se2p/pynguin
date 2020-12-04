@@ -84,14 +84,14 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
         references = set()
-        references.add(self.return_value)
+        references.add(self.ret_val)
         references.update(self.args)
         references.update(self.kwargs.values())
         return references
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.return_value == old:
-            self.return_value = new
+        if self.ret_val == old:
+            self.ret_val = new
         self._args = [new if arg == old else arg for arg in self._args]
         for key, value in self._kwargs.items():
             if value == old:
@@ -206,21 +206,21 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             )
             copy = original_param_source.clone(self.test_case)
             copy.mutate()
-            possible_replacements.append(copy.return_value)
+            possible_replacements.append(copy.ret_val)
 
         # TODO(fk) Use param_type instead of to_mutate.variable_type,
         # to make the selection broader, but this requires access to
         # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
         none_statement = prim.NoneStatement(self.test_case, to_mutate.variable_type)
-        possible_replacements.append(none_statement.return_value)
+        possible_replacements.append(none_statement.ret_val)
 
         replacement = randomness.choice(possible_replacements)
 
-        if copy and replacement is copy.return_value:
+        if copy and replacement is copy.ret_val:
             # The chosen replacement is a copy, so we have to add it to the test case.
             self.test_case.add_statement(copy, self.get_position())
-        elif replacement is none_statement.return_value:
+        elif replacement is none_statement.ret_val:
             # The chosen replacement is a none statement, so we have to add it to the
             # test case.
             self.test_case.add_statement(none_statement, self.get_position())
@@ -272,7 +272,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def __hash__(self) -> int:
         return (
             31
-            + 17 * hash(self._return_value)
+            + 17 * hash(self._ret_val)
             + 17 * hash(frozenset(self._args))
             + 17 * hash(frozenset(self._kwargs.items()))
         )
@@ -283,7 +283,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if not isinstance(other, ParametrizedStatement):
             return False
         return (
-            self._return_value == other._return_value
+            self._ret_val == other._ret_val
             and self._args == other._args
             and self._kwargs == other._kwargs
         )
@@ -458,12 +458,12 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            + f"{self._generic_callable}, {self._return_value.variable_type}, "
+            + f"{self._generic_callable}, {self._ret_val.variable_type}, "
             + f"args={self._args}, kwargs={self._kwargs})"
         )
 
     def __str__(self) -> str:
         return (
             f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
-            + f"{self._return_value.variable_type}"
+            + f"{self._ret_val.variable_type}"
         )
