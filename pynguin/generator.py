@@ -32,6 +32,9 @@ import pynguin.ga.postprocess as pp
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
+    RandomSearchStrategy,
+)
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
@@ -291,6 +294,7 @@ class Pynguin:
         Callable[[TestCaseExecutor, TestCluster], TestGenerationStrategy],
     ] = {
         config.Algorithm.RANDOOPY: RandomTestStrategy,
+        config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
         config.Algorithm.WSPY: WholeSuiteTestStrategy,
     }
 
