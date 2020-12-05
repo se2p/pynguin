@@ -41,6 +41,9 @@ class Algorithm(str, enum.Enum):
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
 
+    RANDOMSEARCH = "RANDOMSEARCH"
+    """Performs random search on test suites."""
+
     WSPY = "WSPY"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
