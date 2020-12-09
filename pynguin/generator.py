@@ -31,6 +31,7 @@ import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.postprocess as pp
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.generation.algorithms.mosa.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
 )
@@ -282,6 +283,7 @@ class Pynguin:
         config.Algorithm.RANDOOPY: RandomTestStrategy,
         config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
         config.Algorithm.WSPY: WholeSuiteTestStrategy,
+        config.Algorithm.MOSA: MOSATestStrategy,
     }
 
     @classmethod

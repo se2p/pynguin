@@ -29,11 +29,15 @@ class Chromosome(metaclass=abc.ABCMeta):
             self._fitness_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
             self._number_of_evaluations: int = 0
             self._changed: bool = True
+            self._distance: float = -1
+            self._rank: int = -1
         else:
             self._fitness_functions = list(orig._fitness_functions)
             self._fitness_values = dict(orig._fitness_values)
             self._number_of_evaluations = orig._number_of_evaluations
             self._changed = orig._changed
+            self._distance = orig._distance
+            self._rank = orig._rank
 
     @abstractmethod
     def size(self) -> int:
@@ -216,3 +220,39 @@ class Chromosome(metaclass=abc.ABCMeta):
     @abstractmethod
     def __hash__(self):
         pass
+
+    @property
+    def distance(self) -> float:
+        """Provides the distance value of this chromosome.
+
+        Returns:
+            The distance value of this chromosome
+        """
+        return self._distance
+
+    @distance.setter
+    def distance(self, distance: float) -> None:
+        """Sets the distance value of this chromosome.
+
+        Args:
+            distance: The new distance value
+        """
+        self._distance = distance
+
+    @property
+    def rank(self) -> int:
+        """Provide the rank value of this chromosome.
+
+        Returns:
+            The rank value of this chromosome
+        """
+        return self._rank
+
+    @rank.setter
+    def rank(self, rank: int) -> None:
+        """Sets the rank value of this chromosome.
+
+        Args:
+            rank: The new rank value
+        """
+        self._rank = rank

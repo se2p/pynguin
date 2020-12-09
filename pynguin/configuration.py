@@ -36,6 +36,9 @@ class ExportStrategy(str, enum.Enum):
 class Algorithm(str, enum.Enum):
     """Different algorithms supported by Pynguin."""
 
+    MOSA = "MOSA"
+    """The many-objective sorting algorithm."""
+
     RANDOOPY = "RANDOOPY"
     """A feedback-direct random test generation approach similar to the algorithm
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
