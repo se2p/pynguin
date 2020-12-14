@@ -12,6 +12,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
+from pynguin.analyses.seeding.initialpopulationseeding import InitialPopulationSeeding
 from pynguin.utils import randomness
 
 
@@ -40,11 +41,18 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
     def get_test_case(self) -> tc.TestCase:
-        test_case = dtc.DefaultTestCase()
-        attempts = 0
-        size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
+        if (
+            config.INSTANCE.initial_population_seeding
+            and InitialPopulationSeeding().has_tests
+            and randomness.next_float() <= 0.90
+        ):
+            test_case = InitialPopulationSeeding().random_testcase
+        else:
+            test_case = dtc.DefaultTestCase()
+            attempts = 0
+            size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
 
-        while test_case.size() < size and attempts < config.INSTANCE.max_attempts:
-            self._test_factory.insert_random_statement(test_case, test_case.size())
-            attempts += 1
+            while test_case.size() < size and attempts < config.INSTANCE.max_attempts:
+                self._test_factory.insert_random_statement(test_case, test_case.size())
+                attempts += 1
         return test_case
