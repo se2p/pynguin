@@ -31,9 +31,12 @@ from pynguin.utils.type_utils import (
 )
 
 
+# TODO(fk) find better name for this?
 # pylint: disable=too-many-lines  # TODO split this monster!
 class TestFactory:
-    """A factory for test-case generation."""
+    """A factory for test-case generation.
+    This factory does not generate test cases but provides all necessary means to
+    construct and modify test cases."""
 
     _logger = logging.getLogger(__name__)
 

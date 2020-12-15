@@ -29,7 +29,9 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.postprocess as pp
+import pynguin.ga.testcasefactory as tcf
 import pynguin.testcase.testcase as tc
+import pynguin.testcase.testfactory as tf
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
@@ -277,7 +279,10 @@ class Pynguin:
 
     _strategies: Dict[
         config.Algorithm,
-        Callable[[TestCaseExecutor, TestCluster], TestGenerationStrategy],
+        Callable[
+            [TestCaseExecutor, TestCluster, tf.TestFactory, tcf.TestCaseFactory],
+            TestGenerationStrategy,
+        ],
     ] = {
         config.Algorithm.RANDOOPY: RandomTestStrategy,
         config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
@@ -291,7 +296,14 @@ class Pynguin:
         if config.INSTANCE.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.INSTANCE.algorithm)
             assert strategy, "Strategy cannot be defined as None"
-            return strategy(executor, test_cluster)
+            # TODO(fk) replace random length factory with one that delegates to it.
+            test_factory = tf.TestFactory(test_cluster)
+            return strategy(
+                executor,
+                test_cluster,
+                test_factory,
+                tcf.RandomLengthTestCaseFactory(test_factory),
+            )
         raise ConfigurationException("Unknown algorithm selected")
 
     @staticmethod

@@ -11,6 +11,8 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.ga.testcasefactory as tcf
+import pynguin.testcase.testfactory as tf
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
 )
@@ -47,8 +49,13 @@ def test_integrate_randomsearch(module_name: str):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
+        cluster = TestClusterGenerator(module_name).generate_cluster()
+        test_factory = tf.TestFactory(cluster)
         algorithm = RandomSearchStrategy(
-            executor, TestClusterGenerator(module_name).generate_cluster()
+            executor,
+            cluster,
+            test_factory,
+            tcf.RandomLengthTestCaseFactory(test_factory),
         )
         algorithm._logger = logger
         test_cases = algorithm.generate_tests()

@@ -10,9 +10,11 @@ from typing import List, Set
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
+import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
@@ -29,8 +31,16 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
+    def __init__(
+        self,
+        executor: TestCaseExecutor,
+        test_cluster: TestCluster,
+        test_factory: tf.TestFactory,
+        test_case_factory: tcf.TestCaseFactory,
+    ) -> None:
+        super().__init__(executor, test_cluster, test_factory)
+        # Test case factory is not used here but we want to keep a uniform interface.
+        assert test_case_factory is not None
         self._execution_results: List[ExecutionResult] = []
 
     def generate_tests(
