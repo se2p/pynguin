@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.testcase.testfactory as tf
 from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -48,9 +49,9 @@ def test_integrate_randoopy(algorithm_to_run: Callable, module_name: str):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        algorithm = algorithm_to_run(
-            executor, TestClusterGenerator(module_name).generate_cluster()
-        )
+        cluster = TestClusterGenerator(module_name).generate_cluster()
+        test_factory = tf.TestFactory(cluster)
+        algorithm = algorithm_to_run(executor, cluster, test_factory, MagicMock())
         algorithm._logger = logger
         test_cases = algorithm.generate_tests()
         assert test_cases.size() >= 0

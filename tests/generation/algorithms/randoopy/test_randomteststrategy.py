@@ -33,7 +33,9 @@ def executor():
 def test_generate_sequences(executor):
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
+    algorithm = RandomTestStrategy(
+        executor, MagicMock(TestCluster), MagicMock(), MagicMock()
+    )
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm.generate_sequence = lambda t, f, e: None
@@ -53,7 +55,9 @@ def test_generate_sequences_exception(executor):
 
     config.INSTANCE.budget = 1
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
+    algorithm = RandomTestStrategy(
+        executor, MagicMock(TestCluster), MagicMock(), MagicMock()
+    )
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x
     algorithm._combine_current_individual = _combine_current_individual
@@ -64,7 +68,9 @@ def test_generate_sequences_exception(executor):
 
 def test_random_test_cases_no_bounds(executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
+    algorithm = RandomTestStrategy(
+        executor, MagicMock(TestCluster), MagicMock(), MagicMock()
+    )
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 0
     config.INSTANCE.max_sequence_length = 0
@@ -78,7 +84,9 @@ def test_random_test_cases_no_bounds(executor):
 
 def test_random_test_cases_with_bounds(executor):
     logger = MagicMock(Logger)
-    algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
+    algorithm = RandomTestStrategy(
+        executor, MagicMock(TestCluster), MagicMock(), MagicMock()
+    )
     algorithm._logger = logger
     config.INSTANCE.max_sequences_combined = 2
     config.INSTANCE.max_sequence_length = 2
@@ -91,7 +99,9 @@ def test_random_test_cases_with_bounds(executor):
 
 
 def test_random_public_method(executor):
-    algorithm = RandomTestStrategy(executor, MagicMock(TestCluster))
+    algorithm = RandomTestStrategy(
+        executor, MagicMock(TestCluster), MagicMock(), MagicMock()
+    )
     out_0 = MagicMock(GenericCallableAccessibleObject)
     out_1 = MagicMock(GenericAccessibleObject)
     out_2 = MagicMock(GenericCallableAccessibleObject)
@@ -107,7 +117,7 @@ def test_generate_sequence(has_exceptions, executor):
     executor.execute.return_value = exec_result
     test_cluster = MagicMock(TestCluster)
     test_cluster.accessible_objects_under_test = set()
-    algorithm = RandomTestStrategy(executor, test_cluster)
+    algorithm = RandomTestStrategy(executor, test_cluster, MagicMock(), MagicMock())
     algorithm._random_public_method = lambda x: None
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(MagicMock(stmt.Statement))
@@ -123,7 +133,7 @@ def test_generate_sequence(has_exceptions, executor):
 def test_generate_sequence_duplicate(executor):
     test_cluster = MagicMock(TestCluster)
     test_cluster.accessible_objects_under_test = set()
-    algorithm = RandomTestStrategy(executor, test_cluster)
+    algorithm = RandomTestStrategy(executor, test_cluster, MagicMock(), MagicMock())
     algorithm._random_public_method = lambda x: None
     test_case = dtc.DefaultTestCase()
     algorithm._random_test_cases = lambda x: [test_case]

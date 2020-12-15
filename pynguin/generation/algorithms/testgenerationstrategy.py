@@ -31,7 +31,12 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
+    def __init__(
+        self,
+        executor: TestCaseExecutor,
+        test_cluster: TestCluster,
+        test_factory: tf.TestFactory,
+    ) -> None:
         """Initialises the test-generation strategy.
 
         Args:
@@ -41,7 +46,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         """
         self._executor = executor
         self._test_cluster = test_cluster
-        self._test_factory = tf.TestFactory(test_cluster)
+        self._test_factory = test_factory
 
     @property
     def test_cluster(self) -> TestCluster:

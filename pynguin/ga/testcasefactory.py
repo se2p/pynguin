@@ -29,10 +29,10 @@ class TestCaseFactory:
 
     @abstractmethod
     def get_test_case(self) -> tc.TestCase:
-        """Create a new random test case.
+        """Retrieve a test case.
 
         Returns:
-            A new random test case  # noqa: DAR202
+            A test case  # noqa: DAR202
         """
 
 

@@ -13,6 +13,7 @@ import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
+import pynguin.testcase.testfactory as tf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
@@ -33,12 +34,16 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
+    def __init__(
+        self,
+        executor: TestCaseExecutor,
+        test_cluster: TestCluster,
+        test_factory: tf.TestFactory,
+        test_case_factory: tcf.TestCaseFactory,
+    ) -> None:
+        super().__init__(executor, test_cluster, test_factory)
         self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
-            tccf.TestCaseChromosomeFactory(
-                self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
-            )
+            tccf.TestCaseChromosomeFactory(self._test_factory, test_case_factory)
         )
         self._population: List[tsc.TestSuiteChromosome] = []
         self._selection_function: SelectionFunction[

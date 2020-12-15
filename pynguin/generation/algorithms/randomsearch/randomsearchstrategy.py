@@ -11,6 +11,7 @@ import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
+import pynguin.testcase.testfactory as tf
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
@@ -23,12 +24,16 @@ class RandomSearchStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
+    def __init__(
+        self,
+        executor: TestCaseExecutor,
+        test_cluster: TestCluster,
+        test_factory: tf.TestFactory,
+        test_case_factory: tcf.TestCaseFactory,
+    ) -> None:
+        super().__init__(executor, test_cluster, test_factory)
         self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
-            tccf.TestCaseChromosomeFactory(
-                self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
-            )
+            tccf.TestCaseChromosomeFactory(self._test_factory, test_case_factory)
         )
         self._fitness_functions = self.get_fitness_functions()
 

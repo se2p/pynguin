@@ -28,7 +28,7 @@ from pynguin.setup.testcluster import TestCluster
 
 class _TestGenerationStrategy(TestGenerationStrategy):
     def __init__(self):
-        super().__init__(MagicMock(), MagicMock(TestCluster))
+        super().__init__(MagicMock(), MagicMock(TestCluster), MagicMock())
 
     def generate_tests(self) -> chrom.Chromosome:
         raise NotImplementedError(
