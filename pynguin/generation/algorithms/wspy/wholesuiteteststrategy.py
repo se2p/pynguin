@@ -9,20 +9,10 @@ import logging
 from typing import List
 
 import pynguin.configuration as config
-import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.ga.testcasefactory as tcf
+import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.ga.testsuitechromosomefactory as tscf
-import pynguin.testcase.testfactory as tf
-from pynguin.ga.operators.crossover.crossover import CrossOverFunction
-from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
-    SinglePointRelativeCrossOver,
-)
-from pynguin.ga.operators.selection.rankselection import RankSelection
-from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -34,37 +24,21 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self,
-        executor: TestCaseExecutor,
-        test_cluster: TestCluster,
-        test_factory: tf.TestFactory,
-        test_case_factory: tcf.TestCaseFactory,
-    ) -> None:
-        super().__init__(executor, test_cluster, test_factory)
-        self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
-            tccf.TestCaseChromosomeFactory(self._test_factory, test_case_factory)
-        )
+    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
+        super().__init__(chromosome_factory)
         self._population: List[tsc.TestSuiteChromosome] = []
-        self._selection_function: SelectionFunction[
-            tsc.TestSuiteChromosome
-        ] = RankSelection()
-        self._crossover_function: CrossOverFunction[
-            tsc.TestSuiteChromosome
-        ] = SinglePointRelativeCrossOver()
-        self._fitness_functions = self.get_fitness_functions()
+        self._fitness_functions: List[ff.FitnessFunction] = []
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
+        self._fitness_functions = self.get_fitness_functions()
         self._population = self._get_random_population()
         self._sort_population()
         StatisticsTracker().current_individual(self._get_best_individual())
         generation = 0
         while (
-            not self.is_fulfilled(stopping_condition)
+            not self.is_fulfilled(self._stopping_condition)
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()

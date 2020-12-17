@@ -9,17 +9,16 @@ import logging
 from typing import List, Set
 
 import pynguin.configuration as config
+import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.ga.testsuitechromosomefactory as tscf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -31,23 +30,21 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self,
-        executor: TestCaseExecutor,
-        test_cluster: TestCluster,
-        test_factory: tf.TestFactory,
-        test_case_factory: tcf.TestCaseFactory,
-    ) -> None:
-        super().__init__(executor, test_cluster, test_factory)
+    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
+        super().__init__(chromosome_factory)
         # Test case factory is not used here but we want to keep a uniform interface.
-        assert test_case_factory is not None
         self._execution_results: List[ExecutionResult] = []
+        self.test_factory = self._get_test_factory()
+
+    def _get_test_factory(self) -> tf.TestFactory:
+        chromosome_factory = self._chromosome_factory
+        assert isinstance(chromosome_factory, tscf.TestSuiteChromosomeFactory)
+        test_chromosome_factory = chromosome_factory.test_case_chromosome_factory
+        return test_chromosome_factory._test_factory
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         generation: int = 0
@@ -61,12 +58,12 @@ class RandomTestStrategy(TestGenerationStrategy):
         )
 
         while (
-            not self.is_fulfilled(stopping_condition)
+            not self.is_fulfilled(self._stopping_condition)
             and combined_chromosome.get_fitness() != 0.0
         ):
             try:
                 generation += 1
-                stopping_condition.iterate()
+                self._stopping_condition.iterate()
                 self.generate_sequence(
                     test_chromosome,
                     failing_test_chromosome,

@@ -10,19 +10,13 @@ from typing import List, Tuple
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
-    MaxIterationsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
-    MaxTestsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
-    MaxTimeStoppingCondition,
-)
+from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
@@ -31,22 +25,31 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(
-        self,
-        executor: TestCaseExecutor,
-        test_cluster: TestCluster,
-        test_factory: tf.TestFactory,
-    ) -> None:
+    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
         """Initialises the test-generation strategy.
 
         Args:
-            executor: The executor the execute the generated test cases
-            test_cluster: A cluster storing the available types and methods for test
-                generation
         """
+        self._chromosome_factory = chromosome_factory
+        self._executor: TestCaseExecutor
+        self._test_cluster: TestCluster
+        self._test_factory: tf.TestFactory
+        self._selection_function: SelectionFunction
+        self._stopping_condition: StoppingCondition
+        self._crossover_function: CrossOverFunction
+
+    @property
+    def executor(self) -> TestCaseExecutor:
+        """Provides the test-case executor
+
+        Returns:
+            The test-case executor
+        """
+        return self._executor
+
+    @executor.setter
+    def executor(self, executor: TestCaseExecutor) -> None:
         self._executor = executor
-        self._test_cluster = test_cluster
-        self._test_factory = test_factory
 
     @property
     def test_cluster(self) -> TestCluster:
@@ -57,6 +60,10 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         """
         return self._test_cluster
 
+    @test_cluster.setter
+    def test_cluster(self, test_cluster: TestCluster) -> None:
+        self._test_cluster = test_cluster
+
     @property
     def test_factory(self) -> tf.TestFactory:
         """Provide the test factory.
@@ -65,6 +72,53 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             The test factory
         """
         return self._test_factory
+
+    @test_factory.setter
+    def test_factory(self, test_factory: tf.TestFactory) -> None:
+        self._test_factory = test_factory
+
+    @property
+    def selection_function(self) -> SelectionFunction:
+        """Provides the used selection function.
+
+        Returns:
+            The used selection function
+        """
+        return self._selection_function
+
+    @selection_function.setter
+    def selection_function(self, selection_function: SelectionFunction) -> None:
+        self._selection_function = selection_function
+
+    @property
+    def stopping_condition(self) -> StoppingCondition:
+        """Provides the used stopping condition.
+
+        Returns:
+            The used stopping condition
+        """
+        return self._stopping_condition
+
+    @stopping_condition.setter
+    def stopping_condition(self, stopping_condition: StoppingCondition) -> None:
+        self._stopping_condition = stopping_condition
+
+    def reset_stopping_conditions(self) -> None:
+        """Resets all registered stopping conditions."""
+        self._stopping_condition.reset()
+
+    @property
+    def crossover_function(self) -> CrossOverFunction:
+        """Provides the used crossover function.
+
+        Returns:
+            The used crossover function
+        """
+        return self._crossover_function
+
+    @crossover_function.setter
+    def crossover_function(self, crossover_function: CrossOverFunction) -> None:
+        self._crossover_function = crossover_function
 
     @abstractmethod
     def generate_tests(self) -> chrom.Chromosome:
@@ -130,22 +184,6 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             else:
                 remaining.append(test_case)
         return purged, remaining
-
-    @staticmethod
-    def get_stopping_condition() -> StoppingCondition:
-        """Instantiates the stopping condition depending on the configuration settings
-
-        Returns:
-            A stopping condition
-        """
-        stopping_condition = config.INSTANCE.stopping_condition
-        if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
-            return MaxIterationsStoppingCondition()
-        if stopping_condition == config.StoppingCondition.MAX_TESTS:
-            return MaxTestsStoppingCondition()
-        if stopping_condition == config.StoppingCondition.MAX_TIME:
-            return MaxTimeStoppingCondition()
-        return MaxTimeStoppingCondition()
 
     def get_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function.

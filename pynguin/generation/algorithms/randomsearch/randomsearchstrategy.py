@@ -6,15 +6,12 @@
 #
 """Provides a random test generator, that creates random test suites."""
 import logging
+from typing import List
 
-import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.ga.testcasefactory as tcf
+import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.ga.testsuitechromosomefactory as tscf
-import pynguin.testcase.testfactory as tf
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 
 
@@ -24,29 +21,20 @@ class RandomSearchStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self,
-        executor: TestCaseExecutor,
-        test_cluster: TestCluster,
-        test_factory: tf.TestFactory,
-        test_case_factory: tcf.TestCaseFactory,
-    ) -> None:
-        super().__init__(executor, test_cluster, test_factory)
-        self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
-            tccf.TestCaseChromosomeFactory(self._test_factory, test_case_factory)
-        )
-        self._fitness_functions = self.get_fitness_functions()
+    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
+        super().__init__(chromosome_factory)
+        self._fitness_functions: List[ff.FitnessFunction] = []
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
+        self._fitness_functions = self.get_fitness_functions()
         solution = self._get_random_solution()
         StatisticsTracker().current_individual(solution)
         generation = 0
         while (
-            not self.is_fulfilled(stopping_condition) and solution.get_fitness() != 0.0
+            not self.is_fulfilled(self._stopping_condition)
+            and solution.get_fitness() != 0.0
         ):
             candidate = self._get_random_solution()
             if candidate.get_fitness() < solution.get_fitness():

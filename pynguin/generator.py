@@ -22,25 +22,17 @@ import logging
 import os
 import sys
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.postprocess as pp
-import pynguin.ga.testcasefactory as tcf
+import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.testfactory as tf
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
-from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
-    RandomSearchStrategy,
-)
-from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
-    WholeSuiteTestStrategy,
-)
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
@@ -48,7 +40,6 @@ from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 from pynguin.utils.statistics.timer import Timer
 
@@ -277,34 +268,12 @@ class Pynguin:
             return ReturnCode.NO_TESTS_GENERATED
         return ReturnCode.OK
 
-    _strategies: Dict[
-        config.Algorithm,
-        Callable[
-            [TestCaseExecutor, TestCluster, tf.TestFactory, tcf.TestCaseFactory],
-            TestGenerationStrategy,
-        ],
-    ] = {
-        config.Algorithm.RANDOOPY: RandomTestStrategy,
-        config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
-        config.Algorithm.WSPY: WholeSuiteTestStrategy,
-    }
-
     @classmethod
     def _instantiate_test_generation_strategy(
         cls, executor: TestCaseExecutor, test_cluster: TestCluster
     ) -> TestGenerationStrategy:
-        if config.INSTANCE.algorithm in cls._strategies:
-            strategy = cls._strategies.get(config.INSTANCE.algorithm)
-            assert strategy, "Strategy cannot be defined as None"
-            # TODO(fk) replace random length factory with one that delegates to it.
-            test_factory = tf.TestFactory(test_cluster)
-            return strategy(
-                executor,
-                test_cluster,
-                test_factory,
-                tcf.RandomLengthTestCaseFactory(test_factory),
-            )
-        raise ConfigurationException("Unknown algorithm selected")
+        factory = gaf.TestSuiteGenerationAlgorithmFactory(executor, test_cluster)
+        return factory.get_search_algorithm()
 
     @staticmethod
     def _collect_statistics() -> None:

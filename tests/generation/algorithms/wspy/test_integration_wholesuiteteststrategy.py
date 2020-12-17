@@ -11,11 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.ga.testcasefactory as tcf
-import pynguin.testcase.testfactory as tf
-from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
-    WholeSuiteTestStrategy,
-)
+import pynguin.generation.generationalgorithmfactory as gaf
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
@@ -37,6 +33,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_wspy(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
+    config.INSTANCE.algorithm = config.Algorithm.WSPY
     config.INSTANCE.budget = 1
     config.INSTANCE.module_name = module_name
     config.INSTANCE.population = 3
@@ -51,13 +48,9 @@ def test_integrate_wspy(module_name: str):
 
         executor = TestCaseExecutor(tracer)
         cluster = TestClusterGenerator(module_name).generate_cluster()
-        test_factory = tf.TestFactory(cluster)
-        algorithm = WholeSuiteTestStrategy(
-            executor,
-            cluster,
-            test_factory,
-            tcf.RandomLengthTestCaseFactory(test_factory),
-        )
+        algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
+            executor, cluster
+        ).get_search_algorithm()
         algorithm._logger = logger
         test_cases = algorithm.generate_tests()
         assert test_cases.size() >= 0

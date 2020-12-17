@@ -7,42 +7,14 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
-
 import pynguin.configuration as config
 import pynguin.generator as gen
-from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
-from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
-    WholeSuiteTestStrategy,
-)
-from pynguin.utils.exceptions import ConfigurationException
 
 
 def test_init_with_configuration():
     conf = MagicMock(log_file=None)
     gen.Pynguin(configuration=conf)
     assert config.INSTANCE == conf
-
-
-def test_instantiate_test_generation_strategy_unknown():
-    config.INSTANCE.algorithm = MagicMock()
-    with pytest.raises(ConfigurationException):
-        gen.Pynguin._instantiate_test_generation_strategy(MagicMock(), MagicMock())
-
-
-@pytest.mark.parametrize(
-    "value,cls",
-    [
-        (config.Algorithm.RANDOOPY, RandomTestStrategy),
-        (config.Algorithm.WSPY, WholeSuiteTestStrategy),
-    ],
-)
-def test_instantiate_test_generation_strategy_actual(value, cls):
-    config.INSTANCE.algorithm = value
-    instance = gen.Pynguin._instantiate_test_generation_strategy(
-        MagicMock(), MagicMock()
-    )
-    assert isinstance(instance, cls)
 
 
 def test__load_sut_failed():
