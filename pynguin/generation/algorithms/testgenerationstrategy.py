@@ -6,13 +6,12 @@
 #
 """Provides an abstract base class for a test generation algorithm."""
 from abc import ABCMeta, abstractmethod
-from typing import List, Tuple
+from typing import Iterable, List, Tuple
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
@@ -22,14 +21,11 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
+# pylint: disable=too-many-instance-attributes
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self) -> None:
-        """Initialises the test-generation strategy.
-
-        Args:
-        """
         self._chromosome_factory: cf.ChromosomeFactory
         self._executor: TestCaseExecutor
         self._test_cluster: TestCluster
@@ -37,6 +33,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         self._selection_function: SelectionFunction
         self._stopping_condition: StoppingCondition
         self._crossover_function: CrossOverFunction
+        self._fitness_functions: List[ff.FitnessFunction] = []
 
     @property
     def chromosome_factory(self) -> cf.ChromosomeFactory:
@@ -133,6 +130,52 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     def crossover_function(self, crossover_function: CrossOverFunction) -> None:
         self._crossover_function = crossover_function
 
+    @property
+    def fitness_functions(self) -> List[ff.FitnessFunction]:
+        """Provides the list of fitness functions.
+
+        Returns:
+            The use fitness functions
+        """
+        return self._fitness_functions
+
+    @fitness_functions.setter
+    def fitness_functions(self, fitness_functions: List[ff.FitnessFunction]) -> None:
+        self._fitness_functions = fitness_functions
+
+    def add_fitness_function(self, fitness_function: ff.FitnessFunction) -> None:
+        """Adds a fitness function.
+
+        Args:
+            fitness_function: The new fitness function
+        """
+        self._fitness_functions.append(fitness_function)
+
+    def add_fitness_functions(
+        self, fitness_functions: Iterable[ff.FitnessFunction]
+    ) -> None:
+        """Adds an iterable of fitness functions
+
+        Args:
+            fitness_functions: The new fitness functions
+        """
+        self._fitness_functions.extend(fitness_functions)
+
+    def remove_fitness_function(self, fitness_function: ff.FitnessFunction) -> bool:
+        """Removes a fitness function.
+
+        Args:
+            fitness_function: The fitness function to remove
+
+        Returns:
+            True if the function was part of all fitness functions and could be remove,
+            False otherwise
+        """
+        if fitness_function not in self._fitness_functions:
+            return False
+        self._fitness_functions.remove(fitness_function)
+        return True
+
     @abstractmethod
     def generate_tests(self) -> chrom.Chromosome:
         """Generates tests for a given module until the time limit is reached.
@@ -197,14 +240,6 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             else:
                 remaining.append(test_case)
         return purged, remaining
-
-    def get_fitness_functions(self) -> List[ff.FitnessFunction]:
-        """Converts a criterion into a test suite fitness function.
-
-        Returns:
-            A list of fitness functions
-        """
-        return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:

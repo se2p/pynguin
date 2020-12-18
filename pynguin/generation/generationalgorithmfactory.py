@@ -7,11 +7,13 @@
 """Provides factories for the generation algorithm."""
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Dict, Generic, TypeVar
+from typing import Callable, Dict, Generic, List, TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
@@ -123,6 +125,9 @@ class TestSuiteGenerationAlgorithmFactory(
         strategy.test_cluster = self._test_cluster
         strategy.test_factory = self._test_factory
 
+        fitness_functions = self._get_fitness_functions()
+        strategy.fitness_functions = fitness_functions
+
         selection_function = self._get_selection_function()
         selection_function.maximize = False
         strategy.selection_function = selection_function
@@ -169,3 +174,11 @@ class TestSuiteGenerationAlgorithmFactory(
         """
         self._logger.info("Chosen crossover function: SinglePointRelativeCrossOver()")
         return SinglePointRelativeCrossOver()
+
+    def _get_fitness_functions(self) -> List[ff.FitnessFunction]:
+        """Converts a criterion into a test suite fitness function.
+
+        Returns:
+            A list of fitness functions
+        """
+        return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]

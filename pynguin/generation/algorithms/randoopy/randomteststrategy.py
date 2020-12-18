@@ -29,7 +29,6 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     def __init__(self) -> None:
         super().__init__()
-        # Test case factory is not used here but we want to keep a uniform interface.
         self._execution_results: List[ExecutionResult] = []
 
     def generate_tests(
@@ -38,8 +37,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         generation: int = 0
-        fitness_functions = self.get_fitness_functions()
-        for fitness_function in fitness_functions:
+        for fitness_function in self._fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
 

@@ -9,7 +9,6 @@ import logging
 from typing import List
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
@@ -26,12 +25,10 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def __init__(self) -> None:
         super().__init__()
         self._population: List[tsc.TestSuiteChromosome] = []
-        self._fitness_functions: List[ff.FitnessFunction] = []
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        self._fitness_functions = self.get_fitness_functions()
         self._population = self._get_random_population()
         self._sort_population()
         StatisticsTracker().current_individual(self._get_best_individual())

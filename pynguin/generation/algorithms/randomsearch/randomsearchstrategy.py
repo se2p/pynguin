@@ -6,9 +6,7 @@
 #
 """Provides a random test generator, that creates random test suites."""
 import logging
-from typing import List
 
-import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -20,14 +18,9 @@ class RandomSearchStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._fitness_functions: List[ff.FitnessFunction] = []
-
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        self._fitness_functions = self.get_fitness_functions()
         solution = self._get_random_solution()
         StatisticsTracker().current_individual(solution)
         generation = 0
