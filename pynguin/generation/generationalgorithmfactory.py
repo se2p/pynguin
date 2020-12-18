@@ -70,7 +70,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         if stopping_condition == config.StoppingCondition.MAX_TIME:
             return MaxTimeStoppingCondition()
         self._logger.warning("Unknown stopping condition: %s", stopping_condition)
-        return MaxIterationsStoppingCondition()
+        return MaxTimeStoppingCondition()
 
     @abstractmethod
     def get_search_algorithm(self) -> TestGenerationStrategy:
