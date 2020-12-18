@@ -13,14 +13,8 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
-from pynguin.ga.operators.crossover.crossover import CrossOverFunction
-from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
-    SinglePointRelativeCrossOver,
-)
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
@@ -28,12 +22,8 @@ from pynguin.ga.operators.ranking.rankingfunction import (
     RankBasedPreferenceSorting,
     RankingFunction,
 )
-from pynguin.ga.operators.selection.rankselection import RankSelection
-from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.mosa.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -45,21 +35,11 @@ class MOSATestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
-        self._fitness_functions = self.get_fitness_functions()
+    def __init__(self) -> None:
+        super().__init__()
         self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
             set(self._fitness_functions)
         )
-        self._chromosome_factory = tccf.TestCaseChromosomeFactory(
-            self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
-        )
-        self._selection_function: SelectionFunction[
-            tcc.TestCaseChromosome
-        ] = RankSelection()
-        self._crossover_function: CrossOverFunction[
-            tcc.TestCaseChromosome
-        ] = SinglePointRelativeCrossOver()
         self._ranking_function: RankingFunction[  # pylint: disable=unsubscriptable-object
             tcc.TestCaseChromosome
         ] = RankBasedPreferenceSorting()
@@ -68,9 +48,6 @@ class MOSATestStrategy(TestGenerationStrategy):
 
     def generate_tests(self) -> chrom.Chromosome:
         self._logger.info("Start generating tests")
-
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
 
         self._current_iteration = 0
         self._population = self._get_random_population()
@@ -86,7 +63,7 @@ class MOSATestStrategy(TestGenerationStrategy):
             )
 
         while (
-            not self.is_fulfilled(stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and len(self._archive.uncovered_goals) != 0
         ):
             self.evolve()
@@ -238,11 +215,6 @@ class MOSATestStrategy(TestGenerationStrategy):
 
     def _get_best_individuals(self) -> List[tcc.TestCaseChromosome]:
         return self._get_non_dominated_solutions(self._population)
-
-    def get_fitness_functions(self) -> List[ff.FitnessFunction]:
-        tracer = self._executor.tracer
-        _ = tracer.get_known_data()
-        return []
 
     def _notify_iteration(self) -> None:
         pass

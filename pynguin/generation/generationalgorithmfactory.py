@@ -25,6 +25,7 @@ from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
 )
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
+from pynguin.generation.algorithms.mosa.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
 )
@@ -88,6 +89,7 @@ class TestSuiteGenerationAlgorithmFactory(
     """A factory for a search algorithm generating test-suites."""
 
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+        config.Algorithm.MOSA: MOSATestStrategy,
         config.Algorithm.RANDOOPY: RandomTestStrategy,
         config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
         config.Algorithm.WSPY: WholeSuiteTestStrategy,
@@ -109,6 +111,8 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
+        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+            return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
     def get_search_algorithm(self) -> TestGenerationStrategy:
