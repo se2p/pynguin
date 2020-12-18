@@ -37,7 +37,13 @@ unit-tests:python-3.8:
 unit-tests:python-3.9:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+unit-tests:python-3.10:
+  <<: *unit-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 .nightly-tests:
   only:
@@ -59,7 +65,13 @@ nightly-tests:python-3.8:
 nightly-tests:python-3.9:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+nightly-tests:python-3.10:
+  extends: .nightly-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 mypy:
   stage: lint

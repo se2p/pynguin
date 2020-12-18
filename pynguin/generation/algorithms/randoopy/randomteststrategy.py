@@ -15,9 +15,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -29,20 +27,17 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
+    def __init__(self) -> None:
+        super().__init__()
         self._execution_results: List[ExecutionResult] = []
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         generation: int = 0
-        fitness_functions = self.get_fitness_functions()
-        for fitness_function in fitness_functions:
+        for fitness_function in self._fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
 
@@ -51,12 +46,12 @@ class RandomTestStrategy(TestGenerationStrategy):
         )
 
         while (
-            not self.is_fulfilled(stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and combined_chromosome.get_fitness() != 0.0
         ):
             try:
                 generation += 1
-                stopping_condition.iterate()
+                self._stopping_condition.iterate()
                 self.generate_sequence(
                     test_chromosome,
                     failing_test_chromosome,

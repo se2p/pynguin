@@ -9,19 +9,8 @@ import logging
 from typing import List
 
 import pynguin.configuration as config
-import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.ga.testsuitechromosomefactory as tscf
-from pynguin.ga.operators.crossover.crossover import CrossOverFunction
-from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
-    SinglePointRelativeCrossOver,
-)
-from pynguin.ga.operators.selection.rankselection import RankSelection
-from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
@@ -33,33 +22,19 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster) -> None:
-        super().__init__(executor, test_cluster)
-        self._chromosome_factory = tscf.TestSuiteChromosomeFactory(
-            tccf.TestCaseChromosomeFactory(
-                self._test_factory, tcf.RandomLengthTestCaseFactory(self._test_factory)
-            )
-        )
+    def __init__(self) -> None:
+        super().__init__()
         self._population: List[tsc.TestSuiteChromosome] = []
-        self._selection_function: SelectionFunction[
-            tsc.TestSuiteChromosome
-        ] = RankSelection()
-        self._crossover_function: CrossOverFunction[
-            tsc.TestSuiteChromosome
-        ] = SinglePointRelativeCrossOver()
-        self._fitness_functions = self.get_fitness_functions()
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
-        stopping_condition = self.get_stopping_condition()
-        stopping_condition.reset()
         self._population = self._get_random_population()
         self._sort_population()
         StatisticsTracker().current_individual(self._get_best_individual())
         generation = 0
         while (
-            not self.is_fulfilled(stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
