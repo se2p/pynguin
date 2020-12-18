@@ -9,7 +9,6 @@ import logging
 from typing import List
 
 import pynguin.configuration as config
-import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -24,8 +23,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
-        super().__init__(chromosome_factory)
+    def __init__(self) -> None:
+        super().__init__()
         self._population: List[tsc.TestSuiteChromosome] = []
         self._fitness_functions: List[ff.FitnessFunction] = []
 
@@ -38,7 +37,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         StatisticsTracker().current_individual(self._get_best_individual())
         generation = 0
         while (
-            not self.is_fulfilled(self._stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()

@@ -18,7 +18,7 @@ from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCond
 
 class _TestGenerationStrategy(TestGenerationStrategy):
     def __init__(self):
-        super().__init__(MagicMock())
+        super().__init__()
 
     def generate_tests(self) -> chrom.Chromosome:
         raise NotImplementedError(

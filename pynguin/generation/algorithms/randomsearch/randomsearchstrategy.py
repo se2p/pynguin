@@ -8,7 +8,6 @@
 import logging
 from typing import List
 
-import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -21,8 +20,8 @@ class RandomSearchStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
-        super().__init__(chromosome_factory)
+    def __init__(self) -> None:
+        super().__init__()
         self._fitness_functions: List[ff.FitnessFunction] = []
 
     def generate_tests(
@@ -33,7 +32,7 @@ class RandomSearchStrategy(TestGenerationStrategy):
         StatisticsTracker().current_individual(solution)
         generation = 0
         while (
-            not self.is_fulfilled(self._stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and solution.get_fitness() != 0.0
         ):
             candidate = self._get_random_solution()

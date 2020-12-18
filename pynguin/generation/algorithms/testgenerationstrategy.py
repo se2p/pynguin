@@ -25,18 +25,31 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 class TestGenerationStrategy(metaclass=ABCMeta):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
+    def __init__(self) -> None:
         """Initialises the test-generation strategy.
 
         Args:
         """
-        self._chromosome_factory = chromosome_factory
+        self._chromosome_factory: cf.ChromosomeFactory
         self._executor: TestCaseExecutor
         self._test_cluster: TestCluster
         self._test_factory: tf.TestFactory
         self._selection_function: SelectionFunction
         self._stopping_condition: StoppingCondition
         self._crossover_function: CrossOverFunction
+
+    @property
+    def chromosome_factory(self) -> cf.ChromosomeFactory:
+        """Provides the chromosome factory.
+
+        Returns:
+            The chromosome factory
+        """
+        return self._chromosome_factory
+
+    @chromosome_factory.setter
+    def chromosome_factory(self, chromosome_factory):
+        self._chromosome_factory = chromosome_factory
 
     @property
     def executor(self) -> TestCaseExecutor:

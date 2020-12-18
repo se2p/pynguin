@@ -9,13 +9,10 @@ import logging
 from typing import List, Set
 
 import pynguin.configuration as config
-import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.ga.testsuitechromosomefactory as tscf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.testcase.execution.executionresult import ExecutionResult
@@ -30,17 +27,10 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, chromosome_factory: cf.ChromosomeFactory) -> None:
-        super().__init__(chromosome_factory)
+    def __init__(self) -> None:
+        super().__init__()
         # Test case factory is not used here but we want to keep a uniform interface.
         self._execution_results: List[ExecutionResult] = []
-        self.test_factory = self._get_test_factory()
-
-    def _get_test_factory(self) -> tf.TestFactory:
-        chromosome_factory = self._chromosome_factory
-        assert isinstance(chromosome_factory, tscf.TestSuiteChromosomeFactory)
-        test_chromosome_factory = chromosome_factory.test_case_chromosome_factory
-        return test_chromosome_factory._test_factory
 
     def generate_tests(
         self,
@@ -58,7 +48,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         )
 
         while (
-            not self.is_fulfilled(self._stopping_condition)
+            not self._stopping_condition.is_fulfilled()
             and combined_chromosome.get_fitness() != 0.0
         ):
             try:

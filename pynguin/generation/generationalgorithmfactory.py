@@ -79,27 +79,33 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         """
 
 
-# pylint: disable=unsubscriptable-object
+# pylint: disable=unsubscriptable-object, too-few-public-methods
 class TestSuiteGenerationAlgorithmFactory(
     GenerationAlgorithmFactory[tsc.TestSuiteChromosome]
 ):
     """A factory for a search algorithm generating test-suites."""
 
+    _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+        config.Algorithm.RANDOOPY: RandomTestStrategy,
+        config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
+        config.Algorithm.WSPY: WholeSuiteTestStrategy,
+    }
+
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster):
         self._executor = executor
         self._test_cluster = test_cluster
+        self._test_factory = tf.TestFactory(self._test_cluster)
 
-    def get_chromosome_factory(self) -> cf.ChromosomeFactory:
+    def _get_chromosome_factory(self) -> cf.ChromosomeFactory:
         """Provides a chromosome factory.
 
         Returns:
             A chromosome factory
         """
         # TODO add conditional returns/other factories here
-        test_factory = tf.TestFactory(self._test_cluster)
-        test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory)
+        test_case_factory = tcf.RandomLengthTestCaseFactory(self._test_factory)
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
-            test_factory, test_case_factory
+            self._test_factory, test_case_factory
         )
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
@@ -109,13 +115,15 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A fully configured test-generation strategy
         """
-        chromosome_factory = self.get_chromosome_factory()
-        strategy = self.get_generation_strategy(chromosome_factory)
+        chromosome_factory = self._get_chromosome_factory()
+        strategy = self._get_generation_strategy()
 
+        strategy.chromosome_factory = chromosome_factory
         strategy.executor = self._executor
         strategy.test_cluster = self._test_cluster
+        strategy.test_factory = self._test_factory
 
-        selection_function = self.get_selection_function()
+        selection_function = self._get_selection_function()
         selection_function.maximize = False
         strategy.selection_function = selection_function
 
@@ -123,19 +131,14 @@ class TestSuiteGenerationAlgorithmFactory(
         strategy.stopping_condition = stopping_condition
         strategy.reset_stopping_conditions()
 
-        crossover_function = self.get_crossover_function()
+        crossover_function = self._get_crossover_function()
         strategy.crossover_function = crossover_function
 
         return strategy
 
-    @staticmethod
-    def get_generation_strategy(
-        chromosome_factory: cf.ChromosomeFactory,
-    ) -> TestGenerationStrategy:
+    @classmethod
+    def _get_generation_strategy(cls) -> TestGenerationStrategy:
         """Provides a generation strategy.
-
-        Args:
-             chromosome_factory: The chromosome factory to use for the strategy
 
         Returns:
             A generation strategy
@@ -143,20 +146,13 @@ class TestSuiteGenerationAlgorithmFactory(
         Raises:
             ConfigurationException: if an unknown algorithm was requested
         """
-        _strategies: Dict[
-            config.Algorithm, Callable[[cf.ChromosomeFactory], TestGenerationStrategy]
-        ] = {
-            config.Algorithm.RANDOOPY: RandomTestStrategy,
-            config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
-            config.Algorithm.WSPY: WholeSuiteTestStrategy,
-        }
-        if config.INSTANCE.algorithm in _strategies:
-            strategy = _strategies.get(config.INSTANCE.algorithm)
+        if config.INSTANCE.algorithm in cls._strategies:
+            strategy = cls._strategies.get(config.INSTANCE.algorithm)
             assert strategy, "Strategy cannot be defined as None"
-            return strategy(chromosome_factory)
+            return strategy()
         raise ConfigurationException("No suitable generation strategy found.")
 
-    def get_selection_function(self) -> SelectionFunction[tsc.TestSuiteChromosome]:
+    def _get_selection_function(self) -> SelectionFunction[tsc.TestSuiteChromosome]:
         """Provides a selection function for the selected algorithm.
 
         Returns:
@@ -165,7 +161,7 @@ class TestSuiteGenerationAlgorithmFactory(
         self._logger.info("Chosen selection function: RankSelection")
         return RankSelection()
 
-    def get_crossover_function(self) -> CrossOverFunction[tsc.TestSuiteChromosome]:
+    def _get_crossover_function(self) -> CrossOverFunction[tsc.TestSuiteChromosome]:
         """Provides a crossover function for the selected algorithm.
 
         Returns:
