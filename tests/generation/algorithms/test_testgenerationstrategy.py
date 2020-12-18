@@ -13,22 +13,12 @@ import pynguin.ga.chromosome as chrom
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
-    MaxIterationsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
-    MaxTestsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
-    MaxTimeStoppingCondition,
-)
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
-from pynguin.setup.testcluster import TestCluster
 
 
 class _TestGenerationStrategy(TestGenerationStrategy):
     def __init__(self):
-        super().__init__(MagicMock(), MagicMock(TestCluster), MagicMock())
+        super().__init__()
 
     def generate_tests(self) -> chrom.Chromosome:
         raise NotImplementedError(
@@ -77,20 +67,3 @@ def test_is_not_fulfilled(algorithm):
     stopping_condition = MagicMock(StoppingCondition)
     stopping_condition.is_fulfilled.return_value = False
     assert not algorithm.is_fulfilled(stopping_condition)
-
-
-@pytest.mark.parametrize(
-    "configuration,result",
-    [
-        pytest.param(config.StoppingCondition.MAX_TIME, MaxTimeStoppingCondition),
-        pytest.param(config.StoppingCondition.MAX_TESTS, MaxTestsStoppingCondition),
-        pytest.param(
-            config.StoppingCondition.MAX_ITERATIONS, MaxIterationsStoppingCondition
-        ),
-        pytest.param("foo", MaxTimeStoppingCondition),
-    ],
-)
-def test_get_stopping_condition(configuration, result, algorithm):
-    config.INSTANCE.stopping_condition = configuration
-    condition = algorithm.get_stopping_condition()
-    assert isinstance(condition, result)
