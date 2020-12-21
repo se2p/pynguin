@@ -7,9 +7,13 @@
 """Provides a data class to track the control-flow distances."""
 from __future__ import annotations
 
+from functools import total_ordering
+from typing import Any
+
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 
 
+@total_ordering
 class ControlFlowDistance:
     """Tracks control-flow distances."""
 
@@ -20,29 +24,27 @@ class ControlFlowDistance:
         self._approach_level = approach_level
         self._branch_distance = branch_distance
 
-    def compare_to(self, other: ControlFlowDistance) -> int:
-        """Compares this control-flow distance to another one.
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, ControlFlowDistance):
+            return False
+        return (self._approach_level, self._branch_distance) == (
+            other.approach_level,
+            other.branch_distance,
+        )
 
-        The order is determined first by the approach level.  If the levels of both
-        distances are equal then the branch distances are considered.  If these are
-        also equal, we consider the two control-flow distances equal.
-
-        Args:
-            other: The other control-flow distance
-
-        Returns:
-            -1 if the other distance is greater, 0 if the other distance is equal,
-            and 1 of the other distance is less than this
-        """
-        if self._approach_level < other.approach_level:
-            return -1
-        if self._approach_level > other.approach_level:
-            return 1
-        if self._branch_distance < other.branch_distance:
-            return -1
-        if self._branch_distance > other.branch_distance:
-            return 1
-        return 0
+    def __lt__(self, other: ControlFlowDistance) -> bool:
+        if not isinstance(other, ControlFlowDistance):
+            raise TypeError(  # pylint: disable=raising-format-tuple
+                "'<' not supported between instances of "
+                "'ControlFlowDistance' and '%s'",
+                type(other),
+            )
+        return (self._approach_level, self._branch_distance) < (
+            other.approach_level,
+            other.branch_distance,
+        )
 
     @property
     def approach_level(self) -> int:

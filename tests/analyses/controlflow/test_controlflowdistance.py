@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import math
+from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
 import pytest
@@ -18,22 +19,43 @@ def control_flow_distance() -> ControlFlowDistance:
     return ControlFlowDistance()
 
 
+def test_eq_same(control_flow_distance):
+    assert control_flow_distance.__eq__(control_flow_distance)
+
+
+def test_eq_other_type(control_flow_distance):
+    assert not control_flow_distance.__eq__(MagicMock())
+
+
+def test_eq_other_value(control_flow_distance):
+    other = ControlFlowDistance()
+    assert control_flow_distance.__eq__(other)
+
+
+def test_lt_other_type(control_flow_distance):
+    with pytest.raises(TypeError):
+        control_flow_distance.__lt__(MagicMock())
+
+
 @pytest.mark.parametrize(
     "approach_level_1, branch_distance_1, approach_level_2, branch_distance_2, result",
     [
-        pytest.param(2, 2.0, 1, 3.0, 1),
-        pytest.param(2, 2.0, 3, 1.0, -1),
-        pytest.param(2, 1.5, 2, 3.5, -1),
-        pytest.param(2, 3.5, 2, 1.5, 1),
-        pytest.param(2, 2.0, 2, 2.0, 0),
+        pytest.param(1, 2, 1, 2, False),
+        pytest.param(1, 2, 2, 1, True),
+        pytest.param(1, 2, 1, 3, True),
+        pytest.param(2, 1, 1, 2, False),
     ],
 )
-def test_compare_to(
+def test_lt(
     approach_level_1, branch_distance_1, approach_level_2, branch_distance_2, result
 ):
-    distance_1 = ControlFlowDistance(approach_level_1, branch_distance_1)
-    distance_2 = ControlFlowDistance(approach_level_2, branch_distance_2)
-    assert distance_1.compare_to(distance_2) == result
+    cfd_1 = ControlFlowDistance(
+        approach_level=approach_level_1, branch_distance=branch_distance_1
+    )
+    cfd_2 = ControlFlowDistance(
+        approach_level=approach_level_2, branch_distance=branch_distance_2
+    )
+    assert (cfd_1 < cfd_2) == result
 
 
 @given(level=st.integers())
