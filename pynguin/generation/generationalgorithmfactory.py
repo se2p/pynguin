@@ -13,6 +13,7 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.branchdistancetestcasefitness as bdtcf
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
@@ -196,4 +197,13 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
+        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+            known_data = self._executor.tracer.get_known_data()
+            functions: List[ff.FitnessFunction] = []
+            for _ in known_data.existing_predicates:
+                fitness_function = bdtcf.BranchDistanceTestCaseFitnessFunction(
+                    self._executor
+                )
+                functions.append(fitness_function)
+            return functions
         return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
