@@ -11,6 +11,7 @@ import sys
 from typing import Dict, List, Tuple, cast
 
 from bytecode import Bytecode, ControlFlowGraph
+from networkx import NetworkXError, diameter
 
 import pynguin.analyses.controlflow.programgraph as pg
 
@@ -29,6 +30,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         """
         super().__init__()
         self._bytecode_cfg = bytecode_cfg
+        self._diameter: int = -1
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -208,3 +210,19 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
             McCabe's cyclocmatic complexity number
         """
         return len(self._graph.edges) - len(self._graph.nodes) + 2
+
+    @property
+    def diameter(self) -> int:
+        """Computes the diameter of the graph
+
+        Returns:
+            The diameter of the graph
+        """
+        if self._diameter == -1:
+            # Do this computation lazily
+            try:
+                self._diameter = diameter(self._graph, usebounds=True)
+            except NetworkXError:
+                # If the diameter computation fails for some reason, use an upper bound
+                self._diameter = len(self._graph.edges)
+        return self._diameter

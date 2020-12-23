@@ -31,6 +31,7 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
 }
 """
     assert cfg.cyclomatic_complexity == 2
+    assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
     assert len(cfg.exit_nodes) == 1
     assert dot_representation == graph
@@ -56,6 +57,7 @@ def test_integration_reverse_cfg(conditional_jump_example_bytecode):
 }
 """
     assert reversed_cfg.cyclomatic_complexity == 2
+    assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
     assert len(cfg.exit_nodes) == 1
     assert dot_representation == graph
