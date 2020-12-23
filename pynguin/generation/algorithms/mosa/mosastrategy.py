@@ -33,18 +33,18 @@ class MOSATestStrategy(TestGenerationStrategy):
 
     def __init__(self) -> None:
         super().__init__()
-        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
-            set(self._fitness_functions)
-        )
+        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
         self._population: List[tcc.TestCaseChromosome] = []
         self._current_iteration = 0
 
     def generate_tests(self) -> chrom.Chromosome:
         self._logger.info("Start generating tests")
+        self._archive = Archive(set(self._fitness_functions))
 
         self._current_iteration = 0
         self._population = self._get_random_population()
         self._calculate_fitness()
+        self._archive.update(self._population)
 
         # Calculate dominance ranks and crowding distance
         self._ranking_function.compute_ranking_assignment(
@@ -113,6 +113,7 @@ class MOSATestStrategy(TestGenerationStrategy):
                 self._population.append(front[k])
 
         self._current_iteration += 1
+        self._archive.update(self._population)
 
     def _get_random_population(self) -> List[tcc.TestCaseChromosome]:
         population: List[tcc.TestCaseChromosome] = []
@@ -162,6 +163,8 @@ class MOSATestStrategy(TestGenerationStrategy):
                     tch: tcc.TestCaseChromosome = (
                         self._chromosome_factory.get_chromosome()
                     )
+                    for fitness_function in self._fitness_functions:
+                        tch.add_fitness_function(fitness_function)
                     tch.set_changed(True)
                 else:
                     tch = randomness.choice(list(self._archive.solutions)).clone()
@@ -177,10 +180,13 @@ class MOSATestStrategy(TestGenerationStrategy):
     def _calculate_fitness(self, chromosome: Optional[chrom.Chromosome] = None) -> None:
         if chromosome is None:
             for element in self._population:
-                self._calculate_fitness(element)
+                self._calculate_fitness_for_chromosome(element)
         else:
-            for fitness_function in self._fitness_functions:
-                chromosome.get_fitness_for(fitness_function)
+            self._calculate_fitness_for_chromosome(chromosome)
+
+    def _calculate_fitness_for_chromosome(self, chromosome: chrom.Chromosome) -> None:
+        for fitness_function in self._fitness_functions:
+            chromosome.get_fitness_for(fitness_function)
 
     def _get_non_dominated_solutions(
         self, solutions: List[tcc.TestCaseChromosome]
