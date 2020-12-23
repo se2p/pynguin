@@ -11,7 +11,7 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import assume, given
 
-from pynguin.analyses.controlflow.controlflowdistance import ControlFlowDistance
+from pynguin.coverage.controlflowdistance import ControlFlowDistance
 
 
 @pytest.fixture
