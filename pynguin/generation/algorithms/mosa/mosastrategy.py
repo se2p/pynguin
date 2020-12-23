@@ -18,10 +18,6 @@ from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
-from pynguin.ga.operators.ranking.rankingfunction import (
-    RankBasedPreferenceSorting,
-    RankingFunction,
-)
 from pynguin.generation.algorithms.mosa.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
@@ -40,9 +36,6 @@ class MOSATestStrategy(TestGenerationStrategy):
         self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
             set(self._fitness_functions)
         )
-        self._ranking_function: RankingFunction[  # pylint: disable=unsubscriptable-object
-            tcc.TestCaseChromosome
-        ] = RankBasedPreferenceSorting()
         self._population: List[tcc.TestCaseChromosome] = []
         self._current_iteration = 0
 

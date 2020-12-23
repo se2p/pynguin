@@ -15,6 +15,7 @@ import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
@@ -33,6 +34,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         self._selection_function: SelectionFunction
         self._stopping_condition: StoppingCondition
         self._crossover_function: CrossOverFunction
+        self._ranking_function: RankingFunction
         self._fitness_functions: List[ff.FitnessFunction] = []
 
     @property
@@ -129,6 +131,19 @@ class TestGenerationStrategy(metaclass=ABCMeta):
     @crossover_function.setter
     def crossover_function(self, crossover_function: CrossOverFunction) -> None:
         self._crossover_function = crossover_function
+
+    @property
+    def ranking_function(self) -> RankingFunction:
+        """Provides the used ranking function.
+
+        Returns:
+            The used ranking function
+        """
+        return self._ranking_function
+
+    @ranking_function.setter
+    def ranking_function(self, ranking_function: RankingFunction):
+        self._ranking_function = ranking_function
 
     @property
     def fitness_functions(self) -> List[ff.FitnessFunction]:

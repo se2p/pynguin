@@ -23,6 +23,10 @@ from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
+from pynguin.ga.operators.ranking.rankingfunction import (
+    RankBasedPreferenceSorting,
+    RankingFunction,
+)
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.mosa.mosastrategy import MOSATestStrategy
@@ -143,6 +147,9 @@ class TestSuiteGenerationAlgorithmFactory(
         crossover_function = self._get_crossover_function()
         strategy.crossover_function = crossover_function
 
+        ranking_function = self._get_ranking_function()
+        strategy.ranking_function = ranking_function
+
         return strategy
 
     @classmethod
@@ -178,6 +185,10 @@ class TestSuiteGenerationAlgorithmFactory(
         """
         self._logger.info("Chosen crossover function: SinglePointRelativeCrossOver()")
         return SinglePointRelativeCrossOver()
+
+    def _get_ranking_function(self) -> RankingFunction:
+        self._logger.info("Chosen ranking function: RankBasedPreferenceSorting")
+        return RankBasedPreferenceSorting()
 
     def _get_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function.
