@@ -141,7 +141,7 @@ reuse:
   script:
     - reuse lint
 
-pages:
+publish-pypi:
   stage: deploy
   needs:
     - unit-tests:python-3.8
@@ -159,5 +159,3 @@ pages:
     - poetry publish
   only:
     - tags
-  rules:
-    - if: $CI_COMMIT_BRANCH == 'master'
