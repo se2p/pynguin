@@ -148,20 +148,16 @@ pages:
     - sphinx
   variables:
     PYTHON_VERSION: '3.8'
+    POETRY_PYPI_TOKEN_PYPI: $POETRY_PYPI_TOKEN_PYPI
+    POETRY_HTTP_BASIC_PYPI_USERNAME: $POETRY_HTTP_BASIC_PYPI_USERNAME
+    POETRY_HTTP_BASIC_PYPI_PASSWORD: $POETRY_HTTP_BASIC_PYPI_PASSWORD
   dependencies:
     - sphinx
     - unit-tests:python-3.8
-  before_script:
-    - mkdir -p ~/.ssh
-    - echo -e "$DEPLOY_KEY" > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\tIdentityFile ~/.ssh/id_ed25519\n\n" > ~/.ssh/config
   script:
-    - mv docs/_build/ public/
-    - mv cov_html pynguincoverage
-    - scp -r -P 9418 pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
-  artifacts:
-    paths:
-      - public
+    - poetry build
+    - poetry publish
+  only:
+    - tags
   rules:
-    - if: $CI_COMMIT_BRANCH == 'develop'
+    - if: $CI_COMMIT_BRANCH == 'master'
