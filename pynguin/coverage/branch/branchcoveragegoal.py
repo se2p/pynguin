@@ -37,7 +37,7 @@ class BranchCoverageGoal:
         branch: Optional[Branch] = None,
         value: bool,
         module_name: str,
-        class_name: Optional[str],
+        class_name: Optional[str] = None,
         function_name: str,
     ) -> None:
         self._branch = branch
@@ -138,7 +138,7 @@ class BranchCoverageGoal:
     def __hash__(self) -> int:
         prime = 31
         result = 1
-        result = prime * result + hash(self._branch)
+        result = prime * result + hash(self._branch) if self._branch else 0
         result = prime * result + hash(self._module_name)
         result = prime * result + hash(self._class_name) if self._class_name else 0
         result = prime * result + hash(self._function_name)
