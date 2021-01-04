@@ -438,6 +438,9 @@ class BranchDistanceInstrumentation:
                 and successor.basic_block[self._JUMP_OP_POS].arg is node.basic_block
             ):
                 successor.basic_block[self._JUMP_OP_POS].arg = new_header
+        self._branch_pool.register_branch(
+            node.basic_block, code_object_id, predicate_id, lineno, for_instr
+        )
         return predicate_id
 
     @staticmethod
