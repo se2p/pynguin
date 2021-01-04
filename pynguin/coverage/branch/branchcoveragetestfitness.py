@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-
+"""Implements a fitness function for test cases."""
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
@@ -14,6 +14,8 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
+    """A branch coverage fitness implementation for test cases."""
+
     def __init__(self, executor: TestCaseExecutor, goal: BranchCoverageGoal):
         super().__init__(executor)
         self._goal = goal
@@ -36,7 +38,8 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
         distance = self._goal.get_distance(result)
 
         fitness = distance.get_resulting_branch_fitness()
-        # TODO do we need to update individual somehow?
+
+        self._update_individual(individual, fitness)
 
         if fitness == 0.0:
             # TODO mark goal as covered?

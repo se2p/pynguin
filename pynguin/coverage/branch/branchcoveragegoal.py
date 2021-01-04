@@ -103,7 +103,7 @@ class BranchCoverageGoal:
         Returns:
             The control-flow distance
         """
-        distance = cfd.ControlFlowDistanceCalculator.get_distance(
+        distance = cfd.calculate_control_flow_distance(
             result,
             branch=self._branch,
             value=self._value,

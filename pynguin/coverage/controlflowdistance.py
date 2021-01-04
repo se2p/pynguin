@@ -11,7 +11,6 @@ from functools import total_ordering
 from typing import Any, Optional
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
-import pynguin.coverage.branch.branchpool as bp
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.testcase.execution.executionresult import ExecutionResult
 
@@ -102,55 +101,59 @@ class ControlFlowDistance:
         )
 
 
-class ControlFlowDistanceCalculator:
-    @classmethod
-    def get_distance(
-        cls,
-        result: ExecutionResult,
-        *,
-        branch: bcg.Branch,
-        value: bool,
-        module_name: str,
-        class_name: Optional[str] = None,
-        function_name: str,
-    ) -> ControlFlowDistance:
-        if branch is None:
-            return cls._get_root_distance(
-                result,
-                module_name=module_name,
-                class_name=class_name,
-                function_name=function_name,
-            )
+def calculate_control_flow_distance(
+    result: ExecutionResult,
+    *,
+    branch: Optional[bcg.Branch],
+    value: bool,
+    module_name: str,
+    class_name: Optional[str] = None,
+    function_name: str,
+) -> ControlFlowDistance:
+    """Calculates the control-flow distance for a given result.
 
-        if value:
-            if branch.actual_branch_id in result.execution_trace.true_distances:
-                return ControlFlowDistance(0, 0.0)
-        else:
-            if branch.actual_branch_id in result.execution_trace.false_distances:
-                return ControlFlowDistance(0, 0.0)
+    Args:
+        result: The result of the execution
+        branch: The branch to check for
+        value: The True or False branch
+        module_name: The module name
+        class_name: The optional class name
+        function_name: The function name
 
-        return cls._get_non_root_distance(result, branch, value)
+    Returns:
+        A control-flow distance
+    """
+    if branch is None:
+        return _get_root_distance(
+            result,
+            module_name=module_name,
+            class_name=class_name,
+            function_name=function_name,
+        )
 
-    @classmethod
-    def _get_root_distance(
-        cls,
-        result: ExecutionResult,
-        *,
-        module_name: str,
-        class_name: Optional[str] = None,
-        function_name: str,
-    ) -> ControlFlowDistance:
-        distance = ControlFlowDistance()
-        bp.INSTANCE.is_branchless_function(function_name)
+    if value:
+        if branch.actual_branch_id in result.execution_trace.true_distances:
+            return ControlFlowDistance(0, 0.0)
+    else:
+        if branch.actual_branch_id in result.execution_trace.false_distances:
+            return ControlFlowDistance(0, 0.0)
 
-        distance.increase_approach_level()
-        return distance
+    return _get_non_root_distance(result, branch, value)
 
-    @classmethod
-    def _get_non_root_distance(
-        cls,
-        result: ExecutionResult,
-        branch: bcg.Branch,
-        value: bool,
-    ) -> ControlFlowDistance:
-        pass
+
+def _get_root_distance(
+    result: ExecutionResult,  # pylint: disable=unused-argument
+    *,
+    module_name: str,  # pylint: disable=unused-argument
+    class_name: Optional[str] = None,  # pylint: disable=unused-argument
+    function_name: str,  # pylint: disable=unused-argument
+) -> ControlFlowDistance:
+    pass
+
+
+def _get_non_root_distance(
+    result: ExecutionResult,  # pylint: disable=unused-argument
+    branch: bcg.Branch,  # pylint: disable=unused-argument
+    value: bool,  # pylint: disable=unused-argument
+) -> ControlFlowDistance:
+    pass

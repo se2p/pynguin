@@ -90,11 +90,11 @@ class Chromosome(metaclass=abc.ABCMeta):
         if self._changed:
             for fitness_func in self._fitness_functions:
                 new_values = fitness_func.compute_fitness_values(self)
-                self._update_fitness_values(fitness_func, new_values)
+                self.update_fitness_values(fitness_func, new_values)
             self._changed = False
             self._number_of_evaluations += 1
 
-    def _update_fitness_values(
+    def update_fitness_values(
         self, fitness_function: ff.FitnessFunction, new_value: ff.FitnessValues
     ) -> None:
         """Update the fitness values for the given function.
@@ -114,6 +114,15 @@ class Chromosome(metaclass=abc.ABCMeta):
         if len(violations) > 0:
             raise RuntimeError(", ".join(violations))
         self._fitness_values[fitness_function] = new_value
+
+    @property
+    def fitness_values(self) -> Dict[ff.FitnessFunction, ff.FitnessValues]:
+        """Provides the registered fitness values.
+
+        Returns:
+            A dictionary from fitness function to fitness value
+        """
+        return self._fitness_values
 
     def add_fitness_function(
         self,

@@ -13,6 +13,7 @@ from bytecode import BasicBlock, Instr
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 
 
+# pylint: disable=too-many-arguments
 class _BranchPool:
     """Holds all available information concerning branches."""
 
@@ -114,7 +115,7 @@ class _BranchPool:
             ValueError in case the function is not a branchless one
         """
         if not self.is_branchless_function(function_name):
-            raise ValueError("No branchless method %s registered", function_name)
+            raise ValueError(f"No branchless method {function_name} registered")
         return self._branchless_functions[function_name]
 
     def is_known_as_branch(self, block: BasicBlock) -> bool:

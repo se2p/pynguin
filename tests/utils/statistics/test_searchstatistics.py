@@ -32,7 +32,7 @@ def chromosome():
     fitness_func = MagicMock(ff.FitnessFunction)
     fitness_func.is_maximisation_function.return_value = False
     chrom.add_fitness_function(fitness_func)
-    chrom._update_fitness_values(fitness_func, ff.FitnessValues(0, 0))
+    chrom.update_fitness_values(fitness_func, ff.FitnessValues(0, 0))
     chrom.set_changed(False)
     return chrom
 
