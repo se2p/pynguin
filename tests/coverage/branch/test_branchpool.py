@@ -78,6 +78,11 @@ def test_get_branchless_function_line_number_non_existing(branch_pool):
         branch_pool.get_branchless_function_line_number("bar")
 
 
+def test_get_branchless_function_code_object_id_non_existing(branch_pool):
+    with pytest.raises(ValueError):
+        branch_pool.get_branchless_function_code_object_id("bar")
+
+
 def test_get_actual_branch_id_for_normal_branch_non_existing(branch_pool):
     with pytest.raises(ValueError):
         branch_pool.get_actual_branch_id_for_normal_branch(None)
