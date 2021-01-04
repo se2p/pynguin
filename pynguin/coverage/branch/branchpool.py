@@ -11,6 +11,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 from bytecode import BasicBlock, Instr
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 # pylint: disable=too-many-arguments
@@ -24,6 +25,7 @@ class _BranchPool:
         self._branch_id_map: Dict[int, bcg.Branch] = {}
         self._branchless_functions: Dict[str, int] = {}
         self._registered_normal_branches: List[Tuple[BasicBlock, int]] = []
+        self._tracer: Optional[ExecutionTracer] = None
 
     def register_branchless_function(
         self, function_name: str, line_number: int
@@ -76,6 +78,7 @@ class _BranchPool:
         self._branch_id_map.clear()
         self._branchless_functions.clear()
         self._registered_normal_branches.clear()
+        self._tracer = None
 
     @property
     def branchless_functions(self) -> Set[str]:
@@ -197,6 +200,20 @@ class _BranchPool:
             if block == basic_block:
                 return branch_id
         raise ValueError("No ID found for block")
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        """Provides the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+        assert self._tracer is not None
+        return self._tracer
+
+    @tracer.setter
+    def tracer(self, tracer: ExecutionTracer):
+        self._tracer = tracer
 
 
 INSTANCE = _BranchPool()

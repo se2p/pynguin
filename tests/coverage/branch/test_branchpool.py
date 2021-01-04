@@ -127,3 +127,14 @@ def test_integrate_branch_distance_instrumentation(
     )
     assert branch_pool.get_num_branchless_functions() == branchless_function_count
     assert len(list(branch_pool.all_branches)) == branches_count
+
+
+def test_tracer(branch_pool):
+    tracer = MagicMock(ExecutionTracer)
+    branch_pool.tracer = tracer
+    assert branch_pool.tracer == tracer
+
+
+def test_tracer_without_one(branch_pool):
+    with pytest.raises(AssertionError):
+        branch_pool.tracer
