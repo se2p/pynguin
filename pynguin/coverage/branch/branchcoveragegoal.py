@@ -107,8 +107,6 @@ class BranchCoverageGoal:
             result,
             branch=self._branch,
             value=self._value,
-            module_name=self._module_name,
-            class_name=self._class_name,
             function_name=self._function_name,
         )
         return distance

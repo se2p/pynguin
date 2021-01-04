@@ -8,11 +8,15 @@
 from __future__ import annotations
 
 from functools import total_ordering
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Set
+
+import networkx as nx
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
+import pynguin.coverage.branch.branchpool as bp
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution.executiontracer import CodeObjectMetaData
 
 
 @total_ordering
@@ -103,11 +107,8 @@ class ControlFlowDistance:
 
 def calculate_control_flow_distance(
     result: ExecutionResult,
-    *,
     branch: Optional[bcg.Branch],
     value: bool,
-    module_name: str,
-    class_name: Optional[str] = None,
     function_name: str,
 ) -> ControlFlowDistance:
     """Calculates the control-flow distance for a given result.
@@ -115,21 +116,14 @@ def calculate_control_flow_distance(
     Args:
         result: The result of the execution
         branch: The branch to check for
-        value: The True or False branch
-        module_name: The module name
-        class_name: The optional class name
+        value: Whether we check for the True or the False branch
         function_name: The function name
 
     Returns:
         A control-flow distance
     """
     if branch is None:
-        return _get_root_distance(
-            result,
-            module_name=module_name,
-            class_name=class_name,
-            function_name=function_name,
-        )
+        return _get_root_distance(result, function_name)
 
     if value:
         if branch.actual_branch_id in result.execution_trace.true_distances:
@@ -142,18 +136,83 @@ def calculate_control_flow_distance(
 
 
 def _get_root_distance(
-    result: ExecutionResult,  # pylint: disable=unused-argument
-    *,
-    module_name: str,  # pylint: disable=unused-argument
-    class_name: Optional[str] = None,  # pylint: disable=unused-argument
-    function_name: str,  # pylint: disable=unused-argument
+    result: ExecutionResult, function_name: str
 ) -> ControlFlowDistance:
-    pass
+    branch_pool = bp.INSTANCE
+
+    distance = ControlFlowDistance()
+    if (
+        branch_pool.is_branchless_function(function_name)
+        and branch_pool.get_branchless_function_code_object_id(function_name)
+        in result.execution_trace.executed_code_objects
+    ):
+        # The code object was executed by the execution
+        return distance
+
+    distance.increase_approach_level()
+    return distance
 
 
 def _get_non_root_distance(
-    result: ExecutionResult,  # pylint: disable=unused-argument
-    branch: bcg.Branch,  # pylint: disable=unused-argument
-    value: bool,  # pylint: disable=unused-argument
+    result: ExecutionResult, branch: bcg.Branch, value: bool
 ) -> ControlFlowDistance:
-    pass
+    assert (
+        branch.predicate_id is not None
+    ), "Cannot compute distance for branch without predicate ID"
+    trace = result.execution_trace
+    tracer = bp.INSTANCE.tracer
+
+    distance = ControlFlowDistance()
+    if value:
+        branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances)
+    else:
+        branch_distance = _predicate_fitness(branch.predicate_id, trace.false_distances)
+    distance.branch_distance = branch_distance
+
+    existing_code_objects: Dict[
+        int, CodeObjectMetaData
+    ] = tracer.get_known_data().existing_code_objects
+    executed_code_objects: Set[int] = tracer.get_trace().executed_code_objects
+    branch_code_object_id = branch.code_object_id
+    if branch_code_object_id not in executed_code_objects:
+        distance.approach_level = _approach_level(
+            branch_code_object_id, existing_code_objects, executed_code_objects
+        )
+
+    return distance
+
+
+def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> float:
+    if predicate in branch_distances and branch_distances[predicate] == 0.0:
+        return 0.0
+    return normalise(branch_distances[predicate])
+
+
+def _approach_level(
+    branch_code_object_id: int,
+    existing_code_objects: Dict[int, CodeObjectMetaData],
+    executed_code_objects: Set[int],
+) -> int:
+    # Use the maximum CFG diameter as approach level, as the real value cannot be
+    # larger than this value
+    approach_level = max([meta.cfg.diameter for meta in existing_code_objects.values()])
+    if branch_code_object_id not in executed_code_objects:
+        return approach_level
+
+    code_object_meta_data = existing_code_objects[branch_code_object_id]
+    control_dependence_graph = code_object_meta_data.cdg
+    cdg_nodes = {node.index: node for node in control_dependence_graph.nodes}
+    branch_cdg_node = cdg_nodes[branch_code_object_id]
+    for executed_code_object in executed_code_objects:
+        # Search minimal distance between the node of this branch and the executed
+        # branches in the control-dependence graph to know how far the “best”
+        # execution was away from the target branch node.
+        code_object_cdg_node = cdg_nodes[executed_code_object]
+        length = nx.shortest_path_length(
+            control_dependence_graph,
+            source=branch_cdg_node,
+            target=code_object_cdg_node,
+        )
+        approach_level = min(length, approach_level)
+
+    return approach_level

@@ -116,6 +116,7 @@ class BranchDistanceInstrumentation:
             code,
             cfg,
             real_entry_node,
+            code_object_id,
         )
 
         self._instrument_cfg(cfg, code_object_id)
@@ -483,10 +484,11 @@ class BranchDistanceInstrumentation:
         code: CodeType,
         cfg: CFG,
         real_entry_node: ProgramGraphNode,
+        code_object_id: int,
     ) -> None:
         if len(cfg.nodes) == 3 and [real_entry_node] == [
             n for n in cfg.nodes if not n.is_artificial
         ]:
             self._branch_pool.register_branchless_function(
-                code.co_name, code.co_firstlineno
+                code.co_name, code.co_firstlineno, code_object_id
             )

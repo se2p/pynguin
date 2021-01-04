@@ -23,20 +23,21 @@ class _BranchPool:
     def __init__(self) -> None:
         self._branch_counter: int = 0
         self._branch_id_map: Dict[int, bcg.Branch] = {}
-        self._branchless_functions: Dict[str, int] = {}
+        self._branchless_functions: Dict[str, Tuple[int, int]] = {}
         self._registered_normal_branches: List[Tuple[BasicBlock, int]] = []
         self._tracer: Optional[ExecutionTracer] = None
 
     def register_branchless_function(
-        self, function_name: str, line_number: int
+        self, function_name: str, line_number: int, code_object_id: int
     ) -> None:
         """Registers a function without branches to the pool.
 
         Args:
             function_name: The name of the branchless function
             line_number: The starting line number of the function
+            code_object_id: The ID of the code object
         """
-        self._branchless_functions[function_name] = line_number
+        self._branchless_functions[function_name] = (line_number, code_object_id)
 
     def register_branch(
         self,
@@ -114,12 +115,31 @@ class _BranchPool:
         Args:
             function_name: The branchless function's name
 
+        Returns:
+            The branchless function's first line number
+
         Raises:
             ValueError in case the function is not a branchless one
         """
         if not self.is_branchless_function(function_name):
             raise ValueError(f"No branchless method {function_name} registered")
-        return self._branchless_functions[function_name]
+        return self._branchless_functions[function_name][0]
+
+    def get_branchless_function_code_object_id(self, function_name: str) -> int:
+        """Provides the code-object ID for a branchless function.
+
+        Args:
+            function_name: The branchless function's name
+
+        Returns:
+            The branchless function's code-object ID
+
+        Raises:
+            ValueError in case the function is not a branchless one
+        """
+        if not self.is_branchless_function(function_name):
+            raise ValueError(f"No branchless method {function_name} registered")
+        return self._branchless_functions[function_name][1]
 
     def is_known_as_branch(self, block: BasicBlock) -> bool:
         """Checks whether or not a basic block is known as referring to a branch.
