@@ -10,7 +10,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from bytecode import BasicBlock, Instr
 
-from pynguin.coverage.branch.branchcoveragegoal import Branch
+import pynguin.coverage.branch.branchcoveragegoal as bcg
 
 
 class _BranchPool:
@@ -20,7 +20,7 @@ class _BranchPool:
 
     def __init__(self) -> None:
         self._branch_counter: int = 0
-        self._branch_id_map: Dict[int, Branch] = {}
+        self._branch_id_map: Dict[int, bcg.Branch] = {}
         self._branchless_functions: Dict[str, int] = {}
         self._registered_normal_branches: List[Tuple[BasicBlock, int]] = []
 
@@ -58,7 +58,7 @@ class _BranchPool:
         self._branch_counter += 1
         self._registered_normal_branches.append((block, self._branch_counter))
 
-        branch = Branch(
+        branch = bcg.Branch(
             actual_branch_id=self._branch_counter,
             basic_block=block,
             code_object_id=code_object_id,
@@ -141,7 +141,7 @@ class _BranchPool:
             raise ValueError("Basic block not registered as a normal branch")
         return self._get_id_for_registered_block(block)
 
-    def get_branch_for_block(self, block: BasicBlock) -> Branch:
+    def get_branch_for_block(self, block: BasicBlock) -> bcg.Branch:
         """Provides the branch object for a basic block.
 
         Args:
@@ -156,7 +156,7 @@ class _BranchPool:
             raise ValueError("Expect given block to be known as normal branch")
         return self.get_branch(self._get_id_for_registered_block(block))
 
-    def get_branch(self, branch_id: int) -> Branch:
+    def get_branch(self, branch_id: int) -> bcg.Branch:
         """Provides the branch with a certain ID.
 
         Args:
@@ -168,7 +168,7 @@ class _BranchPool:
         return self._branch_id_map[branch_id]
 
     @property
-    def all_branches(self) -> Iterable[Branch]:
+    def all_branches(self) -> Iterable[bcg.Branch]:
         """Provides an iterable of all registered branches.
 
         Returns:
