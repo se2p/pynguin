@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from functools import total_ordering
+from math import inf
 from typing import Any, Dict, Optional, Set
 
 import networkx as nx
@@ -109,7 +110,7 @@ def calculate_control_flow_distance(
     result: ExecutionResult,
     branch: Optional[bcg.Branch],
     value: bool,
-    function_name: str,
+    function_name: Optional[str],
 ) -> ControlFlowDistance:
     """Calculates the control-flow distance for a given result.
 
@@ -123,6 +124,7 @@ def calculate_control_flow_distance(
         A control-flow distance
     """
     if branch is None:
+        assert function_name is not None
         return _get_root_distance(result, function_name)
 
     if value:
@@ -185,6 +187,8 @@ def _get_non_root_distance(
 def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> float:
     if predicate in branch_distances and branch_distances[predicate] == 0.0:
         return 0.0
+    if predicate not in branch_distances:
+        return inf
     return normalise(branch_distances[predicate])
 
 

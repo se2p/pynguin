@@ -36,9 +36,9 @@ class BranchCoverageGoal:
         *,
         branch: Optional[Branch] = None,
         value: bool,
-        module_name: str,
+        module_name: Optional[str] = None,
         class_name: Optional[str] = None,
-        function_name: str,
+        function_name: Optional[str] = None,
     ) -> None:
         self._branch = branch
         self._value = value
@@ -68,7 +68,7 @@ class BranchCoverageGoal:
         return self._value
 
     @property
-    def module_name(self) -> str:
+    def module_name(self) -> Optional[str]:
         """Provides the name of the module the branch is declared in.
 
         Returns:
@@ -86,7 +86,7 @@ class BranchCoverageGoal:
         return self._class_name
 
     @property
-    def function_name(self) -> str:
+    def function_name(self) -> Optional[str]:
         """Provides the name of the function the branch is declared in.
 
         Returns:

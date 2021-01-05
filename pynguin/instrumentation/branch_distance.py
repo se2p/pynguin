@@ -57,6 +57,7 @@ class BranchDistanceInstrumentation:
         self._tracer = tracer
         self._branch_pool = INSTANCE
         self._branch_pool.clear()
+        self._branch_pool.tracer = tracer
 
     def _instrument_inner_code_objects(
         self, code: CodeType, parent_code_object_id: int

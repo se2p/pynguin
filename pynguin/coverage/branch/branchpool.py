@@ -165,7 +165,7 @@ class _BranchPool:
             raise ValueError("Basic block not registered as a normal branch")
         return self._get_id_for_registered_block(block)
 
-    def get_branch_for_block(self, block: BasicBlock) -> bcg.Branch:
+    def get_branch_for_block(self, block: BasicBlock) -> "bcg.Branch":
         """Provides the branch object for a basic block.
 
         Args:
@@ -180,7 +180,7 @@ class _BranchPool:
             raise ValueError("Expect given block to be known as normal branch")
         return self.get_branch(self._get_id_for_registered_block(block))
 
-    def get_branch(self, branch_id: int) -> bcg.Branch:
+    def get_branch(self, branch_id: int) -> "bcg.Branch":
         """Provides the branch with a certain ID.
 
         Args:
@@ -192,7 +192,7 @@ class _BranchPool:
         return self._branch_id_map[branch_id]
 
     @property
-    def all_branches(self) -> Iterable[bcg.Branch]:
+    def all_branches(self) -> Iterable["bcg.Branch"]:
         """Provides an iterable of all registered branches.
 
         Returns:

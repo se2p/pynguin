@@ -46,3 +46,12 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
             pass
 
         return fitness
+
+    def __str__(self) -> str:
+        return f"BranchCoverageTestFitness for {self._goal}"
+
+    def __repr__(self) -> str:
+        return (
+            f"BranchCoverageTestFitness(executor={self._executor}, "
+            f"goal={self._goal})"
+        )

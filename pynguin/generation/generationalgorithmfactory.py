@@ -10,10 +10,10 @@ from abc import ABCMeta, abstractmethod
 from typing import Callable, Dict, Generic, List, TypeVar
 
 import pynguin.configuration as config
+import pynguin.coverage.branch.branchcoveragefactory as bcf
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchdistancetestcasefitness as bdtcf
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
@@ -198,12 +198,10 @@ class TestSuiteGenerationAlgorithmFactory(
             A list of fitness functions
         """
         if config.INSTANCE.algorithm == config.Algorithm.MOSA:
-            known_data = self._executor.tracer.get_known_data()
-            functions: List[ff.FitnessFunction] = []
-            for _ in known_data.existing_predicates:
-                fitness_function = bdtcf.BranchDistanceTestCaseFitnessFunction(
-                    self._executor
-                )
-                functions.append(fitness_function)
-            return functions
+            factory = bcf.BranchCoverageFactory(self._executor)
+            fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
+            self._logger.info(
+                "Instantiated %d fitness functions", len(fitness_functions)
+            )
+            return fitness_functions
         return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
