@@ -36,10 +36,12 @@ class MOSATestStrategy(TestGenerationStrategy):
         self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
         self._population: List[tcc.TestCaseChromosome] = []
         self._current_iteration = 0
+        self._number_of_goals = -1
 
     def generate_tests(self) -> chrom.Chromosome:
         self._logger.info("Start generating tests")
         self._archive = Archive(set(self._fitness_functions))
+        self._number_of_goals = len(self._fitness_functions)
 
         self._current_iteration = 0
         self._population = self._get_random_population()
@@ -57,7 +59,7 @@ class MOSATestStrategy(TestGenerationStrategy):
 
         while (
             not self._stopping_condition.is_fulfilled()
-            and len(self._archive.uncovered_goals) != 0
+            and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             self.evolve()
             self._notify_iteration()
@@ -216,7 +218,7 @@ class MOSATestStrategy(TestGenerationStrategy):
         return self._get_non_dominated_solutions(self._population)
 
     def _notify_iteration(self) -> None:
-        coverage = len(self._archive.covered_goals) / len(self._fitness_functions)
+        coverage = len(self._archive.covered_goals) / self._number_of_goals
         self._logger.info(
             "Generation: %5i. Coverage: %5f",
             self._current_iteration,
