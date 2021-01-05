@@ -216,7 +216,15 @@ class MOSATestStrategy(TestGenerationStrategy):
         return self._get_non_dominated_solutions(self._population)
 
     def _notify_iteration(self) -> None:
-        pass
+        coverage = len(self._archive.covered_goals) / len(self._fitness_functions)
+        self._logger.info(
+            "Generation: %5i. Coverage: %5f",
+            self._current_iteration,
+            coverage,
+        )
+        StatisticsTracker().set_output_variable_for_runtime_variable(
+            RuntimeVariable.CoverageTimeline, coverage
+        )
 
     def _create_test_suite(self) -> chrom.Chromosome:
         suite = tsc.TestSuiteChromosome()
