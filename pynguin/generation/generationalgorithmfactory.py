@@ -95,9 +95,9 @@ class TestSuiteGenerationAlgorithmFactory(
 
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
         config.Algorithm.MOSA: MOSATestStrategy,
-        config.Algorithm.RANDOOPY: RandomTestStrategy,
+        config.Algorithm.RANDOM: RandomTestStrategy,
         config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
-        config.Algorithm.WSPY: WholeSuiteTestStrategy,
+        config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster):

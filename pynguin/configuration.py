@@ -37,9 +37,10 @@ class Algorithm(str, enum.Enum):
     """Different algorithms supported by Pynguin."""
 
     MOSA = "MOSA"
-    """The many-objective sorting algorithm."""
+    """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
+    Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
 
-    RANDOOPY = "RANDOOPY"
+    RANDOM = "RANDOM"
     """A feedback-direct random test generation approach similar to the algorithm
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
@@ -47,7 +48,7 @@ class Algorithm(str, enum.Enum):
     RANDOMSEARCH = "RANDOMSEARCH"
     """Performs random search on test suites."""
 
-    WSPY = "WSPY"
+    WHOLE_SUITE = "WHOLE_SUITE"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
     Object-Oriented Software. Proc. ESEC/FSE 2011)."""
@@ -289,5 +290,5 @@ class Configuration(Serializable):
 
 # Singleton instance of the configuration.
 INSTANCE = Configuration(
-    algorithm=Algorithm.RANDOOPY, project_path="", output_path="", module_name=""
+    algorithm=Algorithm.RANDOM, project_path="", output_path="", module_name=""
 )

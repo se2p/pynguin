@@ -33,7 +33,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_wspy(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
-    config.INSTANCE.algorithm = config.Algorithm.WSPY
+    config.INSTANCE.algorithm = config.Algorithm.WHOLE_SUITE
     config.INSTANCE.budget = 1
     config.INSTANCE.module_name = module_name
     config.INSTANCE.population = 3
