@@ -90,10 +90,18 @@ def test_compute_fitness_values_no_branches(branch_pool):
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_no_branches_fixture(module)
         goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
+            goals_dict[goal._goal.function_name] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
+        assert chromosome.fitness_values[goals_dict["__init__"]].fitness == 0.0
+        assert chromosome.fitness_values[goals_dict["other"]].fitness == 1.0
+        assert chromosome.fitness_values[goals_dict["<module>"]].fitness == 0.0
+        assert chromosome.fitness_values[goals_dict["get_x"]].fitness == 0.0
+        assert chromosome.fitness_values[goals_dict["identity"]].fitness == 0.0
+        assert chromosome.fitness_values[goals_dict["DummyClass"]].fitness == 0.0
 
 
 def test_compute_fitness_values_single_branches_if(branch_pool):
@@ -128,6 +136,23 @@ def test_compute_fitness_values_single_branches_else(branch_pool):
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
         assert fitness == pytest.approx(0.46153846)
+
+
+def test_compute_fitness_values_two_method_single_branches_else(branch_pool):
+    module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
+    tracer = ExecutionTracer()
+    tracer.reset()
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = _get_test_for_single_branch_else_branch_fixture(module)
+        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        for goal in goals:
+            chromosome.add_fitness_function(goal)
+        fitness = chromosome.get_fitness()
+        assert fitness == pytest.approx(12.46153846)
 
 
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
