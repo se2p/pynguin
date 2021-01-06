@@ -6,9 +6,8 @@
 #
 """Provides implementations of a ranking function."""
 import logging
-import sys
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Generic, List, Optional, Set, TypeVar
+from typing import Generic, List, Optional, Set, TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -175,99 +174,3 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     def get_number_of_sub_fronts(self) -> int:
         assert self._fronts is not None
         return len(self._fronts)
-
-
-class FastNonDominatedSorting(RankingFunction, Generic[C]):
-    """Ranks the test cases according to the preference criterion defined for MOSA."""
-
-    def __init__(self) -> None:
-        self._ranking: List[List[C]] = []
-        self._new_covered_goals: Dict[ff.FitnessFunction, C] = {}
-
-    def compute_ranking_assignment(
-        self, solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
-    ) -> None:
-        fronts: List[List[C]] = self._get_next_non_dominated_front(
-            solutions, uncovered_goals
-        )
-        _array_copy(fronts, 0, self._ranking, 0, len(fronts))
-
-    # pylint: disable=too-many-locals, invalid-name, too-many-branches
-    @staticmethod
-    def _get_next_non_dominated_front(
-        solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
-    ) -> List[List[C]]:
-        criterion: DominanceComparator[C] = DominanceComparator(goals=uncovered_goals)
-
-        # dominate_me[i] contains the number of solutions dominating i
-        dominate_me: List[int] = []
-
-        # i_dominate[k] contains the list of solutions dominated by k
-        i_dominate: List[List[int]] = []
-
-        # front[i] contains the list of individuals belonging to the front i
-        front: List[List[int]] = []
-
-        # Initialise the fronts
-        for i in range(len(solutions) + 1):
-            front[i] = []
-
-        # Initialise distance
-        for solution in solutions:
-            solution.distance = sys.float_info.max
-
-        # -> Fast non-dominated sorting algorithm
-        for p, _ in enumerate(solutions):
-            # Initialise the list of individuals that i dominate and the number of
-            # individuals that dominate me
-            i_dominate[p] = []
-            dominate_me[p] = 0
-
-        for p in range(len(solutions) - 1):
-            # For all q individuals, calculate if p dominates q or vice versa
-            for q in range(p + 1, len(solutions)):
-                flag_dominate = criterion.compare(solutions[p], solutions[q])
-
-                if flag_dominate == -1:
-                    i_dominate[p].append(q)
-                    dominate_me[q] += 1
-                elif flag_dominate == 1:
-                    i_dominate[q].append(p)
-                    dominate_me[p] += 1
-
-        for p, _ in enumerate(solutions):
-            if dominate_me[p] == 0:
-                front[0].append(p)
-                solutions[p].rank = 1
-
-        # Obtain the rest of fronts
-        i = 0
-        while len(front[i]) != 0:
-            i += 1
-            for next_1 in front[i - 1]:
-                for next_2 in i_dominate[next_1]:
-                    index = next_2
-                    dominate_me[index] -= 1
-                    if dominate_me[index] == 0:
-                        front[i].append(index)
-                        solutions[index].rank = i + 1
-
-        fronts: List[List[C]] = []
-        # 0, 1, 2, ..., i-1 are front, then i fronts
-        for j in range(i):
-            fronts[j] = []
-            for next_front in front[j]:
-                fronts[j].append(solutions[next_front])
-
-        return fronts
-
-    def get_sub_front(self, rank: int) -> List[C]:
-        return self._ranking[rank]
-
-    def get_number_of_sub_fronts(self) -> int:
-        return len(self._ranking)
-
-
-def _array_copy(src, src_pos, dest, dest_pos, length) -> None:
-    for i in range(length):
-        dest[i + dest_pos] = src[i + src_pos]

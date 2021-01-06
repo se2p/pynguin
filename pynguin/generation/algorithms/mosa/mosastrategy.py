@@ -230,6 +230,8 @@ class MOSATestStrategy(TestGenerationStrategy):
 
     def _create_test_suite(self) -> chrom.Chromosome:
         suite = tsc.TestSuiteChromosome()
+        if len(self._archive.solutions) == 0:
+            suite.add_test_case_chromosomes(self._get_best_individuals())
         suite.add_test_case_chromosomes(list(self._archive.solutions))
         # TODO is this reasonable?
         suite.add_fitness_function(
