@@ -6,6 +6,7 @@
 #
 """Provides a representation for a branch-coverage goal inside a module under test."""
 from dataclasses import dataclass
+from types import CodeType
 from typing import Any, Optional
 
 from bytecode import BasicBlock, Instr
@@ -23,6 +24,7 @@ class Branch:
     code_object_id: int
     compare_op: Optional[Instr]
     predicate_id: Optional[int]
+    code_object_data: CodeType
 
 
 class BranchCoverageGoal:
@@ -112,10 +114,7 @@ class BranchCoverageGoal:
         return distance
 
     def __str__(self) -> str:
-        name = f"{self._module_name}."
-        if self._class_name:
-            name += f"{self._class_name}."
-        name += f"{self._function_name}:"
+        name = f"{self._function_name}:"
         if self._branch:
             name += f" {self._branch}"
             if self._value:

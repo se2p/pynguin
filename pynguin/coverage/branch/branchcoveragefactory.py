@@ -57,5 +57,9 @@ class BranchCoverageFactory:
     ) -> ff.FitnessFunction:
         return bctf.BranchCoverageTestFitness(
             self._executor,
-            bcg.BranchCoverageGoal(branch=branch, value=branch_expression_value),
+            bcg.BranchCoverageGoal(
+                branch=branch,
+                value=branch_expression_value,
+                function_name=branch.code_object_data.co_name,
+            ),
         )

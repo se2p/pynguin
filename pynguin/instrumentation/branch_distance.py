@@ -253,7 +253,15 @@ class BranchDistanceInstrumentation:
             Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._branch_pool.register_branch(block, code_object_id, predicate_id, lineno)
+        self._branch_pool.register_branch(
+            block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+        )
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
@@ -295,7 +303,14 @@ class BranchDistanceInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
         self._branch_pool.register_branch(
-            block, code_object_id, predicate_id, lineno, cmp_op
+            block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+            cmp_op,
         )
         return predicate_id
 
@@ -441,7 +456,14 @@ class BranchDistanceInstrumentation:
             ):
                 successor.basic_block[self._JUMP_OP_POS].arg = new_header
         self._branch_pool.register_branch(
-            node.basic_block, code_object_id, predicate_id, lineno, for_instr
+            node.basic_block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+            for_instr,
         )
         return predicate_id
 

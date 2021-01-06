@@ -6,6 +6,7 @@
 #
 """Provides a pool to hold all available information concerning branches."""
 import logging
+from types import CodeType
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from bytecode import BasicBlock, Instr
@@ -45,6 +46,7 @@ class _BranchPool:
         code_object_id: int,
         predicate_id: int,
         line_no: int,
+        code_object_data: CodeType,
         compare_op: Optional[Instr] = None,
     ) -> None:
         """Registers a normal branch in the pool.
@@ -54,6 +56,7 @@ class _BranchPool:
             code_object_id: The ID of the code object
             predicate_id: The ID of the predicate
             line_no: The starting line number of the basic block
+            code_object_data: The code type object
             compare_op: An optional compare instruction of the branch
         """
         if self._is_block_a_registered_normal_branch(block):
@@ -68,6 +71,7 @@ class _BranchPool:
             code_object_id=code_object_id,
             compare_op=compare_op,
             predicate_id=predicate_id,
+            code_object_data=code_object_data,
         )
         self._branch_id_map[self._branch_counter] = branch
 
