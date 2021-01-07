@@ -155,6 +155,23 @@ def test_compute_fitness_values_two_method_single_branches_else(branch_pool):
         assert fitness == pytest.approx(12.46153846)
 
 
+def test_compute_fitness_values_nested_branches(branch_pool):
+    module_name = "tests.fixtures.branchcoverage.nestedbranches"
+    tracer = ExecutionTracer()
+    tracer.reset()
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = _get_test_for_nested_branch_fixture(module)
+        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        for goal in goals:
+            chromosome.add_fitness_function(goal)
+        # fitness = chromosome.get_fitness()
+        # assert fitness == pytest.approx(12.46153846)
+
+
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
@@ -215,6 +232,22 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
         test_case,
         gao.GenericFunction(
             module.first,
+            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+        ),
+        [int_stmt.ret_val],
+    )
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(function_call)
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
+    test_case = dtc.DefaultTestCase()
+    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, -50)
+    function_call = param_stmt.FunctionStatement(
+        test_case,
+        gao.GenericFunction(
+            module.nested_branches,
             InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
         ),
         [int_stmt.ret_val],
