@@ -59,10 +59,6 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._test_case
 
-    @test_case.setter
-    def test_case(self, test_case: tc.TestCase) -> None:
-        self._test_case = test_case
-
     def size(self) -> int:
         return self._test_case.size()
 

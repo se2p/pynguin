@@ -167,7 +167,6 @@ class MOSATestStrategy(TestGenerationStrategy):
                     )
                     for fitness_function in self._fitness_functions:
                         tch.add_fitness_function(fitness_function)
-                    tch.set_changed(True)
                 else:
                     tch = randomness.choice(list(self._archive.solutions)).clone()
                     tch.mutate()

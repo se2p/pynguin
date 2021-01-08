@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Dict, List, Tuple, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 from bytecode import Bytecode, ControlFlowGraph
 from networkx import NetworkXError, diameter
@@ -30,7 +30,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         """
         super().__init__()
         self._bytecode_cfg = bytecode_cfg
-        self._diameter: int = -1
+        self._diameter: Optional[int] = None
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -218,11 +218,14 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         Returns:
             The diameter of the graph
         """
-        if self._diameter == -1:
+        if self._diameter is None:
             # Do this computation lazily
             try:
                 self._diameter = diameter(self._graph, usebounds=True)
             except NetworkXError:
+                # It seems like NetworkX makes some assumptions on the graph which
+                # are not documented (or which I could not find at least) that caused
+                # these errors.
                 # If the diameter computation fails for some reason, use an upper bound
                 self._diameter = len(self._graph.edges)
         return self._diameter

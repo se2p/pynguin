@@ -35,7 +35,7 @@ class Archive(Generic[F, C]):
 
     def __init__(self, objectives: Set[F]) -> None:
         self._covered: Dict[F, C] = {}
-        self._uncovered = objectives
+        self._uncovered = set(objectives)
         self._objectives = objectives
 
     def update(self, solutions: Iterable[C]) -> None:
@@ -61,6 +61,8 @@ class Archive(Generic[F, C]):
                 if fitness == 0.0 and size < best_size:
                     self._covered[objective] = solution
                     best_size = size
+                    if objective in self._uncovered:
+                        self._uncovered.remove(objective)
 
     @property
     def uncovered_goals(self) -> Set[F]:
