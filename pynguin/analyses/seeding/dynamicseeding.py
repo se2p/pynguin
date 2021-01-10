@@ -8,11 +8,9 @@
 from __future__ import annotations
 
 import logging
-import string
 from types import CodeType
 from typing import Dict, Optional, Set, cast, AnyStr
 
-import pynguin.configuration as config
 import networkx as nx
 from bytecode import BasicBlock, Bytecode, Instr
 
@@ -44,10 +42,14 @@ class DynamicSeedingInstrumentation:
     # block.
     _COMPARE_OP_POS = -2
 
-    # If one of the considered string functions (startswith, endswith) is used in the if statement, it will be loaded
+    # If one of the considered string functions is used in the if statement, it will be loaded
     # in the fourth last position. After it comes the load of the argument, the call of the method and the jump
     # operation.
     _STRING_FUNC_POS = -4
+
+    # A list containing the names of all string functions which are instrumented.
+    _STRING_FUNCTION_NAMES = ["startswith", "endswith", "isalnum", "isalpha", "isdecimal", "isdigit", "isidentifier",
+                              "islower", "isnumeric", "isprintable", "isspace", "istitle", "isupper"]
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeedingInstrumentation] = None
@@ -149,7 +151,7 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented compare_op")
         return predicate_id
 
-    def instrument_startswith_func(self, block: BasicBlock):
+    def _instrument_startswith_function(self, block: BasicBlock):
         """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
            value 'string2 + string1' in the _dynamic_pool.
 
@@ -193,6 +195,11 @@ class DynamicSeedingInstrumentation:
                 node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
         nx.set_node_attributes(cfg.graph, node_attributes)
 
+    def _instrument_string_func(self, block: BasicBlock, function_name: str):
+        method_name = "_instrument_" + function_name + "_function"
+        method_to_call = getattr(self, method_name)
+        return method_to_call(block)
+
     def _instrument_node(
         self,
         node: ProgramGraphNode,
@@ -230,9 +237,9 @@ class DynamicSeedingInstrumentation:
             if (
                 isinstance(maybe_string_func, Instr) and
                 maybe_string_func.name == "LOAD_METHOD" and
-                maybe_string_func.arg == "startswith"
+                maybe_string_func.arg in self._STRING_FUNCTION_NAMES
             ):
-                predicate_id = self.instrument_startswith_func(node.basic_block)
+                predicate_id = self._instrument_string_func(node.basic_block, maybe_string_func.arg)
         return predicate_id
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
