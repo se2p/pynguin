@@ -41,10 +41,14 @@ class DynamicSeedingInstrumentation:
     # block.
     _COMPARE_OP_POS = -2
 
-    # If one of the considered string functions is used in the if statement, it will be loaded
+    #  If one of the considered string functions needing no argument is used in the if statement, it will be loaded in
+    #  the third last position. After it comes the call of the method and the jump operation.
+    _STRING_FUNC_POS = -3
+
+    # If one of the considered string functions needing one argument is used in the if statement, it will be loaded
     # in the fourth last position. After it comes the load of the argument, the call of the method and the jump
     # operation.
-    _STRING_FUNC_POS = -4
+    _STRING_FUNC_POS_WITH_ARG = -4
 
     # A list containing the names of all string functions which are instrumented.
     _STRING_FUNCTION_NAMES = ["startswith", "endswith", "isalnum", "isalpha", "isdecimal", "isdigit", "isidentifier",
@@ -151,7 +155,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -167,7 +171,7 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented startswith function")
 
     def _instrument_endswith_function(self, block: BasicBlock):
-        """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
+        """Instruments the endswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
            value 'string2 + string1' in the _dynamic_pool.
 
         Args:
@@ -176,7 +180,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -191,8 +195,8 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented endswith function")
 
     def _instrument_isalnum_function(self, block: BasicBlock):
-        """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
-           value 'string2 + string1' in the _dynamic_pool.
+        """Instruments the isalnum function in bytecode. If the isalnum() evaluates to true, a value is added to the
+        pool for which the isalnum()
 
         Args:
             block: The basic block where the new instructions are inserted.
@@ -200,7 +204,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -259,6 +263,11 @@ class DynamicSeedingInstrumentation:
             )
             maybe_string_func: Optional[Instr] = (
                 node.basic_block[self._STRING_FUNC_POS]
+                if len(node.basic_block) > 2
+                else None
+            )
+            maybe_string_func_with_arg: Optional[Instr] = (
+                node.basic_block[self._STRING_FUNC_POS_WITH_ARG]
                 if len(node.basic_block) > 3
                 else None
             )
@@ -270,6 +279,12 @@ class DynamicSeedingInstrumentation:
                 maybe_string_func.arg in self._STRING_FUNCTION_NAMES
             ):
                 self._instrument_string_func(node.basic_block, maybe_string_func.arg)
+            if (
+                isinstance(maybe_string_func_with_arg, Instr) and
+                maybe_string_func_with_arg.name == "LOAD_METHOD" and
+                maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
+            ):
+                self._instrument_string_func(node.basic_block, maybe_string_func_with_arg.arg)
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module.
