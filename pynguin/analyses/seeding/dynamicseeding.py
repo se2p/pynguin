@@ -179,6 +179,33 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented startswith function")
         return predicate_id
 
+    def _instrument_endswith_function(self, block: BasicBlock):
+        """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
+           value 'string2 + string1' in the _dynamic_pool.
+
+        Args:
+            block: The basic block where the new instructions are inserted.
+
+        Returns:
+            The id that was assigned to the predicate.
+        """
+        predicate_id = self._predicate_id_counter
+        self._predicate_id_counter = self._predicate_id_counter + 1
+        insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
+        lineno = block[insert_pos].lineno
+        block[insert_pos: insert_pos] = [
+            Instr("DUP_TOP_TWO", lineno=lineno),
+            Instr("BINARY_ADD", lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
+            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
+        self._logger.info("Instrumented endswith function")
+        return predicate_id
+
     def _instrument_cfg(self, cfg: CFG) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
