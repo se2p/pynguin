@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import logging
 from types import CodeType
-from typing import Dict, Optional, Set, cast, AnyStr
+from typing import Optional, Set, cast, AnyStr
 
-import networkx as nx
 from bytecode import BasicBlock, Bytecode, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
@@ -25,9 +24,9 @@ class DynamicSeedingInstrumentation:
 
     Supported is collecting values of the types int, float and string.
 
-    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the two string methods "startswith" and
-    "endswith". This means, if one of the above operations and methods is used in an if-conditional, corresponding
-    values are added to the dynamic constant pool.
+    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the string methods contained in the
+    STRING_FUNCTION_NAMES list. This means, if one of the above operations and methods is used in an if-conditional,
+     corresponding values are added to the dynamic constant pool.
 
     General notes:
 
@@ -103,8 +102,6 @@ class DynamicSeedingInstrumentation:
         """
         self._logger.debug("Instrumenting Code Object for dynamic seeding for %s", code.co_name)
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        # code_object_id = self.codeobject_counter
-        # self.codeobject_counter = self.codeobject_counter + 1
 
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
@@ -115,7 +112,7 @@ class DynamicSeedingInstrumentation:
             cfg.bytecode_cfg().to_code()
         )
 
-    def instrument_compare_op(self, block: BasicBlock):
+    def _instrument_compare_op(self, block: BasicBlock):
         """ Instruments the compare operations in bytecode. Stores the values extracted at runtime.
 
         Args:
@@ -124,14 +121,10 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        predicate_id = self._predicate_id_counter
-        self._predicate_id_counter = self._predicate_id_counter + 1
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
 
-            # Instr("LOAD_FAST", self.__name__, lineno=lineno),
-            # Instr("LOAD_ATTR", self.dynamic_pool, lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
             Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
@@ -139,8 +132,6 @@ class DynamicSeedingInstrumentation:
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
 
-            # Instr("LOAD_FAST", self.__name__, lineno=lineno),
-            # Instr("LOAD_ATTR", self.dynamic_pool, lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
             Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
@@ -149,7 +140,6 @@ class DynamicSeedingInstrumentation:
             Instr("POP_TOP", lineno=lineno)
         ]
         self._logger.info("Instrumented compare_op")
-        return predicate_id
 
     def _instrument_startswith_function(self, block: BasicBlock):
         """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
@@ -161,8 +151,6 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        predicate_id = self._predicate_id_counter
-        self._predicate_id_counter = self._predicate_id_counter + 1
         insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
@@ -177,7 +165,6 @@ class DynamicSeedingInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented startswith function")
-        return predicate_id
 
     def _instrument_endswith_function(self, block: BasicBlock):
         """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
@@ -189,8 +176,6 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        predicate_id = self._predicate_id_counter
-        self._predicate_id_counter = self._predicate_id_counter + 1
         insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
@@ -204,7 +189,6 @@ class DynamicSeedingInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented endswith function")
-        return predicate_id
 
     def _instrument_isalnum_function(self, block: BasicBlock):
         """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
@@ -216,8 +200,6 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        predicate_id = self._predicate_id_counter
-        self._predicate_id_counter = self._predicate_id_counter + 1
         insert_pos = self._STRING_FUNC_POS + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
@@ -231,7 +213,6 @@ class DynamicSeedingInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented endswith function")
-        return predicate_id
 
     def _instrument_cfg(self, cfg: CFG) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
@@ -240,24 +221,20 @@ class DynamicSeedingInstrumentation:
             cfg: The CFG that overlays the bytecode cfg.
         """
         # Attributes which store the predicate ids assigned to instrumented nodes.
-        node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = {}
         for node in cfg.nodes:
-            predicate_id = self._instrument_node(
+            self._instrument_node(
                 node
             )
-            if predicate_id is not None:
-                node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
-        nx.set_node_attributes(cfg.graph, node_attributes)
 
     def _instrument_string_func(self, block: BasicBlock, function_name: str):
         method_name = "_instrument_" + function_name + "_function"
         method_to_call = getattr(self, method_name)
-        return method_to_call(block)
+        method_to_call(block)
 
     def _instrument_node(
         self,
         node: ProgramGraphNode,
-    ) -> Optional[int]:
+    ):
         """Instrument a single node in the CFG.
 
         Currently we only instrument conditional jumps and for loops.
@@ -268,7 +245,6 @@ class DynamicSeedingInstrumentation:
         Returns:
             A predicate id, if the contained a predicate which was instrumented.
         """
-        predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
         # TODO: check if last instruction of the block is a jump instruction.
         if not node.is_artificial:
@@ -287,14 +263,13 @@ class DynamicSeedingInstrumentation:
                 else None
             )
             if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
-                predicate_id = self.instrument_compare_op(node.basic_block)
+                self._instrument_compare_op(node.basic_block)
             if (
                 isinstance(maybe_string_func, Instr) and
                 maybe_string_func.name == "LOAD_METHOD" and
                 maybe_string_func.arg in self._STRING_FUNCTION_NAMES
             ):
-                predicate_id = self._instrument_string_func(node.basic_block, maybe_string_func.arg)
-        return predicate_id
+                self._instrument_string_func(node.basic_block, maybe_string_func.arg)
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module.
