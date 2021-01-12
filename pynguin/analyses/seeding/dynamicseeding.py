@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from types import CodeType
-from typing import Optional, Set, cast, AnyStr
+from typing import Optional, Set, cast, AnyStr, Dict, Union, Any
 
 from bytecode import BasicBlock, Bytecode, Instr
 
@@ -54,16 +54,22 @@ class DynamicSeedingInstrumentation:
     _STRING_FUNCTION_NAMES = ["startswith", "endswith", "isalnum", "isalpha", "isdecimal", "isdigit", "isidentifier",
                               "islower", "isnumeric", "isprintable", "isspace", "istitle", "isupper"]
 
+    Types = Union[int, float, str]
+
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeedingInstrumentation] = None
-    _dynamic_pool: Optional[Set] = None
+    _dynamic_pool: Optional[Dict[str, Set[Types]]] = None
     _codeobject_counter: int = None
     _predicate_id_counter: int = None
 
     def __new__(cls) -> DynamicSeedingInstrumentation:
         if cls._instance is None:
             cls._instance = super(DynamicSeedingInstrumentation, cls).__new__(cls)
-            cls._dynamic_pool = set()
+            cls._dynamic_pool = {
+                "int": set(),
+                "float": set(),
+                "string": set()
+            }
             cls._codeobject_counter = 0
             cls._predicate_id_counter = 0
         return cls._instance
@@ -297,17 +303,42 @@ class DynamicSeedingInstrumentation:
         """
         return self._instrument_code_recursive(module_code)
 
-    def has_value(self) -> bool:
-        """Returns True if at least one value was collected."""
-        if len(self._dynamic_pool) > 0:
-            return True
-        else:
-            return False
+    @property
+    def has_ints(self) -> bool:
+        return self.has_constants("int")
 
+    @property
+    def has_floats(self) -> bool:
+        return self.has_constants("float")
+
+    @property
+    def has_strings(self) -> bool:
+        return self.has_constants("string")
+
+    def has_constants(self, type_: str) -> bool:
+        return len(self._dynamic_pool[type_]) > 0
+
+    @property
     def random_int(self) -> int:
-        rand_value = cast(int, randomness.choice(tuple(self._dynamic_pool)))
+        rand_value = cast(int, randomness.choice(tuple(self._dynamic_pool["int"])))
         return rand_value
 
-    def random_string(self) -> AnyStr:
-        rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool)))
+    @property
+    def random_float(self) -> float:
+        rand_value = cast(float, randomness.choice(tuple(self._dynamic_pool["float"])))
         return rand_value
+
+    @property
+    def random_string(self) -> AnyStr:
+        rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool["string"])))
+        return rand_value
+
+    def get_type_of_value(self, value: Any) -> str:
+        if isinstance(value, int):
+            return "int"
+        elif isinstance(value, float):
+            return "float"
+        elif isinstance(value, str):
+            return "string"
+        else:
+            return "other"

@@ -104,13 +104,12 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def randomize_value(self) -> None:
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeedingInstrumentation().has_value()
+            and DynamicSeedingInstrumentation().has_ints
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
-            # and StaticConstantSeeding().has_ints
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_int()
+            self._value = DynamicSeedingInstrumentation().random_int
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
@@ -146,6 +145,14 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
 
     def randomize_value(self) -> None:
         if (
+            config.INSTANCE.dynamic_constant_seeding
+            and DynamicSeedingInstrumentation().has_floats
+            and randomness.next_float() <= 0.90
+            and config.INSTANCE.constant_seeding
+            and randomness.next_float() <= 0.90
+        ):
+            self._value = DynamicSeedingInstrumentation().random_float
+        elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_floats
             and randomness.next_float() <= 0.90
@@ -188,13 +195,12 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def randomize_value(self) -> None:
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeedingInstrumentation().has_value()
+            and DynamicSeedingInstrumentation().has_strings
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
-            # and StaticConstantSeeding().has_strings
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_string()
+            self._value = DynamicSeedingInstrumentation().random_string
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings
