@@ -70,8 +70,8 @@ class DynamicSeedingInstrumentation:
                 "float": set(),
                 "string": set()
             }
-            cls._codeobject_counter = 0
-            cls._predicate_id_counter = 0
+            #cls._codeobject_counter = 0
+            #cls._predicate_id_counter = 0
         return cls._instance
 
     def _instrument_inner_code_objects(
@@ -168,6 +168,8 @@ class DynamicSeedingInstrumentation:
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
+            Instr("LOAD_CONST", 'string', lineno=lineno),
+            Instr("BINARY_SUBSCR", lineno=lineno),
             Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
@@ -178,7 +180,7 @@ class DynamicSeedingInstrumentation:
 
     def _instrument_endswith_function(self, block: BasicBlock):
         """Instruments the endswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
-           value 'string2 + string1' in the _dynamic_pool.
+           value 'string1 + string2' in the _dynamic_pool.
 
         Args:
             block: The basic block where the new instructions are inserted.
@@ -192,6 +194,8 @@ class DynamicSeedingInstrumentation:
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
+            Instr("LOAD_CONST", 'string', lineno=lineno),
+            Instr("BINARY_SUBSCR", lineno=lineno),
             Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
@@ -333,7 +337,8 @@ class DynamicSeedingInstrumentation:
         rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool["string"])))
         return rand_value
 
-    def get_type_of_value(self, value: Any) -> str:
+    @staticmethod
+    def get_type_of_value(value: Any) -> str:
         if isinstance(value, int):
             return "int"
         elif isinstance(value, float):
