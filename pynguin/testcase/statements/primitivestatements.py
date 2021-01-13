@@ -16,7 +16,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
-from pynguin.analyses.seeding.dynamicseeding import DynamicSeedingInstrumentation
+from pynguin.analyses.seeding.dynamicseeding import DynamicSeeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -104,12 +104,12 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def randomize_value(self) -> None:
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeedingInstrumentation().has_ints
+            and DynamicSeeding().has_ints
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_int
+            self._value = DynamicSeeding().random_int
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
@@ -146,12 +146,12 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
     def randomize_value(self) -> None:
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeedingInstrumentation().has_floats
+            and DynamicSeeding().has_floats
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_float
+            self._value = DynamicSeeding().random_float
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_floats
@@ -195,12 +195,12 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def randomize_value(self) -> None:
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeedingInstrumentation().has_strings
+            and DynamicSeeding().has_strings
             and randomness.next_float() <= 0.90
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= 0.90
         ):
-            self._value = DynamicSeedingInstrumentation().random_string
+            self._value = DynamicSeeding().random_string
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings
