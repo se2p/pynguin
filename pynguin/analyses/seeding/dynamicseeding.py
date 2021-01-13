@@ -59,8 +59,6 @@ class DynamicSeedingInstrumentation:
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeedingInstrumentation] = None
     _dynamic_pool: Optional[Dict[str, Set[Types]]] = None
-    _codeobject_counter: int = None
-    _predicate_id_counter: int = None
 
     def __new__(cls) -> DynamicSeedingInstrumentation:
         if cls._instance is None:
@@ -70,8 +68,6 @@ class DynamicSeedingInstrumentation:
                 "float": set(),
                 "string": set()
             }
-            #cls._codeobject_counter = 0
-            #cls._predicate_id_counter = 0
         return cls._instance
 
     def _instrument_inner_code_objects(
@@ -349,6 +345,11 @@ class DynamicSeedingInstrumentation:
             return "other"
 
     def add_value_to_pool(self, value: Types):
+        """ Adds the given value to the corresponding set of the dynamic pool.
+
+        Args:
+            value: The value to add.
+        """
         if isinstance(value, int):
             self._dynamic_pool["int"].add(value)
         elif isinstance(value, float):
