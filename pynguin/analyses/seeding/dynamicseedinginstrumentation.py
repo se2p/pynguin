@@ -16,7 +16,6 @@ from bytecode import BasicBlock, Bytecode, Instr
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 
-
 # pylint:disable=too-few-public-methods
 from pynguin.analyses.seeding.dynamicseeding import DynamicSeeding
 
@@ -57,83 +56,6 @@ class DynamicSeedingInstrumentation:
                               "islower", "isnumeric", "isprintable", "isspace", "istitle", "isupper"]
 
     _logger = logging.getLogger(__name__)
-
-    def _instrument_inner_code_objects(
-        self, code: CodeType
-    ) -> CodeType:
-        """Apply the instrumentation to all constants of the given code object.
-
-        Args:
-            code: the Code Object that should be instrumented.
-
-        Returns:
-            the code object whose constants were instrumented.
-        """
-        new_consts = []
-        for const in code.co_consts:
-            if isinstance(const, CodeType):
-                # The const is an inner code object
-                new_consts.append(
-                    self._instrument_code_recursive(
-                        const
-                    )
-                )
-            else:
-                new_consts.append(const)
-        return code.replace(co_consts=tuple(new_consts))
-
-    def _instrument_code_recursive(
-        self,
-        code: CodeType,
-    ) -> CodeType:
-        """Instrument the given Code Object recursively.
-
-        Args:
-            code: The code object that should be instrumented
-
-        Returns:
-            The instrumented code object
-        """
-        self._logger.debug("Instrumenting Code Object for dynamic seeding for %s", code.co_name)
-        cfg = CFG.from_bytecode(Bytecode.from_code(code))
-
-        assert cfg.entry_node is not None, "Entry node cannot be None."
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-
-        self._instrument_cfg(cfg)
-        return self._instrument_inner_code_objects(
-            cfg.bytecode_cfg().to_code()
-        )
-
-    def _instrument_compare_op(self, block: BasicBlock):
-        """ Instruments the compare operations in bytecode. Stores the values extracted at runtime.
-
-        Args:
-            block: The containing basic block.
-
-        Returns:
-            The id that was assigned to the predicate.
-        """
-        lineno = block[self._COMPARE_OP_POS].lineno
-        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
-
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno)
-        ]
-        self._logger.info("Instrumented compare_op")
 
     def _instrument_startswith_function(self, block: BasicBlock):
         """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
@@ -212,6 +134,95 @@ class DynamicSeedingInstrumentation:
         ]
         self._logger.info("Instrumented endswith function")
 
+    def _instrument_string_func(self, block: BasicBlock, function_name: str):
+        """ Calls the corresponding instrumentation method for the given function_name.
+
+        Args:
+            block: The block to instrument.
+            function_name: The name of the function for which the method will be called.
+
+        """
+        method_name = "_instrument_" + function_name + "_function"
+        method_to_call = getattr(self, method_name)
+        method_to_call(block)
+
+    def _instrument_compare_op(self, block: BasicBlock):
+        """ Instruments the compare operations in bytecode. Stores the values extracted at runtime.
+
+        Args:
+            block: The containing basic block.
+
+        Returns:
+            The id that was assigned to the predicate.
+        """
+        lineno = block[self._COMPARE_OP_POS].lineno
+        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
+            Instr("DUP_TOP_TWO", lineno=lineno),
+
+            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+
+            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("ROT_THREE", lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno)
+        ]
+        self._logger.info("Instrumented compare_op")
+
+    def _instrument_inner_code_objects(
+        self, code: CodeType
+    ) -> CodeType:
+        """Apply the instrumentation to all constants of the given code object.
+
+        Args:
+            code: the Code Object that should be instrumented.
+
+        Returns:
+            the code object whose constants were instrumented.
+        """
+        new_consts = []
+        for const in code.co_consts:
+            if isinstance(const, CodeType):
+                # The const is an inner code object
+                new_consts.append(
+                    self._instrument_code_recursive(
+                        const
+                    )
+                )
+            else:
+                new_consts.append(const)
+        return code.replace(co_consts=tuple(new_consts))
+
+    def _instrument_code_recursive(
+        self,
+        code: CodeType,
+    ) -> CodeType:
+        """Instrument the given Code Object recursively.
+
+        Args:
+            code: The code object that should be instrumented
+
+        Returns:
+            The instrumented code object
+        """
+        self._logger.debug("Instrumenting Code Object for dynamic seeding for %s", code.co_name)
+        cfg = CFG.from_bytecode(Bytecode.from_code(code))
+
+        assert cfg.entry_node is not None, "Entry node cannot be None."
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+
+        self._instrument_cfg(cfg)
+        return self._instrument_inner_code_objects(
+            cfg.bytecode_cfg().to_code()
+        )
+
     def _instrument_cfg(self, cfg: CFG) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
@@ -223,11 +234,6 @@ class DynamicSeedingInstrumentation:
             self._instrument_node(
                 node
             )
-
-    def _instrument_string_func(self, block: BasicBlock, function_name: str):
-        method_name = "_instrument_" + function_name + "_function"
-        method_to_call = getattr(self, method_name)
-        method_to_call(block)
 
     def _instrument_node(
         self,
