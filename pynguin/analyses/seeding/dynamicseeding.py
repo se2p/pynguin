@@ -135,15 +135,15 @@ class DynamicSeedingInstrumentation:
         block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
 
-            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
-            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("LOAD_CONST", self, lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeedingInstrumentation.add_value_to_pool.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
 
-            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
-            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("LOAD_CONST", self, lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeedingInstrumentation.add_value_to_pool.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -347,3 +347,13 @@ class DynamicSeedingInstrumentation:
             return "string"
         else:
             return "other"
+
+    def add_value_to_pool(self, value: Types):
+        if isinstance(value, int):
+            self._dynamic_pool["int"].add(value)
+        elif isinstance(value, float):
+            self._dynamic_pool["float"].add(value)
+        elif isinstance(value, str):
+            self._dynamic_pool["string"].add(value)
+        else:
+            pass
