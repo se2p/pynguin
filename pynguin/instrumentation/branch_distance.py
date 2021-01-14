@@ -134,15 +134,12 @@ class BranchDistanceInstrumentation:
         """
         # Required to transform for loops.
         dominator_tree = DominatorTree.compute(cfg)
-        # Attributes which store the predicate ids assigned to instrumented nodes.
-        node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = {}
         for node in cfg.nodes:
             predicate_id = self._instrument_node(
                 cfg, code_object_id, dominator_tree, node
             )
             if predicate_id is not None:
-                node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
-        nx.set_node_attributes(cfg.graph, node_attributes)
+                node.predicate_id = predicate_id
 
     def _instrument_node(
         self,

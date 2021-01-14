@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, Tuple
 
 import networkx as nx
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchpool as bp
+from pynguin.analyses.controlflow.cfg import CFG
+from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontracer import CodeObjectMetaData
@@ -171,23 +174,53 @@ def _get_non_root_distance(
     tracer = bp.INSTANCE.tracer
 
     distance = ControlFlowDistance()
-    if value:
-        branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances)
-    else:
-        branch_distance = _predicate_fitness(branch.predicate_id, trace.false_distances)
-    distance.branch_distance = branch_distance
+    # Code Object was not executed, simply use diameter as upper bound.
+    if branch.code_object_id not in trace.executed_code_objects:
+        distance.approach_level = tracer.get_known_data().existing_code_objects[branch.code_object_id].cfg.diameter
+        return distance
 
-    existing_code_objects: Dict[
-        int, CodeObjectMetaData
-    ] = tracer.get_known_data().existing_code_objects
-    executed_code_objects: Set[int] = tracer.get_trace().executed_code_objects
-    branch_code_object_id = branch.code_object_id
-    if branch_code_object_id not in executed_code_objects:
-        distance.approach_level = _approach_level(
-            branch_code_object_id, existing_code_objects, executed_code_objects
-        )
+    # Predicate was executed, simply use distance of correct branch.
+    if branch.predicate_id in trace.executed_predicates:
+        if value:
+            branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances)
+        else:
+            branch_distance = _predicate_fitness(branch.predicate_id, trace.false_distances)
+        distance.branch_distance = branch_distance
+        return distance
 
+    cdg = tracer.get_known_data().existing_code_objects[branch.code_object_id].cdg
+    cdg_node = _get_node_with_predicate_id(cdg, branch.predicate_id)
+    while (cdg_node := _get_control_dependency(cdg, cdg_node)) is not None:
+        distance.increase_approach_level()
+        if cdg_node.predicate_id in trace.executed_predicates:
+            # Predicate was executed but did not lead to execution of desired predicate
+            # So the remaining branch distance (to the true or false branch) is the desired distance, right?
+            # One of them has to be zero, so we can simply add them.
+            distance.branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances) + _predicate_fitness(branch.predicate_id, trace.false_distances)
+            return distance
+
+    distance.approach_level = tracer.get_known_data().existing_code_objects[branch.code_object_id].cfg.diameter
     return distance
+
+
+def _get_control_dependency(cdg: ControlDependenceGraph, node: ProgramGraphNode) -> Optional[ProgramGraphNode]:
+    predecessors = cdg.get_predecessors(node)
+    if len(predecessors) == 0:
+        return None
+    # Assumes there is at most one predecessor, i.e., cdg is a tree?
+    assert len(predecessors) == 1
+    predecessor = predecessors.pop()
+    if not predecessor.predicate_id:
+        # Maybe go to next predecessor instead?
+        return None
+    return predecessor
+
+
+def _get_node_with_predicate_id(cdg: ControlDependenceGraph, predicate_id: int) -> ProgramGraphNode:
+    cdg_nodes = [node for node in cdg.nodes if
+                 node.predicate_id == predicate_id]
+    assert len(cdg_nodes) == 1
+    return cdg_nodes.pop()
 
 
 def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> float:
@@ -196,33 +229,3 @@ def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> fl
     if predicate not in branch_distances:
         return inf
     return normalise(branch_distances[predicate])
-
-
-def _approach_level(
-    branch_code_object_id: int,
-    existing_code_objects: Dict[int, CodeObjectMetaData],
-    executed_code_objects: Set[int],
-) -> int:
-    # Use the maximum CFG diameter as approach level, as the real value cannot be
-    # larger than this value
-    approach_level = max([meta.cfg.diameter for meta in existing_code_objects.values()])
-    if branch_code_object_id not in executed_code_objects:
-        return approach_level
-
-    code_object_meta_data = existing_code_objects[branch_code_object_id]
-    control_dependence_graph = code_object_meta_data.cdg
-    cdg_nodes = {node.index: node for node in control_dependence_graph.nodes}
-    branch_cdg_node = cdg_nodes[branch_code_object_id]
-    for executed_code_object in executed_code_objects:
-        # Search minimal distance between the node of this branch and the executed
-        # branches in the control-dependence graph to know how far the “best”
-        # execution was away from the target branch node.
-        code_object_cdg_node = cdg_nodes[executed_code_object]
-        length = nx.shortest_path_length(
-            control_dependence_graph,
-            source=branch_cdg_node,
-            target=code_object_cdg_node,
-        )
-        approach_level = min(length, approach_level)
-
-    return approach_level
