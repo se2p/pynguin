@@ -152,7 +152,7 @@ def test_compute_fitness_values_two_method_single_branches_else(branch_pool):
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(12.46153846)
+        assert fitness == pytest.approx(10.46153846)
 
 
 def test_compute_fitness_values_nested_branches(branch_pool):
