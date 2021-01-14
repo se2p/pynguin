@@ -114,7 +114,6 @@ class MOSATestStrategy(TestGenerationStrategy):
             for k in range(remain):
                 self._population.append(front[k])
 
-        self._current_iteration += 1
         self._archive.update(self._population)
 
     def _get_random_population(self) -> List[tcc.TestCaseChromosome]:
