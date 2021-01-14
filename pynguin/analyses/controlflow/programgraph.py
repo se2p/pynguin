@@ -56,10 +56,21 @@ class ProgramGraphNode:
 
     @property
     def predicate_id(self) -> Optional[int]:
+        """If this node creates a branch based on a predicate, than this stores the id
+        of this predicate.
+
+        Returns:
+            The predicate id assigned to this node, if any.
+        """
         return self._predicate_id
 
     @predicate_id.setter
-    def predicate_id(self, predicate_id: int):
+    def predicate_id(self, predicate_id: int) -> None:
+        """Set a new predicate id.
+
+        Args:
+            predicate_id: The predicate id
+        """
         self._predicate_id = predicate_id
 
     def __eq__(self, other: Any) -> bool:

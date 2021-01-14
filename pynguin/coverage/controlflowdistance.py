@@ -9,18 +9,14 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import Any, Dict, Optional, Set, Tuple
-
-import networkx as nx
+from typing import Any, Dict, Optional
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchpool as bp
-from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontracer import CodeObjectMetaData
 
 
 @total_ordering
@@ -176,34 +172,53 @@ def _get_non_root_distance(
     distance = ControlFlowDistance()
     # Code Object was not executed, simply use diameter as upper bound.
     if branch.code_object_id not in trace.executed_code_objects:
-        distance.approach_level = tracer.get_known_data().existing_code_objects[branch.code_object_id].cfg.diameter
+        distance.approach_level = (
+            tracer.get_known_data()
+            .existing_code_objects[branch.code_object_id]
+            .cfg.diameter
+        )
         return distance
 
     # Predicate was executed, simply use distance of correct branch.
     if branch.predicate_id in trace.executed_predicates:
         if value:
-            branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances)
+            branch_distance = _predicate_fitness(
+                branch.predicate_id, trace.true_distances
+            )
         else:
-            branch_distance = _predicate_fitness(branch.predicate_id, trace.false_distances)
+            branch_distance = _predicate_fitness(
+                branch.predicate_id, trace.false_distances
+            )
         distance.branch_distance = branch_distance
         return distance
 
     cdg = tracer.get_known_data().existing_code_objects[branch.code_object_id].cdg
     cdg_node = _get_node_with_predicate_id(cdg, branch.predicate_id)
-    while (cdg_node := _get_control_dependency(cdg, cdg_node)) is not None:
+    while (control_dependency := _get_control_dependency(cdg, cdg_node)) is not None:
         distance.increase_approach_level()
-        if cdg_node.predicate_id in trace.executed_predicates:
+        cdg_node = control_dependency
+        if control_dependency.predicate_id in trace.executed_predicates:
             # Predicate was executed but did not lead to execution of desired predicate
-            # So the remaining branch distance (to the true or false branch) is the desired distance, right?
+            # So the remaining branch distance to the true or false branch is
+            # the desired distance, right?
             # One of them has to be zero, so we can simply add them.
-            distance.branch_distance = _predicate_fitness(branch.predicate_id, trace.true_distances) + _predicate_fitness(branch.predicate_id, trace.false_distances)
+            distance.branch_distance = _predicate_fitness(
+                branch.predicate_id, trace.true_distances
+            ) + _predicate_fitness(branch.predicate_id, trace.false_distances)
             return distance
 
-    distance.approach_level = tracer.get_known_data().existing_code_objects[branch.code_object_id].cfg.diameter
+    # No predicate executed, so fallback to diameter
+    distance.approach_level = (
+        tracer.get_known_data()
+        .existing_code_objects[branch.code_object_id]
+        .cfg.diameter
+    )
     return distance
 
 
-def _get_control_dependency(cdg: ControlDependenceGraph, node: ProgramGraphNode) -> Optional[ProgramGraphNode]:
+def _get_control_dependency(
+    cdg: ControlDependenceGraph, node: ProgramGraphNode
+) -> Optional[ProgramGraphNode]:
     predecessors = cdg.get_predecessors(node)
     if len(predecessors) == 0:
         return None
@@ -216,9 +231,10 @@ def _get_control_dependency(cdg: ControlDependenceGraph, node: ProgramGraphNode)
     return predecessor
 
 
-def _get_node_with_predicate_id(cdg: ControlDependenceGraph, predicate_id: int) -> ProgramGraphNode:
-    cdg_nodes = [node for node in cdg.nodes if
-                 node.predicate_id == predicate_id]
+def _get_node_with_predicate_id(
+    cdg: ControlDependenceGraph, predicate_id: int
+) -> ProgramGraphNode:
+    cdg_nodes = [node for node in cdg.nodes if node.predicate_id == predicate_id]
     assert len(cdg_nodes) == 1
     return cdg_nodes.pop()
 

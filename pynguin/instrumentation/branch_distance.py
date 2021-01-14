@@ -7,9 +7,8 @@
 """Provides capabilities to perform branch instrumentation."""
 import logging
 from types import CodeType
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
-import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
