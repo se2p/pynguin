@@ -168,8 +168,8 @@ def test_compute_fitness_values_nested_branches(branch_pool):
         goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
         for goal in goals:
             chromosome.add_fitness_function(goal)
-        # fitness = chromosome.get_fitness()
-        # assert fitness == pytest.approx(12.46153846)
+        fitness = chromosome.get_fitness()
+        assert fitness == pytest.approx(3.97666496)
 
 
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
