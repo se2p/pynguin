@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional, Set, cast, AnyStr, Dict, Union, Any
 
 from pynguin.utils import randomness
@@ -78,18 +79,7 @@ class DynamicSeeding:
         rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool["string"])))
         return rand_value
 
-    @staticmethod
-    def get_type_of_value(value: Any) -> str:
-        if isinstance(value, int):
-            return "int"
-        elif isinstance(value, float):
-            return "float"
-        elif isinstance(value, str):
-            return "string"
-        else:
-            return "other"
-
-    def add_value_to_pool(self, value: Types):
+    def add_value(self, value: Types):
         """ Adds the given value to the corresponding set of the dynamic pool.
 
         Args:
@@ -103,3 +93,12 @@ class DynamicSeeding:
             self._dynamic_pool["string"].add(value)
         else:
             pass
+
+    def add_value_for_isalnum(self, value: str):
+        self._dynamic_pool["string"].add(value)
+        if value.isalnum():
+            self._dynamic_pool["string"].add(value + "!")
+        else:
+            delchars = ''.join(c for c in map(chr, range(256)) if not c.isalnum())
+            value_as_alnum = value.translate({delchars: None})
+            self._dynamic_pool["String"].add(value_as_alnum)

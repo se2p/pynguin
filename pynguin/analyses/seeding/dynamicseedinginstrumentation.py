@@ -73,10 +73,8 @@ class DynamicSeedingInstrumentation:
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
-            Instr("LOAD_CONST", 'string', lineno=lineno),
-            Instr("BINARY_SUBSCR", lineno=lineno),
-            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -99,10 +97,8 @@ class DynamicSeedingInstrumentation:
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
-            Instr("LOAD_CONST", 'string', lineno=lineno),
-            Instr("BINARY_SUBSCR", lineno=lineno),
-            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -111,8 +107,7 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented endswith function")
 
     def _instrument_isalnum_function(self, block: BasicBlock):
-        """Instruments the isalnum function in bytecode. If the isalnum() evaluates to true, a value is added to the
-        pool for which the isalnum()
+        """Instruments the isalnum function in bytecode.
 
         Args:
             block: The basic block where the new instructions are inserted.
@@ -123,10 +118,9 @@ class DynamicSeedingInstrumentation:
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_pool, lineno=lineno),
-            Instr("LOAD_METHOD", set.add.__name__, lineno=lineno),
+            Instr("DUP_TOP", lineno=lineno),
+            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value_for_isalnum.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -160,14 +154,14 @@ class DynamicSeedingInstrumentation:
             Instr("DUP_TOP_TWO", lineno=lineno),
 
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
 
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_to_pool.__name__, lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
