@@ -7,9 +7,8 @@
 """Provides capabilities to perform branch instrumentation."""
 import logging
 from types import CodeType
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
-import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
@@ -134,15 +133,12 @@ class BranchDistanceInstrumentation:
         """
         # Required to transform for loops.
         dominator_tree = DominatorTree.compute(cfg)
-        # Attributes which store the predicate ids assigned to instrumented nodes.
-        node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = {}
         for node in cfg.nodes:
             predicate_id = self._instrument_node(
                 cfg, code_object_id, dominator_tree, node
             )
             if predicate_id is not None:
-                node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
-        nx.set_node_attributes(cfg.graph, node_attributes)
+                node.predicate_id = predicate_id
 
     def _instrument_node(
         self,
