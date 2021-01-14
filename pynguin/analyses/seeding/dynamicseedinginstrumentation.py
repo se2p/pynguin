@@ -106,7 +106,7 @@ class DynamicSeedingInstrumentation:
         ]
         self._logger.info("Instrumented endswith function")
 
-    def _instrument_isalnum_function(self, block: BasicBlock):
+    def _instrument_isalnum_function(self, block: BasicBlock, functionname: str):
         """Instruments the isalnum function in bytecode.
 
         Args:
@@ -123,10 +123,11 @@ class DynamicSeedingInstrumentation:
             Instr("LOAD_METHOD", DynamicSeeding.add_value_for_isalnum.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
+            #Instr("LOAD_CONST", functionname, lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._logger.info("Instrumented endswith function")
+        self._logger.info("Instrumented string function")
 
     def _instrument_string_func(self, block: BasicBlock, function_name: str):
         """ Calls the corresponding instrumentation method for the given function_name.
@@ -138,7 +139,7 @@ class DynamicSeedingInstrumentation:
         """
         method_name = "_instrument_" + function_name + "_function"
         method_to_call = getattr(self, method_name)
-        method_to_call(block)
+        method_to_call(block, function_name)
 
     def _instrument_compare_op(self, block: BasicBlock):
         """ Instruments the compare operations in bytecode. Stores the values extracted at runtime.
