@@ -25,21 +25,14 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
     ) -> ff.FitnessValues:
         result = self._run_test_case_chromosome(individual)
 
-        return ff.FitnessValues(
-            fitness=self._get_fitness(individual, result), coverage=0.0
-        )
+        return ff.FitnessValues(fitness=self._get_fitness(result), coverage=0.0)
 
     def is_maximisation_function(self) -> bool:
         return False
 
-    def _get_fitness(
-        self, individual: tcc.TestCaseChromosome, result: ExecutionResult
-    ) -> float:
+    def _get_fitness(self, result: ExecutionResult) -> float:
         distance = self._goal.get_distance(result)
-
         fitness = distance.get_resulting_branch_fitness()
-
-        self._update_individual(individual, fitness)
 
         if fitness == 0.0:
             # TODO mark goal as covered?
