@@ -225,8 +225,4 @@ def _get_node_with_predicate_id(
 
 
 def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> float:
-    if predicate in branch_distances and branch_distances[predicate] == 0.0:
-        return 0.0
-    if predicate not in branch_distances:
-        return inf
-    return normalise(branch_distances[predicate])
+    return branch_distances.get(predicate, inf)
