@@ -128,19 +128,6 @@ def calculate_control_flow_distance(
         assert function_name is not None
         return _get_root_distance(result, function_name)
 
-    if value:
-        if (
-            branch.predicate_id in result.execution_trace.true_distances
-            and result.execution_trace.true_distances[branch.predicate_id] == 0.0
-        ):
-            return ControlFlowDistance(0, 0.0)
-    else:
-        if (
-            branch.predicate_id in result.execution_trace.false_distances
-            and result.execution_trace.false_distances[branch.predicate_id] == 0.0
-        ):
-            return ControlFlowDistance(0, 0.0)
-
     return _get_non_root_distance(result, branch, value)
 
 
