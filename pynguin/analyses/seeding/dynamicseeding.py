@@ -15,23 +15,19 @@ from pynguin.utils import randomness
 
 # pylint:disable=too-few-public-methods
 class DynamicSeeding:
-    """Instruments code objects to enable dynamic constant seeding.
+    """Provides the dynamic pool and methods to add values to and get values from the dynamic pool.
 
-    Supported is collecting values of the types int, float and string.
+    The methods in this class are added to the module under test during an instruction phase before the main algorithm
+    is executed. During this instruction phase, bytecode is added to the module under test which executes the methods
+     adding values to the dynamic pool. The instrumentation is implemented in the module
+     dynamicseedinginstrumentation.py.
 
-    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the string methods contained in the
-    STRING_FUNCTION_NAMES list. This means, if one of the above operations and methods is used in an if-conditional,
-     corresponding values are added to the dynamic constant pool.
+    During the test generation process when a new value of one of the supported types is needed, this module provides
+     methods to get values from the dynamic pool instead of randomly generating a new one.
 
-    General notes:
+    """
 
-    When calling a method on an object, the arguments have to be on top of the stack.
-    In most cases, we need to rotate the items on the stack with ROT_THREE or ROT_FOUR
-    to reorder the elements accordingly.
-
-    A POP_TOP instruction is required after calling a method, because each method
-    implicitly returns None."""
-
+    # Variables for this types are stored in the dynamic pool.
     Types = Union[int, float, str]
 
     _logger = logging.getLogger(__name__)
@@ -176,4 +172,3 @@ class DynamicSeeding:
             self._dynamic_pool["string"].add(value + " AAA")
         else:
             self._dynamic_pool["string"].add("Is Title")
-

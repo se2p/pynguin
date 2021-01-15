@@ -27,7 +27,10 @@ class DynamicSeedingInstrumentation:
 
     Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the string methods contained in the
     STRING_FUNCTION_NAMES list. This means, if one of the above operations and methods is used in an if-conditional,
-     corresponding values are added to the dynamic constant pool.
+    corresponding values are added to the dynamic constant pool.
+
+    The dynamic pool is implemented in the module dynamicseeding.py. The dynamicseeding module containes methods for
+    managing the dynamic pool during the algorithm execution.
 
     General notes:
 
@@ -120,11 +123,11 @@ class DynamicSeedingInstrumentation:
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_for_isalnum.__name__, lineno=lineno),
+            Instr("LOAD_METHOD", DynamicSeeding.add_value_for_strings.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
-            #Instr("LOAD_CONST", functionname, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("LOAD_CONST", functionname, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented string function")
