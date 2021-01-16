@@ -181,3 +181,37 @@ def test_avoid_duplicate_instrumentation(simple_module):
     already_instrumented = instr.instrument_module(simple_module.cmp_predicate.__code__)
     with pytest.raises(AssertionError):
         instr.instrument_module(already_instrumented)
+
+
+@pytest.mark.parametrize(
+    "function_name, branchless_function_count, branches_count",
+    [
+        pytest.param("simple_function", 1, 0),
+        pytest.param("cmp_predicate", 0, 1),
+        pytest.param("bool_predicate", 0, 1),
+        pytest.param("for_loop", 0, 1),
+        pytest.param("full_for_loop", 0, 1),
+        pytest.param("multi_loop", 0, 3),
+        pytest.param("comprehension", 1, 2),
+        pytest.param("lambda_func", 1, 1),
+        pytest.param("conditional_assignment", 0, 1),
+        pytest.param("conditionally_nested_class", 2, 1),
+    ],
+)
+def test_integrate_branch_distance_instrumentation(
+    simple_module,
+    function_name,
+    branchless_function_count,
+    branches_count,
+):
+    tracer = ExecutionTracer()
+    function_callable = getattr(simple_module, function_name)
+    instr = BranchDistanceInstrumentation(tracer)
+    function_callable.__code__ = instr._instrument_code_recursive(
+        function_callable.__code__, 0
+    )
+    assert (
+        len(tracer.get_known_data().branch_less_code_objects)
+        == branchless_function_count
+    )
+    assert len(list(tracer.get_known_data().existing_predicates)) == branches_count

@@ -9,16 +9,15 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import networkx as nx
 
-import pynguin.coverage.branch.branchcoveragegoal as bcg
-import pynguin.coverage.branch.branchpool as bp
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 @total_ordering
@@ -107,41 +106,24 @@ class ControlFlowDistance:
         )
 
 
-def calculate_control_flow_distance(
-    result: ExecutionResult,
-    branch: Optional[bcg.Branch],
-    value: bool,
-    function_name: Optional[str],
+def get_root_control_flow_distance(
+    result: ExecutionResult, code_object_id: int, tracer: ExecutionTracer
 ) -> ControlFlowDistance:
-    """Calculates the control-flow distance for a given result.
+    """Computes the control flow distance for a root branch, i.e., if the given
+    code object was executed.
 
     Args:
-        result: The result of the execution
-        branch: The branch to check for
-        value: Whether we check for the True or the False branch
-        function_name: The function name
+        result: the execution result.
+        code_object_id: The code object id for which we want to get the root distance.
+        tracer: the execution tracer
 
     Returns:
-        A control-flow distance
+        The control flow distance, (0.0, 0.0) if it was executed, otherwise (1.0, 0.0)
     """
-    if branch is None:
-        assert function_name is not None
-        return _get_root_distance(result, function_name)
-
-    return _get_non_root_distance(result, branch, value)
-
-
-def _get_root_distance(
-    result: ExecutionResult, function_name: str
-) -> ControlFlowDistance:
-    branch_pool = bp.INSTANCE
+    assert code_object_id in tracer.get_known_data().branch_less_code_objects
 
     distance = ControlFlowDistance()
-    if (
-        branch_pool.is_branchless_function(function_name)
-        and branch_pool.get_branchless_function_code_object_id(function_name)
-        in result.execution_trace.executed_code_objects
-    ):
+    if code_object_id in result.execution_trace.executed_code_objects:
         # The code object was executed by the execution
         return distance
 
@@ -149,46 +131,53 @@ def _get_root_distance(
     return distance
 
 
-def _get_non_root_distance(
-    result: ExecutionResult, branch: bcg.Branch, value: bool
+def get_non_root_control_flow_distance(
+    result: ExecutionResult, predicate_id: int, value: bool, tracer: ExecutionTracer
 ) -> ControlFlowDistance:
-    assert (
-        branch.predicate_id is not None
-    ), "Cannot compute distance for branch without predicate ID"
+    """Computes the control flow distance for a predicate.
+
+    Args:
+        result: the execution result.
+        predicate_id: The predicate id for which we want to get the root distance.
+        value: compute distance to the true or the false branch?
+        tracer: the execution tracer
+
+    Returns:
+        The control flow distance.
+    """
     trace = result.execution_trace
-    tracer = bp.INSTANCE.tracer
+    code_object_id = (
+        tracer.get_known_data().existing_predicates[predicate_id].code_object_id
+    )
 
     distance = ControlFlowDistance()
     # Code Object was not executed, simply use diameter as upper bound.
-    if branch.code_object_id not in trace.executed_code_objects:
+    if code_object_id not in trace.executed_code_objects:
         distance.approach_level = (
-            tracer.get_known_data()
-            .existing_code_objects[branch.code_object_id]
-            .cfg.diameter
+            tracer.get_known_data().existing_code_objects[code_object_id].cfg.diameter
         )
         return distance
 
     # Predicate was executed, simply use distance of correct branch.
-    if branch.predicate_id in trace.executed_predicates:
+    if predicate_id in trace.executed_predicates:
         if value:
-            branch_distance = _predicate_fitness(
-                branch.predicate_id, trace.true_distances
-            )
+            branch_distance = _predicate_fitness(predicate_id, trace.true_distances)
         else:
-            branch_distance = _predicate_fitness(
-                branch.predicate_id, trace.false_distances
-            )
+            branch_distance = _predicate_fitness(predicate_id, trace.false_distances)
         distance.branch_distance = branch_distance
         return distance
 
-    cdg = tracer.get_known_data().existing_code_objects[branch.code_object_id].cdg
-    target_node = _get_node_with_predicate_id(cdg, branch.predicate_id)
+    cdg = tracer.get_known_data().existing_code_objects[code_object_id].cdg
+    target_node = _get_node_with_predicate_id(cdg, predicate_id)
 
+    # Choose diameter as upper bound
     distance.approach_level = (
-        tracer.get_known_data()
-        .existing_code_objects[branch.code_object_id]
-        .cfg.diameter
+        tracer.get_known_data().existing_code_objects[code_object_id].cfg.diameter
     )
+
+    # We check for the closest predicate that was executed and compute the approach
+    # level as the length of the path from such a predicate node to the desired
+    # predicate node.
     for node in [
         node
         for node in cdg.nodes

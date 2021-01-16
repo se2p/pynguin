@@ -8,57 +8,82 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.coverage.branch.branchcoveragegoal import Branch, BranchCoverageGoal
+from pynguin.coverage.branch.branchcoveragegoal import (
+    NonRootBranchCoverageGoal,
+    RootBranchCoverageGoal,
+)
 
 
 @pytest.fixture
-def branch_coverage_goal():
-    return BranchCoverageGoal(
-        value=True,
-        module_name="test",
-        function_name="foo",
-    )
+def root_branch_coverage_goal():
+    return RootBranchCoverageGoal(0)
 
 
-def test_branch_coverage_goal():
-    branch = MagicMock(Branch)
-    goal = BranchCoverageGoal(
-        branch=branch,
-        value=True,
-        module_name="test",
-        class_name="BranchCoverageGoal",
-        function_name="test_branch_coverage_goal",
-    )
-    assert goal.branch == branch
-    assert goal.value
-    assert goal.module_name == "test"
-    assert goal.class_name == "BranchCoverageGoal"
-    assert goal.function_name == "test_branch_coverage_goal"
+@pytest.fixture
+def non_root_branch_coverage_goal():
+    return NonRootBranchCoverageGoal(0, True)
 
 
-def test_hash(branch_coverage_goal):
-    assert branch_coverage_goal.__hash__() != 0
+def test_root_branch_coverage_goal(root_branch_coverage_goal):
+    assert root_branch_coverage_goal.code_object_id == 0
 
 
-def test_eq_same(branch_coverage_goal):
-    assert branch_coverage_goal.__eq__(branch_coverage_goal)
+def test_non_root_branch_coverage_goal(non_root_branch_coverage_goal):
+    assert non_root_branch_coverage_goal.predicate_id == 0
+    assert non_root_branch_coverage_goal.value is True
 
 
-def test_eq_other_type(branch_coverage_goal):
-    assert not branch_coverage_goal.__eq__(MagicMock())
+def test_root_hash(root_branch_coverage_goal):
+    assert root_branch_coverage_goal.__hash__() != 0
 
 
-def test_eq_other(branch_coverage_goal):
-    other = BranchCoverageGoal(value=True, module_name="test", function_name="foo")
-    assert branch_coverage_goal.__eq__(other)
+def test_non_root_hash(non_root_branch_coverage_goal):
+    assert non_root_branch_coverage_goal.__hash__() != 0
 
 
-def test_get_distance(branch_coverage_goal, mocker):
+def test_root_eq_same(root_branch_coverage_goal):
+    assert root_branch_coverage_goal.__eq__(root_branch_coverage_goal)
+
+
+def test_non_root_eq_same(non_root_branch_coverage_goal):
+    assert non_root_branch_coverage_goal.__eq__(non_root_branch_coverage_goal)
+
+
+def test_root_eq_other_type(root_branch_coverage_goal):
+    assert not root_branch_coverage_goal.__eq__(MagicMock())
+
+
+def test_non_root_eq_other_type(non_root_branch_coverage_goal):
+    assert not non_root_branch_coverage_goal.__eq__(MagicMock())
+
+
+def test_root_eq_other(root_branch_coverage_goal):
+    other = RootBranchCoverageGoal(0)
+    assert root_branch_coverage_goal.__eq__(other)
+
+
+def test_non_root_eq_other(non_root_branch_coverage_goal):
+    other = NonRootBranchCoverageGoal(0, True)
+    assert non_root_branch_coverage_goal.__eq__(other)
+
+
+def test_root_get_distance(root_branch_coverage_goal, mocker):
     mock = mocker.patch(
         "pynguin.coverage.branch.branchcoveragegoal.cfd"
-        ".calculate_control_flow_distance",
+        ".get_root_control_flow_distance",
         return_value=42,
     )
-    distance = branch_coverage_goal.get_distance(MagicMock())
+    distance = root_branch_coverage_goal.get_distance(MagicMock(), MagicMock())
+    assert distance == 42
+    mock.assert_called_once()
+
+
+def test_non_root_get_distance(non_root_branch_coverage_goal, mocker):
+    mock = mocker.patch(
+        "pynguin.coverage.branch.branchcoveragegoal.cfd"
+        ".get_non_root_control_flow_distance",
+        return_value=42,
+    )
+    distance = non_root_branch_coverage_goal.get_distance(MagicMock(), MagicMock())
     assert distance == 42
     mock.assert_called_once()

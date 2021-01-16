@@ -13,7 +13,6 @@ from bytecode import Compare
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
-    PredicateMetaData,
     _le,
     _lt,
 )
@@ -35,14 +34,14 @@ def test_entered_function():
 
 def test_predicate_exists():
     tracer = ExecutionTracer()
-    assert tracer.register_predicate(MagicMock(PredicateMetaData)) == 0
-    assert tracer.register_predicate(MagicMock(PredicateMetaData)) == 1
+    assert tracer.register_predicate(MagicMock(code_object_id=0)) == 0
+    assert tracer.register_predicate(MagicMock(code_object_id=0)) == 1
     assert 0 in tracer.get_known_data().existing_predicates
 
 
 def test_update_metrics_covered():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
     assert (0, 2) in tracer.get_trace().executed_predicates.items()
@@ -51,14 +50,14 @@ def test_update_metrics_covered():
 @pytest.mark.parametrize("true_dist,false_dist", [(-1, 0), (0, -1), (0, 0), (1, 1)])
 def test_update_metrics_assertions(true_dist, false_dist):
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     with pytest.raises(AssertionError):
         tracer._update_metrics(false_dist, true_dist, 0)
 
 
 def test_update_metrics_true_dist_min():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(5, 0, 0, Compare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
     tracer.executed_compare_predicate(4, 0, 0, Compare.EQ)
@@ -67,7 +66,7 @@ def test_update_metrics_true_dist_min():
 
 def test_update_metrics_false_dist_min():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(3, 1, 0, Compare.NE)
     assert (0, 2) in tracer.get_trace().false_distances.items()
     tracer.executed_compare_predicate(2, 1, 0, Compare.NE)
@@ -76,7 +75,7 @@ def test_update_metrics_false_dist_min():
 
 def test_passed_cmp_predicate():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
@@ -112,7 +111,7 @@ def test_passed_cmp_predicate():
 )
 def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(val1, val2, 0, cmp)
     assert (0, true_dist) in tracer.get_trace().true_distances.items()
     assert (0, false_dist) in tracer.get_trace().false_distances.items()
@@ -120,21 +119,21 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
 
 def test_unknown_comp():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     with pytest.raises(Exception):
         tracer.executed_compare_predicate(1, 1, 0, Compare.EXC_MATCH)
 
 
 def test_passed_bool_predicate():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_bool_predicate(True, 0)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
 def test_bool_distance_true():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_bool_predicate(True, 0)
     assert (0, 0.0) in tracer.get_trace().true_distances.items()
     assert (0, 1.0) in tracer.get_trace().false_distances.items()
@@ -142,7 +141,7 @@ def test_bool_distance_true():
 
 def test_bool_distance_false():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_bool_predicate(False, 0)
     assert (0, 1.0) in tracer.get_trace().true_distances.items()
     assert (0, 0.0) in tracer.get_trace().false_distances.items()
@@ -159,7 +158,7 @@ def test_clear():
 
 def test_enable_disable_cmp():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer.disable()
@@ -173,7 +172,7 @@ def test_enable_disable_cmp():
 
 def test_enable_disable_bool():
     tracer = ExecutionTracer()
-    tracer.register_predicate(MagicMock(PredicateMetaData))
+    tracer.register_predicate(MagicMock(code_object_id=0))
     assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer.disable()
@@ -193,3 +192,25 @@ def test_le(val1, val2, result):
 @pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", inf)])
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result
+
+
+def test_default_branchless_code_object():
+    tracer = ExecutionTracer()
+    tracer.register_code_object(MagicMock())
+    assert tracer.get_known_data().branch_less_code_objects == {0}
+
+
+def test_no_branchless_code_object():
+    tracer = ExecutionTracer()
+    tracer.register_code_object(MagicMock())
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    assert len(tracer.get_known_data().branch_less_code_objects) == 0
+
+
+def test_no_branchless_code_object_register_multiple():
+    tracer = ExecutionTracer()
+    tracer.register_code_object(MagicMock())
+    tracer.register_code_object(MagicMock())
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    assert tracer.get_known_data().branch_less_code_objects == {1}
