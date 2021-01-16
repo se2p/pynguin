@@ -1,5 +1,4 @@
 import importlib
-import os
 
 import pytest
 
@@ -15,25 +14,11 @@ def instr():
 
 @pytest.fixture()
 def dynamic_seeding():
-    dynamic_seeding = DynamicSeeding()
     DynamicSeeding()._dynamic_pool = {
         "int": set(),
         "float": set(),
         "string": set()
     }
-    return dynamic_seeding
-
-
-@pytest.fixture()
-def fixture_dir():
-    return os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..",
-        "..",
-        "fixtures",
-        "seeding",
-        "dynamicseeding",
-    )
 
 
 @pytest.fixture()
