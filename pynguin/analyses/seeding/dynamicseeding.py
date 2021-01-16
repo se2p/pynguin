@@ -80,6 +80,8 @@ class DynamicSeeding:
         Args:
             value: The value to add.
         """
+        if isinstance(value, bool):  # needed because True and False are accepted as ints otherwise
+            return
         if isinstance(value, int):
             self._dynamic_pool["int"].add(value)
         elif isinstance(value, float):
@@ -87,7 +89,7 @@ class DynamicSeeding:
         elif isinstance(value, str):
             self._dynamic_pool["string"].add(value)
         else:
-            pass
+            pass  # do nothing
 
     def add_value_for_strings(self, value: str, name: str):
         if not isinstance(value, str):
