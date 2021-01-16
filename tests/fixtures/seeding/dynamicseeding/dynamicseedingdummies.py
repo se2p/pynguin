@@ -24,8 +24,6 @@ def endswith_dummy(s1, s2):
 
 # Dummy method for testing the str.isalnum() method
 def isalnum_dummy(s1):
-    if not isinstance(s1, str):
-        return 2
     if s1.isalnum():
         return 0
     else:

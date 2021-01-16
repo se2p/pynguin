@@ -324,13 +324,3 @@ def test_istitle_function_false(instr, dummy_module, dynamic_seeding):
     assert "no Title" in DynamicSeeding()._dynamic_pool["string"]
     assert "Is Title" in DynamicSeeding()._dynamic_pool["string"]
 
-
-def test_add_other_type_to_string_function(instr, dummy_module, dynamic_seeding):
-    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(dummy_module.isalnum_dummy.__code__)
-    res = dummy_module.isalnum_dummy(True)
-
-    assert res == 2
-    assert DynamicSeeding().has_strings is False
-    assert DynamicSeeding().has_ints is False
-    assert DynamicSeeding().has_floats is False
-
