@@ -26,6 +26,7 @@ def fixture_dir():
         "..",
         "fixtures",
         "seeding",
+        "staticconstantseeding",
     )
 
 
