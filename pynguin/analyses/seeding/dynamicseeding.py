@@ -90,84 +90,74 @@ class DynamicSeeding:
             pass
 
     def add_value_for_strings(self, value: str, name: str):
+        if not isinstance(value, str):
+            return
+        self._dynamic_pool["string"].add(value)
         method_name = "_add_value_for_" + name
         method = getattr(self, method_name)
         method(value)
 
     def _add_value_for_isalnum(self, value: str):
-        if not isinstance(value, str):
-            return
-        self._dynamic_pool["string"].add(value)
         if value.isalnum():
             self._dynamic_pool["string"].add(value + "!")
         else:
             self._dynamic_pool["string"].add("isalnum")
 
     def _add_value_for_islower(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.islower():
             self._dynamic_pool["string"].add(value.upper())
         else:
             self._dynamic_pool["string"].add(value.lower())
 
     def _add_value_for_isupper(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isupper():
             self._dynamic_pool["string"].add(value.lower())
         else:
             self._dynamic_pool["string"].add(value.upper())
 
     def _add_value_for_isdecimal(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isdecimal():
             self._dynamic_pool["string"].add("non_decimal")
         else:
             self._dynamic_pool["string"].add("0123456789")
 
     def _add_value_for_isalpha(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isalpha():
             self._dynamic_pool["string"].add(value + "1")
         else:
             self._dynamic_pool["string"].add("isalpha")
 
     def _add_value_for_isdigit(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isdigit():
             self._dynamic_pool["string"].add(value + "_")
         else:
             self._dynamic_pool["string"].add("0")
 
     def _add_value_for_isidentifier(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isidentifier():
             self._dynamic_pool["string"].add(value + "!")
         else:
             self._dynamic_pool["string"].add("is_Identifier")
 
     def _add_value_for_isnumeric(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isnumeric():
             self._dynamic_pool["string"].add(value + "A")
         else:
             self._dynamic_pool["string"].add("012345")
 
     def _add_value_for_isprintable(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isprintable():
             self._dynamic_pool["string"].add(value + "\n")
         else:
             self._dynamic_pool["string"].add("is_printable")
 
     def _add_value_for_isspace(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.isspace():
             self._dynamic_pool["string"].add(value + "a")
         else:
             self._dynamic_pool["string"].add("   ")
 
     def _add_value_for_istitle(self, value: str):
-        self._dynamic_pool["string"].add(value)
         if value.istitle():
             self._dynamic_pool["string"].add(value + " AAA")
         else:
