@@ -30,3 +30,83 @@ def isalnum_dummy(s1):
         return 0
     else:
         return 1
+
+
+# Dummy method for testing the str.islower() method
+def islower_dummy(s1):
+    if s1.islower():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isupper() method
+def isupper_dummy(s1):
+    if s1.isupper():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isdecimal() method
+def isdecimal_dummy(s1):
+    if s1.isdecimal():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isalpha() method
+def isalpha_dummy(s1):
+    if s1.isalpha():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isdigit() method
+def isdigit_dummy(s1):
+    if s1.isdigit():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isidentifier() method
+def isidentifier_dummy(s1):
+    if s1.isidentifier():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isnumeric() method
+def isnumeric_dummy(s1):
+    if s1.isnumeric():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isprintable() method
+def isprintable_dummy(s1):
+    if s1.isprintable():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.isspace() method
+def isspace_dummy(s1):
+    if s1.isspace():
+        return 0
+    else:
+        return 1
+
+
+# Dummy method for testing the str.istitle() method
+def istitle_dummy(s1):
+    if s1.istitle():
+        return 0
+    else:
+        return 1
