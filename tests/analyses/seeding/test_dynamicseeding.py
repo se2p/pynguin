@@ -34,6 +34,27 @@ def test_singleton():
     assert dynamic_seeding_1 is dynamic_seeding_2
 
 
+def test_random_int(dynamic_seeding):
+    DynamicSeeding()._dynamic_pool["int"].add(5)
+    value = DynamicSeeding().random_int
+
+    assert value == 5
+
+
+def test_random_float(dynamic_seeding):
+    DynamicSeeding()._dynamic_pool["float"].add(5.0)
+    value = DynamicSeeding().random_float
+
+    assert value == 5.0
+
+
+def test_random_string(dynamic_seeding):
+    DynamicSeeding()._dynamic_pool["string"].add("5")
+    value = DynamicSeeding().random_string
+
+    assert value == "5"
+
+
 def test_compare_op_int(instr, dummy_module, dynamic_seeding):
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(dummy_module.compare_op_dummy.__code__)
     res = dummy_module.compare_op_dummy(10, 11)
@@ -308,4 +329,3 @@ def test_istitle_function_false(instr, dummy_module, dynamic_seeding):
     assert DynamicSeeding().has_strings is True
     assert "no Title" in DynamicSeeding()._dynamic_pool["string"]
     assert "Is Title" in DynamicSeeding()._dynamic_pool["string"]
-

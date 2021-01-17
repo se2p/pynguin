@@ -70,7 +70,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -95,7 +95,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
@@ -118,7 +118,7 @@ class DynamicSeedingInstrumentation:
         Returns:
             The id that was assigned to the predicate.
         """
-        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2  # +2 because we want to insert after the argument is put on the stack
+        insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos: insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
@@ -251,7 +251,6 @@ class DynamicSeedingInstrumentation:
             A predicate id, if the contained a predicate which was instrumented.
         """
         # Not every block has an associated basic block, e.g. the artificial exit node.
-        # TODO: check if last instruction of the block is a jump instruction.
         if not node.is_artificial:
             assert (
                 node.basic_block is not None
