@@ -1,12 +1,13 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides implementations of a ranking function."""
 import logging
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 from typing import Generic, List, Optional, Set, TypeVar
 
 import pynguin.configuration as config
@@ -21,13 +22,46 @@ from pynguin.utils import randomness
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
 
+@dataclass
+class RankedFronts(Generic[C]):
+    """Contains the ranked fronts."""
+
+    fronts: Optional[List[List[C]]] = None
+
+    def get_sub_front(self, rank: int) -> List[C]:
+        """Returns the sub-front of chromosome objects of the given rank.
+
+        Sub-fronts are ordered starting from 0 in ascending order, i.e., the first
+        non-dominated front has rank 0, the next sub-front rank 1 etc.
+
+        Args:
+            rank: The sub-front to retrieve
+
+        Returns:
+            A list of solutions of a given rank
+        """
+        if self.fronts is None or rank >= len(self.fronts):
+            return []
+        return self.fronts[rank]
+
+    def get_number_of_sub_fronts(self) -> int:
+        """Returns the total number of sub-fronts found.
+
+        Returns:
+            The total number of sub-fronts found
+        """
+        assert self.fronts is not None
+        return len(self.fronts)
+
+
+# pylint: disable=too-few-public-methods
 class RankingFunction(Generic[C], metaclass=ABCMeta):
     """Interface for ranking algorithms."""
 
     @abstractmethod
     def compute_ranking_assignment(
         self, solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
-    ) -> None:
+    ) -> RankedFronts:
         """Computes the ranking assignment for the given population of solutions.
 
         The computation is done with respect to the given set of coverage goals.
@@ -40,52 +74,31 @@ class RankingFunction(Generic[C], metaclass=ABCMeta):
             solutions: The population to rank
             uncovered_goals: The set of coverage goals to consider for the ranking
                              assignment
-        """
-
-    @abstractmethod
-    def get_sub_front(self, rank: int) -> List[C]:
-        """Returns the sub-front of chromosome objects of the given rank.
-
-        Sub-fronts are ordered starting from 0 in ascending order, i.e., the first
-        non-dominated front has rank 0, the next sub-front rank 1 etc.
-
-        Args:
-            rank: The sub-front to retrieve
 
         Returns:
-            A list of solutions of a given rank  # noqa: DAR202
-        """
-
-    @abstractmethod
-    def get_number_of_sub_fronts(self) -> int:
-        """Returns the total number of sub-fronts found.
-
-        Returns:
-            The total number of sub-fronts found  # noqa: DAR202
+            The ranked fronts
         """
 
 
+# pylint: disable=too-few-public-methods
 class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     """Ranks the test cases according to the preference criterion defined for MOSA."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
-        self._fronts: Optional[List[List[C]]] = None
-
     def compute_ranking_assignment(
         self, solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
-    ) -> None:
+    ) -> RankedFronts:
         if not solutions:
             self._logger.debug("Solution is empty")
-            return
+            return RankedFronts()
 
-        self._fronts = []
+        fronts = []
 
         # First apply the "preference sorting" to the first front only then compute
         # the ranks according to the non-dominate sorting algorithm
         zero_front: List[C] = self._get_zero_front(solutions, uncovered_goals)
-        self._fronts.append(zero_front)
+        fronts.append(zero_front)
         front_index = 1
 
         if len(zero_front) < config.INSTANCE.population:
@@ -104,7 +117,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                 new_front: List[C] = self._get_non_dominated_solutions(
                     remaining, comparator, front_index
                 )
-                self._fronts.append(new_front)
+                fronts.append(new_front)
                 for element in new_front:
                     if element in remaining:
                         remaining.remove(element)
@@ -119,7 +132,9 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                     remaining.remove(element)
             for element in remaining:
                 element.rank = front_index
-            self._fronts.append(remaining)
+            fronts.append(remaining)
+
+        return RankedFronts(fronts)
 
     @staticmethod
     def _get_zero_front(
@@ -165,12 +180,3 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                 if dominated_solution in front:
                     front.remove(dominated_solution)
         return front
-
-    def get_sub_front(self, rank: int) -> List[C]:
-        if self._fronts is None or rank >= len(self._fronts):
-            return []
-        return self._fronts[rank]
-
-    def get_number_of_sub_fronts(self) -> int:
-        assert self._fronts is not None
-        return len(self._fronts)

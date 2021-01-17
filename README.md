@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2020 Pynguin Contributors
+SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -76,7 +76,7 @@ and we want to generate tests using a whole-suite approach for the module `foo.b
 (wrapped for better readability):
 ```bash
 pynguin \
-  --algorithm WSPY \
+  --algorithm WHOLE_SUITE \
   --project_path /tmp/foo \
   --output_path /tmp/testgen \
   --module_name foo.bar
