@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -81,10 +81,8 @@ def _setup_logging(
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(
             logging.Formatter(
-                (
-                    "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
-                    + "%(message)s"
-                )
+                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
+                + "%(message)s"
             )
         )
         file_handler.setLevel(logging.DEBUG)
