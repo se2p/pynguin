@@ -15,7 +15,6 @@ from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.coverage.branch.branchpool import INSTANCE
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
@@ -46,7 +45,7 @@ class BranchDistanceInstrumentation:
     # Conditional jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
 
-    # If a conditional jump is based on a comparision, it has to be the second-to-last
+    # If a conditional jump is based on a comparison, it has to be the second-to-last
     # instruction within the basic block.
     _COMPARE_OP_POS = -2
 
@@ -54,9 +53,6 @@ class BranchDistanceInstrumentation:
 
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
-        self._branch_pool = INSTANCE
-        self._branch_pool.clear()
-        self._branch_pool.tracer = tracer
 
     def _instrument_inner_code_objects(
         self, code: CodeType, parent_code_object_id: int
@@ -112,13 +108,6 @@ class BranchDistanceInstrumentation:
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
         self._add_code_object_executed(real_entry_node.basic_block, code_object_id)
-        self._track_branchless_function(
-            code,
-            cfg,
-            real_entry_node,
-            code_object_id,
-        )
-
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
@@ -249,15 +238,6 @@ class BranchDistanceInstrumentation:
             Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._branch_pool.register_branch(
-            block,
-            code_object_id,
-            predicate_id,
-            lineno,
-            self._tracer.get_known_data()
-            .existing_code_objects[code_object_id]
-            .code_object,
-        )
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
@@ -280,7 +260,7 @@ class BranchDistanceInstrumentation:
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
         )
         cmp_op = block[self._COMPARE_OP_POS]
-        # Insert instructions right before the comparision.
+        # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
@@ -298,16 +278,6 @@ class BranchDistanceInstrumentation:
             Instr("CALL_METHOD", 4, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._branch_pool.register_branch(
-            block,
-            code_object_id,
-            predicate_id,
-            lineno,
-            self._tracer.get_known_data()
-            .existing_code_objects[code_object_id]
-            .code_object,
-            cmp_op,
-        )
         return predicate_id
 
     def _add_code_object_executed(self, block: BasicBlock, code_object_id: int) -> None:
@@ -398,7 +368,7 @@ class BranchDistanceInstrumentation:
         assert for_instr.name == "FOR_ITER"
         lineno = for_instr.lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(code_object_id, lineno)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
         )
         for_instr_copy = for_instr.copy()
         for_loop_exit = for_instr.arg
@@ -451,16 +421,6 @@ class BranchDistanceInstrumentation:
                 and successor.basic_block[self._JUMP_OP_POS].arg is node.basic_block
             ):
                 successor.basic_block[self._JUMP_OP_POS].arg = new_header
-        self._branch_pool.register_branch(
-            node.basic_block,
-            code_object_id,
-            predicate_id,
-            lineno,
-            self._tracer.get_known_data()
-            .existing_code_objects[code_object_id]
-            .code_object,
-            for_instr,
-        )
         return predicate_id
 
     @staticmethod
@@ -497,17 +457,3 @@ class BranchDistanceInstrumentation:
         for node in nodes:
             node.clear()
         return tuple(nodes)
-
-    def _track_branchless_function(
-        self,
-        code: CodeType,
-        cfg: CFG,
-        real_entry_node: ProgramGraphNode,
-        code_object_id: int,
-    ) -> None:
-        if len(cfg.nodes) == 3 and [real_entry_node] == [
-            n for n in cfg.nodes if not n.is_artificial
-        ]:
-            self._branch_pool.register_branchless_function(
-                code.co_name, code.co_firstlineno, code_object_id
-            )

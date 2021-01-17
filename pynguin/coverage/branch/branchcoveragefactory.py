@@ -9,7 +9,6 @@ from typing import List
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchcoveragetestfitness as bctf
-import pynguin.coverage.branch.branchpool as bp
 import pynguin.ga.fitnessfunction as ff
 import pynguin.testcase.execution.testcaseexecutor as tce
 
@@ -31,35 +30,31 @@ class BranchCoverageFactory:
 
     def _compute_coverage_goals(self) -> List[ff.FitnessFunction]:
         goals: List[ff.FitnessFunction] = []
-        branch_pool = bp.INSTANCE
+        tracer = self._executor.tracer
 
-        # Branchless methods
-        for function_name in branch_pool.branchless_functions:
-            goals.append(self._create_root_branch_test_fitness(function_name))
+        # Branch-less code objects
+        for code_object_id in tracer.get_known_data().branch_less_code_objects:
+            goals.append(self._create_root_branch_test_fitness(code_object_id))
 
         # Branches
-        for branch in branch_pool.all_branches:
-            goals.append(self._create_branch_coverage_test_fitness(branch, True))
-            goals.append(self._create_branch_coverage_test_fitness(branch, False))
+        for predicate_id in tracer.get_known_data().existing_predicates:
+            goals.append(self._create_branch_coverage_test_fitness(predicate_id, True))
+            goals.append(self._create_branch_coverage_test_fitness(predicate_id, False))
 
         return goals
 
     def _create_root_branch_test_fitness(
-        self, function_name: str
+        self, code_object_id: int
     ) -> ff.FitnessFunction:
         return bctf.BranchCoverageTestFitness(
             self._executor,
-            bcg.BranchCoverageGoal(value=True, function_name=function_name),
+            bcg.RootBranchCoverageGoal(code_object_id),
         )
 
     def _create_branch_coverage_test_fitness(
-        self, branch: bcg.Branch, branch_expression_value: bool
+        self, predicate_id: int, branch_expression_value: bool
     ) -> ff.FitnessFunction:
         return bctf.BranchCoverageTestFitness(
             self._executor,
-            bcg.BranchCoverageGoal(
-                branch=branch,
-                value=branch_expression_value,
-                function_name=branch.code_object_data.co_name,
-            ),
+            bcg.NonRootBranchCoverageGoal(predicate_id, branch_expression_value),
         )

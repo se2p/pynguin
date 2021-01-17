@@ -13,14 +13,12 @@ import pytest
 import pynguin.coverage.branch.branchcoveragefactory as bcf
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchcoveragetestfitness as bctf
-import pynguin.coverage.branch.branchpool as bp
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.coverage.branch.branchcoveragegoal import BranchCoverageGoal
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
@@ -31,9 +29,7 @@ from pynguin.typeinference.strategy import InferredSignature
 
 @pytest.fixture
 def empty_function():
-    return bctf.BranchCoverageTestFitness(
-        MagicMock(TestCaseExecutor), MagicMock(BranchCoverageGoal)
-    )
+    return bctf.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
 
 @pytest.fixture()
@@ -51,13 +47,6 @@ def known_data_mock():
     return KnownData()
 
 
-@pytest.fixture
-def branch_pool():
-    pool = bp.INSTANCE
-    pool.clear()
-    return pool
-
-
 def test_is_maximisation_function(empty_function):
     assert not empty_function.is_maximisation_function()
 
@@ -66,7 +55,7 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
     tracer = MagicMock()
     tracer.get_known_data.return_value = known_data_mock
     executor_mock.tracer.return_value = tracer
-    goal = MagicMock(bcg.BranchCoverageGoal)
+    goal = MagicMock(bcg.AbstractBranchCoverageGoal)
     goal.get_distance.return_value = cfd.ControlFlowDistance(1, 2)
     ff = bctf.BranchCoverageTestFitness(executor_mock, goal)
     indiv = MagicMock()
@@ -80,7 +69,7 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
         run_suite_mock.assert_called_with(indiv)
 
 
-def test_compute_fitness_values_no_branches(branch_pool):
+def test_compute_fitness_values_no_branches():
     module_name = "tests.fixtures.branchcoverage.nobranches"
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):
@@ -93,7 +82,11 @@ def test_compute_fitness_values_no_branches(branch_pool):
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
-            goals_dict[goal._goal.function_name] = goal
+            goals_dict[
+                tracer.get_known_data()
+                .existing_code_objects[goal._goal.code_object_id]
+                .code_object.co_name
+            ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
         assert chromosome.fitness_values[goals_dict["__init__"]].fitness == 0.0
@@ -104,7 +97,7 @@ def test_compute_fitness_values_no_branches(branch_pool):
         assert chromosome.fitness_values[goals_dict["DummyClass"]].fitness == 0.0
 
 
-def test_compute_fitness_values_single_branches_if(branch_pool):
+def test_compute_fitness_values_single_branches_if():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
     tracer.reset()
@@ -118,10 +111,10 @@ def test_compute_fitness_values_single_branches_if(branch_pool):
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(0.46153846)
+        assert fitness == pytest.approx(0.85714285)
 
 
-def test_compute_fitness_values_single_branches_else(branch_pool):
+def test_compute_fitness_values_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
     tracer.reset()
@@ -135,10 +128,10 @@ def test_compute_fitness_values_single_branches_else(branch_pool):
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(0.46153846)
+        assert fitness == pytest.approx(0.85714285)
 
 
-def test_compute_fitness_values_two_method_single_branches_else(branch_pool):
+def test_compute_fitness_values_two_method_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
     tracer = ExecutionTracer()
     tracer.reset()
@@ -152,10 +145,10 @@ def test_compute_fitness_values_two_method_single_branches_else(branch_pool):
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(10.46153846)
+        assert fitness == pytest.approx(10.85714285)
 
 
-def test_compute_fitness_values_nested_branches(branch_pool):
+def test_compute_fitness_values_nested_branches():
     module_name = "tests.fixtures.branchcoverage.nestedbranches"
     tracer = ExecutionTracer()
     tracer.reset()
@@ -169,7 +162,7 @@ def test_compute_fitness_values_nested_branches(branch_pool):
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(3.97666496)
+        assert fitness == pytest.approx(5.90782493)
 
 
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
