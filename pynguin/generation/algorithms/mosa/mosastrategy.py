@@ -6,7 +6,7 @@
 #
 """Provides the MOSA test-generation strategy."""
 import logging
-from typing import List, Optional, Set
+from typing import List, Set
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -45,7 +45,6 @@ class MOSATestStrategy(TestGenerationStrategy):
 
         self._current_iteration = 0
         self._population = self._get_random_population()
-        self._calculate_fitness()
         self._archive.update(self._population)
 
         # Calculate dominance ranks and crowding distance
@@ -146,13 +145,11 @@ class MOSATestStrategy(TestGenerationStrategy):
             # Apply mutation on offspring_1
             offspring_1.mutate()
             if offspring_1.has_changed():
-                self._calculate_fitness(offspring_1)
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
             offspring_2.mutate()
             if offspring_2.has_changed():
-                self._calculate_fitness(offspring_2)
                 offspring_population.append(offspring_2)
 
             # Add new randomly generated tests
@@ -173,22 +170,10 @@ class MOSATestStrategy(TestGenerationStrategy):
                     tch.mutate()
 
                 if tch.has_changed():
-                    self._calculate_fitness(tch)
                     offspring_population.append(tch)
 
         self._logger.info("Number of offsprings = %d", len(offspring_population))
         return offspring_population
-
-    def _calculate_fitness(self, chromosome: Optional[chrom.Chromosome] = None) -> None:
-        if chromosome is None:
-            for element in self._population:
-                self._calculate_fitness_for_chromosome(element)
-        else:
-            self._calculate_fitness_for_chromosome(chromosome)
-
-    def _calculate_fitness_for_chromosome(self, chromosome: chrom.Chromosome) -> None:
-        for fitness_function in self._fitness_functions:
-            chromosome.get_fitness_for(fitness_function)
 
     def _get_non_dominated_solutions(
         self, solutions: List[tcc.TestCaseChromosome]

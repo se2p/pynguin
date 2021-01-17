@@ -11,25 +11,18 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import assume, given
 
-import pynguin.coverage.branch.branchpool as bp
 from pynguin.coverage.controlflowdistance import (
     ControlFlowDistance,
-    calculate_control_flow_distance,
+    get_root_control_flow_distance,
 )
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 @pytest.fixture
 def control_flow_distance() -> ControlFlowDistance:
     return ControlFlowDistance()
-
-
-@pytest.fixture
-def branch_pool():
-    pool = bp.INSTANCE
-    pool.clear()
-    return pool
 
 
 def test_eq_same(control_flow_distance):
@@ -131,18 +124,20 @@ def test_get_resulting_branch_fitness(level, distance, control_flow_distance):
 
 @pytest.mark.parametrize(
     "executed_code_objects, approach_level",
-    [pytest.param([1, 2], 0), pytest.param([2], 1)],
+    [pytest.param([0, 1], 0), pytest.param([1], 1)],
 )
 def test_calculate_control_flow_distance_for_root(
-    branch_pool, executed_code_objects, approach_level
+    executed_code_objects, approach_level
 ):
     execution_result = MagicMock(ExecutionResult)
     execution_trace = MagicMock(ExecutionTrace)
     execution_trace.executed_code_objects = executed_code_objects
     execution_result.execution_trace = execution_trace
-    branch_pool.register_branchless_function("foo", 42, 1)
+    tracer = ExecutionTracer()
+    tracer.register_code_object(MagicMock())
+    tracer.register_code_object(MagicMock())
 
-    distance = calculate_control_flow_distance(execution_result, None, True, "foo")
+    distance = get_root_control_flow_distance(execution_result, 0, tracer)
     assert distance == ControlFlowDistance(
         approach_level=approach_level, branch_distance=0.0
     )

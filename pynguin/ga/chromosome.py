@@ -90,11 +90,11 @@ class Chromosome(metaclass=abc.ABCMeta):
         if self._changed:
             for fitness_func in self._fitness_functions:
                 new_values = fitness_func.compute_fitness_values(self)
-                self.update_fitness_values(fitness_func, new_values)
+                self._update_fitness_values(fitness_func, new_values)
             self._changed = False
             self._number_of_evaluations += 1
 
-    def update_fitness_values(
+    def _update_fitness_values(
         self, fitness_function: ff.FitnessFunction, new_value: ff.FitnessValues
     ) -> None:
         """Update the fitness values for the given function.

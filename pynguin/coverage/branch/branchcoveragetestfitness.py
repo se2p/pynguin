@@ -8,7 +8,7 @@
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
-from pynguin.coverage.branch.branchcoveragegoal import BranchCoverageGoal
+from pynguin.coverage.branch.branchcoveragegoal import AbstractBranchCoverageGoal
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
@@ -16,7 +16,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: TestCaseExecutor, goal: BranchCoverageGoal):
+    def __init__(self, executor: TestCaseExecutor, goal: AbstractBranchCoverageGoal):
         super().__init__(executor)
         self._goal = goal
 
@@ -25,21 +25,14 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
     ) -> ff.FitnessValues:
         result = self._run_test_case_chromosome(individual)
 
-        return ff.FitnessValues(
-            fitness=self._get_fitness(individual, result), coverage=0.0
-        )
+        return ff.FitnessValues(fitness=self._get_fitness(result), coverage=0.0)
 
     def is_maximisation_function(self) -> bool:
         return False
 
-    def _get_fitness(
-        self, individual: tcc.TestCaseChromosome, result: ExecutionResult
-    ) -> float:
-        distance = self._goal.get_distance(result)
-
+    def _get_fitness(self, result: ExecutionResult) -> float:
+        distance = self._goal.get_distance(result, self._executor.tracer)
         fitness = distance.get_resulting_branch_fitness()
-
-        self._update_individual(individual, fitness)
 
         if fitness == 0.0:
             # TODO mark goal as covered?
