@@ -49,12 +49,12 @@ class MOSATestStrategy(TestGenerationStrategy):
         self._archive.update(self._population)
 
         # Calculate dominance ranks and crowding distance
-        self._ranking_function.compute_ranking_assignment(
+        fronts = self._ranking_function.compute_ranking_assignment(
             self._population, self._archive.uncovered_goals
         )
-        for i in range(self._ranking_function.get_number_of_sub_fronts()):
+        for i in range(fronts.get_number_of_sub_fronts()):
             fast_epsilon_dominance_assignment(
-                self._ranking_function.get_sub_front(i), self._archive.uncovered_goals
+                fronts.get_sub_front(i), self._archive.uncovered_goals
             )
 
         while (
@@ -86,14 +86,16 @@ class MOSATestStrategy(TestGenerationStrategy):
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))
         # Ranking the union using the best rank algorithm
-        self._ranking_function.compute_ranking_assignment(union, uncovered_goals)
+        fronts = self._ranking_function.compute_ranking_assignment(
+            union, uncovered_goals
+        )
 
         remain = len(self._population)
         index = 0
         self._population.clear()
 
         # Obtain the next front
-        front = self._ranking_function.get_sub_front(index)
+        front = fronts.get_sub_front(index)
 
         while remain > 0 and remain >= len(front) != 0:
             # Assign crowding distance to individuals
@@ -105,7 +107,7 @@ class MOSATestStrategy(TestGenerationStrategy):
             # Obtain the next front
             index += 1
             if remain > 0:
-                front = self._ranking_function.get_sub_front(index)
+                front = fronts.get_sub_front(index)
 
         # Remain is less than len(front[index]), insert only the best one
         if remain > 0 and len(front) != 0:
