@@ -23,6 +23,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
     [
         "tests.fixtures.examples.basket",
         "tests.fixtures.examples.dummies",
+        "tests.fixtures.examples.simple",
         "tests.fixtures.examples.exceptions",
         "tests.fixtures.examples.monkey",
         "tests.fixtures.examples.triangle",
@@ -31,18 +32,16 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
         "tests.fixtures.examples.queue",
     ],
 )
-def test_integrate_wspy(module_name: str):
-    # TODO(fk) reduce direct dependencies to config.INSTANCE
-    config.INSTANCE.algorithm = config.Algorithm.WHOLE_SUITE
+def test_integrate_mosa(module_name: str):
+    config.INSTANCE.algorithm = config.Algorithm.MOSA
     config.INSTANCE.budget = 1
     config.INSTANCE.module_name = module_name
-    config.INSTANCE.population = 3
     config.INSTANCE.min_initial_tests = 1
     config.INSTANCE.max_initial_tests = 1
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):
-        # Need to force reload in order to apply instrumentation.
+        # Need to force reload in order to apply instrumentation
         module = importlib.import_module(module_name)
         importlib.reload(module)
 

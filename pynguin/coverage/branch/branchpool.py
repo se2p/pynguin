@@ -6,13 +6,16 @@
 #
 """Provides a pool to hold all available information concerning branches."""
 import logging
+from types import CodeType
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from bytecode import BasicBlock, Instr
 
 import pynguin.coverage.branch.branchcoveragegoal as bcg
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
+# pylint: disable=too-many-arguments
 class _BranchPool:
     """Holds all available information concerning branches."""
 
@@ -21,19 +24,21 @@ class _BranchPool:
     def __init__(self) -> None:
         self._branch_counter: int = 0
         self._branch_id_map: Dict[int, bcg.Branch] = {}
-        self._branchless_functions: Dict[str, int] = {}
+        self._branchless_functions: Dict[str, Tuple[int, int]] = {}
         self._registered_normal_branches: List[Tuple[BasicBlock, int]] = []
+        self._tracer: Optional[ExecutionTracer] = None
 
     def register_branchless_function(
-        self, function_name: str, line_number: int
+        self, function_name: str, line_number: int, code_object_id: int
     ) -> None:
         """Registers a function without branches to the pool.
 
         Args:
             function_name: The name of the branchless function
             line_number: The starting line number of the function
+            code_object_id: The ID of the code object
         """
-        self._branchless_functions[function_name] = line_number
+        self._branchless_functions[function_name] = (line_number, code_object_id)
 
     def register_branch(
         self,
@@ -41,6 +46,7 @@ class _BranchPool:
         code_object_id: int,
         predicate_id: int,
         line_no: int,
+        code_object_data: CodeType,
         compare_op: Optional[Instr] = None,
     ) -> None:
         """Registers a normal branch in the pool.
@@ -50,6 +56,7 @@ class _BranchPool:
             code_object_id: The ID of the code object
             predicate_id: The ID of the predicate
             line_no: The starting line number of the basic block
+            code_object_data: The code type object
             compare_op: An optional compare instruction of the branch
         """
         if self._is_block_a_registered_normal_branch(block):
@@ -64,6 +71,7 @@ class _BranchPool:
             code_object_id=code_object_id,
             compare_op=compare_op,
             predicate_id=predicate_id,
+            code_object_data=code_object_data,
         )
         self._branch_id_map[self._branch_counter] = branch
 
@@ -75,6 +83,7 @@ class _BranchPool:
         self._branch_id_map.clear()
         self._branchless_functions.clear()
         self._registered_normal_branches.clear()
+        self._tracer = None
 
     @property
     def branchless_functions(self) -> Set[str]:
@@ -110,12 +119,31 @@ class _BranchPool:
         Args:
             function_name: The branchless function's name
 
+        Returns:
+            The branchless function's first line number
+
         Raises:
             ValueError in case the function is not a branchless one
         """
         if not self.is_branchless_function(function_name):
-            raise ValueError("No branchless method %s registered", function_name)
-        return self._branchless_functions[function_name]
+            raise ValueError(f"No branchless method {function_name} registered")
+        return self._branchless_functions[function_name][0]
+
+    def get_branchless_function_code_object_id(self, function_name: str) -> int:
+        """Provides the code-object ID for a branchless function.
+
+        Args:
+            function_name: The branchless function's name
+
+        Returns:
+            The branchless function's code-object ID
+
+        Raises:
+            ValueError in case the function is not a branchless one
+        """
+        if not self.is_branchless_function(function_name):
+            raise ValueError(f"No branchless method {function_name} registered")
+        return self._branchless_functions[function_name][1]
 
     def is_known_as_branch(self, block: BasicBlock) -> bool:
         """Checks whether or not a basic block is known as referring to a branch.
@@ -141,7 +169,7 @@ class _BranchPool:
             raise ValueError("Basic block not registered as a normal branch")
         return self._get_id_for_registered_block(block)
 
-    def get_branch_for_block(self, block: BasicBlock) -> bcg.Branch:
+    def get_branch_for_block(self, block: BasicBlock) -> "bcg.Branch":
         """Provides the branch object for a basic block.
 
         Args:
@@ -156,7 +184,7 @@ class _BranchPool:
             raise ValueError("Expect given block to be known as normal branch")
         return self.get_branch(self._get_id_for_registered_block(block))
 
-    def get_branch(self, branch_id: int) -> bcg.Branch:
+    def get_branch(self, branch_id: int) -> "bcg.Branch":
         """Provides the branch with a certain ID.
 
         Args:
@@ -168,7 +196,7 @@ class _BranchPool:
         return self._branch_id_map[branch_id]
 
     @property
-    def all_branches(self) -> Iterable[bcg.Branch]:
+    def all_branches(self) -> Iterable["bcg.Branch"]:
         """Provides an iterable of all registered branches.
 
         Returns:
@@ -196,6 +224,20 @@ class _BranchPool:
             if block == basic_block:
                 return branch_id
         raise ValueError("No ID found for block")
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        """Provides the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+        assert self._tracer is not None
+        return self._tracer
+
+    @tracer.setter
+    def tracer(self, tracer: ExecutionTracer):
+        self._tracer = tracer
 
 
 INSTANCE = _BranchPool()

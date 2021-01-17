@@ -6,6 +6,7 @@
 #
 """Provides a representation for a branch-coverage goal inside a module under test."""
 from dataclasses import dataclass
+from types import CodeType
 from typing import Any, Optional
 
 from bytecode import BasicBlock, Instr
@@ -23,6 +24,7 @@ class Branch:
     code_object_id: int
     compare_op: Optional[Instr]
     predicate_id: Optional[int]
+    code_object_data: CodeType
 
 
 class BranchCoverageGoal:
@@ -36,9 +38,9 @@ class BranchCoverageGoal:
         *,
         branch: Optional[Branch] = None,
         value: bool,
-        module_name: str,
+        module_name: Optional[str] = None,
         class_name: Optional[str] = None,
-        function_name: str,
+        function_name: Optional[str] = None,
     ) -> None:
         self._branch = branch
         self._value = value
@@ -68,7 +70,7 @@ class BranchCoverageGoal:
         return self._value
 
     @property
-    def module_name(self) -> str:
+    def module_name(self) -> Optional[str]:
         """Provides the name of the module the branch is declared in.
 
         Returns:
@@ -86,7 +88,7 @@ class BranchCoverageGoal:
         return self._class_name
 
     @property
-    def function_name(self) -> str:
+    def function_name(self) -> Optional[str]:
         """Provides the name of the function the branch is declared in.
 
         Returns:
@@ -103,21 +105,16 @@ class BranchCoverageGoal:
         Returns:
             The control-flow distance
         """
-        distance = cfd.ControlFlowDistanceCalculator.get_distance(
+        distance = cfd.calculate_control_flow_distance(
             result,
             branch=self._branch,
             value=self._value,
-            module_name=self._module_name,
-            class_name=self._class_name,
             function_name=self._function_name,
         )
         return distance
 
     def __str__(self) -> str:
-        name = f"{self._module_name}."
-        if self._class_name:
-            name += f"{self._class_name}."
-        name += f"{self._function_name}:"
+        name = f"{self._function_name}:"
         if self._branch:
             name += f" {self._branch}"
             if self._value:

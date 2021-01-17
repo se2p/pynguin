@@ -7,9 +7,8 @@
 """Provides capabilities to perform branch instrumentation."""
 import logging
 from types import CodeType
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
-import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
@@ -57,6 +56,7 @@ class BranchDistanceInstrumentation:
         self._tracer = tracer
         self._branch_pool = INSTANCE
         self._branch_pool.clear()
+        self._branch_pool.tracer = tracer
 
     def _instrument_inner_code_objects(
         self, code: CodeType, parent_code_object_id: int
@@ -116,6 +116,7 @@ class BranchDistanceInstrumentation:
             code,
             cfg,
             real_entry_node,
+            code_object_id,
         )
 
         self._instrument_cfg(cfg, code_object_id)
@@ -132,15 +133,12 @@ class BranchDistanceInstrumentation:
         """
         # Required to transform for loops.
         dominator_tree = DominatorTree.compute(cfg)
-        # Attributes which store the predicate ids assigned to instrumented nodes.
-        node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = {}
         for node in cfg.nodes:
             predicate_id = self._instrument_node(
                 cfg, code_object_id, dominator_tree, node
             )
             if predicate_id is not None:
-                node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
-        nx.set_node_attributes(cfg.graph, node_attributes)
+                node.predicate_id = predicate_id
 
     def _instrument_node(
         self,
@@ -251,7 +249,15 @@ class BranchDistanceInstrumentation:
             Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._branch_pool.register_branch(block, code_object_id, predicate_id, lineno)
+        self._branch_pool.register_branch(
+            block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+        )
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
@@ -293,7 +299,14 @@ class BranchDistanceInstrumentation:
             Instr("POP_TOP", lineno=lineno),
         ]
         self._branch_pool.register_branch(
-            block, code_object_id, predicate_id, lineno, cmp_op
+            block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+            cmp_op,
         )
         return predicate_id
 
@@ -439,7 +452,14 @@ class BranchDistanceInstrumentation:
             ):
                 successor.basic_block[self._JUMP_OP_POS].arg = new_header
         self._branch_pool.register_branch(
-            node.basic_block, code_object_id, predicate_id, lineno, for_instr
+            node.basic_block,
+            code_object_id,
+            predicate_id,
+            lineno,
+            self._tracer.get_known_data()
+            .existing_code_objects[code_object_id]
+            .code_object,
+            for_instr,
         )
         return predicate_id
 
@@ -483,10 +503,11 @@ class BranchDistanceInstrumentation:
         code: CodeType,
         cfg: CFG,
         real_entry_node: ProgramGraphNode,
+        code_object_id: int,
     ) -> None:
         if len(cfg.nodes) == 3 and [real_entry_node] == [
             n for n in cfg.nodes if not n.is_artificial
         ]:
             self._branch_pool.register_branchless_function(
-                code.co_name, code.co_firstlineno
+                code.co_name, code.co_firstlineno, code_object_id
             )

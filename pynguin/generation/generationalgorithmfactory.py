@@ -10,6 +10,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Callable, Dict, Generic, List, TypeVar
 
 import pynguin.configuration as config
+import pynguin.coverage.branch.branchcoveragefactory as bcf
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
@@ -23,8 +24,13 @@ from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
+from pynguin.ga.operators.ranking.rankingfunction import (
+    RankBasedPreferenceSorting,
+    RankingFunction,
+)
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
+from pynguin.generation.algorithms.mosa.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearch.randomsearchstrategy import (
     RandomSearchStrategy,
 )
@@ -88,9 +94,10 @@ class TestSuiteGenerationAlgorithmFactory(
     """A factory for a search algorithm generating test-suites."""
 
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
-        config.Algorithm.RANDOOPY: RandomTestStrategy,
+        config.Algorithm.MOSA: MOSATestStrategy,
+        config.Algorithm.RANDOM: RandomTestStrategy,
         config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
-        config.Algorithm.WSPY: WholeSuiteTestStrategy,
+        config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster):
@@ -109,6 +116,8 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
+        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+            return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
     def get_search_algorithm(self) -> TestGenerationStrategy:
@@ -138,6 +147,9 @@ class TestSuiteGenerationAlgorithmFactory(
 
         crossover_function = self._get_crossover_function()
         strategy.crossover_function = crossover_function
+
+        ranking_function = self._get_ranking_function()
+        strategy.ranking_function = ranking_function
 
         return strategy
 
@@ -175,10 +187,21 @@ class TestSuiteGenerationAlgorithmFactory(
         self._logger.info("Chosen crossover function: SinglePointRelativeCrossOver()")
         return SinglePointRelativeCrossOver()
 
+    def _get_ranking_function(self) -> RankingFunction:
+        self._logger.info("Chosen ranking function: RankBasedPreferenceSorting")
+        return RankBasedPreferenceSorting()
+
     def _get_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function.
 
         Returns:
             A list of fitness functions
         """
+        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+            factory = bcf.BranchCoverageFactory(self._executor)
+            fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
+            self._logger.info(
+                "Instantiated %d fitness functions", len(fitness_functions)
+            )
+            return fitness_functions
         return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]

@@ -33,3 +33,13 @@ class AbstractTestCaseFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
         result = individual.get_last_execution_result()
         assert result is not None
         return result
+
+    def _update_individual(self, individual, fitness: float) -> None:
+        if self in individual.fitness_values:
+            current_value = individual.fitness_values[self]
+            new_value = ff.FitnessValues(
+                fitness=fitness, coverage=current_value.coverage
+            )
+        else:
+            new_value = ff.FitnessValues(fitness=fitness, coverage=0.0)
+        individual.update_fitness_values(self, new_value)

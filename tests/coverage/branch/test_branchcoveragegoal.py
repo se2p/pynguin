@@ -55,8 +55,8 @@ def test_eq_other(branch_coverage_goal):
 
 def test_get_distance(branch_coverage_goal, mocker):
     mock = mocker.patch(
-        "pynguin.coverage.branch.branchcoveragegoal.cfd.ControlFlowDistanceCalculator"
-        ".get_distance",
+        "pynguin.coverage.branch.branchcoveragegoal.cfd"
+        ".calculate_control_flow_distance",
         return_value=42,
     )
     distance = branch_coverage_goal.get_distance(MagicMock())

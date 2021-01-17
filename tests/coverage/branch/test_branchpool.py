@@ -43,11 +43,12 @@ def tracer_mock():
 
 
 def test_register_branchless_method(branch_pool):
-    branch_pool.register_branchless_function("foo", 42)
+    branch_pool.register_branchless_function("foo", 42, 23)
     assert branch_pool.branchless_functions == {"foo"}
     assert branch_pool.is_branchless_function("foo")
     assert branch_pool.get_num_branchless_functions() == 1
     assert branch_pool.get_branchless_function_line_number("foo") == 42
+    assert branch_pool.get_branchless_function_code_object_id("foo") == 23
 
 
 def test_register_branch(branch_pool, basic_block):
@@ -75,6 +76,11 @@ def test_register_branch_twice(branch_pool, basic_block):
 def test_get_branchless_function_line_number_non_existing(branch_pool):
     with pytest.raises(ValueError):
         branch_pool.get_branchless_function_line_number("bar")
+
+
+def test_get_branchless_function_code_object_id_non_existing(branch_pool):
+    with pytest.raises(ValueError):
+        branch_pool.get_branchless_function_code_object_id("bar")
 
 
 def test_get_actual_branch_id_for_normal_branch_non_existing(branch_pool):
@@ -127,3 +133,14 @@ def test_integrate_branch_distance_instrumentation(
     )
     assert branch_pool.get_num_branchless_functions() == branchless_function_count
     assert len(list(branch_pool.all_branches)) == branches_count
+
+
+def test_tracer(branch_pool):
+    tracer = MagicMock(ExecutionTracer)
+    branch_pool.tracer = tracer
+    assert branch_pool.tracer == tracer
+
+
+def test_tracer_without_one(branch_pool):
+    with pytest.raises(AssertionError):
+        branch_pool.tracer

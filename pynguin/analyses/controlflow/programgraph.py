@@ -25,6 +25,7 @@ class ProgramGraphNode:
         self._index = index
         self._basic_block = basic_block
         self._is_artificial = is_artificial
+        self._predicate_id: Optional[int] = None
 
     @property
     def index(self) -> int:
@@ -52,6 +53,25 @@ class ProgramGraphNode:
             Whether or not a node is artificially inserted into the graph
         """
         return self._is_artificial
+
+    @property
+    def predicate_id(self) -> Optional[int]:
+        """If this node creates a branch based on a predicate, than this stores the id
+        of this predicate.
+
+        Returns:
+            The predicate id assigned to this node, if any.
+        """
+        return self._predicate_id
+
+    @predicate_id.setter
+    def predicate_id(self, predicate_id: int) -> None:
+        """Set a new predicate id.
+
+        Args:
+            predicate_id: The predicate id
+        """
+        self._predicate_id = predicate_id
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ProgramGraphNode):

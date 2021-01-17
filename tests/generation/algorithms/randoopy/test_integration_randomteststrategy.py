@@ -34,7 +34,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_randoopy(module_name: str):
     config.INSTANCE.budget = 1
-    config.INSTANCE.algorithm = config.Algorithm.RANDOOPY
+    config.INSTANCE.algorithm = config.Algorithm.RANDOM
     config.INSTANCE.module_name = module_name
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
