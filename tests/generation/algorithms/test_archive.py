@@ -11,7 +11,7 @@ import pytest
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
-from pynguin.generation.algorithms.mosa.archive import Archive
+from pynguin.generation.algorithms.archive import Archive
 
 
 @pytest.fixture

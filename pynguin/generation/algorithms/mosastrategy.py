@@ -4,6 +4,12 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
 """Provides the MOSA test-generation strategy."""
 import logging
 from typing import List, Set
@@ -18,7 +24,7 @@ from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
-from pynguin.generation.algorithms.mosa.archive import Archive
+from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException

@@ -13,7 +13,7 @@ import pynguin.ga.fitnessfunction as ff
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
-from pynguin.generation.algorithms.mosa.mosastrategy import MOSATestStrategy
+from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
