@@ -152,25 +152,20 @@ class MOSATestStrategy(TestGenerationStrategy):
             if offspring_2.has_changed():
                 offspring_population.append(offspring_2)
 
-            # Add new randomly generated tests
-            for _ in range(
-                int(
-                    config.INSTANCE.population
-                    * config.INSTANCE.test_insertion_probability
-                )
-            ):
-                if len(self._archive.covered_goals) == 0 or randomness.next_bool():
-                    tch: tcc.TestCaseChromosome = (
-                        self._chromosome_factory.get_chromosome()
-                    )
-                    for fitness_function in self._fitness_functions:
-                        tch.add_fitness_function(fitness_function)
-                else:
-                    tch = randomness.choice(list(self._archive.solutions)).clone()
-                    tch.mutate()
+        # Add new randomly generated tests
+        for _ in range(
+            int(config.INSTANCE.population * config.INSTANCE.test_insertion_probability)
+        ):
+            if len(self._archive.covered_goals) == 0 or randomness.next_bool():
+                tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
+                for fitness_function in self._fitness_functions:
+                    tch.add_fitness_function(fitness_function)
+            else:
+                tch = randomness.choice(list(self._archive.solutions)).clone()
+                tch.mutate()
 
-                if tch.has_changed():
-                    offspring_population.append(tch)
+            if tch.has_changed():
+                offspring_population.append(tch)
 
         self._logger.info("Number of offsprings = %d", len(offspring_population))
         return offspring_population
