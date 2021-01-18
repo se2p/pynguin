@@ -143,12 +143,12 @@ class MOSATestStrategy(TestGenerationStrategy):
                     continue
 
             # Apply mutation on offspring_1
-            offspring_1.mutate()
+            self._mutate(offspring_1)
             if offspring_1.has_changed():
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
-            offspring_2.mutate()
+            self._mutate(offspring_2)
             if offspring_2.has_changed():
                 offspring_population.append(offspring_2)
 
@@ -169,6 +169,12 @@ class MOSATestStrategy(TestGenerationStrategy):
 
         self._logger.info("Number of offsprings = %d", len(offspring_population))
         return offspring_population
+
+    @staticmethod
+    def _mutate(offspring: chrom.Chromosome) -> None:
+        offspring.mutate()
+        if not offspring.has_changed():
+            offspring.mutate()
 
     def _get_non_dominated_solutions(
         self, solutions: List[tcc.TestCaseChromosome]
