@@ -35,6 +35,7 @@ from pynguin.generation.algorithms.randomsearchstrategy import RandomSearchStrat
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
+from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -133,6 +134,10 @@ class TestSuiteGenerationAlgorithmFactory(
         fitness_functions = self._get_fitness_functions()
         strategy.fitness_functions = fitness_functions
 
+        if isinstance(strategy, WrapTestSuiteMixin):
+            test_suite_fitness_function = self._get_test_suite_fitness_function()
+            strategy.test_suite_fitness_function = test_suite_fitness_function
+
         selection_function = self._get_selection_function()
         selection_function.maximize = False
         strategy.selection_function = selection_function
@@ -200,4 +205,7 @@ class TestSuiteGenerationAlgorithmFactory(
                 "Instantiated %d fitness functions", len(fitness_functions)
             )
             return fitness_functions
-        return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
+        return [self._get_test_suite_fitness_function()]
+
+    def _get_test_suite_fitness_function(self) -> ff.FitnessFunction:
+        return bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)

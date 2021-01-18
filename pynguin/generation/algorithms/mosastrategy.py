@@ -17,22 +17,21 @@ from typing import List, Set
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
 
 
 # pylint: disable=too-many-instance-attributes
-class MOSATestStrategy(TestGenerationStrategy):
+class MOSATestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     """Implements the Many-Objective Sorting Algorithm MOSA."""
 
     _logger = logging.getLogger(__name__)
@@ -73,7 +72,11 @@ class MOSATestStrategy(TestGenerationStrategy):
         StatisticsTracker().track_output_variable(
             RuntimeVariable.AlgorithmIterations, self._current_iteration
         )
-        return self._create_test_suite()
+        return self.create_test_suite(
+            self._archive.solutions
+            if len(self._archive.solutions) > 0
+            else self._get_best_individuals()
+        )
 
     def evolve(self) -> None:
         """Runs one evolution step."""
@@ -219,14 +222,3 @@ class MOSATestStrategy(TestGenerationStrategy):
         StatisticsTracker().set_output_variable_for_runtime_variable(
             RuntimeVariable.CoverageTimeline, coverage
         )
-
-    def _create_test_suite(self) -> chrom.Chromosome:
-        suite = tsc.TestSuiteChromosome()
-        if len(self._archive.solutions) == 0:
-            suite.add_test_case_chromosomes(self._get_best_individuals())
-        suite.add_test_case_chromosomes(list(self._archive.solutions))
-        # TODO is this reasonable?
-        suite.add_fitness_function(
-            bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)
-        )
-        return suite
