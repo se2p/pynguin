@@ -10,17 +10,17 @@ Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importh
 """
 import logging
 import sys
-import pynguin.configuration as config
 from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
 from types import CodeType
 from typing import cast
 
-from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
+import pynguin.configuration as config
 from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
     DynamicSeedingInstrumentation,
 )
+from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 

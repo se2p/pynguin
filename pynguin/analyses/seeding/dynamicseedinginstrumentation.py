@@ -25,12 +25,14 @@ class DynamicSeedingInstrumentation:
 
     Supported is collecting values of the types int, float and string.
 
-    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the string methods contained in the
-    STRING_FUNCTION_NAMES list. This means, if one of the above operations and methods is used in an if-conditional,
-    corresponding values are added to the dynamic constant pool.
+    Instrumented are the common compare operations (==, !=, <, >, <=, >=) and the string
+    methods contained in the STRING_FUNCTION_NAMES list. This means, if one of the
+    above operations and methods is used in an if-conditional, corresponding values
+    are added to the dynamic constant pool.
 
-    The dynamic pool is implemented in the module dynamicseeding.py. The dynamicseeding module containes methods for
-    managing the dynamic pool during the algorithm execution.
+    The dynamic pool is implemented in the module dynamicseeding.py. The dynamicseeding
+    module containes methods for managing the dynamic pool during the algorithm
+    execution.
 
     General notes:
 
@@ -41,16 +43,18 @@ class DynamicSeedingInstrumentation:
     A POP_TOP instruction is required after calling a method, because each method
     implicitly returns None."""
 
-    # Compare operations are only followed by one jump operation, hence they are on the second to last position of the
-    # block.
+    # Compare operations are only followed by one jump operation, hence they are on the
+    # second to last position of the block.
     _COMPARE_OP_POS = -2
 
-    #  If one of the considered string functions needing no argument is used in the if statement, it will be loaded in
-    #  the third last position. After it comes the call of the method and the jump operation.
+    #  If one of the considered string functions needing no argument is used in the if
+    #  statement, it will be loaded in the third last position. After it comes the
+    #  call of the method and the jump operation.
     _STRING_FUNC_POS = -3
 
-    # If one of the considered string functions needing one argument is used in the if statement, it will be loaded
-    # in the fourth last position. After it comes the load of the argument, the call of the method and the jump
+    # If one of the considered string functions needing one argument is used in the if
+    # statement, it will be loaded in the fourth last position. After it comes the
+    # load of the argument, the call of the method and the jump
     # operation.
     _STRING_FUNC_POS_WITH_ARG = -4
 
@@ -74,7 +78,8 @@ class DynamicSeedingInstrumentation:
     _logger = logging.getLogger(__name__)
 
     def _instrument_startswith_function(self, block: BasicBlock):
-        """Instruments the startswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
+        """Instruments the startswith function in bytecode. Stores for the expression
+          'string1.startswith(string2)' the
            value 'string2 + string1' in the _dynamic_pool.
 
         Args:
@@ -99,7 +104,8 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented startswith function")
 
     def _instrument_endswith_function(self, block: BasicBlock):
-        """Instruments the endswith function in bytecode. Stores for the expression 'string1.startswith(string2)' the
+        """Instruments the endswith function in bytecode. Stores for the expression
+         'string1.startswith(string2)' the
            value 'string1 + string2' in the _dynamic_pool.
 
         Args:
@@ -167,7 +173,8 @@ class DynamicSeedingInstrumentation:
             self._instrument_string_function_without_arg(block, function_name)
 
     def _instrument_compare_op(self, block: BasicBlock):
-        """Instruments the compare operations in bytecode. Stores the values extracted at runtime.
+        """Instruments the compare operations in bytecode. Stores the values extracted
+         at runtime.
 
         Args:
             block: The containing basic block.

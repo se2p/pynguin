@@ -15,8 +15,8 @@ import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.analyses.seeding.dynamicseeding import DynamicSeeding
+from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
