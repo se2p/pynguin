@@ -94,7 +94,7 @@ class StatisticsBackend(str, enum.Enum):
 
 
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
-@dataclasses.dataclass(repr=True, eq=True)
+@dataclasses.dataclass
 class Configuration(Serializable):
     """General configuration for the test generator."""
 
