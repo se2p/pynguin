@@ -55,8 +55,21 @@ class DynamicSeedingInstrumentation:
     _STRING_FUNC_POS_WITH_ARG = -4
 
     # A list containing the names of all string functions which are instrumented.
-    _STRING_FUNCTION_NAMES = ["startswith", "endswith", "isalnum", "isalpha", "isdecimal", "isdigit", "isidentifier",
-                              "islower", "isnumeric", "isprintable", "isspace", "istitle", "isupper"]
+    _STRING_FUNCTION_NAMES = [
+        "startswith",
+        "endswith",
+        "isalnum",
+        "isalpha",
+        "isdecimal",
+        "isdigit",
+        "isidentifier",
+        "islower",
+        "isnumeric",
+        "isprintable",
+        "isspace",
+        "istitle",
+        "isupper",
+    ]
 
     _logger = logging.getLogger(__name__)
 
@@ -72,7 +85,7 @@ class DynamicSeedingInstrumentation:
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
-        block[insert_pos: insert_pos] = [
+        block[insert_pos:insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
@@ -97,7 +110,7 @@ class DynamicSeedingInstrumentation:
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
-        block[insert_pos: insert_pos] = [
+        block[insert_pos:insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
@@ -109,7 +122,9 @@ class DynamicSeedingInstrumentation:
         ]
         self._logger.info("Instrumented endswith function")
 
-    def _instrument_string_function_without_arg(self, block: BasicBlock, function_name: str):
+    def _instrument_string_function_without_arg(
+        self, block: BasicBlock, function_name: str
+    ):
         """Instruments the isalnum function in bytecode.
 
         Args:
@@ -120,10 +135,14 @@ class DynamicSeedingInstrumentation:
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
-        block[insert_pos: insert_pos] = [
+        block[insert_pos:insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value_for_strings.__name__, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                DynamicSeeding.add_value_for_strings.__name__,
+                lineno=lineno,
+            ),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("LOAD_CONST", function_name, lineno=lineno),
@@ -133,7 +152,7 @@ class DynamicSeedingInstrumentation:
         self._logger.info("Instrumented string function")
 
     def _instrument_string_func(self, block: BasicBlock, function_name: str):
-        """ Calls the corresponding instrumentation method for the given function_name.
+        """Calls the corresponding instrumentation method for the given function_name.
 
         Args:
             block: The block to instrument.
@@ -148,7 +167,7 @@ class DynamicSeedingInstrumentation:
             self._instrument_string_function_without_arg(block, function_name)
 
     def _instrument_compare_op(self, block: BasicBlock):
-        """ Instruments the compare operations in bytecode. Stores the values extracted at runtime.
+        """Instruments the compare operations in bytecode. Stores the values extracted at runtime.
 
         Args:
             block: The containing basic block.
@@ -157,28 +176,24 @@ class DynamicSeedingInstrumentation:
             The id that was assigned to the predicate.
         """
         lineno = block[self._COMPARE_OP_POS].lineno
-        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
-
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
             Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
-
             Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
             Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno)
+            Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented compare_op")
 
-    def _instrument_inner_code_objects(
-        self, code: CodeType
-    ) -> CodeType:
+    def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
         """Apply the instrumentation to all constants of the given code object.
 
         Args:
@@ -191,11 +206,7 @@ class DynamicSeedingInstrumentation:
         for const in code.co_consts:
             if isinstance(const, CodeType):
                 # The const is an inner code object
-                new_consts.append(
-                    self._instrument_code_recursive(
-                        const
-                    )
-                )
+                new_consts.append(self._instrument_code_recursive(const))
             else:
                 new_consts.append(const)
         return code.replace(co_consts=tuple(new_consts))
@@ -212,7 +223,9 @@ class DynamicSeedingInstrumentation:
         Returns:
             The instrumented code object
         """
-        self._logger.debug("Instrumenting Code Object for dynamic seeding for %s", code.co_name)
+        self._logger.debug(
+            "Instrumenting Code Object for dynamic seeding for %s", code.co_name
+        )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
 
         assert cfg.entry_node is not None, "Entry node cannot be None."
@@ -220,9 +233,7 @@ class DynamicSeedingInstrumentation:
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
         self._instrument_cfg(cfg)
-        return self._instrument_inner_code_objects(
-            cfg.bytecode_cfg().to_code()
-        )
+        return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
 
     def _instrument_cfg(self, cfg: CFG) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
@@ -232,9 +243,7 @@ class DynamicSeedingInstrumentation:
         """
         # Attributes which store the predicate ids assigned to instrumented nodes.
         for node in cfg.nodes:
-            self._instrument_node(
-                node
-            )
+            self._instrument_node(node)
 
     def _instrument_node(
         self,
@@ -274,17 +283,19 @@ class DynamicSeedingInstrumentation:
             if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
                 self._instrument_compare_op(node.basic_block)
             if (
-                isinstance(maybe_string_func, Instr) and
-                maybe_string_func.name == "LOAD_METHOD" and
-                maybe_string_func.arg in self._STRING_FUNCTION_NAMES
+                isinstance(maybe_string_func, Instr)
+                and maybe_string_func.name == "LOAD_METHOD"
+                and maybe_string_func.arg in self._STRING_FUNCTION_NAMES
             ):
                 self._instrument_string_func(node.basic_block, maybe_string_func.arg)
             if (
-                isinstance(maybe_string_func_with_arg, Instr) and
-                maybe_string_func_with_arg.name == "LOAD_METHOD" and
-                maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
+                isinstance(maybe_string_func_with_arg, Instr)
+                and maybe_string_func_with_arg.name == "LOAD_METHOD"
+                and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
             ):
-                self._instrument_string_func(node.basic_block, maybe_string_func_with_arg.arg)
+                self._instrument_string_func(
+                    node.basic_block, maybe_string_func_with_arg.arg
+                )
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module.

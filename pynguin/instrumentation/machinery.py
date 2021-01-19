@@ -18,7 +18,9 @@ from types import CodeType
 from typing import cast
 
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
-from pynguin.analyses.seeding.dynamicseedinginstrumentation import DynamicSeedingInstrumentation
+from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
+    DynamicSeedingInstrumentation,
+)
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 

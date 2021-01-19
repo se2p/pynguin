@@ -37,11 +37,7 @@ class DynamicSeeding:
     def __new__(cls) -> DynamicSeeding:
         if cls._instance is None:
             cls._instance = super(DynamicSeeding, cls).__new__(cls)
-            cls._dynamic_pool = {
-                "int": set(),
-                "float": set(),
-                "string": set()
-            }
+            cls._dynamic_pool = {"int": set(), "float": set(), "string": set()}
         return cls._instance
 
     @property
@@ -75,12 +71,14 @@ class DynamicSeeding:
         return rand_value
 
     def add_value(self, value: Types):
-        """ Adds the given value to the corresponding set of the dynamic pool.
+        """Adds the given value to the corresponding set of the dynamic pool.
 
         Args:
             value: The value to add.
         """
-        if isinstance(value, bool):  # needed because True and False are accepted as ints otherwise
+        if isinstance(
+            value, bool
+        ):  # needed because True and False are accepted as ints otherwise
             return
         if isinstance(value, int):
             self._dynamic_pool["int"].add(value)
