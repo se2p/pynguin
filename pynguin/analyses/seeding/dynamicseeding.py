@@ -13,17 +13,20 @@ from typing import Dict, Optional, Set, Union, cast
 from pynguin.utils import randomness
 
 
-# pylint:disable=too-few-public-methods
+# pylint:disable=unsubscriptable-object
 class DynamicSeeding:
-    """Provides the dynamic pool and methods to add values to and get values from the dynamic pool.
+    """Provides the dynamic pool and methods to add values to and get values from the
+     dynamic pool.
 
-    The methods in this class are added to the module under test during an instruction phase before the main algorithm
-    is executed. During this instruction phase, bytecode is added to the module under test which executes the methods
-     adding values to the dynamic pool. The instrumentation is implemented in the module
-     dynamicseedinginstrumentation.py.
+    The methods in this class are added to the module under test during an instruction
+    phase before the main algorithm is executed. During this instruction phase,
+    bytecode is added to the module under test which executes the methods adding
+    values to the dynamic pool. The instrumentation is implemented in the module
+    dynamicseedinginstrumentation.py.
 
-    During the test generation process when a new value of one of the supported types is needed, this module provides
-     methods to get values from the dynamic pool instead of randomly generating a new one.
+    During the test generation process when a new value of one of the supported types
+    is needed, this module provides methods to get values from the dynamic pool
+    instead of randomly generating a new one.
 
     """
 
@@ -42,34 +45,72 @@ class DynamicSeeding:
 
     @property
     def has_ints(self) -> bool:
+        """Whether or not the pool stores ints.
+
+        Returns:
+            Whether or not the pool stores ints
+        """
         return self.has_constants("int")
 
     @property
     def has_floats(self) -> bool:
+        """Whether or not the pool stores floats.
+
+        Returns:
+            Whether or not the pool stores floats
+        """
         return self.has_constants("float")
 
     @property
     def has_strings(self) -> bool:
+        """Whether or not the pool stores strings.
+
+        Returns:
+            Whether or not the pool stores strings
+        """
         return self.has_constants("string")
 
     def has_constants(self, type_: str) -> bool:
+        """Whether or not the pool has constants of a given type.
+
+        Args:
+            type_: The type name
+
+        Returns:
+            Whether or not the pool has constants
+        """
         assert self._dynamic_pool is not None
         return len(self._dynamic_pool[type_]) > 0
 
     @property
     def random_int(self) -> int:
+        """Provides a random integer.
+
+        Returns:
+            A random int from the pool
+        """
         assert self._dynamic_pool is not None
         rand_value = cast(int, randomness.choice(tuple(self._dynamic_pool["int"])))
         return rand_value
 
     @property
     def random_float(self) -> float:
+        """Provides a random float.
+
+        Returns:
+            A random float from the pool
+        """
         assert self._dynamic_pool is not None
         rand_value = cast(float, randomness.choice(tuple(self._dynamic_pool["float"])))
         return rand_value
 
     @property
     def random_string(self) -> str:
+        """Provides a random string.
+
+        Returns:
+            A random string from the pool
+        """
         assert self._dynamic_pool is not None
         rand_value = cast(str, randomness.choice(tuple(self._dynamic_pool["string"])))
         return rand_value
@@ -95,6 +136,12 @@ class DynamicSeeding:
             pass  # do nothing
 
     def add_value_for_strings(self, value: str, name: str):
+        """Add a value of a string.
+
+        Args:
+            value: The value
+            name: The string
+        """
         if not isinstance(value, str):
             return
         assert self._dynamic_pool is not None
