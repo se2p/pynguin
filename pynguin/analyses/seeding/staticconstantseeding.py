@@ -178,7 +178,8 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._visit_doc_string(node)
 
     def _visit_doc_string(self, node: ast.AST) -> Any:
-        self._string_expressions.add(ast.get_docstring(node))
+        if docstring := ast.get_docstring(node):
+            self._string_expressions.add(docstring)
         return self.generic_visit(node)
 
     @property
