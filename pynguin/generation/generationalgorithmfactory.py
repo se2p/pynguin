@@ -64,7 +64,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         Returns:
             A stopping condition
         """
-        stopping_condition = config.INSTANCE.stopping_condition
+        stopping_condition = config.configuration.stopping_condition
         self._logger.info("Setting stopping condition: %s", stopping_condition)
         if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
             return MaxIterationsStoppingCondition()
@@ -113,7 +113,7 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
-        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm == config.Algorithm.MOSA:
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
@@ -164,8 +164,8 @@ class TestSuiteGenerationAlgorithmFactory(
         Raises:
             ConfigurationException: if an unknown algorithm was requested
         """
-        if config.INSTANCE.algorithm in cls._strategies:
-            strategy = cls._strategies.get(config.INSTANCE.algorithm)
+        if config.configuration.algorithm in cls._strategies:
+            strategy = cls._strategies.get(config.configuration.algorithm)
             assert strategy, "Strategy cannot be defined as None"
             return strategy()
         raise ConfigurationException("No suitable generation strategy found.")
@@ -198,7 +198,7 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
-        if config.INSTANCE.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm == config.Algorithm.MOSA:
             factory = bcf.BranchCoverageFactory(self._executor)
             fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
             self._logger.info(

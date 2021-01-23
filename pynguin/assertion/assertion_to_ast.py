@@ -113,7 +113,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                     ast.keyword(
                         arg="abs_tol",
                         value=ast.Constant(
-                            value=config.INSTANCE.float_precision, kind=None
+                            value=config.configuration.float_precision, kind=None
                         ),
                     )
                 ],

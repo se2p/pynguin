@@ -40,14 +40,14 @@ def test_has_type_violations(algorithm):
 
 
 def test_purge_test_cases_without_threshold(algorithm, test_case_mock):
-    config.INSTANCE.counter_threshold = 0
+    config.configuration.counter_threshold = 0
     purged, remaining = algorithm.purge_test_cases([test_case_mock])
     assert purged == []
     assert remaining == [test_case_mock]
 
 
 def test_purge_test_cases(algorithm):
-    config.INSTANCE.counter_threshold = 1
+    config.configuration.counter_threshold = 1
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)

@@ -33,11 +33,11 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
     ],
 )
 def test_integrate_mosa(module_name: str):
-    config.INSTANCE.algorithm = config.Algorithm.MOSA
-    config.INSTANCE.budget = 1
-    config.INSTANCE.module_name = module_name
-    config.INSTANCE.min_initial_tests = 1
-    config.INSTANCE.max_initial_tests = 1
+    config.configuration.algorithm = config.Algorithm.MOSA
+    config.configuration.budget = 1
+    config.configuration.module_name = module_name
+    config.configuration.min_initial_tests = 1
+    config.configuration.max_initial_tests = 1
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):

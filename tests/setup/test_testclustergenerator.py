@@ -61,7 +61,7 @@ def test_complex_dependencies():
 
 
 def test_max_recursion():
-    config.INSTANCE.max_cluster_recursion = 1
+    config.configuration.max_cluster_recursion = 1
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.complex_dependencies"
     ).generate_cluster()
@@ -118,20 +118,22 @@ def test_private_method_not_added():
     ],
 )
 def test_initialise_type_inference_strategies(inference_strategy, obj):
-    config.INSTANCE.type_inference_strategy = inference_strategy
-    config.INSTANCE.stub_dir = os.devnull
+    config.configuration.type_inference_strategy = inference_strategy
+    config.configuration.stub_dir = os.devnull
     generator = TestClusterGenerator("")
     assert isinstance(generator._inference._strategies[0], obj)
 
 
 def test_initialise_stub_inference_strategy_exception():
-    config.INSTANCE.type_inference_strategy = config.TypeInferenceStrategy.STUB_FILES
+    config.configuration.type_inference_strategy = (
+        config.TypeInferenceStrategy.STUB_FILES
+    )
     with pytest.raises(ConfigurationException):
         TestClusterGenerator("")
 
 
 def test_initialise_unknown_type_inference_strategies():
-    config.INSTANCE.type_inference_strategy = "foo"
+    config.configuration.type_inference_strategy = "foo"
     with pytest.raises(ConfigurationException):
         TestClusterGenerator("")
 

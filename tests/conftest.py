@@ -39,7 +39,7 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 @pytest.fixture(autouse=True)
 def reset_configuration():
     """Automatically reset the configuration singleton"""
-    config.INSTANCE = config.Configuration(
+    config.configuration = config.Configuration(
         algorithm=config.Algorithm.RANDOM,
         project_path="",
         output_path="",

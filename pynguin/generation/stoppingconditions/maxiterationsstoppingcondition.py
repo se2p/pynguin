@@ -14,7 +14,7 @@ class MaxIterationsStoppingCondition(StoppingCondition):
 
     def __init__(self):
         self._num_iterations = 0
-        self._max_iterations = config.INSTANCE.algorithm_iterations
+        self._max_iterations = config.configuration.algorithm_iterations
 
     def limit(self) -> int:
         return self._max_iterations

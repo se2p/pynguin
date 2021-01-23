@@ -244,13 +244,13 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             A tuple of two lists of test cases.  The first contains test cases
             that where purged, the second contains the remaining test cases
         """
-        if config.INSTANCE.counter_threshold <= 0:
+        if config.configuration.counter_threshold <= 0:
             return [], test_cases
 
         purged: List[tc.TestCase] = []
         remaining: List[tc.TestCase] = []
         for test_case in test_cases:
-            if len(test_case.statements) > config.INSTANCE.counter_threshold:
+            if len(test_case.statements) > config.configuration.counter_threshold:
                 purged.append(test_case)
             else:
                 remaining.append(test_case)

@@ -64,12 +64,12 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
             logging.warning("Error while writing statistics: %s", error)
 
     def _get_report_dir(self) -> Path:
-        report_dir = Path(config.INSTANCE.report_dir).absolute()
+        report_dir = Path(config.configuration.report_dir).absolute()
         if not report_dir.exists():
             try:
                 report_dir.mkdir(parents=True, exist_ok=True)
             except OSError as exception:
-                msg = "Cannot create report dir %s", config.INSTANCE.report_dir
+                msg = "Cannot create report dir %s", config.configuration.report_dir
                 self._logger.error(msg)
                 raise RuntimeError(msg) from exception
         return report_dir

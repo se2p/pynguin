@@ -40,7 +40,7 @@ class ExportProvider:
         Raises:
             Exception: If no appropriate strategy could be found
         """
-        strategy = config.INSTANCE.export_strategy
+        strategy = config.configuration.export_strategy
         if strategy in cls._strategies:
             exp = cls._strategies.get(strategy)
             assert exp, "Export strategy cannot be defined as None"

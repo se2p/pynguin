@@ -37,14 +37,14 @@ class AbstractMOSATestStrategy(
 
     def _breed_next_generation(self) -> List[tcc.TestCaseChromosome]:
         offspring_population: List[tcc.TestCaseChromosome] = []
-        for _ in range(int(config.INSTANCE.population / 2)):
+        for _ in range(int(config.configuration.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
             parent_2 = self._selection_function.select(self._population)[0]
             offspring_1 = parent_1.clone()
             offspring_2 = parent_2.clone()
 
             # Apply crossover
-            if randomness.next_float() <= config.INSTANCE.crossover_rate:
+            if randomness.next_float() <= config.configuration.crossover_rate:
                 try:
                     self._crossover_function.cross_over(offspring_1, offspring_2)
                 except ConstructionFailedException:
@@ -63,7 +63,10 @@ class AbstractMOSATestStrategy(
 
         # Add new randomly generated tests
         for _ in range(
-            int(config.INSTANCE.population * config.INSTANCE.test_insertion_probability)
+            int(
+                config.configuration.population
+                * config.configuration.test_insertion_probability
+            )
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
@@ -111,7 +114,7 @@ class AbstractMOSATestStrategy(
 
     def _get_random_population(self) -> List[tcc.TestCaseChromosome]:
         population: List[tcc.TestCaseChromosome] = []
-        for _ in range(config.INSTANCE.population):
+        for _ in range(config.configuration.population):
             chromosome = self._chromosome_factory.get_chromosome()
             for fitness_function in self._fitness_functions:
                 chromosome.add_fitness_function(fitness_function)

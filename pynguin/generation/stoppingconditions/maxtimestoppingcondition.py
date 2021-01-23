@@ -16,7 +16,7 @@ class MaxTimeStoppingCondition(StoppingCondition):
     """Stop search after a predefined amount of time."""
 
     def __init__(self):
-        self._max_seconds = config.INSTANCE.budget
+        self._max_seconds = config.configuration.budget
         self._start_time = 0
 
     def limit(self) -> int:

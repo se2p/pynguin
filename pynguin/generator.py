@@ -80,7 +80,7 @@ class Pynguin:
         Args:
             configuration: The configuration to use.
         """
-        config.INSTANCE = configuration
+        config.configuration = configuration
 
     def run(self) -> ReturnCode:
         """Run the test generation.
@@ -102,7 +102,7 @@ class Pynguin:
     def _setup_test_cluster(self) -> Optional[TestCluster]:
         with Timer(name="Test-cluster generation time", logger=None):
             test_cluster = TestClusterGenerator(
-                config.INSTANCE.module_name
+                config.configuration.module_name
             ).generate_cluster()
             if test_cluster.num_accessible_objects_under_test() == 0:
                 self._logger.error("SUT contains nothing we can test.")
@@ -116,26 +116,26 @@ class Pynguin:
         Returns:
             An optional execution tracer, if loading was successful, None otherwise.
         """
-        if not os.path.isdir(config.INSTANCE.project_path):
+        if not os.path.isdir(config.configuration.project_path):
             self._logger.error(
-                "%s is not a valid project path", config.INSTANCE.project_path
+                "%s is not a valid project path", config.configuration.project_path
             )
             return False
-        self._logger.debug("Setting up path for %s", config.INSTANCE.project_path)
-        sys.path.insert(0, config.INSTANCE.project_path)
+        self._logger.debug("Setting up path for %s", config.configuration.project_path)
+        sys.path.insert(0, config.configuration.project_path)
         return True
 
     def _setup_import_hook(self) -> ExecutionTracer:
         self._logger.debug(
-            "Setting up instrumentation for %s", config.INSTANCE.module_name
+            "Setting up instrumentation for %s", config.configuration.module_name
         )
         tracer = ExecutionTracer()
-        install_import_hook(config.INSTANCE.module_name, tracer)
+        install_import_hook(config.configuration.module_name, tracer)
         return tracer
 
     def _load_sut(self) -> bool:
         try:
-            importlib.import_module(config.INSTANCE.module_name)
+            importlib.import_module(config.configuration.module_name)
         except ImportError as ex:
             # A module could not be imported because some dependencies
             # are missing or it is malformed
@@ -145,17 +145,17 @@ class Pynguin:
 
     def _setup_random_number_generator(self) -> None:
         """Setup RNG."""
-        if config.INSTANCE.seed is None:
+        if config.configuration.seed is None:
             self._logger.info("No seed given. Using %d", randomness.RNG.get_seed())
         else:
-            self._logger.info("Using seed %d", config.INSTANCE.seed)
-            randomness.RNG.seed(config.INSTANCE.seed)
+            self._logger.info("Using seed %d", config.configuration.seed)
+            randomness.RNG.seed(config.configuration.seed)
 
     def _setup_constant_seeding_collection(self) -> None:
         """Collect constants from SUT, if enabled."""
-        if config.INSTANCE.constant_seeding:
+        if config.configuration.constant_seeding:
             self._logger.info("Collecting constants from SUT.")
-            StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
+            StaticConstantSeeding().collect_constants(config.configuration.project_path)
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
@@ -214,12 +214,12 @@ class Pynguin:
                 self._instantiate_test_generation_strategy(executor, test_cluster)
             )
             self._logger.info(
-                "Start generating sequences using %s", config.INSTANCE.algorithm
+                "Start generating sequences using %s", config.configuration.algorithm
             )
             StatisticsTracker().set_sequence_start_time(time.time_ns())
             generation_result = algorithm.generate_tests()
             self._logger.info(
-                "Stop generating sequences using %s", config.INSTANCE.algorithm
+                "Stop generating sequences using %s", config.configuration.algorithm
             )
             algorithm.send_statistics()
 
@@ -228,12 +228,12 @@ class Pynguin:
                     RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
 
-            if config.INSTANCE.post_process:
+            if config.configuration.post_process:
                 postprocessor = pp.ExceptionTruncation()
                 generation_result.accept(postprocessor)
                 # TODO(fk) add more postprocessing stuff.
 
-            if config.INSTANCE.generate_assertions:
+            if config.configuration.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
                 generation_result.accept(generator)
 
@@ -279,13 +279,13 @@ class Pynguin:
     def _collect_statistics() -> None:
         tracker = StatisticsTracker()
         tracker.track_output_variable(
-            RuntimeVariable.TargetModule, config.INSTANCE.module_name
+            RuntimeVariable.TargetModule, config.configuration.module_name
         )
         tracker.track_output_variable(
             RuntimeVariable.RandomSeed, randomness.RNG.get_seed()
         )
         tracker.track_output_variable(
-            RuntimeVariable.ConfigurationId, config.INSTANCE.configuration_id
+            RuntimeVariable.ConfigurationId, config.configuration.configuration_id
         )
         for runtime_variable, value in tracker.variables_generator:
             tracker.set_output_variable_for_runtime_variable(runtime_variable, value)
@@ -325,8 +325,11 @@ class Pynguin:
         """
         exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
         target_file = os.path.join(
-            config.INSTANCE.output_path,
-            "test_" + config.INSTANCE.module_name.replace(".", "_") + suffix + ".py",
+            config.configuration.output_path,
+            "test_"
+            + config.configuration.module_name.replace(".", "_")
+            + suffix
+            + ".py",
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file

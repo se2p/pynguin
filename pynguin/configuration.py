@@ -289,6 +289,6 @@ class Configuration(Serializable):
 
 
 # Singleton instance of the configuration.
-INSTANCE = Configuration(
+configuration = Configuration(
     algorithm=Algorithm.RANDOM, project_path="", output_path="", module_name=""
 )

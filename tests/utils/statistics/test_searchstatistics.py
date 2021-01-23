@@ -51,7 +51,7 @@ def chromosome_mock():
     ],
 )
 def test_initialise_backend(backend, type_):
-    config.INSTANCE.statistics_backend = backend
+    config.configuration.statistics_backend = backend
     statistics = SearchStatistics()
     assert isinstance(statistics._backend, type_)
 
@@ -68,7 +68,7 @@ def test_output_variable(search_statistics):
 
 
 def test_write_statistics_no_backend():
-    config.INSTANCE.statistics_backend = None
+    config.configuration.statistics_backend = None
     statistics = SearchStatistics()
     assert not statistics.write_statistics()
 
@@ -78,7 +78,7 @@ def test_write_statistics_no_individual(search_statistics):
 
 
 def test_write_statistics_with_individual(capsys, chromosome):
-    config.INSTANCE.statistics_backend = config.StatisticsBackend.CONSOLE
+    config.configuration.statistics_backend = config.StatisticsBackend.CONSOLE
     statistics = SearchStatistics()
     statistics.current_individual(chromosome)
     result = statistics.write_statistics()
@@ -88,13 +88,13 @@ def test_write_statistics_with_individual(capsys, chromosome):
 
 
 def test_get_output_variables(chromosome, search_statistics):
-    config.INSTANCE.output_variables = [
+    config.configuration.output_variables = [
         RuntimeVariable.Coverage,
         RuntimeVariable.CoverageTimeline,
         RuntimeVariable.Length,
         RuntimeVariable.ConfigurationId,
     ]
-    config.INSTANCE.budget = 0.25
+    config.configuration.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )
@@ -111,7 +111,7 @@ def test_get_output_variables(chromosome, search_statistics):
 
 
 def test_current_individual_no_backend(chromosome):
-    config.INSTANCE.statistics_backend = None
+    config.configuration.statistics_backend = None
     statistics = SearchStatistics()
     assert statistics.current_individual(chromosome) is None
 

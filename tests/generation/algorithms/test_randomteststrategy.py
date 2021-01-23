@@ -32,8 +32,8 @@ def executor():
 
 
 def test_generate_sequences(executor):
-    config.INSTANCE.budget = 1
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.budget = 1
+    config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(TestCluster)
@@ -55,8 +55,8 @@ def test_generate_sequences_exception(executor):
         chromosome.get_fitness.return_value = 1.0
         return chromosome
 
-    config.INSTANCE.budget = 1
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.budget = 1
+    config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(TestCluster)
@@ -70,14 +70,14 @@ def test_generate_sequences_exception(executor):
 
 
 def test_random_test_cases_no_bounds(executor):
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    config.INSTANCE.max_sequences_combined = 0
-    config.INSTANCE.max_sequence_length = 0
+    config.configuration.max_sequences_combined = 0
+    config.configuration.max_sequence_length = 0
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)
@@ -88,14 +88,14 @@ def test_random_test_cases_no_bounds(executor):
 
 
 def test_random_test_cases_with_bounds(executor):
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    config.INSTANCE.max_sequences_combined = 2
-    config.INSTANCE.max_sequence_length = 2
+    config.configuration.max_sequences_combined = 2
+    config.configuration.max_sequence_length = 2
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)
@@ -106,7 +106,7 @@ def test_random_test_cases_with_bounds(executor):
 
 
 def test_random_public_method(executor):
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.algorithm = config.Algorithm.RANDOM
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
@@ -121,7 +121,7 @@ def test_random_public_method(executor):
 
 @pytest.mark.parametrize("has_exceptions", [pytest.param(True), pytest.param(False)])
 def test_generate_sequence(has_exceptions, executor):
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.algorithm = config.Algorithm.RANDOM
     exec_result = MagicMock(ExecutionResult)
     exec_result.has_test_exceptions.return_value = has_exceptions
     executor.execute.return_value = exec_result
@@ -144,7 +144,7 @@ def test_generate_sequence(has_exceptions, executor):
 
 
 def test_generate_sequence_duplicate(executor):
-    config.INSTANCE.algorithm = config.Algorithm.RANDOM
+    config.configuration.algorithm = config.Algorithm.RANDOM
     test_cluster = MagicMock(TestCluster)
     test_cluster.accessible_objects_under_test = set()
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(

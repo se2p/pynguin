@@ -45,7 +45,7 @@ def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
     ],
 )
 def test_instantiate_strategy(algorithm, cls, algorithm_factory):
-    config.INSTANCE.algorithm = algorithm
+    config.configuration.algorithm = algorithm
     instance = algorithm_factory.get_search_algorithm()
     assert isinstance(instance, cls)
 
@@ -62,12 +62,12 @@ def test_instantiate_strategy(algorithm, cls, algorithm_factory):
     ],
 )
 def test_stopping_condition(condition, cls, algorithm_factory):
-    config.INSTANCE.stopping_condition = condition
+    config.configuration.stopping_condition = condition
     strategy = algorithm_factory.get_search_algorithm()
     assert isinstance(strategy.stopping_condition, cls)
 
 
 def test_unknown_strategy(algorithm_factory):
-    config.INSTANCE.algorithm = MagicMock()
+    config.configuration.algorithm = MagicMock()
     with pytest.raises(ConfigurationException):
         algorithm_factory.get_search_algorithm()

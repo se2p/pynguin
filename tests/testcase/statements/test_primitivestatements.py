@@ -228,7 +228,7 @@ def test_bool_primitive_statement_randomize_value(test_case_mock):
 def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 0 <= len(statement.value) <= config.INSTANCE.string_length
+    assert 0 <= len(statement.value) <= config.configuration.string_length
 
 
 def test_none_statement_randomize_value(test_case_mock):
@@ -293,7 +293,7 @@ def test_string_primitive_statement_delta_all(test_case_mock):
 
 
 def test_int_primitive_statement_delta(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.IntPrimitiveStatement(test_case_mock, 1)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -302,7 +302,7 @@ def test_int_primitive_statement_delta(test_case_mock):
 
 
 def test_float_primitive_statement_delta_max(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.5)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -313,7 +313,7 @@ def test_float_primitive_statement_delta_max(test_case_mock):
 
 
 def test_float_primitive_statement_delta_gauss(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.0)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
