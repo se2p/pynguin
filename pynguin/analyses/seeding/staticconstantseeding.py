@@ -11,7 +11,7 @@ import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Any, Dict, Optional, Set, Union, cast
+from typing import Any, Dict, Set, Union, cast
 
 from setuptools import find_packages
 
@@ -29,7 +29,7 @@ class _StaticConstantSeeding:
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
-        self._constants: Optional[Dict[str, Set[Types]]] = {}
+        self._constants: Dict[str, Set[Types]] = {}
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
