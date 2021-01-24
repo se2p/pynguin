@@ -15,7 +15,7 @@ from pynguin.utils.statistics.outputvariablefactory import (
     DirectSequenceOutputVariableFactory,
     SequenceOutputVariableFactory,
 )
-from pynguin.utils.statistics.statistics import RuntimeVariable
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class _DummyChromosomeOutputVariableFactory(ChromosomeOutputVariableFactory):

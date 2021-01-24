@@ -12,8 +12,8 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.utils.statistics.searchstatistics import SearchStatistics
-from pynguin.utils.statistics.statistics import RuntimeVariable
+import pynguin.utils.statistics.statistics as stat
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import (
     ConsoleStatisticsBackend,
     CSVStatisticsBackend,
@@ -23,7 +23,7 @@ from pynguin.utils.statistics.statisticsbackend import (
 
 @pytest.fixture
 def search_statistics():
-    return SearchStatistics()
+    return stat._SearchStatistics()
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def chromosome_mock():
 )
 def test_initialise_backend(backend, type_):
     config.configuration.statistics_backend = backend
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     assert isinstance(statistics._backend, type_)
 
 
@@ -69,7 +69,7 @@ def test_output_variable(search_statistics):
 
 def test_write_statistics_no_backend():
     config.configuration.statistics_backend = None
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     assert not statistics.write_statistics()
 
 
@@ -79,7 +79,7 @@ def test_write_statistics_no_individual(search_statistics):
 
 def test_write_statistics_with_individual(capsys, chromosome):
     config.configuration.statistics_backend = config.StatisticsBackend.CONSOLE
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     statistics.current_individual(chromosome)
     result = statistics.write_statistics()
     captured = capsys.readouterr()
@@ -112,12 +112,12 @@ def test_get_output_variables(chromosome, search_statistics):
 
 def test_current_individual_no_backend(chromosome):
     config.configuration.statistics_backend = None
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     assert statistics.current_individual(chromosome) is None
 
 
 def test_current_individual_not_test_suite_chromosome(chromosome_mock):
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     assert statistics.current_individual(chromosome_mock) is None
 
 

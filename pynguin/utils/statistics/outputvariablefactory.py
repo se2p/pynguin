@@ -15,6 +15,7 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
 import pynguin.utils.statistics.statisticsbackend as sb
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 
@@ -22,7 +23,7 @@ T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Factory to create an output variable when given a test suite chromosome"""
 
-    def __init__(self, variable: stat.RuntimeVariable) -> None:
+    def __init__(self, variable: RuntimeVariable) -> None:
         self._variable = variable
 
     @abstractmethod
@@ -157,7 +158,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
     """Sequence output variable whose value can be set directly, instead of
     retrieving it from an individual"""
 
-    def __init__(self, variable: stat.RuntimeVariable, start_value: T) -> None:
+    def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
         super().__init__(variable)
         self._value = start_value  # type: ignore
 
@@ -174,7 +175,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
 
     @staticmethod
     def get_float(
-        variable: stat.RuntimeVariable,
+        variable: RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for a float variable.
 
@@ -188,7 +189,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
 
     @staticmethod
     def get_integer(
-        variable: stat.RuntimeVariable,
+        variable: RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for an integer variable.
 

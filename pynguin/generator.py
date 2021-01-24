@@ -31,6 +31,7 @@ import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
+import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
@@ -40,7 +41,7 @@ from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -187,19 +188,19 @@ class Pynguin:
             tracer: the execution tracer
             test_cluster: the test cluster
         """
-        tracker = StatisticsTracker()
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.CodeObjects,
             len(tracer.get_known_data().existing_code_objects),
         )
-        tracker.track_output_variable(
-            RuntimeVariable.Predicates, len(tracer.get_known_data().existing_predicates)
+        stat.track_output_variable(
+            RuntimeVariable.Predicates,
+            len(tracer.get_known_data().existing_predicates),
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.AccessibleObjectsUnderTest,
             test_cluster.num_accessible_objects_under_test(),
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.GeneratableTypes,
             len(test_cluster.get_all_generatable_types()),
         )
@@ -216,7 +217,7 @@ class Pynguin:
             self._logger.info(
                 "Start generating sequences using %s", config.configuration.algorithm
             )
-            StatisticsTracker().set_sequence_start_time(time.time_ns())
+            stat.set_sequence_start_time(time.time_ns())
             generation_result = algorithm.generate_tests()
             self._logger.info(
                 "Stop generating sequences using %s", config.configuration.algorithm
@@ -224,7 +225,7 @@ class Pynguin:
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                StatisticsTracker().track_output_variable(
+                stat.track_output_variable(
                     RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
 
@@ -261,7 +262,7 @@ class Pynguin:
 
         self._track_statistics(passing, failing, generation_result)
         self._collect_statistics()
-        if not StatisticsTracker().write_statistics():
+        if not stat.write_statistics():
             self._logger.error("Failed to write statistics data")
         if generation_result.size() == 0:
             # not able to generate one test case
@@ -277,18 +278,17 @@ class Pynguin:
 
     @staticmethod
     def _collect_statistics() -> None:
-        tracker = StatisticsTracker()
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.TargetModule, config.configuration.module_name
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.RandomSeed, randomness.RNG.get_seed()
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.ConfigurationId, config.configuration.configuration_id
         )
-        for runtime_variable, value in tracker.variables_generator:
-            tracker.set_output_variable_for_runtime_variable(runtime_variable, value)
+        for runtime_variable, value in stat.variables_generator:
+            stat.set_output_variable_for_runtime_variable(runtime_variable, value)
 
     @staticmethod
     def _track_statistics(
@@ -296,17 +296,16 @@ class Pynguin:
         failing: chrom.Chromosome,
         result: chrom.Chromosome,
     ) -> None:
-        tracker = StatisticsTracker()
-        tracker.current_individual(result)
-        tracker.track_output_variable(RuntimeVariable.Size, result.size())
-        tracker.track_output_variable(RuntimeVariable.Length, result.length())
-        tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
-        tracker.track_output_variable(
+        stat.current_individual(result)
+        stat.track_output_variable(RuntimeVariable.Size, result.size())
+        stat.track_output_variable(RuntimeVariable.Length, result.length())
+        stat.track_output_variable(RuntimeVariable.FailingSize, failing.size())
+        stat.track_output_variable(
             RuntimeVariable.FailingLength,
             failing.length(),
         )
-        tracker.track_output_variable(RuntimeVariable.PassingSize, passing.size())
-        tracker.track_output_variable(RuntimeVariable.PassingLength, passing.length())
+        stat.track_output_variable(RuntimeVariable.PassingSize, passing.size())
+        stat.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
     @staticmethod
     def _export_test_cases(

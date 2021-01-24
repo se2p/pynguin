@@ -10,10 +10,11 @@ from typing import List
 
 import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 # pylint: disable=too-few-public-methods
@@ -31,14 +32,14 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     ) -> tsc.TestSuiteChromosome:
         self._population = self._get_random_population()
         self._sort_population()
-        StatisticsTracker().current_individual(self._get_best_individual())
+        stat.current_individual(self._get_best_individual())
         generation = 0
         while (
             not self._stopping_condition.is_fulfilled()
             and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
-            StatisticsTracker().current_individual(self._get_best_individual())
+            stat.current_individual(self._get_best_individual())
             self._logger.info(
                 "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                 generation,
@@ -46,9 +47,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 self._get_best_individual().get_coverage(),
             )
             generation += 1
-        StatisticsTracker().track_output_variable(
-            RuntimeVariable.AlgorithmIterations, generation
-        )
+        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
         best = self._get_best_individual()
         # Make sure all test cases have a cached result.
         best.get_fitness()
@@ -96,7 +95,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
         self._population = new_generation
         self._sort_population()
-        StatisticsTracker().current_individual(self._get_best_individual())
+        stat.current_individual(self._get_best_individual())
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
