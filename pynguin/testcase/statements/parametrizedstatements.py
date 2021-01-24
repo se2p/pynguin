@@ -129,7 +129,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return new_kw_args
 
     def mutate(self) -> bool:
-        if randomness.next_float() >= config.INSTANCE.change_parameter_probability:
+        if randomness.next_float() >= config.configuration.change_parameter_probability:
             return False
 
         changed = False

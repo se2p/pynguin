@@ -30,15 +30,15 @@ class GlobalTimeStoppingCondition(StoppingCondition):
         self._start_time = value
 
     def limit(self) -> int:
-        return config.INSTANCE.global_timeout
+        return config.configuration.global_timeout
 
     def is_fulfilled(self) -> bool:
         current_time = time.time_ns()
         if (
-            config.INSTANCE.global_timeout != 0
+            config.configuration.global_timeout != 0
             and self._start_time != 0
             and (current_time - self._start_time) / 1_000_000_000
-            > config.INSTANCE.global_timeout
+            > config.configuration.global_timeout
         ):
             self._logger.info("Timeout reached")
             return True

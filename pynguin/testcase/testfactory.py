@@ -180,7 +180,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding constructor %s", constructor)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -243,7 +243,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding method %s", method)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -305,7 +305,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding field %s", field)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -352,7 +352,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding function %s", function)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -423,7 +423,7 @@ class TestFactory:
         rand = randomness.next_float()
 
         position = randomness.next_int(0, last_position + 1)
-        if rand <= config.INSTANCE.insertion_uut:
+        if rand <= config.configuration.insertion_uut:
             success = self.insert_random_call(test_case, position)
         else:
             success = self.insert_random_call_on_object(test_case, position)
@@ -932,9 +932,9 @@ class TestFactory:
 
         objects = test_case.get_objects(parameter_type, position)
         probability = (
-            config.INSTANCE.primitive_reuse_probability
+            config.configuration.primitive_reuse_probability
             if is_primitive_type(parameter_type)
-            else config.INSTANCE.object_reuse_probability
+            else config.configuration.object_reuse_probability
         )
         if objects and randomness.next_float() <= probability:
             var = randomness.choice(objects)
@@ -969,7 +969,10 @@ class TestFactory:
 
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
-            if config.INSTANCE.guess_unknown_types and randomness.next_float() <= 0.85:
+            if (
+                config.configuration.guess_unknown_types
+                and randomness.next_float() <= 0.85
+            ):
                 return self._create_random_type_variable(
                     test_case, position, recursion_depth, allow_none
                 )
@@ -1000,7 +1003,7 @@ class TestFactory:
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
         if is_type_unknown(parameter_type):
-            if config.INSTANCE.guess_unknown_types:
+            if config.configuration.guess_unknown_types:
                 parameter_type = randomness.choice(
                     self._test_cluster.get_all_generatable_types()
                 )
@@ -1057,7 +1060,10 @@ class TestFactory:
         if not parameter_type:
             return None
 
-        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
+        if (
+            allow_none
+            and randomness.next_float() <= config.configuration.none_probability
+        ):
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )

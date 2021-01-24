@@ -14,7 +14,7 @@ import pynguin.generator as gen
 def test_init_with_configuration():
     conf = MagicMock(log_file=None)
     gen.Pynguin(configuration=conf)
-    assert config.INSTANCE == conf
+    assert config.configuration == conf
 
 
 def test__load_sut_failed():

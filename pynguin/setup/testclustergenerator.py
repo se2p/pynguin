@@ -65,15 +65,15 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
 
     @staticmethod
     def _initialise_type_inference_strategies() -> List[TypeInferenceStrategy]:
-        strategy = config.INSTANCE.type_inference_strategy
+        strategy = config.configuration.type_inference_strategy
         if strategy == config.TypeInferenceStrategy.NONE:
             return [NoTypeInferenceStrategy()]
         if strategy == config.TypeInferenceStrategy.STUB_FILES:
-            if config.INSTANCE.stub_dir is None:
+            if config.configuration.stub_dir is None:
                 raise ConfigurationException(
                     "Missing configuration value `stub_dir' for StubInferenceStrategy"
                 )
-            return [StubInferenceStrategy(config.INSTANCE.stub_dir)]
+            return [StubInferenceStrategy(config.configuration.stub_dir)]
         if strategy == config.TypeInferenceStrategy.TYPE_HINTS:
             return [TypeHintsInferenceStrategy()]
         raise ConfigurationException("Invalid type-inference strategy")
@@ -120,7 +120,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             recursion_level: The current level of recursion of the search
         """
         self._logger.debug("Find dependencies for %s", call)
-        if recursion_level > config.INSTANCE.max_cluster_recursion:
+        if recursion_level > config.configuration.max_cluster_recursion:
             self._logger.debug("Reached recursion limit. No more dependencies added.")
             return
         for param_name, type_ in call.inferred_signature.parameters.items():
@@ -220,7 +220,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         Returns:
             Whether or not the accessible should be discarded
         """
-        if config.INSTANCE.guess_unknown_types:
+        if config.configuration.guess_unknown_types:
             return False
         inf_sig = accessible_object.inferred_signature
         return any(

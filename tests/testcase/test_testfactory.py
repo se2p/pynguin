@@ -174,7 +174,7 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
     )
     test_cluster_mock.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(test_cluster_mock)
-    config.INSTANCE.none_probability = 1.0
+    config.configuration.none_probability = 1.0
     result = factory.add_method(
         test_case, generic_method, position=0, callee=MagicMock()
     )
@@ -183,7 +183,7 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
 
 
 def test_add_function(provide_callables_from_fixtures_modules):
-    config.INSTANCE.object_reuse_probability = 0.0
+    config.configuration.object_reuse_probability = 0.0
     test_case = dtc.DefaultTestCase()
     generic_function = gao.GenericFunction(
         function=provide_callables_from_fixtures_modules["triangle"],
@@ -255,7 +255,7 @@ def test_attempt_generation_for_no_type(test_case_mock):
 
 
 def test_attempt_generation_for_none_type(test_cluster_mock):
-    config.INSTANCE.none_probability = 1.0
+    config.configuration.none_probability = 1.0
     factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
         dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
@@ -264,7 +264,7 @@ def test_attempt_generation_for_none_type(test_cluster_mock):
 
 
 def test_attempt_generation_for_none_type_with_no_probability(test_cluster_mock):
-    config.INSTANCE.none_probability = 0.0
+    config.configuration.none_probability = 0.0
     factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
         dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
@@ -951,5 +951,5 @@ def test_change_call_unknown():
 def test_create_or_reuse_variable_no_guessing(test_case_mock):
     cluster = MagicMock(TestCluster)
     factory = tf.TestFactory(cluster)
-    config.INSTANCE.guess_unknown_types = False
+    config.configuration.guess_unknown_types = False
     assert factory._create_or_reuse_variable(test_case_mock, None, 1, 1, True) is None

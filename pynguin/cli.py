@@ -17,7 +17,8 @@ from typing import List, Union
 
 import simple_parsing
 
-from pynguin import Configuration, __version__
+import pynguin.configuration as config
+from pynguin import __version__
 from pynguin.generator import Pynguin
 
 
@@ -49,7 +50,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         dest="verbosity",
         help="quiet output",
     )
-    parser.add_arguments(Configuration, dest="config")
+    parser.add_arguments(config.Configuration, dest="config")
 
     return parser
 

@@ -8,8 +8,9 @@
 import logging
 
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 # pylint: disable=too-few-public-methods
@@ -22,7 +23,7 @@ class RandomSearchStrategy(TestGenerationStrategy):
         self,
     ) -> tsc.TestSuiteChromosome:
         solution = self._get_random_solution()
-        StatisticsTracker().current_individual(solution)
+        stat.current_individual(solution)
         generation = 0
         while (
             not self._stopping_condition.is_fulfilled()
@@ -37,11 +38,9 @@ class RandomSearchStrategy(TestGenerationStrategy):
                     solution.get_fitness(),
                     solution.get_coverage(),
                 )
-            StatisticsTracker().current_individual(solution)
+            stat.current_individual(solution)
             generation += 1
-        StatisticsTracker().track_output_variable(
-            RuntimeVariable.AlgorithmIterations, generation
-        )
+        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
         return solution
 
     def _get_random_solution(self) -> tsc.TestSuiteChromosome:

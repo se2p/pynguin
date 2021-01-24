@@ -33,12 +33,12 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_wspy(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
-    config.INSTANCE.algorithm = config.Algorithm.WHOLE_SUITE
-    config.INSTANCE.budget = 1
-    config.INSTANCE.module_name = module_name
-    config.INSTANCE.population = 3
-    config.INSTANCE.min_initial_tests = 1
-    config.INSTANCE.max_initial_tests = 1
+    config.configuration.algorithm = config.Algorithm.WHOLE_SUITE
+    config.configuration.budget = 1
+    config.configuration.module_name = module_name
+    config.configuration.population = 3
+    config.configuration.min_initial_tests = 1
+    config.configuration.max_initial_tests = 1
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):

@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from simple_parsing import Serializable
 
-import pynguin.utils.statistics.statistics as stat  # pylint:disable=cyclic-import
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class ExportStrategy(str, enum.Enum):
@@ -128,10 +128,10 @@ class Configuration(Serializable):
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    output_variables: List[stat.RuntimeVariable] = dataclasses.field(
+    output_variables: List[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
-            stat.RuntimeVariable.TargetModule,
-            stat.RuntimeVariable.Coverage,
+            RuntimeVariable.TargetModule,
+            RuntimeVariable.Coverage,
         ]
     )
     """List of variables to output to the statistics backend."""
@@ -289,6 +289,6 @@ class Configuration(Serializable):
 
 
 # Singleton instance of the configuration.
-INSTANCE = Configuration(
+configuration = Configuration(
     algorithm=Algorithm.RANDOM, project_path="", output_path="", module_name=""
 )

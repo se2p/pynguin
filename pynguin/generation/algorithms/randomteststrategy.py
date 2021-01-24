@@ -14,11 +14,12 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -60,7 +61,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 combined_chromosome = self._combine_current_individual(
                     test_chromosome, failing_test_chromosome
                 )
-                StatisticsTracker().current_individual(combined_chromosome)
+                stat.current_individual(combined_chromosome)
                 self._logger.info(
                     "Generation: %5i. Best fitness: %5f, Best coverage %5f",
                     generation,
@@ -73,9 +74,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 )
 
         self._logger.debug("Number of algorithm iterations: %d", generation)
-        StatisticsTracker().track_output_variable(
-            RuntimeVariable.AlgorithmIterations, generation
-        )
+        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
 
         combined_chromosome = self._combine_current_individual(
             test_chromosome, failing_test_chromosome
@@ -161,8 +160,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     def send_statistics(self) -> None:
         super().send_statistics()
-        tracker = StatisticsTracker()
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.ExecutionResults, self._execution_results
         )
 
@@ -180,18 +178,20 @@ class RandomTestStrategy(TestGenerationStrategy):
         return object_under_test
 
     def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
-        if config.INSTANCE.max_sequence_length == 0:
+        if config.configuration.max_sequence_length == 0:
             selectables = test_cases
         else:
             selectables = [
                 test_case
                 for test_case in test_cases
-                if len(test_case.statements) < config.INSTANCE.max_sequence_length
+                if len(test_case.statements) < config.configuration.max_sequence_length
             ]
-        if config.INSTANCE.max_sequences_combined == 0:
+        if config.configuration.max_sequences_combined == 0:
             upper_bound = len(selectables)
         else:
-            upper_bound = min(len(selectables), config.INSTANCE.max_sequences_combined)
+            upper_bound = min(
+                len(selectables), config.configuration.max_sequences_combined
+            )
         new_test_cases = randomness.RNG.sample(
             selectables, randomness.RNG.randint(0, upper_bound)
         )

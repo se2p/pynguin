@@ -17,12 +17,13 @@ from typing import List, Set
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
 from pynguin.generation.algorithms.archive import Archive
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 # pylint: disable=too-many-instance-attributes
@@ -57,7 +58,7 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
             self._notify_iteration()
             self._current_iteration += 1
 
-        StatisticsTracker().track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.AlgorithmIterations, self._current_iteration
         )
         return self.create_test_suite(
@@ -121,6 +122,6 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
             self._current_iteration,
             coverage,
         )
-        StatisticsTracker().set_output_variable_for_runtime_variable(
+        stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.CoverageTimeline, coverage
         )

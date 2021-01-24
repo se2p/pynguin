@@ -153,8 +153,8 @@ def test_mutate_add_new():
     test_case_chromosome_factory.get_chromosome.return_value = test_case
     chromosome = tsc.TestSuiteChromosome(test_case_chromosome_factory)
     chromosome.set_changed(False)
-    config.INSTANCE.test_insertion_probability = 0.5
-    config.INSTANCE.max_size = 10
+    config.configuration.test_insertion_probability = 0.5
+    config.configuration.max_size = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.1, 0.1, 0.1, 0.1]
         chromosome.mutate()
@@ -169,8 +169,8 @@ def test_mutate_add_new_max_size():
     test_case_chromosome_factory.get_chromosome.return_value = test_case
     chromosome = tsc.TestSuiteChromosome(test_case_chromosome_factory)
     chromosome.set_changed(False)
-    config.INSTANCE.test_insertion_probability = 0.5
-    config.INSTANCE.max_size = 2
+    config.configuration.test_insertion_probability = 0.5
+    config.configuration.max_size = 2
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.1, 0.1, 0.1]
         chromosome.mutate()

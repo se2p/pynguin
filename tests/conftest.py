@@ -20,6 +20,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.setup.testcluster import TestCluster
@@ -30,7 +31,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
-from pynguin.utils.statistics.statistics import StatisticsTracker
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
@@ -39,7 +39,7 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 @pytest.fixture(autouse=True)
 def reset_configuration():
     """Automatically reset the configuration singleton"""
-    config.INSTANCE = config.Configuration(
+    config.configuration = config.Configuration(
         algorithm=config.Algorithm.RANDOM,
         project_path="",
         output_path="",
@@ -177,7 +177,7 @@ def reset_test_cluster():
 
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
-    StatisticsTracker._instance = None
+    stat.statistics_tracker.reset()
 
 
 @pytest.fixture(scope="module")

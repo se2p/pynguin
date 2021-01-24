@@ -118,7 +118,7 @@ def test_hash_same(test_case_mock, variable_reference_mock, field_mock):
 
 
 def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):
-    config.INSTANCE.change_parameter_probability = 0.0
+    config.configuration.change_parameter_probability = 0.0
     statement = fstmt.FieldStatement(
         test_case_mock, field_mock, variable_reference_mock
     )
@@ -126,7 +126,7 @@ def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):
 
 
 def test_mutate_no_replacements(field_mock, constructor_mock):
-    config.INSTANCE.change_parameter_probability = 1.0
+    config.configuration.change_parameter_probability = 1.0
     test_case = dtc.DefaultTestCase()
     const = ps.ConstructorStatement(test_case, constructor_mock)
     field = fstmt.FieldStatement(test_case, field_mock, const.ret_val)
@@ -136,7 +136,7 @@ def test_mutate_no_replacements(field_mock, constructor_mock):
 
 
 def test_mutate_success(field_mock, constructor_mock):
-    config.INSTANCE.change_parameter_probability = 1.0
+    config.configuration.change_parameter_probability = 1.0
     test_case = dtc.DefaultTestCase()
     const = ps.ConstructorStatement(test_case, constructor_mock)
     const2 = ps.ConstructorStatement(test_case, constructor_mock)

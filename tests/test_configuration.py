@@ -12,8 +12,8 @@ def test_serialization_round_trip(tmp_path):
     path = tmp_path / "serialized.json"
 
     with path.open("w") as write:
-        config.INSTANCE.dump_json(write, indent=4)
+        config.configuration.dump_json(write, indent=4)
 
     loaded = config.Configuration.load_json(path)
 
-    assert config.INSTANCE == loaded
+    assert config.configuration == loaded

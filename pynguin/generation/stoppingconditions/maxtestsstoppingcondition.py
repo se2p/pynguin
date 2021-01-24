@@ -14,7 +14,7 @@ class MaxTestsStoppingCondition(StoppingCondition):
 
     def __init__(self):
         self._num_tests = 0
-        self._max_tests = config.INSTANCE.search_budget
+        self._max_tests = config.configuration.search_budget
 
     def limit(self) -> int:
         return self._max_tests
