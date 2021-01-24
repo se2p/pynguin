@@ -15,7 +15,7 @@ import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -103,10 +103,10 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def randomize_value(self) -> None:
         if (
             config.configuration.constant_seeding
-            and StaticConstantSeeding().has_ints
+            and static_constant_seeding.has_ints
             and randomness.next_float() <= 0.90
         ):
-            self._value = StaticConstantSeeding().random_int
+            self._value = static_constant_seeding.random_int
         else:
             self._value = int(randomness.next_gaussian() * config.configuration.max_int)
 
@@ -137,10 +137,10 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
     def randomize_value(self) -> None:
         if (
             config.configuration.constant_seeding
-            and StaticConstantSeeding().has_floats
+            and static_constant_seeding.has_floats
             and randomness.next_float() <= 0.90
         ):
-            self._value = StaticConstantSeeding().random_float
+            self._value = static_constant_seeding.random_float
         else:
             val = randomness.next_gaussian() * config.configuration.max_int
             precision = randomness.next_int(0, 7)
@@ -178,10 +178,10 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def randomize_value(self) -> None:
         if (
             config.configuration.constant_seeding
-            and StaticConstantSeeding().has_strings
+            and static_constant_seeding.has_strings
             and randomness.next_float() <= 0.90
         ):
-            self._value = StaticConstantSeeding().random_string
+            self._value = static_constant_seeding.random_string
         else:
             length = randomness.next_int(0, config.configuration.string_length + 1)
             self._value = randomness.next_string(length)

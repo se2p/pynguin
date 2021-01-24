@@ -32,7 +32,7 @@ import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
@@ -156,7 +156,7 @@ class Pynguin:
         """Collect constants from SUT, if enabled."""
         if config.configuration.constant_seeding:
             self._logger.info("Collecting constants from SUT.")
-            StaticConstantSeeding().collect_constants(config.configuration.project_path)
+            static_constant_seeding.collect_constants(config.configuration.project_path)
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.

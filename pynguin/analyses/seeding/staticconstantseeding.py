@@ -20,21 +20,16 @@ from pynguin.utils import randomness
 Types = Union[float, int, str]
 
 
-class StaticConstantSeeding:
+class _StaticConstantSeeding:
     """A simple static constant seeding strategy.
 
     Extracts all constants from a set of modules by using an AST visitor.
     """
 
     _logger = logging.getLogger(__name__)
-    _instance: Optional[StaticConstantSeeding] = None
-    _constants: Optional[Dict[str, Set[Types]]] = None
 
-    def __new__(cls) -> StaticConstantSeeding:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._constants = {}
-        return cls._instance
+    def __init__(self) -> None:
+        self._constants: Optional[Dict[str, Set[Types]]] = {}
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
@@ -193,4 +188,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._constants
 
     def _remove_docstrings(self) -> None:
-        self._constants["str"] = self._constants["str"] - self._string_expressions
+        self._constants["str"] -= self._string_expressions
+
+
+static_constant_seeding = _StaticConstantSeeding()
