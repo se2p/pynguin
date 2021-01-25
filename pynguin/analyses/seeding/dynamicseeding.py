@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Dict, Optional, Set, Union, Type
 
 from pynguin.utils import randomness
@@ -35,6 +36,20 @@ class DynamicSeeding:
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeeding] = None
+
+    _string_functions_lookup = {
+        "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
+        "islower": lambda value: value.upper() if value.islower() else value.lower(),
+        "isupper": lambda value: value.lower() if value.isupper() else value.upper(),
+        "isdecimal": lambda value: "non_decimal" if value.isdecimal() else "0123456789",
+        "isalpha": lambda value: f"{value}1" if value.isalpha() else "isalpha",
+        "isdigit": lambda value: f"{value}_" if value.isdigit() else "0",
+        "isidentifier": lambda value: f"{value}!" if value.isidentifier() else "is_Identifier",
+        "isnumeric": lambda value: f"{value}A" if value.isnumeric() else "012345",
+        "isprintable": lambda value: f"{value}{os.linesep}" if value.isprintable() else "is_printable",
+        "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
+        "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
+    }
 
     def __new__(cls) -> DynamicSeeding:
         if cls._instance is None:
@@ -140,83 +155,4 @@ class DynamicSeeding:
             return
         assert self._dynamic_pool is not None
         self._dynamic_pool[str].add(value)
-        method_name = "_add_value_for_" + name
-        method = getattr(self, method_name)
-        method(value)
-
-    def _add_value_for_isalnum(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isalnum():
-            self._dynamic_pool[str].add(value + "!")
-        else:
-            self._dynamic_pool[str].add("isalnum")
-
-    def _add_value_for_islower(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.islower():
-            self._dynamic_pool[str].add(value.upper())
-        else:
-            self._dynamic_pool[str].add(value.lower())
-
-    def _add_value_for_isupper(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isupper():
-            self._dynamic_pool[str].add(value.lower())
-        else:
-            self._dynamic_pool[str].add(value.upper())
-
-    def _add_value_for_isdecimal(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isdecimal():
-            self._dynamic_pool[str].add("non_decimal")
-        else:
-            self._dynamic_pool[str].add("0123456789")
-
-    def _add_value_for_isalpha(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isalpha():
-            self._dynamic_pool[str].add(value + "1")
-        else:
-            self._dynamic_pool[str].add("isalpha")
-
-    def _add_value_for_isdigit(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isdigit():
-            self._dynamic_pool[str].add(value + "_")
-        else:
-            self._dynamic_pool[str].add("0")
-
-    def _add_value_for_isidentifier(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isidentifier():
-            self._dynamic_pool[str].add(value + "!")
-        else:
-            self._dynamic_pool[str].add("is_Identifier")
-
-    def _add_value_for_isnumeric(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isnumeric():
-            self._dynamic_pool[str].add(value + "A")
-        else:
-            self._dynamic_pool[str].add("012345")
-
-    def _add_value_for_isprintable(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isprintable():
-            self._dynamic_pool[str].add(value + "\n")
-        else:
-            self._dynamic_pool[str].add("is_printable")
-
-    def _add_value_for_isspace(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.isspace():
-            self._dynamic_pool[str].add(value + "a")
-        else:
-            self._dynamic_pool[str].add("   ")
-
-    def _add_value_for_istitle(self, value: str):
-        assert self._dynamic_pool is not None
-        if value.istitle():
-            self._dynamic_pool[str].add(value + " AAA")
-        else:
-            self._dynamic_pool[str].add("Is Title")
+        self._dynamic_pool[str].add(self._string_functions_lookup[name](value))
