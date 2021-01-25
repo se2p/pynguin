@@ -9,13 +9,13 @@ import math
 from abc import abstractmethod
 from typing import Any, Generic, List, Optional, Set, Type, TypeVar
 
+import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject

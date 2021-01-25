@@ -14,7 +14,6 @@ from typing import Optional
 from bytecode import BasicBlock, Bytecode, Instr
 
 import pynguin.analyses.seeding.dynamicseeding as dyn_seed
-
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 

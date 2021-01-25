@@ -8,8 +8,8 @@ import importlib
 import os
 
 import pytest
-import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 
+import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
     DynamicSeedingInstrumentation,
 )
