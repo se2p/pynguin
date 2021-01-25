@@ -126,14 +126,8 @@ class DynamicSeeding:
         ):  # needed because True and False are accepted as ints otherwise
             return
         assert self._dynamic_pool is not None
-        if isinstance(value, int):
-            self._dynamic_pool[int].add(value)
-        elif isinstance(value, float):
-            self._dynamic_pool[float].add(value)
-        elif isinstance(value, str):
-            self._dynamic_pool[str].add(value)
-        else:
-            pass  # do nothing
+        if type(value) in self._dynamic_pool:
+            self._dynamic_pool[type(value)].add(value)
 
     def add_value_for_strings(self, value: str, name: str):
         """Add a value of a string.
