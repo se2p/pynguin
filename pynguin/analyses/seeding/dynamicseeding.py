@@ -12,6 +12,9 @@ from typing import Dict, Optional, Set, Union, cast
 
 from pynguin.utils import randomness
 
+# Variables for this types are stored in the dynamic pool.
+Types = Union[int, float, str]
+
 
 # pylint:disable=unsubscriptable-object
 class DynamicSeeding:
@@ -29,9 +32,6 @@ class DynamicSeeding:
     instead of randomly generating a new one.
 
     """
-
-    # Variables for this types are stored in the dynamic pool.
-    Types = Union[int, float, str]
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeeding] = None
