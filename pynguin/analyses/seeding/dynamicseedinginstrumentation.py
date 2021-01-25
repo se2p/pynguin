@@ -13,10 +13,10 @@ from typing import Optional
 
 from bytecode import BasicBlock, Bytecode, Instr
 
+import pynguin.analyses.seeding.dynamicseeding as dyn_seed
+
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-
-from pynguin.analyses.seeding.dynamicseeding import DynamicSeeding
 
 
 # pylint:disable=too-few-public-methods
@@ -94,8 +94,8 @@ class DynamicSeedingInstrumentation:
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
+            Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
+            Instr("LOAD_METHOD", dyn_seed.INSTANCE.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -119,8 +119,8 @@ class DynamicSeedingInstrumentation:
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
+            Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
+            Instr("LOAD_METHOD", dyn_seed.INSTANCE.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
@@ -143,10 +143,10 @@ class DynamicSeedingInstrumentation:
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
+            Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                DynamicSeeding.add_value_for_strings.__name__,
+                dyn_seed.INSTANCE.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -185,14 +185,14 @@ class DynamicSeedingInstrumentation:
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
+            Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
+            Instr("LOAD_METHOD", dyn_seed.INSTANCE.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", DynamicSeeding(), lineno=lineno),
-            Instr("LOAD_METHOD", DynamicSeeding.add_value.__name__, lineno=lineno),
+            Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
+            Instr("LOAD_METHOD", dyn_seed.INSTANCE.add_value.__name__, lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),

@@ -15,7 +15,7 @@ import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.dynamicseeding import DynamicSeeding
+import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
@@ -105,12 +105,12 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeeding().has_ints
+            and dyn_seed.INSTANCE.has_ints
             and use_seed
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
-            self._value = DynamicSeeding().random_int
+            self._value = dyn_seed.INSTANCE.random_int
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
@@ -148,12 +148,12 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeeding().has_floats
+            and dyn_seed.INSTANCE.has_floats
             and use_seed
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
-            self._value = DynamicSeeding().random_float
+            self._value = dyn_seed.INSTANCE.random_float
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_floats
@@ -198,12 +198,12 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
-            and DynamicSeeding().has_strings
+            and dyn_seed.INSTANCE.has_strings
             and use_seed
             and config.INSTANCE.constant_seeding
             and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
-            self._value = DynamicSeeding().random_string
+            self._value = dyn_seed.INSTANCE.random_string
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings

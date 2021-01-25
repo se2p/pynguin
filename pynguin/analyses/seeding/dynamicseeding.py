@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, Optional, Set, Union, Type
+from typing import Dict, Set, Union, Type
 
 from pynguin.utils import randomness
 
@@ -35,7 +35,8 @@ class DynamicSeeding:
     """
 
     _logger = logging.getLogger(__name__)
-    _instance: Optional[DynamicSeeding] = None
+
+    _dynamic_pool: Dict[Type[Types]: Set] = {int: set(), float: set(), str: set()}
 
     _string_functions_lookup = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
@@ -50,12 +51,6 @@ class DynamicSeeding:
         "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
         "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
     }
-
-    def __new__(cls) -> DynamicSeeding:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._dynamic_pool = {int: set(), float: set(), str: set()}
-        return cls._instance
 
     @property
     def has_ints(self) -> bool:
@@ -93,7 +88,6 @@ class DynamicSeeding:
         Returns:
             Whether or not the pool has constants
         """
-        assert self._dynamic_pool is not None
         assert type_ in self._dynamic_pool
         return len(self._dynamic_pool.get(type_)) > 0
 
@@ -104,7 +98,6 @@ class DynamicSeeding:
         Returns:
             A random int from the pool
         """
-        assert self._dynamic_pool is not None
         rand_value = randomness.choice(tuple(self._dynamic_pool[int]))
         return rand_value
 
@@ -115,7 +108,6 @@ class DynamicSeeding:
         Returns:
             A random float from the pool
         """
-        assert self._dynamic_pool is not None
         rand_value = randomness.choice(tuple(self._dynamic_pool[float]))
         return rand_value
 
@@ -126,7 +118,6 @@ class DynamicSeeding:
         Returns:
             A random string from the pool
         """
-        assert self._dynamic_pool is not None
         rand_value = randomness.choice(tuple(self._dynamic_pool[str]))
         return rand_value
 
@@ -140,7 +131,6 @@ class DynamicSeeding:
             value, bool
         ):  # needed because True and False are accepted as ints otherwise
             return
-        assert self._dynamic_pool is not None
         if type(value) in self._dynamic_pool:
             self._dynamic_pool[type(value)].add(value)
 
@@ -153,6 +143,9 @@ class DynamicSeeding:
         """
         if not isinstance(value, str):
             return
-        assert self._dynamic_pool is not None
         self._dynamic_pool[str].add(value)
         self._dynamic_pool[str].add(self._string_functions_lookup[name](value))
+
+
+# Singleton instance of Dynamic Seeding.
+INSTANCE = DynamicSeeding()
