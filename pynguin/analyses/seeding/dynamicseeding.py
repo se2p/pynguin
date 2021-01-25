@@ -80,6 +80,7 @@ class DynamicSeeding:
             Whether or not the pool has constants
         """
         assert self._dynamic_pool is not None
+        assert type_ in self._dynamic_pool
         return len(self._dynamic_pool.get(type_)) > 0
 
     @property
