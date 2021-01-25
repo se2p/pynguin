@@ -102,18 +102,19 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
+        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
             and DynamicSeeding().has_ints
-            and randomness.next_float() <= 0.90
+            and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= 0.90
+            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = DynamicSeeding().random_int
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_ints
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = StaticConstantSeeding().random_int
         else:
@@ -144,18 +145,19 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
+        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
             and DynamicSeeding().has_floats
-            and randomness.next_float() <= 0.90
+            and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= 0.90
+            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = DynamicSeeding().random_float
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_floats
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = StaticConstantSeeding().random_float
         else:
@@ -193,18 +195,19 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
+        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
         if (
             config.INSTANCE.dynamic_constant_seeding
             and DynamicSeeding().has_strings
-            and randomness.next_float() <= 0.90
+            and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= 0.90
+            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = DynamicSeeding().random_string
         elif (
             config.INSTANCE.constant_seeding
             and StaticConstantSeeding().has_strings
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = StaticConstantSeeding().random_string
         else:
