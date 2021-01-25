@@ -183,7 +183,7 @@ class DynamicSeedingInstrumentation:
             The id that was assigned to the predicate.
         """
         lineno = block[self._COMPARE_OP_POS].lineno
-        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", dyn_seed.INSTANCE, lineno=lineno),
             Instr("LOAD_METHOD", dyn_seed.INSTANCE.add_value.__name__, lineno=lineno),

@@ -102,13 +102,17 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
-        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
+        use_seed = (
+            randomness.next_float()
+            <= config.INSTANCE.seeded_primitives_reuse_probability
+        )
         if (
             config.INSTANCE.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_ints
             and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            and randomness.next_float()
+            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_int
         elif (
@@ -145,13 +149,17 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
-        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
+        use_seed = (
+            randomness.next_float()
+            <= config.INSTANCE.seeded_primitives_reuse_probability
+        )
         if (
             config.INSTANCE.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_floats
             and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            and randomness.next_float()
+            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_float
         elif (
@@ -195,13 +203,17 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
-        use_seed = randomness.next_float() <= config.INSTANCE.seeded_primitives_reuse_probability
+        use_seed = (
+            randomness.next_float()
+            <= config.INSTANCE.seeded_primitives_reuse_probability
+        )
         if (
             config.INSTANCE.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_strings
             and use_seed
             and config.INSTANCE.constant_seeding
-            and randomness.next_float() <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            and randomness.next_float()
+            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_string
         elif (
