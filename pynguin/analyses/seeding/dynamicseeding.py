@@ -93,7 +93,7 @@ class DynamicSeeding:
             Whether or not the pool has constants
         """
         assert type_ in self._dynamic_pool
-        return len(self._dynamic_pool.get(type_)) > 0
+        return len(self._dynamic_pool[type_]) > 0
 
     @property
     def random_int(self) -> int:
