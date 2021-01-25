@@ -36,7 +36,7 @@ class DynamicSeeding:
 
     _logger = logging.getLogger(__name__)
 
-    _dynamic_pool: Dict[Type[Types]: Set] = {int: set(), float: set(), str: set()}
+    _dynamic_pool: Dict[Type[Types], Set] = {int: set(), float: set(), str: set()}
 
     _string_functions_lookup = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
