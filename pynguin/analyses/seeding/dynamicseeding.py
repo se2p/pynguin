@@ -35,7 +35,6 @@ class DynamicSeeding:
 
     _logger = logging.getLogger(__name__)
     _instance: Optional[DynamicSeeding] = None
-    _dynamic_pool: Optional[Dict[Type[Types], Set[Types]]] = None
 
     def __new__(cls) -> DynamicSeeding:
         if cls._instance is None:
