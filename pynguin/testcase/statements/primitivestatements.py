@@ -9,6 +9,7 @@ import math
 from abc import abstractmethod
 from typing import Any, Generic, List, Optional, Set, Type, TypeVar
 
+import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
@@ -101,10 +102,23 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         super().__init__(test_case, int, value)
 
     def randomize_value(self) -> None:
+        use_seed = (
+            randomness.next_float()
+            <= config.configuration.seeded_primitives_reuse_probability
+        )
         if (
+            config.configuration.dynamic_constant_seeding
+            and dyn_seed.INSTANCE.has_ints
+            and use_seed
+            and config.configuration.constant_seeding
+            and randomness.next_float()
+            <= config.configuration.seeded_dynamic_values_reuse_probability
+        ):
+            self._value = dyn_seed.INSTANCE.random_int
+        elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_ints
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = static_constant_seeding.random_int
         else:
@@ -135,10 +149,23 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         super().__init__(test_case, float, value)
 
     def randomize_value(self) -> None:
+        use_seed = (
+            randomness.next_float()
+            <= config.configuration.seeded_primitives_reuse_probability
+        )
         if (
+            config.configuration.dynamic_constant_seeding
+            and dyn_seed.INSTANCE.has_floats
+            and use_seed
+            and config.configuration.constant_seeding
+            and randomness.next_float()
+            <= config.configuration.seeded_dynamic_values_reuse_probability
+        ):
+            self._value = dyn_seed.INSTANCE.random_float
+        elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_floats
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = static_constant_seeding.random_float
         else:
@@ -176,10 +203,23 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         super().__init__(test_case, str, value)
 
     def randomize_value(self) -> None:
+        use_seed = (
+            randomness.next_float()
+            <= config.configuration.seeded_primitives_reuse_probability
+        )
         if (
+            config.configuration.dynamic_constant_seeding
+            and dyn_seed.INSTANCE.has_strings
+            and use_seed
+            and config.configuration.constant_seeding
+            and randomness.next_float()
+            <= config.configuration.seeded_dynamic_values_reuse_probability
+        ):
+            self._value = dyn_seed.INSTANCE.random_string
+        elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_strings
-            and randomness.next_float() <= 0.90
+            and use_seed
         ):
             self._value = static_constant_seeding.random_string
         else:
