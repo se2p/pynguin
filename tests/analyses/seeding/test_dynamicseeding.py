@@ -22,7 +22,7 @@ def instr():
 
 @pytest.fixture()
 def dynamic_seeding():
-    DynamicSeeding()._dynamic_pool = {"int": set(), "float": set(), "string": set()}
+    DynamicSeeding()._dynamic_pool = {int: set(), float: set(), str: set()}
 
 
 @pytest.fixture()
@@ -41,21 +41,21 @@ def test_singleton():
 
 
 def test_random_int(dynamic_seeding):
-    DynamicSeeding()._dynamic_pool["int"].add(5)
+    DynamicSeeding()._dynamic_pool[int].add(5)
     value = DynamicSeeding().random_int
 
     assert value == 5
 
 
 def test_random_float(dynamic_seeding):
-    DynamicSeeding()._dynamic_pool["float"].add(5.0)
+    DynamicSeeding()._dynamic_pool[float].add(5.0)
     value = DynamicSeeding().random_float
 
     assert value == 5.0
 
 
 def test_random_string(dynamic_seeding):
-    DynamicSeeding()._dynamic_pool["string"].add("5")
+    DynamicSeeding()._dynamic_pool[str].add("5")
     value = DynamicSeeding().random_string
 
     assert value == "5"
@@ -68,8 +68,8 @@ def test_compare_op_int(instr, dummy_module, dynamic_seeding):
     res = dummy_module.compare_op_dummy(10, 11)
 
     assert res == 1
-    assert 10 in DynamicSeeding()._dynamic_pool["int"]
-    assert 11 in DynamicSeeding()._dynamic_pool["int"]
+    assert 10 in DynamicSeeding()._dynamic_pool[int]
+    assert 11 in DynamicSeeding()._dynamic_pool[int]
 
 
 def test_compare_op_float(instr, dummy_module, dynamic_seeding):
@@ -79,8 +79,8 @@ def test_compare_op_float(instr, dummy_module, dynamic_seeding):
     res = dummy_module.compare_op_dummy(1.0, 2.5)
 
     assert res == 1
-    assert 1.0 in DynamicSeeding()._dynamic_pool["float"]
-    assert 2.5 in DynamicSeeding()._dynamic_pool["float"]
+    assert 1.0 in DynamicSeeding()._dynamic_pool[float]
+    assert 2.5 in DynamicSeeding()._dynamic_pool[float]
 
 
 def test_compare_op_string(instr, dummy_module, dynamic_seeding):
@@ -90,8 +90,8 @@ def test_compare_op_string(instr, dummy_module, dynamic_seeding):
     res = dummy_module.compare_op_dummy("abc", "def")
 
     assert res == 1
-    assert "abc" in DynamicSeeding()._dynamic_pool["string"]
-    assert "def" in DynamicSeeding()._dynamic_pool["string"]
+    assert "abc" in DynamicSeeding()._dynamic_pool[str]
+    assert "def" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_compare_op_other_type(instr, dummy_module, dynamic_seeding):
@@ -104,7 +104,7 @@ def test_compare_op_other_type(instr, dummy_module, dynamic_seeding):
     assert DynamicSeeding().has_ints is False
     assert DynamicSeeding().has_floats is False
     assert DynamicSeeding().has_strings is True
-    assert "def" in DynamicSeeding()._dynamic_pool["string"]
+    assert "def" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_startswith_function(instr, dummy_module, dynamic_seeding):
@@ -115,7 +115,7 @@ def test_startswith_function(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "ababc" in DynamicSeeding()._dynamic_pool["string"]
+    assert "ababc" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_endswith_function(instr, dummy_module, dynamic_seeding):
@@ -126,7 +126,7 @@ def test_endswith_function(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "abcbc" in DynamicSeeding()._dynamic_pool["string"]
+    assert "abcbc" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isalnum_function_true(instr, dummy_module, dynamic_seeding):
@@ -137,8 +137,8 @@ def test_isalnum_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "alnumtest" in DynamicSeeding()._dynamic_pool["string"]
-    assert "alnumtest!" in DynamicSeeding()._dynamic_pool["string"]
+    assert "alnumtest" in DynamicSeeding()._dynamic_pool[str]
+    assert "alnumtest!" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isalnum_function_false(instr, dummy_module, dynamic_seeding):
@@ -149,8 +149,8 @@ def test_isalnum_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "alnum_test" in DynamicSeeding()._dynamic_pool["string"]
-    assert "isalnum" in DynamicSeeding()._dynamic_pool["string"]
+    assert "alnum_test" in DynamicSeeding()._dynamic_pool[str]
+    assert "isalnum" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_islower_function_true(instr, dummy_module, dynamic_seeding):
@@ -161,8 +161,8 @@ def test_islower_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "lower" in DynamicSeeding()._dynamic_pool["string"]
-    assert "LOWER" in DynamicSeeding()._dynamic_pool["string"]
+    assert "lower" in DynamicSeeding()._dynamic_pool[str]
+    assert "LOWER" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_islower_function_false(instr, dummy_module, dynamic_seeding):
@@ -173,8 +173,8 @@ def test_islower_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "NotLower" in DynamicSeeding()._dynamic_pool["string"]
-    assert "notlower" in DynamicSeeding()._dynamic_pool["string"]
+    assert "NotLower" in DynamicSeeding()._dynamic_pool[str]
+    assert "notlower" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isupper_function_true(instr, dummy_module, dynamic_seeding):
@@ -185,8 +185,8 @@ def test_isupper_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "UPPER" in DynamicSeeding()._dynamic_pool["string"]
-    assert "upper" in DynamicSeeding()._dynamic_pool["string"]
+    assert "UPPER" in DynamicSeeding()._dynamic_pool[str]
+    assert "upper" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isupper_function_false(instr, dummy_module, dynamic_seeding):
@@ -197,8 +197,8 @@ def test_isupper_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "NotUpper" in DynamicSeeding()._dynamic_pool["string"]
-    assert "NOTUPPER" in DynamicSeeding()._dynamic_pool["string"]
+    assert "NotUpper" in DynamicSeeding()._dynamic_pool[str]
+    assert "NOTUPPER" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isdecimal_function_true(instr, dummy_module, dynamic_seeding):
@@ -209,8 +209,8 @@ def test_isdecimal_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "012345" in DynamicSeeding()._dynamic_pool["string"]
-    assert "non_decimal" in DynamicSeeding()._dynamic_pool["string"]
+    assert "012345" in DynamicSeeding()._dynamic_pool[str]
+    assert "non_decimal" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isdecimal_function_false(instr, dummy_module, dynamic_seeding):
@@ -221,8 +221,8 @@ def test_isdecimal_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_decimal" in DynamicSeeding()._dynamic_pool["string"]
-    assert "0123456789" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_decimal" in DynamicSeeding()._dynamic_pool[str]
+    assert "0123456789" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isalpha_function_true(instr, dummy_module, dynamic_seeding):
@@ -233,8 +233,8 @@ def test_isalpha_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "alpha" in DynamicSeeding()._dynamic_pool["string"]
-    assert "alpha1" in DynamicSeeding()._dynamic_pool["string"]
+    assert "alpha" in DynamicSeeding()._dynamic_pool[str]
+    assert "alpha1" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isalpha_function_false(instr, dummy_module, dynamic_seeding):
@@ -245,8 +245,8 @@ def test_isalpha_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_alpha" in DynamicSeeding()._dynamic_pool["string"]
-    assert "isalpha" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_alpha" in DynamicSeeding()._dynamic_pool[str]
+    assert "isalpha" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isdigit_function_true(instr, dummy_module, dynamic_seeding):
@@ -257,8 +257,8 @@ def test_isdigit_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "012345" in DynamicSeeding()._dynamic_pool["string"]
-    assert "012345_" in DynamicSeeding()._dynamic_pool["string"]
+    assert "012345" in DynamicSeeding()._dynamic_pool[str]
+    assert "012345_" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isdigit_function_false(instr, dummy_module, dynamic_seeding):
@@ -269,8 +269,8 @@ def test_isdigit_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_digit" in DynamicSeeding()._dynamic_pool["string"]
-    assert "0" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_digit" in DynamicSeeding()._dynamic_pool[str]
+    assert "0" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isidentifier_function_true(instr, dummy_module, dynamic_seeding):
@@ -281,8 +281,8 @@ def test_isidentifier_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "is_identifier" in DynamicSeeding()._dynamic_pool["string"]
-    assert "is_identifier!" in DynamicSeeding()._dynamic_pool["string"]
+    assert "is_identifier" in DynamicSeeding()._dynamic_pool[str]
+    assert "is_identifier!" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isidentifier_function_false(instr, dummy_module, dynamic_seeding):
@@ -293,8 +293,8 @@ def test_isidentifier_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_identifier!" in DynamicSeeding()._dynamic_pool["string"]
-    assert "is_Identifier" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_identifier!" in DynamicSeeding()._dynamic_pool[str]
+    assert "is_Identifier" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isnumeric_function_true(instr, dummy_module, dynamic_seeding):
@@ -305,8 +305,8 @@ def test_isnumeric_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "44444" in DynamicSeeding()._dynamic_pool["string"]
-    assert "44444A" in DynamicSeeding()._dynamic_pool["string"]
+    assert "44444" in DynamicSeeding()._dynamic_pool[str]
+    assert "44444A" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isnumeric_function_false(instr, dummy_module, dynamic_seeding):
@@ -317,8 +317,8 @@ def test_isnumeric_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_numeric" in DynamicSeeding()._dynamic_pool["string"]
-    assert "012345" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_numeric" in DynamicSeeding()._dynamic_pool[str]
+    assert "012345" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isprintable_function_true(instr, dummy_module, dynamic_seeding):
@@ -329,8 +329,8 @@ def test_isprintable_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "printable" in DynamicSeeding()._dynamic_pool["string"]
-    assert "printable\n" in DynamicSeeding()._dynamic_pool["string"]
+    assert "printable" in DynamicSeeding()._dynamic_pool[str]
+    assert "printable\n" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isprintable_function_false(instr, dummy_module, dynamic_seeding):
@@ -341,8 +341,8 @@ def test_isprintable_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "not_printable\n" in DynamicSeeding()._dynamic_pool["string"]
-    assert "is_printable" in DynamicSeeding()._dynamic_pool["string"]
+    assert "not_printable\n" in DynamicSeeding()._dynamic_pool[str]
+    assert "is_printable" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isspace_function_true(instr, dummy_module, dynamic_seeding):
@@ -353,8 +353,8 @@ def test_isspace_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert " " in DynamicSeeding()._dynamic_pool["string"]
-    assert " a" in DynamicSeeding()._dynamic_pool["string"]
+    assert " " in DynamicSeeding()._dynamic_pool[str]
+    assert " a" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_isspace_function_false(instr, dummy_module, dynamic_seeding):
@@ -365,8 +365,8 @@ def test_isspace_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "no_space" in DynamicSeeding()._dynamic_pool["string"]
-    assert "   " in DynamicSeeding()._dynamic_pool["string"]
+    assert "no_space" in DynamicSeeding()._dynamic_pool[str]
+    assert "   " in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_istitle_function_true(instr, dummy_module, dynamic_seeding):
@@ -377,8 +377,8 @@ def test_istitle_function_true(instr, dummy_module, dynamic_seeding):
 
     assert res == 0
     assert DynamicSeeding().has_strings is True
-    assert "Title" in DynamicSeeding()._dynamic_pool["string"]
-    assert "Title AAA" in DynamicSeeding()._dynamic_pool["string"]
+    assert "Title" in DynamicSeeding()._dynamic_pool[str]
+    assert "Title AAA" in DynamicSeeding()._dynamic_pool[str]
 
 
 def test_istitle_function_false(instr, dummy_module, dynamic_seeding):
@@ -389,5 +389,5 @@ def test_istitle_function_false(instr, dummy_module, dynamic_seeding):
 
     assert res == 1
     assert DynamicSeeding().has_strings is True
-    assert "no Title" in DynamicSeeding()._dynamic_pool["string"]
-    assert "Is Title" in DynamicSeeding()._dynamic_pool["string"]
+    assert "no Title" in DynamicSeeding()._dynamic_pool[str]
+    assert "Is Title" in DynamicSeeding()._dynamic_pool[str]
