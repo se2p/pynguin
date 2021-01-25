@@ -280,10 +280,12 @@ class Configuration(Serializable):
     """Enables seeding of constants at runtime."""
 
     seeded_primitives_reuse_probability = 0.9
-    """Probability for using seeded primitive values instead of randomly generated ones."""
+    """Probability for using seeded primitive values instead of randomly
+    generated ones."""
 
     seeded_dynamic_values_reuse_probability = 0.9
-    """Probability of using dynamically seeded values when a primitive seeded value will be used."""
+    """Probability of using dynamically seeded values when a primitive seeded
+     value will be used."""
 
 
 # Singleton instance of the configuration.
