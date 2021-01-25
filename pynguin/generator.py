@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -22,19 +22,18 @@ import logging
 import os
 import sys
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
+import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomeconverter as cc
+import pynguin.ga.postprocess as pp
+import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
-import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.analyses.duckmock.duckmockanalysis import DuckMockAnalysis
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
-from pynguin.generation.algorithms.randoopy.randomteststrategy import RandomTestStrategy
+import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wspy.wholesuiteteststrategy import (
-    WholeSuiteTestStrategy,
-)
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testcluster import TestCluster
@@ -42,8 +41,7 @@ from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.statistics.statistics import RuntimeVariable, StatisticsTracker
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
 
@@ -83,7 +81,7 @@ class Pynguin:
         Args:
             configuration: The configuration to use.
         """
-        config.INSTANCE = configuration
+        config.configuration = configuration
 
     def run(self) -> ReturnCode:
         """Run the test generation.
@@ -105,7 +103,7 @@ class Pynguin:
     def _setup_test_cluster(self) -> Optional[TestCluster]:
         with Timer(name="Test-cluster generation time", logger=None):
             test_cluster = TestClusterGenerator(
-                config.INSTANCE.module_name
+                config.configuration.module_name
             ).generate_cluster()
             if test_cluster.num_accessible_objects_under_test() == 0:
                 self._logger.error("SUT contains nothing we can test.")
@@ -119,26 +117,26 @@ class Pynguin:
         Returns:
             An optional execution tracer, if loading was successful, None otherwise.
         """
-        if not os.path.isdir(config.INSTANCE.project_path):
+        if not os.path.isdir(config.configuration.project_path):
             self._logger.error(
-                "%s is not a valid project path", config.INSTANCE.project_path
+                "%s is not a valid project path", config.configuration.project_path
             )
             return False
-        self._logger.debug("Setting up path for %s", config.INSTANCE.project_path)
-        sys.path.insert(0, config.INSTANCE.project_path)
+        self._logger.debug("Setting up path for %s", config.configuration.project_path)
+        sys.path.insert(0, config.configuration.project_path)
         return True
 
     def _setup_import_hook(self) -> ExecutionTracer:
         self._logger.debug(
-            "Setting up instrumentation for %s", config.INSTANCE.module_name
+            "Setting up instrumentation for %s", config.configuration.module_name
         )
         tracer = ExecutionTracer()
-        install_import_hook(config.INSTANCE.module_name, tracer)
+        install_import_hook(config.configuration.module_name, tracer)
         return tracer
 
     def _load_sut(self) -> bool:
         try:
-            importlib.import_module(config.INSTANCE.module_name)
+            importlib.import_module(config.configuration.module_name)
         except ImportError as ex:
             # A module could not be imported because some dependencies
             # are missing or it is malformed
@@ -148,28 +146,17 @@ class Pynguin:
 
     def _setup_random_number_generator(self) -> None:
         """Setup RNG."""
-        if config.INSTANCE.seed is None:
+        if config.configuration.seed is None:
             self._logger.info("No seed given. Using %d", randomness.RNG.get_seed())
         else:
-            self._logger.info("Using seed %d", config.INSTANCE.seed)
-            randomness.RNG.seed(config.INSTANCE.seed)
+            self._logger.info("Using seed %d", config.configuration.seed)
+            randomness.RNG.seed(config.configuration.seed)
 
     def _setup_constant_seeding_collection(self) -> None:
         """Collect constants from SUT, if enabled."""
-        if config.INSTANCE.constant_seeding:
+        if config.configuration.constant_seeding:
             self._logger.info("Collecting constants from SUT.")
-            StaticConstantSeeding().collect_constants(config.INSTANCE.project_path)
-
-    def _setup_type_analysis(
-        self, test_cluster: TestCluster
-    ) -> Optional[DuckMockAnalysis]:
-        if config.INSTANCE.duck_type_analysis:
-            self._logger.info("Analysing classes and methods in SUT.")
-            analysis = DuckMockAnalysis(config.INSTANCE.module_name)
-            analysis.analyse()
-            analysis.update_test_cluster(test_cluster)
-            return analysis
-        return None
+            static_constant_seeding.collect_constants(config.configuration.project_path)
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
@@ -191,8 +178,6 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
-        if (type_analysis := self._setup_type_analysis(test_cluster)) is not None:
-            self._export_type_analysis_results(type_analysis)
         return executor, test_cluster
 
     @staticmethod
@@ -203,19 +188,19 @@ class Pynguin:
             tracer: the execution tracer
             test_cluster: the test cluster
         """
-        tracker = StatisticsTracker()
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.CodeObjects,
             len(tracer.get_known_data().existing_code_objects),
         )
-        tracker.track_output_variable(
-            RuntimeVariable.Predicates, len(tracer.get_known_data().existing_predicates)
+        stat.track_output_variable(
+            RuntimeVariable.Predicates,
+            len(tracer.get_known_data().existing_predicates),
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.AccessibleObjectsUnderTest,
             test_cluster.num_accessible_objects_under_test(),
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.GeneratableTypes,
             len(test_cluster.get_all_generatable_types()),
         )
@@ -230,108 +215,97 @@ class Pynguin:
                 self._instantiate_test_generation_strategy(executor, test_cluster)
             )
             self._logger.info(
-                "Start generating sequences using %s", config.INSTANCE.algorithm
+                "Start generating sequences using %s", config.configuration.algorithm
             )
-            StatisticsTracker().set_sequence_start_time(time.time_ns())
-            non_failing, failing = algorithm.generate_sequences()
+            stat.set_sequence_start_time(time.time_ns())
+            generation_result = algorithm.generate_tests()
             self._logger.info(
-                "Stop generating sequences using %s", config.INSTANCE.algorithm
+                "Stop generating sequences using %s", config.configuration.algorithm
             )
             algorithm.send_statistics()
 
             with Timer(name="Re-execution time", logger=None):
-                combined = tsc.TestSuiteChromosome()
-                for fitness_func in non_failing.get_fitness_functions():
-                    combined.add_fitness_function(fitness_func)
-                combined.add_tests(non_failing.test_chromosomes)
-                combined.add_tests(failing.test_chromosomes)
-                StatisticsTracker().track_output_variable(
-                    RuntimeVariable.Coverage, combined.get_coverage()
+                stat.track_output_variable(
+                    RuntimeVariable.Coverage, generation_result.get_coverage()
                 )
 
-            if config.INSTANCE.generate_assertions:
+            if config.configuration.post_process:
+                postprocessor = pp.ExceptionTruncation()
+                generation_result.accept(postprocessor)
+                # TODO(fk) add more postprocessing stuff.
+
+            if config.configuration.generate_assertions:
                 generator = ag.AssertionGenerator(executor)
-                for chromosome in [non_failing, failing]:
-                    generator.add_assertions(chromosome.test_chromosomes)
-                    generator.filter_failing_assertions(chromosome.test_chromosomes)
+                generation_result.accept(generator)
 
             with Timer(name="Export time", logger=None):
-                written_to = self._export_test_cases(non_failing.test_chromosomes)
+                converter = cc.ChromosomeConverter()
+                generation_result.accept(converter)
+                failing = converter.failing_test_suite
+                passing = converter.passing_test_suite
+                written_to = self._export_test_cases(
+                    [t.test_case for t in passing.test_case_chromosomes]
+                )
                 self._logger.info(
                     "Export %i successful test cases to %s",
-                    non_failing.size(),
+                    passing.size(),
                     written_to,
                 )
                 written_to = self._export_test_cases(
-                    failing.test_chromosomes, "_failing", wrap_code=True
+                    [t.test_case for t in failing.test_case_chromosomes],
+                    "_failing",
+                    wrap_code=True,
                 )
                 self._logger.info(
                     "Export %i failing test cases to %s", failing.size(), written_to
                 )
 
-        self._track_statistics(non_failing, failing, combined)
+        self._track_statistics(passing, failing, generation_result)
         self._collect_statistics()
-        if not StatisticsTracker().write_statistics():
+        if not stat.write_statistics():
             self._logger.error("Failed to write statistics data")
-        if combined.size() == 0:
+        if generation_result.size() == 0:
             # not able to generate one test case
             return ReturnCode.NO_TESTS_GENERATED
         return ReturnCode.OK
-
-    _strategies: Dict[
-        config.Algorithm,
-        Callable[[TestCaseExecutor, TestCluster], TestGenerationStrategy],
-    ] = {
-        config.Algorithm.RANDOOPY: RandomTestStrategy,
-        config.Algorithm.WSPY: WholeSuiteTestStrategy,
-    }
 
     @classmethod
     def _instantiate_test_generation_strategy(
         cls, executor: TestCaseExecutor, test_cluster: TestCluster
     ) -> TestGenerationStrategy:
-        if config.INSTANCE.algorithm in cls._strategies:
-            strategy = cls._strategies.get(config.INSTANCE.algorithm)
-            assert strategy, "Strategy cannot be defined as None"
-            return strategy(executor, test_cluster)
-        raise ConfigurationException("Unknown algorithm selected")
+        factory = gaf.TestSuiteGenerationAlgorithmFactory(executor, test_cluster)
+        return factory.get_search_algorithm()
 
     @staticmethod
     def _collect_statistics() -> None:
-        tracker = StatisticsTracker()
-        tracker.track_output_variable(
-            RuntimeVariable.TargetModule, config.INSTANCE.module_name
+        stat.track_output_variable(
+            RuntimeVariable.TargetModule, config.configuration.module_name
         )
-        tracker.track_output_variable(
+        stat.track_output_variable(
             RuntimeVariable.RandomSeed, randomness.RNG.get_seed()
         )
-        tracker.track_output_variable(
-            RuntimeVariable.ConfigurationId, config.INSTANCE.configuration_id
+        stat.track_output_variable(
+            RuntimeVariable.ConfigurationId, config.configuration.configuration_id
         )
-        for runtime_variable, value in tracker.variables_generator:
-            tracker.set_output_variable_for_runtime_variable(runtime_variable, value)
+        for runtime_variable, value in stat.variables_generator:
+            stat.set_output_variable_for_runtime_variable(runtime_variable, value)
 
     @staticmethod
     def _track_statistics(
-        non_failing: tsc.TestSuiteChromosome,
-        failing: tsc.TestSuiteChromosome,
-        combined: tsc.TestSuiteChromosome,
+        passing: chrom.Chromosome,
+        failing: chrom.Chromosome,
+        result: chrom.Chromosome,
     ) -> None:
-        tracker = StatisticsTracker()
-        tracker.current_individual(combined)
-        tracker.track_output_variable(RuntimeVariable.Size, combined.size())
-        tracker.track_output_variable(
-            RuntimeVariable.Length, combined.total_length_of_test_cases
-        )
-        tracker.track_output_variable(RuntimeVariable.FailingSize, failing.size())
-        tracker.track_output_variable(
+        stat.current_individual(result)
+        stat.track_output_variable(RuntimeVariable.Size, result.size())
+        stat.track_output_variable(RuntimeVariable.Length, result.length())
+        stat.track_output_variable(RuntimeVariable.FailingSize, failing.size())
+        stat.track_output_variable(
             RuntimeVariable.FailingLength,
-            failing.total_length_of_test_cases,
+            failing.length(),
         )
-        tracker.track_output_variable(RuntimeVariable.PassingSize, non_failing.size())
-        tracker.track_output_variable(
-            RuntimeVariable.PassingLength, non_failing.total_length_of_test_cases
-        )
+        stat.track_output_variable(RuntimeVariable.PassingSize, passing.size())
+        stat.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
     @staticmethod
     def _export_test_cases(
@@ -350,12 +324,11 @@ class Pynguin:
         """
         exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
         target_file = os.path.join(
-            config.INSTANCE.output_path,
-            "test_" + config.INSTANCE.module_name.replace(".", "_") + suffix + ".py",
+            config.configuration.output_path,
+            "test_"
+            + config.configuration.module_name.replace(".", "_")
+            + suffix
+            + ".py",
         )
         exporter.export_sequences(target_file, test_cases)
         return target_file
-
-    @staticmethod
-    def _export_type_analysis_results(type_analysis: DuckMockAnalysis):
-        pass

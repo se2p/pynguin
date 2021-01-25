@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -32,7 +32,7 @@ class RankSelection(SelectionFunction[T]):
             The index that should be used for selection
         """
         random_value = randomness.next_float()
-        bias = config.INSTANCE.rank_bias
+        bias = config.configuration.rank_bias
         return int(
             len(population)
             * (

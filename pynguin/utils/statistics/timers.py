@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -55,10 +55,8 @@ class Timers(collections.UserDict):
             TypeError: always as it is not allowed to set timer value
         """
         raise TypeError(
-            (
-                f"{self.__class__.__name__!r} does not support item assignment. "
-                + "Use '.add()' to update values."
-            )
+            f"{self.__class__.__name__!r} does not support item assignment. "
+            + "Use '.add()' to update values."
         )
 
     def apply(self, func: Callable[[List[float]], float], name: str) -> float:

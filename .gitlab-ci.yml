@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -8,6 +8,14 @@ workflow:
   rules:
     - if: $CI_MERGE_REQUEST_ID           # Execute jobs in merge request context
     - if: $CI_COMMIT_BRANCH == 'develop'  # Execute jobs when a new commit is pushed to develop branch
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .cache/pypoetry
 
 stages:
   - build
@@ -37,7 +45,13 @@ unit-tests:python-3.8:
 unit-tests:python-3.9:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+unit-tests:python-3.10:
+  <<: *unit-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 .nightly-tests:
   only:
@@ -59,7 +73,13 @@ nightly-tests:python-3.8:
 nightly-tests:python-3.9:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+nightly-tests:python-3.10:
+  extends: .nightly-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 mypy:
   stage: lint
@@ -129,27 +149,21 @@ reuse:
   script:
     - reuse lint
 
-pages:
+publish-pypi:
   stage: deploy
   needs:
     - unit-tests:python-3.8
     - sphinx
   variables:
     PYTHON_VERSION: '3.8'
+    POETRY_PYPI_TOKEN_PYPI: $POETRY_PYPI_TOKEN_PYPI
+    POETRY_HTTP_BASIC_PYPI_USERNAME: $POETRY_HTTP_BASIC_PYPI_USERNAME
+    POETRY_HTTP_BASIC_PYPI_PASSWORD: $POETRY_HTTP_BASIC_PYPI_PASSWORD
   dependencies:
     - sphinx
     - unit-tests:python-3.8
-  before_script:
-    - mkdir -p ~/.ssh
-    - echo -e "$DEPLOY_KEY" > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\tIdentityFile ~/.ssh/id_ed25519\n\n" > ~/.ssh/config
   script:
-    - mv docs/_build/ public/
-    - mv cov_html pynguincoverage
-    - scp -r -P 9418 pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == 'develop'
+    - poetry build
+    - poetry publish
+  only:
+    - tags

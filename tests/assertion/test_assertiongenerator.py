@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -45,7 +45,7 @@ def generator_setup():
 def test__add_assertions_short(generator_setup):
     test_case, executor, statement, assertion = generator_setup
     test_case.size_with_assertions.return_value = 1
-    config.INSTANCE.max_length_test_case = 2
+    config.configuration.max_length_test_case = 2
 
     generator = ag.AssertionGenerator(executor)
     generator._add_assertions(test_case)
@@ -55,7 +55,7 @@ def test__add_assertions_short(generator_setup):
 def test__add_assertions_long(generator_setup):
     test_case, executor, statement, _ = generator_setup
     test_case.size_with_assertions.return_value = 3
-    config.INSTANCE.max_length_test_case = 2
+    config.configuration.max_length_test_case = 2
 
     generator = ag.AssertionGenerator(executor)
     generator._add_assertions(test_case)

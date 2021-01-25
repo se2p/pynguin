@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -27,7 +27,7 @@ CMD ["poetry", "build"]
 
 # Execution stage for Pynguin
 FROM python:3.8.6-slim-buster AS execute
-ENV PYNGUIN_VERSION "0.6.2"
+ENV PYNGUIN_VERSION "0.6.4"
 
 WORKDIR /pynguin
 

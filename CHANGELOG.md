@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2020 Pynguin Contributors
+SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -8,6 +8,16 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
+
+## Pynguin 0.6.3
+
+- Resolve some weird merging issue
+
+## Pynguin 0.6.2
+
+- Refactor chromosome representation to make the subtypes more interchangeable
+- Update logo art
+- Fix for test fixture that caused changes with every new fixture file
 
 ## Pynguin 0.6.1
 

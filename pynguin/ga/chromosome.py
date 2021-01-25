@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -12,6 +12,7 @@ from abc import abstractmethod
 from statistics import mean
 from typing import Dict, List, Optional
 
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.fitnessfunction as ff
 
 
@@ -23,22 +24,37 @@ class Chromosome(metaclass=abc.ABCMeta):
         Args:
             orig: Original, if we clone an existing chromosome.
         """
-        self._fitness_functions: List[ff.FitnessFunction] = []
-        self._current_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
-        self._number_of_evaluations: int = 0
-        self._changed: bool = True
-        if orig is not None:
+        if orig is None:
+            self._fitness_functions: List[ff.FitnessFunction] = []
+            self._fitness_values: Dict[ff.FitnessFunction, ff.FitnessValues] = {}
+            self._number_of_evaluations: int = 0
+            self._changed: bool = True
+            self._distance: float = -1
+            self._rank: int = -1
+        else:
             self._fitness_functions = list(orig._fitness_functions)
-            self._current_values = dict(orig._current_values)
+            self._fitness_values = dict(orig._fitness_values)
             self._number_of_evaluations = orig._number_of_evaluations
             self._changed = orig._changed
+            self._distance = orig._distance
+            self._rank = orig._rank
 
     @abstractmethod
     def size(self) -> int:
-        """Return length of individual
+        """Return the size of an individual.
+        This should be number of elements it contains.
 
         Returns:
-            The length of an individual  # noqa: DAR202
+            The size of an individual  # noqa: DAR202
+        """
+
+    @abstractmethod
+    def length(self) -> int:
+        """Provide the length of an individual.
+        This should be the total length of all contained elements and possible
+        sub-elements. Look at the implementation to see the difference to size().
+
+        Returns: The length of this individual.
         """
 
     def has_changed(self) -> bool:
@@ -97,7 +113,16 @@ class Chromosome(metaclass=abc.ABCMeta):
         violations = new_value.validate()
         if len(violations) > 0:
             raise RuntimeError(", ".join(violations))
-        self._current_values[fitness_function] = new_value
+        self._fitness_values[fitness_function] = new_value
+
+    @property
+    def fitness_values(self) -> Dict[ff.FitnessFunction, ff.FitnessValues]:
+        """Provides the registered fitness values.
+
+        Returns:
+            A dictionary from fitness function to fitness value
+        """
+        return self._fitness_values
 
     def add_fitness_function(
         self,
@@ -108,6 +133,9 @@ class Chromosome(metaclass=abc.ABCMeta):
         Args:
             fitness_function: A fitness function
         """
+        assert (
+            not fitness_function.is_maximisation_function()
+        ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
     def get_fitness(self) -> float:
@@ -117,7 +145,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The sum of the current fitness values
         """
         self._check_for_new_evaluation()
-        return sum([value.fitness for value in self._current_values.values()])
+        return sum([value.fitness for value in self._fitness_values.values()])
 
     def get_fitness_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Returns the fitness values of a specific fitness function.
@@ -129,7 +157,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             Its fitness value
         """
         self._check_for_new_evaluation()
-        return self._current_values[fitness_function].fitness
+        return self._fitness_values[fitness_function].fitness
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.
@@ -138,7 +166,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The mean coverage value
         """
         self._check_for_new_evaluation()
-        return mean([value.coverage for value in self._current_values.values()])
+        return mean([value.coverage for value in self._fitness_values.values()])
 
     def get_coverage_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Provides the coverage value for a certain fitness function
@@ -151,7 +179,7 @@ class Chromosome(metaclass=abc.ABCMeta):
             The coverage value for the fitness function
         """
         self._check_for_new_evaluation()
-        return self._current_values[fitness_function].coverage
+        return self._fitness_values[fitness_function].coverage
 
     def get_number_of_evaluations(self):
         """Provide the number of times this chromosome was evaluated.
@@ -175,9 +203,65 @@ class Chromosome(metaclass=abc.ABCMeta):
         """
 
     @abstractmethod
+    def mutate(self) -> None:
+        """Mutate this chromosome."""
+
+    @abstractmethod
     def clone(self) -> Chromosome:
         """Create a clone of this chromosome.
 
         Returns:
             The cloned chromosome  # noqa: DAR202
         """
+
+    @abstractmethod
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        """Accept a chromosome visitor.
+
+        Args:
+            visitor: the visitor that is accepted.
+        """
+
+    @abstractmethod
+    def __eq__(self, other):
+        pass
+
+    @abstractmethod
+    def __hash__(self):
+        pass
+
+    @property
+    def distance(self) -> float:
+        """Provides the distance value of this chromosome.
+
+        Returns:
+            The distance value of this chromosome
+        """
+        return self._distance
+
+    @distance.setter
+    def distance(self, distance: float) -> None:
+        """Sets the distance value of this chromosome.
+
+        Args:
+            distance: The new distance value
+        """
+        self._distance = distance
+
+    @property
+    def rank(self) -> int:
+        """Provide the rank value of this chromosome.
+
+        Returns:
+            The rank value of this chromosome
+        """
+        return self._rank
+
+    @rank.setter
+    def rank(self, rank: int) -> None:
+        """Sets the rank value of this chromosome.
+
+        Args:
+            rank: The new rank value
+        """
+        self._rank = rank

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -24,12 +24,12 @@ from pynguin.generation.export.unittestexporter import UnitTestExporter
     ],
 )
 def test_get_exporter(conf, instance):
-    config.INSTANCE.export_strategy = conf
+    config.configuration.export_strategy = conf
     exporter = ExportProvider.get_exporter()
     assert isinstance(exporter, instance)
 
 
 def test_unknown_strategy():
-    config.INSTANCE.export_strategy = MagicMock(config.ExportStrategy)
+    config.configuration.export_strategy = MagicMock(config.ExportStrategy)
     with pytest.raises(Exception):
         ExportProvider.get_exporter()

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -114,9 +114,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
         assert owner
         self._ast_nodes.append(
             ast.Assign(
-                targets=[
-                    au.create_var_name(self._variable_names, stmt.return_value, False)
-                ],
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
                 value=ast.Call(
                     func=ast.Attribute(
                         attr=owner.__name__,
@@ -139,13 +137,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
             args=self._create_args(stmt),
             keywords=self._create_kw_args(stmt),
         )
-        if stmt.return_value.is_none_type():
+        if stmt.ret_val.is_none_type():
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[
-                    au.create_var_name(self._variable_names, stmt.return_value, False)
-                ],
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -162,13 +158,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
             args=self._create_args(stmt),
             keywords=self._create_kw_args(stmt),
         )
-        if stmt.return_value.is_none_type():
+        if stmt.ret_val.is_none_type():
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[
-                    au.create_var_name(self._variable_names, stmt.return_value, False)
-                ],
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -178,7 +172,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             ast.Assign(
                 targets=[
                     ast.Name(
-                        id=self._variable_names.get_name(stmt.return_value),
+                        id=self._variable_names.get_name(stmt.ret_val),
                         ctx=ast.Store(),
                     )
                 ],
@@ -193,9 +187,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def visit_assignment_statement(self, stmt: assign_stmt.AssignmentStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[
-                    au.create_var_name(self._variable_names, stmt.return_value, False)
-                ],
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
                 value=au.create_var_name(self._variable_names, stmt.rhs, True),
             )
         )
@@ -210,9 +202,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             The matching AST statement
         """
         return ast.Assign(
-            targets=[
-                au.create_var_name(self._variable_names, stmt.return_value, False)
-            ],
+            targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
             value=ast.Constant(value=stmt.value),
         )
 

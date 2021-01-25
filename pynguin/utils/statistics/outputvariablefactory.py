@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -12,9 +12,10 @@ from abc import ABCMeta, abstractmethod
 from typing import Generic, List, Tuple, TypeVar
 
 import pynguin.configuration as config
-import pynguin.testsuite.testsuitechromosome as tsc
+import pynguin.ga.chromosome as chrom
 import pynguin.utils.statistics.statistics as stat  # pylint: disable=cyclic-import
 import pynguin.utils.statistics.statisticsbackend as sb
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 
@@ -22,11 +23,11 @@ T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Factory to create an output variable when given a test suite chromosome"""
 
-    def __init__(self, variable: stat.RuntimeVariable) -> None:
+    def __init__(self, variable: RuntimeVariable) -> None:
         self._variable = variable
 
     @abstractmethod
-    def get_data(self, individual: tsc.TestSuiteChromosome) -> T:
+    def get_data(self, individual: chrom.Chromosome) -> T:
         """Returns the data value from the individual.
 
         Args:
@@ -36,7 +37,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             The current value of the variable in the individual  # noqa: DAR202
         """
 
-    def get_variable(self, individual: tsc.TestSuiteChromosome) -> sb.OutputVariable[T]:
+    def get_variable(self, individual: chrom.Chromosome) -> sb.OutputVariable[T]:
         """Provides the output variable
 
         Args:
@@ -68,7 +69,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._start_time = start_time
 
     @abstractmethod
-    def get_value(self, individual: tsc.TestSuiteChromosome) -> T:
+    def get_value(self, individual: chrom.Chromosome) -> T:
         """Returns the current value of the variable for the selected individual
 
         Args:
@@ -78,7 +79,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             The current value of the variable in the individual  # noqa: DAR202
         """
 
-    def update(self, individual: tsc.TestSuiteChromosome) -> None:
+    def update(self, individual: chrom.Chromosome) -> None:
         """Updates the values for an individual
 
         Args:
@@ -115,7 +116,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         if not self._time_stamps:
             # No data, if this is even possible.
             return 0
-        interval = config.INSTANCE.timeline_interval
+        interval = config.configuration.timeline_interval
         preferred_time = interval * index
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
@@ -128,7 +129,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
                 # it is the first element, just use it as value
                 return self._values[i]
 
-            if not config.INSTANCE.timeline_interpolation:
+            if not config.configuration.timeline_interpolation:
                 # if we do not want to interpolate, return last observed value
                 return self._values[i - 1]
 
@@ -147,8 +148,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
     @staticmethod
     def _calculate_number_of_intervals() -> int:
-        interval = config.INSTANCE.timeline_interval
-        total_time = config.INSTANCE.budget * 1_000_000_000
+        interval = config.configuration.timeline_interval
+        total_time = config.configuration.budget * 1_000_000_000
         number_of_intervals = total_time // interval
         return int(number_of_intervals)
 
@@ -157,7 +158,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
     """Sequence output variable whose value can be set directly, instead of
     retrieving it from an individual"""
 
-    def __init__(self, variable: stat.RuntimeVariable, start_value: T) -> None:
+    def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
         super().__init__(variable)
         self._value = start_value  # type: ignore
 
@@ -174,7 +175,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
 
     @staticmethod
     def get_float(
-        variable: stat.RuntimeVariable,
+        variable: RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for a float variable.
 
@@ -188,7 +189,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
 
     @staticmethod
     def get_integer(
-        variable: stat.RuntimeVariable,
+        variable: RuntimeVariable,
     ) -> DirectSequenceOutputVariableFactory:
         """Creates a factory for an integer variable.
 

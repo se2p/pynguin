@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -29,10 +29,10 @@ class TestCaseFactory:
 
     @abstractmethod
     def get_test_case(self) -> tc.TestCase:
-        """Create a new random test case.
+        """Retrieve a test case.
 
         Returns:
-            A new random test case  # noqa: DAR202
+            A test case  # noqa: DAR202
         """
 
 
@@ -40,11 +40,11 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
     def get_test_case(self) -> tc.TestCase:
-        test_case = dtc.DefaultTestCase(self._test_factory)
+        test_case = dtc.DefaultTestCase()
         attempts = 0
-        size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
+        size = randomness.next_int(1, config.configuration.chromosome_length + 1)
 
-        while test_case.size() < size and attempts < config.INSTANCE.max_attempts:
+        while test_case.size() < size and attempts < config.configuration.max_attempts:
             self._test_factory.insert_random_statement(test_case, test_case.size())
             attempts += 1
         return test_case

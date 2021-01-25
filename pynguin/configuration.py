@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from simple_parsing import Serializable
 
-import pynguin.utils.statistics.statistics as stat  # pylint:disable=cyclic-import
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class ExportStrategy(str, enum.Enum):
@@ -36,12 +36,19 @@ class ExportStrategy(str, enum.Enum):
 class Algorithm(str, enum.Enum):
     """Different algorithms supported by Pynguin."""
 
-    RANDOOPY = "RANDOOPY"
+    MOSA = "MOSA"
+    """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
+    Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
+
+    RANDOM = "RANDOM"
     """A feedback-direct random test generation approach similar to the algorithm
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
 
-    WSPY = "WSPY"
+    RANDOMSEARCH = "RANDOMSEARCH"
+    """Performs random search on test suites."""
+
+    WHOLE_SUITE = "WHOLE_SUITE"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
     Object-Oriented Software. Proc. ESEC/FSE 2011)."""
@@ -87,7 +94,7 @@ class StatisticsBackend(str, enum.Enum):
 
 
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
-@dataclasses.dataclass(repr=True, eq=True)
+@dataclasses.dataclass
 class Configuration(Serializable):
     """General configuration for the test generator."""
 
@@ -121,10 +128,10 @@ class Configuration(Serializable):
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    output_variables: List[stat.RuntimeVariable] = dataclasses.field(
+    output_variables: List[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
-            stat.RuntimeVariable.TargetModule,
-            stat.RuntimeVariable.Coverage,
+            RuntimeVariable.TargetModule,
+            RuntimeVariable.Coverage,
         ]
     )
     """List of variables to output to the statistics backend."""
@@ -270,6 +277,10 @@ class Configuration(Serializable):
     generate_assertions: bool = True
     """Should assertions be generated?"""
 
+    post_process: bool = True
+    """Should the results be post processed? For example, truncate test cases after
+    statements that raise an exception."""
+
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
@@ -289,6 +300,6 @@ class Configuration(Serializable):
 
 
 # Singleton instance of the configuration.
-INSTANCE = Configuration(
-    algorithm=Algorithm.RANDOOPY, project_path="", output_path="", module_name=""
+configuration = Configuration(
+    algorithm=Algorithm.RANDOM, project_path="", output_path="", module_name=""
 )

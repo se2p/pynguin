@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -94,9 +94,7 @@ def test_primitive_statement_clone(statement_type, test_case, new_test_case, val
     statement = statement_type(test_case, value)
     new_statement = statement.clone(new_test_case)
     assert new_statement.test_case == new_test_case
-    assert (
-        new_statement.return_value.variable_type == statement.return_value.variable_type
-    )
+    assert new_statement.ret_val.variable_type == statement.ret_val.variable_type
     assert new_statement.value == statement.value
 
 
@@ -230,7 +228,7 @@ def test_bool_primitive_statement_randomize_value(test_case_mock):
 def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 0 <= len(statement.value) <= config.INSTANCE.string_length
+    assert 0 <= len(statement.value) <= config.configuration.string_length
 
 
 def test_none_statement_randomize_value(test_case_mock):
@@ -295,7 +293,7 @@ def test_string_primitive_statement_delta_all(test_case_mock):
 
 
 def test_int_primitive_statement_delta(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.IntPrimitiveStatement(test_case_mock, 1)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -304,7 +302,7 @@ def test_int_primitive_statement_delta(test_case_mock):
 
 
 def test_float_primitive_statement_delta_max(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.5)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -315,7 +313,7 @@ def test_float_primitive_statement_delta_max(test_case_mock):
 
 
 def test_float_primitive_statement_delta_gauss(test_case_mock):
-    config.INSTANCE.max_delta = 10
+    config.configuration.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.0)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -354,22 +352,22 @@ def test_primitive_statement_accessible(test_case_mock):
 
 def test_primitive_statement_references(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
-    assert {statement.return_value} == statement.get_variable_references()
+    assert {statement.ret_val} == statement.get_variable_references()
 
 
 def test_primitive_statement_replace(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
     new = vri.VariableReferenceImpl(test_case_mock, int)
-    statement.replace(statement.return_value, new)
-    assert statement.return_value == new
+    statement.replace(statement.ret_val, new)
+    assert statement.ret_val == new
 
 
 def test_primitive_statement_replace_ignore(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
-    new = prim.FloatPrimitiveStatement(test_case_mock, 0).return_value
-    old = statement.return_value
+    new = prim.FloatPrimitiveStatement(test_case_mock, 0).ret_val
+    old = statement.ret_val
     statement.replace(new, new)
-    assert statement.return_value == old
+    assert statement.ret_val == old
 
 
 def test_primitive_statement_get_position():

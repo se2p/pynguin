@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2020 Pynguin Contributors
+SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -32,9 +32,10 @@ of the [University of Passau](https://www.uni-passau.de).
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
-[![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://gitlab.com/pynguin/pynguin)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://github.com/se2p/pynguin)
 [![Documentation Status](https://readthedocs.org/projects/pynguin/badge/?version=latest)](https://pynguin.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989840.svg)](https://doi.org/10.5281/zenodo.3989840)
+[![REUSE status](https://api.reuse.software/badge/github.com/se2p/pynguin)](https://api.reuse.software/info/github.com/se2p/pynguin)
 
 
 ![Pynguin Logo](https://raw.githubusercontent.com/se2p/pynguin/master/docs/source/_static/pynguin-logo.png "Pynguin Logo")
@@ -46,6 +47,9 @@ Before you begin, ensure you have met the following requirements:
 - You have installed Python 3.8 (we have not yet tested with Python 3.9, there might
   be some problems due to changed internals regarding the byte-code instrumentation).
 - You have a recent Linux/macOS/Windows machine.
+
+Please consider reading the [online documentation](https://pynguin.readthedocs.io)
+to start your Pynguin adventure.
  
 ## Installing Pynguin
 
@@ -72,7 +76,7 @@ and we want to generate tests using a whole-suite approach for the module `foo.b
 (wrapped for better readability):
 ```bash
 pynguin \
-  --algorithm WSPY \
+  --algorithm WHOLE_SUITE \
   --project_path /tmp/foo \
   --output_path /tmp/testgen \
   --module_name foo.bar
@@ -90,7 +94,7 @@ To start developing, follow these steps:
 5. Run `poetry shell` to switch to the virtual environment in your current shell
 6. Run `make check` to verify that your changes pass all checks
 
-   Please see the `poetry` documentation for more information on this tool.
+   Please see the [`poetry` documentation](https://python-poetry.org/docs/) for more information on this tool.
 
 ### Development using PyCharm.
 

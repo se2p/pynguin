@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,9 +11,9 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
-import pynguin.testsuite.testsuitechromosome as tsc
-from pynguin.utils.statistics.searchstatistics import SearchStatistics
-from pynguin.utils.statistics.statistics import RuntimeVariable
+import pynguin.ga.testsuitechromosome as tsc
+import pynguin.utils.statistics.statistics as stat
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import (
     ConsoleStatisticsBackend,
     CSVStatisticsBackend,
@@ -23,13 +23,14 @@ from pynguin.utils.statistics.statisticsbackend import (
 
 @pytest.fixture
 def search_statistics():
-    return SearchStatistics()
+    return stat._SearchStatistics()
 
 
 @pytest.fixture
 def chromosome():
     chrom = tsc.TestSuiteChromosome()
     fitness_func = MagicMock(ff.FitnessFunction)
+    fitness_func.is_maximisation_function.return_value = False
     chrom.add_fitness_function(fitness_func)
     chrom._update_fitness_values(fitness_func, ff.FitnessValues(0, 0))
     chrom.set_changed(False)
@@ -50,8 +51,8 @@ def chromosome_mock():
     ],
 )
 def test_initialise_backend(backend, type_):
-    config.INSTANCE.statistics_backend = backend
-    statistics = SearchStatistics()
+    config.configuration.statistics_backend = backend
+    statistics = stat._SearchStatistics()
     assert isinstance(statistics._backend, type_)
 
 
@@ -67,8 +68,8 @@ def test_output_variable(search_statistics):
 
 
 def test_write_statistics_no_backend():
-    config.INSTANCE.statistics_backend = None
-    statistics = SearchStatistics()
+    config.configuration.statistics_backend = None
+    statistics = stat._SearchStatistics()
     assert not statistics.write_statistics()
 
 
@@ -77,8 +78,8 @@ def test_write_statistics_no_individual(search_statistics):
 
 
 def test_write_statistics_with_individual(capsys, chromosome):
-    config.INSTANCE.statistics_backend = config.StatisticsBackend.CONSOLE
-    statistics = SearchStatistics()
+    config.configuration.statistics_backend = config.StatisticsBackend.CONSOLE
+    statistics = stat._SearchStatistics()
     statistics.current_individual(chromosome)
     result = statistics.write_statistics()
     captured = capsys.readouterr()
@@ -87,13 +88,13 @@ def test_write_statistics_with_individual(capsys, chromosome):
 
 
 def test_get_output_variables(chromosome, search_statistics):
-    config.INSTANCE.output_variables = [
+    config.configuration.output_variables = [
         RuntimeVariable.Coverage,
         RuntimeVariable.CoverageTimeline,
         RuntimeVariable.Length,
         RuntimeVariable.ConfigurationId,
     ]
-    config.INSTANCE.budget = 0.25
+    config.configuration.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )
@@ -110,13 +111,13 @@ def test_get_output_variables(chromosome, search_statistics):
 
 
 def test_current_individual_no_backend(chromosome):
-    config.INSTANCE.statistics_backend = None
-    statistics = SearchStatistics()
+    config.configuration.statistics_backend = None
+    statistics = stat._SearchStatistics()
     assert statistics.current_individual(chromosome) is None
 
 
 def test_current_individual_not_test_suite_chromosome(chromosome_mock):
-    statistics = SearchStatistics()
+    statistics = stat._SearchStatistics()
     assert statistics.current_individual(chromosome_mock) is None
 
 

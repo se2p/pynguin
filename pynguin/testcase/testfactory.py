@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -31,9 +31,12 @@ from pynguin.utils.type_utils import (
 )
 
 
+# TODO(fk) find better name for this?
 # pylint: disable=too-many-lines  # TODO split this monster!
 class TestFactory:
-    """A factory for test-case generation."""
+    """A factory for test-case generation.
+    This factory does not generate test cases but provides all necessary means to
+    construct and modify test cases."""
 
     _logger = logging.getLogger(__name__)
 
@@ -89,10 +92,10 @@ class TestFactory:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
     # pylint: disable=too-many-arguments
-    def append_generic_statement(
+    def append_generic_accessible(
         self,
         test_case: tc.TestCase,
-        statement: gao.GenericAccessibleObject,
+        accessible: gao.GenericAccessibleObject,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -101,7 +104,7 @@ class TestFactory:
 
         Args:
             test_case: The test case
-            statement: The object to append
+            accessible: The accessible to append
             position: The position to insert the statement, default is at the end
                 of the test case
             recursion_depth: The recursion depth for search
@@ -114,38 +117,38 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
-        if isinstance(statement, gao.GenericConstructor):
+        if isinstance(accessible, gao.GenericConstructor):
             return self.add_constructor(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericMethod):
+        if isinstance(accessible, gao.GenericMethod):
             return self.add_method(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericFunction):
+        if isinstance(accessible, gao.GenericFunction):
             return self.add_function(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 allow_none=allow_none,
                 recursion_depth=recursion_depth,
             )
-        if isinstance(statement, gao.GenericField):
+        if isinstance(accessible, gao.GenericField):
             return self.add_field(
                 test_case,
-                statement,
+                accessible,
                 position=new_position,
                 recursion_depth=recursion_depth,
             )
-        raise ConstructionFailedException(f"Unknown statement type: {statement}")
+        raise ConstructionFailedException(f"Unknown accessible type: {accessible}")
 
     # pylint: disable=too-many-arguments
     def add_constructor(
@@ -177,7 +180,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding constructor %s", constructor)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -240,7 +243,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding method %s", method)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -302,7 +305,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding field %s", field)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -349,7 +352,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding function %s", function)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -420,7 +423,7 @@ class TestFactory:
         rand = randomness.next_float()
 
         position = randomness.next_int(0, last_position + 1)
-        if rand <= config.INSTANCE.insertion_uut:
+        if rand <= config.configuration.insertion_uut:
             success = self.insert_random_call(test_case, position)
         else:
             success = self.insert_random_call_on_object(test_case, position)
@@ -560,7 +563,7 @@ class TestFactory:
             return False
 
         try:
-            self.append_generic_statement(test_case, accessible, position)
+            self.append_generic_accessible(test_case, accessible, position)
         except ConstructionFailedException:
             self._rollback_changes(test_case, previous_length, position)
             return False
@@ -596,7 +599,7 @@ class TestFactory:
         Returns:
             Whether or not the deletion was successful
         """
-        variable = test_case.get_statement(position).return_value
+        variable = test_case.get_statement(position).ret_val
 
         changed = False
         for i in range(position + 1, test_case.size()):
@@ -648,12 +651,12 @@ class TestFactory:
     def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:
         references = set()
         positions = set()
-        references.add(test_case.get_statement(position).return_value)
+        references.add(test_case.get_statement(position).ret_val)
         for i in range(position, test_case.size()):
             temp = set()
             for var in references:
                 if test_case.get_statement(i).references(var):
-                    temp.add(test_case.get_statement(i).return_value)
+                    temp.add(test_case.get_statement(i).ret_val)
                     positions.add(i)
             references.update(temp)
         return positions
@@ -670,11 +673,11 @@ class TestFactory:
         Returns:
             Whether or not the operation was successful
         """
-        if statement.return_value.is_type_unknown():
+        if statement.ret_val.is_type_unknown():
             return False
 
         objects = test_case.get_all_objects(statement.get_position())
-        type_ = statement.return_value.variable_type
+        type_ = statement.ret_val.variable_type
         assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
         acc_object = statement.accessible_object()
@@ -705,8 +708,8 @@ class TestFactory:
             statement: The given statement
             call: The new call
         """
-        position = statement.return_value.get_statement_position()
-        return_value = statement.return_value
+        position = statement.ret_val.get_statement_position()
+        return_value = statement.ret_val
         replacement: Optional[stmt.Statement] = None
         if call.is_method():
             method = cast(gao.GenericMethod, call)
@@ -736,7 +739,7 @@ class TestFactory:
         if replacement is None:
             assert False, f"Unhandled call type {call}"
         else:
-            replacement.return_value = return_value
+            replacement.ret_val = return_value
             test_case.set_statement(replacement, position)
 
     @staticmethod
@@ -929,9 +932,9 @@ class TestFactory:
 
         objects = test_case.get_objects(parameter_type, position)
         probability = (
-            config.INSTANCE.primitive_reuse_probability
+            config.configuration.primitive_reuse_probability
             if is_primitive_type(parameter_type)
-            else config.INSTANCE.object_reuse_probability
+            else config.configuration.object_reuse_probability
         )
         if objects and randomness.next_float() <= probability:
             var = randomness.choice(objects)
@@ -966,7 +969,10 @@ class TestFactory:
 
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
-            if config.INSTANCE.guess_unknown_types and randomness.next_float() <= 0.85:
+            if (
+                config.configuration.guess_unknown_types
+                and randomness.next_float() <= 0.85
+            ):
                 return self._create_random_type_variable(
                     test_case, position, recursion_depth, allow_none
                 )
@@ -997,7 +1003,7 @@ class TestFactory:
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
         if is_type_unknown(parameter_type):
-            if config.INSTANCE.guess_unknown_types:
+            if config.configuration.guess_unknown_types:
                 parameter_type = randomness.choice(
                     self._test_cluster.get_all_generatable_types()
                 )
@@ -1054,7 +1060,10 @@ class TestFactory:
         if not parameter_type:
             return None
 
-        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
+        if (
+            allow_none
+            and randomness.next_float() <= config.configuration.none_probability
+        ):
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )
@@ -1080,7 +1089,7 @@ class TestFactory:
         type_generators: Set[GenericAccessibleObject],
     ) -> Optional[vr.VariableReference]:
         type_generator = randomness.choice(list(type_generators))
-        return self.append_generic_statement(
+        return self.append_generic_accessible(
             test_case,
             type_generator,
             position=position,
@@ -1114,7 +1123,7 @@ class TestFactory:
     ) -> vr.VariableReference:
         statement = prim.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
-        ret = test_case.get_statement(position).return_value
+        ret = test_case.get_statement(position).ret_val
         ret.distance = recursion_depth
         return ret
 

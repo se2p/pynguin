@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -20,6 +20,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.setup.testcluster import TestCluster
@@ -30,7 +31,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
-from pynguin.utils.statistics.statistics import StatisticsTracker
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
@@ -39,8 +39,8 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 @pytest.fixture(autouse=True)
 def reset_configuration():
     """Automatically reset the configuration singleton"""
-    config.INSTANCE = config.Configuration(
-        algorithm=config.Algorithm.RANDOOPY,
+    config.configuration = config.Configuration(
+        algorithm=config.Algorithm.RANDOM,
         project_path="",
         output_path="",
         module_name="",
@@ -163,7 +163,7 @@ def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.return_value]
+        test_case, constructor_mock, [int_stmt.ret_val]
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
@@ -177,7 +177,7 @@ def reset_test_cluster():
 
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
-    StatisticsTracker._instance = None
+    stat.statistics_tracker.reset()
 
 
 @pytest.fixture(scope="module")

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -16,7 +16,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.analyses.seeding.dynamicseeding as dyn_seed
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -61,11 +61,11 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
         return True
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
-        return {self.return_value}
+        return {self.ret_val}
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.return_value == old:
-            self.return_value = new
+        if self.ret_val == old:
+            self.ret_val = new
 
     @abstractmethod
     def randomize_value(self) -> None:
@@ -77,22 +77,22 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
 
     def __repr__(self) -> str:
         return (
-            f"PrimitiveStatement({self._test_case}, {self._return_value}, "
+            f"PrimitiveStatement({self._test_case}, {self._ret_val}, "
             + f"{self._value})"
         )
 
     def __str__(self) -> str:
-        return f"{self._value}: {self._return_value}"
+        return f"{self._value}: {self._ret_val}"
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, PrimitiveStatement):
             return False
-        return self._return_value == other._return_value and self._value == other._value
+        return self._ret_val == other._ret_val and self._value == other._value
 
     def __hash__(self) -> int:
-        return 31 + hash(self._return_value) + hash(self._value)
+        return 31 + hash(self._ret_val) + hash(self._value)
 
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):
@@ -104,29 +104,29 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.INSTANCE.seeded_primitives_reuse_probability
+            <= config.configuration.seeded_primitives_reuse_probability
         )
         if (
-            config.INSTANCE.dynamic_constant_seeding
+            config.configuration.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_ints
             and use_seed
-            and config.INSTANCE.constant_seeding
+            and config.configuration.constant_seeding
             and randomness.next_float()
-            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_int
         elif (
-            config.INSTANCE.constant_seeding
-            and StaticConstantSeeding().has_ints
+            config.configuration.constant_seeding
+            and static_constant_seeding.has_ints
             and use_seed
         ):
-            self._value = StaticConstantSeeding().random_int
+            self._value = static_constant_seeding.random_int
         else:
-            self._value = int(randomness.next_gaussian() * config.INSTANCE.max_int)
+            self._value = int(randomness.next_gaussian() * config.configuration.max_int)
 
     def delta(self) -> None:
         assert self._value is not None
-        delta = math.floor(randomness.next_gaussian() * config.INSTANCE.max_delta)
+        delta = math.floor(randomness.next_gaussian() * config.configuration.max_delta)
         self._value += delta
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
@@ -151,25 +151,25 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.INSTANCE.seeded_primitives_reuse_probability
+            <= config.configuration.seeded_primitives_reuse_probability
         )
         if (
-            config.INSTANCE.dynamic_constant_seeding
+            config.configuration.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_floats
             and use_seed
-            and config.INSTANCE.constant_seeding
+            and config.configuration.constant_seeding
             and randomness.next_float()
-            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_float
         elif (
-            config.INSTANCE.constant_seeding
-            and StaticConstantSeeding().has_floats
+            config.configuration.constant_seeding
+            and static_constant_seeding.has_floats
             and use_seed
         ):
-            self._value = StaticConstantSeeding().random_float
+            self._value = static_constant_seeding.random_float
         else:
-            val = randomness.next_gaussian() * config.INSTANCE.max_int
+            val = randomness.next_gaussian() * config.configuration.max_int
             precision = randomness.next_int(0, 7)
             self._value = round(val, precision)
 
@@ -177,7 +177,7 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         assert self._value is not None
         probability = randomness.next_float()
         if probability < 1.0 / 3.0:
-            self._value += randomness.next_gaussian() * config.INSTANCE.max_delta
+            self._value += randomness.next_gaussian() * config.configuration.max_delta
         elif probability < 2.0 / 3.0:
             self._value += randomness.next_gaussian()
         else:
@@ -205,25 +205,25 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.INSTANCE.seeded_primitives_reuse_probability
+            <= config.configuration.seeded_primitives_reuse_probability
         )
         if (
-            config.INSTANCE.dynamic_constant_seeding
+            config.configuration.dynamic_constant_seeding
             and dyn_seed.INSTANCE.has_strings
             and use_seed
-            and config.INSTANCE.constant_seeding
+            and config.configuration.constant_seeding
             and randomness.next_float()
-            <= config.INSTANCE.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
             self._value = dyn_seed.INSTANCE.random_string
         elif (
-            config.INSTANCE.constant_seeding
-            and StaticConstantSeeding().has_strings
+            config.configuration.constant_seeding
+            and static_constant_seeding.has_strings
             and use_seed
         ):
-            self._value = StaticConstantSeeding().random_string
+            self._value = static_constant_seeding.random_string
         else:
-            length = randomness.next_int(0, config.INSTANCE.string_length + 1)
+            length = randomness.next_int(0, config.configuration.string_length + 1)
             self._value = randomness.next_string(length)
 
     def delta(self) -> None:
@@ -263,7 +263,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and len(working_on) < config.INSTANCE.string_length
+            and len(working_on) < config.configuration.string_length
         ):
             exponent += 1
             working_on = working_on[:pos] + [randomness.next_char()] + working_on[pos:]
@@ -312,7 +312,7 @@ class NoneStatement(PrimitiveStatement):
     """A statement serving as a None reference."""
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
-        return NoneStatement(test_case, self.return_value.variable_type)
+        return NoneStatement(test_case, self.ret_val.variable_type)
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_none_statement(self)
