@@ -62,6 +62,9 @@ class NoneAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_string_primitive_statement(self, stmt) -> None:
         pass
 
+    def visit_bytes_primitive_statement(self, stmt) -> None:
+        pass
+
     def visit_boolean_primitive_statement(self, stmt) -> None:
         pass
 

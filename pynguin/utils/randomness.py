@@ -132,3 +132,24 @@ def next_bool() -> bool:
         A random boolean
     """
     return next_float() < 0.5
+
+
+def next_byte() -> int:
+    """Returns a random byte.
+
+    Returns:
+        A random byte.
+    """
+    return RNG.getrandbits(8)
+
+
+def next_bytes(length: int) -> bytes:
+    """Create random bytes of given length.
+
+    Args:
+        length: the length of the bytes
+
+    Returns:
+        Random bytes of given length.
+    """
+    return bytes([next_byte() for _ in range(length)])

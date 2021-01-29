@@ -99,6 +99,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(self._create_constant(stmt))
 
+    def visit_bytes_primitive_statement(
+        self, stmt: prim_stmt.BytesPrimitiveStatement
+    ) -> None:
+        self._ast_nodes.append(self._create_constant(stmt))
+
     def visit_boolean_primitive_statement(
         self, stmt: prim_stmt.BooleanPrimitiveStatement
     ) -> None:

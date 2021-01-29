@@ -16,7 +16,7 @@ from typing_inspect import get_args, is_union_type
 
 from pynguin.typeinference.strategy import InferredSignature
 
-PRIMITIVES = {int, str, bool, float, complex}
+PRIMITIVES = {int, str, bytes, bool, float, complex}
 
 
 def is_primitive_type(type_: Optional[Type]) -> bool:

@@ -39,6 +39,14 @@ class StatementVisitor(ABC):
         """
 
     @abstractmethod
+    def visit_bytes_primitive_statement(self, stmt) -> None:
+        """Visit bytes primitive.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
     def visit_boolean_primitive_statement(self, stmt) -> None:
         """Visit boolean primitive.
 

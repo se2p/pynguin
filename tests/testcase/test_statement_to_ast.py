@@ -54,6 +54,16 @@ def test_statement_to_ast_str(statement_to_ast_visitor):
     )
 
 
+def test_statement_to_ast_bytes(statement_to_ast_visitor):
+    str_stmt = MagicMock(stmt.Statement)
+    str_stmt.value = b"TestMe"
+    statement_to_ast_visitor.visit_bytes_primitive_statement(str_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = b'TestMe'\n"
+    )
+
+
 def test_statement_to_ast_bool(statement_to_ast_visitor):
     bool_stmt = MagicMock(stmt.Statement)
     bool_stmt.value = True

@@ -45,6 +45,32 @@ def test_next_gaussian():
     assert isinstance(rand, float)
 
 
+def test_next_bool():
+    rand = randomness.next_bool()
+    assert isinstance(rand, bool)
+
+
+def test_next_byte():
+    rand = randomness.next_byte()
+    assert isinstance(rand, int)
+    assert 0 <= rand <= 255
+
+
+def test_next_bytes_zero():
+    rand = randomness.next_bytes(0)
+    assert rand == b""
+
+
+def test_next_bytes_fixed():
+    rand = randomness.next_bytes(15)
+    assert len(rand) == 15
+
+
+def test_next_bytes_valid_bytes():
+    rand = randomness.next_bytes(15)
+    assert all(0 <= byte <= 255 for byte in rand)
+
+
 def test_choice():
     sequence = ["a", "b", "c"]
     result = randomness.choice(sequence)

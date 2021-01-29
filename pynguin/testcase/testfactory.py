@@ -1140,6 +1140,8 @@ class TestFactory:
             statement = prim.FloatPrimitiveStatement(test_case)
         elif parameter_type == bool:
             statement = prim.BooleanPrimitiveStatement(test_case)
+        elif parameter_type == bytes:
+            statement = prim.BytesPrimitiveStatement(test_case)
         else:
             statement = prim.StringPrimitiveStatement(test_case)
         ret = test_case.add_statement(statement, position)
