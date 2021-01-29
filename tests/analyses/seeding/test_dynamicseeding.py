@@ -332,7 +332,7 @@ def test_isprintable_function_false(instr, dummy_module, dynamic_seeding):
     dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
         dummy_module.isprintable_dummy.__code__
     )
-    res = dummy_module.isprintable_dummy("not_printable\n")
+    res = dummy_module.isprintable_dummy(f"not_printable{os.linesep}")
 
     assert res == 1
     assert dyn_seed.INSTANCE.has_strings
