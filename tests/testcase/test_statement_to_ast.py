@@ -5,12 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from ast import Module
+from typing import List
 from unittest.mock import MagicMock
 
 import astor
 import pytest
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.statement as stmt
@@ -239,4 +241,64 @@ def test_statement_to_ast_with_wrap():
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "try:\n    var0 = 5\nexcept BaseException:\n    pass\n"
+    )
+
+
+def test_statement_to_ast_list_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    list_stmt = coll_stmt.ListStatement(
+        test_case_mock,
+        List[int],
+        [MagicMock(vr.VariableReference)],
+    )
+    statement_to_ast_visitor.visit_list_statement(list_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = [var1]\n"
+    )
+
+
+def test_statement_to_ast_list_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    list_stmt = coll_stmt.ListStatement(
+        test_case_mock,
+        List[int],
+        [],
+    )
+    statement_to_ast_visitor.visit_list_statement(list_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = []\n"
+    )
+
+
+def test_statement_to_ast_set_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    set_stmt = coll_stmt.SetStatement(
+        test_case_mock,
+        List[int],
+        {MagicMock(vr.VariableReference)},
+    )
+    statement_to_ast_visitor.visit_set_statement(set_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var1 = {var0}\n"
+    )
+
+
+def test_statement_to_ast_set_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    set_stmt = coll_stmt.SetStatement(
+        test_case_mock,
+        List[int],
+        set(),
+    )
+    statement_to_ast_visitor.visit_set_statement(set_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = set()\n"
     )

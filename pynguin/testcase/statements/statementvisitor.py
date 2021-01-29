@@ -101,3 +101,19 @@ class StatementVisitor(ABC):
         Args:
             stmt: the statement to visit
         """
+
+    @abstractmethod
+    def visit_list_statement(self, stmt) -> None:
+        """Visit list.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_set_statement(self, stmt) -> None:
+        """Visit set.
+
+        Args:
+            stmt: the statement to visit
+        """

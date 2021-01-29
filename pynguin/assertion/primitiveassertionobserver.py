@@ -77,6 +77,12 @@ class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_none_statement(self, stmt) -> None:
         pass
 
+    def visit_list_statement(self, stmt) -> None:
+        pass
+
+    def visit_set_statement(self, stmt) -> None:
+        pass
+
     def visit_constructor_statement(self, stmt) -> None:
         self.handle(stmt)
 

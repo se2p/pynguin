@@ -12,11 +12,12 @@ import typing
 from inspect import isclass, isfunction
 from typing import Any, Callable, Optional, Type
 
-from typing_inspect import get_args, is_union_type
+from typing_inspect import get_args, get_origin, is_union_type
 
 from pynguin.typeinference.strategy import InferredSignature
 
 PRIMITIVES = {int, str, bytes, bool, float, complex}
+COLLECTIONS = {list, set}
 
 
 def is_primitive_type(type_: Optional[Type]) -> bool:
@@ -29,6 +30,18 @@ def is_primitive_type(type_: Optional[Type]) -> bool:
         Whether or not the type is a primitive type
     """
     return type_ in PRIMITIVES
+
+
+def is_collection_type(type_: Optional[Type]) -> bool:
+    """Check if the given type is a collection type.
+
+    Args:
+        type_: a given type
+
+    Returns:
+        Whether or not the type is a collection type
+    """
+    return get_origin(type_) in COLLECTIONS
 
 
 def class_in_module(module_name: str) -> Callable[[Any], bool]:

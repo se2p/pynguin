@@ -10,7 +10,10 @@ from __future__ import annotations
 import logging
 from typing import List, Optional, Set, Type, cast
 
+from typing_inspect import get_args, get_origin
+
 import pynguin.configuration as config
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
@@ -25,6 +28,7 @@ from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
     is_assignable_to,
+    is_collection_type,
     is_primitive_type,
     is_type_unknown,
     should_skip_parameter,
@@ -1074,6 +1078,13 @@ class TestFactory:
                 position,
                 recursion_depth,
             )
+        if is_collection_type(parameter_type):
+            return self._create_collection(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+            )
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(
                 test_case, position, recursion_depth, allow_none, type_generators
@@ -1144,6 +1155,41 @@ class TestFactory:
             statement = prim.BytesPrimitiveStatement(test_case)
         else:
             statement = prim.StringPrimitiveStatement(test_case)
+        ret = test_case.add_statement(statement, position)
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_collection(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 1:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+
+        if get_origin(parameter_type) == list:
+            statement: coll_stmt.stmt.Statement = coll_stmt.ListStatement(
+                test_case, parameter_type, elements
+            )
+            ret = test_case.add_statement(statement, position)
+            ret.distance = recursion_depth
+            return ret
+
+        # Create a set otherwise
+        statement = coll_stmt.SetStatement(test_case, parameter_type, set(elements))
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
