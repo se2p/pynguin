@@ -77,6 +77,12 @@ class NoneAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_set_statement(self, stmt) -> None:
         pass
 
+    def visit_tuple_statement(self, stmt) -> None:
+        pass
+
+    def visit_dict_statement(self, stmt) -> None:
+        pass
+
     def visit_constructor_statement(self, stmt) -> None:
         self.handle(stmt)
 

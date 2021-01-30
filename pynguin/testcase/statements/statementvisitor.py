@@ -117,3 +117,19 @@ class StatementVisitor(ABC):
         Args:
             stmt: the statement to visit
         """
+
+    @abstractmethod
+    def visit_tuple_statement(self, stmt) -> None:
+        """Visit tuple.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_dict_statement(self, stmt) -> None:
+        """Visit dict.
+
+        Args:
+            stmt: the statement to visit
+        """

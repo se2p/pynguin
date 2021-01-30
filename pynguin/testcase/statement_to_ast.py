@@ -235,6 +235,37 @@ class StatementToAstVisitor(sv.StatementVisitor):
             )
         )
 
+    def visit_tuple_statement(self, stmt: coll_stmt.TupleStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.Tuple(
+                    elts=[
+                        au.create_var_name(self._variable_names, x, True)
+                        for x in stmt.elements
+                    ],
+                    ctx=ast.Load(),
+                ),
+            )
+        )
+
+    def visit_dict_statement(self, stmt: coll_stmt.DictStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.Dict(
+                    keys=[
+                        au.create_var_name(self._variable_names, x[0], True)
+                        for x in stmt.elements
+                    ],
+                    values=[
+                        au.create_var_name(self._variable_names, x[1], True)
+                        for x in stmt.elements
+                    ],
+                ),
+            )
+        )
+
     def _create_constant(self, stmt: prim_stmt.PrimitiveStatement) -> ast.stmt:
         """All primitive values are constants.
 

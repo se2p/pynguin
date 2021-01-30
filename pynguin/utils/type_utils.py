@@ -17,7 +17,7 @@ from typing_inspect import get_args, get_origin, is_union_type
 from pynguin.typeinference.strategy import InferredSignature
 
 PRIMITIVES = {int, str, bytes, bool, float, complex}
-COLLECTIONS = {list, set}
+COLLECTIONS = {list, set, tuple, dict}
 
 
 def is_primitive_type(type_: Optional[Type]) -> bool:

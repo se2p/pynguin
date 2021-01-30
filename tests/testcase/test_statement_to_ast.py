@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from ast import Module
-from typing import List
+from typing import Dict, List, Set, Tuple
 from unittest.mock import MagicMock
 
 import astor
@@ -279,7 +279,7 @@ def test_statement_to_ast_set_single(
 ):
     set_stmt = coll_stmt.SetStatement(
         test_case_mock,
-        List[int],
+        Set[int],
         {MagicMock(vr.VariableReference)},
     )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
@@ -294,11 +294,71 @@ def test_statement_to_ast_set_empty(
 ):
     set_stmt = coll_stmt.SetStatement(
         test_case_mock,
-        List[int],
+        Set[int],
         set(),
     )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "var0 = set()\n"
+    )
+
+
+def test_statement_to_ast_tuple_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    tuple_stmt = coll_stmt.TupleStatement(
+        test_case_mock,
+        Tuple[int],
+        [MagicMock(vr.VariableReference)],
+    )
+    statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = var1,\n"
+    )
+
+
+def test_statement_to_ast_tuple_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    tuple_stmt = coll_stmt.TupleStatement(
+        test_case_mock,
+        Tuple,
+        [],
+    )
+    statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = ()\n"
+    )
+
+
+def test_statement_to_ast_dict_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    dict_stmt = coll_stmt.DictStatement(
+        test_case_mock,
+        Dict[int, int],
+        [(MagicMock(vr.VariableReference), MagicMock(vr.VariableReference))],
+    )
+    statement_to_ast_visitor.visit_dict_statement(dict_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = {var1: var2}\n"
+    )
+
+
+def test_statement_to_ast_dict_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    dict_stmt = coll_stmt.DictStatement(
+        test_case_mock,
+        Tuple,
+        [],
+    )
+    statement_to_ast_visitor.visit_dict_statement(dict_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = {}\n"
     )

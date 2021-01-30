@@ -204,6 +204,7 @@ class TestCase(metaclass=ABCMeta):
             A list of variable references satisfying the parameter type
         """
         if not parameter_type:
+            # TODO(fk) return get_all_objects instead?
             return []
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
@@ -224,7 +225,7 @@ class TestCase(metaclass=ABCMeta):
             position: the position
 
         Returns:
-            A list of all objects defined up to the given positon
+            A list of all objects defined up to the given position
         """
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
