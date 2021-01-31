@@ -358,6 +358,9 @@ class _SearchStatistics:
             True if the writing was successful
         """
         self._logger.info("Writing statistics")
+        # reinitialise backend to be sure we got the correct one, prone to failure
+        # due to global-object pattern otherwise.
+        self._backend = self._initialise_backend()
         if not self._backend:
             return False
 
