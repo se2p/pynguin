@@ -10,15 +10,14 @@ from __future__ import annotations
 import ast
 import logging
 import os
-import pynguin.configuration as config
-import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as ats
 from pkgutil import iter_modules
-from typing import Any, Optional, Set, Union, List, Dict
+from typing import Any, Set, Union, List, Dict
 
 from setuptools import find_packages
 
+import pynguin.configuration as config
+import pynguin.testcase.variable.variablereference as vr
+from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as ats
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.utils import randomness
@@ -31,20 +30,16 @@ class InitialPopulationSeeding:
     """
 
     _logger = logging.getLogger(__name__)
-    _instance: Optional[InitialPopulationSeeding] = None
     _testcases: List[DefaultTestCase] = []
     _test_cluster: TestCluster = None
 
-    def __new__(cls) -> InitialPopulationSeeding:
-        if cls._instance is None:
-            cls._instance = super(InitialPopulationSeeding, cls).__new__(cls)
-        return cls._instance
-
-    def set_test_cluster(self, test_cluster: TestCluster):
-        self._test_cluster = test_cluster
-
-    def get_test_cluster(self) -> TestCluster:
+    @property
+    def test_cluster(self) -> TestCluster:
         return self._test_cluster
+
+    @test_cluster.setter
+    def test_cluster(self, test_cluster: TestCluster):
+        self._test_cluster = test_cluster
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
@@ -93,7 +88,7 @@ class InitialPopulationSeeding:
     def collect_testcases(self, module_path: Union[str, os.PathLike]):
         tree = self.get_ast_tree(module_path)
         if tree is None:
-            config.INSTANCE.initial_population_seeding = False
+            config.configuration.initial_population_seeding = False
             self._logger.info("Provided testcases are not used.")
             return
         transformer = _TestTransformer()
@@ -110,7 +105,6 @@ class InitialPopulationSeeding:
 
 
 class _TestTransformer(ast.NodeVisitor):
-
     _current_testcase: DefaultTestCase = None
     _var_refs: Dict[str, vr.VariableReference] = {}
 
@@ -132,7 +126,7 @@ class _TestTransformer(ast.NodeVisitor):
         self._var_refs.update({ref_id: var_ref})
 
     def visit_Expr(self, node: ast.Expr) -> Any:
-        objs_under_test = InitialPopulationSeeding().get_test_cluster().accessible_objects_under_test
+        objs_under_test = initialpopulationseeding.test_cluster.accessible_objects_under_test
         stmt = ats.create_function_stmt(node, self._current_testcase, objs_under_test, self._var_refs)
         self._current_testcase.add_statement(stmt)
 
@@ -144,3 +138,6 @@ class _TestTransformer(ast.NodeVisitor):
             The transformed testcases.
         """
         return self._testcases
+
+
+initialpopulationseeding = InitialPopulationSeeding()

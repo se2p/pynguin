@@ -32,7 +32,7 @@ import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.seeding.initialpopulationseeding import InitialPopulationSeeding
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
@@ -163,8 +163,8 @@ class Pynguin:
         """Collect and parse tests for seeding the initial population"""
         if config.configuration.initial_population_seeding:
             self._logger.info("Collecting and parsing provided testcases.")
-            InitialPopulationSeeding().set_test_cluster(test_cluster)
-            InitialPopulationSeeding().collect_testcases(config.configuration.initial_population_data)
+            initpopseeding.initialpopulationseeding.test_cluster = test_cluster
+            initpopseeding.initialpopulationseeding.collect_testcases(config.configuration.initial_population_data)
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.

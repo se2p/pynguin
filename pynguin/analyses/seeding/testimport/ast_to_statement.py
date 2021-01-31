@@ -1,12 +1,10 @@
 import ast
-import logging
 from typing import cast, Set, List, Tuple, Dict
 
+import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 
 

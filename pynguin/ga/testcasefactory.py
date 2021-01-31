@@ -12,7 +12,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-from pynguin.analyses.seeding.initialpopulationseeding import InitialPopulationSeeding
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 from pynguin.utils import randomness
 
 
@@ -63,10 +63,9 @@ class SeededTestCaseFactory(TestCaseFactory):
     def get_test_case(self) -> tc.TestCase:
         if (
             config.configuration.initial_population_seeding
-            and InitialPopulationSeeding().has_tests
+            and initpopseeding.initialpopulationseeding.has_tests
             and randomness.next_float() <= 0.90
         ):
-            return InitialPopulationSeeding().seeded_testcase
+            return initpopseeding.initialpopulationseeding.seeded_testcase
         else:
             return self._delegate.get_test_case()
-
