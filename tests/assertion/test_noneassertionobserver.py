@@ -19,6 +19,7 @@ import pynguin.assertion.nonetraceentry as nte
         ("visit_int_primitive_statement", 0),
         ("visit_float_primitive_statement", 0),
         ("visit_string_primitive_statement", 0),
+        ("visit_bytes_primitive_statement", 0),
         ("visit_boolean_primitive_statement", 0),
         ("visit_none_statement", 0),
         ("visit_constructor_statement", 1),

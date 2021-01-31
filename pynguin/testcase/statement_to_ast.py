@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import ast
-from typing import List
+from typing import Any, List
 
 import pynguin.testcase.statements.assignmentstatement as assign_stmt
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
@@ -96,6 +97,11 @@ class StatementToAstVisitor(sv.StatementVisitor):
 
     def visit_string_primitive_statement(
         self, stmt: prim_stmt.StringPrimitiveStatement
+    ) -> None:
+        self._ast_nodes.append(self._create_constant(stmt))
+
+    def visit_bytes_primitive_statement(
+        self, stmt: prim_stmt.BytesPrimitiveStatement
     ) -> None:
         self._ast_nodes.append(self._create_constant(stmt))
 
@@ -189,6 +195,74 @@ class StatementToAstVisitor(sv.StatementVisitor):
             ast.Assign(
                 targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
                 value=au.create_var_name(self._variable_names, stmt.rhs, True),
+            )
+        )
+
+    def visit_list_statement(self, stmt: coll_stmt.ListStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.List(
+                    elts=[
+                        au.create_var_name(self._variable_names, x, True)
+                        for x in stmt.elements
+                    ],
+                    ctx=ast.Load(),
+                ),
+            )
+        )
+
+    def visit_set_statement(self, stmt: coll_stmt.SetStatement) -> None:
+        # There is no literal for empty sets, so we have to write "set()"
+        inner: Any
+        if len(stmt.elements) == 0:
+            inner = ast.Call(
+                func=ast.Name(id="set", ctx=ast.Load()), args=[], keywords=[]
+            )
+        else:
+            inner = ast.Set(
+                elts=[
+                    au.create_var_name(self._variable_names, x, True)
+                    for x in stmt.elements
+                ],
+                ctx=ast.Load(),
+            )
+
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=inner,
+            )
+        )
+
+    def visit_tuple_statement(self, stmt: coll_stmt.TupleStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.Tuple(
+                    elts=[
+                        au.create_var_name(self._variable_names, x, True)
+                        for x in stmt.elements
+                    ],
+                    ctx=ast.Load(),
+                ),
+            )
+        )
+
+    def visit_dict_statement(self, stmt: coll_stmt.DictStatement) -> None:
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.Dict(
+                    keys=[
+                        au.create_var_name(self._variable_names, x[0], True)
+                        for x in stmt.elements
+                    ],
+                    values=[
+                        au.create_var_name(self._variable_names, x[1], True)
+                        for x in stmt.elements
+                    ],
+                ),
             )
         )
 

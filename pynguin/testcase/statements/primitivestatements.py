@@ -282,6 +282,72 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         visitor.visit_string_primitive_statement(self)
 
 
+class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
+    """Primitive Statement that creates bytes."""
+
+    def __init__(self, test_case: tc.TestCase, value: Optional[bytes] = None) -> None:
+        super().__init__(test_case, bytes, value)
+
+    def randomize_value(self) -> None:
+        length = randomness.next_int(0, config.configuration.bytes_length + 1)
+        self._value = randomness.next_bytes(length)
+
+    def delta(self) -> None:
+        assert self._value is not None
+        working_on = list(self._value)
+        p_perform_action = 1.0 / 3.0
+        if randomness.next_float() < p_perform_action and len(working_on) > 0:
+            working_on = self._random_deletion(working_on)
+
+        if randomness.next_float() < p_perform_action and len(working_on) > 0:
+            working_on = self._random_replacement(working_on)
+
+        if randomness.next_float() < p_perform_action:
+            working_on = self._random_insertion(working_on)
+
+        self._value = bytes(working_on)
+
+    @staticmethod
+    def _random_deletion(working_on: List[int]) -> List[int]:
+        p_per_char = 1.0 / len(working_on)
+        return [char for char in working_on if randomness.next_float() >= p_per_char]
+
+    @staticmethod
+    def _random_replacement(working_on: List[int]) -> List[int]:
+        p_per_char = 1.0 / len(working_on)
+        return [
+            randomness.next_byte() if randomness.next_float() < p_per_char else byte
+            for byte in working_on
+        ]
+
+    @staticmethod
+    def _random_insertion(working_on: List[int]) -> List[int]:
+        pos = 0
+        if len(working_on) > 0:
+            pos = randomness.next_int(0, len(working_on) + 1)
+        alpha = 0.5
+        exponent = 1
+        while (
+            randomness.next_float() <= pow(alpha, exponent)
+            and len(working_on) < config.configuration.bytes_length
+        ):
+            exponent += 1
+            working_on = working_on[:pos] + [randomness.next_byte()] + working_on[pos:]
+        return working_on
+
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+        return BytesPrimitiveStatement(test_case, self._value)
+
+    def __repr__(self) -> str:
+        return f"BytesPrimitiveStatement({self._test_case}, {self._value!r})"
+
+    def __str__(self) -> str:
+        return f"{self._value!r}: bytes"
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_bytes_primitive_statement(self)
+
+
 class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
     """Primitive Statement that creates a boolean."""
 

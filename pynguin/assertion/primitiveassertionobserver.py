@@ -68,10 +68,25 @@ class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_string_primitive_statement(self, stmt) -> None:
         pass
 
+    def visit_bytes_primitive_statement(self, stmt) -> None:
+        pass
+
     def visit_boolean_primitive_statement(self, stmt) -> None:
         pass
 
     def visit_none_statement(self, stmt) -> None:
+        pass
+
+    def visit_list_statement(self, stmt) -> None:
+        pass
+
+    def visit_set_statement(self, stmt) -> None:
+        pass
+
+    def visit_tuple_statement(self, stmt) -> None:
+        pass
+
+    def visit_dict_statement(self, stmt) -> None:
         pass
 
     def visit_constructor_statement(self, stmt) -> None:

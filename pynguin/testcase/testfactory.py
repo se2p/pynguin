@@ -10,7 +10,10 @@ from __future__ import annotations
 import logging
 from typing import List, Optional, Set, Type, cast
 
+from typing_inspect import get_args, get_origin
+
 import pynguin.configuration as config
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
@@ -25,6 +28,7 @@ from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
     is_assignable_to,
+    is_collection_type,
     is_primitive_type,
     is_type_unknown,
     should_skip_parameter,
@@ -1074,6 +1078,13 @@ class TestFactory:
                 position,
                 recursion_depth,
             )
+        if is_collection_type(parameter_type):
+            return self._create_collection(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+            )
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
             return self._attempt_generation_for_type(
                 test_case, position, recursion_depth, allow_none, type_generators
@@ -1140,8 +1151,151 @@ class TestFactory:
             statement = prim.FloatPrimitiveStatement(test_case)
         elif parameter_type == bool:
             statement = prim.BooleanPrimitiveStatement(test_case)
+        elif parameter_type == bytes:
+            statement = prim.BytesPrimitiveStatement(test_case)
         else:
             statement = prim.StringPrimitiveStatement(test_case)
         ret = test_case.add_statement(statement, position)
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_collection(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        if get_origin(parameter_type) == list:
+            return self._create_list(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == set:
+            return self._create_set(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == tuple:
+            return self._create_tuple(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == dict:
+            return self._create_dict(
+                test_case, parameter_type, position, recursion_depth
+            )
+        raise RuntimeError("Unknown collection type")
+
+    # TODO(fk) Methods below should be refactored asap,
+    # as they contain a lot of duplicate code
+    def _create_list(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 1:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.ListStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_set(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 1:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.SetStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_tuple(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) == 0:
+            # Untyped tuple, time to guess...
+            size = randomness.next_int(0, config.configuration.collection_size)
+            args = [
+                randomness.choice(self._test_cluster.get_all_generatable_types())
+                for _ in range(size)
+            ]
+        elements = []
+        for arg_type in args:
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, arg_type, position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.TupleStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_dict(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 2:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            key = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            position += test_case.size() - previous_length
+            previous_length = test_case.size()
+            value = self._create_or_reuse_variable(
+                test_case, args[1], position, recursion_depth + 1, True
+            )
+            position += test_case.size() - previous_length
+            if key is not None and value is not None:
+                elements.append((key, value))
+
+        ret = test_case.add_statement(
+            coll_stmt.DictStatement(test_case, parameter_type, elements), position
+        )
         ret.distance = recursion_depth
         return ret
