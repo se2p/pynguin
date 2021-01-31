@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -31,7 +31,7 @@ def test_current_value(stopping_condition):
 
 
 def test_limit(stopping_condition):
-    assert stopping_condition.limit() == config.INSTANCE.global_timeout
+    assert stopping_condition.limit() == config.configuration.global_timeout
 
 
 def test_is_not_fulfilled(stopping_condition):
@@ -39,7 +39,7 @@ def test_is_not_fulfilled(stopping_condition):
 
 
 def test_is_fulfilled(stopping_condition):
-    config.INSTANCE.global_timeout = 1
+    config.configuration.global_timeout = 1
     stopping_condition.reset()
     stopping_condition.reset()
     time.sleep(1.05)

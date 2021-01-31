@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -49,7 +49,7 @@ class DefaultTestCase(tc.TestCase):
             self._statements.append(statement)
         else:
             self._statements.insert(position, statement)
-        return statement.return_value
+        return statement.ret_val
 
     def add_statements(self, statements: List[stmt.Statement]) -> None:
         self._statements.extend(statements)
@@ -82,7 +82,7 @@ class DefaultTestCase(tc.TestCase):
     ) -> vr.VariableReference:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
-        return statement.return_value
+        return statement.ret_val
 
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
@@ -91,8 +91,8 @@ class DefaultTestCase(tc.TestCase):
         test_case = DefaultTestCase()
         for statement in self._statements:
             copy = statement.clone(test_case)
-            copy.assertions = statement.copy_assertions(test_case, 0)
             test_case._statements.append(copy)
+            copy.assertions = statement.copy_assertions(test_case, 0)
         test_case._id = self._id_generator.inc()
         return test_case
 
@@ -104,9 +104,9 @@ class DefaultTestCase(tc.TestCase):
         for idx in range(var.get_statement_position(), -1, -1):
             new_stmts = set()
             for statement in dependent_stmts:
-                if statement.references(self.get_statement(idx).return_value):
+                if statement.references(self.get_statement(idx).ret_val):
                     new_stmts.add(self.get_statement(idx))
-                    dependencies.add(self.get_statement(idx).return_value)
+                    dependencies.add(self.get_statement(idx).ret_val)
                     break
             dependent_stmts.update(new_stmts)
 

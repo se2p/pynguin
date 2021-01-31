@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,10 +10,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from pynguin.setup.testcluster import TestCluster
-from pynguin.utils import type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
-from pynguin.utils.type_utils import PRIMITIVES
+from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 def test_add_generator_primitive():
@@ -123,17 +122,19 @@ def test_select_concrete_type_union_unary(type_, result):
 def test_select_concrete_type_any():
     cluster = TestCluster()
     cluster._generators[MagicMock] = MagicMock
-    assert cluster.select_concrete_type(Any) in list(type_utils.PRIMITIVES) + [
+    assert cluster.select_concrete_type(Any) in list(PRIMITIVES) + list(COLLECTIONS) + [
         MagicMock
     ]
 
 
 def test_get_all_generatable_types_only_primitive():
     cluster = TestCluster()
-    assert cluster.get_all_generatable_types() == list(PRIMITIVES)
+    assert cluster.get_all_generatable_types() == list(PRIMITIVES) + list(COLLECTIONS)
 
 
 def test_get_all_generatable_types():
     cluster = TestCluster()
     cluster._generators[MagicMock] = MagicMock
-    assert cluster.get_all_generatable_types() == [MagicMock] + list(PRIMITIVES)
+    assert cluster.get_all_generatable_types() == [MagicMock] + list(PRIMITIVES) + list(
+        COLLECTIONS
+    )

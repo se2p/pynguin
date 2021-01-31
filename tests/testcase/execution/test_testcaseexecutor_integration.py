@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -18,10 +18,10 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 def test_simple_execution():
-    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
-    with install_import_hook(config.INSTANCE.module_name, tracer):
-        module = importlib.import_module(config.INSTANCE.module_name)
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         test_case = dtc.DefaultTestCase()
         test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case, 5))
@@ -30,17 +30,15 @@ def test_simple_execution():
 
 
 def test_illegal_call(method_mock):
-    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    method_stmt = param_stmt.MethodStatement(
-        test_case, method_mock, int_stmt.return_value
-    )
+    method_stmt = param_stmt.MethodStatement(test_case, method_mock, int_stmt.ret_val)
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()
-    with install_import_hook(config.INSTANCE.module_name, tracer):
-        module = importlib.import_module(config.INSTANCE.module_name)
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         executor = TestCaseExecutor(tracer)
         result = executor.execute(test_case)
@@ -48,10 +46,10 @@ def test_illegal_call(method_mock):
 
 
 def test_no_exceptions(short_test_case):
-    config.INSTANCE.module_name = "tests.fixtures.accessibles.accessible"
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
-    with install_import_hook(config.INSTANCE.module_name, tracer):
-        module = importlib.import_module(config.INSTANCE.module_name)
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         executor = TestCaseExecutor(tracer)
         result = executor.execute(short_test_case)

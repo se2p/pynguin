@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -16,7 +16,8 @@ def test_get_test_case_max_attempts():
     test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory)
     test_case_factory.get_test_case()
     assert (
-        test_factory.insert_random_statement.call_count == config.INSTANCE.max_attempts
+        test_factory.insert_random_statement.call_count
+        == config.configuration.max_attempts
     )
 
 
@@ -30,5 +31,5 @@ def test_get_test_case_success():
     assert (
         1
         <= test_factory.insert_random_statement.call_count
-        <= config.INSTANCE.chromosome_length
+        <= config.configuration.chromosome_length
     )

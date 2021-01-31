@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -123,3 +123,22 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
+
+
+def compare(fitness_1: float, fitness_2: float) -> int:
+    """Compare the two specified values.
+
+    Args:
+        fitness_1: The first value to compare
+        fitness_2: The second value to compare
+
+    Returns:
+        the value 0 if fitness_1 is equal to fitness_2; a value less than 0 if
+        fitness_1 is less than fitness_2; and a value greater than 0 if fitness_1 is
+        greater than fitness_2
+    """
+    if fitness_1 < fitness_2:
+        return -1
+    if fitness_1 > fitness_2:
+        return 1
+    return 0

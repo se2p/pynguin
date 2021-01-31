@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -33,6 +33,14 @@ class StatementVisitor(ABC):
     @abstractmethod
     def visit_string_primitive_statement(self, stmt) -> None:
         """Visit string primitive.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_bytes_primitive_statement(self, stmt) -> None:
+        """Visit bytes primitive.
 
         Args:
             stmt: the statement to visit
@@ -89,6 +97,38 @@ class StatementVisitor(ABC):
     @abstractmethod
     def visit_assignment_statement(self, stmt) -> None:
         """Visit assignment.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_list_statement(self, stmt) -> None:
+        """Visit list.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_set_statement(self, stmt) -> None:
+        """Visit set.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_tuple_statement(self, stmt) -> None:
+        """Visit tuple.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_dict_statement(self, stmt) -> None:
+        """Visit dict.
 
         Args:
             stmt: the statement to visit

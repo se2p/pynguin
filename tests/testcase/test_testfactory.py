@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -174,7 +174,7 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
     )
     test_cluster_mock.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(test_cluster_mock)
-    config.INSTANCE.none_probability = 1.0
+    config.configuration.none_probability = 1.0
     result = factory.add_method(
         test_case, generic_method, position=0, callee=MagicMock()
     )
@@ -183,7 +183,7 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
 
 
 def test_add_function(provide_callables_from_fixtures_modules):
-    config.INSTANCE.object_reuse_probability = 0.0
+    config.configuration.object_reuse_probability = 0.0
     test_case = dtc.DefaultTestCase()
     generic_function = gao.GenericFunction(
         function=provide_callables_from_fixtures_modules["triangle"],
@@ -255,7 +255,7 @@ def test_attempt_generation_for_no_type(test_case_mock):
 
 
 def test_attempt_generation_for_none_type(test_cluster_mock):
-    config.INSTANCE.none_probability = 1.0
+    config.configuration.none_probability = 1.0
     factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
         dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
@@ -264,7 +264,7 @@ def test_attempt_generation_for_none_type(test_cluster_mock):
 
 
 def test_attempt_generation_for_none_type_with_no_probability(test_cluster_mock):
-    config.INSTANCE.none_probability = 0.0
+    config.configuration.none_probability = 0.0
     factory = tf.TestFactory(test_cluster_mock)
     result = factory._attempt_generation(
         dtc.DefaultTestCase(), MagicMock(tf.TestFactory), 0, 0, True
@@ -381,10 +381,10 @@ def sample_test_case(function_mock):
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.return_value]
+        test_case, function_mock, [float_prim.ret_val]
     )
     float_function2 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_function1.return_value]
+        test_case, function_mock, [float_function1.ret_val]
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_prim2)
@@ -457,8 +457,8 @@ def test_get_random_non_none_object_success():
     test_case.add_statement(float1)
     test_case.add_statement(float2)
     assert tf.TestFactory._get_random_non_none_object(test_case, float, 1) in {
-        float0.return_value,
-        float1.return_value,
+        float0.ret_val,
+        float1.ret_val,
     }
 
 
@@ -474,7 +474,7 @@ def test_get_reuse_parameters():
     with mock.patch("pynguin.testcase.testfactory.should_skip_parameter") as skip_mock:
         skip_mock.side_effect = [True, False]
         assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [
-            float0.return_value
+            float0.ret_val
         ]
 
 
@@ -727,7 +727,7 @@ def test_select_random_variable_for_call_one(constructor_mock, function_mock):
     test_case.add_statement(const)
     assert (
         tf.TestFactory._select_random_variable_for_call(test_case, test_case.size())
-        == const.return_value
+        == const.ret_val
     )
 
 
@@ -785,13 +785,13 @@ def test_delete_statement_gracefully_success(function_mock):
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim2.return_value]
+        test_case, function_mock, [float_prim2.ret_val]
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_prim2)
     test_case.add_statement(float_function1)
     assert tf.TestFactory.delete_statement_gracefully(test_case, 1)
-    assert test_case.statements[1].references(float_prim.return_value)
+    assert test_case.statements[1].references(float_prim.ret_val)
     assert test_case.size() == 2
 
 
@@ -799,7 +799,7 @@ def test_delete_statement_gracefully_no_alternatives(function_mock):
     test_case = dtc.DefaultTestCase()
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.return_value]
+        test_case, function_mock, [float_prim.ret_val]
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_function1)
@@ -831,7 +831,7 @@ def test_change_random_call_no_calls(function_mock):
     test_case = dtc.DefaultTestCase()
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.return_value]
+        test_case, function_mock, [float_prim.ret_val]
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_function1)
@@ -858,7 +858,7 @@ def test_change_random_call_success(function_mock, method_mock, constructor_mock
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     int0 = prim.IntPrimitiveStatement(test_case, 2)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.return_value]
+        test_case, function_mock, [float_prim.ret_val]
     )
     const = par_stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)
@@ -879,7 +879,7 @@ def test_change_random_call_failed(function_mock, method_mock, constructor_mock)
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     int0 = prim.IntPrimitiveStatement(test_case, 2)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.return_value]
+        test_case, function_mock, [float_prim.ret_val]
     )
     const = par_stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)
@@ -906,7 +906,7 @@ def test_change_call_method(constructor_mock, method_mock):
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(test_case, to_replace, method_mock)
     assert test_case.statements[2].accessible_object() == method_mock
-    assert test_case.statements[2].return_value is to_replace.return_value
+    assert test_case.statements[2].ret_val is to_replace.ret_val
 
 
 def test_change_call_constructor(constructor_mock):
@@ -918,7 +918,7 @@ def test_change_call_constructor(constructor_mock):
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(test_case, to_replace, constructor_mock)
     assert test_case.statements[1].accessible_object() == constructor_mock
-    assert test_case.statements[1].return_value is to_replace.return_value
+    assert test_case.statements[1].ret_val is to_replace.ret_val
 
 
 def test_change_call_function(function_mock):
@@ -930,7 +930,7 @@ def test_change_call_function(function_mock):
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(test_case, to_replace, function_mock)
     assert test_case.statements[1].accessible_object() == function_mock
-    assert test_case.statements[1].return_value is to_replace.return_value
+    assert test_case.statements[1].ret_val is to_replace.ret_val
 
 
 def test_change_call_unknown():
@@ -951,5 +951,5 @@ def test_change_call_unknown():
 def test_create_or_reuse_variable_no_guessing(test_case_mock):
     cluster = MagicMock(TestCluster)
     factory = tf.TestFactory(cluster)
-    config.INSTANCE.guess_unknown_types = False
+    config.configuration.guess_unknown_types = False
     assert factory._create_or_reuse_variable(test_case_mock, None, 1, 1, True) is None

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -33,12 +33,10 @@ class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]
     ) -> None:
         if exception is not None:
             return
-        if statement.return_value.is_none_type():
+        if statement.ret_val.is_none_type():
             return
 
-        visitor = PrimitiveAssertionVisitor(
-            exec_ctx, statement.return_value, self._trace
-        )
+        visitor = PrimitiveAssertionVisitor(exec_ctx, statement.ret_val, self._trace)
         statement.accept(visitor)
 
 
@@ -70,10 +68,25 @@ class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_string_primitive_statement(self, stmt) -> None:
         pass
 
+    def visit_bytes_primitive_statement(self, stmt) -> None:
+        pass
+
     def visit_boolean_primitive_statement(self, stmt) -> None:
         pass
 
     def visit_none_statement(self, stmt) -> None:
+        pass
+
+    def visit_list_statement(self, stmt) -> None:
+        pass
+
+    def visit_set_statement(self, stmt) -> None:
+        pass
+
+    def visit_tuple_statement(self, stmt) -> None:
+        pass
+
+    def visit_dict_statement(self, stmt) -> None:
         pass
 
     def visit_constructor_statement(self, stmt) -> None:

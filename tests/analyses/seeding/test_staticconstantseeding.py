@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,12 +8,12 @@ import os
 
 import pytest
 
-from pynguin.analyses.seeding.staticconstantseeding import StaticConstantSeeding
+from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 
 
 @pytest.fixture
 def seeding():
-    seeding = StaticConstantSeeding()
+    seeding = static_constant_seeding
     seeding._constants = {"float": set(), "int": set(), "str": set()}
     return seeding
 
@@ -26,13 +26,8 @@ def fixture_dir():
         "..",
         "fixtures",
         "seeding",
+        "staticconstantseeding",
     )
-
-
-def test_singleton():
-    seeding_1 = StaticConstantSeeding()
-    seeding_2 = StaticConstantSeeding()
-    assert seeding_1 is seeding_2
 
 
 @pytest.mark.parametrize(

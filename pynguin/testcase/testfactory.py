@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,7 +10,10 @@ from __future__ import annotations
 import logging
 from typing import List, Optional, Set, Type, cast
 
+from typing_inspect import get_args, get_origin
+
 import pynguin.configuration as config
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
@@ -25,15 +28,19 @@ from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
     is_assignable_to,
+    is_collection_type,
     is_primitive_type,
     is_type_unknown,
     should_skip_parameter,
 )
 
 
+# TODO(fk) find better name for this?
 # pylint: disable=too-many-lines  # TODO split this monster!
 class TestFactory:
-    """A factory for test-case generation."""
+    """A factory for test-case generation.
+    This factory does not generate test cases but provides all necessary means to
+    construct and modify test cases."""
 
     _logger = logging.getLogger(__name__)
 
@@ -177,7 +184,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding constructor %s", constructor)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -240,7 +247,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding method %s", method)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -302,7 +309,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding field %s", field)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -349,7 +356,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding function %s", function)
-        if recursion_depth > config.INSTANCE.max_recursion:
+        if recursion_depth > config.configuration.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -420,7 +427,7 @@ class TestFactory:
         rand = randomness.next_float()
 
         position = randomness.next_int(0, last_position + 1)
-        if rand <= config.INSTANCE.insertion_uut:
+        if rand <= config.configuration.insertion_uut:
             success = self.insert_random_call(test_case, position)
         else:
             success = self.insert_random_call_on_object(test_case, position)
@@ -596,7 +603,7 @@ class TestFactory:
         Returns:
             Whether or not the deletion was successful
         """
-        variable = test_case.get_statement(position).return_value
+        variable = test_case.get_statement(position).ret_val
 
         changed = False
         for i in range(position + 1, test_case.size()):
@@ -648,12 +655,12 @@ class TestFactory:
     def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:
         references = set()
         positions = set()
-        references.add(test_case.get_statement(position).return_value)
+        references.add(test_case.get_statement(position).ret_val)
         for i in range(position, test_case.size()):
             temp = set()
             for var in references:
                 if test_case.get_statement(i).references(var):
-                    temp.add(test_case.get_statement(i).return_value)
+                    temp.add(test_case.get_statement(i).ret_val)
                     positions.add(i)
             references.update(temp)
         return positions
@@ -670,11 +677,11 @@ class TestFactory:
         Returns:
             Whether or not the operation was successful
         """
-        if statement.return_value.is_type_unknown():
+        if statement.ret_val.is_type_unknown():
             return False
 
         objects = test_case.get_all_objects(statement.get_position())
-        type_ = statement.return_value.variable_type
+        type_ = statement.ret_val.variable_type
         assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
         acc_object = statement.accessible_object()
@@ -705,8 +712,8 @@ class TestFactory:
             statement: The given statement
             call: The new call
         """
-        position = statement.return_value.get_statement_position()
-        return_value = statement.return_value
+        position = statement.ret_val.get_statement_position()
+        return_value = statement.ret_val
         replacement: Optional[stmt.Statement] = None
         if call.is_method():
             method = cast(gao.GenericMethod, call)
@@ -736,7 +743,7 @@ class TestFactory:
         if replacement is None:
             assert False, f"Unhandled call type {call}"
         else:
-            replacement.return_value = return_value
+            replacement.ret_val = return_value
             test_case.set_statement(replacement, position)
 
     @staticmethod
@@ -929,9 +936,9 @@ class TestFactory:
 
         objects = test_case.get_objects(parameter_type, position)
         probability = (
-            config.INSTANCE.primitive_reuse_probability
+            config.configuration.primitive_reuse_probability
             if is_primitive_type(parameter_type)
-            else config.INSTANCE.object_reuse_probability
+            else config.configuration.object_reuse_probability
         )
         if objects and randomness.next_float() <= probability:
             var = randomness.choice(objects)
@@ -966,7 +973,10 @@ class TestFactory:
 
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
-            if config.INSTANCE.guess_unknown_types and randomness.next_float() <= 0.85:
+            if (
+                config.configuration.guess_unknown_types
+                and randomness.next_float() <= 0.85
+            ):
                 return self._create_random_type_variable(
                     test_case, position, recursion_depth, allow_none
                 )
@@ -997,7 +1007,7 @@ class TestFactory:
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
         if is_type_unknown(parameter_type):
-            if config.INSTANCE.guess_unknown_types:
+            if config.configuration.guess_unknown_types:
                 parameter_type = randomness.choice(
                     self._test_cluster.get_all_generatable_types()
                 )
@@ -1054,12 +1064,22 @@ class TestFactory:
         if not parameter_type:
             return None
 
-        if allow_none and randomness.next_float() <= config.INSTANCE.none_probability:
+        if (
+            allow_none
+            and randomness.next_float() <= config.configuration.none_probability
+        ):
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )
         if is_primitive_type(parameter_type):
             return self._create_primitive(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+            )
+        if is_collection_type(parameter_type):
+            return self._create_collection(
                 test_case,
                 parameter_type,
                 position,
@@ -1114,7 +1134,7 @@ class TestFactory:
     ) -> vr.VariableReference:
         statement = prim.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
-        ret = test_case.get_statement(position).return_value
+        ret = test_case.get_statement(position).ret_val
         ret.distance = recursion_depth
         return ret
 
@@ -1131,8 +1151,151 @@ class TestFactory:
             statement = prim.FloatPrimitiveStatement(test_case)
         elif parameter_type == bool:
             statement = prim.BooleanPrimitiveStatement(test_case)
+        elif parameter_type == bytes:
+            statement = prim.BytesPrimitiveStatement(test_case)
         else:
             statement = prim.StringPrimitiveStatement(test_case)
         ret = test_case.add_statement(statement, position)
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_collection(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        if get_origin(parameter_type) == list:
+            return self._create_list(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == set:
+            return self._create_set(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == tuple:
+            return self._create_tuple(
+                test_case, parameter_type, position, recursion_depth
+            )
+        if get_origin(parameter_type) == dict:
+            return self._create_dict(
+                test_case, parameter_type, position, recursion_depth
+            )
+        raise RuntimeError("Unknown collection type")
+
+    # TODO(fk) Methods below should be refactored asap,
+    # as they contain a lot of duplicate code
+    def _create_list(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 1:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.ListStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_set(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 1:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.SetStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_tuple(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) == 0:
+            # Untyped tuple, time to guess...
+            size = randomness.next_int(0, config.configuration.collection_size)
+            args = [
+                randomness.choice(self._test_cluster.get_all_generatable_types())
+                for _ in range(size)
+            ]
+        elements = []
+        for arg_type in args:
+            previous_length = test_case.size()
+            var = self._create_or_reuse_variable(
+                test_case, arg_type, position, recursion_depth + 1, True
+            )
+            if var is not None:
+                elements.append(var)
+            position += test_case.size() - previous_length
+        ret = test_case.add_statement(
+            coll_stmt.TupleStatement(test_case, parameter_type, elements), position
+        )
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_dict(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: Type,
+        position: int,
+        recursion_depth: int,
+    ) -> vr.VariableReference:
+        args = get_args(parameter_type)
+        if len(args) != 2:
+            raise ConstructionFailedException()
+        size = randomness.next_int(0, config.configuration.collection_size)
+        elements = []
+        for _ in range(size):
+            previous_length = test_case.size()
+            key = self._create_or_reuse_variable(
+                test_case, args[0], position, recursion_depth + 1, True
+            )
+            position += test_case.size() - previous_length
+            previous_length = test_case.size()
+            value = self._create_or_reuse_variable(
+                test_case, args[1], position, recursion_depth + 1, True
+            )
+            position += test_case.size() - previous_length
+            if key is not None and value is not None:
+                elements.append((key, value))
+
+        ret = test_case.add_statement(
+            coll_stmt.DictStatement(test_case, parameter_type, elements), position
+        )
         ret.distance = recursion_depth
         return ret

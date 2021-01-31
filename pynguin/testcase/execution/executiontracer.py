@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -9,7 +9,7 @@ import dataclasses
 import logging
 from math import inf
 from types import CodeType
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -58,6 +58,11 @@ class KnownData:
     existing_code_objects: Dict[int, CodeObjectMetaData] = dataclasses.field(
         default_factory=dict
     )
+
+    # Stores which of the existing code objects do not contain a branch, i.e.,
+    # they do not contain a predicate. Every code object is initially seen as
+    # branch-less until a predicate is registered for it.
+    branch_less_code_objects: Set[int] = dataclasses.field(default_factory=set)
 
     # Maps all known ids of predicates to meta information
     existing_predicates: Dict[int, PredicateMetaData] = dataclasses.field(
@@ -201,6 +206,7 @@ class ExecutionTracer:
         """
         code_object_id = len(self._known_data.existing_code_objects)
         self._known_data.existing_code_objects[code_object_id] = meta
+        self._known_data.branch_less_code_objects.add(code_object_id)
         return code_object_id
 
     def executed_code_object(self, code_object_id: int) -> None:
@@ -229,6 +235,7 @@ class ExecutionTracer:
         """
         predicate_id = len(self._known_data.existing_predicates)
         self._known_data.existing_predicates[predicate_id] = meta
+        self._known_data.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
     def executed_compare_predicate(

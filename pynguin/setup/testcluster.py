@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -14,7 +14,7 @@ from typing_inspect import get_args, is_union_type
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.utils.type_utils import PRIMITIVES
+from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 class TestCluster:
@@ -164,13 +164,15 @@ class TestCluster:
         return randomness.choice(list(accessible_objects))
 
     def get_all_generatable_types(self) -> List[Type]:
-        """Provides all types that can be generated, including primitives.
+        """Provides all types that can be generated, including primitives
+        and collections.
 
         Returns:
             A list of all types that can be generated
         """
         generatable = list(self._generators.keys())
         generatable.extend(PRIMITIVES)
+        generatable.extend(COLLECTIONS)
         return generatable
 
     def select_concrete_type(self, select_from: Optional[Type]) -> Optional[Type]:

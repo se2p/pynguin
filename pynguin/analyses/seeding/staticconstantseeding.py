@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,7 +11,7 @@ import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Any, Dict, Optional, Set, Union, cast
+from typing import Any, Dict, Set, Union, cast
 
 from setuptools import find_packages
 
@@ -20,21 +20,16 @@ from pynguin.utils import randomness
 Types = Union[float, int, str]
 
 
-class StaticConstantSeeding:
+class _StaticConstantSeeding:
     """A simple static constant seeding strategy.
 
     Extracts all constants from a set of modules by using an AST visitor.
     """
 
     _logger = logging.getLogger(__name__)
-    _instance: Optional[StaticConstantSeeding] = None
-    _constants: Optional[Dict[str, Set[Types]]] = None
 
-    def __new__(cls) -> StaticConstantSeeding:
-        if cls._instance is None:
-            cls._instance = super(StaticConstantSeeding, cls).__new__(cls)
-            cls._constants = {}
-        return cls._instance
+    def __init__(self) -> None:
+        self._constants: Dict[str, Set[Types]] = {}
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
@@ -178,7 +173,8 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._visit_doc_string(node)
 
     def _visit_doc_string(self, node: ast.AST) -> Any:
-        self._string_expressions.add(ast.get_docstring(node))
+        if docstring := ast.get_docstring(node):
+            self._string_expressions.add(docstring)
         return self.generic_visit(node)
 
     @property
@@ -192,4 +188,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._constants
 
     def _remove_docstrings(self) -> None:
-        self._constants["str"] = self._constants["str"] - self._string_expressions
+        self._constants["str"] -= self._string_expressions
+
+
+static_constant_seeding = _StaticConstantSeeding()

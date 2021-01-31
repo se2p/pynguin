@@ -1,16 +1,18 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from ast import Module
+from typing import Dict, List, Set, Tuple
 from unittest.mock import MagicMock
 
 import astor
 import pytest
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.statement as stmt
@@ -54,6 +56,16 @@ def test_statement_to_ast_str(statement_to_ast_visitor):
     )
 
 
+def test_statement_to_ast_bytes(statement_to_ast_visitor):
+    str_stmt = MagicMock(stmt.Statement)
+    str_stmt.value = b"TestMe"
+    statement_to_ast_visitor.visit_bytes_primitive_statement(str_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = b'TestMe'\n"
+    )
+
+
 def test_statement_to_ast_bool(statement_to_ast_visitor):
     bool_stmt = MagicMock(stmt.Statement)
     bool_stmt.value = True
@@ -76,7 +88,7 @@ def test_statement_to_ast_none(statement_to_ast_visitor):
 
 def test_statement_to_ast_assignment(variable_reference_mock, statement_to_ast_visitor):
     assign_stmt = MagicMock(stmt.Statement)
-    assign_stmt.return_value = variable_reference_mock
+    assign_stmt.ret_val = variable_reference_mock
     assign_stmt.rhs = variable_reference_mock
     statement_to_ast_visitor.visit_assignment_statement(assign_stmt)
     assert (
@@ -229,4 +241,124 @@ def test_statement_to_ast_with_wrap():
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
         == "try:\n    var0 = 5\nexcept BaseException:\n    pass\n"
+    )
+
+
+def test_statement_to_ast_list_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    list_stmt = coll_stmt.ListStatement(
+        test_case_mock,
+        List[int],
+        [MagicMock(vr.VariableReference)],
+    )
+    statement_to_ast_visitor.visit_list_statement(list_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = [var1]\n"
+    )
+
+
+def test_statement_to_ast_list_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    list_stmt = coll_stmt.ListStatement(
+        test_case_mock,
+        List[int],
+        [],
+    )
+    statement_to_ast_visitor.visit_list_statement(list_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = []\n"
+    )
+
+
+def test_statement_to_ast_set_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    set_stmt = coll_stmt.SetStatement(
+        test_case_mock,
+        Set[int],
+        {MagicMock(vr.VariableReference)},
+    )
+    statement_to_ast_visitor.visit_set_statement(set_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var1 = {var0}\n"
+    )
+
+
+def test_statement_to_ast_set_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    set_stmt = coll_stmt.SetStatement(
+        test_case_mock,
+        Set[int],
+        set(),
+    )
+    statement_to_ast_visitor.visit_set_statement(set_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = set()\n"
+    )
+
+
+def test_statement_to_ast_tuple_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    tuple_stmt = coll_stmt.TupleStatement(
+        test_case_mock,
+        Tuple[int],
+        [MagicMock(vr.VariableReference)],
+    )
+    statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = var1,\n"
+    )
+
+
+def test_statement_to_ast_tuple_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    tuple_stmt = coll_stmt.TupleStatement(
+        test_case_mock,
+        Tuple,
+        [],
+    )
+    statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = ()\n"
+    )
+
+
+def test_statement_to_ast_dict_single(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    dict_stmt = coll_stmt.DictStatement(
+        test_case_mock,
+        Dict[int, int],
+        [(MagicMock(vr.VariableReference), MagicMock(vr.VariableReference))],
+    )
+    statement_to_ast_visitor.visit_dict_statement(dict_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = {var1: var2}\n"
+    )
+
+
+def test_statement_to_ast_dict_empty(
+    statement_to_ast_visitor, test_case_mock, function_mock
+):
+    dict_stmt = coll_stmt.DictStatement(
+        test_case_mock,
+        Tuple,
+        [],
+    )
+    statement_to_ast_visitor.visit_dict_statement(dict_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = {}\n"
     )

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -16,6 +16,10 @@ from inspect import isclass
 from types import CodeType
 from typing import cast
 
+import pynguin.configuration as config
+from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
+    DynamicSeedingInstrumentation,
+)
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
@@ -45,6 +49,9 @@ class InstrumentationLoader(SourceFileLoader):
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
         # TODO(fk) apply different instrumentations here
+        if config.configuration.dynamic_constant_seeding:
+            dynamic_seeding_instr = DynamicSeedingInstrumentation()
+            to_instrument = dynamic_seeding_instr.instrument_module(to_instrument)
         instrumentation = BranchDistanceInstrumentation(self._tracer)
         return instrumentation.instrument_module(to_instrument)
 

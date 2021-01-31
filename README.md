@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2020 Pynguin Contributors
+SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -35,6 +35,7 @@ of the [University of Passau](https://www.uni-passau.de).
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://github.com/se2p/pynguin)
 [![Documentation Status](https://readthedocs.org/projects/pynguin/badge/?version=latest)](https://pynguin.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989840.svg)](https://doi.org/10.5281/zenodo.3989840)
+[![REUSE status](https://api.reuse.software/badge/github.com/se2p/pynguin)](https://api.reuse.software/info/github.com/se2p/pynguin)
 
 
 ![Pynguin Logo](https://raw.githubusercontent.com/se2p/pynguin/master/docs/source/_static/pynguin-logo.png "Pynguin Logo")
@@ -75,7 +76,7 @@ and we want to generate tests using a whole-suite approach for the module `foo.b
 (wrapped for better readability):
 ```bash
 pynguin \
-  --algorithm WSPY \
+  --algorithm WHOLE_SUITE \
   --project_path /tmp/foo \
   --output_path /tmp/testgen \
   --module_name foo.bar

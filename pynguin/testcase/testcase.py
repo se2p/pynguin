@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -204,12 +204,13 @@ class TestCase(metaclass=ABCMeta):
             A list of variable references satisfying the parameter type
         """
         if not parameter_type:
+            # TODO(fk) return get_all_objects instead?
             return []
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
             statement = self._statements[i]
-            var = statement.return_value
+            var = statement.ret_val
             if not var.is_none_type() and is_assignable_to(
                 var.variable_type, parameter_type
             ):
@@ -224,12 +225,12 @@ class TestCase(metaclass=ABCMeta):
             position: the position
 
         Returns:
-            A list of all objects defined up to the given positon
+            A list of all objects defined up to the given position
         """
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
-            var = self.get_statement(i).return_value
+            var = self.get_statement(i).ret_val
             if not var.is_none_type():
                 variables.append(var)
         return variables
