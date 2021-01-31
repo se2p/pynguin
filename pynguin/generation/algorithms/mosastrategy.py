@@ -122,6 +122,6 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
             self._current_iteration,
             coverage,
         )
-        stat.set_output_variable_for_runtime_variable(
+        stat.update_output_variable_for_runtime_variable(
             RuntimeVariable.CoverageTimeline, coverage
         )

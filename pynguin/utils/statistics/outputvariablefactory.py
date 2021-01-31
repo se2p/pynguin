@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Generic, List, Tuple, TypeVar
+from typing import Generic, List, Tuple, TypeVar, overload
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -87,6 +87,23 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         """
         self._time_stamps.append(time.time_ns() - self._start_time)
         self._values.append(self.get_value(individual))
+
+    @overload
+    def update_value(self, value: int) -> None:
+        ...
+
+    @overload
+    def update_value(self, value: float) -> None:
+        ...
+
+    def update_value(self, value) -> None:
+        """Updates the value directly.
+
+        Args:
+            value: The value
+        """
+        self._time_stamps.append(time.time_ns() - self._start_time)
+        self._values.append(value)
 
     def get_variable_names_indices(self) -> List[Tuple[int, str]]:
         """Provides a list of variable names

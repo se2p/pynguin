@@ -94,6 +94,14 @@ class _StatisticsTracker:
         """
         self._search_statistics.set_output_variable(variable)
 
+    def update_output_variable(self, variable: sb.OutputVariable) -> None:
+        """Updates an output variable with a value.
+
+        Args:
+            variable: The variable to update
+        """
+        self._search_statistics.update_output_variable(variable)
+
     def set_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
@@ -104,6 +112,19 @@ class _StatisticsTracker:
             value: the value to be set
         """
         self._search_statistics.set_output_variable_for_runtime_variable(
+            variable, value
+        )
+
+    def update_output_variable_for_runtime_variable(
+        self, variable: RuntimeVariable, value: Any
+    ) -> None:
+        """Updates an output variable with a value directly
+
+        Args:
+            variable: The variable to update
+            value: The value to add
+        """
+        self._search_statistics.update_output_variable_for_runtime_variable(
             variable, value
         )
 
@@ -240,6 +261,18 @@ class _SearchStatistics:
         else:
             self._output_variables[variable.name] = variable
 
+    def update_output_variable(self, variable: sb.OutputVariable) -> None:
+        """Updates an output variable with a new value
+
+        Args:
+            variable: The variable to update
+        """
+        if variable.name not in self._sequence_output_variable_factories:
+            raise AssertionError("Can only be called on sequence variable.")
+        var = self._sequence_output_variable_factories[variable.name]
+        assert isinstance(var, ovf.DirectSequenceOutputVariableFactory)
+        var.update_value(variable.value)
+
     def set_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
@@ -250,6 +283,17 @@ class _SearchStatistics:
             value: the value to be set
         """
         self.set_output_variable(sb.OutputVariable(name=variable.name, value=value))
+
+    def update_output_variable_for_runtime_variable(
+        self, variable: RuntimeVariable, value: Any
+    ) -> None:
+        """Updates an output variable with a new value
+
+        Args:
+            variable: The variable to update
+            value: The value to add
+        """
+        self.update_output_variable(sb.OutputVariable(name=variable.name, value=value))
 
     @property
     def output_variables(self) -> Dict[str, sb.OutputVariable]:
@@ -395,6 +439,10 @@ current_individual = statistics_tracker.current_individual
 set_output_variable = statistics_tracker.set_output_variable
 set_output_variable_for_runtime_variable = (
     statistics_tracker.set_output_variable_for_runtime_variable
+)
+update_output_variable = search_statistics.update_output_variable
+update_output_variable_for_runtime_variable = (
+    search_statistics.update_output_variable_for_runtime_variable
 )
 output_variables = statistics_tracker.output_variables
 write_statistics = statistics_tracker.write_statistics
