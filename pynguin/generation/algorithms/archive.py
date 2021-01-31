@@ -10,6 +10,8 @@ from typing import Dict, Generic, Iterable, Set, TypeVar
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
+import pynguin.utils.statistics.statistics as stat
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 F = TypeVar("F", bound=ff.FitnessFunction)  # pylint: disable=invalid-name
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
@@ -63,6 +65,13 @@ class Archive(Generic[F, C]):
                     best_size = size
                     if objective in self._uncovered:
                         self._uncovered.remove(objective)
+        stat.update_output_variable_for_runtime_variable(
+            RuntimeVariable.ArchiveCoveredGoalsTimeline, len(self._covered)
+        )
+        stat.update_output_variable_for_runtime_variable(
+            RuntimeVariable.ArchiveSizeTimeline,
+            sum([c.size() for c in self._covered.values()]),
+        )
 
     @property
     def uncovered_goals(self) -> Set[F]:

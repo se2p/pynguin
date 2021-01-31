@@ -109,5 +109,14 @@ class RuntimeVariable(str, enum.Enum):
     # Number of all generatable types, i.e., the types we can generate values for
     GeneratableTypes = "GeneratableTypes"
 
+    # The size of the archive (if any)
+    ArchiveSizeTimeline = "ArchiveSizeTimeline"
+
+    # The number of covered goals in the archive over time (if any)
+    ArchiveCoveredGoalsTimeline = "ArchiveCoveredGoalsTimeline"
+
+    # The number of goals, i.e., number of fitness functions
+    Goals = "Goals"
+
     def __repr__(self):
         return f"{self.name}"

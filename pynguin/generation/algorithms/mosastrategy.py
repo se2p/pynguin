@@ -36,6 +36,9 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
         self._logger.info("Start generating tests")
         self._archive = Archive(set(self._fitness_functions))
         self._number_of_goals = len(self._fitness_functions)
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.Goals, self._number_of_goals
+        )
 
         self._current_iteration = 0
         self._population = self._get_random_population()
