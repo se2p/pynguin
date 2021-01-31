@@ -101,7 +101,7 @@ class InitialPopulationSeeding:
         self._testcases = transformer.testcases
 
     @property
-    def random_testcase(self) -> DefaultTestCase:
+    def seeded_testcase(self) -> DefaultTestCase:
         return self._testcases[randomness.next_int(0, len(self._testcases))]
 
     @property

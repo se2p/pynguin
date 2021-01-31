@@ -161,10 +161,10 @@ class Pynguin:
 
     def _setup_initial_population_seeding(self, test_cluster: TestCluster):
         """Collect and parse tests for seeding the initial population"""
-        if config.INSTANCE.initial_population_seeding:
+        if config.configuration.initial_population_seeding:
             self._logger.info("Collecting and parsing provided testcases.")
             InitialPopulationSeeding().set_test_cluster(test_cluster)
-            InitialPopulationSeeding().collect_testcases(config.INSTANCE.initial_population_data)
+            InitialPopulationSeeding().collect_testcases(config.configuration.initial_population_data)
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.

@@ -41,18 +41,32 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
     def get_test_case(self) -> tc.TestCase:
-        if (
-            config.INSTANCE.initial_population_seeding
-            and InitialPopulationSeeding().has_tests
-            and randomness.next_float() <= 0.90
-        ):
-            test_case = InitialPopulationSeeding().random_testcase
-        else:
-            test_case = dtc.DefaultTestCase()
-            attempts = 0
-            size = randomness.next_int(1, config.configuration.chromosome_length + 1)
+        test_case = dtc.DefaultTestCase()
+        attempts = 0
+        size = randomness.next_int(1, config.configuration.chromosome_length + 1)
 
         while test_case.size() < size and attempts < config.configuration.max_attempts:
             self._test_factory.insert_random_statement(test_case, test_case.size())
             attempts += 1
         return test_case
+
+
+class SeededTestCaseFactory(TestCaseFactory):
+    """Factory for getting seeded test cases. With a certain probability a seeded testcase is returned instead of a
+    randomly generated one. If a seeded testcase is returned, it is taken randomly from the pool of seeded testcases.
+    If a randomly generated testcase is returned, the generation is delegated to the RandomLengthTestCaseFactory."""
+
+    def __init__(self, delegate: TestCaseFactory, test_factory: tf.TestFactory):
+        super().__init__(test_factory)
+        self._delegate = delegate
+
+    def get_test_case(self) -> tc.TestCase:
+        if (
+            config.configuration.initial_population_seeding
+            and InitialPopulationSeeding().has_tests
+            and randomness.next_float() <= 0.90
+        ):
+            return InitialPopulationSeeding().seeded_testcase
+        else:
+            return self._delegate.get_test_case()
+
