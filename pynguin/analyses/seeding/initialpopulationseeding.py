@@ -18,7 +18,6 @@ from setuptools import find_packages
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as AtS
-from pynguin.assertion.assertion import Assertion
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.utils import randomness
@@ -128,8 +127,9 @@ class _TestTransformer(ast.NodeVisitor):
             self._var_refs.update({ref_id: var_ref})
 
     def visit_Assert(self, node: ast.Assert) -> Any:
-        assertion = AtS.create_assert_stmt(self._var_refs, node)
-        self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion(assertion)
+        if config.configuration.generate_assertions:
+            assertion = AtS.create_assert_stmt(self._var_refs, node)
+            self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion(assertion)
 
     @property
     def testcases(self) -> List[DefaultTestCase]:
