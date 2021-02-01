@@ -6,6 +6,7 @@
 #
 import asyncio
 import importlib
+import threading
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
@@ -23,6 +24,7 @@ def test_hook():
 def test_module_instrumentation_integration():
     """Small integration test, which tests the instrumentation for various function types."""
     tracer = ExecutionTracer()
+    tracer.current_thread_ident = threading.currentThread().ident
     with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
         mixed = importlib.import_module("tests.fixtures.instrumentation.mixed")
         mixed = importlib.reload(mixed)

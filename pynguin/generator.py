@@ -21,6 +21,7 @@ import importlib
 import logging
 import os
 import sys
+import threading
 import time
 from typing import List, Optional, Tuple
 
@@ -134,8 +135,10 @@ class Pynguin:
         install_import_hook(config.configuration.module_name, tracer)
         return tracer
 
-    def _load_sut(self) -> bool:
+    def _load_sut(self, tracer: ExecutionTracer) -> bool:
         try:
+            # We need to set the current thread ident so the import trace is recorded.
+            tracer.current_thread_ident = threading.currentThread().ident
             importlib.import_module(config.configuration.module_name)
         except ImportError as ex:
             # A module could not be imported because some dependencies
@@ -170,7 +173,7 @@ class Pynguin:
         if not self._setup_path():
             return None
         tracer = self._setup_import_hook()
-        if not self._load_sut():
+        if not self._load_sut(tracer):
             return None
         if (test_cluster := self._setup_test_cluster()) is None:
             return None

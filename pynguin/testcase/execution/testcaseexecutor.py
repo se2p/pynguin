@@ -70,12 +70,11 @@ class TestCaseExecutor:
                     target=self._execute_test_case, args=(test_case, return_queue)
                 )
                 thread.start()
-                thread.join(timeout=5 * len(test_case.statements))
+                thread.join(timeout=len(test_case.statements))
                 if not thread.is_alive():
                     result = return_queue.get()
                 else:
-                    result = res.ExecutionResult()
-                    result.report_new_thrown_exception(0, TimeoutError())
+                    result = res.ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
                 self._after_test_case_execution(test_case, result)
         return result
@@ -92,6 +91,7 @@ class TestCaseExecutor:
     ) -> None:
         result = res.ExecutionResult()
         exec_ctx = ctx.ExecutionContext()
+        self.tracer.current_thread_ident = threading.currentThread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)

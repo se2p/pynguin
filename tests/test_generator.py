@@ -21,13 +21,13 @@ def test__load_sut_failed():
     generator = gen.Pynguin(
         configuration=MagicMock(log_file=None, module_name="this.does.not.exist")
     )
-    assert generator._load_sut() is False
+    assert generator._load_sut(MagicMock()) is False
 
 
 def test__load_sut_success():
     generator = gen.Pynguin(configuration=MagicMock(log_file=None))
     with mock.patch("importlib.import_module"):
-        assert generator._load_sut()
+        assert generator._load_sut(MagicMock())
 
 
 def test_setup_test_cluster_empty():
