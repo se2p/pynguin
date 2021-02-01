@@ -26,7 +26,7 @@ class AstToStatement:
             ref_dict: a dictionary containing key value pairs of variable ids and variable references.
 
         Returns:
-            The corresponding primitive statement
+            The corresponding statement or None if no statement type matches
         """
         if type(assign.value) is ast.Constant:
             new_stmt = AstToStatement._create_stmt_from_constant(assign, testcase)
@@ -35,7 +35,7 @@ class AstToStatement:
         elif type(assign.value) is ast.Call:
             new_stmt = AstToStatement._create_stmt_from_call(assign, testcase, objs_under_test, ref_dict)
         else:
-            raise Exception
+            new_stmt = None
 
         ref_id = assign.targets[0].id
         return ref_id, new_stmt
@@ -71,12 +71,12 @@ class AstToStatement:
     @staticmethod
     def _create_stmt_from_unaryop(assign: ast.Assign, testcase: tc.TestCase):
         val = assign.value.operand.value
-        if isinstance(val, int):
-            return prim_stmt.IntPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
+        if isinstance(val, bool):
+            return prim_stmt.BooleanPrimitiveStatement(testcase, not assign.value.operand.value)
         elif isinstance(val, float):
             return prim_stmt.FloatPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
-        elif isinstance(val, bool):
-            return prim_stmt.BooleanPrimitiveStatement(testcase, not assign.value.operand.value)
+        elif isinstance(val, int):
+            return prim_stmt.IntPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
 
     @staticmethod
     def _create_stmt_from_call(
