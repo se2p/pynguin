@@ -280,7 +280,7 @@ class Configuration(Serializable):
     """Should the generator use previously existing testcases to seed the initial population?"""
 
     initial_population_data: str = ""
-    """The path to the file with the pre-existing tests"""
+    """The path to the file with the pre-existing tests. The path has to include the file itself."""
 
     duck_type_analysis: bool = False
     """Should the duck-type analysis be used for type inference during test

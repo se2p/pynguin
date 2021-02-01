@@ -10,10 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from pkgutil import iter_modules
-from typing import Any, Set, Union, List, Dict
-
-from setuptools import find_packages
+from typing import Any, Union, List, Dict
 
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
@@ -40,30 +37,6 @@ class InitialPopulationSeeding:
     @test_cluster.setter
     def test_cluster(self, test_cluster: TestCluster):
         self._test_cluster = test_cluster
-
-    @staticmethod
-    def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
-        modules: Set[str] = set()
-        for package in find_packages(
-            project_path,
-            exclude=[
-                "*.tests",
-                "*.tests.*",
-                "tests.*",
-                "tests",
-                "test",
-                "test.*",
-                "*.test.*",
-                "*.test",
-            ],
-        ):
-            pkg_path = "{}/{}".format(project_path, package.replace(".", "/"))
-            for info in iter_modules([pkg_path]):
-                if not info.ispkg:
-                    name = info.name.replace(".", "/")
-                    package_path = package.replace(".", "/")
-                    modules.add(f"{package_path}/{name}.py")
-        return modules
 
     def get_ast_tree(
         self, module_path: Union[str, os.PathLike]
