@@ -17,7 +17,8 @@ from setuptools import find_packages
 
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
-from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as ats
+from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as AtS
+from pynguin.assertion.assertion import Assertion
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.utils import randomness
@@ -121,14 +122,15 @@ class _TestTransformer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        ref_id, stmt = ats.create_prim_stmt(node, self._current_testcase)
-        var_ref = self._current_testcase.add_statement(stmt)
-        self._var_refs.update({ref_id: var_ref})
-
-    def visit_Expr(self, node: ast.Expr) -> Any:
         objs_under_test = initialpopulationseeding.test_cluster.accessible_objects_under_test
-        stmt = ats.create_function_stmt(node, self._current_testcase, objs_under_test, self._var_refs)
-        self._current_testcase.add_statement(stmt)
+        ref_id, stmt = AtS.create_assign_stmt(node, self._current_testcase, objs_under_test, self._var_refs)
+        if stmt is not None:
+            var_ref = self._current_testcase.add_statement(stmt)
+            self._var_refs.update({ref_id: var_ref})
+
+    def visit_Assert(self, node: ast.Assert) -> Any:
+        assertion = Assertion(self._var_refs.get[node.test.left.id], node.test.comparators.get[0].value)
+        self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion()
 
     @property
     def testcases(self) -> List[DefaultTestCase]:
