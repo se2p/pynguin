@@ -76,6 +76,7 @@ class TestCaseExecutor:
                 else:
                     result = res.ExecutionResult()
                     result.report_new_thrown_exception(0, TimeoutError())
+                    self._logger.warning("Experienced timeout from test-case execution")
                 self._after_test_case_execution(test_case, result)
         return result
 
