@@ -1,20 +1,25 @@
 import ast
+import logging
 from typing import cast, Set, List, Tuple, Dict
 
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
+from pynguin.assertion.assertion import Assertion
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 
 
 class AstToStatement:
+
+    _logger = logging.getLogger(__name__)
+
     @staticmethod
     def create_assign_stmt(
         assign: ast.Assign,
         testcase: tc.TestCase,
-        objs_under_test: Set,
         ref_dict: Dict[str, vr.VariableReference]
     ) -> Tuple[str, Statement]:
         """Creates the corresponding statement from an ast.Assign node.
@@ -22,7 +27,6 @@ class AstToStatement:
         Args:
             assign: The ast.Assign node
             testcase: The testcase of the statement
-            objs_under_test: the accessible objects under test
             ref_dict: a dictionary containing key value pairs of variable ids and variable references.
 
         Returns:
@@ -33,12 +37,27 @@ class AstToStatement:
         elif type(assign.value) is ast.UnaryOp:
             new_stmt = AstToStatement._create_stmt_from_unaryop(assign, testcase)
         elif type(assign.value) is ast.Call:
+            objs_under_test = initpopseeding.initialpopulationseeding.test_cluster.accessible_objects_under_test
             new_stmt = AstToStatement._create_stmt_from_call(assign, testcase, objs_under_test, ref_dict)
         else:
+            AstToStatement._logger.info("Assign statement could not be parsed.")
             new_stmt = None
 
         ref_id = assign.targets[0].id
         return ref_id, new_stmt
+
+    @staticmethod
+    def create_assert_stmt(ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert) -> Assertion:
+        """ Creates an assert statement.
+
+        Args:
+            ref_dict: a dictionary containing key value pairs of variable ids and variable references.
+            assert_node: the ast assert node.
+
+        Returns:
+            The corresponding assert statement.
+        """
+        return Assertion(ref_dict.get(assert_node.test.left.id), assert_node.test.comparators[0].value)
 
     @staticmethod
     def _create_variable_references_from_call_args(
@@ -66,6 +85,7 @@ class AstToStatement:
         elif isinstance(val, str):
             return prim_stmt.StringPrimitiveStatement(testcase, assign.value.value)
         else:
+            AstToStatement._logger.info("Could not find case for constant while handling assign statement.")
             return None
 
     @staticmethod
@@ -77,6 +97,9 @@ class AstToStatement:
             return prim_stmt.FloatPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
         elif isinstance(val, int):
             return prim_stmt.IntPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
+        else:
+            AstToStatement._logger.info("Could not find case for unary operator while handling assign statement.")
+            return None
 
     @staticmethod
     def _create_stmt_from_call(
@@ -94,7 +117,7 @@ class AstToStatement:
             ref_dict: a dictionary containing key value pairs of variable ids and variable references.
 
         Returns:
-            The corresponding function statement
+            The corresponding function statement.
         """
         gen_callable = None
         call = assign.value

@@ -122,15 +122,14 @@ class _TestTransformer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        objs_under_test = initialpopulationseeding.test_cluster.accessible_objects_under_test
-        ref_id, stmt = AtS.create_assign_stmt(node, self._current_testcase, objs_under_test, self._var_refs)
+        ref_id, stmt = AtS.create_assign_stmt(node, self._current_testcase, self._var_refs)
         if stmt is not None:
             var_ref = self._current_testcase.add_statement(stmt)
             self._var_refs.update({ref_id: var_ref})
 
     def visit_Assert(self, node: ast.Assert) -> Any:
-        assertion = Assertion(self._var_refs.get[node.test.left.id], node.test.comparators.get[0].value)
-        self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion()
+        assertion = AtS.create_assert_stmt(self._var_refs, node)
+        self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion(assertion)
 
     @property
     def testcases(self) -> List[DefaultTestCase]:
