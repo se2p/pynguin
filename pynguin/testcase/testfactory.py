@@ -880,7 +880,7 @@ class TestFactory:
             if should_skip_parameter(signature, parameter_name):
                 # TODO Implement generation for positional parameters of variable length
                 # TODO Implement generation for keyword parameters of variable length
-                self._logger.info("Skip parameter %s", parameter_name)
+                self._logger.debug("Skip parameter %s", parameter_name)
                 continue
 
             if can_reuse_existing_variables:
