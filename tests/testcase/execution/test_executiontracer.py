@@ -245,7 +245,7 @@ def test_bool_predicate_executed_other_thread():
     tracer.current_thread_ident = threading.currentThread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
-    thread = threading.Thread(target=tracer.executed_bool_predicate, args=(True,0))
+    thread = threading.Thread(target=tracer.executed_bool_predicate, args=(True, 0))
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_predicates == {}
@@ -256,7 +256,9 @@ def test_compare_predicate_executed_other_thread():
     tracer.current_thread_ident = threading.currentThread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
-    thread = threading.Thread(target=tracer.executed_bool_predicate, args=(True, False, Compare.EQ, 0))
+    thread = threading.Thread(
+        target=tracer.executed_bool_predicate, args=(True, False, Compare.EQ, 0)
+    )
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_predicates == {}
