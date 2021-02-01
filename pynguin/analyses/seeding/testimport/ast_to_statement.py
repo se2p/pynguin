@@ -21,10 +21,11 @@ class AstToStatement:
             The corresponding primitive statement
         """
         if type(assign.value) is ast.Constant:
-            if assign.value.value is None:
-                new_stmt = prim_stmt.NoneStatement(testcase, assign.value.value)
-            else:
-                new_stmt = prim_stmt.IntPrimitiveStatement(testcase, assign.value.value)
+            new_stmt = AstToStatement._create_stmt_from_constant(assign, testcase)
+        elif type(assign.value) is ast.UnaryOp:
+            new_stmt = AstToStatement._create_stmt_from_unaryop(assign, testcase)
+        elif type(assign.value) is ast.Call:
+            new_stmt = AstToStatement._create_stmt_from_call(assign, testcase)
         elif isinstance(assign.value.operand.value, int):
             new_stmt = prim_stmt.IntPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
         elif isinstance(assign.value.operand.value, float):
@@ -35,6 +36,7 @@ class AstToStatement:
             new_stmt = prim_stmt.BooleanPrimitiveStatement(testcase, assign.value.operand.value)
         else:
             raise Exception
+
         ref_id = assign.targets[0].id
         return ref_id, new_stmt
 
@@ -79,3 +81,19 @@ class AstToStatement:
             AstToStatement._create_variable_references_from_call_args(call.args, ref_dict)
         )
         return func_stmt
+
+    @staticmethod
+    def _create_stmt_from_constant(assign: ast.Assign, testcase: tc.TestCase):
+        if assign.value.value is None:
+            return prim_stmt.NoneStatement(testcase, assign.value.value)
+
+        val = assign.value.value
+        if isinstance(val, int):
+            return prim_stmt.IntPrimitiveStatement(testcase, assign.value.value)
+        elif isinstance(val, float):
+            return prim_stmt.FloatPrimitiveStatement(testcase, assign.value.value)
+        elif isinstance(val, str):
+            return prim_stmt.StringPrimitiveStatement(testcase, assign.value.value)
+        else:
+            return None
+
