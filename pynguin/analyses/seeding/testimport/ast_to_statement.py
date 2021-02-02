@@ -1,6 +1,6 @@
 import ast
 import logging
-from typing import cast, Set, List, Tuple, Dict
+from typing import cast, Set, List, Tuple, Dict, Optional
 
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
@@ -42,7 +42,6 @@ class AstToStatement:
         else:
             AstToStatement._logger.info("Assign statement could not be parsed.")
             new_stmt = None
-
         ref_id = assign.targets[0].id
         return ref_id, new_stmt
 
@@ -71,7 +70,7 @@ class AstToStatement:
         return var_refs
 
     @staticmethod
-    def _create_stmt_from_constant(assign: ast.Assign, testcase: tc.TestCase):
+    def _create_stmt_from_constant(assign: ast.Assign, testcase: tc.TestCase) -> Optional[prim_stmt.PrimitiveStatement]:
         if assign.value.value is None:
             return prim_stmt.NoneStatement(testcase, assign.value.value)
 
@@ -89,7 +88,7 @@ class AstToStatement:
             return None
 
     @staticmethod
-    def _create_stmt_from_unaryop(assign: ast.Assign, testcase: tc.TestCase):
+    def _create_stmt_from_unaryop(assign: ast.Assign, testcase: tc.TestCase) -> Optional[prim_stmt.PrimitiveStatement]:
         val = assign.value.operand.value
         if isinstance(val, bool):
             return prim_stmt.BooleanPrimitiveStatement(testcase, not assign.value.operand.value)
@@ -107,7 +106,7 @@ class AstToStatement:
         testcase: tc.TestCase,
         objs_under_test: Set,
         ref_dict: Dict[str, vr.VariableReference]
-    ) -> param_stmt.FunctionStatement:
+    ) -> Optional[param_stmt.FunctionStatement]:
         """Creates a function statement from an ast.assign node.
 
         Args:
@@ -121,10 +120,17 @@ class AstToStatement:
         """
         gen_callable = None
         call = assign.value
-        func_name = str(call.func.attr)
+        try:
+            func_name = str(call.func.attr)
+        except AttributeError:
+            AstToStatement._logger.info("Instantiation not supported")
+            return None
         for obj in objs_under_test:
             if func_name == obj.function_name:
                 gen_callable = obj
+        if gen_callable is None:
+            AstToStatement._logger.info("No such function found...")
+            return None
         func_stmt = param_stmt.FunctionStatement(
             testcase,
             cast(GenericCallableAccessibleObject, gen_callable),
