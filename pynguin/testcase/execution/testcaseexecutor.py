@@ -7,7 +7,9 @@
 """Provides an executor that executes generated sequences."""
 import contextlib
 import logging
+import multiprocessing
 import os
+import threading
 from typing import List, Optional
 
 import astor
@@ -63,7 +65,17 @@ class TestCaseExecutor:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
-                result = self._execute_test_case(test_case)
+                return_queue: multiprocessing.Queue = multiprocessing.Queue()
+                thread = threading.Thread(
+                    target=self._execute_test_case, args=(test_case, return_queue)
+                )
+                thread.start()
+                thread.join(timeout=len(test_case.statements))
+                if not thread.is_alive():
+                    result = return_queue.get()
+                else:
+                    result = res.ExecutionResult(timeout=True)
+                    self._logger.warning("Experienced timeout from test-case execution")
                 self._after_test_case_execution(test_case, result)
         return result
 
@@ -75,9 +87,11 @@ class TestCaseExecutor:
     def _execute_test_case(
         self,
         test_case: tc.TestCase,
-    ) -> res.ExecutionResult:
+        result_queue: multiprocessing.Queue,
+    ) -> None:
         result = res.ExecutionResult()
         exec_ctx = ctx.ExecutionContext()
+        self.tracer.current_thread_ident = threading.currentThread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)
@@ -85,7 +99,7 @@ class TestCaseExecutor:
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
                 break
-        return result
+        result_queue.put(result)
 
     def _after_test_case_execution(
         self, test_case: tc.TestCase, result: res.ExecutionResult

@@ -102,6 +102,9 @@ class TestCaseChromosome(chrom.Chromosome):
                 self._test_case.chop(last_mutatable_position)
                 changed = True
 
+        # In case mutation removes all calls on the SUT.
+        backup = self.test_case.clone()
+
         if randomness.next_float() <= config.configuration.test_delete_probability:
             if self._mutation_delete():
                 changed = True
@@ -113,6 +116,11 @@ class TestCaseChromosome(chrom.Chromosome):
         if randomness.next_float() <= config.configuration.test_insert_probability:
             if self._mutation_insert():
                 changed = True
+
+        assert self._test_factory, "Required for mutation"
+        if not self._test_factory.has_call_on_sut(self._test_case):
+            self._test_case = backup
+            self._mutation_insert()
 
         if changed:
             self.set_changed(True)

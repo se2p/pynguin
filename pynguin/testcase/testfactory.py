@@ -880,7 +880,7 @@ class TestFactory:
             if should_skip_parameter(signature, parameter_name):
                 # TODO Implement generation for positional parameters of variable length
                 # TODO Implement generation for keyword parameters of variable length
-                self._logger.info("Skip parameter %s", parameter_name)
+                self._logger.debug("Skip parameter %s", parameter_name)
                 continue
 
             if can_reuse_existing_variables:
@@ -1299,3 +1299,20 @@ class TestFactory:
         )
         ret.distance = recursion_depth
         return ret
+
+    def has_call_on_sut(self, test_case: tc.TestCase) -> bool:
+        """Does the given test case have a call to the SUT?
+
+        Args:
+            test_case: the test case to check.
+
+        Returns:
+            True, iff the test case has a call on the SUT.
+        """
+        for statement in test_case.statements:
+            if (
+                statement.accessible_object()
+                in self._test_cluster.accessible_objects_under_test
+            ):
+                return True
+        return False

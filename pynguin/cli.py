@@ -86,7 +86,7 @@ def _setup_logging(
                 + "%(message)s"
             )
         )
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.INFO)
         logger.addHandler(file_handler)
 
     if verbosity < 0:

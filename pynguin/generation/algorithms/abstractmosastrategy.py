@@ -7,10 +7,9 @@
 """Provides an abstract base class for MOSA and its derivatives."""
 import logging
 from abc import ABCMeta
-from typing import List
+from typing import List, cast
 
 import pynguin.configuration as config
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
@@ -40,8 +39,8 @@ class AbstractMOSATestStrategy(
         for _ in range(int(config.configuration.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
             parent_2 = self._selection_function.select(self._population)[0]
-            offspring_1 = parent_1.clone()
-            offspring_2 = parent_2.clone()
+            offspring_1 = cast(tcc.TestCaseChromosome, parent_1.clone())
+            offspring_2 = cast(tcc.TestCaseChromosome, parent_2.clone())
 
             # Apply crossover
             if randomness.next_float() <= config.configuration.crossover_rate:
@@ -53,12 +52,12 @@ class AbstractMOSATestStrategy(
 
             # Apply mutation on offspring_1
             self._mutate(offspring_1)
-            if offspring_1.has_changed():
+            if offspring_1.has_changed() and offspring_1.size() > 0:
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
             self._mutate(offspring_2)
-            if offspring_2.has_changed():
+            if offspring_2.has_changed() and offspring_2.size() > 0:
                 offspring_population.append(offspring_2)
 
         # Add new randomly generated tests
@@ -76,16 +75,17 @@ class AbstractMOSATestStrategy(
                 tch = randomness.choice(list(self._archive.solutions)).clone()
                 tch.mutate()
 
-            if tch.has_changed():
+            if tch.has_changed() and tch.size() > 0:
                 offspring_population.append(tch)
 
         self._logger.info("Number of offsprings = %d", len(offspring_population))
         return offspring_population
 
     @staticmethod
-    def _mutate(offspring: chrom.Chromosome) -> None:
+    def _mutate(offspring: tcc.TestCaseChromosome) -> None:
         offspring.mutate()
         if not offspring.has_changed():
+            # if offspring is not changed, we try to mutate it once again
             offspring.mutate()
 
     def _get_non_dominated_solutions(

@@ -119,12 +119,11 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
         self._archive.update(self._population)
 
     def _notify_iteration(self) -> None:
-        coverage = len(self._archive.covered_goals) / self._number_of_goals
+        test_suite = self.create_test_suite(self._archive.solutions)
+        stat.current_individual(test_suite)
+        coverage = test_suite.get_coverage()
         self._logger.info(
             "Generation: %5i. Coverage: %5f",
             self._current_iteration,
             coverage,
-        )
-        stat.update_output_variable_for_runtime_variable(
-            RuntimeVariable.CoverageTimeline, coverage
         )

@@ -16,7 +16,7 @@ StatisticsBackend = config.StatisticsBackend
 StoppingCondition = config.StoppingCondition
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
-__version__ = "0.6.4"
+__version__ = "0.7.0"
 __all__ = [
     "Pynguin",
     "Configuration",
