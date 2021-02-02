@@ -7,6 +7,7 @@
 """Provides capabilities to track branch distances."""
 import dataclasses
 import logging
+import threading
 from math import inf
 from types import CodeType
 from typing import Any, Callable, Dict, Optional, Set, Tuple
@@ -129,6 +130,22 @@ class ExecutionTracer:
         self._import_trace = ExecutionTrace()
         self._init_trace()
         self._enabled = True
+        self._current_thread_ident: Optional[int] = None
+
+    @property
+    def current_thread_ident(self) -> Optional[int]:
+        """Get the current thread ident."""
+        return self._current_thread_ident
+
+    @current_thread_ident.setter
+    def current_thread_ident(self, current: int) -> None:
+        """Set the current thread ident. Tracing calls from any other thread
+        are ignored.
+
+        Args:
+            current: the current thread
+        """
+        self._current_thread_ident = current
 
     def get_known_data(self) -> KnownData:
         """Provide known data.
@@ -218,6 +235,9 @@ class ExecutionTracer:
         Args:
             code_object_id: the code object id to mark
         """
+        if threading.currentThread().ident != self._current_thread_ident:
+            return
+
         assert (
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
@@ -249,6 +269,9 @@ class ExecutionTracer:
             predicate: the predicate
             cmp_op: the compare operation
         """
+        if threading.currentThread().ident != self._current_thread_ident:
+            return
+
         if self._is_disabled():
             return
 
@@ -272,6 +295,9 @@ class ExecutionTracer:
             value: the value
             predicate: the predicate
         """
+        if threading.currentThread().ident != self._current_thread_ident:
+            return
+
         if self._is_disabled():
             return
 
