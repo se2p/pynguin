@@ -59,10 +59,6 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._test_case
 
-    @test_case.setter
-    def test_case(self, test_case: tc.TestCase) -> None:
-        self._test_case = test_case
-
     def size(self) -> int:
         return self._test_case.size()
 
@@ -106,6 +102,9 @@ class TestCaseChromosome(chrom.Chromosome):
                 self._test_case.chop(last_mutatable_position)
                 changed = True
 
+        # In case mutation removes all calls on the SUT.
+        backup = self.test_case.clone()
+
         if randomness.next_float() <= config.configuration.test_delete_probability:
             if self._mutation_delete():
                 changed = True
@@ -115,8 +114,13 @@ class TestCaseChromosome(chrom.Chromosome):
                 changed = True
 
         if randomness.next_float() <= config.configuration.test_insert_probability:
-            if self.mutation_insert():
+            if self._mutation_insert():
                 changed = True
+
+        assert self._test_factory, "Required for mutation"
+        if not self._test_factory.has_call_on_sut(self._test_case):
+            self._test_case = backup
+            self._mutation_insert()
 
         if changed:
             self.set_changed(True)
@@ -166,7 +170,7 @@ class TestCaseChromosome(chrom.Chromosome):
 
         return changed
 
-    def mutation_insert(self) -> bool:
+    def _mutation_insert(self) -> bool:
         """With exponentially decreasing probability, insert statements at a
         random position.
 

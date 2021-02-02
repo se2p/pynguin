@@ -84,7 +84,7 @@ def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
 
 def test_mutation_insert_none(test_case_chromosome):
     config.configuration.statement_insertion_probability = 0.0
-    assert not test_case_chromosome.mutation_insert()
+    assert not test_case_chromosome._mutation_insert()
 
 
 def test_mutation_insert_two():
@@ -101,7 +101,7 @@ def test_mutation_insert_two():
     config.configuration.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
-        assert chromosome.mutation_insert()
+        assert chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
         [call(test_case, 0), call(test_case, 1)]
     )
@@ -120,7 +120,7 @@ def test_mutation_insert_twice_no_success():
     config.configuration.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
-        assert not chromosome.mutation_insert()
+        assert not chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
         [call(test_case, 0), call(test_case, 0)]
     )
@@ -140,7 +140,7 @@ def test_mutation_insert_max_length():
     config.configuration.chromosome_length = 1
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0, 0.0]
-        assert chromosome.mutation_insert()
+        assert chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls([call(test_case, 0)])
     assert test_case.size() == 1
 
@@ -238,9 +238,12 @@ def test_mutate_chop(test_case_chromosome_with_test):
     config.configuration.test_delete_probability = 0.0
     with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = 5
-        chromosome.mutate()
-        assert chromosome.has_changed()
-        assert len(test_case.statements) == 6
+        with mock.patch.object(chromosome, "_test_factory") as factory_mock:
+            factory_mock.has_call_on_sut.return_value = True
+            chromosome.mutate()
+            assert chromosome.has_changed()
+            assert len(test_case.statements) == 6
+            assert factory_mock.has_call_on_sut.call_count == 1
 
 
 def test_mutate_no_chop(test_case_chromosome_with_test):
@@ -253,9 +256,12 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     config.configuration.test_delete_probability = 0.0
     with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = None
-        chromosome.mutate()
-        assert len(test_case.statements) == 50
-        assert not chromosome.has_changed()
+        with mock.patch.object(chromosome, "_test_factory") as factory_mock:
+            factory_mock.has_call_on_sut.return_value = True
+            chromosome.mutate()
+            assert len(test_case.statements) == 50
+            assert not chromosome.has_changed()
+            assert factory_mock.has_call_on_sut.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -265,8 +271,8 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
         pytest.param("_mutation_delete", [0, 1, 1], False),
         pytest.param("_mutation_change", [1, 0, 1], True),
         pytest.param("_mutation_change", [1, 0, 1], False),
-        pytest.param("mutation_insert", [1, 1, 0], True),
-        pytest.param("mutation_insert", [1, 1, 0], False),
+        pytest.param("_mutation_insert", [1, 1, 0], True),
+        pytest.param("_mutation_insert", [1, 1, 0], False),
     ],
 )
 def test_mutate_all(test_case_chromosome, func, rand, result):
@@ -275,9 +281,13 @@ def test_mutate_all(test_case_chromosome, func, rand, result):
         float_mock.side_effect = rand
         with mock.patch.object(test_case_chromosome, func) as mock_func:
             mock_func.return_value = result
-            test_case_chromosome.mutate()
-            assert test_case_chromosome.has_changed() == result
-            mock_func.assert_called_once()
+            with mock.patch.object(
+                test_case_chromosome, "_test_factory"
+            ) as factory_mock:
+                factory_mock.has_call_on_sut.return_value = True
+                test_case_chromosome.mutate()
+                assert test_case_chromosome.has_changed() == result
+                mock_func.assert_called_once()
 
 
 def test_crossover_wrong_type(test_case_chromosome):

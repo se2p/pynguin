@@ -12,7 +12,6 @@ from typing import List, cast
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -52,12 +51,12 @@ class AbstractMOSATestStrategy(
                     continue
 
             # Apply mutation on offspring_1
-            self._mutate(offspring_1, parent_1)
+            self._mutate(offspring_1)
             if offspring_1.has_changed() and offspring_1.size() > 0:
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
-            self._mutate(offspring_2, parent_2)
+            self._mutate(offspring_2)
             if offspring_2.has_changed() and offspring_2.size() > 0:
                 offspring_population.append(offspring_2)
 
@@ -82,42 +81,12 @@ class AbstractMOSATestStrategy(
         self._logger.info("Number of offsprings = %d", len(offspring_population))
         return offspring_population
 
-    def _mutate(
-        self, offspring: tcc.TestCaseChromosome, parent: tcc.TestCaseChromosome
-    ) -> None:
+    @staticmethod
+    def _mutate(offspring: tcc.TestCaseChromosome) -> None:
         offspring.mutate()
         if not offspring.has_changed():
             # if offspring is not changed, we try to mutate it once again
             offspring.mutate()
-        if not self._has_method_call(offspring):
-            offspring.test_case = parent.test_case.clone()
-            changed = offspring.mutation_insert()
-            offspring.set_changed(changed)
-
-    @staticmethod
-    def _has_method_call(chromosome: tcc.TestCaseChromosome) -> bool:
-        """Checks whether a test case has a method-call statement.
-
-        It can happen that mutation and crossover remove all method and constructor
-        calls from a test case, which can then never cover any code in the
-        subject-under-test.
-
-        Args:
-            chromosome: the chromosome to check
-        Returns:
-            Whether or not the chromosome contains at least one method or constructor
-            call.
-        """
-        return any(
-            [
-                statement
-                for statement in chromosome.test_case.statements
-                if isinstance(
-                    statement,
-                    (param_stmt.MethodStatement, param_stmt.ConstructorStatement),
-                )
-            ]
-        )
 
     def _get_non_dominated_solutions(
         self, solutions: List[tcc.TestCaseChromosome]
