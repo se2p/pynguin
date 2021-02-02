@@ -64,7 +64,7 @@ class SeededTestCaseFactory(TestCaseFactory):
         if (
             config.configuration.initial_population_seeding
             and initpopseeding.initialpopulationseeding.has_tests
-            and randomness.next_float() <= 0.90
+            and randomness.next_float() <= config.configuration.seeded_testcases_reuse_probability
         ):
             return initpopseeding.initialpopulationseeding.seeded_testcase
         else:
