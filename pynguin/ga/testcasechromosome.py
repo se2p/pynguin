@@ -59,6 +59,10 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._test_case
 
+    @test_case.setter
+    def test_case(self, test_case: tc.TestCase) -> None:
+        self._test_case = test_case
+
     def size(self) -> int:
         return self._test_case.size()
 
@@ -111,7 +115,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 changed = True
 
         if randomness.next_float() <= config.configuration.test_insert_probability:
-            if self._mutation_insert():
+            if self.mutation_insert():
                 changed = True
 
         if changed:
@@ -162,7 +166,7 @@ class TestCaseChromosome(chrom.Chromosome):
 
         return changed
 
-    def _mutation_insert(self) -> bool:
+    def mutation_insert(self) -> bool:
         """With exponentially decreasing probability, insert statements at a
         random position.
 
