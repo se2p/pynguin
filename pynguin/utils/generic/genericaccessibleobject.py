@@ -207,7 +207,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         self,
         function: Callable,
         inferred_signature: InferredSignature,
-        function_name: str = None,
+        function_name: Optional[str] = None,
     ) -> None:
         self._function_name = function_name
         super().__init__(None, function, inferred_signature)
@@ -216,7 +216,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         return True
 
     @property
-    def function_name(self) -> str:
+    def function_name(self) -> Optional[str]:
         """Returns the name of a generic function.
 
         Returns:

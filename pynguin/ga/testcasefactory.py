@@ -8,11 +8,11 @@
 
 from abc import abstractmethod
 
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 from pynguin.utils import randomness
 
 
@@ -52,9 +52,13 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
 
 
 class SeededTestCaseFactory(TestCaseFactory):
-    """Factory for getting seeded test cases. With a certain probability a seeded testcase is returned instead of a
-    randomly generated one. If a seeded testcase is returned, it is taken randomly from the pool of seeded testcases.
-    If a randomly generated testcase is returned, the generation is delegated to the RandomLengthTestCaseFactory."""
+    """Factory for getting seeded test cases.
+
+    With a certain probability a seeded testcase is returned instead of a randomly
+    generated one. If a seeded testcase is returned, it is taken randomly from the
+    pool of seeded testcases. If a randomly generated testcase is returned, the
+    generation is delegated to the RandomLengthTestCaseFactory.
+    """
 
     def __init__(self, delegate: TestCaseFactory, test_factory: tf.TestFactory):
         super().__init__(test_factory)

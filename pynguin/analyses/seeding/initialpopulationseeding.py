@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import Any, Union, List, Dict
+from typing import Any, Dict, List, Optional, Union
 
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
@@ -27,7 +27,7 @@ class InitialPopulationSeeding:
 
     _logger = logging.getLogger(__name__)
     _testcases: List[DefaultTestCase] = []
-    _test_cluster: TestCluster = None
+    _test_cluster: TestCluster
 
     @property
     def test_cluster(self) -> TestCluster:
@@ -37,7 +37,9 @@ class InitialPopulationSeeding:
     def test_cluster(self, test_cluster: TestCluster):
         self._test_cluster = test_cluster
 
-    def get_ast_tree(self, module_path: Union[str, os.PathLike]) -> ast.Module:
+    def get_ast_tree(
+        self, module_path: Union[str, os.PathLike]
+    ) -> Optional[ast.Module]:
         """Returns the ast tree from a module
 
         Args:
@@ -48,6 +50,7 @@ class InitialPopulationSeeding:
         """
 
         with open(os.path.abspath(module_path)) as module_file:
+            tree: Optional[ast.Module]
             try:
                 tree = ast.parse(module_file.read())
             except BaseException as exception:  # pylint: disable=broad-except
@@ -75,7 +78,7 @@ class InitialPopulationSeeding:
 
 
 class _TestTransformer(ast.NodeVisitor):
-    _current_testcase: DefaultTestCase = None
+    _current_testcase: DefaultTestCase
     _var_refs: Dict[str, vr.VariableReference] = {}
 
     def __init__(self):

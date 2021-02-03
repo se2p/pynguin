@@ -25,6 +25,7 @@ import threading
 import time
 from typing import List, Optional, Tuple
 
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -33,7 +34,6 @@ import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
