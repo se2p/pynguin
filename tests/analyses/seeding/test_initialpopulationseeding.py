@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -187,19 +188,23 @@ def test_seeded_test_case_factory_with_delegation(init_pop_seeding_instance, see
     delegate.get_test_case.assert_called_once()
 
 
+@mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
 def test_algorithm_generation_factory_with_init_pop_seeding(
+        mock_class,
         dummy_test_cluster):
     config.configuration.initial_population_seeding = True
-    tsfactory = TestSuiteGenerationAlgorithmFactory(None, dummy_test_cluster)
+    tsfactory = TestSuiteGenerationAlgorithmFactory(mock_class.return_value , dummy_test_cluster)
     chromosome_factory = tsfactory._get_chromosome_factory()
     test_case_factory = chromosome_factory.test_case_chromosome_factory._test_case_factory
     assert type(test_case_factory) == tcf.SeededTestCaseFactory
 
 
+@mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
 def test_algorithm_generation_factory_without_init_pop_seeding(
+        mock_class,
         dummy_test_cluster):
     config.configuration.initial_population_seeding = False
-    tsfactory = TestSuiteGenerationAlgorithmFactory(None, dummy_test_cluster)
+    tsfactory = TestSuiteGenerationAlgorithmFactory(mock_class.return_value, dummy_test_cluster)
     chromosome_factory = tsfactory._get_chromosome_factory()
     test_case_factory = chromosome_factory.test_case_chromosome_factory._test_case_factory
     assert type(test_case_factory) == tcf.RandomLengthTestCaseFactory
