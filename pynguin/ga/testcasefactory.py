@@ -72,5 +72,4 @@ class SeededTestCaseFactory(TestCaseFactory):
             <= config.configuration.seeded_testcases_reuse_probability
         ):
             return initpopseeding.initialpopulationseeding.seeded_testcase
-        else:
-            return self._delegate.get_test_case()
+        return self._delegate.get_test_case()

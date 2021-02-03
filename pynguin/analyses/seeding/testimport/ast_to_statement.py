@@ -1,3 +1,10 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+"""Provides an implementation to generate statements out of an AST."""
 import ast
 import logging
 from typing import Dict, List, Optional, Set, Tuple, cast
@@ -15,6 +22,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 
 
 class AstToStatement:
+    """Creates statements of an AST."""
 
     _logger = logging.getLogger(__name__)
 
@@ -29,17 +37,19 @@ class AstToStatement:
         Args:
             assign: The ast.Assign node
             testcase: The testcase of the statement
-            ref_dict: a dictionary containing key value pairs of variable ids and variable references.
+            ref_dict: a dictionary containing key value pairs of variable ids and
+                      variable references.
 
         Returns:
             The corresponding statement or None if no statement type matches
         """
         new_stmt: Optional[Statement]
-        if type(assign.value) is ast.Constant:
+        value = assign.value
+        if isinstance(value, ast.Constant):
             new_stmt = AstToStatement._create_stmt_from_constant(assign, testcase)
-        elif type(assign.value) is ast.UnaryOp:
+        elif isinstance(value, ast.UnaryOp):
             new_stmt = AstToStatement._create_stmt_from_unaryop(assign, testcase)
-        elif type(assign.value) is ast.Call:
+        elif isinstance(value, ast.Call):
             test_cluster = initpopseeding.initialpopulationseeding.test_cluster
             objs_under_test = test_cluster.accessible_objects_under_test
             new_stmt = AstToStatement._create_stmt_from_call(
@@ -93,23 +103,22 @@ class AstToStatement:
             return prim_stmt.BooleanPrimitiveStatement(
                 testcase, assign.value.value  # type: ignore
             )
-        elif isinstance(val, int):
+        if isinstance(val, int):
             return prim_stmt.IntPrimitiveStatement(
                 testcase, assign.value.value  # type: ignore
             )
-        elif isinstance(val, float):
+        if isinstance(val, float):
             return prim_stmt.FloatPrimitiveStatement(
                 testcase, assign.value.value  # type: ignore
             )
-        elif isinstance(val, str):
+        if isinstance(val, str):
             return prim_stmt.StringPrimitiveStatement(
                 testcase, assign.value.value  # type: ignore
             )
-        else:
-            AstToStatement._logger.info(
-                "Could not find case for constant while handling assign statement."
-            )
-            return None
+        AstToStatement._logger.info(
+            "Could not find case for constant while handling assign statement."
+        )
+        return None
 
     @staticmethod
     def _create_stmt_from_unaryop(
@@ -120,20 +129,18 @@ class AstToStatement:
             return prim_stmt.BooleanPrimitiveStatement(
                 testcase, not assign.value.operand.value  # type: ignore
             )
-        elif isinstance(val, float):
+        if isinstance(val, float):
             return prim_stmt.FloatPrimitiveStatement(
                 testcase, (-1) * assign.value.operand.value  # type: ignore
             )
-        elif isinstance(val, int):
+        if isinstance(val, int):
             return prim_stmt.IntPrimitiveStatement(
                 testcase, (-1) * assign.value.operand.value  # type: ignore
             )
-        else:
-            AstToStatement._logger.info(
-                "Could not find case for unary operator while handling assign"
-                " statement."
-            )
-            return None
+        AstToStatement._logger.info(
+            "Could not find case for unary operator while handling assign statement."
+        )
+        return None
 
     @staticmethod
     def _create_stmt_from_call(

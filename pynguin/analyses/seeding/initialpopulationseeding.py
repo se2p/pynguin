@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -31,6 +31,11 @@ class InitialPopulationSeeding:
 
     @property
     def test_cluster(self) -> TestCluster:
+        """Provides the test cluster.
+
+        Returns:
+            The test cluster
+        """
         return self._test_cluster
 
     @test_cluster.setter
@@ -58,7 +63,12 @@ class InitialPopulationSeeding:
                 tree = None
         return tree
 
-    def collect_testcases(self, module_path: Union[str, os.PathLike]):
+    def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
+        """Collect all test cases from a module.
+
+        Args:
+            module_path: Path to the module to collect the test cases from
+        """
         tree = self.get_ast_tree(module_path)
         if tree is None:
             config.configuration.initial_population_seeding = False
@@ -70,13 +80,24 @@ class InitialPopulationSeeding:
 
     @property
     def seeded_testcase(self) -> DefaultTestCase:
+        """Provides a random seeded test case.
+
+        Returns:
+            A random test case
+        """
         return self._testcases[randomness.next_int(0, len(self._testcases))]
 
     @property
     def has_tests(self) -> bool:
+        """Whether or not test cases have been found.
+
+        Returns:
+            Whether or not test cases have been found
+        """
         return len(self._testcases) > 0
 
 
+# pylint: disable=invalid-name, missing-function-docstring
 class _TestTransformer(ast.NodeVisitor):
     _current_testcase: DefaultTestCase
     _var_refs: Dict[str, vr.VariableReference] = {}

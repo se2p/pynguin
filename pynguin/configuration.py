@@ -277,13 +277,16 @@ class Configuration(Serializable):
     generation?"""
 
     initial_population_seeding: bool = False
-    """Should the generator use previously existing testcases to seed the initial population?"""
+    """Should the generator use previously existing testcases to seed the initial
+    population?"""
 
     initial_population_data: str = ""
-    """The path to the file with the pre-existing tests. The path has to include the file itself."""
+    """The path to the file with the pre-existing tests. The path has to include the
+    file itself."""
 
     seeded_testcases_reuse_probability = 0.9
-    """Probability of using seeded testcases when initial population seeding is enabled."""
+    """Probability of using seeded testcases when initial population seeding is
+    enabled."""
 
     duck_type_analysis: bool = False
     """Should the duck-type analysis be used for type inference during test
