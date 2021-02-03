@@ -48,7 +48,7 @@ class AstToStatement:
         else:
             AstToStatement._logger.info("Assign statement could not be parsed.")
             new_stmt = None
-        ref_id = assign.targets[0].id
+        ref_id = str(assign.targets[0].id)
         return ref_id, new_stmt
 
     @staticmethod
@@ -74,7 +74,7 @@ class AstToStatement:
         call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
     ) -> List[vr.VariableReference]:
 
-        var_refs: List[vr.VariableReference] = []
+        var_refs = []
         for arg in call_args:
             var_refs.append(ref_dict.get(arg.id))
         return var_refs
