@@ -204,7 +204,10 @@ class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
 
     def __init__(
-        self, function: Callable, inferred_signature: InferredSignature, function_name: Optional[str] = None
+        self,
+        function: Callable,
+        inferred_signature: InferredSignature,
+        function_name: Optional[str] = None,
     ) -> None:
         self._function_name = function_name
         super().__init__(None, function, inferred_signature)

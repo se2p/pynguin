@@ -23,8 +23,7 @@ Types = Union[float, int, str]
 
 
 class InitialPopulationSeeding:
-    """Class for seeding the initial population with previously existing testcases.
-    """
+    """Class for seeding the initial population with previously existing testcases."""
 
     _logger = logging.getLogger(__name__)
     _testcases: List[DefaultTestCase] = []
@@ -38,9 +37,7 @@ class InitialPopulationSeeding:
     def test_cluster(self, test_cluster: TestCluster):
         self._test_cluster = test_cluster
 
-    def get_ast_tree(
-        self, module_path: Union[str, os.PathLike]
-    ) -> ast.Module:
+    def get_ast_tree(self, module_path: Union[str, os.PathLike]) -> ast.Module:
         """Returns the ast tree from a module
 
         Args:
@@ -94,7 +91,9 @@ class _TestTransformer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        ref_id, stmt = AtS.create_assign_stmt(node, self._current_testcase, self._var_refs)
+        ref_id, stmt = AtS.create_assign_stmt(
+            node, self._current_testcase, self._var_refs
+        )
         if stmt is not None:
             var_ref = self._current_testcase.add_statement(stmt)
             self._var_refs.update({ref_id: var_ref})
@@ -102,7 +101,9 @@ class _TestTransformer(ast.NodeVisitor):
     def visit_Assert(self, node: ast.Assert) -> Any:
         if config.configuration.generate_assertions:
             assertion = AtS.create_assert_stmt(self._var_refs, node)
-            self._current_testcase.get_statement(len(self._current_testcase.statements) - 1).add_assertion(assertion)
+            self._current_testcase.get_statement(
+                len(self._current_testcase.statements) - 1
+            ).add_assertion(assertion)
 
     @property
     def testcases(self) -> List[DefaultTestCase]:

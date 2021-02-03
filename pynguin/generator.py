@@ -167,7 +167,9 @@ class Pynguin:
         if config.configuration.initial_population_seeding:
             self._logger.info("Collecting and parsing provided testcases.")
             initpopseeding.initialpopulationseeding.test_cluster = test_cluster
-            initpopseeding.initialpopulationseeding.collect_testcases(config.configuration.initial_population_data)
+            initpopseeding.initialpopulationseeding.collect_testcases(
+                config.configuration.initial_population_data
+            )
 
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.

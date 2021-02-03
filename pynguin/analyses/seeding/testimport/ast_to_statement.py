@@ -9,7 +9,9 @@ import pynguin.testcase.variable.variablereference as vr
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 from pynguin.assertion.assertion import Assertion
 from pynguin.testcase.statements.statement import Statement
-from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+)
 
 
 class AstToStatement:
@@ -20,7 +22,7 @@ class AstToStatement:
     def create_assign_stmt(
         assign: ast.Assign,
         testcase: tc.TestCase,
-        ref_dict: Dict[str, vr.VariableReference]
+        ref_dict: Dict[str, vr.VariableReference],
     ) -> Tuple[str, Statement]:
         """Creates the corresponding statement from an ast.Assign node.
 
@@ -37,8 +39,12 @@ class AstToStatement:
         elif type(assign.value) is ast.UnaryOp:
             new_stmt = AstToStatement._create_stmt_from_unaryop(assign, testcase)
         elif type(assign.value) is ast.Call:
-            objs_under_test = initpopseeding.initialpopulationseeding.test_cluster.accessible_objects_under_test
-            new_stmt = AstToStatement._create_stmt_from_call(assign, testcase, objs_under_test, ref_dict)
+            objs_under_test = (
+                initpopseeding.initialpopulationseeding.test_cluster.accessible_objects_under_test
+            )
+            new_stmt = AstToStatement._create_stmt_from_call(
+                assign, testcase, objs_under_test, ref_dict
+            )
         else:
             AstToStatement._logger.info("Assign statement could not be parsed.")
             new_stmt = None
@@ -46,8 +52,10 @@ class AstToStatement:
         return ref_id, new_stmt
 
     @staticmethod
-    def create_assert_stmt(ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert) -> Assertion:
-        """ Creates an assert statement.
+    def create_assert_stmt(
+        ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
+    ) -> Assertion:
+        """Creates an assert statement.
 
         Args:
             ref_dict: a dictionary containing key value pairs of variable ids and variable references.
@@ -56,12 +64,14 @@ class AstToStatement:
         Returns:
             The corresponding assert statement.
         """
-        return Assertion(ref_dict.get(assert_node.test.left.id), assert_node.test.comparators[0].value)
+        return Assertion(
+            ref_dict.get(assert_node.test.left.id),
+            assert_node.test.comparators[0].value,
+        )
 
     @staticmethod
     def _create_variable_references_from_call_args(
-        call_args: List[ast.Name],
-        ref_dict: Dict[str, vr.VariableReference]
+        call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
     ) -> List[vr.VariableReference]:
 
         var_refs: List[vr.VariableReference] = []
@@ -70,7 +80,9 @@ class AstToStatement:
         return var_refs
 
     @staticmethod
-    def _create_stmt_from_constant(assign: ast.Assign, testcase: tc.TestCase) -> Optional[prim_stmt.PrimitiveStatement]:
+    def _create_stmt_from_constant(
+        assign: ast.Assign, testcase: tc.TestCase
+    ) -> Optional[prim_stmt.PrimitiveStatement]:
         if assign.value.value is None:
             return prim_stmt.NoneStatement(testcase, assign.value.value)
 
@@ -84,20 +96,32 @@ class AstToStatement:
         elif isinstance(val, str):
             return prim_stmt.StringPrimitiveStatement(testcase, assign.value.value)
         else:
-            AstToStatement._logger.info("Could not find case for constant while handling assign statement.")
+            AstToStatement._logger.info(
+                "Could not find case for constant while handling assign statement."
+            )
             return None
 
     @staticmethod
-    def _create_stmt_from_unaryop(assign: ast.Assign, testcase: tc.TestCase) -> Optional[prim_stmt.PrimitiveStatement]:
+    def _create_stmt_from_unaryop(
+        assign: ast.Assign, testcase: tc.TestCase
+    ) -> Optional[prim_stmt.PrimitiveStatement]:
         val = assign.value.operand.value
         if isinstance(val, bool):
-            return prim_stmt.BooleanPrimitiveStatement(testcase, not assign.value.operand.value)
+            return prim_stmt.BooleanPrimitiveStatement(
+                testcase, not assign.value.operand.value
+            )
         elif isinstance(val, float):
-            return prim_stmt.FloatPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
+            return prim_stmt.FloatPrimitiveStatement(
+                testcase, (-1) * assign.value.operand.value
+            )
         elif isinstance(val, int):
-            return prim_stmt.IntPrimitiveStatement(testcase, (-1) * assign.value.operand.value)
+            return prim_stmt.IntPrimitiveStatement(
+                testcase, (-1) * assign.value.operand.value
+            )
         else:
-            AstToStatement._logger.info("Could not find case for unary operator while handling assign statement.")
+            AstToStatement._logger.info(
+                "Could not find case for unary operator while handling assign statement."
+            )
             return None
 
     @staticmethod
@@ -105,7 +129,7 @@ class AstToStatement:
         assign: ast.Assign,
         testcase: tc.TestCase,
         objs_under_test: Set,
-        ref_dict: Dict[str, vr.VariableReference]
+        ref_dict: Dict[str, vr.VariableReference],
     ) -> Optional[param_stmt.FunctionStatement]:
         """Creates a function statement from an ast.assign node.
 
@@ -134,6 +158,8 @@ class AstToStatement:
         func_stmt = param_stmt.FunctionStatement(
             testcase,
             cast(GenericCallableAccessibleObject, gen_callable),
-            AstToStatement._create_variable_references_from_call_args(call.args, ref_dict)
+            AstToStatement._create_variable_references_from_call_args(
+                call.args, ref_dict
+            ),
         )
         return func_stmt
