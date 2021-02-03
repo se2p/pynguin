@@ -1,3 +1,9 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
 import os
 from unittest import mock
 from unittest.mock import MagicMock
