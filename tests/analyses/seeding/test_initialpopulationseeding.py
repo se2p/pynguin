@@ -1,11 +1,17 @@
 import os
+from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
+import pynguin.configuration as config
+import pynguin.ga.testcasefactory as tcf
+import pynguin.generator as gen
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.generation.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
 from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
+from pynguin.testcase.testfactory import TestFactory
 
 
 @pytest.fixture()
@@ -139,3 +145,61 @@ def test_assign_function_wrong_name(init_pop_seeding_instance, seed_modules_path
     assert seeded_testcase is not None
     assert len(seeded_testcase.statements) == 0
 
+
+def test_generator_with_init_pop_seeding(init_pop_seeding_instance, seed_modules_path, dummy_test_cluster):
+    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    config.configuration.initial_population_seeding = True
+    config.configuration.initial_population_data = os.path.join(seed_modules_path, "boolseed.py")
+    generator = gen.Pynguin(config.configuration)
+    generator._setup_initial_population_seeding(dummy_test_cluster)
+    seeded_testcase = init_pop_seeding_instance.seeded_testcase
+    assert init_pop_seeding_instance.has_tests
+    assert next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
+
+
+def test_seeded_test_case_factory_no_delegation(init_pop_seeding_instance, seed_modules_path, dummy_test_cluster):
+    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    init_pop_file = os.path.join(seed_modules_path, "boolseed.py")
+    config.configuration.initial_population_seeding = True
+    config.configuration.initial_population_data = init_pop_file
+    config.configuration.seeded_testcases_reuse_probability = 1.0
+    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    test_factory = TestFactory(dummy_test_cluster)
+    delegate = tcf.RandomLengthTestCaseFactory(test_factory)
+    test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
+
+    seeded_testcase = test_case_factory.get_test_case()
+    assert next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
+
+
+def test_seeded_test_case_factory_with_delegation(init_pop_seeding_instance, seed_modules_path, dummy_test_cluster):
+    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    init_pop_file = os.path.join(seed_modules_path, "boolseed.py")
+    config.configuration.initial_population_seeding = True
+    config.configuration.initial_population_data = init_pop_file
+    config.configuration.seeded_testcases_reuse_probability = 0.0
+    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    test_factory = TestFactory(dummy_test_cluster)
+    delegate = tcf.RandomLengthTestCaseFactory(test_factory)
+    delegate.get_test_case = MagicMock()
+    test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
+    test_case_factory.get_test_case()
+    delegate.get_test_case.assert_called_once()
+
+
+def test_algorithm_generation_factory_with_init_pop_seeding(
+        dummy_test_cluster):
+    config.configuration.initial_population_seeding = True
+    tsfactory = TestSuiteGenerationAlgorithmFactory(None, dummy_test_cluster)
+    chromosome_factory = tsfactory._get_chromosome_factory()
+    test_case_factory = chromosome_factory.test_case_chromosome_factory._test_case_factory
+    assert type(test_case_factory) == tcf.SeededTestCaseFactory
+
+
+def test_algorithm_generation_factory_without_init_pop_seeding(
+        dummy_test_cluster):
+    config.configuration.initial_population_seeding = False
+    tsfactory = TestSuiteGenerationAlgorithmFactory(None, dummy_test_cluster)
+    chromosome_factory = tsfactory._get_chromosome_factory()
+    test_case_factory = chromosome_factory.test_case_chromosome_factory._test_case_factory
+    assert type(test_case_factory) == tcf.RandomLengthTestCaseFactory
