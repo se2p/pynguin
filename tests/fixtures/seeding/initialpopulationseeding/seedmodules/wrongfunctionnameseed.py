@@ -1,3 +1,4 @@
+# flake8: noqa
 import tests.fixtures.seeding.initialpopulationseeding.dummycontainer as module0
 
 
