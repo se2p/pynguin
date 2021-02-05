@@ -24,8 +24,9 @@ from pynguin.generator import Pynguin
 
 def _create_argument_parser() -> argparse.ArgumentParser:
     parser = simple_parsing.ArgumentParser(
-        add_dest_to_option_strings=False,
+        add_option_string_dash_variants=True,
         description="Pynguin is an automatic unit test generation framework for Python",
+        fromfile_prefix_chars="@",
     )
     parser.add_argument(
         "--version", action="version", version="%(prog)s " + __version__

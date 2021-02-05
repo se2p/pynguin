@@ -7,11 +7,13 @@
 import argparse
 import importlib
 import logging
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
 
+import pynguin.configuration as config
 from pynguin.cli import (
     _create_argument_parser,
     _expand_arguments_if_necessary,
@@ -113,3 +115,35 @@ def test__setup_logging_quiet_without_log_file():
 def test__expand_arguments_if_necessary(arguments, expected):
     result = _expand_arguments_if_necessary(arguments)
     assert result == expected
+
+
+def test_load_configuration_from_file():
+    config_file = Path(".").absolute()
+    if config_file.name != "tests":
+        config_file /= "tests"
+    config_file = config_file / "fixtures" / "test.conf"
+    parser = _create_argument_parser()
+    parsed = parser.parse_args(
+        [
+            f"@{config_file}",
+            "--module_name",
+            "hurz",
+            "--project_path",
+            "/a",
+            "--output_path",
+            "/b",
+            "--budget",
+            "50",
+        ]
+    )
+    configuration = parsed.config
+    expected = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        seed=42,
+        budget=50,
+        configuration_id="merge checker",
+        module_name="hurz",
+        project_path="/a",
+        output_path="/b",
+    )
+    assert configuration == expected
