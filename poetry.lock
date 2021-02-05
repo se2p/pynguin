@@ -115,7 +115,7 @@ d = ["aiohttp (>=3.3.2)", "aiohttp-cors"]
 
 [[package]]
 name = "bytecode"
-version = "0.11.0"
+version = "0.12.0"
 description = "Python module to generate and modify bytecode"
 category = "main"
 optional = false
@@ -776,7 +776,7 @@ requests = "*"
 
 [[package]]
 name = "simple-parsing"
-version = "0.0.12.post6"
+version = "0.0.12.post7"
 description = "A small utility for simplifying and cleaning up argument parsing scripts."
 category = "main"
 optional = false
@@ -1082,8 +1082,8 @@ black = [
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
 bytecode = [
-    {file = "bytecode-0.11.0-py3-none-any.whl", hash = "sha256:6beee115babab0c7eb99ab807dead245133b8434d502ba7b6b3e7032426d23fb"},
-    {file = "bytecode-0.11.0.tar.gz", hash = "sha256:6c7f73b7aa2d2c5470d80da2e8c15f4c43314a08e9f74bac7f34bc1a802f49ea"},
+    {file = "bytecode-0.12.0-py3-none-any.whl", hash = "sha256:40659445900e11cb1f5f09b0e35fe0af2f04661691ca8dc0b505f7bd3d8b8959"},
+    {file = "bytecode-0.12.0.tar.gz", hash = "sha256:a9549d79b276cb91f6fb8008bf563863a202757e36482ee411bd87622d5bb1bf"},
 ]
 certifi = [
     {file = "certifi-2020.12.5-py2.py3-none-any.whl", hash = "sha256:719a74fb9e33b9bd44cc7f3a8d94bc35e4049deebe19ba7d8e108280cfd59830"},
@@ -1495,8 +1495,8 @@ safety = [
     {file = "safety-1.10.3.tar.gz", hash = "sha256:30e394d02a20ac49b7f65292d19d38fa927a8f9582cdfd3ad1adbbc66c641ad5"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.12.post6-py3-none-any.whl", hash = "sha256:a3066001cf0c98411e39a659289d739dc389673a777d14070d9775c379d279b8"},
-    {file = "simple_parsing-0.0.12.post6.tar.gz", hash = "sha256:9c19bd7781bd7da37cef59cd628a85e0e3e7a1928e74096b2088d52d8960995a"},
+    {file = "simple_parsing-0.0.12.post7-py3-none-any.whl", hash = "sha256:e24edda192eb293faec84cea76785ef0022c36b85a644a23a09c71f269953263"},
+    {file = "simple_parsing-0.0.12.post7.tar.gz", hash = "sha256:80a0a884ceddb332525d0ff2b5b10cd11637e2f368e0c768c72e59b438a4d397"},
 ]
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
