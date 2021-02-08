@@ -23,9 +23,10 @@ from pynguin.utils import randomness
 class _InitialPopulationSeeding:
     """Class for seeding the initial population with previously existing testcases."""
 
-    _logger = logging.getLogger(__name__)
-    _testcases: List[DefaultTestCase] = []
-    _test_cluster: TestCluster
+    def __init__(self):
+        self._logger = logging.getLogger(__name__)
+        self._testcases: List[DefaultTestCase] = []
+        self.test_cluster: TestCluster = TestCluster()
 
     @property
     def test_cluster(self) -> TestCluster:
