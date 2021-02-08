@@ -114,6 +114,10 @@ def create_stmt_from_constant(
         return prim_stmt.StringPrimitiveStatement(
             testcase, assign.value.value  # type: ignore
         )
+    if isinstance(val, bytes):
+        return prim_stmt.BytesPrimitiveStatement(
+            testcase, assign.value.value  # type: ignore
+        )
     logger.info(
         "Could not find case for constant while handling assign statement."
     )
