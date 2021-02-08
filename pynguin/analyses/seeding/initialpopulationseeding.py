@@ -54,13 +54,11 @@ class _InitialPopulationSeeding:
         """
 
         with open(os.path.abspath(module_path)) as module_file:
-            tree: Optional[ast.Module]
             try:
-                tree = ast.parse(module_file.read())
+                return ast.parse(module_file.read())
             except BaseException as exception:  # pylint: disable=broad-except
                 self._logger.info("Cannot read module: %s", exception)
-                tree = None
-        return tree
+                return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
         """Collect all test cases from a module.
