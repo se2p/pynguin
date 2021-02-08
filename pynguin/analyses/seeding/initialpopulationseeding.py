@@ -117,7 +117,7 @@ class _TestTransformer(ast.NodeVisitor):
         )
         if stmt is not None:
             var_ref = self._current_testcase.add_statement(stmt)
-            self._var_refs.update({ref_id: var_ref})
+            self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if config.configuration.generate_assertions:
