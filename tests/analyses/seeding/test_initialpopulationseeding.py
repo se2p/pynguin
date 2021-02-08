@@ -39,7 +39,7 @@ def seed_modules_path():
 
 @pytest.fixture()
 def init_pop_seeding_instance():
-    initpopseeding.initialpopulationseeding = initpopseeding.InitialPopulationSeeding()
+    initpopseeding.initialpopulationseeding = initpopseeding._InitialPopulationSeeding()
     return initpopseeding.initialpopulationseeding
 
 

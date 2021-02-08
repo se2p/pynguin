@@ -19,10 +19,8 @@ from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.utils import randomness
 
-Types = Union[float, int, str]
 
-
-class InitialPopulationSeeding:
+class _InitialPopulationSeeding:
     """Class for seeding the initial population with previously existing testcases."""
 
     _logger = logging.getLogger(__name__)
@@ -139,4 +137,4 @@ class _TestTransformer(ast.NodeVisitor):
         return self._testcases
 
 
-initialpopulationseeding = InitialPopulationSeeding()
+initialpopulationseeding = _InitialPopulationSeeding()
