@@ -98,10 +98,10 @@ class _InitialPopulationSeeding:
 
 # pylint: disable=invalid-name, missing-function-docstring
 class _TestTransformer(ast.NodeVisitor):
-    _current_testcase: DefaultTestCase
-    _var_refs: Dict[str, vr.VariableReference] = {}
 
     def __init__(self):
+        self._current_testcase: DefaultTestCase = DefaultTestCase()
+        self._var_refs: Dict[str, vr.VariableReference] = {}
         self._testcases: List[DefaultTestCase] = []
 
     def visit_Module(self, node: ast.Module) -> Any:
