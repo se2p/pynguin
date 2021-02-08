@@ -53,7 +53,7 @@ def create_assign_stmt(
         )
     else:
         logger.info("Assign statement could not be parsed.")
-        new_stmt = None
+        return 'no_id', None
     ref_id = str(assign.targets[0].id)  # type: ignore
     return ref_id, new_stmt
 
