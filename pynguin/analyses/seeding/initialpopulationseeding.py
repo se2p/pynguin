@@ -99,6 +99,7 @@ class _TestTransformer(ast.NodeVisitor):
 
     def __init__(self):
         self._current_testcase: DefaultTestCase = DefaultTestCase()
+        self._current_parsable: bool = True
         self._var_refs: Dict[str, vr.VariableReference] = {}
         self._testcases: List[DefaultTestCase] = []
 
@@ -107,24 +108,28 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._current_testcase = DefaultTestCase()
+        self._current_parsable = True
         self._var_refs.clear()
-        self._testcases.append(self._current_testcase)
         self.generic_visit(node)
+        if self._current_parsable:
+            self._testcases.append(self._current_testcase)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        ref_id, stmt = ats.create_assign_stmt(
-            node, self._current_testcase, self._var_refs
-        )
-        if stmt is not None:
-            var_ref = self._current_testcase.add_statement(stmt)
-            self._var_refs[ref_id] = var_ref
+        if self._current_parsable:
+            ref_id, stmt, self._current_parsable = ats.create_assign_stmt(
+                node, self._current_testcase, self._var_refs
+            )
+            if self._current_parsable:
+                var_ref = self._current_testcase.add_statement(stmt)
+                self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:
-        if config.configuration.generate_assertions:
-            assertion = ats.create_assert_stmt(self._var_refs, node)
-            self._current_testcase.get_statement(
-                len(self._current_testcase.statements) - 1
-            ).add_assertion(assertion)
+        if self._current_parsable and config.configuration.generate_assertions:
+            assertion, self._current_parsable = ats.create_assert_stmt(self._var_refs, node)
+            if self._current_parsable:
+                self._current_testcase.get_statement(
+                    len(self._current_testcase.statements) - 1
+                ).add_assertion(assertion)
 
     @property
     def testcases(self) -> List[DefaultTestCase]:

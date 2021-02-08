@@ -27,7 +27,7 @@ def create_assign_stmt(
     assign: ast.Assign,
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Tuple[str, Optional[Statement]]:
+) -> Tuple[str, Optional[Statement], bool]:
     """Creates the corresponding statement from an ast.Assign node.
 
     Args:
@@ -53,14 +53,16 @@ def create_assign_stmt(
         )
     else:
         logger.info("Assign statement could not be parsed.")
-        return 'no_id', None
+        new_stmt = None
+    if new_stmt is None:
+        return 'no_id', None, False
     ref_id = str(assign.targets[0].id)  # type: ignore
-    return ref_id, new_stmt
+    return ref_id, new_stmt, True
 
 
 def create_assert_stmt(
     ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> Assertion:
+) -> Tuple[Optional[Assertion], bool]:
     """Creates an assert statement.
 
     Args:
@@ -71,9 +73,11 @@ def create_assert_stmt(
     Returns:
         The corresponding assert statement.
     """
-    source = ref_dict.get(assert_node.test.left.id)  # type: ignore
-    assert source is not None, "No source node found for assertion"
-    return Assertion(source, assert_node.test.comparators[0].value)  # type: ignore
+    try:
+        source = ref_dict[assert_node.test.left.id]  # type: ignore
+        return Assertion(source, assert_node.test.comparators[0].value), True  # type: ignore
+    except KeyError:
+        return None, False
 
 
 def create_variable_references_from_call_args(
