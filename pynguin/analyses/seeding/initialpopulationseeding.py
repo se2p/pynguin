@@ -107,7 +107,7 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._current_testcase = DefaultTestCase()
-        self._var_refs = {}
+        self._var_refs.clear()
         self._testcases.append(self._current_testcase)
         self.generic_visit(node)
 
