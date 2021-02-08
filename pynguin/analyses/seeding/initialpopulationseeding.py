@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
-from pynguin.analyses.seeding.testimport.ast_to_statement import AstToStatement as AtS
+import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.utils import randomness
@@ -112,7 +112,7 @@ class _TestTransformer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        ref_id, stmt = AtS.create_assign_stmt(
+        ref_id, stmt = ats.create_assign_stmt(
             node, self._current_testcase, self._var_refs
         )
         if stmt is not None:
@@ -121,7 +121,7 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if config.configuration.generate_assertions:
-            assertion = AtS.create_assert_stmt(self._var_refs, node)
+            assertion = ats.create_assert_stmt(self._var_refs, node)
             self._current_testcase.get_statement(
                 len(self._current_testcase.statements) - 1
             ).add_assertion(assertion)
