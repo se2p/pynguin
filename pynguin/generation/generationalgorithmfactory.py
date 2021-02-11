@@ -109,16 +109,11 @@ class TestSuiteGenerationAlgorithmFactory(
             A chromosome factory
         """
         # TODO add conditional returns/other factories here
-        test_case_factory: tcf.TestCaseFactory
+        test_case_factory: tcf.TestCaseFactory = tcf.RandomLengthTestCaseFactory(self._test_factory)
         if config.configuration.initial_population_seeding:
-            random_test_case_factory = tcf.RandomLengthTestCaseFactory(
-                self._test_factory
-            )
             test_case_factory = tcf.SeededTestCaseFactory(
-                random_test_case_factory, self._test_factory
+                test_case_factory, self._test_factory
             )
-        else:
-            test_case_factory = tcf.RandomLengthTestCaseFactory(self._test_factory)
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
