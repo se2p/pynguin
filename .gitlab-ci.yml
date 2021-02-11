@@ -17,7 +17,7 @@ cache:
     - .cache/pip
     - .cache/pypoetry
 
-python-cache: &python-cache
+.python-cache: &python-cache
   cache:
     key: "${CI_JOB_NAME}"
     paths:
