@@ -7,7 +7,7 @@
 """Provides an implementation to generate statements out of an AST."""
 import ast
 import logging
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, List, Optional, Set, Tuple, cast, Union
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
@@ -15,9 +15,11 @@ import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
+from pynguin.assertion.noneassertion import NoneAssertion
+from pynguin.assertion.primitiveassertion import PrimitiveAssertion
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject,
+    GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,7 +64,7 @@ def create_assign_stmt(
 
 def create_assert_stmt(
     ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> Tuple[Optional[Assertion], bool]:
+) -> Tuple[Optional[Assertion], bool, Optional[vr.VariableReference]]:
     """Creates an assert statement.
 
     Args:
@@ -75,9 +77,15 @@ def create_assert_stmt(
     """
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
-        return Assertion(source, assert_node.test.comparators[0].value), True  # type: ignore
     except KeyError:
-        return None, False
+        return None, False, None
+    val = assert_node.test.comparators[0]
+    if isinstance(val, ast.Constant) and val.value is None:  # type: ignore
+        return NoneAssertion(source, assert_node.test.comparators[0].value), True, source  # type: ignore
+    elif isinstance(val, ast.Constant) and val is not None:  # type: ignore
+        return PrimitiveAssertion(source, assert_node.test.comparators[0].value), True, source  # type: ignore
+    else:
+        return None, False, None
 
 
 def create_variable_references_from_call_args(
@@ -149,10 +157,11 @@ def create_stmt_from_unaryop(
 def create_stmt_from_call(
     assign: ast.Assign,
     testcase: tc.TestCase,
-    objs_under_test: Set,
+    objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[param_stmt.FunctionStatement]:
-    """Creates a function statement from an ast.assign node.
+) -> Optional[Union[param_stmt.ConstructorStatement, param_stmt.MethodStatement, param_stmt.FunctionStatement]]:
+    """Creates the corresponding statement from an ast.assign node. Depending on the call, this can be a
+    GenericConstructor, GenericMethod or GenericFunction statement.
 
     Args:
         assign: the ast.Assign node
@@ -162,26 +171,99 @@ def create_stmt_from_call(
                   variable references.
 
     Returns:
-        The corresponding function statement.
+        The corresponding statement.
     """
-    gen_callable = None
     call = assign.value
-    try:
-        func_name = str(call.func.attr)  # type: ignore
-    except AttributeError:
-        logger.info("Instantiation not supported")
-        return None
-    for obj in objs_under_test:
-        if func_name == obj.function_name:
-            gen_callable = obj
+    gen_callable = find_gen_callable(call, objs_under_test, ref_dict)
     if gen_callable is None:
         logger.info("No such function found...")
         return None
-    func_stmt = param_stmt.FunctionStatement(
-        testcase,
-        cast(GenericCallableAccessibleObject, gen_callable),
-        create_variable_references_from_call_args(
-            call.args, ref_dict  # type: ignore
-        ),
-    )
-    return func_stmt
+    else:
+        return assemble_stmt_from_gen_callable(
+            testcase,
+            gen_callable,
+            call,
+            ref_dict
+        )
+
+
+def find_gen_callable(
+    call: ast.Call,
+    objs_under_test: Set,
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Optional[Union[GenericConstructor, GenericMethod, GenericFunction]]:
+    """Traverses the accessible objects under test and returns the one matching with the ast.call object.
+    Unfortunately, there is no possibility to clearly determine if the ast.call object is a constructor, method or
+    function. Hence, the looping over all accessible objects is unavoidable. Then, by the name of the ast.call and
+    by the owner (functions do not have one, constructors and methods have), it is possible to decide which accessible
+    object to choose. This should also be unique, because the name of a function should be unique in a module. The name
+    of a method should be unique inside one class. If two classes in the same module have a method with an equal name,
+    the right method can be determined by the type of the object that is calling the method. This object has the type of
+    the class of which the method is called. To determine between function names and method names, another thing needs
+    to be considered. If a method is called, it is called on an object. This object must have been created before the
+    function is called on that object. Thus, this object must have been initialized before and have a variable reference
+    in the ref_dict where all created variable references are stored. So, by checking, if a reference is found, it can
+    be decided if it is a function or a method.
+
+        Args:
+            call: the ast.Call node
+            objs_under_test: the accessible objects under test
+            ref_dict: a dictionary containing key value pairs of variable ids and
+                      variable references.
+
+        Returns:
+            The corresponding generic accessible object under test. This can be a GenericConstructor, a GenericMethod or
+            a GenericFunction.
+        """
+    call_name = str(call.func.attr)  # type: ignore
+    for obj in objs_under_test:
+        if isinstance(obj, GenericConstructor):
+            owner = str(obj.owner).split('.')[-1].split('\'')[0]
+            if call_name == owner and call.func.value.id not in ref_dict:  # type: ignore
+                return obj
+        elif isinstance(obj, GenericMethod):
+            # test if the type of the calling object is equal to the type of the owner of the generic method
+            if call_name == obj.method_name and call.func.value.id in ref_dict:  # type: ignore
+                obj_from_ast = str(call.func.value.id)  # type: ignore
+                var_type = ref_dict[obj_from_ast].variable_type
+                if var_type == obj.owner:
+                    return obj
+        elif isinstance(obj, GenericFunction):
+            if call_name == obj.function_name:
+                return obj
+    return None
+
+
+def assemble_stmt_from_gen_callable(
+    testcase: tc.TestCase,
+    gen_callable: Union[GenericConstructor, GenericMethod, GenericFunction],
+    call: ast.Call,
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Union:
+    if isinstance(gen_callable, GenericFunction):
+        return param_stmt.FunctionStatement(
+            testcase,
+            cast(GenericCallableAccessibleObject, gen_callable),
+            create_variable_references_from_call_args(
+                call.args, ref_dict  # type: ignore
+            ),
+        )
+    elif isinstance(gen_callable, GenericMethod):
+        return param_stmt.MethodStatement(
+            testcase,
+            gen_callable,
+            ref_dict[call.func.value.id],  # type: ignore
+            create_variable_references_from_call_args(
+                call.args, ref_dict
+            )
+        )
+    elif isinstance(gen_callable, GenericConstructor):
+        return param_stmt.ConstructorStatement(
+            testcase,
+            cast(GenericCallableAccessibleObject, gen_callable),
+            create_variable_references_from_call_args(
+                call.args, ref_dict  # type: ignore
+            ),
+        )
+    else:
+        return None

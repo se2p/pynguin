@@ -125,11 +125,12 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if self._current_parsable and config.configuration.generate_assertions:
-            assertion, self._current_parsable = ats.create_assert_stmt(self._var_refs, node)
+            assertion, self._current_parsable, var_ref = ats.create_assert_stmt(self._var_refs, node)
             if self._current_parsable:
                 self._current_testcase.get_statement(
-                    len(self._current_testcase.statements) - 1
+                    var_ref.get_statement_position()
                 ).add_assertion(assertion)
+                var_ref.get_statement_position()
 
     @property
     def testcases(self) -> List[DefaultTestCase]:

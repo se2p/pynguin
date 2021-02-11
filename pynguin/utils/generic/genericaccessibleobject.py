@@ -169,10 +169,24 @@ class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
     def __init__(
-        self, owner: Type, method: Callable, inferred_signature: InferredSignature
+        self,
+        owner: Type,
+        method: Callable,
+        inferred_signature: InferredSignature,
+        method_name: Optional[str] = None
     ) -> None:
         super().__init__(owner, method, inferred_signature)
         assert owner
+        self._method_name = method_name
+
+    @property
+    def method_name(self):
+        """Returns the name of a generic method.
+
+        Returns:
+            The name of a generic method.
+        """
+        return self._method_name
 
     def is_method(self) -> bool:
         return True

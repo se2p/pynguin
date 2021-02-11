@@ -174,7 +174,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             self._logger.debug("Analyzing method %s", method_name)
 
             generic_method = GenericMethod(
-                klass, method, self._inference.infer_type_info(method)[0]
+                klass, method, self._inference.infer_type_info(method)[0], method_name
             )
 
             if (
