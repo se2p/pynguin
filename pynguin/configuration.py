@@ -9,8 +9,6 @@ import dataclasses
 import enum
 from typing import List, Optional
 
-from simple_parsing import Serializable
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -95,7 +93,7 @@ class StatisticsBackend(str, enum.Enum):
 
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
-class Configuration(Serializable):
+class Configuration:
     """General configuration for the test generator."""
 
     algorithm: Algorithm

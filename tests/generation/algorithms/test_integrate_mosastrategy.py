@@ -52,4 +52,6 @@ def test_integrate_mosa(module_name: str):
         ).get_search_algorithm()
         algorithm._logger = logger
         test_cases = algorithm.generate_tests()
+        best_individuals = algorithm._get_best_individuals()
         assert test_cases.size() >= 0
+        assert len(best_individuals) >= 0
