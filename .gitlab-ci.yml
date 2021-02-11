@@ -17,6 +17,13 @@ cache:
     - .cache/pip
     - .cache/pypoetry
 
+python-cache: &python-cache
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .cache/pip
+      - .cache/pypoetry
+
 stages:
   - build
   - lint
@@ -36,6 +43,7 @@ before_script:
   artifacts:
     paths:
       - cov_html
+  <<: *python-cache
 
 unit-tests:python-3.8:
   <<: *unit-tests
@@ -64,6 +72,7 @@ unit-tests:python-3.10:
     - poetry add --dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov-branch --random-order --random-order-bucket=global ; done
+  <<: *python-cache
 
 nightly-tests:python-3.8:
   extends: .nightly-tests
@@ -86,48 +95,56 @@ mypy:
   image: python:3.8
   script:
     - poetry run mypy pynguin
+  <<: *python-cache
 
 pylint:
   stage: lint
   image: python:3.8
   script:
     - poetry run pylint pynguin
+  <<: *python-cache
 
 flake8:
   stage: lint
   image: python:3.8
   script:
     - poetry run flake8 .
+  <<: *python-cache
 
 darglint:
   stage: lint
   image: python:3.8
   script:
     - poetry run darglint -v 2 pynguin/**/*.py
+  <<: *python-cache
 
 black:
   stage: build
   image: python:3.8
   script:
     - poetry run black --check .
+  <<: *python-cache
 
 isort:
   stage: build
   image: python:3.8
   script:
     - poetry run isort **/*.py -c -v
+  <<: *python-cache
 
 safety:
   stage: security
   image: python:3.8
   script:
     - poetry run safety check --full-report
+  <<: *python-cache
 
 bandit:
   stage: security
   image: python:3.8
   script:
     - poetry run bandit -ll -r pynguin
+  <<: *python-cache
 
 sphinx:
   stage: build
@@ -137,6 +154,7 @@ sphinx:
   artifacts:
     paths:
       - docs/_build
+  <<: *python-cache
 
 # check license declarations etc.
 reuse:
