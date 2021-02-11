@@ -49,8 +49,8 @@ then
   exit 1
 fi
 
-# Check if the /input mount point is present
-if [[ ! -d ${INPUT_DIR} ]]
+# Check if the /input mount point is present and not empty
+if [[ ! -d ${INPUT_DIR} || -z "$(ls -A ${INPUT_DIR})" ]]
 then
   error_echo "You need to specify a mount to ${INPUT_DIR}"
   help_message
