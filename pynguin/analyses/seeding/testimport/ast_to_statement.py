@@ -91,6 +91,16 @@ def create_assert_stmt(
 def create_variable_references_from_call_args(
     call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
 ) -> List[vr.VariableReference]:
+    """ Takes the arguments of an ast.Call node and returns the variable references of the corresponding statements.
+
+        Args:
+            call_args: a list of arguments
+            ref_dict: a dictionary containing the variable references
+
+        Returns:
+            The list with the variable references of the call_args.
+
+    """
     var_refs: List[vr.VariableReference] = []
     for arg in call_args:
         reference = ref_dict.get(arg.id)
@@ -102,6 +112,15 @@ def create_variable_references_from_call_args(
 def create_stmt_from_constant(
     assign: ast.Assign, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
+    """ Creates a statement from an ast.assign node containing an ast.constant node.
+
+        Args:
+            assign: the ast.assign statement
+            testcase: the testcase containing the statement
+
+        Returns:
+            The corresponding statement.
+    """
     if assign.value.value is None:  # type: ignore
         return prim_stmt.NoneStatement(testcase, assign.value.value)  # type: ignore
 
@@ -135,6 +154,15 @@ def create_stmt_from_constant(
 def create_stmt_from_unaryop(
     assign: ast.Assign, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
+    """ Creates a statement from an ast.assign node containing an ast.unaryop node.
+
+        Args:
+            assign: the ast.assign statement
+            testcase: the testcase containing the statement
+
+        Returns:
+            The corresponding statement.
+    """
     val = assign.value.operand.value  # type: ignore
     if isinstance(val, bool):
         return prim_stmt.BooleanPrimitiveStatement(
@@ -239,7 +267,19 @@ def assemble_stmt_from_gen_callable(
     gen_callable: Union[GenericConstructor, GenericMethod, GenericFunction],
     call: ast.Call,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Union:
+) -> Optional[Union[param_stmt.ConstructorStatement, param_stmt.MethodStatement, param_stmt.FunctionStatement]]:
+    """ Takes a generic callable and assembles the corresponding parametrized statement from it.
+
+        Args:
+            testcase: the testcase of the statement
+            gen_callable: the corresponding callable of the cluster
+            call: the ast.Call statement
+            ref_dict: a dictionary containing key value pairs of variable ids and
+                      variable references.
+
+        Returns:
+            The corresponding statement.
+    """
     if isinstance(gen_callable, GenericFunction):
         return param_stmt.FunctionStatement(
             testcase,
