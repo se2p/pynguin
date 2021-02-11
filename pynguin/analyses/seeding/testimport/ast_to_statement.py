@@ -64,7 +64,7 @@ def create_assign_stmt(
 
 def create_assert_stmt(
     ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> Tuple[Optional[Assertion], bool, Optional[vr.VariableReference]]:
+) -> Tuple[Optional[Assertion], Optional[vr.VariableReference]]:
     """Creates an assert statement.
 
     Args:
@@ -77,15 +77,16 @@ def create_assert_stmt(
     """
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
-    except KeyError:
-        return None, False, None
-    val = assert_node.test.comparators[0]
-    if isinstance(val, ast.Constant) and val.value is None:  # type: ignore
-        return NoneAssertion(source, assert_node.test.comparators[0].value), True, source  # type: ignore
+        val = assert_node.test.comparators[0].value
+    except (KeyError, AttributeError) as exception:  # pylint: disable=broad-except
+        return None, None
+    val_elem = assert_node.test.comparators[0]
+    if isinstance(val_elem, ast.Constant) and val is None:  # type: ignore
+        return NoneAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
     elif isinstance(val, ast.Constant) and val is not None:  # type: ignore
-        return PrimitiveAssertion(source, assert_node.test.comparators[0].value), True, source  # type: ignore
+        return PrimitiveAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
     else:
-        return None, False, None
+        return None, None
 
 
 def create_variable_references_from_call_args(

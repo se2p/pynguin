@@ -74,6 +74,10 @@ class _InitialPopulationSeeding:
         transformer = _TestTransformer()
         transformer.visit(tree)
         self._testcases = transformer.testcases
+        if not self._testcases:
+            config.configuration.initial_population_seeding = False
+            self._logger.info("None of the provided test cases can be parsed.")
+
 
     @property
     def seeded_testcase(self) -> DefaultTestCase:
@@ -125,12 +129,11 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if self._current_parsable and config.configuration.generate_assertions:
-            assertion, self._current_parsable, var_ref = ats.create_assert_stmt(self._var_refs, node)
-            if self._current_parsable:
+            assertion, var_ref = ats.create_assert_stmt(self._var_refs, node)
+            if assertion is not None:
                 self._current_testcase.get_statement(
                     var_ref.get_statement_position()
                 ).add_assertion(assertion)
-                var_ref.get_statement_position()
 
     @property
     def testcases(self) -> List[DefaultTestCase]:
