@@ -17,6 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
+from pynguin.testcase.statements.collectionsstatements import ListStatement
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor,
@@ -44,15 +45,17 @@ def create_assign_stmt(
     new_stmt: Optional[Statement]
     value = assign.value
     if isinstance(value, ast.Constant):
-        new_stmt = create_stmt_from_constant(assign, testcase)
+        new_stmt = create_stmt_from_constant(value, testcase)
     elif isinstance(value, ast.UnaryOp):
-        new_stmt = create_stmt_from_unaryop(assign, testcase)
+        new_stmt = create_stmt_from_unaryop(value, testcase)
     elif isinstance(value, ast.Call):
         test_cluster = initpopseeding.initialpopulationseeding.test_cluster
         objs_under_test = test_cluster.accessible_objects_under_test
         new_stmt = create_stmt_from_call(
-            assign, testcase, objs_under_test, ref_dict
+            value, testcase, objs_under_test, ref_dict
         )
+    elif isinstance(value, ast.List):
+        new_stmt = create_stmt_from_list(value, testcase)
     else:
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
@@ -78,12 +81,12 @@ def create_assert_stmt(
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
         val = assert_node.test.comparators[0].value
-    except (KeyError, AttributeError) as exception:  # pylint: disable=broad-except
+    except (KeyError, AttributeError):  # pylint: disable=broad-except
         return None, None
     val_elem = assert_node.test.comparators[0]
     if isinstance(val_elem, ast.Constant) and val is None:  # type: ignore
         return NoneAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
-    elif isinstance(val, ast.Constant) and val is not None:  # type: ignore
+    elif isinstance(val_elem, ast.Constant) and val is not None:  # type: ignore
         return PrimitiveAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
     else:
         return None, None
@@ -111,40 +114,40 @@ def create_variable_references_from_call_args(
 
 
 def create_stmt_from_constant(
-    assign: ast.Assign, testcase: tc.TestCase
+    constant: ast.Constant, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
     """ Creates a statement from an ast.assign node containing an ast.constant node.
 
         Args:
-            assign: the ast.assign statement
+            constant: the ast.Constant statement
             testcase: the testcase containing the statement
 
         Returns:
             The corresponding statement.
     """
-    if assign.value.value is None:  # type: ignore
-        return prim_stmt.NoneStatement(testcase, assign.value.value)  # type: ignore
+    if constant.value is None:  # type: ignore
+        return prim_stmt.NoneStatement(testcase, constant.value)  # type: ignore
 
-    val = assign.value.value  # type: ignore
+    val = constant.value  # type: ignore
     if isinstance(val, bool):
         return prim_stmt.BooleanPrimitiveStatement(
-            testcase, assign.value.value  # type: ignore
+            testcase, val  # type: ignore
         )
     if isinstance(val, int):
         return prim_stmt.IntPrimitiveStatement(
-            testcase, assign.value.value  # type: ignore
+            testcase, val  # type: ignore
         )
     if isinstance(val, float):
         return prim_stmt.FloatPrimitiveStatement(
-            testcase, assign.value.value  # type: ignore
+            testcase, val  # type: ignore
         )
     if isinstance(val, str):
         return prim_stmt.StringPrimitiveStatement(
-            testcase, assign.value.value  # type: ignore
+            testcase, val  # type: ignore
         )
     if isinstance(val, bytes):
         return prim_stmt.BytesPrimitiveStatement(
-            testcase, assign.value.value  # type: ignore
+            testcase, val  # type: ignore
         )
     logger.info(
         "Could not find case for constant while handling assign statement."
@@ -153,29 +156,29 @@ def create_stmt_from_constant(
 
 
 def create_stmt_from_unaryop(
-    assign: ast.Assign, testcase: tc.TestCase
+    unaryop: ast.UnaryOp, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
     """ Creates a statement from an ast.assign node containing an ast.unaryop node.
 
         Args:
-            assign: the ast.assign statement
+            unaryop: the ast.UnaryOp statement
             testcase: the testcase containing the statement
 
         Returns:
             The corresponding statement.
     """
-    val = assign.value.operand.value  # type: ignore
+    val = unaryop.operand.value  # type: ignore
     if isinstance(val, bool):
         return prim_stmt.BooleanPrimitiveStatement(
-            testcase, not assign.value.operand.value  # type: ignore
+            testcase, not val  # type: ignore
         )
     if isinstance(val, float):
         return prim_stmt.FloatPrimitiveStatement(
-            testcase, (-1) * assign.value.operand.value  # type: ignore
+            testcase, (-1) * val  # type: ignore
         )
     if isinstance(val, int):
         return prim_stmt.IntPrimitiveStatement(
-            testcase, (-1) * assign.value.operand.value  # type: ignore
+            testcase, (-1) * val  # type: ignore
         )
     logger.info(
         "Could not find case for unary operator while handling assign statement."
@@ -184,7 +187,7 @@ def create_stmt_from_unaryop(
 
 
 def create_stmt_from_call(
-    assign: ast.Assign,
+    call: ast.Call,
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
@@ -193,7 +196,7 @@ def create_stmt_from_call(
     GenericConstructor, GenericMethod or GenericFunction statement.
 
     Args:
-        assign: the ast.Assign node
+        call: the ast.Call node
         testcase: the testcase of the statement
         objs_under_test: the accessible objects under test
         ref_dict: a dictionary containing key value pairs of variable ids and
@@ -202,7 +205,6 @@ def create_stmt_from_call(
     Returns:
         The corresponding statement.
     """
-    call = assign.value
     gen_callable = find_gen_callable(call, objs_under_test, ref_dict)
     if gen_callable is None:
         logger.info("No such function found...")
@@ -308,3 +310,12 @@ def assemble_stmt_from_gen_callable(
         )
     else:
         return None
+
+
+def create_stmt_from_list(list_node: ast.List, testcase: tc.TestCase):
+    elements = list_node.elts  # type: ignore
+    elems: List[vr.VariableReference] = []
+    for e in elements:
+        if isinstance(e, ast.Constant):
+            elems.append(create_stmt_from_constant(e, testcase).ret_val)
+    return ListStatement(testcase, int, elems)
