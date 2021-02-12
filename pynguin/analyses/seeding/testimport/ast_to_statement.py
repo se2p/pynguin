@@ -7,7 +7,7 @@
 """Provides an implementation to generate statements out of an AST."""
 import ast
 import logging
-from typing import Dict, List, Optional, Set, Tuple, cast, Union
+from typing import Dict, List, Optional, Set, Tuple, cast, Union, Any
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
@@ -44,18 +44,18 @@ def create_assign_stmt(
     """
     new_stmt: Optional[Statement]
     value = assign.value
+    test_cluster = initpopseeding.initialpopulationseeding.test_cluster
+    objs_under_test = test_cluster.accessible_objects_under_test
     if isinstance(value, ast.Constant):
         new_stmt = create_stmt_from_constant(value, testcase)
     elif isinstance(value, ast.UnaryOp):
         new_stmt = create_stmt_from_unaryop(value, testcase)
     elif isinstance(value, ast.Call):
-        test_cluster = initpopseeding.initialpopulationseeding.test_cluster
-        objs_under_test = test_cluster.accessible_objects_under_test
         new_stmt = create_stmt_from_call(
             value, testcase, objs_under_test, ref_dict
         )
     elif isinstance(value, ast.List):
-        new_stmt = create_stmt_from_list(value, testcase)
+        new_stmt = create_stmt_from_list(value, testcase, objs_under_test, ref_dict)
     else:
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
@@ -192,7 +192,7 @@ def create_stmt_from_call(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[Union[param_stmt.ConstructorStatement, param_stmt.MethodStatement, param_stmt.FunctionStatement]]:
-    """Creates the corresponding statement from an ast.assign node. Depending on the call, this can be a
+    """ Creates the corresponding statement from an ast.assign node. Depending on the call, this can be a
     GenericConstructor, GenericMethod or GenericFunction statement.
 
     Args:
@@ -312,10 +312,56 @@ def assemble_stmt_from_gen_callable(
         return None
 
 
-def create_stmt_from_list(list_node: ast.List, testcase: tc.TestCase):
+def create_stmt_from_list(
+    list_node: ast.List,
+    testcase: tc.TestCase,
+    objs_under_test: Set[GenericCallableAccessibleObject],
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Optional[ListStatement]:
+    """ Creates the corresponding statement from an ast.List node. Lists contain other statements.
+
+    Args:
+        list_node: the ast.List node. intentionally named list_node because list would shadow the built-in name.
+        testcase: the testcase of the statement
+        objs_under_test: the accessible objects under test. Not needed for the list statement, but lists can contain
+                         other statements (e.g. call) needing this.
+        ref_dict: a dictionary containing key value pairs of variable ids and
+                  variable references. Not needed for the list statement, but lists can contain other statements
+                  (e.g. call) needing this.
+
+    Returns:
+        The corresponding list statement.
+    """
     elements = list_node.elts  # type: ignore
-    elems: List[vr.VariableReference] = []
-    for e in elements:
-        if isinstance(e, ast.Constant):
-            elems.append(create_stmt_from_constant(e, testcase).ret_val)
-    return ListStatement(testcase, int, elems)
+    list_elems: List[vr.VariableReference] = []
+    list_type: Any
+    for elem in elements:
+        if isinstance(elem, ast.Constant):
+            list_elems.append(testcase.add_statement(create_stmt_from_constant(elem, testcase)))
+        elif isinstance(elem, ast.UnaryOp):
+            list_elems.append(testcase.add_statement(create_stmt_from_unaryop(elem, testcase)))
+        elif isinstance(elem, ast.Call):
+            list_elems.append(testcase.add_statement(create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)))
+        elif isinstance(elem, ast.List):
+            list_elems.append(testcase.add_statement(create_stmt_from_list(elem, testcase, objs_under_test, ref_dict)))
+        else:
+            return None
+    list_type = get_list_type(list_elems)
+    return ListStatement(testcase, list_type, list_elems)
+
+
+def get_list_type(list_elems: List[vr.VariableReference]) -> Any:
+    """ Returns the type of a list. If objects of multiple types are in the list, this function returns None.
+
+    Args:
+        list_elems: a list of variable references
+
+    Returns:
+        The type of the list.
+    """
+    list_type = list_elems[0].variable_type
+    for elem in list_elems:
+        if not elem.variable_type == list_type:
+            list_type = None
+            break
+    return list_type
