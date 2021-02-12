@@ -332,11 +332,11 @@ def create_stmt_from_collection(
     Returns:
         The corresponding list statement.
     """
-    if isinstance(coll_node, ast.Dict): # todo not correct here...
+    if isinstance(coll_node, ast.Dict):
         keys = create_elements(coll_node.keys, testcase, objs_under_test, ref_dict)
         values = create_elements(coll_node.values, testcase, objs_under_test, ref_dict)
         coll_elems_type = get_collection_type(values)
-        coll_elems = keys, values
+        coll_elems = list(zip(keys, values))
     else:
         elements = coll_node.elts  # type: ignore
         coll_elems = create_elements(elements, testcase, objs_under_test, ref_dict)
@@ -381,6 +381,8 @@ def get_collection_type(coll_elems: List[vr.VariableReference]) -> Any:
     Returns:
         The type of the collection.
     """
+    if len(coll_elems) == 0:
+        return None
     coll_type = coll_elems[0].variable_type
     for elem in coll_elems:
         if not elem.variable_type == coll_type:
