@@ -344,6 +344,11 @@ def create_stmt_from_list(
             list_elems.append(testcase.add_statement(create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)))
         elif isinstance(elem, ast.List):
             list_elems.append(testcase.add_statement(create_stmt_from_list(elem, testcase, objs_under_test, ref_dict)))
+        elif isinstance(elem, ast.Name):
+            try:
+                list_elems.append(ref_dict[elem.id])
+            except AttributeError:
+                return None
         else:
             return None
     list_type = get_list_type(list_elems)

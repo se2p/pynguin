@@ -78,7 +78,6 @@ class _InitialPopulationSeeding:
             config.configuration.initial_population_seeding = False
             self._logger.info("None of the provided test cases can be parsed.")
 
-
     @property
     def seeded_testcase(self) -> DefaultTestCase:
         """Provides a random seeded test case.
