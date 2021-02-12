@@ -17,7 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
-from pynguin.testcase.statements.collectionsstatements import ListStatement
+from pynguin.testcase.statements.collectionsstatements import ListStatement, SetStatement, DictStatement, TupleStatement
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor,
@@ -54,8 +54,8 @@ def create_assign_stmt(
         new_stmt = create_stmt_from_call(
             value, testcase, objs_under_test, ref_dict
         )
-    elif isinstance(value, ast.List):
-        new_stmt = create_stmt_from_list(value, testcase, objs_under_test, ref_dict)
+    elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
+        new_stmt = create_stmt_from_collection(value, testcase, objs_under_test, ref_dict)
     else:
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
@@ -312,61 +312,97 @@ def assemble_stmt_from_gen_callable(
         return None
 
 
-def create_stmt_from_list(
-    list_node: ast.List,
+def create_stmt_from_collection(
+    coll_node: Union[ast.List, ast.Set, ast.Dict, ast.Tuple],
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[ListStatement]:
+) -> Optional[Union[ListStatement, SetStatement, DictStatement, TupleStatement]]:
     """ Creates the corresponding statement from an ast.List node. Lists contain other statements.
 
     Args:
-        list_node: the ast.List node. intentionally named list_node because list would shadow the built-in name.
+        coll_node: the ast node. It has the type of one of the collection types.
         testcase: the testcase of the statement
-        objs_under_test: the accessible objects under test. Not needed for the list statement, but lists can contain
+        objs_under_test: the accessible objects under test. Not needed for the collection statement, but lists can contain
                          other statements (e.g. call) needing this.
         ref_dict: a dictionary containing key value pairs of variable ids and
-                  variable references. Not needed for the list statement, but lists can contain other statements
+                  variable references. Not needed for the collection statement, but lists can contain other statements
                   (e.g. call) needing this.
 
     Returns:
         The corresponding list statement.
     """
-    elements = list_node.elts  # type: ignore
-    list_elems: List[vr.VariableReference] = []
-    list_type: Any
+    if isinstance(coll_node, ast.Dict): # todo not correct here...
+        keys = create_elements(coll_node.keys, testcase, objs_under_test, ref_dict)
+        values = create_elements(coll_node.values, testcase, objs_under_test, ref_dict)
+        coll_elems_type = get_collection_type(values)
+        coll_elems = keys, values
+    else:
+        elements = coll_node.elts  # type: ignore
+        coll_elems = create_elements(elements, testcase, objs_under_test, ref_dict)
+        coll_elems_type = get_collection_type(coll_elems)
+    return create_specific_collection_call(testcase, coll_node, coll_elems_type, coll_elems)
+
+
+def create_elements(
+    elements: Any,
+    testcase: tc.TestCase,
+    objs_under_test: Set[GenericCallableAccessibleObject],
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Optional[List[vr.VariableReference]]:
+    coll_elems: List[vr.VariableReference] = []
     for elem in elements:
         if isinstance(elem, ast.Constant):
-            list_elems.append(testcase.add_statement(create_stmt_from_constant(elem, testcase)))
+            coll_elems.append(testcase.add_statement(create_stmt_from_constant(elem, testcase)))
         elif isinstance(elem, ast.UnaryOp):
-            list_elems.append(testcase.add_statement(create_stmt_from_unaryop(elem, testcase)))
+            coll_elems.append(testcase.add_statement(create_stmt_from_unaryop(elem, testcase)))
         elif isinstance(elem, ast.Call):
-            list_elems.append(testcase.add_statement(create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)))
+            coll_elems.append(testcase.add_statement(create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)))
         elif isinstance(elem, ast.List):
-            list_elems.append(testcase.add_statement(create_stmt_from_list(elem, testcase, objs_under_test, ref_dict)))
+            coll_elems.append(
+                testcase.add_statement(create_stmt_from_collection(elem, testcase, objs_under_test, ref_dict)))
         elif isinstance(elem, ast.Name):
             try:
-                list_elems.append(ref_dict[elem.id])
+                coll_elems.append(ref_dict[elem.id])
             except AttributeError:
                 return None
         else:
             return None
-    list_type = get_list_type(list_elems)
-    return ListStatement(testcase, list_type, list_elems)
+    return coll_elems
 
 
-def get_list_type(list_elems: List[vr.VariableReference]) -> Any:
-    """ Returns the type of a list. If objects of multiple types are in the list, this function returns None.
+def get_collection_type(coll_elems: List[vr.VariableReference]) -> Any:
+    """ Returns the type of a collection. If objects of multiple types are in the collection, this function returns
+    None.
 
     Args:
-        list_elems: a list of variable references
+        coll_elems: a list of variable references
 
     Returns:
-        The type of the list.
+        The type of the collection.
     """
-    list_type = list_elems[0].variable_type
-    for elem in list_elems:
-        if not elem.variable_type == list_type:
-            list_type = None
+    coll_type = coll_elems[0].variable_type
+    for elem in coll_elems:
+        if not elem.variable_type == coll_type:
+            coll_type = None
             break
-    return list_type
+    return coll_type
+
+
+def create_specific_collection_call(
+    testcase: tc.TestCase,
+    coll_node: Union[ast.List, ast.Set, ast.Dict, ast.Tuple],
+    coll_elems_type: Any,
+    coll_elems: List[vr.VariableReference]
+) -> Optional[Union[ListStatement, SetStatement, DictStatement, TupleStatement]]:
+    if isinstance(coll_node, ast.List):
+        return ListStatement(testcase, coll_elems_type, coll_elems)
+    elif isinstance(coll_node, ast.Set):
+        return SetStatement(testcase, coll_elems_type, coll_elems)
+    elif isinstance(coll_node, ast.Dict):
+        return DictStatement(testcase, coll_elems_type, coll_elems)
+    elif isinstance(coll_node, ast.Tuple):
+        return TupleStatement(testcase, coll_elems_type, coll_elems)
+    else:
+        return None
+
