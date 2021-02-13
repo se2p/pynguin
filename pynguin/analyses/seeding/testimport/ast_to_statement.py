@@ -13,6 +13,7 @@ import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
+import pynguin.utils.ast_util as au
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
@@ -116,7 +117,7 @@ def create_variable_references_from_call_args(
 def create_stmt_from_constant(
     constant: ast.Constant, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
-    """ Creates a statement from an ast.assign node containing an ast.constant node.
+    """ Creates a statement from an ast.constant node.
 
         Args:
             constant: the ast.Constant statement
@@ -158,7 +159,7 @@ def create_stmt_from_constant(
 def create_stmt_from_unaryop(
     unaryop: ast.UnaryOp, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
-    """ Creates a statement from an ast.assign node containing an ast.unaryop node.
+    """ Creates a statement from an ast.unaryop node.
 
         Args:
             unaryop: the ast.UnaryOp statement
@@ -192,7 +193,7 @@ def create_stmt_from_call(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[Union[param_stmt.ConstructorStatement, param_stmt.MethodStatement, param_stmt.FunctionStatement]]:
-    """ Creates the corresponding statement from an ast.assign node. Depending on the call, this can be a
+    """ Creates the corresponding statement from an ast.call node. Depending on the call, this can be a
     GenericConstructor, GenericMethod or GenericFunction statement.
 
     Args:
@@ -205,6 +206,11 @@ def create_stmt_from_call(
     Returns:
         The corresponding statement.
     """
+    try:
+        call.func.attr  # type: ignore
+    except AttributeError:
+        # this is very ugly...
+        return try_generating_specific_function(call, testcase, objs_under_test, ref_dict)
     gen_callable = find_gen_callable(call, objs_under_test, ref_dict)
     if gen_callable is None:
         logger.info("No such function found...")
@@ -358,7 +364,7 @@ def create_elements(
             coll_elems.append(testcase.add_statement(create_stmt_from_unaryop(elem, testcase)))
         elif isinstance(elem, ast.Call):
             coll_elems.append(testcase.add_statement(create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)))
-        elif isinstance(elem, ast.List):
+        elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
             coll_elems.append(
                 testcase.add_statement(create_stmt_from_collection(elem, testcase, objs_under_test, ref_dict)))
         elif isinstance(elem, ast.Name):
@@ -408,3 +414,69 @@ def create_specific_collection_call(
     else:
         return None
 
+
+def try_generating_specific_function(
+    call: ast.Call,
+    testcase: tc.TestCase,
+    objs_under_test: Set[GenericCallableAccessibleObject],
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Optional[Union[param_stmt.ConstructorStatement, param_stmt.MethodStatement, param_stmt.FunctionStatement]]:
+    """ Calls to creating a collection (list, set, tuple, dict) via their keywords and not via literal syntax are
+    considered as ast.Call statements. But for these calls, no accessible object under test is in the test_cluster.
+    To parse them anyway, these method transforms them to the corresponding ast statement, for example a call of a list
+    with 'list()' to an ast.List statement.
+
+    Args:
+        call: the ast.Call node
+        testcase: the testcase of the statement
+        objs_under_test: the accessible objects under test
+        ref_dict: a dictionary containing key value pairs of variable ids and
+                  variable references.
+
+    Returns:
+        The corresponding statement.
+
+    """
+    try:
+        func_id = str(call.func.id)  # type: ignore
+    except AttributeError:
+        return None
+    if func_id == 'set':
+        try:
+            set_node = ast.Set(
+                    elts=call.args,  # type: ignore
+                    ctx=ast.Load(),
+            )
+        except AttributeError:
+            return None
+        return create_stmt_from_collection(set_node, testcase, objs_under_test, ref_dict)
+    elif func_id == 'list':
+        try:
+            list_node = ast.List(
+                    elts=call.args,  # type: ignore
+                    ctx=ast.Load(),
+            )
+        except AttributeError:
+            return None
+        return create_stmt_from_collection(list_node, testcase, objs_under_test, ref_dict)
+    elif func_id == 'tuple':
+        try:
+            tuple_node = ast.Tuple(
+                    elts=call.args,  # type: ignore
+                    ctx=ast.Load(),
+            )
+        except AttributeError:
+            return None
+        return create_stmt_from_collection(tuple_node, testcase, objs_under_test, ref_dict)
+    elif func_id == 'dict':
+        try:
+            dict_node = ast.Dict(
+                    keys=call.args[0].keys if call.args else [],  # type: ignore
+                    values=call.args[0].values if call.args else [],  # type: ignore
+                    ctx=ast.Load(),
+            )
+        except AttributeError:
+            return None
+        return create_stmt_from_collection(dict_node, testcase, objs_under_test, ref_dict)
+    else:
+        return None
