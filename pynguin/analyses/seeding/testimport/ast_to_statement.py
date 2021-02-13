@@ -13,7 +13,6 @@ import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
-import pynguin.utils.ast_util as au
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
@@ -31,7 +30,7 @@ def create_assign_stmt(
     assign: ast.Assign,
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Tuple[str, Optional[Statement], bool]:
+) -> Tuple[Optional[str], Optional[Statement], bool]:
     """Creates the corresponding statement from an ast.Assign node.
 
     Args:
@@ -41,7 +40,7 @@ def create_assign_stmt(
                   variable references.
 
     Returns:
-        The corresponding statement or None if no statement type matches
+        The corresponding statement or None if no statement type matches.
     """
     new_stmt: Optional[Statement]
     value = assign.value
@@ -61,7 +60,7 @@ def create_assign_stmt(
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
     if new_stmt is None:
-        return 'no_id', None, False
+        return None, None, False
     ref_id = str(assign.targets[0].id)  # type: ignore
     return ref_id, new_stmt, True
 
@@ -95,7 +94,7 @@ def create_assert_stmt(
 
 def create_variable_references_from_call_args(
     call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
-) -> List[vr.VariableReference]:
+) -> Optional[List[vr.VariableReference]]:
     """ Takes the arguments of an ast.Call node and returns the variable references of the corresponding statements.
 
         Args:
@@ -332,8 +331,8 @@ def create_stmt_from_collection(
     Args:
         coll_node: the ast node. It has the type of one of the collection types.
         testcase: the testcase of the statement
-        objs_under_test: the accessible objects under test. Not needed for the collection statement, but lists can contain
-                         other statements (e.g. call) needing this.
+        objs_under_test: the accessible objects under test. Not needed for the collection statement, but lists can
+                         contain other statements (e.g. call) needing this.
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references. Not needed for the collection statement, but lists can contain other statements
                   (e.g. call) needing this.
