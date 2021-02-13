@@ -109,7 +109,8 @@ def create_variable_references_from_call_args(
     var_refs: List[vr.VariableReference] = []
     for arg in call_args:
         reference = ref_dict.get(arg.id)
-        assert reference is not None, "Reference not found"
+        if not reference:
+            return None
         var_refs.append(reference)
     return var_refs
 
@@ -289,30 +290,32 @@ def assemble_stmt_from_gen_callable(
         Returns:
             The corresponding statement.
     """
+    for arg in call.args:  # type: ignore
+        if not isinstance(arg, ast.Name):
+            return None
+    var_refs = create_variable_references_from_call_args(
+                call.args, ref_dict  # type: ignore
+    )
+    if not var_refs:
+        return None
     if isinstance(gen_callable, GenericFunction):
         return param_stmt.FunctionStatement(
             testcase,
             cast(GenericCallableAccessibleObject, gen_callable),
-            create_variable_references_from_call_args(
-                call.args, ref_dict  # type: ignore
-            ),
+            var_refs
         )
     elif isinstance(gen_callable, GenericMethod):
         return param_stmt.MethodStatement(
             testcase,
             gen_callable,
             ref_dict[call.func.value.id],  # type: ignore
-            create_variable_references_from_call_args(
-                call.args, ref_dict
-            )
+            var_refs
         )
     elif isinstance(gen_callable, GenericConstructor):
         return param_stmt.ConstructorStatement(
             testcase,
             cast(GenericCallableAccessibleObject, gen_callable),
-            create_variable_references_from_call_args(
-                call.args, ref_dict  # type: ignore
-            ),
+            var_refs
         )
     else:
         return None
@@ -369,7 +372,7 @@ def create_elements(
                 testcase.add_statement(create_stmt_from_collection(elem, testcase, objs_under_test, ref_dict)))
         elif isinstance(elem, ast.Name):
             try:
-                coll_elems.append(ref_dict[elem.id])
+                coll_elems.append(ref_dict[elem.id])  # type: ignore
             except AttributeError:
                 return None
         else:
