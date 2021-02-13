@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
+import pynguin.analyses.seeding.initialpopulationseeding as ips
 import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
 import pynguin.generator as gen
@@ -38,9 +38,9 @@ def seed_modules_path():
 
 
 @pytest.fixture()
-def init_pop_seeding_instance():
-    initpopseeding.initialpopulationseeding = initpopseeding._InitialPopulationSeeding()
-    return initpopseeding.initialpopulationseeding
+def clear_ips_instance():
+    ips.initialpopulationseeding._testcases = []
+    ips.initialpopulationseeding.test_cluster = TestCluster()
 
 
 @pytest.fixture()
@@ -60,160 +60,96 @@ def dummy_test_cluster() -> TestCluster:
 
 
 def test_get_testcases(
-    init_pop_seeding_instance, seed_modules_path, triangle_test_cluster
+    clear_ips_instance, seed_modules_path, triangle_test_cluster
 ):
-    init_pop_seeding_instance.test_cluster = triangle_test_cluster
+    ips.initialpopulationseeding.test_cluster = triangle_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "triangleseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
 
-    assert init_pop_seeding_instance.has_tests
-    assert len(init_pop_seeding_instance._testcases) == 2
+    assert ips.initialpopulationseeding.has_tests
+    assert len(ips.initialpopulationseeding._testcases) == 2
 
 
 def test_get_seeded_testcase(
-    init_pop_seeding_instance, seed_modules_path, triangle_test_cluster
+    clear_ips_instance, seed_modules_path, triangle_test_cluster
 ):
-    init_pop_seeding_instance.test_cluster = triangle_test_cluster
+    ips.initialpopulationseeding.test_cluster = triangle_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "triangleseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
 
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert type(seeded_testcase) is dtc.DefaultTestCase
+    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
+    assert isinstance(seeded_testcase, dtc.DefaultTestCase)
 
 
-def test_assign_positive_floats(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
+@pytest.mark.parametrize(
+    "file_name, position, result",
+    [
+        pytest.param("floatseed.py", 2, "Floats are different!"),
+        pytest.param("negativefloatseed.py", 2, "Floats are equal!"),
+        pytest.param("boolseed.py", 2, "Bools are equal!"),
+        pytest.param("negatedboolseed.py", 2, "Bools are different!"),
+        pytest.param("noneseed.py", 1, "Is None!"),
+        pytest.param("stringseed.py", 2, "Strings are different!")
+    ]
+)
+def test_collect_different_types(
+    clear_ips_instance, seed_modules_path, dummy_test_cluster, file_name, result, position
 ):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "floatseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    init_pop_file = os.path.join(seed_modules_path, file_name)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
 
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
+    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert seeded_testcase is not None
     assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value
-        == "Floats are different!"
+        next(iter(seeded_testcase.statements[position].assertions)).value
+        == result
     )
 
 
-def test_assign_negative_floats(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        pytest.param("notprimitiveseed.py"),
+        pytest.param("wrongfunctionnameseed.py")
+    ]
+)
+def test_not_working_cases(
+    clear_ips_instance, seed_modules_path, dummy_test_cluster, file_name
 ):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "negativefloatseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    init_pop_file = os.path.join(seed_modules_path, file_name)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
 
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value
-        == "Floats are equal!"
-    )
-
-
-def test_assign_bools(init_pop_seeding_instance, seed_modules_path, dummy_test_cluster):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "boolseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
-    )
-
-
-def test_assign_negated_bools(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
-):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "negatedboolseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value
-        == "Bools are different!"
-    )
-
-
-def test_assign_none(init_pop_seeding_instance, seed_modules_path, dummy_test_cluster):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "noneseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert next(iter(seeded_testcase.statements[1].assertions)).value == "Is None!"
-
-
-def test_assign_no_primitive_value(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
-):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "noprimitiveseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert len(seeded_testcase.statements) == 0
-
-
-def test_assign_string(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
-):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "stringseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value
-        == "Strings are different!"
-    )
-
-
-def test_assign_function_wrong_name(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
-):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "wrongfunctionnameseed.py")
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
-
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert seeded_testcase is not None
-    assert len(seeded_testcase.statements) == 0
+    assert not ips.initialpopulationseeding._testcases
 
 
 def test_generator_with_init_pop_seeding(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
+    clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.initial_population_seeding = True
     config.configuration.initial_population_data = os.path.join(
         seed_modules_path, "boolseed.py"
     )
     generator = gen.Pynguin(config.configuration)
     generator._setup_initial_population_seeding(dummy_test_cluster)
-    seeded_testcase = init_pop_seeding_instance.seeded_testcase
-    assert init_pop_seeding_instance.has_tests
+    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
+    assert ips.initialpopulationseeding.has_tests
     assert (
         next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
     )
 
 
 def test_seeded_test_case_factory_no_delegation(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
+    clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "boolseed.py")
     config.configuration.initial_population_seeding = True
     config.configuration.initial_population_data = init_pop_file
     config.configuration.seeded_testcases_reuse_probability = 1.0
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
@@ -225,14 +161,14 @@ def test_seeded_test_case_factory_no_delegation(
 
 
 def test_seeded_test_case_factory_with_delegation(
-    init_pop_seeding_instance, seed_modules_path, dummy_test_cluster
+    clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
-    init_pop_seeding_instance.test_cluster = dummy_test_cluster
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "boolseed.py")
     config.configuration.initial_population_seeding = True
     config.configuration.initial_population_data = init_pop_file
     config.configuration.seeded_testcases_reuse_probability = 0.0
-    init_pop_seeding_instance.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     delegate.get_test_case = MagicMock()
@@ -241,11 +177,18 @@ def test_seeded_test_case_factory_with_delegation(
     delegate.get_test_case.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "enabled, fac_type",
+    [
+        pytest.param(True, tcf.SeededTestCaseFactory),
+        pytest.param(False, tcf.RandomLengthTestCaseFactory)
+    ]
+)
 @mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
-def test_algorithm_generation_factory_with_init_pop_seeding(
-    mock_class, dummy_test_cluster
+def test_algorithm_generation_factory(
+    mock_class, dummy_test_cluster, enabled, fac_type
 ):
-    config.configuration.initial_population_seeding = True
+    config.configuration.initial_population_seeding = enabled
     tsfactory = TestSuiteGenerationAlgorithmFactory(
         mock_class.return_value, dummy_test_cluster
     )
@@ -253,19 +196,4 @@ def test_algorithm_generation_factory_with_init_pop_seeding(
     test_case_factory = (
         chromosome_factory.test_case_chromosome_factory._test_case_factory
     )
-    assert type(test_case_factory) == tcf.SeededTestCaseFactory
-
-
-@mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
-def test_algorithm_generation_factory_without_init_pop_seeding(
-    mock_class, dummy_test_cluster
-):
-    config.configuration.initial_population_seeding = False
-    tsfactory = TestSuiteGenerationAlgorithmFactory(
-        mock_class.return_value, dummy_test_cluster
-    )
-    chromosome_factory = tsfactory._get_chromosome_factory()
-    test_case_factory = (
-        chromosome_factory.test_case_chromosome_factory._test_case_factory
-    )
-    assert type(test_case_factory) == tcf.RandomLengthTestCaseFactory
+    assert type(test_case_factory) == fac_type
