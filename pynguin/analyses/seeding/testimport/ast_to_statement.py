@@ -18,9 +18,10 @@ from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
 from pynguin.testcase.statements.collectionsstatements import ListStatement, SetStatement, DictStatement, TupleStatement
+from pynguin.testcase.statements.fieldstatement import FieldStatement
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor,
+    GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor, GenericField,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ def create_assign_stmt(
         )
     elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
         new_stmt = create_stmt_from_collection(value, testcase, objs_under_test, ref_dict)
+    elif isinstance(value, ast.Attribute):
+        new_stmt = create_stmt_from_attribute(value, testcase, ref_dict)
     else:
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
@@ -63,6 +66,19 @@ def create_assign_stmt(
         return None, None, False
     ref_id = str(assign.targets[0].id)  # type: ignore
     return ref_id, new_stmt, True
+
+
+def create_stmt_from_attribute( # todo: does not work
+    attribute: ast.Attribute,
+    testcase: tc.TestCase,
+    ref_dict: Dict[str, vr.VariableReference]
+) -> Optional[FieldStatement]:
+    try:
+        var_ref = ref_dict[attribute.value.id]
+    except KeyError:
+        return None
+    field = GenericField(var_ref.variable_type, attribute.attr, int)
+    return FieldStatement(testcase, field, var_ref)
 
 
 def create_assert_stmt(
