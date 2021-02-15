@@ -11,9 +11,9 @@ line.
 """
 import argparse
 import logging
-import os
 import sys
-from typing import List, Union
+from pathlib import Path
+from typing import List, Optional
 
 import simple_parsing
 
@@ -69,9 +69,15 @@ def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
     return output
 
 
+def _setup_output_path(output_path: str) -> None:
+    path = Path(output_path).resolve()
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+
+
 def _setup_logging(
     verbosity: int,
-    log_file: Union[str, os.PathLike] = None,
+    log_file: Optional[str] = None,
 ):
     # TODO(fk) use logging.basicConfig
 
@@ -80,6 +86,10 @@ def _setup_logging(
     logger.setLevel(logging.DEBUG)
 
     if log_file:
+        log_file_path = Path(log_file).resolve()
+        if not log_file_path.parent.exists():
+            log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(
             logging.Formatter(
@@ -130,6 +140,7 @@ def main(argv: List[str] = None) -> int:
 
     argument_parser = _create_argument_parser()
     parsed = argument_parser.parse_args(argv)
+    _setup_output_path(parsed.config.output_path)
     _setup_logging(parsed.verbosity, parsed.log_file)
 
     generator = Pynguin(parsed.config)

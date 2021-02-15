@@ -117,7 +117,7 @@ def test__expand_arguments_if_necessary(arguments, expected):
     assert result == expected
 
 
-def test_load_configuration_from_file():
+def test_load_configuration_from_file(tmp_path):
     config_file = Path(".").absolute()
     if config_file.name != "tests":
         config_file /= "tests"
@@ -129,9 +129,9 @@ def test_load_configuration_from_file():
             "--module_name",
             "hurz",
             "--project_path",
-            "/a",
+            str(tmp_path),
             "--output_path",
-            "/b",
+            str(tmp_path),
             "--budget",
             "50",
         ]
@@ -143,7 +143,7 @@ def test_load_configuration_from_file():
         budget=50,
         configuration_id="merge checker",
         module_name="hurz",
-        project_path="/a",
-        output_path="/b",
+        project_path=str(tmp_path),
+        output_path=str(tmp_path),
     )
     assert configuration == expected
