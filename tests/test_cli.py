@@ -27,23 +27,25 @@ def test_main_empty_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
-                generator_mock.return_value.run.return_value = ReturnCode.OK
-                parser = MagicMock()
-                parser_mock.return_value = parser
-                main()
-                assert len(parser.parse_args.call_args[0][0]) > 0
+                with mock.patch("pynguin.cli._setup_output_path"):
+                    generator_mock.return_value.run.return_value = ReturnCode.OK
+                    parser = MagicMock()
+                    parser_mock.return_value = parser
+                    main()
+                    assert len(parser.parse_args.call_args[0][0]) > 0
 
 
 def test_main_with_argv():
     with mock.patch("pynguin.cli.Pynguin") as generator_mock:
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
-                generator_mock.return_value.run.return_value = ReturnCode.OK
-                parser = MagicMock()
-                parser_mock.return_value = parser
-                args = ["foo", "--help"]
-                main(args)
-                assert parser.parse_args.call_args == call(args[1:])
+                with mock.patch("pynguin.cli._setup_output_path"):
+                    generator_mock.return_value.run.return_value = ReturnCode.OK
+                    parser = MagicMock()
+                    parser_mock.return_value = parser
+                    args = ["foo", "--help"]
+                    main(args)
+                    assert parser.parse_args.call_args == call(args[1:])
 
 
 def test__create_argument_parser():
