@@ -73,3 +73,10 @@ def i_take_tuple(t: tuple) -> str:
         return "not empty!"
     else:
         return "empty!"
+
+
+def i_take_bytes(b1: bytes, b2: bytes) -> str:
+    if b1 == b2:
+        return "Bytes are equal!"
+    else:
+        return "Bytes are different!"

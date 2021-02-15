@@ -29,3 +29,9 @@ def seed_test_case3():
     var0 = tuple([1, 2])
     var1 = module0.i_take_tuple(var0)
     assert var1 == "not empty!"
+
+
+def seed_test_case4():
+    var0 = tuple()
+    var1 = module0.i_take_tuple(var0)
+    assert var1 == "empty!"

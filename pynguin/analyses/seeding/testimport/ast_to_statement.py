@@ -68,7 +68,7 @@ def create_assign_stmt(
     return ref_id, new_stmt, True
 
 
-def create_stmt_from_attribute( # todo: does not work
+def create_stmt_from_attribute(  # todo: does not work
     attribute: ast.Attribute,
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference]
@@ -94,18 +94,32 @@ def create_assert_stmt(
     Returns:
         The corresponding assert statement.
     """
+    assertion: Optional[PrimitiveAssertion] = None
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
-        val = assert_node.test.comparators[0].value
-    except (KeyError, AttributeError):  # pylint: disable=broad-except
+        val_elem = assert_node.test.comparators[0]  # type: ignore
+        operator = assert_node.test.ops[0]  # type: ignore
+    except (KeyError, AttributeError):
         return None, None
-    val_elem = assert_node.test.comparators[0]
-    if isinstance(val_elem, ast.Constant) and val is None:  # type: ignore
-        return NoneAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
-    elif isinstance(val_elem, ast.Constant) and val is not None:  # type: ignore
-        return PrimitiveAssertion(source, assert_node.test.comparators[0].value), source  # type: ignore
+    if isinstance(operator, (ast.Is, ast.Eq)):
+        assertion = create_assertion(source, val_elem)
+    if assertion:
+        return assertion, source
     else:
         return None, None
+
+
+def create_assertion(
+    source: vr.VariableReference,
+    val_elem: Optional[Union[ast.Constant, ast.UnaryOp]],
+) -> Optional[Union[PrimitiveAssertion, NoneAssertion]]:
+    if isinstance(val_elem, ast.Constant) and val_elem.value is None:
+        return NoneAssertion(source, val_elem.value)
+    elif isinstance(val_elem, ast.Constant):
+        return PrimitiveAssertion(source, val_elem.value)  # type: ignore
+    elif isinstance(val_elem, ast.UnaryOp):
+        return PrimitiveAssertion(source, val_elem.operand.value)
+    return None
 
 
 def create_variable_references_from_call_args(
@@ -225,7 +239,6 @@ def create_stmt_from_call(
     try:
         call.func.attr  # type: ignore
     except AttributeError:
-        # this is very ugly...
         return try_generating_specific_function(call, testcase, objs_under_test, ref_dict)
     gen_callable = find_gen_callable(call, objs_under_test, ref_dict)
     if gen_callable is None:
@@ -309,7 +322,7 @@ def assemble_stmt_from_gen_callable(
         if not isinstance(arg, ast.Name):
             return None
     var_refs = create_variable_references_from_call_args(
-                call.args, ref_dict  # type: ignore
+        call.args, ref_dict  # type: ignore
     )
     if not var_refs:
         return None
@@ -332,8 +345,7 @@ def assemble_stmt_from_gen_callable(
             cast(GenericCallableAccessibleObject, gen_callable),
             var_refs
         )
-    else:
-        return None
+    return None
 
 
 def create_stmt_from_collection(
@@ -429,8 +441,7 @@ def create_specific_collection_call(
         return DictStatement(testcase, coll_elems_type, coll_elems)
     elif isinstance(coll_node, ast.Tuple):
         return TupleStatement(testcase, coll_elems_type, coll_elems)
-    else:
-        return None
+    return None
 
 
 def try_generating_specific_function(
@@ -462,8 +473,8 @@ def try_generating_specific_function(
     if func_id == 'set':
         try:
             set_node = ast.Set(
-                    elts=call.args,  # type: ignore
-                    ctx=ast.Load(),
+                elts=call.args,  # type: ignore
+                ctx=ast.Load(),
             )
         except AttributeError:
             return None
@@ -471,8 +482,8 @@ def try_generating_specific_function(
     elif func_id == 'list':
         try:
             list_node = ast.List(
-                    elts=call.args,  # type: ignore
-                    ctx=ast.Load(),
+                elts=call.args,  # type: ignore
+                ctx=ast.Load(),
             )
         except AttributeError:
             return None
@@ -480,8 +491,8 @@ def try_generating_specific_function(
     elif func_id == 'tuple':
         try:
             tuple_node = ast.Tuple(
-                    elts=call.args,  # type: ignore
-                    ctx=ast.Load(),
+                elts=call.args,  # type: ignore
+                ctx=ast.Load(),
             )
         except AttributeError:
             return None
@@ -489,9 +500,9 @@ def try_generating_specific_function(
     elif func_id == 'dict':
         try:
             dict_node = ast.Dict(
-                    keys=call.args[0].keys if call.args else [],  # type: ignore
-                    values=call.args[0].values if call.args else [],  # type: ignore
-                    ctx=ast.Load(),
+                keys=call.args[0].keys if call.args else [],  # type: ignore
+                values=call.args[0].values if call.args else [],  # type: ignore
+                ctx=ast.Load(),
             )
         except AttributeError:
             return None
