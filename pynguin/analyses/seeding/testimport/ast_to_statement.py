@@ -18,11 +18,9 @@ from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
 from pynguin.testcase.statements.collectionsstatements import ListStatement, SetStatement, DictStatement, TupleStatement
-from pynguin.testcase.statements.fieldstatement import FieldStatement
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor, GenericField,
-)
+    GenericCallableAccessibleObject, GenericMethod, GenericFunction, GenericConstructor, )
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +55,6 @@ def create_assign_stmt(
         )
     elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
         new_stmt = create_stmt_from_collection(value, testcase, objs_under_test, ref_dict)
-    elif isinstance(value, ast.Attribute):
-        new_stmt = create_stmt_from_attribute(value, testcase, ref_dict)
     else:
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
@@ -66,19 +62,6 @@ def create_assign_stmt(
         return None, None, False
     ref_id = str(assign.targets[0].id)  # type: ignore
     return ref_id, new_stmt, True
-
-
-def create_stmt_from_attribute(  # todo: does not work
-    attribute: ast.Attribute,
-    testcase: tc.TestCase,
-    ref_dict: Dict[str, vr.VariableReference]
-) -> Optional[FieldStatement]:
-    try:
-        var_ref = ref_dict[attribute.value.id]
-    except KeyError:
-        return None
-    field = GenericField(var_ref.variable_type, attribute.attr, int)
-    return FieldStatement(testcase, field, var_ref)
 
 
 def create_assert_stmt(
@@ -113,6 +96,15 @@ def create_assertion(
     source: vr.VariableReference,
     val_elem: Optional[Union[ast.Constant, ast.UnaryOp]],
 ) -> Optional[Union[PrimitiveAssertion, NoneAssertion]]:
+    """ Creates an assertion.
+
+    Args:
+        source: The variable reference
+        val_elem: The ast element for retrieving the value
+
+    Returns:
+        The assertion.
+    """
     if isinstance(val_elem, ast.Constant) and val_elem.value is None:
         return NoneAssertion(source, val_elem.value)
     elif isinstance(val_elem, ast.Constant):
@@ -377,7 +369,7 @@ def create_stmt_from_collection(
         elements = coll_node.elts  # type: ignore
         coll_elems = create_elements(elements, testcase, objs_under_test, ref_dict)
         coll_elems_type = get_collection_type(coll_elems)
-    return create_specific_collection_call(testcase, coll_node, coll_elems_type, coll_elems)
+    return create_specific_collection_stmt(testcase, coll_node, coll_elems_type, coll_elems)
 
 
 def create_elements(
@@ -386,6 +378,18 @@ def create_elements(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[List[vr.VariableReference]]:
+    """ Creates the elements of a collection by calling the corresponding methods for creation. This can be recursive.
+
+    Args:
+        elements: The elements of the collection
+        testcase: the corresponding testcase
+        objs_under_test: A set of generic accessible objects under test
+        ref_dict: a dictionary containing key value pairs of variable ids and
+                  variable references
+
+    Returns:
+        A list of variable references or None if something goes wrong while creating the elements.
+    """
     coll_elems: List[vr.VariableReference] = []
     for elem in elements:
         if isinstance(elem, ast.Constant):
@@ -427,12 +431,23 @@ def get_collection_type(coll_elems: List[vr.VariableReference]) -> Any:
     return coll_type
 
 
-def create_specific_collection_call(
+def create_specific_collection_stmt(
     testcase: tc.TestCase,
     coll_node: Union[ast.List, ast.Set, ast.Dict, ast.Tuple],
     coll_elems_type: Any,
     coll_elems: List[vr.VariableReference]
 ) -> Optional[Union[ListStatement, SetStatement, DictStatement, TupleStatement]]:
+    """ Creates the corresponding collection statement from an ast node.
+
+    Args:
+        testcase: The testcase of the statement
+        coll_node: the ast node
+        coll_elems: a list of variable references
+        coll_elems_type: the type of the elements of the collection statement.
+
+    Returns:
+        The corresponding collection statement.
+    """
     if isinstance(coll_node, ast.List):
         return ListStatement(testcase, coll_elems_type, coll_elems)
     elif isinstance(coll_node, ast.Set):
