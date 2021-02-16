@@ -59,9 +59,7 @@ def dummy_test_cluster() -> TestCluster:
     return test_cluster
 
 
-def test_get_testcases(
-    clear_ips_instance, seed_modules_path, triangle_test_cluster
-):
+def test_get_testcases(clear_ips_instance, seed_modules_path, triangle_test_cluster):
     ips.initialpopulationseeding.test_cluster = triangle_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "triangleseed.py")
     ips.initialpopulationseeding.collect_testcases(init_pop_file)
@@ -102,12 +100,18 @@ def test_get_seeded_testcase(
         pytest.param("collfuncseed.py", 4, "not empty!", 3),
         pytest.param("collfuncseed.py", 1, "empty!", 4),
         pytest.param("classseed.py", 6, "not empty!", 0),
-
-    ]
+    ],
 )
 @mock.patch("pynguin.utils.randomness.next_int")
 def test_collect_different_types(
-    rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster, file_name, result, position, testcase_pos
+    rand_mock,
+    clear_ips_instance,
+    seed_modules_path,
+    dummy_test_cluster,
+    file_name,
+    result,
+    position,
+    testcase_pos,
 ):
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     init_pop_file = os.path.join(seed_modules_path, file_name)
@@ -116,10 +120,7 @@ def test_collect_different_types(
 
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert seeded_testcase is not None
-    assert (
-        next(iter(seeded_testcase.statements[position].assertions)).value
-        == result
-    )
+    assert next(iter(seeded_testcase.statements[position].assertions)).value == result
 
 
 @pytest.mark.parametrize(
@@ -128,12 +129,18 @@ def test_collect_different_types(
         pytest.param(1, 0, 0),
         pytest.param(0, 1, 1),
         pytest.param(0, 0, 2),
-        pytest.param(0, 1, 3)
-    ]
+        pytest.param(0, 1, 3),
+    ],
 )
 @mock.patch("pynguin.utils.randomness.next_int")
 def test_create_assertion(
-    rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster, num_assertions, position, testcase_pos
+    rand_mock,
+    clear_ips_instance,
+    seed_modules_path,
+    dummy_test_cluster,
+    num_assertions,
+    position,
+    testcase_pos,
 ):
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     init_pop_file = os.path.join(seed_modules_path, "assertseed.py")
@@ -150,8 +157,8 @@ def test_create_assertion(
         pytest.param("notprimitiveseed.py"),
         pytest.param("wrongfunctionnameseed.py"),
         pytest.param("notknowncall.py"),
-        pytest.param("wrongassignseed.py")
-    ]
+        pytest.param("wrongassignseed.py"),
+    ],
 )
 def test_not_working_cases(
     clear_ips_instance, seed_modules_path, dummy_test_cluster, file_name
@@ -226,8 +233,8 @@ def test_seeded_test_case_factory_with_delegation(
     "enabled, fac_type",
     [
         pytest.param(True, tcf.SeededTestCaseFactory),
-        pytest.param(False, tcf.RandomLengthTestCaseFactory)
-    ]
+        pytest.param(False, tcf.RandomLengthTestCaseFactory),
+    ],
 )
 @mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
 def test_algorithm_generation_factory(

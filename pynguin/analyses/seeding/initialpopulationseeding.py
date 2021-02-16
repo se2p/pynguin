@@ -99,7 +99,6 @@ class _InitialPopulationSeeding:
 
 # pylint: disable=invalid-name, missing-function-docstring
 class _TestTransformer(ast.NodeVisitor):
-
     def __init__(self):
         self._current_testcase: DefaultTestCase = DefaultTestCase()
         self._current_parsable: bool = True

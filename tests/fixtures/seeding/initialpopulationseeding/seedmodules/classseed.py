@@ -13,6 +13,3 @@ def seed_test_case0():
     var2 = [1, 2, 3]
     var3 = var1.do_something(var2)
     assert var3 == "not empty!"
-
-
-

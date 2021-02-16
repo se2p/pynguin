@@ -173,7 +173,7 @@ class GenericMethod(GenericCallableAccessibleObject):
         owner: Type,
         method: Callable,
         inferred_signature: InferredSignature,
-        method_name: Optional[str] = None
+        method_name: Optional[str] = None,
     ) -> None:
         super().__init__(owner, method, inferred_signature)
         assert owner

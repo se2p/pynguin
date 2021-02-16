@@ -135,7 +135,11 @@ class ListStatement(CollectionStatement[vr.VariableReference]):
         if len(self._elements) > 0:
             pos = randomness.next_int(0, len(self._elements) + 1)
         # This is so ugly...
-        arg_type = get_args(self.ret_val.variable_type)[0] if get_args(self.ret_val.variable_type) else None
+        arg_type = (
+            get_args(self.ret_val.variable_type)[0]
+            if get_args(self.ret_val.variable_type)
+            else None
+        )
         possibles_insertions = self.test_case.get_objects(arg_type, self.get_position())
         alpha = 0.5
         exponent = 1
@@ -191,7 +195,11 @@ class SetStatement(CollectionStatement[vr.VariableReference]):
         if len(self._elements) > 0:
             pos = randomness.next_int(0, len(self._elements) + 1)
         # This is so ugly...
-        arg_type = get_args(self.ret_val.variable_type)[0] if get_args(self.ret_val.variable_type) else None
+        arg_type = (
+            get_args(self.ret_val.variable_type)[0]
+            if get_args(self.ret_val.variable_type)
+            else None
+        )
         possibles_insertions = self.test_case.get_objects(arg_type, self.get_position())
         alpha = 0.5
         exponent = 1
@@ -302,8 +310,16 @@ class DictStatement(
         if len(self._elements) > 0:
             pos = randomness.next_int(0, len(self._elements) + 1)
         # This is so ugly...
-        key_type = get_args(self.ret_val.variable_type)[0] if get_args(self.ret_val.variable_type) else None
-        val_type = get_args(self.ret_val.variable_type)[1] if get_args(self.ret_val.variable_type) else None
+        key_type = (
+            get_args(self.ret_val.variable_type)[0]
+            if get_args(self.ret_val.variable_type)
+            else None
+        )
+        val_type = (
+            get_args(self.ret_val.variable_type)[1]
+            if get_args(self.ret_val.variable_type)
+            else None
+        )
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
         alpha = 0.5
