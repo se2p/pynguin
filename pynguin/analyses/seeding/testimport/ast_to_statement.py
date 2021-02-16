@@ -22,6 +22,7 @@ from pynguin.testcase.statements.collectionsstatements import (
     SetStatement,
     DictStatement,
     TupleStatement,
+    CollectionStatement,
 )
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -54,15 +55,20 @@ def create_assign_stmt(
     value = assign.value
     test_cluster = initpopseeding.initialpopulationseeding.test_cluster
     objs_under_test = test_cluster.accessible_objects_under_test
+    callable_objects_under_test: Set[GenericCallableAccessibleObject] = {
+        o for o in objs_under_test if isinstance(o, GenericCallableAccessibleObject)
+    }
     if isinstance(value, ast.Constant):
         new_stmt = create_stmt_from_constant(value, testcase)
     elif isinstance(value, ast.UnaryOp):
         new_stmt = create_stmt_from_unaryop(value, testcase)
     elif isinstance(value, ast.Call):
-        new_stmt = create_stmt_from_call(value, testcase, objs_under_test, ref_dict)
+        new_stmt = create_stmt_from_call(
+            value, testcase, callable_objects_under_test, ref_dict
+        )
     elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
         new_stmt = create_stmt_from_collection(
-            value, testcase, objs_under_test, ref_dict
+            value, testcase, callable_objects_under_test, ref_dict
         )
     else:
         logger.info("Assign statement could not be parsed.")
@@ -86,7 +92,7 @@ def create_assert_stmt(
     Returns:
         The corresponding assert statement.
     """
-    assertion: Optional[PrimitiveAssertion] = None
+    assertion: Optional[Union[PrimitiveAssertion, NoneAssertion]] = None
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
         val_elem = assert_node.test.comparators[0]  # type: ignore
@@ -117,9 +123,9 @@ def create_assertion(
     if isinstance(val_elem, ast.Constant) and val_elem.value is None:
         return NoneAssertion(source, val_elem.value)
     elif isinstance(val_elem, ast.Constant):
-        return PrimitiveAssertion(source, val_elem.value)  # type: ignore
+        return PrimitiveAssertion(source, val_elem.value)
     elif isinstance(val_elem, ast.UnaryOp):
-        return PrimitiveAssertion(source, val_elem.operand.value)
+        return PrimitiveAssertion(source, val_elem.operand.value)  # type: ignore
     return None
 
 
@@ -157,20 +163,20 @@ def create_stmt_from_constant(
     Returns:
         The corresponding statement.
     """
-    if constant.value is None:  # type: ignore
-        return prim_stmt.NoneStatement(testcase, constant.value)  # type: ignore
+    if constant.value is None:
+        return prim_stmt.NoneStatement(testcase, constant.value)
 
-    val = constant.value  # type: ignore
+    val = constant.value
     if isinstance(val, bool):
-        return prim_stmt.BooleanPrimitiveStatement(testcase, val)  # type: ignore
+        return prim_stmt.BooleanPrimitiveStatement(testcase, val)
     if isinstance(val, int):
-        return prim_stmt.IntPrimitiveStatement(testcase, val)  # type: ignore
+        return prim_stmt.IntPrimitiveStatement(testcase, val)
     if isinstance(val, float):
-        return prim_stmt.FloatPrimitiveStatement(testcase, val)  # type: ignore
+        return prim_stmt.FloatPrimitiveStatement(testcase, val)
     if isinstance(val, str):
-        return prim_stmt.StringPrimitiveStatement(testcase, val)  # type: ignore
+        return prim_stmt.StringPrimitiveStatement(testcase, val)
     if isinstance(val, bytes):
-        return prim_stmt.BytesPrimitiveStatement(testcase, val)  # type: ignore
+        return prim_stmt.BytesPrimitiveStatement(testcase, val)
     logger.info("Could not find case for constant while handling assign statement.")
     return None
 
@@ -189,11 +195,11 @@ def create_stmt_from_unaryop(
     """
     val = unaryop.operand.value  # type: ignore
     if isinstance(val, bool):
-        return prim_stmt.BooleanPrimitiveStatement(testcase, not val)  # type: ignore
+        return prim_stmt.BooleanPrimitiveStatement(testcase, not val)
     if isinstance(val, float):
-        return prim_stmt.FloatPrimitiveStatement(testcase, (-1) * val)  # type: ignore
+        return prim_stmt.FloatPrimitiveStatement(testcase, (-1) * val)
     if isinstance(val, int):
-        return prim_stmt.IntPrimitiveStatement(testcase, (-1) * val)  # type: ignore
+        return prim_stmt.IntPrimitiveStatement(testcase, (-1) * val)
     logger.info(
         "Could not find case for unary operator while handling assign statement."
     )
@@ -205,13 +211,7 @@ def create_stmt_from_call(
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[
-    Union[
-        param_stmt.ConstructorStatement,
-        param_stmt.MethodStatement,
-        param_stmt.FunctionStatement,
-    ]
-]:
+) -> Optional[Union[CollectionStatement, param_stmt.ParametrizedStatement]]:
     """Creates the corresponding statement from an ast.call node. Depending on the call, this can be a
     GenericConstructor, GenericMethod or GenericFunction statement.
 
@@ -310,7 +310,7 @@ def assemble_stmt_from_gen_callable(
     Returns:
         The corresponding statement.
     """
-    for arg in call.args:  # type: ignore
+    for arg in call.args:
         if not isinstance(arg, ast.Name):
             return None
     var_refs = create_variable_references_from_call_args(
@@ -356,14 +356,24 @@ def create_stmt_from_collection(
     Returns:
         The corresponding list statement.
     """
+    coll_elems: Optional[
+        Union[
+            List[vr.VariableReference],
+            List[Tuple[vr.VariableReference, vr.VariableReference]],
+        ]
+    ]
     if isinstance(coll_node, ast.Dict):
         keys = create_elements(coll_node.keys, testcase, objs_under_test, ref_dict)
         values = create_elements(coll_node.values, testcase, objs_under_test, ref_dict)
+        if keys is None or values is None:
+            return None
         coll_elems_type = get_collection_type(values)
         coll_elems = list(zip(keys, values))
     else:
-        elements = coll_node.elts  # type: ignore
+        elements = coll_node.elts
         coll_elems = create_elements(elements, testcase, objs_under_test, ref_dict)
+        if coll_elems is None:
+            return None
         coll_elems_type = get_collection_type(coll_elems)
     return create_specific_collection_stmt(
         testcase, coll_node, coll_elems_type, coll_elems
@@ -390,31 +400,38 @@ def create_elements(
     """
     coll_elems: List[vr.VariableReference] = []
     for elem in elements:
+        stmt: Optional[
+            Union[
+                prim_stmt.PrimitiveStatement,
+                CollectionStatement,
+                param_stmt.ParametrizedStatement,
+            ]
+        ]
         if isinstance(elem, ast.Constant):
-            coll_elems.append(
-                testcase.add_statement(create_stmt_from_constant(elem, testcase))
-            )
+            stmt = create_stmt_from_constant(elem, testcase)
+            if not stmt:
+                return None
+            coll_elems.append(testcase.add_statement(stmt))
         elif isinstance(elem, ast.UnaryOp):
-            coll_elems.append(
-                testcase.add_statement(create_stmt_from_unaryop(elem, testcase))
-            )
+            stmt = create_stmt_from_unaryop(elem, testcase)
+            if not stmt:
+                return None
+            coll_elems.append(testcase.add_statement(stmt))
         elif isinstance(elem, ast.Call):
-            coll_elems.append(
-                testcase.add_statement(
-                    create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)
-                )
-            )
+            stmt = create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)
+            if not stmt:
+                return None
+            coll_elems.append(testcase.add_statement(stmt))
         elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
-            coll_elems.append(
-                testcase.add_statement(
-                    create_stmt_from_collection(
-                        elem, testcase, objs_under_test, ref_dict
-                    )
-                )
+            stmt = create_stmt_from_collection(
+                elem, testcase, objs_under_test, ref_dict
             )
+            if not stmt:
+                return None
+            coll_elems.append(testcase.add_statement(stmt))
         elif isinstance(elem, ast.Name):
             try:
-                coll_elems.append(ref_dict[elem.id])  # type: ignore
+                coll_elems.append(ref_dict[elem.id])
             except AttributeError:
                 return None
         else:
@@ -446,14 +463,14 @@ def create_specific_collection_stmt(
     testcase: tc.TestCase,
     coll_node: Union[ast.List, ast.Set, ast.Dict, ast.Tuple],
     coll_elems_type: Any,
-    coll_elems: List[vr.VariableReference],
+    coll_elems: List[Any],
 ) -> Optional[Union[ListStatement, SetStatement, DictStatement, TupleStatement]]:
     """Creates the corresponding collection statement from an ast node.
 
     Args:
         testcase: The testcase of the statement
         coll_node: the ast node
-        coll_elems: a list of variable references
+        coll_elems: a list of variable references or a list of tuples of variables for a dict statement.
         coll_elems_type: the type of the elements of the collection statement.
 
     Returns:
@@ -475,13 +492,7 @@ def try_generating_specific_function(
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[
-    Union[
-        param_stmt.ConstructorStatement,
-        param_stmt.MethodStatement,
-        param_stmt.FunctionStatement,
-    ]
-]:
+) -> Optional[CollectionStatement]:
     """Calls to creating a collection (list, set, tuple, dict) via their keywords and not via literal syntax are
     considered as ast.Call statements. But for these calls, no accessible object under test is in the test_cluster.
     To parse them anyway, these method transforms them to the corresponding ast statement, for example a call of a list
@@ -505,7 +516,7 @@ def try_generating_specific_function(
     if func_id == "set":
         try:
             set_node = ast.Set(
-                elts=call.args,  # type: ignore
+                elts=call.args,
                 ctx=ast.Load(),
             )
         except AttributeError:
@@ -516,7 +527,7 @@ def try_generating_specific_function(
     elif func_id == "list":
         try:
             list_node = ast.List(
-                elts=call.args,  # type: ignore
+                elts=call.args,
                 ctx=ast.Load(),
             )
         except AttributeError:
@@ -527,7 +538,7 @@ def try_generating_specific_function(
     elif func_id == "tuple":
         try:
             tuple_node = ast.Tuple(
-                elts=call.args,  # type: ignore
+                elts=call.args,
                 ctx=ast.Load(),
             )
         except AttributeError:

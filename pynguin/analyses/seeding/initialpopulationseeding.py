@@ -17,6 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
+from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 
 
@@ -122,6 +123,8 @@ class _TestTransformer(ast.NodeVisitor):
                 node, self._current_testcase, self._var_refs
             )
             if self._current_parsable:
+                assert stmt
+                assert ref_id
                 var_ref = self._current_testcase.add_statement(stmt)
                 self._var_refs[ref_id] = var_ref
 
@@ -129,6 +132,7 @@ class _TestTransformer(ast.NodeVisitor):
         if self._current_parsable and config.configuration.generate_assertions:
             assertion, var_ref = ats.create_assert_stmt(self._var_refs, node)
             if assertion is not None:
+                assert var_ref
                 self._current_testcase.get_statement(
                     var_ref.get_statement_position()
                 ).add_assertion(assertion)
