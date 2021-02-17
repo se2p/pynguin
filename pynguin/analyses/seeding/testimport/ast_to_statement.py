@@ -7,7 +7,7 @@
 """Provides an implementation to generate statements out of an AST."""
 import ast
 import logging
-from typing import Dict, List, Optional, Set, Tuple, cast, Union, Any
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
@@ -18,18 +18,18 @@ from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
 from pynguin.testcase.statements.collectionsstatements import (
+    CollectionStatement,
+    DictStatement,
     ListStatement,
     SetStatement,
-    DictStatement,
     TupleStatement,
-    CollectionStatement,
 )
 from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
-    GenericMethod,
-    GenericFunction,
     GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
 
 logger = logging.getLogger(__name__)
