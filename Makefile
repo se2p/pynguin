@@ -115,7 +115,7 @@ codestyle:
 
 .PHONY: test
 test:
-	poetry run pytest -v --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
+	poetry run pytest --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
 
 .PHONY: mypy
 mypy:
