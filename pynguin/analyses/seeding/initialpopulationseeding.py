@@ -12,12 +12,11 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Union
 
+import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
-import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
-from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
 
 

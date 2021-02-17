@@ -101,10 +101,9 @@ def create_assert_stmt(
         return None, None
     if isinstance(operator, (ast.Is, ast.Eq)):
         assertion = create_assertion(source, val_elem)
-    if assertion:
+    if assertion is not None:
         return assertion, source
-    else:
-        return None, None
+    return None, None
 
 
 def create_assertion(
@@ -122,9 +121,9 @@ def create_assertion(
     """
     if isinstance(val_elem, ast.Constant) and val_elem.value is None:
         return NoneAssertion(source, val_elem.value)
-    elif isinstance(val_elem, ast.Constant):
+    if isinstance(val_elem, ast.Constant):
         return PrimitiveAssertion(source, val_elem.value)
-    elif isinstance(val_elem, ast.UnaryOp):
+    if isinstance(val_elem, ast.UnaryOp):
         return PrimitiveAssertion(source, val_elem.operand.value)  # type: ignore
     return None
 
@@ -132,7 +131,8 @@ def create_assertion(
 def create_variable_references_from_call_args(
     call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
 ) -> Optional[List[vr.VariableReference]]:
-    """Takes the arguments of an ast.Call node and returns the variable references of the corresponding statements.
+    """Takes the arguments of an ast.Call node and returns the variable references of
+    the corresponding statements.
 
     Args:
         call_args: a list of arguments
@@ -151,6 +151,7 @@ def create_variable_references_from_call_args(
     return var_refs
 
 
+# pylint: disable=too-many-return-statements
 def create_stmt_from_constant(
     constant: ast.Constant, testcase: tc.TestCase
 ) -> Optional[prim_stmt.PrimitiveStatement]:
@@ -212,8 +213,8 @@ def create_stmt_from_call(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[Union[CollectionStatement, param_stmt.ParametrizedStatement]]:
-    """Creates the corresponding statement from an ast.call node. Depending on the call, this can be a
-    GenericConstructor, GenericMethod or GenericFunction statement.
+    """Creates the corresponding statement from an ast.call node. Depending on the call,
+    this can be a GenericConstructor, GenericMethod or GenericFunction statement.
 
     Args:
         call: the ast.Call node
@@ -235,8 +236,7 @@ def create_stmt_from_call(
     if gen_callable is None:
         logger.info("No such function found...")
         return None
-    else:
-        return assemble_stmt_from_gen_callable(testcase, gen_callable, call, ref_dict)
+    return assemble_stmt_from_gen_callable(testcase, gen_callable, call, ref_dict)
 
 
 def find_gen_callable(
@@ -244,18 +244,22 @@ def find_gen_callable(
     objs_under_test: Set,
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[Union[GenericConstructor, GenericMethod, GenericFunction]]:
-    """Traverses the accessible objects under test and returns the one matching with the ast.call object.
-    Unfortunately, there is no possibility to clearly determine if the ast.call object is a constructor, method or
-    function. Hence, the looping over all accessible objects is unavoidable. Then, by the name of the ast.call and
-    by the owner (functions do not have one, constructors and methods have), it is possible to decide which accessible
-    object to choose. This should also be unique, because the name of a function should be unique in a module. The name
-    of a method should be unique inside one class. If two classes in the same module have a method with an equal name,
-    the right method can be determined by the type of the object that is calling the method. This object has the type of
-    the class of which the method is called. To determine between function names and method names, another thing needs
-    to be considered. If a method is called, it is called on an object. This object must have been created before the
-    function is called on that object. Thus, this object must have been initialized before and have a variable reference
-    in the ref_dict where all created variable references are stored. So, by checking, if a reference is found, it can
-    be decided if it is a function or a method.
+    """Traverses the accessible objects under test and returns the one matching with the
+    ast.call object. Unfortunately, there is no possibility to clearly determine if the
+    ast.call object is a constructor, method or function. Hence, the looping over all
+    ccessible objects is unavoidable. Then, by the name of the ast.call and by the
+    owner (functions do not have one, constructors and methods have), it is possible to
+    decide which accessible object to choose. This should also be unique, because the
+    name of a function should be unique in a module. The name of a method should be
+    unique inside one class. If two classes in the same module have a method with an
+    equal name, the right method can be determined by the type of the object that is
+    calling the method. This object has the type of the class of which the method is
+    called. To determine between function names and method names, another thing needs
+    to be considered. If a method is called, it is called on an object. This object must
+    have been created before the function is called on that object. Thus, this object
+    must have been initialized before and have a variable reference in the ref_dict
+    where all created variable references are stored. So, by checking, if a reference is
+    found, it can be decided if it is a function or a method.
 
         Args:
             call: the ast.Call node
@@ -264,18 +268,21 @@ def find_gen_callable(
                       variable references.
 
         Returns:
-            The corresponding generic accessible object under test. This can be a GenericConstructor, a GenericMethod or
-            a GenericFunction.
+            The corresponding generic accessible object under test. This can be a
+            GenericConstructor, a GenericMethod or a GenericFunction.
     """
     call_name = str(call.func.attr)  # type: ignore
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
             owner = str(obj.owner).split(".")[-1].split("'")[0]
-            if call_name == owner and call.func.value.id not in ref_dict:  # type: ignore
+            call_id = call.func.value.id  # type: ignore
+            if call_name == owner and call_id not in ref_dict:
                 return obj
         elif isinstance(obj, GenericMethod):
-            # test if the type of the calling object is equal to the type of the owner of the generic method
-            if call_name == obj.method_name and call.func.value.id in ref_dict:  # type: ignore
+            # test if the type of the calling object is equal to the type of the owner
+            # of the generic method
+            call_id = call.func.value.id  # type: ignore
+            if call_name == obj.method_name and call_id in ref_dict:
                 obj_from_ast = str(call.func.value.id)  # type: ignore
                 var_type = ref_dict[obj_from_ast].variable_type
                 if var_type == obj.owner:
@@ -298,7 +305,8 @@ def assemble_stmt_from_gen_callable(
         param_stmt.FunctionStatement,
     ]
 ]:
-    """Takes a generic callable and assembles the corresponding parametrized statement from it.
+    """Takes a generic callable and assembles the corresponding parametrized statement
+    from it.
 
     Args:
         testcase: the testcase of the statement
@@ -322,14 +330,14 @@ def assemble_stmt_from_gen_callable(
         return param_stmt.FunctionStatement(
             testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
         )
-    elif isinstance(gen_callable, GenericMethod):
+    if isinstance(gen_callable, GenericMethod):
         return param_stmt.MethodStatement(
             testcase,
             gen_callable,
             ref_dict[call.func.value.id],  # type: ignore
             var_refs,
         )
-    elif isinstance(gen_callable, GenericConstructor):
+    if isinstance(gen_callable, GenericConstructor):
         return param_stmt.ConstructorStatement(
             testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
         )
@@ -342,16 +350,18 @@ def create_stmt_from_collection(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[Union[ListStatement, SetStatement, DictStatement, TupleStatement]]:
-    """Creates the corresponding statement from an ast.List node. Lists contain other statements.
+    """Creates the corresponding statement from an ast.List node. Lists contain other
+    statements.
 
     Args:
         coll_node: the ast node. It has the type of one of the collection types.
         testcase: the testcase of the statement
-        objs_under_test: the accessible objects under test. Not needed for the collection statement, but lists can
-                         contain other statements (e.g. call) needing this.
+        objs_under_test: the accessible objects under test. Not needed for the
+        collection statement, but lists can contain other statements (e.g. call) needing
+        this.
         ref_dict: a dictionary containing key value pairs of variable ids and
-                  variable references. Not needed for the collection statement, but lists can contain other statements
-                  (e.g. call) needing this.
+                  variable references. Not needed for the collection statement, but
+                  lists can contain other statements (e.g. call) needing this.
 
     Returns:
         The corresponding list statement.
@@ -386,7 +396,8 @@ def create_elements(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[List[vr.VariableReference]]:
-    """Creates the elements of a collection by calling the corresponding methods for creation. This can be recursive.
+    """Creates the elements of a collection by calling the corresponding methods for
+    creation. This can be recursive.
 
     Args:
         elements: The elements of the collection
@@ -396,7 +407,8 @@ def create_elements(
                   variable references
 
     Returns:
-        A list of variable references or None if something goes wrong while creating the elements.
+        A list of variable references or None if something goes wrong while creating the
+        elements.
     """
     coll_elems: List[vr.VariableReference] = []
     for elem in elements:
@@ -440,8 +452,8 @@ def create_elements(
 
 
 def get_collection_type(coll_elems: List[vr.VariableReference]) -> Any:
-    """Returns the type of a collection. If objects of multiple types are in the collection, this function returns
-    None.
+    """Returns the type of a collection. If objects of multiple types are in the
+    collection, this function returns None.
 
     Args:
         coll_elems: a list of variable references
@@ -470,7 +482,8 @@ def create_specific_collection_stmt(
     Args:
         testcase: The testcase of the statement
         coll_node: the ast node
-        coll_elems: a list of variable references or a list of tuples of variables for a dict statement.
+        coll_elems: a list of variable references or a list of tuples of variables for a
+        dict statement.
         coll_elems_type: the type of the elements of the collection statement.
 
     Returns:
@@ -478,11 +491,11 @@ def create_specific_collection_stmt(
     """
     if isinstance(coll_node, ast.List):
         return ListStatement(testcase, coll_elems_type, coll_elems)
-    elif isinstance(coll_node, ast.Set):
+    if isinstance(coll_node, ast.Set):
         return SetStatement(testcase, coll_elems_type, coll_elems)
-    elif isinstance(coll_node, ast.Dict):
+    if isinstance(coll_node, ast.Dict):
         return DictStatement(testcase, coll_elems_type, coll_elems)
-    elif isinstance(coll_node, ast.Tuple):
+    if isinstance(coll_node, ast.Tuple):
         return TupleStatement(testcase, coll_elems_type, coll_elems)
     return None
 
@@ -493,10 +506,11 @@ def try_generating_specific_function(
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
 ) -> Optional[CollectionStatement]:
-    """Calls to creating a collection (list, set, tuple, dict) via their keywords and not via literal syntax are
-    considered as ast.Call statements. But for these calls, no accessible object under test is in the test_cluster.
-    To parse them anyway, these method transforms them to the corresponding ast statement, for example a call of a list
-    with 'list()' to an ast.List statement.
+    """Calls to creating a collection (list, set, tuple, dict) via their keywords and
+    not via literal syntax are considered as ast.Call statements. But for these calls,
+    no accessible object under test is in the test_cluster. To parse them anyway, these
+    method transforms them to the corresponding ast statement, for example a call of a
+    list with 'list()' to an ast.List statement.
 
     Args:
         call: the ast.Call node
@@ -524,7 +538,7 @@ def try_generating_specific_function(
         return create_stmt_from_collection(
             set_node, testcase, objs_under_test, ref_dict
         )
-    elif func_id == "list":
+    if func_id == "list":
         try:
             list_node = ast.List(
                 elts=call.args,
@@ -535,7 +549,7 @@ def try_generating_specific_function(
         return create_stmt_from_collection(
             list_node, testcase, objs_under_test, ref_dict
         )
-    elif func_id == "tuple":
+    if func_id == "tuple":
         try:
             tuple_node = ast.Tuple(
                 elts=call.args,
@@ -546,7 +560,7 @@ def try_generating_specific_function(
         return create_stmt_from_collection(
             tuple_node, testcase, objs_under_test, ref_dict
         )
-    elif func_id == "dict":
+    if func_id == "dict":
         try:
             dict_node = ast.Dict(
                 keys=call.args[0].keys if call.args else [],  # type: ignore
@@ -558,5 +572,4 @@ def try_generating_specific_function(
         return create_stmt_from_collection(
             dict_node, testcase, objs_under_test, ref_dict
         )
-    else:
-        return None
+    return None
