@@ -169,10 +169,24 @@ class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
     def __init__(
-        self, owner: Type, method: Callable, inferred_signature: InferredSignature
+        self,
+        owner: Type,
+        method: Callable,
+        inferred_signature: InferredSignature,
+        method_name: Optional[str] = None,
     ) -> None:
         super().__init__(owner, method, inferred_signature)
         assert owner
+        self._method_name = method_name
+
+    @property
+    def method_name(self):
+        """Returns the name of a generic method.
+
+        Returns:
+            The name of a generic method.
+        """
+        return self._method_name
 
     def is_method(self) -> bool:
         return True
@@ -204,12 +218,25 @@ class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
 
     def __init__(
-        self, function: Callable, inferred_signature: InferredSignature
+        self,
+        function: Callable,
+        inferred_signature: InferredSignature,
+        function_name: Optional[str] = None,
     ) -> None:
+        self._function_name = function_name
         super().__init__(None, function, inferred_signature)
 
     def is_function(self) -> bool:
         return True
+
+    @property
+    def function_name(self) -> Optional[str]:
+        """Returns the name of a generic function.
+
+        Returns:
+            The name of a generic function.
+        """
+        return self._function_name
 
     def __eq__(self, other):
         if self is other:

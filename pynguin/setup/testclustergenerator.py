@@ -95,7 +95,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         ):
 
             generic_function = GenericFunction(
-                funktion, self._inference.infer_type_info(funktion)[0]
+                funktion, self._inference.infer_type_info(funktion)[0], function_name
             )
             if self._is_protected(
                 function_name
@@ -174,7 +174,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             self._logger.debug("Analyzing method %s", method_name)
 
             generic_method = GenericMethod(
-                klass, method, self._inference.infer_type_info(method)[0]
+                klass, method, self._inference.infer_type_info(method)[0], method_name
             )
 
             if (

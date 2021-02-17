@@ -25,6 +25,7 @@ import threading
 import time
 from typing import List, Optional, Tuple
 
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -161,6 +162,15 @@ class Pynguin:
             self._logger.info("Collecting constants from SUT.")
             static_constant_seeding.collect_constants(config.configuration.project_path)
 
+    def _setup_initial_population_seeding(self, test_cluster: TestCluster):
+        """Collect and parse tests for seeding the initial population"""
+        if config.configuration.initial_population_seeding:
+            self._logger.info("Collecting and parsing provided testcases.")
+            initpopseeding.initialpopulationseeding.test_cluster = test_cluster
+            initpopseeding.initialpopulationseeding.collect_testcases(
+                config.configuration.initial_population_data
+            )
+
     def _setup_and_check(self) -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -181,6 +191,7 @@ class Pynguin:
         self._track_sut_data(tracer, test_cluster)
         self._setup_random_number_generator()
         self._setup_constant_seeding_collection()
+        self._setup_initial_population_seeding(test_cluster)
         return executor, test_cluster
 
     @staticmethod
