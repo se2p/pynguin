@@ -13,6 +13,7 @@ from typing import Any, Generic, List, Optional, Set, Tuple, Type, TypeVar
 
 from typing_inspect import get_args
 
+import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
@@ -48,15 +49,20 @@ class CollectionStatement(Generic[T], stmt.Statement):
         return None
 
     def mutate(self) -> bool:
-        p_perform_action = 1.0 / 3.0
         changed = False
-        if randomness.next_float() < p_perform_action and len(self._elements) > 0:
+        if (
+            randomness.next_float() < config.Configuration.test_delete_probability
+            and len(self._elements) > 0
+        ):
             changed |= self._random_deletion()
 
-        if randomness.next_float() < p_perform_action and len(self._elements) > 0:
+        if (
+            randomness.next_float() < config.Configuration.test_change_probability
+            and len(self._elements) > 0
+        ):
             changed |= self._random_replacement()
 
-        if randomness.next_float() < p_perform_action:
+        if randomness.next_float() < config.Configuration.test_insert_probability:
             changed |= self._random_insertion()
         return changed
 
