@@ -112,6 +112,8 @@ def test_integrate(tmp_path):
         module_name="example",
         output_path=str(tmp_path),
         project_path=str(project_path),
+        report_dir=str(tmp_path),
+        statistics_backend=config.StatisticsBackend.NONE,
     )
     generator = gen.Pynguin(configuration)
     result = generator.run()
