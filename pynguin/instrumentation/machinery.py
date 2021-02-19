@@ -17,10 +17,10 @@ from types import CodeType
 from typing import cast
 
 import pynguin.configuration as config
-from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
+from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
+from pynguin.instrumentation.dynamicseedinginstrumentation import (
     DynamicSeedingInstrumentation,
 )
-from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 

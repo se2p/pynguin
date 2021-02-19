@@ -136,6 +136,7 @@ class DynamicSeedingInstrumentation:
 
         Args:
             block: The basic block where the new instructions are inserted.
+            function_name: The name of the function
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
@@ -258,16 +259,13 @@ class DynamicSeedingInstrumentation:
     def _instrument_node(
         self,
         node: ProgramGraphNode,
-    ):
+    ) -> None:
         """Instrument a single node in the CFG.
 
         Currently we only instrument conditional jumps and for loops.
 
         Args:
             node: The node that should be instrumented.
-
-        Returns:
-            A predicate id, if the contained a predicate which was instrumented.
         """
         # Not every block has an associated basic block, e.g. the artificial exit node.
         if not node.is_artificial:

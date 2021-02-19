@@ -10,7 +10,7 @@ import os
 import pytest
 
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
-from pynguin.analyses.seeding.dynamicseedinginstrumentation import (
+from pynguin.instrumentation.dynamicseedinginstrumentation import (
     DynamicSeedingInstrumentation,
 )
 
