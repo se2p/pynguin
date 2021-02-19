@@ -11,7 +11,7 @@ import ast
 import logging
 import os
 from pkgutil import iter_modules
-from typing import Any, Dict, Set, Union, cast
+from typing import Any, Dict, Set, Type, Union, cast
 
 from setuptools import find_packages
 
@@ -29,7 +29,7 @@ class _StaticConstantSeeding:
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
-        self._constants: Dict[str, Set[Types]] = {}
+        self._constants: Dict[Type[Types], Set[Types]] = {}
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
@@ -57,7 +57,7 @@ class _StaticConstantSeeding:
 
     def collect_constants(
         self, project_path: Union[str, os.PathLike]
-    ) -> Dict[str, Set[Types]]:
+    ) -> Dict[Type[Types], Set[Types]]:
         """Collect all constants for a given project.
 
         Args:
@@ -85,7 +85,7 @@ class _StaticConstantSeeding:
         Returns:
             Whether or not we have some strings collected
         """
-        return self._has_constants("str")
+        return self._has_constants(str)
 
     @property
     def has_ints(self) -> bool:
@@ -94,7 +94,7 @@ class _StaticConstantSeeding:
         Returns:
             Whether or not we have some ints collected
         """
-        return self._has_constants("int")
+        return self._has_constants(int)
 
     @property
     def has_floats(self) -> bool:
@@ -103,9 +103,9 @@ class _StaticConstantSeeding:
         Returns:
             Whether or not we have some floats collected
         """
-        return self._has_constants("float")
+        return self._has_constants(float)
 
-    def _has_constants(self, type_: str) -> bool:
+    def _has_constants(self, type_: Type[Types]) -> bool:
         assert self._constants is not None
         return len(self._constants[type_]) > 0
 
@@ -116,7 +116,7 @@ class _StaticConstantSeeding:
         Returns:
             A random string
         """
-        return cast(str, self._random_element("str"))
+        return cast(str, self._random_element(str))
 
     @property
     def random_int(self) -> int:
@@ -125,7 +125,7 @@ class _StaticConstantSeeding:
         Returns:
             A random int
         """
-        return cast(int, self._random_element("int"))
+        return cast(int, self._random_element(int))
 
     @property
     def random_float(self) -> float:
@@ -134,9 +134,9 @@ class _StaticConstantSeeding:
         Returns:
             A random float
         """
-        return cast(float, self._random_element("float"))
+        return cast(float, self._random_element(float))
 
-    def _random_element(self, type_: str) -> Types:
+    def _random_element(self, type_: Type[Types]) -> Types:
         assert self._constants is not None
         return randomness.choice(tuple(self._constants[type_]))
 
@@ -144,20 +144,20 @@ class _StaticConstantSeeding:
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     def __init__(self) -> None:
-        self._constants: Dict[str, Set[Types]] = {
-            "float": set(),
-            "int": set(),
-            "str": set(),
+        self._constants: Dict[Type[Types], Set[Types]] = {
+            float: set(),
+            int: set(),
+            str: set(),
         }
         self._string_expressions: Set[str] = set()
 
     def visit_Constant(self, node: ast.Constant) -> Any:
         if isinstance(node.value, str):
-            self._constants["str"].add(node.value)
+            self._constants[str].add(node.value)
         elif isinstance(node.value, float):
-            self._constants["float"].add(node.value)
+            self._constants[float].add(node.value)
         elif isinstance(node.value, int):
-            self._constants["int"].add(node.value)
+            self._constants[int].add(node.value)
         return self.generic_visit(node)
 
     def visit_Module(self, node: ast.Module) -> Any:
@@ -178,7 +178,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self.generic_visit(node)
 
     @property
-    def constants(self) -> Dict[str, Set[Types]]:
+    def constants(self) -> Dict[Type[Types], Set[Types]]:
         """Provides the collected constants.
 
         Returns:
@@ -188,7 +188,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._constants
 
     def _remove_docstrings(self) -> None:
-        self._constants["str"] -= self._string_expressions
+        self._constants[str] -= self._string_expressions
 
 
 static_constant_seeding = _StaticConstantSeeding()

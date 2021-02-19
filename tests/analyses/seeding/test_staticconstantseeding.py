@@ -14,7 +14,7 @@ from pynguin.analyses.seeding.staticconstantseeding import static_constant_seedi
 @pytest.fixture
 def seeding():
     seeding = static_constant_seeding
-    seeding._constants = {"float": set(), "int": set(), "str": set()}
+    seeding._constants = {float: set(), int: set(), str: set()}
     return seeding
 
 
@@ -32,7 +32,7 @@ def fixture_dir():
 
 @pytest.mark.parametrize(
     "type_, result",
-    [pytest.param("str", 2), pytest.param("int", 2), pytest.param("float", 1)],
+    [pytest.param(str, 2), pytest.param(int, 2), pytest.param(float, 1)],
 )
 def test_collect_constants(type_, result, seeding, fixture_dir):
     constants = seeding.collect_constants(fixture_dir)
@@ -54,9 +54,9 @@ def test_has_no_strings(field_name, seeding):
 @pytest.mark.parametrize(
     "has_field_name, get_field_name, type_",
     [
-        pytest.param("has_strings", "random_string", "str"),
-        pytest.param("has_ints", "random_int", "int"),
-        pytest.param("has_floats", "random_float", "float"),
+        pytest.param("has_strings", "random_string", str),
+        pytest.param("has_ints", "random_int", int),
+        pytest.param("has_floats", "random_float", float),
     ],
 )
 def test_properties(has_field_name, get_field_name, type_, seeding, fixture_dir):
