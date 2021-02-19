@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -98,3 +99,20 @@ def test_run(tmp_path):
     with mock.patch.object(gen.Pynguin, "_run") as run_mock:
         generator.run()
         run_mock.assert_called_once()
+
+
+def test_integrate(tmp_path):
+    project_path = Path(".").absolute()
+    if project_path.name == "tests":
+        project_path /= ".."
+    project_path = project_path / "docs" / "source" / "_static"
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        budget=1,
+        module_name="example",
+        output_path=str(tmp_path),
+        project_path=str(project_path),
+    )
+    generator = gen.Pynguin(configuration)
+    result = generator.run()
+    assert result == gen.ReturnCode.OK

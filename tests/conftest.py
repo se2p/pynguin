@@ -177,7 +177,7 @@ def reset_test_cluster():
 
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
-    stat.statistics_tracker.reset()
+    stat.reset()
 
 
 @pytest.fixture(scope="module")
