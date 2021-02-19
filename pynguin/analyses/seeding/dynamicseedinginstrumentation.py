@@ -76,16 +76,13 @@ class DynamicSeedingInstrumentation:
 
     _logger = logging.getLogger(__name__)
 
-    def _instrument_startswith_function(self, block: BasicBlock):
+    def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
           'string1.startswith(string2)' the
            value 'string2 + string1' in the _dynamic_pool.
 
         Args:
             block: The basic block where the new instructions are inserted.
-
-        Returns:
-            The id that was assigned to the predicate.
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
@@ -106,16 +103,13 @@ class DynamicSeedingInstrumentation:
         ]
         self._logger.info("Instrumented startswith function")
 
-    def _instrument_endswith_function(self, block: BasicBlock):
+    def _instrument_endswith_function(self, block: BasicBlock) -> None:
         """Instruments the endswith function in bytecode. Stores for the expression
          'string1.startswith(string2)' the
            value 'string1 + string2' in the _dynamic_pool.
 
         Args:
             block: The basic block where the new instructions are inserted.
-
-        Returns:
-            The id that was assigned to the predicate.
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
@@ -137,14 +131,11 @@ class DynamicSeedingInstrumentation:
 
     def _instrument_string_function_without_arg(
         self, block: BasicBlock, function_name: str
-    ):
+    ) -> None:
         """Instruments the isalnum function in bytecode.
 
         Args:
             block: The basic block where the new instructions are inserted.
-
-        Returns:
-            The id that was assigned to the predicate.
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
@@ -164,7 +155,7 @@ class DynamicSeedingInstrumentation:
         ]
         self._logger.info("Instrumented string function")
 
-    def _instrument_string_func(self, block: BasicBlock, function_name: str):
+    def _instrument_string_func(self, block: BasicBlock, function_name: str) -> None:
         """Calls the corresponding instrumentation method for the given function_name.
 
         Args:
@@ -179,15 +170,12 @@ class DynamicSeedingInstrumentation:
         else:
             self._instrument_string_function_without_arg(block, function_name)
 
-    def _instrument_compare_op(self, block: BasicBlock):
+    def _instrument_compare_op(self, block: BasicBlock) -> None:
         """Instruments the compare operations in bytecode. Stores the values extracted
          at runtime.
 
         Args:
             block: The containing basic block.
-
-        Returns:
-            The id that was assigned to the predicate.
         """
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
