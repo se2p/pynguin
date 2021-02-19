@@ -9,14 +9,16 @@ import math
 from abc import abstractmethod
 from typing import Any, Generic, List, Optional, Set, Type, TypeVar
 
-import pynguin.analyses.seeding.dynamicseeding as dyn_seed
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
+from pynguin.analyses.seeding.constantseeding import (
+    dynamic_constant_seeding,
+    static_constant_seeding,
+)
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -108,13 +110,13 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         )
         if (
             config.configuration.dynamic_constant_seeding
-            and dyn_seed.INSTANCE.has_ints
+            and dynamic_constant_seeding.has_ints
             and use_seed
             and config.configuration.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dyn_seed.INSTANCE.random_int
+            self._value = dynamic_constant_seeding.random_int
         elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_ints
@@ -155,13 +157,13 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         )
         if (
             config.configuration.dynamic_constant_seeding
-            and dyn_seed.INSTANCE.has_floats
+            and dynamic_constant_seeding.has_floats
             and use_seed
             and config.configuration.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dyn_seed.INSTANCE.random_float
+            self._value = dynamic_constant_seeding.random_float
         elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_floats
@@ -209,13 +211,13 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         )
         if (
             config.configuration.dynamic_constant_seeding
-            and dyn_seed.INSTANCE.has_strings
+            and dynamic_constant_seeding.has_strings
             and use_seed
             and config.configuration.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dyn_seed.INSTANCE.random_string
+            self._value = dynamic_constant_seeding.random_string
         elif (
             config.configuration.constant_seeding
             and static_constant_seeding.has_strings

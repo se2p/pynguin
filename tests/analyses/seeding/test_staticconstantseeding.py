@@ -8,7 +8,7 @@ import os
 
 import pytest
 
-from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
+from pynguin.analyses.seeding.constantseeding import static_constant_seeding
 
 
 @pytest.fixture

@@ -34,7 +34,7 @@ import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.seeding.staticconstantseeding import static_constant_seeding
+from pynguin.analyses.seeding.constantseeding import static_constant_seeding
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
