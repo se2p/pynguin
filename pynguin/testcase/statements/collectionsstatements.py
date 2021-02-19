@@ -19,11 +19,9 @@ import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.testcase.statements import statementvisitor as sv
-
-# pylint:disable=invalid-name
 from pynguin.utils import randomness
 
-T = TypeVar("T")
+T = TypeVar("T")  # pylint:disable=invalid-name
 
 
 class CollectionStatement(Generic[T], stmt.Statement):
