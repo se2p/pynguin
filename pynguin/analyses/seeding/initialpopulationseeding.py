@@ -80,8 +80,9 @@ class _InitialPopulationSeeding:
             config.configuration.initial_population_seeding = False
             self._logger.info("None of the provided test cases can be parsed.")
         else:
-            self._logger.info(f"Number successfully collected test cases: "
-                              f"{len(self._testcases)}")
+            self._logger.info(
+                "Number successfully collected test cases: %s" % len(self._testcases)
+            )
         self._mutate_testcases_initially()
 
     def _mutate_testcases_initially(self):
