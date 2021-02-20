@@ -82,9 +82,9 @@ class _InitialPopulationSeeding:
         else:
             self._logger.info(f"Number successfully collected test cases: "
                               f"{len(self._testcases)}")
-        self.mutate_testcases_initially()
+        self._mutate_testcases_initially()
 
-    def mutate_testcases_initially(self):
+    def _mutate_testcases_initially(self):
         """Mutates the initial population."""
         test_factory = TestFactory(self.test_cluster)
         for _ in range(0, config.configuration.initial_population_mutations):
