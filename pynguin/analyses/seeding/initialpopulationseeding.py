@@ -81,7 +81,7 @@ class _InitialPopulationSeeding:
             self._logger.info("None of the provided test cases can be parsed.")
         else:
             self._logger.info(
-                "Number successfully collected test cases: %s" % len(self._testcases)
+                "Number successfully collected test cases: %s", len(self._testcases)
             )
         self._mutate_testcases_initially()
 
