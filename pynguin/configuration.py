@@ -282,9 +282,13 @@ class Configuration:
     """The path to the file with the pre-existing tests. The path has to include the
     file itself."""
 
-    seeded_testcases_reuse_probability = 0.9
+    seeded_testcases_reuse_probability: float = 0.9
     """Probability of using seeded testcases when initial population seeding is
     enabled."""
+
+    initial_population_mutations: int = 0
+    """Number of how often the testcases collected by initial population seeding should
+    be mutated to promote diversity"""
 
     duck_type_analysis: bool = False
     """Should the duck-type analysis be used for type inference during test

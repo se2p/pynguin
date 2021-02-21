@@ -258,3 +258,14 @@ def test_module_not_readable(parse_mock, clear_ips_instance, seed_modules_path):
     ips.initialpopulationseeding.collect_testcases(init_pop_file)
 
     assert not ips.initialpopulationseeding._testcases
+
+
+@mock.patch("pynguin.ga.testcasechromosome.TestCaseChromosome.mutate")
+def test_initial_mutation(
+    mutate_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
+):
+    config.configuration.initial_population_mutations = 2
+    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    init_pop_file = os.path.join(seed_modules_path, "primitiveseed.py")
+    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    mutate_mock.assert_called()

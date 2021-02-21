@@ -15,8 +15,10 @@ from typing import Any, Dict, List, Optional, Union
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
+from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
+from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
 
 
@@ -26,7 +28,7 @@ class _InitialPopulationSeeding:
     def __init__(self):
         self._logger = logging.getLogger(__name__)
         self._testcases: List[DefaultTestCase] = []
-        self.test_cluster: TestCluster = TestCluster()
+        self.test_cluster: TestCluster
 
     @property
     def test_cluster(self) -> TestCluster:
@@ -77,6 +79,21 @@ class _InitialPopulationSeeding:
         if not self._testcases:
             config.configuration.initial_population_seeding = False
             self._logger.info("None of the provided test cases can be parsed.")
+        else:
+            self._logger.info(
+                "Number successfully collected test cases: %s", len(self._testcases)
+            )
+        self._mutate_testcases_initially()
+
+    def _mutate_testcases_initially(self):
+        """Mutates the initial population."""
+        test_factory = TestFactory(self.test_cluster)
+        for _ in range(0, config.configuration.initial_population_mutations):
+            for testcase in self._testcases:
+                testcase_wrapper = TestCaseChromosome(testcase, test_factory)
+                testcase_wrapper.mutate()
+                if not testcase_wrapper.test_case.statements:
+                    self._testcases.remove(testcase)
 
     @property
     def seeded_testcase(self) -> DefaultTestCase:
