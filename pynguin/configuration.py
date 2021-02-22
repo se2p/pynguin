@@ -43,7 +43,7 @@ class Algorithm(str, enum.Enum):
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
 
-    RANDOMSEARCH = "RANDOMSEARCH"
+    RANDOM_SEARCH = "RANDOM_SEARCH"
     """Performs random search on test suites."""
 
     WHOLE_SUITE = "WHOLE_SUITE"

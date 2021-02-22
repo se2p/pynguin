@@ -93,7 +93,7 @@ class TestSuiteGenerationAlgorithmFactory(
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
         config.Algorithm.MOSA: MOSATestStrategy,
         config.Algorithm.RANDOM: RandomTestStrategy,
-        config.Algorithm.RANDOMSEARCH: RandomSearchStrategy,
+        config.Algorithm.RANDOM_SEARCH: RandomSearchStrategy,
         config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 

@@ -33,7 +33,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_randomsearch(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
-    config.configuration.algorithm = config.Algorithm.RANDOMSEARCH
+    config.configuration.algorithm = config.Algorithm.RANDOM_SEARCH
     config.configuration.budget = 1
     config.configuration.module_name = module_name
     config.configuration.min_initial_tests = 1
