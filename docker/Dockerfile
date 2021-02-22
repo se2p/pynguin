@@ -29,28 +29,12 @@ RUN pip install poetry==$POETRY_VERSION \
 FROM python:3.8.7-slim-buster AS execute
 ENV PYNGUIN_VERSION "0.7.0"
 
-RUN mkdir -p /pynguin \
-    && mkdir -p /input \
-    && mkdir -p /output \
-    && mkdir -p /package \
-    && mkdir -p /home/pynguin \
-    && groupadd -r pynguin \
-    && useradd -r -s /bin/false -g pynguin pynguin
-
 WORKDIR /pynguin
 
 COPY --from=build /pynguin-build/dist/pynguin-$PYNGUIN_VERSION.tar.gz .
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
-RUN pip install /pynguin/pynguin-$PYNGUIN_VERSION.tar.gz \
-    && chown -R pynguin:pynguin /pynguin \
-    && chown -R pynguin:pynguin /input \
-    && chown -R pynguin:pynguin /output \
-    && chown -R pynguin:pynguin /package \
-    && chown -R pynguin:pynguin /home/pynguin \
-    && export PATH=/home/pynguin/.local/bin:$PATH
-
-USER pynguin
+RUN pip install /pynguin/pynguin-$PYNGUIN_VERSION.tar.gz
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []
