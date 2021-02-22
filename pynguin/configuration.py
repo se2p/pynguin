@@ -290,10 +290,6 @@ class Configuration:
     """Number of how often the testcases collected by initial population seeding should
     be mutated to promote diversity"""
 
-    duck_type_analysis: bool = False
-    """Should the duck-type analysis be used for type inference during test
-    generation?"""
-
     generate_assertions: bool = True
     """Should assertions be generated?"""
 
@@ -303,9 +299,6 @@ class Configuration:
 
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
-
-    duck_mock_module_only: bool = False
-    """Do only parse module dependencies for duck mocks, not whole class path."""
 
     dynamic_constant_seeding: bool = False
     """Enables seeding of constants at runtime."""
