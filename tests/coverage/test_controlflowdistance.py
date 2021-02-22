@@ -20,7 +20,7 @@ from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def control_flow_distance() -> ControlFlowDistance:
     return ControlFlowDistance()
 

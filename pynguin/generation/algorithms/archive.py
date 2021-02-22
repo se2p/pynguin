@@ -111,8 +111,6 @@ class Archive(Generic[F, C]):
 
     def _all_covered(self) -> bool:
         return all(
-            [
-                chromosome.get_fitness_for(fitness_function) == 0.0
-                for fitness_function, chromosome in self._covered.items()
-            ]
+            chromosome.get_fitness_for(fitness_function) == 0.0
+            for fitness_function, chromosome in self._covered.items()
         )
