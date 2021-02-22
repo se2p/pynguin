@@ -37,21 +37,6 @@ class RuntimeVariable(str, enum.Enum):
     # Execution results
     ExecutionResults = "ExecutionResults"
 
-    # Number of MonkeyType executions
-    MonkeyTypeExecutions = "MonkeyTypeExecutions"
-
-    # Updated parameter types
-    ParameterTypeUpdates = "ParameterTypeUpdates"
-
-    # "Number of updated parameter types"
-    ParameterTypeUpdatesSize = "ParameterTypeUpdatesSize"
-
-    # Updated return types
-    ReturnTypeUpdates = "ReturnTypeUpdates"
-
-    # Number of updated return types
-    ReturnTypeUpdatesSize = "ReturnTypeUpdatesSize"
-
     # Obtained coverage of the chosen testing criterion
     Coverage = "Coverage"
 
