@@ -141,8 +141,8 @@ class Configuration:
     budget: int = 600
     """Time budget (in seconds) that can be used for generating tests."""
 
-    search_budget: int = 60
-    """Maximum search duration"""
+    maximum_test_number: int = 60
+    """Maximum number of test cases to be created."""
 
     algorithm_iterations: int = 60
     """Maximum iterations"""
