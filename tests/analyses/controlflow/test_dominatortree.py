@@ -18,7 +18,7 @@ def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
     post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
         control_flow_graph
     )
-    dot_representation = post_dominator_tree.to_dot()
+    dot_representation = post_dominator_tree.dot
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
 "ProgramGraphNode(3)";
@@ -41,7 +41,7 @@ def test_integration(small_control_flow_graph):
     post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
         small_control_flow_graph
     )
-    dot_representation = post_dominator_tree.to_dot()
+    dot_representation = post_dominator_tree.dot
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
 "ProgramGraphNode(2)";

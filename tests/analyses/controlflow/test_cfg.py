@@ -14,7 +14,7 @@ from tests.fixtures.programgraph.whileloop import Foo
 
 def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
-    dot_representation = cfg.to_dot()
+    dot_representation = cfg.dot
     graph = """strict digraph  {
 "ProgramGraphNode(0)";
 "ProgramGraphNode(1)";
@@ -40,7 +40,7 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
 def test_integration_reverse_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     reversed_cfg = cfg.reversed()
-    dot_representation = reversed_cfg.to_dot()
+    dot_representation = reversed_cfg.dot
     graph = """strict digraph  {
 "ProgramGraphNode(0)";
 "ProgramGraphNode(1)";
@@ -66,7 +66,7 @@ def test_integration_reverse_cfg(conditional_jump_example_bytecode):
 def test_integration_copy_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     copied_cfg = cfg.copy()
-    assert copied_cfg.to_dot() == cfg.to_dot()
+    assert copied_cfg.dot == cfg.dot
 
 
 def test_integration_while_loop():

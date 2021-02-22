@@ -118,7 +118,7 @@ def test_to_dot(graph, node, second_node):
     graph.add_node(node)
     graph.add_node(second_node)
     graph.add_edge(node, second_node)
-    result = graph.to_dot()
+    result = graph.dot
     assert result != ""
 
 

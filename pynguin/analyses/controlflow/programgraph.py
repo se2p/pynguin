@@ -231,7 +231,8 @@ class ProgramGraph(Generic[N]):
         """
         return lowest_common_ancestor(self._graph, first, second)
 
-    def to_dot(self) -> str:
+    @property
+    def dot(self) -> str:
         """Provides the DOT representation of this graph.
 
         Returns:

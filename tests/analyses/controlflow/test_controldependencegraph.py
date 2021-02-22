@@ -11,7 +11,7 @@ def test_integration(small_control_flow_graph):
     control_dependence_graph = cdt.ControlDependenceGraph.compute(
         small_control_flow_graph
     )
-    dot_representation = control_dependence_graph.to_dot()
+    dot_representation = control_dependence_graph.dot
     graph = """strict digraph  {
 "ProgramGraphNode(2)";
 "ProgramGraphNode(4)";
