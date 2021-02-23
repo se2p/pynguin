@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import simple_parsing
+from rich.logging import RichHandler
 
 import pynguin.configuration as config
 from pynguin import __version__
@@ -79,26 +80,29 @@ def _setup_logging(
     verbosity: int,
     log_file: Optional[str] = None,
 ):
-    # TODO(fk) use logging.basicConfig
-
-    # Configure root logger
-    logger = logging.getLogger("")
-    logger.setLevel(logging.DEBUG)
-
+    default_log_format = (
+        "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
+    )
     if log_file:
         log_file_path = Path(log_file).resolve()
         if not log_file_path.parent.exists():
             log_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
-                + "%(message)s"
-            )
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=default_log_format,
+            datefmt="%X",
+            filemode="w",
+            filename=log_file,
         )
-        file_handler.setLevel(logging.INFO)
-        logger.addHandler(file_handler)
+    else:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=default_log_format,
+            datefmt="%X",
+        )
+
+    # Configure root logger
+    logger = logging.getLogger("")
 
     if verbosity < 0:
         logger.addHandler(logging.NullHandler())
@@ -109,11 +113,9 @@ def _setup_logging(
         if verbosity >= 2:
             level = logging.DEBUG
 
-        console_handler = logging.StreamHandler()
+        console_handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]")
         console_handler.setLevel(level)
-        console_handler.setFormatter(
-            logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
-        )
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(console_handler)
 
 
