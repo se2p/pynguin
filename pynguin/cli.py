@@ -22,6 +22,7 @@ from rich.traceback import install
 import pynguin.configuration as config
 from pynguin import __version__
 from pynguin.generator import Pynguin
+from pynguin.utils.console import console
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -114,7 +115,9 @@ def _setup_logging(
         if verbosity >= 2:
             level = logging.DEBUG
 
-        console_handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]")
+        console_handler = RichHandler(
+            rich_tracebacks=True, log_time_format="[%X]", console=console
+        )
         console_handler.setLevel(level)
         console_handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(console_handler)
@@ -148,7 +151,8 @@ def main(argv: List[str] = None) -> int:
     _setup_logging(parsed.verbosity, parsed.log_file)
 
     generator = Pynguin(parsed.config)
-    return generator.run().value
+    with console.status("Running Pynguin..."):
+        return generator.run().value
 
 
 if __name__ == "__main__":
