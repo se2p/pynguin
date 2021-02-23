@@ -17,6 +17,7 @@ from typing import List, Optional
 
 import simple_parsing
 from rich.logging import RichHandler
+from rich.traceback import install
 
 import pynguin.configuration as config
 from pynguin import __version__
@@ -134,6 +135,7 @@ def main(argv: List[str] = None) -> int:
         An integer representing the success of the program run.  0 means
         success, all non-zero exit codes indicate errors.
     """
+    install()
     if argv is None:
         argv = sys.argv
     if len(argv) <= 1:
