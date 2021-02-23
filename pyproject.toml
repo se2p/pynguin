@@ -43,6 +43,7 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2.5"}
 pydot = "^1.4"
+rich = "^9.11.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.4"
