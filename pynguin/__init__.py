@@ -8,7 +8,8 @@
 import pynguin.configuration as config
 import pynguin.generator as gen
 
-Pynguin = gen.Pynguin
+set_configuration = gen.set_configuration
+run_pynguin = gen.run_pynguin
 Configuration = config.Configuration
 Algorithm = config.Algorithm
 ExportStrategy = config.ExportStrategy
@@ -18,7 +19,8 @@ TypeInferenceStrategy = config.TypeInferenceStrategy
 
 __version__ = "0.7.0"
 __all__ = [
-    "Pynguin",
+    "set_configuration",
+    "run_pynguin",
     "Configuration",
     "__version__",
     "Algorithm",

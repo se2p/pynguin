@@ -21,7 +21,7 @@ from rich.traceback import install
 
 import pynguin.configuration as config
 from pynguin import __version__
-from pynguin.generator import Pynguin
+from pynguin.generator import run_pynguin, set_configuration
 from pynguin.utils.console import console
 
 
@@ -150,9 +150,9 @@ def main(argv: List[str] = None) -> int:
     _setup_output_path(parsed.config.output_path)
     _setup_logging(parsed.verbosity, parsed.log_file)
 
-    generator = Pynguin(parsed.config)
+    set_configuration(parsed.config)
     with console.status("Running Pynguin..."):
-        return generator.run().value
+        return run_pynguin().value
 
 
 if __name__ == "__main__":

@@ -180,8 +180,8 @@ def test_generator_with_init_pop_seeding(
     config.configuration.initial_population_data = os.path.join(
         seed_modules_path, "primitiveseed.py"
     )
-    generator = gen.Pynguin(config.configuration)
-    generator._setup_initial_population_seeding(dummy_test_cluster)
+    gen.set_configuration(config.configuration)
+    gen._setup_initial_population_seeding(dummy_test_cluster)
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert ips.initialpopulationseeding.has_tests
     assert (
