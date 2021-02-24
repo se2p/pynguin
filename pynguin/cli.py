@@ -43,7 +43,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="verbose output (repeat for increased verbosity)",
     )
     parser.add_argument(
-        "--log_file", type=str, default=None, help="Path to store the log file."
+        "--log-file",
+        "--log_file",
+        dest="log_file",
+        type=str,
+        default=None,
+        help="Path to store the log file.",
     )
     parser.add_argument(
         "-q",
