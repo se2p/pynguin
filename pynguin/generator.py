@@ -134,7 +134,7 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
     except ImportError as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed
-        _LOGGER.error("Failed to load SUT: %s", ex)
+        _LOGGER.exception("Failed to load SUT: %s", ex)
         return False
     return True
 

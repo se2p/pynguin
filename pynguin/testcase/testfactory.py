@@ -696,7 +696,7 @@ class TestFactory:
             self.change_call(test_case, statement, call)
             return True
         except ConstructionFailedException:
-            self._logger.info("Failed to change call for statement.")
+            self._logger.exception("Failed to change call for statement.")
         return False
 
     def change_call(

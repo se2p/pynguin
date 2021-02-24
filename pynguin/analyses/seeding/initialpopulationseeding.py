@@ -59,7 +59,7 @@ class _InitialPopulationSeeding:
             try:
                 return ast.parse(module_file.read())
             except BaseException as exception:  # pylint: disable=broad-except
-                self._logger.info("Cannot read module: %s", exception)
+                self._logger.exception("Cannot read module: %s", exception)
                 return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:

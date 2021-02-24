@@ -156,7 +156,7 @@ class _StaticConstantSeeding(_ConstantSeeding):
                     tree = ast.parse(module_file.read())
                     collector.visit(tree)
                 except BaseException as exception:  # pylint: disable=broad-except
-                    self._logger.debug("Cannot collect constants: %s", exception)
+                    self._logger.exception("Cannot collect constants: %s", exception)
         self._constants = collector.constants
         return self._constants
 

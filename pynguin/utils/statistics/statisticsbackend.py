@@ -61,7 +61,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                     csv_writer.writeheader()
                 csv_writer.writerow({k: str(v.value) for k, v in data.items()})
         except OSError as error:
-            logging.warning("Error while writing statistics: %s", error)
+            logging.exception("Error while writing statistics: %s", error)
 
     def _get_report_dir(self) -> Path:
         report_dir = Path(config.configuration.report_dir).absolute()
