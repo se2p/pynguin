@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTimeStoppingCondition,
 )
 

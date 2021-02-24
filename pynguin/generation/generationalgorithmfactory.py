@@ -36,16 +36,12 @@ from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
-from pynguin.generation.stoppingconditions.maxiterationsstoppingcondition import (
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
     MaxTestsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.maxtimestoppingcondition import (
     MaxTimeStoppingCondition,
+    StoppingCondition,
 )
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException

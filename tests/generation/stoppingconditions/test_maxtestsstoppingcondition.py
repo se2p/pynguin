@@ -6,7 +6,7 @@
 #
 import pytest
 
-from pynguin.generation.stoppingconditions.maxtestsstoppingcondition import (
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestsStoppingCondition,
 )
 

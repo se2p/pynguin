@@ -11,10 +11,10 @@ import pytest
 from hypothesis import given
 
 import pynguin.configuration as config
-from pynguin.generation.stoppingconditions.globaltimestoppingcondition import (
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     GlobalTimeStoppingCondition,
+    StoppingCondition,
 )
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
 
 
 @pytest.fixture
