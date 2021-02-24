@@ -9,6 +9,24 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.7.0
+
+- *Breaking:* Renamed algorithms in configuration options.
+  Use `RANDOM` instead of `RANDOOPY` for feedback-directed random test generation 
+  and `WHOLE_SUITE` instead of `WSPY` for whole-suite test generation.
+- Add [MOSA](https://doi.org/10.1109/ICST.2015.7102604) test-generation algorithm.  
+  It can be selected via `--algorithm MOSA`.
+- Add simple random-search test-generation algorithm.
+  It can be selected via `--algorithm RANDOM_SEARCH`.
+- Pynguin now supports the usage of a configuration file (based on Python's 
+  [argparse](https://docs.python.org/3/library/argparse.html)) module.
+  Use `@<path/to/file>` in the command-line options of Pynguin to specify a 
+  configuration file.
+  See the `argparse` documentation for details on the file structure.
+- Add further seeding strategies to extract dynamic values from execution and to use 
+  existing test cases as a seeded initial population (thanks to 
+  [@Luki42](https://github.com/luki42))
+
 ## Pynguin 0.6.3
 
 - Resolve some weird merging issue
