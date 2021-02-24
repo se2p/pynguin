@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -50,13 +50,13 @@ def test_set_last_execution_result(test_case_chromosome):
 
 
 def test_get_last_mutatable_statement_empty(test_case_chromosome):
-    assert test_case_chromosome._get_last_mutatable_statement() is None
+    assert test_case_chromosome.get_last_mutatable_statement() is None
 
 
 def test_get_last_mutatable_statement_max(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    assert chromosome._get_last_mutatable_statement() == 0
+    assert chromosome.get_last_mutatable_statement() == 0
 
 
 def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
@@ -68,7 +68,7 @@ def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 1
     chromosome.set_last_execution_result(result)
-    assert chromosome._get_last_mutatable_statement() == 1
+    assert chromosome.get_last_mutatable_statement() == 1
 
 
 def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
@@ -79,11 +79,11 @@ def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 4
     chromosome.set_last_execution_result(result)
-    assert chromosome._get_last_mutatable_statement() == chromosome.size() - 1
+    assert chromosome.get_last_mutatable_statement() == chromosome.size() - 1
 
 
 def test_mutation_insert_none(test_case_chromosome):
-    config.INSTANCE.statement_insertion_probability = 0.0
+    config.configuration.statement_insertion_probability = 0.0
     assert not test_case_chromosome._mutation_insert()
 
 
@@ -97,8 +97,8 @@ def test_mutation_insert_two():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.INSTANCE.statement_insertion_probability = 0.5
-    config.INSTANCE.chromosome_length = 10
+    config.configuration.statement_insertion_probability = 0.5
+    config.configuration.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert chromosome._mutation_insert()
@@ -116,8 +116,8 @@ def test_mutation_insert_twice_no_success():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.INSTANCE.statement_insertion_probability = 0.5
-    config.INSTANCE.chromosome_length = 10
+    config.configuration.statement_insertion_probability = 0.5
+    config.configuration.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert not chromosome._mutation_insert()
@@ -136,8 +136,8 @@ def test_mutation_insert_max_length():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.INSTANCE.statement_insertion_probability = 0.5
-    config.INSTANCE.chromosome_length = 1
+    config.configuration.statement_insertion_probability = 0.5
+    config.configuration.chromosome_length = 1
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0, 0.0]
         assert chromosome._mutation_insert()
@@ -152,12 +152,12 @@ def test_mutation_change_nothing_to_change(test_case_chromosome):
 def test_mutation_change_single_prim(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     int0 = prim.IntPrimitiveStatement(test_case, 5)
-    int0.return_value.distance = 5
+    int0.ret_val.distance = 5
     test_case.add_statement(int0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0]
         assert chromosome._mutation_change()
-        assert int0.return_value.distance == 5
+        assert int0.ret_val.distance == 5
 
 
 @pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
@@ -167,7 +167,7 @@ def test_mutation_change_call_success(constructor_mock, result):
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=factory)
     const0 = ps.ConstructorStatement(test_case, constructor_mock)
-    const0.return_value.distance = 5
+    const0.ret_val.distance = 5
     test_case.add_statement(const0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
@@ -175,7 +175,7 @@ def test_mutation_change_call_success(constructor_mock, result):
             mutate_mock.return_value = False
             assert chromosome._mutation_change() == result
             mutate_mock.assert_called_once()
-            assert const0.return_value.distance == 5
+            assert const0.ret_val.distance == 5
 
 
 def test_mutation_change_no_change(test_case_chromosome_with_test):
@@ -222,7 +222,7 @@ def test_mutation_delete_skipping():
     chromosome = tcc.TestCaseChromosome(test_case)
     with mock.patch.object(chromosome, "_delete_statement") as delete_mock:
         delete_mock.return_value = True
-        with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+        with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
             mut_mock.return_value = 3
             assert not chromosome._mutation_delete()
             assert delete_mock.call_count == 0
@@ -233,14 +233,17 @@ def test_mutate_chop(test_case_chromosome_with_test):
     chromosome.set_changed(False)
     for i in range(50):
         test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    config.INSTANCE.test_insert_probability = 0.0
-    config.INSTANCE.test_change_probability = 0.0
-    config.INSTANCE.test_delete_probability = 0.0
-    with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+    config.configuration.test_insert_probability = 0.0
+    config.configuration.test_change_probability = 0.0
+    config.configuration.test_delete_probability = 0.0
+    with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = 5
-        chromosome.mutate()
-        assert chromosome.has_changed()
-        assert len(test_case.statements) == 6
+        with mock.patch.object(chromosome, "_test_factory") as factory_mock:
+            factory_mock.has_call_on_sut.return_value = True
+            chromosome.mutate()
+            assert chromosome.has_changed()
+            assert len(test_case.statements) == 6
+            assert factory_mock.has_call_on_sut.call_count == 1
 
 
 def test_mutate_no_chop(test_case_chromosome_with_test):
@@ -248,14 +251,17 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     for i in range(50):
         test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
     chromosome.set_changed(False)
-    config.INSTANCE.test_insert_probability = 0.0
-    config.INSTANCE.test_change_probability = 0.0
-    config.INSTANCE.test_delete_probability = 0.0
-    with mock.patch.object(chromosome, "_get_last_mutatable_statement") as mut_mock:
+    config.configuration.test_insert_probability = 0.0
+    config.configuration.test_change_probability = 0.0
+    config.configuration.test_delete_probability = 0.0
+    with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = None
-        chromosome.mutate()
-        assert len(test_case.statements) == 50
-        assert not chromosome.has_changed()
+        with mock.patch.object(chromosome, "_test_factory") as factory_mock:
+            factory_mock.has_call_on_sut.return_value = True
+            chromosome.mutate()
+            assert len(test_case.statements) == 50
+            assert not chromosome.has_changed()
+            assert factory_mock.has_call_on_sut.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -275,9 +281,13 @@ def test_mutate_all(test_case_chromosome, func, rand, result):
         float_mock.side_effect = rand
         with mock.patch.object(test_case_chromosome, func) as mock_func:
             mock_func.return_value = result
-            test_case_chromosome.mutate()
-            assert test_case_chromosome.has_changed() == result
-            mock_func.assert_called_once()
+            with mock.patch.object(
+                test_case_chromosome, "_test_factory"
+            ) as factory_mock:
+                factory_mock.has_call_on_sut.return_value = True
+                test_case_chromosome.mutate()
+                assert test_case_chromosome.has_changed() == result
+                mock_func.assert_called_once()
 
 
 def test_crossover_wrong_type(test_case_chromosome):
@@ -313,7 +323,26 @@ def test_crossover_too_large():
     test_case1.size.return_value = 7
     left = tcc.TestCaseChromosome(test_case0, test_factory=test_factory)
     right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
-    config.INSTANCE.chromosome_length = 3
+    config.configuration.chromosome_length = 3
     left.set_changed(False)
     left.cross_over(right, 1, 2)
     assert not left.has_changed()
+
+
+def test_is_failing(test_case_chromosome):
+    chromosome = test_case_chromosome
+    result = MagicMock(ExecutionResult)
+    result.has_test_exceptions.return_value = True
+    chromosome.set_last_execution_result(result)
+    assert chromosome.is_failing()
+
+
+def test_is_failing_without_execution_result(test_case_chromosome):
+    chromosome = test_case_chromosome
+    assert not chromosome.is_failing()
+
+
+def test_accept(test_case_chromosome):
+    visitor = MagicMock()
+    test_case_chromosome.accept(visitor)
+    visitor.visit_test_case_chromosome.assert_called_once_with(test_case_chromosome)

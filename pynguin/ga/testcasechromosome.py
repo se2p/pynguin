@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,6 +11,7 @@ from typing import Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 from pynguin.testcase.execution.executionresult import ExecutionResult
@@ -85,7 +86,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 offspring.test_case, other.test_case.get_statement(j)
             )
 
-        if offspring.test_case.size() < config.INSTANCE.chromosome_length:
+        if offspring.test_case.size() < config.configuration.chromosome_length:
             self._test_case = offspring.test_case
             self.set_changed(True)
 
@@ -93,31 +94,39 @@ class TestCaseChromosome(chrom.Chromosome):
         changed = False
 
         if (
-            config.INSTANCE.chop_max_length
-            and self.size() >= config.INSTANCE.chromosome_length
+            config.configuration.chop_max_length
+            and self.size() >= config.configuration.chromosome_length
         ):
-            last_mutatable_position = self._get_last_mutatable_statement()
+            last_mutatable_position = self.get_last_mutatable_statement()
             if last_mutatable_position is not None:
                 self._test_case.chop(last_mutatable_position)
                 changed = True
 
-        if randomness.next_float() <= config.INSTANCE.test_delete_probability:
+        # In case mutation removes all calls on the SUT.
+        backup = self.test_case.clone()
+
+        if randomness.next_float() <= config.configuration.test_delete_probability:
             if self._mutation_delete():
                 changed = True
 
-        if randomness.next_float() <= config.INSTANCE.test_change_probability:
+        if randomness.next_float() <= config.configuration.test_change_probability:
             if self._mutation_change():
                 changed = True
 
-        if randomness.next_float() <= config.INSTANCE.test_insert_probability:
+        if randomness.next_float() <= config.configuration.test_insert_probability:
             if self._mutation_insert():
                 changed = True
+
+        assert self._test_factory, "Required for mutation"
+        if not self._test_factory.has_call_on_sut(self._test_case):
+            self._test_case = backup
+            self._mutation_insert()
 
         if changed:
             self.set_changed(True)
 
     def _mutation_delete(self) -> bool:
-        last_mutatable_statement = self._get_last_mutatable_statement()
+        last_mutatable_statement = self.get_last_mutatable_statement()
         if last_mutatable_statement is None:
             return False
 
@@ -136,7 +145,7 @@ class TestCaseChromosome(chrom.Chromosome):
         return modified
 
     def _mutation_change(self) -> bool:
-        last_mutatable_statement = self._get_last_mutatable_statement()
+        last_mutatable_statement = self.get_last_mutatable_statement()
         if last_mutatable_statement is None:
             return False
 
@@ -146,7 +155,7 @@ class TestCaseChromosome(chrom.Chromosome):
         while position <= last_mutatable_statement:
             if randomness.next_float() < p_per_statement:
                 statement = self._test_case.get_statement(position)
-                old_distance = statement.return_value.distance
+                old_distance = statement.ret_val.distance
                 if statement.mutate():
                     changed = True
                 else:
@@ -155,7 +164,7 @@ class TestCaseChromosome(chrom.Chromosome):
                         self._test_case, statement
                     ):
                         changed = True
-                statement.return_value.distance = old_distance
+                statement.ret_val.distance = old_distance
                 position = statement.get_position()
             position += 1
 
@@ -169,14 +178,14 @@ class TestCaseChromosome(chrom.Chromosome):
             Whether or not the test case was changed
         """
         changed = False
-        alpha = config.INSTANCE.statement_insertion_probability
+        alpha = config.configuration.statement_insertion_probability
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.INSTANCE.chromosome_length
+            and self.size() < config.configuration.chromosome_length
         ):
             assert self._test_factory, "Mutation requires a test factory."
-            max_position = self._get_last_mutatable_statement()
+            max_position = self.get_last_mutatable_statement()
             if max_position is None:
                 # No mutatable statement found, so start at the first position.
                 max_position = 0
@@ -192,14 +201,14 @@ class TestCaseChromosome(chrom.Chromosome):
                 changed = True
         return changed
 
-    def _get_last_mutatable_statement(self) -> Optional[int]:
-        """Provides the index of the last mutatable statement.
+    def get_last_mutatable_statement(self) -> Optional[int]:
+        """Provides the index of the last mutatable statement of the wrapped test case.
 
         If there was an exception during the last execution, this includes all statement
         up to the one that caused the exception (included).
 
         Returns:
-            The index of the last mutable statement, if any.
+            The index of the last mutatable statement, if any.
         """
         # We are empty, so there can't be a last mutatable statement.
         if self.size() == 0:
@@ -230,6 +239,22 @@ class TestCaseChromosome(chrom.Chromosome):
             result: The last execution result
         """
         self._last_execution_result = result
+
+    def is_failing(self) -> bool:
+        """Returns whether or not the encapsulated test case is a failing test.
+
+        A failing test is a test that raises an exception.
+        TODO(sl) what about test cases raising exceptions on purpose?
+
+        Returns:
+            Whether or not the encapsulated test case is a failing test.  # noqa: DAR202
+        """
+        if not self._last_execution_result:
+            return False
+        return self._last_execution_result.has_test_exceptions()
+
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        visitor.visit_test_case_chromosome(self)
 
     def clone(self) -> TestCaseChromosome:
         return TestCaseChromosome(orig=self)

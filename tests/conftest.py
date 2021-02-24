@@ -1,13 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
 import inspect
 import sys
-from collections import defaultdict
 from typing import Any, Callable, Dict
 from unittest.mock import MagicMock
 
@@ -20,6 +19,7 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.setup.testcluster import TestCluster
@@ -30,7 +30,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
-from pynguin.utils.statistics.statistics import StatisticsTracker
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
@@ -39,8 +38,8 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 @pytest.fixture(autouse=True)
 def reset_configuration():
     """Automatically reset the configuration singleton"""
-    config.INSTANCE = config.Configuration(
-        algorithm=config.Algorithm.RANDOOPY,
+    config.configuration = config.Configuration(
+        algorithm=config.Algorithm.RANDOM,
         project_path="",
         output_path="",
         module_name="",
@@ -163,7 +162,7 @@ def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.return_value]
+        test_case, constructor_mock, [int_stmt.ret_val]
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
@@ -177,7 +176,7 @@ def reset_test_cluster():
 
 @pytest.fixture(autouse=True)
 def reset_statistics_tracker():
-    StatisticsTracker._instance = None
+    stat.reset()
 
 
 @pytest.fixture(scope="module")
@@ -295,107 +294,3 @@ def larger_control_flow_graph() -> CFG:
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
-
-
-def pytest_addoption(parser):
-    group = parser.getgroup("pynguin")
-    group.addoption(
-        "--integration",
-        action="store_true",
-        help="Run integration tests.",
-    )
-    group.addoption(
-        "--slow",
-        action="store_true",
-        default=False,
-        help="Include slow tests in test run",
-    )
-    group.addoption(
-        "--owl",
-        action="store",
-        type=str,
-        default=None,
-        metavar="fixture",
-        help="Run tests using a specific fixture",
-    )
-
-
-def pytest_runtest_setup(item):
-    if "integration" in item.keywords and not item.config.getvalue("integration"):
-        pytest.skip("need --integration option to run")
-
-
-def pytest_collection_modifyitems(items, config):
-    """Deselect tests marked as slow if --slow is set."""
-    if config.option.slow:
-        return
-
-    selected_items = []
-    deselected_items = []
-
-    for item in items:
-        if item.get_closest_marker("slow"):
-            deselected_items.append(item)
-        else:
-            selected_items.append(item)
-
-    config.hook.pytest_deselected(items=deselected_items)
-    items[:] = selected_items
-
-
-class Turtle:
-    """Plugin for adding markers to slow running tests."""
-
-    def __init__(self, config):
-        self._config = config
-        self._durations = defaultdict(dict)
-        self._durations.update(
-            self._config.cache.get("cache/turtle", defaultdict(dict))
-        )
-        self._slow = 5.0
-
-    def pytest_runtest_logreport(self, report):
-        self._durations[report.nodeid][report.when] = report.duration
-
-    @pytest.mark.tryfirst
-    def pytest_collection_modifyitems(self, session, config, items):
-        for item in items:
-            duration = sum(self._durations[item.nodeid].values())
-            if duration > self._slow:
-                item.add_marker(pytest.mark.turtle)
-
-    def pytest_sessionfinish(self, session):
-        cached_durations = self._config.cache.get("cache/turtle", defaultdict(dict))
-        cached_durations.update(self._durations)
-        self._config.cache.set("cache/turtle", cached_durations)
-
-    def pytest_configure(self, config):
-        config.addinivalue_line("markers", "turtle: marker for slow running tests")
-
-
-class Owl:
-    """Plugin for running tests using a specific fixture."""
-
-    def __init__(self, config):
-        self._config = config
-
-    def pytest_collection_modifyitems(self, items, config):
-        if not config.option.owl:
-            return
-
-        selected_items = []
-        deselected_items = []
-
-        for item in items:
-            if config.option.owl in getattr(item, "fixturenames", ()):
-                selected_items.append(item)
-            else:
-                deselected_items.append(item)
-
-        config.hook.pytest_deselected(items=deselected_items)
-        items[:] = selected_items
-
-
-def pytest_configure(config):
-    config.pluginmanager.register(Turtle(config), "turtle")
-    config.pluginmanager.register(Owl(config), "owl")

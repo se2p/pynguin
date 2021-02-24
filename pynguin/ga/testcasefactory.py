@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,6 +8,7 @@
 
 from abc import abstractmethod
 
+import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
@@ -29,10 +30,10 @@ class TestCaseFactory:
 
     @abstractmethod
     def get_test_case(self) -> tc.TestCase:
-        """Create a new random test case.
+        """Retrieve a test case.
 
         Returns:
-            A new random test case  # noqa: DAR202
+            A test case  # noqa: DAR202
         """
 
 
@@ -42,9 +43,33 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     def get_test_case(self) -> tc.TestCase:
         test_case = dtc.DefaultTestCase()
         attempts = 0
-        size = randomness.next_int(1, config.INSTANCE.chromosome_length + 1)
+        size = randomness.next_int(1, config.configuration.chromosome_length + 1)
 
-        while test_case.size() < size and attempts < config.INSTANCE.max_attempts:
+        while test_case.size() < size and attempts < config.configuration.max_attempts:
             self._test_factory.insert_random_statement(test_case, test_case.size())
             attempts += 1
         return test_case
+
+
+class SeededTestCaseFactory(TestCaseFactory):
+    """Factory for getting seeded test cases.
+
+    With a certain probability a seeded testcase is returned instead of a randomly
+    generated one. If a seeded testcase is returned, it is taken randomly from the
+    pool of seeded testcases. If a randomly generated testcase is returned, the
+    generation is delegated to the RandomLengthTestCaseFactory.
+    """
+
+    def __init__(self, delegate: TestCaseFactory, test_factory: tf.TestFactory):
+        super().__init__(test_factory)
+        self._delegate = delegate
+
+    def get_test_case(self) -> tc.TestCase:
+        if (
+            config.configuration.initial_population_seeding
+            and initpopseeding.initialpopulationseeding.has_tests
+            and randomness.next_float()
+            <= config.configuration.seeded_testcases_reuse_probability
+        ):
+            return initpopseeding.initialpopulationseeding.seeded_testcase
+        return self._delegate.get_test_case()

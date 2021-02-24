@@ -56,7 +56,7 @@ it generate test cases (we use ``\`` and the line breaks for better readability 
 you can just omit them and type everything in one line)::
 
    $ pynguin \
-       --algorithm RANDOOPY \
+       --algorithm RANDOM \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example
@@ -65,7 +65,7 @@ This runs for quite a while without showing any output.  Thus, to have some outp
 well as a more limited time (10 seconds here), we add some more parameters::
 
    $ pynguin \
-       --algorithm RANDOOPY \
+       --algorithm RANDOM \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example \

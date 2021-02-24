@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -45,6 +45,9 @@ def chromosome():
 
         def length(self) -> int:
             return 0
+
+        def accept(self, visitor) -> None:
+            pass
 
     return DummyChromosome()
 
@@ -124,3 +127,13 @@ def test_get_fitness_functions(chromosome):
     chromosome.add_fitness_function(func1)
     chromosome.add_fitness_function(func2)
     assert chromosome.get_fitness_functions() == [func1, func2]
+
+
+def test_fitness_values_two_fitness_functions(chromosome, fitness_function):
+    chromosome.add_fitness_function(fitness_function)
+    chromosome._update_fitness_values(fitness_function, ff.FitnessValues(0.42, 0.1))
+    fitness_func2 = MagicMock(ff.FitnessFunction)
+    fitness_func2.is_maximisation_function.return_value = False
+    chromosome.add_fitness_function(fitness_func2)
+    chromosome._update_fitness_values(fitness_func2, ff.FitnessValues(0.23, 0.5))
+    assert len(chromosome.fitness_values) == 2

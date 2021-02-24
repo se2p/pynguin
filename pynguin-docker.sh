@@ -3,7 +3,7 @@
 #
 # This file is part of Pynguin.
 #
-# SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -49,8 +49,8 @@ then
   exit 1
 fi
 
-# Check if the /input mount point is present
-if [[ ! -d ${INPUT_DIR} ]]
+# Check if the /input mount point is present and not empty
+if [[ ! -d ${INPUT_DIR} || -z "$(ls -A ${INPUT_DIR})" ]]
 then
   error_echo "You need to specify a mount to ${INPUT_DIR}"
   help_message

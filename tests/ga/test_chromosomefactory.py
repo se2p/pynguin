@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -15,12 +15,12 @@ import pynguin.ga.testsuitechromosomefactory as tscf
 def test_get_chromosome():
     test_case_chromosome_factory = MagicMock(tccf.TestCaseChromosomeFactory)
     factory = tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
-    config.INSTANCE.min_initial_tests = 5
-    config.INSTANCE.max_initial_tests = 5
+    config.configuration.min_initial_tests = 5
+    config.configuration.max_initial_tests = 5
     chromosome = factory.get_chromosome()
     assert (
-        config.INSTANCE.min_initial_tests
+        config.configuration.min_initial_tests
         <= test_case_chromosome_factory.get_chromosome.call_count
-        <= config.INSTANCE.max_initial_tests
+        <= config.configuration.max_initial_tests
     )
     assert isinstance(chromosome, tsc.TestSuiteChromosome)

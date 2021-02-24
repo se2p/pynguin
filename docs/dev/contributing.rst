@@ -78,13 +78,21 @@ Checks
 ^^^^^^
 
 Many checks are configured for this project.
-The command ``make check-style`` will run black diffs, darglint docstring style and
+The command ``make check`` will run black diffs, darglint docstring style and
 mypy.
 The ``make check-safety`` command will look at the security of our code.
 
 *Note:* darglint on Windows only runs in ``git bash`` or the Linux subsystem.
 
 You can also use the ``STRICT=1`` flag to make the check be strict.
+
+We use the following tools and checks:
+
+- `isort`_ for import ordering
+- `black`_ for code formatting
+- `mypy`_ for type checking
+- `flake8`_ and `pylint`_ for code linting
+- `darglint`_ to lint the docstrings
 
 Before Submitting
 ^^^^^^^^^^^^^^^^^
@@ -95,9 +103,8 @@ Before submitting your code please do the following steps:
 2. Add tests for the new changes (can be done vice versa of course, if you follow the
    TDD principles, which we highly recommend to do)
 3. Edit documentation if you have changed something significant
-4. Run ``make codestyle`` to format your changes
-5. Run ``STRICT=1 make check-style`` to ensure that types and docs are correct
-6. Run ``STRICT=1 make check-safety`` to ensure that security of your code is correct
+4. Run ``make check`` and fix all complaints by the automated checks before you
+   commit and push your changes
 
 Unit Tests
 ----------
@@ -133,3 +140,7 @@ If you want to use the PyCharm IDE you have to set up a few things:
 .. _isort: https://github.com/timothycrosley/isort
 .. _`Google Python Style Guide`: https://google.github.io/styleguide/pyguide.html
 .. _pytest: https://pytest.org/
+.. _mypy: http://mypy-lang.org
+.. _flake8: https://flake8.pycqa.org
+.. _pylint: https://pylint.pycqa.org
+.. _darglint: https://github.com/terrencepreilly/darglint

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -14,7 +14,7 @@ from tests.fixtures.programgraph.whileloop import Foo
 
 def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
-    dot_representation = cfg.to_dot()
+    dot_representation = cfg.dot
     graph = """strict digraph  {
 "ProgramGraphNode(0)";
 "ProgramGraphNode(1)";
@@ -31,6 +31,7 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
 }
 """
     assert cfg.cyclomatic_complexity == 2
+    assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
     assert len(cfg.exit_nodes) == 1
     assert dot_representation == graph
@@ -39,7 +40,7 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
 def test_integration_reverse_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     reversed_cfg = cfg.reversed()
-    dot_representation = reversed_cfg.to_dot()
+    dot_representation = reversed_cfg.dot
     graph = """strict digraph  {
 "ProgramGraphNode(0)";
 "ProgramGraphNode(1)";
@@ -56,6 +57,7 @@ def test_integration_reverse_cfg(conditional_jump_example_bytecode):
 }
 """
     assert reversed_cfg.cyclomatic_complexity == 2
+    assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
     assert len(cfg.exit_nodes) == 1
     assert dot_representation == graph
@@ -64,7 +66,7 @@ def test_integration_reverse_cfg(conditional_jump_example_bytecode):
 def test_integration_copy_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     copied_cfg = cfg.copy()
-    assert copied_cfg.to_dot() == cfg.to_dot()
+    assert copied_cfg.dot == cfg.dot
 
 
 def test_integration_while_loop():

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -8,6 +8,21 @@ workflow:
   rules:
     - if: $CI_MERGE_REQUEST_ID           # Execute jobs in merge request context
     - if: $CI_COMMIT_BRANCH == 'develop'  # Execute jobs when a new commit is pushed to develop branch
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .cache/pypoetry
+
+.python-cache: &python-cache
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .cache/pip
+      - .cache/pypoetry
 
 stages:
   - build
@@ -28,6 +43,7 @@ before_script:
   artifacts:
     paths:
       - cov_html
+  <<: *python-cache
 
 unit-tests:python-3.8:
   <<: *unit-tests
@@ -37,7 +53,13 @@ unit-tests:python-3.8:
 unit-tests:python-3.9:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+unit-tests:python-3.10:
+  <<: *unit-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 .nightly-tests:
   only:
@@ -50,6 +72,7 @@ unit-tests:python-3.9:
     - poetry add --dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov-branch --random-order --random-order-bucket=global ; done
+  <<: *python-cache
 
 nightly-tests:python-3.8:
   extends: .nightly-tests
@@ -59,55 +82,69 @@ nightly-tests:python-3.8:
 nightly-tests:python-3.9:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.9-rc-buster'
+    PYTHON_VERSION: '3.9-buster'
+
+nightly-tests:python-3.10:
+  extends: .nightly-tests
+  allow_failure: true
+  variables:
+    PYTHON_VERSION: '3.10-rc-buster'
 
 mypy:
   stage: lint
   image: python:3.8
   script:
     - poetry run mypy pynguin
+  <<: *python-cache
 
 pylint:
   stage: lint
   image: python:3.8
   script:
     - poetry run pylint pynguin
+  <<: *python-cache
 
 flake8:
   stage: lint
   image: python:3.8
   script:
     - poetry run flake8 .
+  <<: *python-cache
 
 darglint:
   stage: lint
   image: python:3.8
   script:
     - poetry run darglint -v 2 pynguin/**/*.py
+  <<: *python-cache
 
 black:
   stage: build
   image: python:3.8
   script:
     - poetry run black --check .
+  <<: *python-cache
 
 isort:
   stage: build
   image: python:3.8
   script:
     - poetry run isort **/*.py -c -v
+  <<: *python-cache
 
 safety:
   stage: security
   image: python:3.8
   script:
     - poetry run safety check --full-report
+  <<: *python-cache
 
 bandit:
   stage: security
   image: python:3.8
   script:
     - poetry run bandit -ll -r pynguin
+  <<: *python-cache
 
 sphinx:
   stage: build
@@ -117,6 +154,7 @@ sphinx:
   artifacts:
     paths:
       - docs/_build
+  <<: *python-cache
 
 # check license declarations etc.
 reuse:
@@ -129,27 +167,21 @@ reuse:
   script:
     - reuse lint
 
-pages:
+publish-pypi:
   stage: deploy
   needs:
     - unit-tests:python-3.8
     - sphinx
   variables:
     PYTHON_VERSION: '3.8'
+    POETRY_PYPI_TOKEN_PYPI: $POETRY_PYPI_TOKEN_PYPI
+    POETRY_HTTP_BASIC_PYPI_USERNAME: $POETRY_HTTP_BASIC_PYPI_USERNAME
+    POETRY_HTTP_BASIC_PYPI_PASSWORD: $POETRY_HTTP_BASIC_PYPI_PASSWORD
   dependencies:
     - sphinx
     - unit-tests:python-3.8
-  before_script:
-    - mkdir -p ~/.ssh
-    - echo -e "$DEPLOY_KEY" > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\tIdentityFile ~/.ssh/id_ed25519\n\n" > ~/.ssh/config
   script:
-    - mv docs/_build/ public/
-    - mv cov_html pynguincoverage
-    - scp -r -P 9418 pynguincoverage pagedeploy@contabo.lukasczyk.me:/var/www/pagedeploy
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == 'develop'
+    - poetry build
+    - poetry publish
+  only:
+    - tags

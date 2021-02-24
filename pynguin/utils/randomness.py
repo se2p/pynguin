@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -123,3 +123,33 @@ def choice(sequence: Sequence[Any]) -> Any:
         An randomly selected element of the sequence
     """
     return RNG.choice(sequence)
+
+
+def next_bool() -> bool:
+    """Returns a random boolean.
+
+    Returns:
+        A random boolean
+    """
+    return next_float() < 0.5
+
+
+def next_byte() -> int:
+    """Returns a random byte.
+
+    Returns:
+        A random byte.
+    """
+    return RNG.getrandbits(8)
+
+
+def next_bytes(length: int) -> bytes:
+    """Create random bytes of given length.
+
+    Args:
+        length: the length of the bytes
+
+    Returns:
+        Random bytes of given length.
+    """
+    return bytes([next_byte() for _ in range(length)])

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -118,7 +118,7 @@ def test_to_dot(graph, node, second_node):
     graph.add_node(node)
     graph.add_node(second_node)
     graph.add_edge(node, second_node)
-    result = graph.to_dot()
+    result = graph.dot
     assert result != ""
 
 
@@ -133,3 +133,14 @@ def test_get_predecessors(graph, node, second_node):
 def test_is_artificial():
     node = ProgramGraphNode(index=42, is_artificial=True)
     assert node.is_artificial
+
+
+def test_predicate_id_none():
+    node = ProgramGraphNode(index=42)
+    assert node.predicate_id is None
+
+
+def test_predicate_id_set():
+    node = ProgramGraphNode(index=42)
+    node.predicate_id = 1337
+    assert node.predicate_id == 1337

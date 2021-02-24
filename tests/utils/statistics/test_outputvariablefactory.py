@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -15,7 +15,7 @@ from pynguin.utils.statistics.outputvariablefactory import (
     DirectSequenceOutputVariableFactory,
     SequenceOutputVariableFactory,
 )
-from pynguin.utils.statistics.statistics import RuntimeVariable
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class _DummyChromosomeOutputVariableFactory(ChromosomeOutputVariableFactory):
@@ -68,7 +68,7 @@ def test_get_integer(chromosome):
 
 
 def test_get_output_variables(factory):
-    config.INSTANCE.budget = 0
+    config.configuration.budget = 0
     result = factory.get_output_variables()
     assert result == []
 
@@ -91,7 +91,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
         assert name == f"CoverageTimeline_T{index}"
         assert value == 42
 
-    config.INSTANCE.budget = 0.25
+    config.configuration.budget = 0.25
     chromosome_2 = tsc.TestSuiteChromosome()
     sequence_factory.set_start_time(time.time_ns())
     time.sleep(0.05)
@@ -126,7 +126,7 @@ def test_get_time_line_value_last(sequence_factory):
 
 
 def test_get_time_line_value_interpolation(sequence_factory):
-    config.INSTANCE.timeline_interval = 1
+    config.configuration.timeline_interval = 1
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]
@@ -135,8 +135,8 @@ def test_get_time_line_value_interpolation(sequence_factory):
 
 
 def test_get_time_line_value_no_interpolation(sequence_factory):
-    config.INSTANCE.timeline_interval = 1
-    config.INSTANCE.timeline_interpolation = False
+    config.configuration.timeline_interval = 1
+    config.configuration.timeline_interpolation = False
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]

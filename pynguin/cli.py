@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,20 +11,25 @@ line.
 """
 import argparse
 import logging
-import os
 import sys
-from typing import List, Union
+from pathlib import Path
+from typing import List, Optional
 
 import simple_parsing
+from rich.logging import RichHandler
+from rich.traceback import install
 
-from pynguin import Configuration, __version__
-from pynguin.generator import Pynguin
+import pynguin.configuration as config
+from pynguin import __version__
+from pynguin.generator import run_pynguin, set_configuration
+from pynguin.utils.console import console
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
     parser = simple_parsing.ArgumentParser(
-        add_dest_to_option_strings=False,
+        add_option_string_dash_variants=True,
         description="Pynguin is an automatic unit test generation framework for Python",
+        fromfile_prefix_chars="@",
     )
     parser.add_argument(
         "--version", action="version", version="%(prog)s " + __version__
@@ -38,7 +43,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="verbose output (repeat for increased verbosity)",
     )
     parser.add_argument(
-        "--log_file", type=str, default=None, help="Path to store the log file."
+        "--log-file",
+        "--log_file",
+        dest="log_file",
+        type=str,
+        default=None,
+        help="Path to store the log file.",
     )
     parser.add_argument(
         "-q",
@@ -49,7 +59,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         dest="verbosity",
         help="quiet output",
     )
-    parser.add_arguments(Configuration, dest="config")
+    parser.add_arguments(config.Configuration, dest="config")
 
     return parser
 
@@ -67,28 +77,39 @@ def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
     return output
 
 
+def _setup_output_path(output_path: str) -> None:
+    path = Path(output_path).resolve()
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+
+
 def _setup_logging(
     verbosity: int,
-    log_file: Union[str, os.PathLike] = None,
+    log_file: Optional[str] = None,
 ):
-    # TODO(fk) use logging.basicConfig
+    default_log_format = (
+        "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
+    )
+    if log_file:
+        log_file_path = Path(log_file).resolve()
+        if not log_file_path.parent.exists():
+            log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=default_log_format,
+            datefmt="%X",
+            filemode="w",
+            filename=log_file,
+        )
+    else:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=default_log_format,
+            datefmt="%X",
+        )
 
     # Configure root logger
     logger = logging.getLogger("")
-    logger.setLevel(logging.DEBUG)
-
-    if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter(
-                (
-                    "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): "
-                    + "%(message)s"
-                )
-            )
-        )
-        file_handler.setLevel(logging.DEBUG)
-        logger.addHandler(file_handler)
 
     if verbosity < 0:
         logger.addHandler(logging.NullHandler())
@@ -99,11 +120,11 @@ def _setup_logging(
         if verbosity >= 2:
             level = logging.DEBUG
 
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(level)
-        console_handler.setFormatter(
-            logging.Formatter("[%(levelname)s](%(name)s): %(message)s")
+        console_handler = RichHandler(
+            rich_tracebacks=True, log_time_format="[%X]", console=console
         )
+        console_handler.setLevel(level)
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(console_handler)
 
 
@@ -122,6 +143,7 @@ def main(argv: List[str] = None) -> int:
         An integer representing the success of the program run.  0 means
         success, all non-zero exit codes indicate errors.
     """
+    install()
     if argv is None:
         argv = sys.argv
     if len(argv) <= 1:
@@ -130,10 +152,12 @@ def main(argv: List[str] = None) -> int:
 
     argument_parser = _create_argument_parser()
     parsed = argument_parser.parse_args(argv)
+    _setup_output_path(parsed.config.output_path)
     _setup_logging(parsed.verbosity, parsed.log_file)
 
-    generator = Pynguin(parsed.config)
-    return generator.run().value
+    set_configuration(parsed.config)
+    with console.status("Running Pynguin..."):
+        return run_pynguin().value
 
 
 if __name__ == "__main__":

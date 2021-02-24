@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -61,15 +61,15 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                     csv_writer.writeheader()
                 csv_writer.writerow({k: str(v.value) for k, v in data.items()})
         except OSError as error:
-            logging.warning("Error while writing statistics: %s", error)
+            logging.exception("Error while writing statistics: %s", error)
 
     def _get_report_dir(self) -> Path:
-        report_dir = Path(config.INSTANCE.report_dir).absolute()
+        report_dir = Path(config.configuration.report_dir).absolute()
         if not report_dir.exists():
             try:
                 report_dir.mkdir(parents=True, exist_ok=True)
             except OSError as exception:
-                msg = "Cannot create report dir %s", config.INSTANCE.report_dir
+                msg = "Cannot create report dir %s", config.configuration.report_dir
                 self._logger.error(msg)
                 raise RuntimeError(msg) from exception
         return report_dir

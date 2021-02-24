@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,6 +11,7 @@ from typing import Any, List, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasechromosomefactory as tccf
 from pynguin.utils import randomness
@@ -166,11 +167,11 @@ class TestSuiteChromosome(chrom.Chromosome):
                     changed = True
 
         # Randomly add new test cases.
-        alpha = config.INSTANCE.test_insertion_probability
+        alpha = config.configuration.test_insertion_probability
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.INSTANCE.max_size
+            and self.size() < config.configuration.max_size
         ):
             self.add_test_case_chromosome(
                 self._test_case_chromosome_factory.get_chromosome()
@@ -185,6 +186,9 @@ class TestSuiteChromosome(chrom.Chromosome):
 
         if changed:
             self.set_changed(True)
+
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+        visitor.visit_test_suite_chromosome(self)
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

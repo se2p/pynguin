@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -11,23 +11,23 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.8.6-slim-buster AS build
+FROM python:3.8.8-slim-buster AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
 ENV POETRY_VERSION "1.1.4"
-
-RUN pip install poetry==$POETRY_VERSION \
-    && poetry config virtualenvs.create false
 
 COPY . /pynguin-build
 
 WORKDIR /pynguin-build
 
-CMD ["poetry", "build"]
+
+RUN pip install poetry==$POETRY_VERSION \
+    && poetry config virtualenvs.create false \
+    && poetry build
 
 
 # Execution stage for Pynguin
-FROM python:3.8.6-slim-buster AS execute
-ENV PYNGUIN_VERSION "0.6.4"
+FROM python:3.8.8-slim-buster AS execute
+ENV PYNGUIN_VERSION "0.7.0"
 
 WORKDIR /pynguin
 

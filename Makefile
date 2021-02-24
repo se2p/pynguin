@@ -1,9 +1,9 @@
-# SPDX-FileCopyrightText: 2020 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 SHELL := /usr/bin/env bash
-IMAGE := pynguin/pynguin
+IMAGE := pynguin
 VERSION=$(shell git rev-parse --short HEAD)
 
 ifeq ($(STRICT), 1)
@@ -115,7 +115,7 @@ codestyle:
 
 .PHONY: test
 test:
-	poetry run pytest -v --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
+	poetry run pytest --cov=pynguin --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
 
 .PHONY: mypy
 mypy:
@@ -156,20 +156,12 @@ docker:
 	@echo Building docker $(IMAGE):$(VERSION) ...
 	docker build \
 	  -t $(IMAGE):$(VERSION) . \
-	  -f ./docker/Dockerfile --no-cache \
-	  && docker tag -f $(IMAGE):$(VERSION) $(IMAGE):latest
-
-.PHONY: docker-publish
-docker-publish: docker
-	@echo Publish docker $(IMAGE):$(VERSION) to Dockerhub ...
-	docker push $(IMAGE):$(VERSION) \
-	  && docker push $(IMAGE):latest
+	  -f ./docker/Dockerfile --no-cache
 
 .PHONY: clean_docker
 clean_docker:
 	@echo Removing docker $(IMAGE):$(VERSION) ...
 	docker rmi -f $(IMAGE):$(VERSION)
-	docker rmi -f $(IMAGE):latest
 
 .PHONY: clean_build
 clean_build:
@@ -181,6 +173,7 @@ clean_build:
 	rm -rf dist
 	rm -rf docs/_build
 	find . -name pynguin-report -type d | xargs rm -rf {};
+	find . -name ".coverage*" -type f | xargs rm -rf {};
 
 .PHONY: clean
 clean: clean_build clean_docker

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -14,10 +14,20 @@ from pynguin.testcase.execution.executiontrace import ExecutionTrace
 class ExecutionResult:
     """Result of an execution."""
 
-    def __init__(self) -> None:
+    def __init__(self, timeout: bool = False) -> None:
         self._exceptions: Dict[int, Exception] = {}
         self._output_traces: Dict[Type, ot.OutputTrace] = {}
         self._execution_trace: Optional[ExecutionTrace] = None
+        self._timeout = timeout
+
+    @property
+    def timeout(self) -> bool:
+        """Did a timeout occur during the execution?
+
+        Returns:
+            True, if a timeout occurred.
+        """
+        return self._timeout
 
     @property
     def exceptions(self) -> Dict[int, Exception]:

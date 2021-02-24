@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -23,7 +23,7 @@ def test_output_variable():
 
 
 def test_write_data_csv_backend(tmpdir):
-    config.INSTANCE.report_dir = tmpdir / "statistics"
+    config.configuration.report_dir = tmpdir / "statistics"
     data_1 = {
         "module": OutputVariable("module", "foo"),
         "value": OutputVariable("value", "bar"),

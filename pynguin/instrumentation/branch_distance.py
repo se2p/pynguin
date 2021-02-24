@@ -1,15 +1,14 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides capabilities to perform branch instrumentation."""
 import logging
 from types import CodeType
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
-import networkx as nx
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
@@ -46,7 +45,7 @@ class BranchDistanceInstrumentation:
     # Conditional jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
 
-    # If a conditional jump is based on a comparision, it has to be the second-to-last
+    # If a conditional jump is based on a comparison, it has to be the second-to-last
     # instruction within the basic block.
     _COMPARE_OP_POS = -2
 
@@ -109,7 +108,6 @@ class BranchDistanceInstrumentation:
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
         self._add_code_object_executed(real_entry_node.basic_block, code_object_id)
-
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
@@ -124,15 +122,12 @@ class BranchDistanceInstrumentation:
         """
         # Required to transform for loops.
         dominator_tree = DominatorTree.compute(cfg)
-        # Attributes which store the predicate ids assigned to instrumented nodes.
-        node_attributes: Dict[ProgramGraphNode, Dict[str, int]] = {}
         for node in cfg.nodes:
             predicate_id = self._instrument_node(
                 cfg, code_object_id, dominator_tree, node
             )
             if predicate_id is not None:
-                node_attributes[node] = {CFG.PREDICATE_ID: predicate_id}
-        nx.set_node_attributes(cfg.graph, node_attributes)
+                node.predicate_id = predicate_id
 
     def _instrument_node(
         self,
@@ -265,7 +260,7 @@ class BranchDistanceInstrumentation:
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
         )
         cmp_op = block[self._COMPARE_OP_POS]
-        # Insert instructions right before the comparision.
+        # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
@@ -373,7 +368,7 @@ class BranchDistanceInstrumentation:
         assert for_instr.name == "FOR_ITER"
         lineno = for_instr.lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(code_object_id, lineno)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
         )
         for_instr_copy = for_instr.copy()
         for_loop_exit = for_instr.arg

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -65,19 +65,19 @@ def test_primitive_statement_replace(field_mock):
     test_case = dtc.DefaultTestCase()
     ref = prim.IntPrimitiveStatement(test_case, 5)
     test_case.add_statement(ref)
-    statement = fstmt.FieldStatement(test_case, field_mock, ref.return_value)
+    statement = fstmt.FieldStatement(test_case, field_mock, ref.ret_val)
     test_case.add_statement(statement)
     new = vri.VariableReferenceImpl(test_case, int)
 
-    statement.replace(ref.return_value, new)
+    statement.replace(ref.ret_val, new)
     assert statement.source == new
 
 
 def test_primitive_statement_replace_ignore(field_mock):
     test_case = dtc.DefaultTestCase()
     ref = prim.IntPrimitiveStatement(test_case, 5)
-    statement = fstmt.FieldStatement(test_case, field_mock, ref.return_value)
-    new = prim.FloatPrimitiveStatement(test_case, 0).return_value
+    statement = fstmt.FieldStatement(test_case, field_mock, ref.ret_val)
+    new = prim.FloatPrimitiveStatement(test_case, 0).ret_val
     old = statement.source
     statement.replace(new, new)
     assert statement.source == old
@@ -99,7 +99,7 @@ def test_field_statement_eq_clone(field_mock):
     test_case2.add_statement(prim.IntPrimitiveStatement(test_case2, 0))
 
     statement = fstmt.FieldStatement(
-        test_case1, field_mock, test_case1.statements[0].return_value
+        test_case1, field_mock, test_case1.statements[0].ret_val
     )
     test_case1.add_statement(statement)
     clone = statement.clone(test_case2)
@@ -118,7 +118,7 @@ def test_hash_same(test_case_mock, variable_reference_mock, field_mock):
 
 
 def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):
-    config.INSTANCE.change_parameter_probability = 0.0
+    config.configuration.change_parameter_probability = 0.0
     statement = fstmt.FieldStatement(
         test_case_mock, field_mock, variable_reference_mock
     )
@@ -126,25 +126,25 @@ def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):
 
 
 def test_mutate_no_replacements(field_mock, constructor_mock):
-    config.INSTANCE.change_parameter_probability = 1.0
+    config.configuration.change_parameter_probability = 1.0
     test_case = dtc.DefaultTestCase()
     const = ps.ConstructorStatement(test_case, constructor_mock)
-    field = fstmt.FieldStatement(test_case, field_mock, const.return_value)
+    field = fstmt.FieldStatement(test_case, field_mock, const.ret_val)
     test_case.add_statement(const)
     test_case.add_statement(field)
     assert not field.mutate()
 
 
 def test_mutate_success(field_mock, constructor_mock):
-    config.INSTANCE.change_parameter_probability = 1.0
+    config.configuration.change_parameter_probability = 1.0
     test_case = dtc.DefaultTestCase()
     const = ps.ConstructorStatement(test_case, constructor_mock)
     const2 = ps.ConstructorStatement(test_case, constructor_mock)
-    field = fstmt.FieldStatement(test_case, field_mock, const.return_value)
+    field = fstmt.FieldStatement(test_case, field_mock, const.ret_val)
     const3 = ps.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(const)
     test_case.add_statement(const2)
     test_case.add_statement(field)
     test_case.add_statement(const3)
     assert field.mutate()
-    assert field.source == const2.return_value
+    assert field.source == const2.ret_val
