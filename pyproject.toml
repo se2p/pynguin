@@ -95,6 +95,7 @@ exclude = '''
 [tool.coverage.run]
 branch = true
 source = ["pynguin", "tests"]
+omit = ["tests/fixtures/*"]
 
 [tool.coverage.report]
 exclude_lines = [
