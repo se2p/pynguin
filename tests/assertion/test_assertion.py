@@ -14,10 +14,10 @@ from pynguin.testcase import testcase as tc
 
 class FooAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
-        pass
+        pass  # pragma: no cover
 
     def clone(self, new_test_case: tc.TestCase, offset: int) -> Assertion:
-        pass
+        pass  # pragma: no cover
 
 
 def test_eq():

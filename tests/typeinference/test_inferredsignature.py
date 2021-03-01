@@ -13,7 +13,7 @@ from pynguin.typeinference.strategy import InferredSignature
 
 
 def _dummy(x: int, y: int) -> int:
-    return x * y
+    return x * y  # pragma: no cover
 
 
 @pytest.fixture

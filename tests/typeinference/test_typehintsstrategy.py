@@ -12,39 +12,39 @@ from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 
 
 def typed_dummy(a: int, b: float, c) -> str:
-    return f"int {a} float {b} any {c}"
+    return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
 def untyped_dummy(a, b, c):
-    return f"int {a} float {b} any {c}"
+    return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
 def union_dummy(a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
-    return a + b
+    return a + b  # pragma: no cover
 
 
 def return_tuple() -> Tuple[int, int]:
-    return 23, 42
+    return 23, 42  # pragma: no cover
 
 
 def return_tuple_no_annotation():
-    return 23, 42
+    return 23, 42  # pragma: no cover
 
 
 class TypedDummy:
     def __init__(self, a: Any) -> None:
-        self._a = a
+        self._a = a  # pragma: no cover
 
     def get_a(self) -> Any:
-        return self._a
+        return self._a  # pragma: no cover
 
 
 class UntypedDummy:
     def __init__(self, a):
-        self._a = a
+        self._a = a  # pragma: no cover
 
     def get_a(self):
-        return self._a
+        return self._a  # pragma: no cover
 
 
 @pytest.mark.parametrize(

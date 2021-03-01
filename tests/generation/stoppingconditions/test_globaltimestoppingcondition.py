@@ -58,19 +58,19 @@ def test_set_limit(stopping_condition):
 def test_current_value_of_base_class(x):
     class StoppingTestCondition(StoppingCondition):
         def limit(self) -> int:
-            pass
+            pass  # pragma: no cover
 
         def is_fulfilled(self) -> bool:
-            pass
+            pass  # pragma: no cover
 
         def reset(self) -> None:
-            pass
+            pass  # pragma: no cover
 
         def set_limit(self, limit: int) -> None:
-            pass
+            pass  # pragma: no cover
 
         def iterate(self) -> None:
-            pass
+            pass  # pragma: no cover
 
     stopping_condition = StoppingTestCondition()
     stopping_condition.current_value = x

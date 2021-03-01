@@ -13,39 +13,39 @@ from pynguin.typeinference.stubstrategy import StubInferenceStrategy
 
 
 def typed_dummy(a, b, c):
-    return f"int {a} float {b} any {c}"
+    return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
 def untyped_dummy(a, b, c):
-    return f"int {a} float {b} any {c}"
+    return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
 def union_dummy(a, b):
-    return a + b
+    return a + b  # pragma: no cover
 
 
 def return_tuple():
-    return 23, 42
+    return 23, 42  # pragma: no cover
 
 
 def return_tuple_no_annotation():
-    return 23, 42
+    return 23, 42  # pragma: no cover
 
 
 class TypedDummy:
     def __init__(self, a):
-        self._a = a
+        self._a = a  # pragma: no cover
 
     def get_a(self):
-        return self._a
+        return self._a  # pragma: no cover
 
 
 class UntypedDummy:
     def __init__(self, a):
-        self._a = a
+        self._a = a  # pragma: no cover
 
     def get_a(self):
-        return self._a
+        return self._a  # pragma: no cover
 
 
 PYI_DIR = os.path.join(os.path.dirname(__file__), "..", "fixtures")

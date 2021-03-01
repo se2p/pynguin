@@ -13,10 +13,10 @@ from pynguin.ga.fitnessfunction import FitnessValues
 
 class DummyTestSuiteFitnessFunction(atcff.AbstractTestCaseFitnessFunction):
     def compute_fitness_values(self, individual) -> FitnessValues:
-        pass
+        pass  # pragma: no cover
 
     def is_maximisation_function(self) -> bool:
-        pass
+        pass  # pragma: no cover
 
 
 def test_run_test_case_chromosome_no_result():

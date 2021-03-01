@@ -20,10 +20,10 @@ from tests.fixtures.accessibles.accessible import SomeType
 
 class TestAccessibleObject(GenericAccessibleObject):
     def generated_type(self) -> Optional[Type]:
-        pass
+        pass  # pragma: no cover
 
     def get_dependencies(self) -> Set[Type]:
-        pass
+        pass  # pragma: no cover
 
 
 def test_no_types_true():
