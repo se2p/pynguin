@@ -6,8 +6,8 @@ image: python:${PYTHON_VERSION}
 
 workflow:
   rules:
-    - if: $CI_MERGE_REQUEST_ID           # Execute jobs in merge request context
-    - if: $CI_COMMIT_BRANCH == 'develop'  # Execute jobs when a new commit is pushed to develop branch
+    - if: $CI_MERGE_REQUEST_ID         # Execute jobs in merge request context
+    - if: $CI_COMMIT_BRANCH == 'main'  # Execute jobs when a new commit is pushed to main branch
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
