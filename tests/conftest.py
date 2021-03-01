@@ -74,14 +74,11 @@ def provide_callables_from_fixtures_modules(
     provide_imported_modules,
 ) -> Dict[str, Callable]:
     def inspect_member(member):
-        try:
-            return (
-                inspect.isclass(member)
-                or inspect.ismethod(member)
-                or inspect.isfunction(member)
-            )
-        except BaseException:
-            return False
+        return (
+            inspect.isclass(member)
+            or inspect.ismethod(member)
+            or inspect.isfunction(member)
+        )
 
     members = []
     for _, module in provide_imported_modules.items():

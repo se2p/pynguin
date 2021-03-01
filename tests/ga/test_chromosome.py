@@ -24,30 +24,30 @@ def fitness_function():
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
         def mutate(self):
-            pass
+            pass  # pragma: no cover
 
         def size(self) -> int:
-            return 0
+            return 0  # pragma: no cover
 
         def clone(self) -> Chromosome:
-            pass
+            pass  # pragma: no cover
 
         def cross_over(
             self, other: chrom.Chromosome, position1: int, position2: int
         ) -> None:
-            pass
+            pass  # pragma: no cover
 
         def __hash__(self):
-            return 0
+            return 0  # pragma: no cover
 
         def __eq__(self, other):
-            return True
+            return True  # pragma: no cover
 
         def length(self) -> int:
-            return 0
+            return 0  # pragma: no cover
 
         def accept(self, visitor) -> None:
-            pass
+            pass  # pragma: no cover
 
     return DummyChromosome()
 

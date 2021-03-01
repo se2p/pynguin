@@ -119,7 +119,7 @@ def test_is_string(value, result):
 )
 def test_should_skip_parameter(param_name, result):
     def inner_func(normal: str, *args, **kwargs):
-        pass
+        pass  # pragma: no cover
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
     assert should_skip_parameter(inf_sig, param_name) == result

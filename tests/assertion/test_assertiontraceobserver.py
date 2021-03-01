@@ -17,7 +17,7 @@ class FooObserver(ato.AssertionTraceObserver):
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ):
-        pass
+        pass  # pragma: no cover
 
     def after_statement_execution(
         self,
@@ -25,7 +25,7 @@ class FooObserver(ato.AssertionTraceObserver):
         exec_ctx: ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
-        pass
+        pass  # pragma: no cover
 
 
 def test_clear():

@@ -4,18 +4,12 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List
 from unittest.mock import MagicMock
 
 import pytest
-from bytecode import BasicBlock, Instr
+from bytecode import BasicBlock
 
 from pynguin.analyses.controlflow.programgraph import ProgramGraph, ProgramGraphNode
-
-
-@pytest.fixture
-def mock_instructions() -> List[Instr]:
-    return [MagicMock(Instr)]
 
 
 @pytest.fixture

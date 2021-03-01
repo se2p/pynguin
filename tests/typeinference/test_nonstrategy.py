@@ -8,7 +8,7 @@ from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 
 
 def _func_1(x: int) -> int:
-    return x
+    return x  # pragma: no cover
 
 
 def test_strategy():

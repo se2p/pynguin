@@ -112,7 +112,7 @@ def test_accumulated_decorator(capsys):
     assert stderr == ""
 
 
-def text_accumulated_contextmanager(capsys):
+def test_accumulated_contextmanager(capsys):
     t = Timer(name="accumulator", text=TIME_MESSAGE)
     with t:
         waste_time()

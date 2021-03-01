@@ -88,8 +88,8 @@ def test_sequence_factory_update(sequence_factory, chromosome):
 
 def test_get_output_variables_with_content(sequence_factory, chromosome):
     def check_result(name: str, value: int, index: int):
-        assert name == f"CoverageTimeline_T{index}"
-        assert value == 42
+        assert name == f"CoverageTimeline_T{index}"  # pragma: no cover
+        assert value == 42  # pragma: no cover
 
     config.configuration.budget = 0.25
     chromosome_2 = tsc.TestSuiteChromosome()
