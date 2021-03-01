@@ -39,10 +39,11 @@ before_script:
 .unit-tests: &unit-tests
   stage: test
   script:
-    - poetry run pytest -q --cov=pynguin --cov-branch --cov-report html:cov_html --cov-report=term-missing tests/
+    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report=term-missing tests/
   artifacts:
     paths:
       - cov_html
+  needs: ["build"]
   <<: *python-cache
 
 unit-tests:python-3.8:
@@ -71,7 +72,8 @@ unit-tests:python-3.10:
     - poetry install
     - poetry add --dev pytest-random-order
   script:
-    - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov-branch --random-order --random-order-bucket=global ; done
+    - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; done
+  needs: ["build"]
   <<: *python-cache
 
 nightly-tests:python-3.8:
@@ -90,70 +92,36 @@ nightly-tests:python-3.10:
   variables:
     PYTHON_VERSION: '3.10-rc-buster'
 
-mypy:
+lint:
   stage: lint
   image: python:3.8
   script:
     - poetry run mypy pynguin
-  <<: *python-cache
-
-pylint:
-  stage: lint
-  image: python:3.8
-  script:
-    - poetry run pylint pynguin
-  <<: *python-cache
-
-flake8:
-  stage: lint
-  image: python:3.8
-  script:
     - poetry run flake8 .
-  <<: *python-cache
-
-darglint:
-  stage: lint
-  image: python:3.8
-  script:
+    - poetry run pylint pynguin
     - poetry run darglint -v 2 pynguin/**/*.py
+  needs: ["build"]
   <<: *python-cache
 
-black:
-  stage: build
-  image: python:3.8
-  script:
-    - poetry run black --check .
-  <<: *python-cache
-
-isort:
+build:
   stage: build
   image: python:3.8
   script:
     - poetry run isort **/*.py -c -v
-  <<: *python-cache
-
-safety:
-  stage: security
-  image: python:3.8
-  script:
-    - poetry run safety check --full-report
-  <<: *python-cache
-
-bandit:
-  stage: security
-  image: python:3.8
-  script:
-    - poetry run bandit -ll -r pynguin
-  <<: *python-cache
-
-sphinx:
-  stage: build
-  image: python:3.8
-  script:
+    - poetry run black --check .
     - poetry run sphinx-build docs docs/_build
   artifacts:
     paths:
       - docs/_build
+  <<: *python-cache
+
+security:
+  stage: security
+  image: python:3.8
+  script:
+    - poetry run safety check --full-report
+    - poetry run bandit -ll -r pynguin
+  needs: ["build"]
   <<: *python-cache
 
 # check license declarations etc.
@@ -166,19 +134,20 @@ reuse:
     - python --version
   script:
     - reuse lint
+  needs: []
 
 publish-pypi:
   stage: deploy
   needs:
     - unit-tests:python-3.8
-    - sphinx
+    - build
   variables:
     PYTHON_VERSION: '3.8'
     POETRY_PYPI_TOKEN_PYPI: $POETRY_PYPI_TOKEN_PYPI
     POETRY_HTTP_BASIC_PYPI_USERNAME: $POETRY_HTTP_BASIC_PYPI_USERNAME
     POETRY_HTTP_BASIC_PYPI_PASSWORD: $POETRY_HTTP_BASIC_PYPI_PASSWORD
   dependencies:
-    - sphinx
+    - build
     - unit-tests:python-3.8
   script:
     - poetry build

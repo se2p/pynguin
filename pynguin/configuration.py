@@ -230,7 +230,7 @@ class Configuration:
     chromosome_length: int = 40
     """Maximum length of chromosomes during search"""
 
-    max_length_test_case = 2500
+    max_length_test_case: int = 2500
     """The maximum number of statement in as test case (normal + assertion
     statements)"""
 
@@ -303,11 +303,11 @@ class Configuration:
     dynamic_constant_seeding: bool = False
     """Enables seeding of constants at runtime."""
 
-    seeded_primitives_reuse_probability = 0.9
+    seeded_primitives_reuse_probability: float = 0.9
     """Probability for using seeded primitive values instead of randomly
     generated ones."""
 
-    seeded_dynamic_values_reuse_probability = 0.9
+    seeded_dynamic_values_reuse_probability: float = 0.9
     """Probability of using dynamically seeded values when a primitive seeded
      value will be used."""
 
