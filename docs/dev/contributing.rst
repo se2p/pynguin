@@ -33,26 +33,13 @@ Git Development Workflow
 *Note:* Our internal development takes place in a private repository thus this
 information is related to this repository.
 
-Since 2020–10–26 we have changed the contribution workflow a bit.
-
-It is now required to have at least one acknowledge from code review for a merge
-request to be merged.
-Code review can (and should) be done by all project members, no matter whether they are
-developers or maintainers.
-We strongly encourage every project member to actively participate in code review
-because we believe it is an important skill in software development and also a good
-training in reading and understanding other people's code.
-A nice introduction on merge-request review can be found in a `Twitter thread
-<https://twitter.com/curtiseinsmann/status/1317149417330364421>`_ by Curtis Einsmann
-of AWS.
-
-Besides the mandatory code review we now push the Gitflow Workflow for development.
-It was first introduced by `Vincent Driessen at nvie <https://nvie
-.com/posts/a-successful-git-branching-model/>`_.
-A shorter introduction can be found in the `Atlassian Git Tutorials <https://www
-.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_.
-Please familiarise yourself with this workflow if you are not yet familiar and stick
-to it whenever possible.
+To contribute to Pynguin,
+we ask you to create an issue and a related merge request.
+Commit and push your changes to the merge request.
+The changes will run through our continuous-integration system
+as well as through manual code review.
+Once all checks pass and the changes were approved,
+we'll merge them into our ``main`` branch.
 
 Code Style
 ----------
