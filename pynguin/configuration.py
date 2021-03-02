@@ -138,6 +138,10 @@ class Configuration:
     """Label that identifies the used configuration of Pynguin.  This is only done
     when running experiments."""
 
+    project_name: str = ""
+    """Label that identifies the project name of Pynguin.  This is useful when
+    running experiments."""
+
     budget: int = 600
     """Time budget (in seconds) that can be used for generating tests."""
 

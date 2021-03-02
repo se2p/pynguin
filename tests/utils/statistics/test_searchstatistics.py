@@ -93,6 +93,7 @@ def test_get_output_variables(chromosome, search_statistics):
         RuntimeVariable.CoverageTimeline,
         RuntimeVariable.Length,
         RuntimeVariable.ConfigurationId,
+        RuntimeVariable.ProjectName,
     ]
     config.configuration.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
@@ -108,6 +109,7 @@ def test_get_output_variables(chromosome, search_statistics):
     assert variables[RuntimeVariable.Coverage.name].value == 0.75
     assert variables[RuntimeVariable.Length.name].value == 0
     assert variables["ConfigurationId"].value == ""
+    assert variables["ProjectName"].value == ""
 
 
 def test_current_individual_no_backend(chromosome):
