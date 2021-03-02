@@ -67,6 +67,7 @@ safety = "^1.10"
 sphinx = "^3.5"
 sphinx-autodoc-typehints = "^1.11"
 flake8 = "^3.8"
+pytest-bdd = "^4.0.2"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
@@ -126,6 +127,7 @@ testpaths = [
 # A lot of our own classes start with Test so pytest will pick them up during test collection.
 # But they don't actually contains tests, so we set an empty matcher for the class name.
 python_classes = ''
+bdd_features_base_dir = "tests/features/"
 
 [build-system]
 requires = ["poetry-core"]
