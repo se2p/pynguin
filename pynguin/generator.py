@@ -294,6 +294,9 @@ def _collect_statistics() -> None:
     stat.track_output_variable(
         RuntimeVariable.ConfigurationId, config.configuration.configuration_id
     )
+    stat.track_output_variable(
+        RuntimeVariable.ProjectName, config.configuration.project_name
+    )
     for runtime_variable, value in stat.variables_generator:
         stat.set_output_variable_for_runtime_variable(runtime_variable, value)
 
