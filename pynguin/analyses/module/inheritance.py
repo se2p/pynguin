@@ -94,6 +94,42 @@ class InheritanceGraph:
             successors.add(successor)
         return successors
 
+    def get_super_types(
+        self, class_information: ClassInformation
+    ) -> Set[ClassInformation]:
+        """Provides a set of super types for a class.
+
+        If there are no super types, the returned set is empty.
+
+        Args:
+            class_information: The class to start
+
+        Returns:
+            The super types of the class
+        """
+        if graph_node := self.find(class_information):
+            return self._get_transitive_predecessors(graph_node, set())
+        raise ValueError("Node for class not found in inheritance graph.")
+
+    def _get_transitive_predecessors(
+        self, node: ClassInformation, done: Set[ClassInformation]
+    ) -> Set[ClassInformation]:
+        predecessors: Set[ClassInformation] = set()
+        for predecessor_node in self._get_predecessors(node):
+            if predecessor_node not in done:
+                predecessors.add(predecessor_node)
+                done.add(predecessor_node)
+                predecessors.update(
+                    self._get_transitive_predecessors(predecessor_node, done)
+                )
+        return predecessors
+
+    def _get_predecessors(self, node: ClassInformation) -> Set[ClassInformation]:
+        predecessors: Set[ClassInformation] = set()
+        for predecessor in self._graph.predecessors(node):
+            predecessors.add(predecessor)
+        return predecessors
+
     def number_of_nodes(self) -> int:
         """Provides the number of nodes in the graph.
 

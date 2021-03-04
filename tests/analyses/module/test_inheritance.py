@@ -120,6 +120,19 @@ def test_inheritance_graph_get_sub_types(inheritance_graph):
     assert len(result) == 2
 
 
+def test_inheritance_graph_get_super_types(inheritance_graph):
+    class_information = build_class_information(
+        "tests.fixtures.cluster.complex_dependencies.SomeClass"
+    )
+    result = inheritance_graph.get_super_types(class_information)
+    assert len(result) == 1
+
+
 def test_inheritance_graph_get_sub_types_illegal(inheritance_graph):
     with pytest.raises(ValueError):
         inheritance_graph.get_sub_types(build_class_information(MagicMock))
+
+
+def test_inheritance_graph_get_super_types_illegal(inheritance_graph):
+    with pytest.raises(ValueError):
+        inheritance_graph.get_super_types(build_class_information(MagicMock))
