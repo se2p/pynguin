@@ -96,26 +96,38 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _create_float_delta_assert(
         self, var: vr.VariableReference, value: Any
     ) -> ast.Assert:
-        self._common_modules.add("math")
-        # TODO(fk) maybe use something more specific for pytest or UnitTest?
+        self._common_modules.add("pytest")
         return ast.Assert(
-            test=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id="math", ctx=ast.Load()),
-                    attr="isclose",
-                    ctx=ast.Load(),
-                ),
-                args=[
-                    au.create_var_name(self._variable_names, var, load=True),
-                    ast.Constant(value=value, kind=None),
-                ],
-                keywords=[
-                    ast.keyword(
-                        arg="abs_tol",
-                        value=ast.Constant(
-                            value=config.configuration.float_precision, kind=None
+            test=ast.Compare(
+                left=au.create_var_name(self._variable_names, var, load=True),
+                ops=[ast.Eq()],
+                comparators=[
+                    ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id="pytest", ctx=ast.Load()),
+                            attr="approx",
+                            ctx=ast.Load(),
                         ),
-                    )
+                        args=[
+                            ast.Constant(value=value, kind=None),
+                        ],
+                        keywords=[
+                            ast.keyword(
+                                arg="abs",
+                                value=ast.Constant(
+                                    value=config.configuration.float_precision,
+                                    kind=None,
+                                ),
+                            ),
+                            ast.keyword(
+                                arg="rel",
+                                value=ast.Constant(
+                                    value=config.configuration.float_precision,
+                                    kind=None,
+                                ),
+                            ),
+                        ],
+                    ),
                 ],
             ),
             msg=None,

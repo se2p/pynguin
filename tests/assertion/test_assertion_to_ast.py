@@ -50,7 +50,7 @@ def test_primitive_float(assertion_to_ast):
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes))
-        == "assert math.isclose(var0, 1.5, abs_tol=0.01)\n"
+        == "assert var0 == pytest.approx(1.5, abs=0.01, rel=0.01)\n"
     )
 
 

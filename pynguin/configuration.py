@@ -16,16 +16,13 @@ class ExportStrategy(str, enum.Enum):
     """Contains all available export strategies.
 
     These strategies allow to export the generated test cases in different styles,
-    such as in the style using the `unittest` library from the standard API or in the
-    style of the `PyTest` framework.  Setting the value to `NONE` will prevent exporting
-    of the generated test cases (only reasonable for benchmarking, though).
+    such as the style of the `PyTest` framework.  Setting the value to `NONE` will
+    prevent exporting of the generated test cases (only reasonable for
+    benchmarking, though).
     """
 
     PY_TEST = "PY_TEST"
     """Export tests in the style of the PyTest framework."""
-
-    UNIT_TEST = "UNIT_TEST"
-    """Export tests in the style of the unittest library from standard API."""
 
     NONE = "NONE"
     """Do not export test cases at all."""

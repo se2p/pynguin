@@ -11,7 +11,6 @@ import pynguin.configuration as config
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
 from pynguin.generation.export.noneexporter import NoneExporter
 from pynguin.generation.export.pytestexporter import PyTestExporter
-from pynguin.generation.export.unittestexporter import UnitTestExporter
 
 
 # pylint: disable=too-few-public-methods
@@ -20,7 +19,6 @@ class ExportProvider:
 
     _strategies: Dict[config.ExportStrategy, Callable[[bool], AbstractTestExporter]] = {
         config.ExportStrategy.PY_TEST: PyTestExporter,
-        config.ExportStrategy.UNIT_TEST: UnitTestExporter,
         config.ExportStrategy.NONE: NoneExporter,
     }
 
