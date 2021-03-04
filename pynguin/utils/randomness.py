@@ -7,7 +7,7 @@
 """Provides a singleton instance of Random that can be seeded."""
 import random
 import string
-from typing import Any, Optional, Sequence
+from typing import Any, List, Optional, Sequence
 
 
 class Random(random.Random):
@@ -123,6 +123,30 @@ def choice(sequence: Sequence[Any]) -> Any:
         An randomly selected element of the sequence
     """
     return RNG.choice(sequence)
+
+
+def choices(
+    population: Sequence[Any],
+    weights: Optional[Sequence[float]] = None,
+    *,
+    cum_weights: Optional[Sequence[float]] = None,
+    k: int = 1,
+) -> List[Any]:
+    """Return a k sized list of population elements chosen with replacement.
+
+    If the relative weights or cumulative weights are not specified, the selections are
+    made with equal probability.
+
+    Args:
+        population: The non-empty population to choose from
+        weights: A sequence of weights
+        cum_weights: A sequence of cumulative weights
+        k: The size of the sample
+
+    Returns:
+        A list of sampled elements from the sequence with respect to the weight
+    """
+    return RNG.choices(population, weights, cum_weights=cum_weights, k=k)
 
 
 def next_bool() -> bool:
