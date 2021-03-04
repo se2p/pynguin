@@ -33,7 +33,8 @@ def test_eq_other_type(control_flow_distance):
     assert not control_flow_distance.__eq__(MagicMock())
 
 
-def test_eq_other_value(control_flow_distance):
+def test_eq_other_value():
+    control_flow_distance = ControlFlowDistance()
     other = ControlFlowDistance()
     assert control_flow_distance.__eq__(other)
 
