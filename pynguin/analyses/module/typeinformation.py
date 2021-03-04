@@ -12,6 +12,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, Iterator, NamedTuple, Optional, Set, Type
 
 from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
+from pynguin.utils import randomness
 
 
 # pylint: disable=too-few-public-methods
@@ -172,6 +173,20 @@ class SignatureElement(metaclass=ABCMeta):
         Returns:
             A random signature type
         """
+        assert len(self._elements) > 0
+        if not respect_confidence:
+            return randomness.choice(tuple(self._elements)).signature_type
+        # use the fact that zip behaves almost like its own inverse to unzip the set
+        # of pairs to two sequences.  Seems like magic but is actually a nice thing.
+        signatures, confidences = tuple(
+            zip(
+                *[
+                    (element.signature_type, element.confidence)
+                    for element in self._elements
+                ]
+            )
+        )
+        return randomness.choices(signatures, weights=confidences)[0]
 
     @property
     def elements(self) -> Set[SignatureElement._Element]:

@@ -149,3 +149,19 @@ def test_parameter_replace_element(parameter, element):
     assert len(elements) == 1
     assert elements[0].signature_type == element.signature_type
     assert elements[0].confidence == confidence_2
+
+
+def test_parameter_provide_random_type_no_confidence(parameter, element):
+    element_2 = SignatureElement._Element(MagicMock(SignatureType), 0.75)
+    parameter.add_element(element.signature_type, element.confidence)
+    parameter.add_element(element_2.signature_type, element_2.confidence)
+    result = parameter.provide_random_type(respect_confidence=False)
+    assert result in (element.signature_type, element_2.signature_type)
+
+
+def test_parameter_provide_random_type_with_confidence(parameter, element):
+    element_2 = SignatureElement._Element(MagicMock(SignatureType), 0.75)
+    parameter.add_element(element.signature_type, element.confidence)
+    parameter.add_element(element_2.signature_type, element_2.confidence)
+    result = parameter.provide_random_type(respect_confidence=True)
+    assert result in (element.signature_type, element_2.signature_type)
