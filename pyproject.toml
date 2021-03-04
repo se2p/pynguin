@@ -44,6 +44,7 @@ jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2.5"}
 pydot = "^1.4"
 rich = "^9.11.1"
+pytest = "^6.2.2"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.4"
