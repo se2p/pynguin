@@ -3,6 +3,7 @@
 #  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
+import itertools
 from unittest.mock import MagicMock
 
 import pytest
@@ -98,34 +99,53 @@ def test_parameter_name(parameter):
     assert parameter.name == "foo"
 
 
-@pytest.mark.parametrize("confidence", [pytest.param(-0.1), pytest.param(1.1)])
-def test_parameter_add_element_illegal_confidence(parameter, confidence):
+@pytest.mark.parametrize(
+    "confidence, method",
+    itertools.product(  # magic to test all four combinations with one test :)
+        [-0.1, 1.1], ["add_element", "replace_element"]
+    ),
+)
+def test_parameter_element_illegal_confidence(
+    parameter: SignatureElement, confidence: float, method: str
+):
     with pytest.raises(ValueError):
-        parameter.add_element(MagicMock(SignatureType), confidence)
+        getattr(parameter, method)(MagicMock(SignatureType), confidence)
 
 
-def test_parameter_add_element_first(parameter):
-    signature = MagicMock(SignatureType)
-    confidence = 0.5
-    parameter.add_element(signature, confidence)
+def test_parameter_add_element_first(parameter, element):
+    parameter.add_element(element.signature_type, element.confidence)
     elements = list(parameter.elements)
     assert len(elements) == 1
-    assert elements[0] == SignatureElement._Element(signature, confidence)
+    assert elements[0] == element
 
 
-def test_parameter_add_element_twice_illegal(parameter):
-    signature = MagicMock(SignatureType)
-    confidence = 0.5
-    parameter.add_element(signature, confidence)
+def test_parameter_add_element_twice_illegal(parameter, element):
+    parameter.add_element(element.signature_type, element.confidence)
     with pytest.raises(AssertionError):
-        parameter.add_element(signature, confidence)
+        parameter.add_element(element.signature_type, element.confidence)
 
 
-def test_parameter_add_element_two(parameter):
-    signature_1 = MagicMock(SignatureType)
-    confidence_1 = 0.5
+def test_parameter_add_element_two(parameter, element):
     signature_2 = MagicMock(any_type)
     confidence_2 = 1.0
-    parameter.add_element(signature_1, confidence_1)
+    parameter.add_element(element.signature_type, element.confidence)
     parameter.add_element(signature_2, confidence_2)
     assert len(list(parameter.elements)) == 2
+
+
+def test_parameter_replace_element_not_existing(parameter, element):
+    parameter.replace_element(element.signature_type, element.confidence)
+    elements = list(parameter.elements)
+    assert len(elements) == 1
+    assert elements[0] == element
+
+
+def test_parameter_replace_element(parameter, element):
+    signature_2 = element.signature_type
+    confidence_2 = 0.75
+    parameter.add_element(element.signature_type, element.confidence)
+    parameter.replace_element(signature_2, confidence_2)
+    elements = list(parameter.elements)
+    assert len(elements) == 1
+    assert elements[0].signature_type == element.signature_type
+    assert elements[0].confidence == confidence_2

@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 import math
 from abc import ABCMeta, abstractmethod
-from typing import Any, Iterator, NamedTuple, Set, Type
+from typing import Any, Iterator, NamedTuple, Optional, Set, Type
 
 from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
 
@@ -119,7 +119,7 @@ class SignatureElement(metaclass=ABCMeta):
             )
         if len(self._elements) == 1 and self._unknown_element in self._elements:
             self._elements.clear()
-        element = self._Element(signature_type=signature, confidence=confidence)
+        element = self._element_factory(signature, confidence)
         self._elements.add(element)
 
     def _contains_signature(self, signature: SignatureType) -> bool:
@@ -127,6 +127,11 @@ class SignatureElement(metaclass=ABCMeta):
             if element.signature_type == signature:
                 return True
         return False
+
+    def _element_factory(
+        self, signature: SignatureType, confidence: float
+    ) -> SignatureElement._Element:
+        return self._Element(signature_type=signature, confidence=confidence)
 
     def replace_element(self, signature: SignatureType, confidence: float) -> None:
         """Replace the elements confidence.
@@ -141,6 +146,19 @@ class SignatureElement(metaclass=ABCMeta):
         Raises:
             ValueError: If the confidence level is not from [0;1]
         """
+        if confidence > 1 or confidence < 0:
+            raise ValueError("Confidence must be in [0;1].")
+        if not self._contains_signature(signature):
+            self.add_element(signature, confidence)
+        else:
+            found: Optional[SignatureElement._Element] = None
+            for element in self._elements:
+                if element.signature_type == signature:
+                    found = element
+                    break
+            assert found is not None
+            self._elements.remove(found)
+            self._elements.add(self._element_factory(signature, confidence))
 
     def provide_random_type(self, respect_confidence: bool = True) -> SignatureType:
         """Provides a random type from the possible types.
