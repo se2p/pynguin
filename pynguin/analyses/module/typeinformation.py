@@ -90,22 +90,43 @@ class SignatureElement(metaclass=ABCMeta):
             return self.confidence < other.confidence
 
     def __init__(self) -> None:
-        self._elements: Set[SignatureElement._Element] = {
-            SignatureElement._Element(signature_type=unknown_type, confidence=0.0)
-        }
+
+        self._unknown_element = self._Element(
+            signature_type=unknown_type, confidence=0.0
+        )
+        self._elements: Set[SignatureElement._Element] = {self._unknown_element}
 
     def add_element(self, signature: SignatureType, confidence: float) -> None:
         """Adds an element to the set of possible signature types.
 
         The confidence value must be from [0;1], otherwise a `ValueError` is raised.
+        An element must not be added twice.
 
         Args:
             signature: The element to add
             confidence: Its confidence
 
         Raises:
+            AssertionError: If the element to be added already exists
             ValueError: If the confidence level is not from [0;1]
         """
+        if confidence > 1 or confidence < 0:
+            raise ValueError("Confidence must be in [0;1].")
+        if self._contains_signature(signature):
+            raise AssertionError(
+                "It is illegal to add an element of the same type twice.  If you want "
+                "to update the element's confidence, use `replace_element`."
+            )
+        if len(self._elements) == 1 and self._unknown_element in self._elements:
+            self._elements.clear()
+        element = self._Element(signature_type=signature, confidence=confidence)
+        self._elements.add(element)
+
+    def _contains_signature(self, signature: SignatureType) -> bool:
+        for element in self._elements:
+            if element.signature_type == signature:
+                return True
+        return False
 
     def replace_element(self, signature: SignatureType, confidence: float) -> None:
         """Replace the elements confidence.

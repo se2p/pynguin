@@ -13,6 +13,7 @@ from pynguin.analyses.module.typeinformation import (
     Parameter,
     SignatureElement,
     SignatureType,
+    any_type,
     unknown_type,
 )
 
@@ -95,3 +96,36 @@ def test_parameter_element_types(parameter):
 
 def test_parameter_name(parameter):
     assert parameter.name == "foo"
+
+
+@pytest.mark.parametrize("confidence", [pytest.param(-0.1), pytest.param(1.1)])
+def test_parameter_add_element_illegal_confidence(parameter, confidence):
+    with pytest.raises(ValueError):
+        parameter.add_element(MagicMock(SignatureType), confidence)
+
+
+def test_parameter_add_element_first(parameter):
+    signature = MagicMock(SignatureType)
+    confidence = 0.5
+    parameter.add_element(signature, confidence)
+    elements = list(parameter.elements)
+    assert len(elements) == 1
+    assert elements[0] == SignatureElement._Element(signature, confidence)
+
+
+def test_parameter_add_element_twice_illegal(parameter):
+    signature = MagicMock(SignatureType)
+    confidence = 0.5
+    parameter.add_element(signature, confidence)
+    with pytest.raises(AssertionError):
+        parameter.add_element(signature, confidence)
+
+
+def test_parameter_add_element_two(parameter):
+    signature_1 = MagicMock(SignatureType)
+    confidence_1 = 0.5
+    signature_2 = MagicMock(any_type)
+    confidence_2 = 1.0
+    parameter.add_element(signature_1, confidence_1)
+    parameter.add_element(signature_2, confidence_2)
+    assert len(list(parameter.elements)) == 2
