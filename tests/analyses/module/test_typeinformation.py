@@ -18,6 +18,7 @@ from pynguin.analyses.module.inheritance import (
 from pynguin.analyses.module.typeinformation import (
     ConcreteType,
     Parameter,
+    ReturnType,
     SignatureElement,
     SignatureType,
     any_type,
@@ -54,8 +55,26 @@ def concrete_element():
 
 
 @pytest.fixture
+def other_element():
+    return SignatureElement.Element(
+        signature_type=ConcreteType(
+            ClassInformation(
+                name="tests.fixtures.cluster.complex_dependency.SomeOtherType",
+                class_object=MagicMock,
+            )
+        ),
+        confidence=0.75,
+    )
+
+
+@pytest.fixture
 def parameter():
     return Parameter("foo")
+
+
+@pytest.fixture
+def return_type():
+    return ReturnType()
 
 
 @pytest.fixture(scope="module")
@@ -222,18 +241,9 @@ def test_parameter_include_inheritance(parameter, concrete_element, inheritance_
 
 
 def test_parameter_include_inheritance_existing(
-    parameter, concrete_element, inheritance_graph
+    parameter, concrete_element, other_element, inheritance_graph
 ):
     parameter.add_element(concrete_element.signature_type, concrete_element.confidence)
-    other_element = SignatureElement.Element(
-        signature_type=ConcreteType(
-            ClassInformation(
-                name="tests.fixtures.cluster.complex_dependency.SomeOtherType",
-                class_object=MagicMock,
-            )
-        ),
-        confidence=0.75,
-    )
     parameter.add_element(other_element.signature_type, other_element.confidence)
     parameter.include_inheritance(inheritance_graph)
     assert len(parameter.elements) == 4
@@ -242,3 +252,25 @@ def test_parameter_include_inheritance_existing(
 def test_parameter_include_inheritance_no_types(parameter, inheritance_graph):
     parameter.include_inheritance(inheritance_graph)
     assert len(parameter.elements) == 1
+
+
+def test_return_type_include_inheritance_no_types(return_type, inheritance_graph):
+    return_type.include_inheritance(inheritance_graph)
+    assert len(return_type.elements) == 1
+
+
+def test_return_type_include_inheritance(return_type, other_element, inheritance_graph):
+    return_type.add_element(other_element.signature_type, other_element.confidence)
+    return_type.include_inheritance(inheritance_graph)
+    assert len(return_type.elements) == 2
+
+
+def test_return_type_include_inheritance_existing(
+    return_type, concrete_element, other_element, inheritance_graph
+):
+    return_type.add_element(
+        concrete_element.signature_type, concrete_element.confidence
+    )
+    return_type.add_element(other_element.signature_type, other_element.confidence)
+    return_type.include_inheritance(inheritance_graph)
+    assert len(return_type.elements) == 2

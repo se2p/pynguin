@@ -294,7 +294,24 @@ class ReturnType(SignatureElement):
     """Represents the return type of a method."""
 
     def include_inheritance(self, inheritance_graph: InheritanceGraph) -> None:
-        pass
+        super_type_confidence = 0.5
+        element_types = list(self.element_types)
+        for element_type in element_types:
+            if isinstance(element_type, ConcreteType):
+                super_types = inheritance_graph.get_super_types(
+                    element_type.class_information
+                )
+                for super_type in super_types:
+                    concrete_super_type = ConcreteType(super_type)
+                    if concrete_super_type not in element_types:
+                        self.add_element(concrete_super_type, super_type_confidence)
+                    else:
+                        existing = self.get_element(concrete_super_type)
+                        assert existing is not None
+                        self.replace_element(
+                            existing.signature_type,
+                            max(existing.confidence, super_type_confidence),
+                        )
 
 
 unknown_type = _UnknownType()
