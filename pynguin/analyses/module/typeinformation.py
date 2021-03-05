@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 import math
 from abc import ABCMeta, abstractmethod
-from typing import Any, Iterator, NamedTuple, Optional, Set, Type
+from typing import Any, Iterable, Iterator, NamedTuple, Optional, Set, Type
 
 from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
 from pynguin.utils import randomness
@@ -252,6 +252,24 @@ class SignatureElement(metaclass=ABCMeta):
             inheritance_graph: The inheritance graph to use
         """
 
+    def _update_inherited_types(
+        self,
+        element_types: Iterable[SignatureType],
+        type_confidence: float,
+        inherited_types: Iterable[ClassInformation],
+    ) -> None:
+        for super_type in inherited_types:
+            concrete_super_type = ConcreteType(super_type)
+            if concrete_super_type not in element_types:
+                self.add_element(concrete_super_type, type_confidence)
+            else:
+                existing = self.get_element(concrete_super_type)
+                assert existing is not None
+                self.replace_element(
+                    existing.signature_type,
+                    max(existing.confidence, type_confidence),
+                )
+
 
 class Parameter(SignatureElement):
     """Represents a parameter of a method."""
@@ -277,17 +295,9 @@ class Parameter(SignatureElement):
                 sub_types = inheritance_graph.get_sub_types(
                     element_type.class_information
                 )
-                for sub_type in sub_types:
-                    concrete_sub_type = ConcreteType(sub_type)
-                    if concrete_sub_type not in element_types:
-                        self.add_element(concrete_sub_type, sub_type_confidence)
-                    else:
-                        existing = self.get_element(concrete_sub_type)
-                        assert existing is not None
-                        self.replace_element(
-                            existing.signature_type,
-                            max(existing.confidence, sub_type_confidence),
-                        )
+                self._update_inherited_types(
+                    element_types, sub_type_confidence, sub_types
+                )
 
 
 class ReturnType(SignatureElement):
@@ -301,17 +311,9 @@ class ReturnType(SignatureElement):
                 super_types = inheritance_graph.get_super_types(
                     element_type.class_information
                 )
-                for super_type in super_types:
-                    concrete_super_type = ConcreteType(super_type)
-                    if concrete_super_type not in element_types:
-                        self.add_element(concrete_super_type, super_type_confidence)
-                    else:
-                        existing = self.get_element(concrete_super_type)
-                        assert existing is not None
-                        self.replace_element(
-                            existing.signature_type,
-                            max(existing.confidence, super_type_confidence),
-                        )
+                self._update_inherited_types(
+                    element_types, super_type_confidence, super_types
+                )
 
 
 unknown_type = _UnknownType()
