@@ -270,6 +270,7 @@ class Parameter(SignatureElement):
         return self._name
 
     def include_inheritance(self, inheritance_graph: InheritanceGraph) -> None:
+        sub_type_confidence = 0.5
         element_types = list(self.element_types)
         for element_type in element_types:
             if isinstance(element_type, ConcreteType):
@@ -279,12 +280,13 @@ class Parameter(SignatureElement):
                 for sub_type in sub_types:
                     concrete_sub_type = ConcreteType(sub_type)
                     if concrete_sub_type not in element_types:
-                        self.add_element(concrete_sub_type, confidence=0.5)
+                        self.add_element(concrete_sub_type, sub_type_confidence)
                     else:
                         existing = self.get_element(concrete_sub_type)
                         assert existing is not None
                         self.replace_element(
-                            existing.signature_type, max(existing.confidence, 0.5)
+                            existing.signature_type,
+                            max(existing.confidence, sub_type_confidence),
                         )
 
 
