@@ -63,26 +63,44 @@ class ConcreteType(SignatureType):
         """
         return self._class_information.class_object
 
+    def __str__(self) -> str:
+        return f"ConcreteType({self._class_information})"
+
+    def __repr__(self) -> str:
+        return f"ConcreteType({self._class_information!r})"
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, ConcreteType):
+            return False
+        return self._class_information == other.class_information
+
+    def __hash__(self) -> int:
+        return hash(self._class_information)
+
 
 class SignatureElement(metaclass=ABCMeta):
     """An abstract base class for types in signatures."""
 
     @functools.total_ordering
-    class _Element(NamedTuple):
+    class Element(NamedTuple):
+        """Represents an element."""
+
         signature_type: SignatureType
         confidence: float
 
         def __eq__(self, other: Any) -> bool:
             if self is other:
                 return True
-            if not isinstance(other, SignatureElement._Element):
+            if not isinstance(other, SignatureElement.Element):
                 return False
             return self.signature_type == other.signature_type and math.isclose(
                 self.confidence, other.confidence, rel_tol=1e-6, abs_tol=1e-12
             )
 
         def __lt__(self, other: Any) -> bool:
-            if not isinstance(other, SignatureElement._Element):
+            if not isinstance(other, SignatureElement.Element):
                 raise TypeError(  # pylint: disable=raising-format-tuple
                     "'<' not supported between instances of "
                     "'SignatureElement._Element' and '%s'",
@@ -90,12 +108,17 @@ class SignatureElement(metaclass=ABCMeta):
                 )
             return self.confidence < other.confidence
 
-    def __init__(self) -> None:
+        def __repr__(self) -> str:
+            return f"Element({self.signature_type!r}, {self.confidence})"
 
-        self._unknown_element = self._Element(
+        def __str__(self) -> str:
+            return f"Element({self.signature_type}, {self.confidence})"
+
+    def __init__(self) -> None:
+        self._unknown_element = self.Element(
             signature_type=unknown_type, confidence=0.0
         )
-        self._elements: Set[SignatureElement._Element] = {self._unknown_element}
+        self._elements: Set[SignatureElement.Element] = {self._unknown_element}
 
     def add_element(self, signature: SignatureType, confidence: float) -> None:
         """Adds an element to the set of possible signature types.
@@ -131,8 +154,8 @@ class SignatureElement(metaclass=ABCMeta):
 
     def _element_factory(
         self, signature: SignatureType, confidence: float
-    ) -> SignatureElement._Element:
-        return self._Element(signature_type=signature, confidence=confidence)
+    ) -> SignatureElement.Element:
+        return self.Element(signature_type=signature, confidence=confidence)
 
     def replace_element(self, signature: SignatureType, confidence: float) -> None:
         """Replace the elements confidence.
@@ -152,14 +175,28 @@ class SignatureElement(metaclass=ABCMeta):
         if not self._contains_signature(signature):
             self.add_element(signature, confidence)
         else:
-            found: Optional[SignatureElement._Element] = None
-            for element in self._elements:
-                if element.signature_type == signature:
-                    found = element
-                    break
+            found: Optional[SignatureElement.Element] = self.get_element(signature)
             assert found is not None
             self._elements.remove(found)
             self._elements.add(self._element_factory(signature, confidence))
+
+    def get_element(
+        self, signature: SignatureType
+    ) -> Optional[SignatureElement.Element]:
+        """Provides the element with a given signature type.
+
+        Returns None if not found
+
+        Args:
+            signature: The signature type to search for
+
+        Returns:
+            The element with this signature type, or None if not found
+        """
+        for element in self._elements:
+            if element.signature_type == signature:
+                return element
+        return None
 
     def provide_random_type(self, respect_confidence: bool = True) -> SignatureType:
         """Provides a random type from the possible types.
@@ -189,7 +226,7 @@ class SignatureElement(metaclass=ABCMeta):
         return randomness.choices(signatures, weights=confidences)[0]
 
     @property
-    def elements(self) -> Set[SignatureElement._Element]:
+    def elements(self) -> Set[SignatureElement.Element]:
         """Provides all types that are possible.
 
         Returns:
@@ -233,7 +270,22 @@ class Parameter(SignatureElement):
         return self._name
 
     def include_inheritance(self, inheritance_graph: InheritanceGraph) -> None:
-        pass
+        element_types = list(self.element_types)
+        for element_type in element_types:
+            if isinstance(element_type, ConcreteType):
+                sub_types = inheritance_graph.get_sub_types(
+                    element_type.class_information
+                )
+                for sub_type in sub_types:
+                    concrete_sub_type = ConcreteType(sub_type)
+                    if concrete_sub_type not in element_types:
+                        self.add_element(concrete_sub_type, confidence=0.5)
+                    else:
+                        existing = self.get_element(concrete_sub_type)
+                        assert existing is not None
+                        self.replace_element(
+                            existing.signature_type, max(existing.confidence, 0.5)
+                        )
 
 
 class ReturnType(SignatureElement):

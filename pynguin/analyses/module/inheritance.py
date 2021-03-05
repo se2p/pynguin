@@ -26,6 +26,12 @@ class ClassInformation(NamedTuple):
     def __hash__(self) -> int:
         return hash(self.name)
 
+    def __str__(self) -> str:
+        return f"ClassInformation({self.name}, {self.class_object})"
+
+    def __repr__(self) -> str:
+        return f"ClassInformation({self.name}, {self.class_object})"
+
 
 class InheritanceGraph:
     """Represents the inheritance structure of the found types."""

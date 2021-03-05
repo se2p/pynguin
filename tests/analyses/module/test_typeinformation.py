@@ -3,12 +3,18 @@
 #  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
+import importlib
+import inspect
 import itertools
+from typing import Set, Type
 from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.module.inheritance import ClassInformation
+from pynguin.analyses.module.inheritance import (
+    ClassInformation,
+    build_inheritance_graph,
+)
 from pynguin.analyses.module.typeinformation import (
     ConcreteType,
     Parameter,
@@ -31,15 +37,36 @@ def concrete_type(class_information):
 
 @pytest.fixture
 def element():
-    return SignatureElement._Element(
+    return SignatureElement.Element(
         signature_type=MagicMock(SignatureType),
         confidence=0.5,
     )
 
 
 @pytest.fixture
+def concrete_element():
+    return SignatureElement.Element(
+        signature_type=ConcreteType(
+            ClassInformation(name="builtins.object", class_object=object)
+        ),
+        confidence=0.25,
+    )
+
+
+@pytest.fixture
 def parameter():
     return Parameter("foo")
+
+
+@pytest.fixture(scope="module")
+def inheritance_graph():
+    def extract_classes_from_module(module_name: str) -> Set[Type]:
+        module = importlib.import_module(module_name)
+        return {v for _, v in inspect.getmembers(module, inspect.isclass)}
+
+    return build_inheritance_graph(
+        extract_classes_from_module("tests.fixtures.cluster.typing_parameters")
+    )
 
 
 def test_concrete_type_class_information(concrete_type, class_information):
@@ -54,6 +81,23 @@ def test_concrete_type_type_object(concrete_type):
     assert concrete_type.type_object == object
 
 
+def test_concrete_type_eq_same(concrete_type):
+    assert concrete_type.__eq__(concrete_type)
+
+
+def test_concrete_type_eq_other_type(concrete_type):
+    assert not concrete_type.__eq__(MagicMock())
+
+
+def test_concrete_type_eq_other(concrete_type, class_information):
+    other_type = ConcreteType(class_information)
+    assert concrete_type.__eq__(other_type)
+
+
+def test_concrete_type_hash(concrete_type):
+    assert concrete_type.__hash__() != 0
+
+
 def test_element_eq_same(element):
     assert element.__eq__(element)
 
@@ -63,7 +107,7 @@ def test_element_eq_other_type(element):
 
 
 def test_element_eq_other(element):
-    other = SignatureElement._Element(
+    other = SignatureElement.Element(
         signature_type=element.signature_type,
         confidence=0.5,
     )
@@ -71,7 +115,7 @@ def test_element_eq_other(element):
 
 
 def test_element_lt(element):
-    other = SignatureElement._Element(
+    other = SignatureElement.Element(
         signature_type=MagicMock(),
         confidence=0.7,
     )
@@ -152,7 +196,7 @@ def test_parameter_replace_element(parameter, element):
 
 
 def test_parameter_provide_random_type_no_confidence(parameter, element):
-    element_2 = SignatureElement._Element(MagicMock(SignatureType), 0.75)
+    element_2 = SignatureElement.Element(MagicMock(SignatureType), 0.75)
     parameter.add_element(element.signature_type, element.confidence)
     parameter.add_element(element_2.signature_type, element_2.confidence)
     result = parameter.provide_random_type(respect_confidence=False)
@@ -160,8 +204,41 @@ def test_parameter_provide_random_type_no_confidence(parameter, element):
 
 
 def test_parameter_provide_random_type_with_confidence(parameter, element):
-    element_2 = SignatureElement._Element(MagicMock(SignatureType), 0.75)
+    element_2 = SignatureElement.Element(MagicMock(SignatureType), 0.75)
     parameter.add_element(element.signature_type, element.confidence)
     parameter.add_element(element_2.signature_type, element_2.confidence)
     result = parameter.provide_random_type(respect_confidence=True)
     assert result in (element.signature_type, element_2.signature_type)
+
+
+def test_parameter_get_element(parameter, concrete_element):
+    assert parameter.get_element(concrete_element.signature_type) is None
+
+
+def test_parameter_include_inheritance(parameter, concrete_element, inheritance_graph):
+    parameter.add_element(concrete_element.signature_type, concrete_element.confidence)
+    parameter.include_inheritance(inheritance_graph)
+    assert len(parameter.elements) == 4
+
+
+def test_parameter_include_inheritance_existing(
+    parameter, concrete_element, inheritance_graph
+):
+    parameter.add_element(concrete_element.signature_type, concrete_element.confidence)
+    other_element = SignatureElement.Element(
+        signature_type=ConcreteType(
+            ClassInformation(
+                name="tests.fixtures.cluster.complex_dependency.SomeOtherType",
+                class_object=MagicMock,
+            )
+        ),
+        confidence=0.75,
+    )
+    parameter.add_element(other_element.signature_type, other_element.confidence)
+    parameter.include_inheritance(inheritance_graph)
+    assert len(parameter.elements) == 4
+
+
+def test_parameter_include_inheritance_no_types(parameter, inheritance_graph):
+    parameter.include_inheritance(inheritance_graph)
+    assert len(parameter.elements) == 1
