@@ -107,5 +107,9 @@ class RuntimeVariable(str, enum.Enum):
     # The number of goals, i.e., number of fitness functions
     Goals = "Goals"
 
+    # The number of test cases pynguin is able to collect from an initial population if
+    # initial population seeding is enabled
+    CollectedTestCases = "CollectedTestCases"
+
     def __repr__(self):
         return f"{self.name}"

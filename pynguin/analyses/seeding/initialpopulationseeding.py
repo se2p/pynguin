@@ -15,11 +15,13 @@ from typing import Any, Dict, List, Optional, Union
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class _InitialPopulationSeeding:
@@ -83,6 +85,9 @@ class _InitialPopulationSeeding:
             self._logger.info(
                 "Number successfully collected test cases: %s", len(self._testcases)
             )
+        stat.track_output_variable(
+            RuntimeVariable.CollectedTestCases, len(self._testcases)
+        )
         self._mutate_testcases_initially()
 
     def _mutate_testcases_initially(self):
