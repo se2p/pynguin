@@ -78,7 +78,7 @@ class AbstractMOSATestStrategy(
             if tch.has_changed() and tch.size() > 0:
                 offspring_population.append(tch)
 
-        self._logger.info("Number of offsprings = %d", len(offspring_population))
+        self._logger.debug("Number of offsprings = %d", len(offspring_population))
         return offspring_population
 
     @staticmethod
