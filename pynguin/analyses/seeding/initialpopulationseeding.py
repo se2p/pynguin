@@ -15,11 +15,13 @@ from typing import Any, Dict, List, Optional, Union
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
+import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class _InitialPopulationSeeding:
@@ -54,13 +56,12 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
-
-        with open(os.path.abspath(module_path)) as module_file:
-            try:
+        try:
+            with open(os.path.abspath(module_path)) as module_file:
                 return ast.parse(module_file.read())
-            except BaseException as exception:  # pylint: disable=broad-except
-                self._logger.exception("Cannot read module: %s", exception)
-                return None
+        except BaseException as exception:  # pylint: disable=broad-except
+            self._logger.exception("Cannot read module: %s", exception)
+            return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
         """Collect all test cases from a module.
@@ -83,6 +84,9 @@ class _InitialPopulationSeeding:
             self._logger.info(
                 "Number successfully collected test cases: %s", len(self._testcases)
             )
+        stat.track_output_variable(
+            RuntimeVariable.CollectedTestCases, len(self._testcases)
+        )
         self._mutate_testcases_initially()
 
     def _mutate_testcases_initially(self):
