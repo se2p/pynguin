@@ -56,13 +56,12 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
-
-        with open(os.path.abspath(module_path)) as module_file:
-            try:
+        try:
+            with open(os.path.abspath(module_path)) as module_file:
                 return ast.parse(module_file.read())
-            except BaseException as exception:  # pylint: disable=broad-except
-                self._logger.exception("Cannot read module: %s", exception)
-                return None
+        except BaseException as exception:  # pylint: disable=broad-except
+            self._logger.exception("Cannot read module: %s", exception)
+            return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
         """Collect all test cases from a module.
