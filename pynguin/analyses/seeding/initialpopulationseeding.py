@@ -56,9 +56,19 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
+        module_name = config.configuration.module_name
+        result: List[str] = []
+        for root, _, files in os.walk(module_path):
+            for name in files:
+                if module_name in name and "test_" in name:
+                    result.append(os.path.join(root, name))
+                    break
         try:
-            with open(os.path.abspath(module_path)) as module_file:
-                return ast.parse(module_file.read())
+            if len(result) > 0:
+                with open(result[0]) as module_file:
+                    return ast.parse(module_file.read())
+            else:
+                return None
         except BaseException as exception:  # pylint: disable=broad-except
             self._logger.exception("Cannot read module: %s", exception)
             return None

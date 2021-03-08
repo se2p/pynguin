@@ -60,9 +60,9 @@ def dummy_test_cluster() -> TestCluster:
 
 
 def test_get_testcases(clear_ips_instance, seed_modules_path, triangle_test_cluster):
+    config.configuration.module_name = "triangle"
     ips.initialpopulationseeding.test_cluster = triangle_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "triangleseed.py")
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
 
     assert ips.initialpopulationseeding.has_tests
     assert len(ips.initialpopulationseeding._testcases) == 2
@@ -71,35 +71,35 @@ def test_get_testcases(clear_ips_instance, seed_modules_path, triangle_test_clus
 def test_get_seeded_testcase(
     clear_ips_instance, seed_modules_path, triangle_test_cluster
 ):
+    config.configuration.module_name = "triangle"
     ips.initialpopulationseeding.test_cluster = triangle_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "triangleseed.py")
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
 
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert isinstance(seeded_testcase, dtc.DefaultTestCase)
 
 
 @pytest.mark.parametrize(
-    "file_name, position, result, testcase_pos",
+    "module_name, position, result, testcase_pos",
     [
-        pytest.param("primitiveseed.py", 2, "Floats are different!", 0),
-        pytest.param("primitiveseed.py", 2, "Floats are equal!", 1),
-        pytest.param("primitiveseed.py", 2, "Bools are equal!", 2),
-        pytest.param("primitiveseed.py", 2, "Bools are different!", 3),
-        pytest.param("primitiveseed.py", 1, "Is None!", 4),
-        pytest.param("primitiveseed.py", 2, "Strings are different!", 5),
-        pytest.param("primitiveseed.py", 2, "Bytes are different!", 6),
-        pytest.param("collseed.py", 4, "not empty!", 0),
-        pytest.param("collseed.py", 7, "not empty!", 1),
-        pytest.param("collseed.py", 4, "not empty!", 2),
-        pytest.param("collseed.py", 4, "not empty!", 3),
-        pytest.param("nestedseed.py", 15, "not empty!", 0),
-        pytest.param("collfuncseed.py", 1, "empty!", 0),
-        pytest.param("collfuncseed.py", 1, "empty!", 1),
-        pytest.param("collfuncseed.py", 3, "not empty!", 2),
-        pytest.param("collfuncseed.py", 4, "not empty!", 3),
-        pytest.param("collfuncseed.py", 1, "empty!", 4),
-        pytest.param("classseed.py", 6, "not empty!", 0),
+        pytest.param("primitiveseed", 2, "Floats are different!", 0),
+        pytest.param("primitiveseed", 2, "Floats are equal!", 1),
+        pytest.param("primitiveseed", 2, "Bools are equal!", 2),
+        pytest.param("primitiveseed", 2, "Bools are different!", 3),
+        pytest.param("primitiveseed", 1, "Is None!", 4),
+        pytest.param("primitiveseed", 2, "Strings are different!", 5),
+        pytest.param("primitiveseed", 2, "Bytes are different!", 6),
+        pytest.param("collseed", 4, "not empty!", 0),
+        pytest.param("collseed", 7, "not empty!", 1),
+        pytest.param("collseed", 4, "not empty!", 2),
+        pytest.param("collseed", 4, "not empty!", 3),
+        pytest.param("nestedseed", 15, "not empty!", 0),
+        pytest.param("collfuncseed", 1, "empty!", 0),
+        pytest.param("collfuncseed", 1, "empty!", 1),
+        pytest.param("collfuncseed", 3, "not empty!", 2),
+        pytest.param("collfuncseed", 4, "not empty!", 3),
+        pytest.param("collfuncseed", 1, "empty!", 4),
+        pytest.param("classseed", 6, "not empty!", 0),
     ],
 )
 @mock.patch("pynguin.utils.randomness.next_int")
@@ -108,14 +108,14 @@ def test_collect_different_types(
     clear_ips_instance,
     seed_modules_path,
     dummy_test_cluster,
-    file_name,
+    module_name,
     result,
     position,
     testcase_pos,
 ):
+    config.configuration.module_name = module_name
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, file_name)
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     rand_mock.return_value = testcase_pos
 
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
@@ -142,9 +142,9 @@ def test_create_assertion(
     position,
     testcase_pos,
 ):
+    config.configuration.module_name = "assertseed"
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "assertseed.py")
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     rand_mock.return_value = testcase_pos
 
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
@@ -152,20 +152,20 @@ def test_create_assertion(
 
 
 @pytest.mark.parametrize(
-    "file_name",
+    "module_name",
     [
-        pytest.param("notprimitiveseed.py"),
-        pytest.param("wrongfunctionnameseed.py"),
-        pytest.param("notknowncall.py"),
-        pytest.param("wrongassignseed.py"),
+        pytest.param("notprimseed"),
+        pytest.param("wrongfunctionnameseed"),
+        pytest.param("notknowncall"),
+        pytest.param("wrongassignseed"),
     ],
 )
 def test_not_working_cases(
-    clear_ips_instance, seed_modules_path, dummy_test_cluster, file_name
+    clear_ips_instance, seed_modules_path, dummy_test_cluster, module_name
 ):
+    config.configuration.module_name = module_name
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, file_name)
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
 
     assert not ips.initialpopulationseeding._testcases
 
@@ -176,10 +176,9 @@ def test_generator_with_init_pop_seeding(
 ):
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    config.configuration.module_name = "primitiveseed"
     config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = os.path.join(
-        seed_modules_path, "primitiveseed.py"
-    )
+    config.configuration.initial_population_data = seed_modules_path
     gen.set_configuration(config.configuration)
     gen._setup_initial_population_seeding(dummy_test_cluster)
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
@@ -195,11 +194,11 @@ def test_seeded_test_case_factory_no_delegation(
 ):
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "primitiveseed.py")
+    config.configuration.module_name = "primitiveseed"
     config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = init_pop_file
+    config.configuration.initial_population_data = seed_modules_path
     config.configuration.seeded_testcases_reuse_probability = 1.0
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
@@ -216,11 +215,11 @@ def test_seeded_test_case_factory_with_delegation(
 ):
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "primitiveseed.py")
+    config.configuration.module_name = "primitiveseed"
     config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = init_pop_file
+    config.configuration.initial_population_data = seed_modules_path
     config.configuration.seeded_testcases_reuse_probability = 0.0
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     delegate.get_test_case = MagicMock()
@@ -254,8 +253,7 @@ def test_algorithm_generation_factory(
 @mock.patch("ast.parse")
 def test_module_not_readable(parse_mock, clear_ips_instance, seed_modules_path):
     parse_mock.side_effect = BaseException
-    init_pop_file = os.path.join(seed_modules_path, "primitiveseed.py")
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
 
     assert not ips.initialpopulationseeding._testcases
 
@@ -265,7 +263,7 @@ def test_initial_mutation(
     mutate_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
     config.configuration.initial_population_mutations = 2
+    config.configuration.module_name = "primitiveseed"
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    init_pop_file = os.path.join(seed_modules_path, "primitiveseed.py")
-    ips.initialpopulationseeding.collect_testcases(init_pop_file)
+    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     mutate_mock.assert_called()
