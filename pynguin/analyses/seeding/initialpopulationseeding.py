@@ -65,12 +65,17 @@ class _InitialPopulationSeeding:
                     break
         try:
             if len(result) > 0:
+                self._logger.debug("Module name found: %s", result[0])
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, True)
                 with open(result[0]) as module_file:
                     return ast.parse(module_file.read())
             else:
+                self._logger.debug("No suitable test module found.")
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
                 return None
         except BaseException as exception:  # pylint: disable=broad-except
             self._logger.exception("Cannot read module: %s", exception)
+            stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:

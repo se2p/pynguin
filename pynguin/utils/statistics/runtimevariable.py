@@ -111,5 +111,8 @@ class RuntimeVariable(str, enum.Enum):
     # initial population seeding is enabled
     CollectedTestCases = "CollectedTestCases"
 
+    # Indicates if a suitable test module was found to seed initial testcases
+    SuitableTestModule = "SuitableTestModule"
+
     def __repr__(self):
         return f"{self.name}"
