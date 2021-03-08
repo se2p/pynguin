@@ -124,7 +124,7 @@ def test__expand_arguments_if_necessary(arguments, expected):
 def test_load_configuration_from_file(tmp_path):
     config_file = Path(".").absolute()
     if config_file.name != "tests":
-        config_file /= "tests"
+        config_file /= "tests"  # pragma: no cover
     config_file = config_file / "fixtures" / "test.conf"
     parser = _create_argument_parser()
     parsed = parser.parse_args(

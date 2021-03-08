@@ -273,14 +273,18 @@ def test_attempt_generation_for_none_type_with_no_probability(test_cluster_mock)
 
 
 def test_attempt_generation_for_type_from_cluster(test_case_mock):
-    def mock_method(t, position, recursion_depth, allow_none, type_generators):
-        assert position == 0
-        assert recursion_depth == 0
-        assert allow_none
-        assert isinstance(type_generators, gao.GenericAccessibleObject)
+    def mock_method(_, position, recursion_depth, allow_none, type_generators):
+        assert position == 0  # pragma: no cover
+        assert recursion_depth == 0  # pragma: no cover
+        assert allow_none  # pragma: no cover
+        assert isinstance(
+            type_generators, gao.GenericAccessibleObject
+        )  # pragma: no cover
 
     cluster = TestCluster()
-    cluster.get_generators_for = lambda t: MagicMock(gao.GenericAccessibleObject)
+    cluster.get_generators_for = lambda t: MagicMock(
+        gao.GenericAccessibleObject
+    )  # pragma: no cover
     factory = tf.TestFactory(cluster)
     factory._attempt_generation_for_type = mock_method
     factory._attempt_generation(test_case_mock, MagicMock(tf.TestFactory), 0, 0, True)
