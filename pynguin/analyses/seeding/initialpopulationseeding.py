@@ -141,11 +141,16 @@ class _TestTransformer(ast.NodeVisitor):
         self._current_parsable: bool = True
         self._var_refs: Dict[str, vr.VariableReference] = {}
         self._testcases: List[DefaultTestCase] = []
+        self._number_found_testcases: int = 0
 
     def visit_Module(self, node: ast.Module) -> Any:
         self.generic_visit(node)
+        stat.track_output_variable(
+            RuntimeVariable.FoundTestCases, self._number_found_testcases
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._number_found_testcases += 1
         self._current_testcase = DefaultTestCase()
         self._current_parsable = True
         self._var_refs.clear()

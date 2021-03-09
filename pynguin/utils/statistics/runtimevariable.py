@@ -111,6 +111,9 @@ class RuntimeVariable(str, enum.Enum):
     # initial population seeding is enabled
     CollectedTestCases = "CollectedTestCases"
 
+    # The number of found test cases independent of it can be collected or not
+    FoundTestCases = "FoundTestCases"
+
     # Indicates if a suitable test module was found to seed initial testcases
     SuitableTestModule = "SuitableTestModule"
 
