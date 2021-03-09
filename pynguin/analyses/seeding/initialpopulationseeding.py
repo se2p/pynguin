@@ -56,7 +56,8 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
-        module_name = config.configuration.module_name
+        module_name = config.configuration.module_name.split(".")[-1]
+        self._logger.debug("Module name: %s", module_name)
         result: List[str] = []
         for root, _, files in os.walk(module_path):
             for name in files:
