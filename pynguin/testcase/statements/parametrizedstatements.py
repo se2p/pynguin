@@ -38,6 +38,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         generic_callable: GenericCallableAccessibleObject,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
+        starred_args: Optional[vr.VariableReference] = None,
+        starred_kwargs: Optional[vr.VariableReference] = None
     ):
         """
         Create a new statement with parameters.
@@ -55,6 +57,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         self._generic_callable = generic_callable
         self._args = args if args else []
         self._kwargs = kwargs if kwargs else {}
+        self._starred_args = starred_args if starred_args else None
+        self._starred_kwargs = starred_kwargs if starred_kwargs else None
 
     @property
     def args(self) -> List[vr.VariableReference]:
@@ -82,16 +86,50 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def kwargs(self, kwargs: Dict[str, vr.VariableReference]):
         self._kwargs = kwargs
 
+    @property
+    def starred_args(self) -> vr.VariableReference:
+        """The positional parameters that are passed as *args in this statement.
+
+        Returns:
+            The variable reference that is passed as *args
+        """
+        return self._starred_args
+
+    @starred_args.setter
+    def starred_args(self, starred_args: vr.VariableReference):
+        self._starred_args = starred_args
+
+    @property
+    def starred_kwargs(self) -> Optional[vr.VariableReference]:
+        """The keyword parameters that are passed as **kwargs in this statement.
+
+        Returns:
+            The variable reference that is passed as **kwargs, if any.
+        """
+        return self._starred_kwargs
+
+    @starred_kwargs.setter
+    def starred_kwargs(self, starred_kwargs: Optional[vr.VariableReference]):
+        self._starred_kwargs = starred_kwargs
+
     def get_variable_references(self) -> Set[vr.VariableReference]:
         references = set()
         references.add(self.ret_val)
         references.update(self.args)
         references.update(self.kwargs.values())
+        if self._starred_args is not None:
+            references.add(self._starred_args)
+        if self._starred_kwargs is not None:
+            references.add(self.starred_kwargs)
         return references
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
         if self.ret_val == old:
             self.ret_val = new
+        if self._starred_args == old:
+            self._starred_args = new
+        if self._starred_kwargs == old:
+            self._starred_kwargs = new
         self._args = [new if arg == old else arg for arg in self._args]
         for key, value in self._kwargs.items():
             if value == old:
@@ -275,6 +313,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             + 17 * hash(self._ret_val)
             + 17 * hash(frozenset(self._args))
             + 17 * hash(frozenset(self._kwargs.items()))
+            + 17 * hash(self._starred_args)
+            + 17 * hash(self._starred_kwargs)
         )
 
     def __eq__(self, other: Any) -> bool:
@@ -286,6 +326,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             self._ret_val == other._ret_val
             and self._args == other._args
             and self._kwargs == other._kwargs
+            and self._starred_args == other._starred_args
+            and self._starred_kwargs == other._starred_kwargs
         )
 
 
@@ -298,6 +340,8 @@ class ConstructorStatement(ParametrizedStatement):
             self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
+            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
+            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -314,12 +358,16 @@ class ConstructorStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"ConstructorStatement({self._test_case}, "
-            + f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs})"
+            + f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
+              f"starred_args={self._starred_args}, "
+              f"starred_kwargs={self._starred_kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) "
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs})"
             + "-> None"
         )
 
@@ -335,6 +383,8 @@ class MethodStatement(ParametrizedStatement):
         callee: vr.VariableReference,
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
+        starred_args: Optional[vr.VariableReference] = None,
+        starred_kwargs: Optional[vr.VariableReference] = None
     ):
         """Create new method statement.
 
@@ -350,6 +400,8 @@ class MethodStatement(ParametrizedStatement):
             generic_callable,
             args,
             kwargs,
+            starred_args,
+            starred_kwargs
         )
         self._callee = callee
 
@@ -414,6 +466,8 @@ class MethodStatement(ParametrizedStatement):
             self._callee.clone(test_case, offset),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
+            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
+            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -422,14 +476,18 @@ class MethodStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"MethodStatement({self._test_case}, "
-            + f"{self._generic_callable}, {self._callee.variable_type}, "
-            + f"args={self._args}, kwargs={self._kwargs})"
+            f"{self._generic_callable}, {self._callee.variable_type}, "
+            f"args={self._args}, kwargs={self._kwargs}"
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
-            + f"{self._generic_callable.generated_type()}"
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs}) -> "
+            f"{self._generic_callable.generated_type()}"
         )
 
 
@@ -450,6 +508,8 @@ class FunctionStatement(ParametrizedStatement):
             self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
+            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
+            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -458,12 +518,16 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            + f"{self._generic_callable}, {self._ret_val.variable_type}, "
-            + f"args={self._args}, kwargs={self._kwargs})"
+            f"{self._generic_callable}, {self._ret_val.variable_type}, "
+            f"args={self._args}, kwargs={self._kwargs}, "
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}) -> "
+            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs}) -> "
             + f"{self._ret_val.variable_type}"
         )

@@ -292,6 +292,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
         args = []
         for arg in stmt.args:
             args.append(au.create_var_name(self._variable_names, arg, True))
+        # Append *args, if necessary.
+        if stmt.starred_args is not None:
+            args.append(ast.Starred(value=au.create_var_name(self._variable_names, stmt.starred_args, True), ctx=ast.Load()))
         return args
 
     def _create_kw_args(
@@ -311,6 +314,14 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 ast.keyword(
                     arg=name,
                     value=au.create_var_name(self._variable_names, value, True),
+                )
+            )
+        # Append **kwargs, if necessary.
+        if stmt.starred_kwargs is not None:
+            kwargs.append(
+                ast.keyword(
+                    arg=None,
+                    value=au.create_var_name(self._variable_names, stmt.starred_kwargs, True),
                 )
             )
         return kwargs
