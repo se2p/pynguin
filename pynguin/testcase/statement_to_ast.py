@@ -280,7 +280,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
             value=ast.Constant(value=stmt.value),
         )
 
-    def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.Name]:
+    def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.expr]:
         """Creates the positional arguments.
 
         Args:
@@ -289,12 +289,19 @@ class StatementToAstVisitor(sv.StatementVisitor):
         Returns:
             A list of AST statements
         """
-        args = []
+        args: List[ast.expr] = []
         for arg in stmt.args:
             args.append(au.create_var_name(self._variable_names, arg, True))
         # Append *args, if necessary.
         if stmt.starred_args is not None:
-            args.append(ast.Starred(value=au.create_var_name(self._variable_names, stmt.starred_args, True), ctx=ast.Load()))
+            args.append(
+                ast.Starred(
+                    value=au.create_var_name(
+                        self._variable_names, stmt.starred_args, True
+                    ),
+                    ctx=ast.Load(),
+                )
+            )
         return args
 
     def _create_kw_args(
@@ -321,7 +328,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
             kwargs.append(
                 ast.keyword(
                     arg=None,
-                    value=au.create_var_name(self._variable_names, stmt.starred_kwargs, True),
+                    value=au.create_var_name(
+                        self._variable_names, stmt.starred_kwargs, True
+                    ),
                 )
             )
         return kwargs

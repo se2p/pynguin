@@ -180,7 +180,7 @@ def test_statement_to_ast_constructor_all_args(
         test_case_mock,
         constructor_mock,
         args=[MagicMock(vr.VariableReference)],
-        kwargs={"foo":MagicMock(vr.VariableReference)},
+        kwargs={"foo": MagicMock(vr.VariableReference)},
         starred_args=MagicMock(vr.VariableReference),
         starred_kwargs=MagicMock(vr.VariableReference),
     )
@@ -227,7 +227,7 @@ def test_statement_to_ast_method_starred_args(
         test_case_mock,
         method_mock,
         variable_reference_mock,
-        starred_args=MagicMock(vr.VariableReference)
+        starred_args=MagicMock(vr.VariableReference),
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
     assert (

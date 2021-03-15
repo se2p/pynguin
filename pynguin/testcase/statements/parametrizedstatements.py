@@ -39,7 +39,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
         starred_args: Optional[vr.VariableReference] = None,
-        starred_kwargs: Optional[vr.VariableReference] = None
+        starred_kwargs: Optional[vr.VariableReference] = None,
     ):
         """
         Create a new statement with parameters.
@@ -87,7 +87,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         self._kwargs = kwargs
 
     @property
-    def starred_args(self) -> vr.VariableReference:
+    def starred_args(self) -> Optional[vr.VariableReference]:
         """The positional parameters that are passed as *args in this statement.
 
         Returns:
@@ -96,7 +96,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return self._starred_args
 
     @starred_args.setter
-    def starred_args(self, starred_args: vr.VariableReference):
+    def starred_args(self, starred_args: Optional[vr.VariableReference]):
         self._starred_args = starred_args
 
     @property
@@ -120,7 +120,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if self._starred_args is not None:
             references.add(self._starred_args)
         if self._starred_kwargs is not None:
-            references.add(self.starred_kwargs)
+            references.add(self._starred_kwargs)
         return references
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
@@ -340,8 +340,12 @@ class ConstructorStatement(ParametrizedStatement):
             self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
-            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
-            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
+            None
+            if self._starred_args is None
+            else self._starred_args.clone(test_case, offset),
+            None
+            if self._starred_kwargs is None
+            else self._starred_kwargs.clone(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -359,16 +363,15 @@ class ConstructorStatement(ParametrizedStatement):
         return (
             f"ConstructorStatement({self._test_case}, "
             + f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
-              f"starred_args={self._starred_args}, "
-              f"starred_kwargs={self._starred_kwargs})"
+            f"starred_args={self._starred_args}, "
+            f"starred_kwargs={self._starred_kwargs})"
         )
 
     def __str__(self) -> str:
         return (
             f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
             f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs})"
-            + "-> None"
+            f"starred_kwargs={self._starred_kwargs})" + "-> None"
         )
 
 
@@ -384,7 +387,7 @@ class MethodStatement(ParametrizedStatement):
         args: Optional[List[vr.VariableReference]] = None,
         kwargs: Optional[Dict[str, vr.VariableReference]] = None,
         starred_args: Optional[vr.VariableReference] = None,
-        starred_kwargs: Optional[vr.VariableReference] = None
+        starred_kwargs: Optional[vr.VariableReference] = None,
     ):
         """Create new method statement.
 
@@ -396,12 +399,7 @@ class MethodStatement(ParametrizedStatement):
             kwargs: the keyword arguments
         """
         super().__init__(
-            test_case,
-            generic_callable,
-            args,
-            kwargs,
-            starred_args,
-            starred_kwargs
+            test_case, generic_callable, args, kwargs, starred_args, starred_kwargs
         )
         self._callee = callee
 
@@ -466,8 +464,12 @@ class MethodStatement(ParametrizedStatement):
             self._callee.clone(test_case, offset),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
-            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
-            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
+            None
+            if self._starred_args is None
+            else self._starred_args.clone(test_case, offset),
+            None
+            if self._starred_kwargs is None
+            else self._starred_kwargs.clone(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -508,8 +510,12 @@ class FunctionStatement(ParametrizedStatement):
             self.accessible_object(),
             self._clone_args(test_case, offset),
             self._clone_kwargs(test_case, offset),
-            None if self._starred_args is None else self._starred_args.clone(test_case, offset),
-            None if self._starred_kwargs is None else self._starred_kwargs.clone(test_case, offset)
+            None
+            if self._starred_args is None
+            else self._starred_args.clone(test_case, offset),
+            None
+            if self._starred_kwargs is None
+            else self._starred_kwargs.clone(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
