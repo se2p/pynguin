@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 import math
 from abc import ABCMeta, abstractmethod
-from typing import Any, Iterable, Iterator, NamedTuple, Optional, Set, Type
+from typing import Any, ClassVar, Iterable, Iterator, NamedTuple, Optional, Set, Type
 
 from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
 from pynguin.utils import randomness
@@ -113,6 +113,8 @@ class SignatureElement(metaclass=ABCMeta):
 
         def __str__(self) -> str:
             return f"Element({self.signature_type}, {self.confidence})"
+
+    _related_type_confidence: ClassVar[float] = 0.5
 
     def __init__(self) -> None:
         self._unknown_element = self.Element(
@@ -255,19 +257,18 @@ class SignatureElement(metaclass=ABCMeta):
     def _update_inherited_types(
         self,
         element_types: Iterable[SignatureType],
-        type_confidence: float,
         inherited_types: Iterable[ClassInformation],
     ) -> None:
         for super_type in inherited_types:
             concrete_super_type = ConcreteType(super_type)
             if concrete_super_type not in element_types:
-                self.add_element(concrete_super_type, type_confidence)
+                self.add_element(concrete_super_type, self._related_type_confidence)
             else:
                 existing = self.get_element(concrete_super_type)
                 assert existing is not None
                 self.replace_element(
                     existing.signature_type,
-                    max(existing.confidence, type_confidence),
+                    max(existing.confidence, self._related_type_confidence),
                 )
 
 
@@ -288,32 +289,26 @@ class Parameter(SignatureElement):
         return self._name
 
     def include_inheritance(self, inheritance_graph: InheritanceGraph) -> None:
-        sub_type_confidence = 0.5
         element_types = list(self.element_types)
         for element_type in element_types:
             if isinstance(element_type, ConcreteType):
                 sub_types = inheritance_graph.get_sub_types(
                     element_type.class_information
                 )
-                self._update_inherited_types(
-                    element_types, sub_type_confidence, sub_types
-                )
+                self._update_inherited_types(element_types, sub_types)
 
 
 class ReturnType(SignatureElement):
     """Represents the return type of a method."""
 
     def include_inheritance(self, inheritance_graph: InheritanceGraph) -> None:
-        super_type_confidence = 0.5
         element_types = list(self.element_types)
         for element_type in element_types:
             if isinstance(element_type, ConcreteType):
                 super_types = inheritance_graph.get_super_types(
                     element_type.class_information
                 )
-                self._update_inherited_types(
-                    element_types, super_type_confidence, super_types
-                )
+                self._update_inherited_types(element_types, super_types)
 
 
 unknown_type = _UnknownType()
