@@ -79,13 +79,14 @@ def return_type():
 
 @pytest.fixture(scope="module")
 def inheritance_graph():
-    def extract_classes_from_module(module_name: str) -> Set[Type]:
-        module = importlib.import_module(module_name)
-        return {v for _, v in inspect.getmembers(module, inspect.isclass)}
-
     return build_inheritance_graph(
-        extract_classes_from_module("tests.fixtures.cluster.typing_parameters")
+        _extract_classes_from_module("tests.fixtures.cluster.typing_parameters")
     )
+
+
+def _extract_classes_from_module(module_name: str) -> Set[Type]:
+    module = importlib.import_module(module_name)
+    return {v for _, v in inspect.getmembers(module, inspect.isclass)}
 
 
 def test_concrete_type_class_information(concrete_type, class_information):
@@ -274,3 +275,21 @@ def test_return_type_include_inheritance_existing(
     return_type.add_element(other_element.signature_type, other_element.confidence)
     return_type.include_inheritance(inheritance_graph)
     assert len(return_type.elements) == 2
+
+
+def test_parameter_inheritance_confidence(return_type):
+    graph = build_inheritance_graph(
+        _extract_classes_from_module(
+            "tests.fixtures.cluster.overridden_inherited_methods"
+        )
+    )
+    nodes = list(graph._graph.nodes)
+    nodes.sort(key=lambda n: n.name)
+    ci_builtins, ci_bar, ci_foo = nodes
+    return_type.add_element(ConcreteType(ci_bar), 1.0)
+    return_type.include_inheritance(graph)
+
+    elements = [element for element in return_type.elements]
+    elements.sort(key=lambda n: n.signature_type.class_information.name)
+    confidences = [element.confidence for element in elements]
+    assert confidences == [0.25, 1.0, 0.5]
