@@ -136,6 +136,32 @@ class InheritanceGraph:
             predecessors.add(predecessor)
         return predecessors
 
+    def get_distance(self, source: ClassInformation, target: ClassInformation) -> int:
+        """Computes the shortest distance between two nodes of the graph.
+
+        The distance will be positive if target is a sub-type of source and negative
+        if target is a super-type of source.  If source and target are the same node,
+        the distance will be 0.
+
+        Args:
+            source: The source node
+            target: The target node
+
+        Returns:
+            The (shortest) distance between the two nodes in the graph
+
+        Raises:
+            ValueError: if one of the class-information objects are not part of the
+            graph
+            nx.NetworkXNoPath: if no path between the nodes exists
+        """
+        if self.find(source) is None or self.find(target) is None:
+            raise ValueError("Both elements need to be part of the graph")
+        try:
+            return nx.shortest_path_length(self._graph, source, target)
+        except nx.NetworkXNoPath:
+            return (-1) * nx.shortest_path_length(self._graph, target, source)
+
     def number_of_nodes(self) -> int:
         """Provides the number of nodes in the graph.
 

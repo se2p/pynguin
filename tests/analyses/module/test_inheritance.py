@@ -136,3 +136,21 @@ def test_inheritance_graph_get_sub_types_illegal(inheritance_graph):
 def test_inheritance_graph_get_super_types_illegal(inheritance_graph):
     with pytest.raises(ValueError):
         inheritance_graph.get_super_types(build_class_information(MagicMock))
+
+
+def test_inheritance_graph_get_distance():
+    inheritance_graph = build_inheritance_graph(
+        _extract_classes_from_module(
+            "tests.fixtures.cluster.overridden_inherited_methods"
+        )
+    )
+    nodes = list(inheritance_graph._graph.nodes)
+    nodes.sort(key=lambda n: n.name)
+    ci_object, ci_bar, ci_foo = tuple(nodes)
+    assert inheritance_graph.get_distance(ci_bar, ci_bar) == 0
+    assert inheritance_graph.get_distance(ci_foo, ci_bar) == 1
+    assert inheritance_graph.get_distance(ci_bar, ci_object) == -2
+    with pytest.raises(ValueError):
+        inheritance_graph.get_distance(ci_object, None)
+    with pytest.raises(ValueError):
+        inheritance_graph.get_distance(None, ci_bar)
