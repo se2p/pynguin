@@ -104,7 +104,7 @@ def test_run(tmp_path):
 def test_integrate(tmp_path):
     project_path = Path(".").absolute()
     if project_path.name == "tests":
-        project_path /= ".."
+        project_path /= ".."  # pragma: no cover
     project_path = project_path / "docs" / "source" / "_static"
     configuration = config.Configuration(
         algorithm=config.Algorithm.MOSA,

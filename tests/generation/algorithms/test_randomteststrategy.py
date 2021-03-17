@@ -39,8 +39,8 @@ def test_generate_sequences(executor):
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    algorithm._find_objects_under_test = lambda x: x
-    algorithm.generate_sequence = lambda t, f, e: None
+    algorithm._find_objects_under_test = lambda x: x  # pragma: no cover
+    algorithm.generate_sequence = lambda t, f, e: None  # pragma: no cover
     test_cases = algorithm.generate_tests()
     assert test_cases.size() == 0
     assert len(logger.method_calls) == 1
@@ -62,7 +62,7 @@ def test_generate_sequences_exception(executor):
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    algorithm._find_objects_under_test = lambda x: x
+    algorithm._find_objects_under_test = lambda x: x  # pragma: no cover
     algorithm._combine_current_individual = _combine_current_individual
     algorithm.generate_sequence = raise_exception
     algorithm.generate_tests()
@@ -130,10 +130,10 @@ def test_generate_sequence(has_exceptions, executor):
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
     ).get_search_algorithm()
-    algorithm._random_public_method = lambda x: None
+    algorithm._random_public_method = lambda x: None  # pragma: no cover
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(MagicMock(stmt.Statement))
-    algorithm._random_test_cases = lambda x: [test_case]
+    algorithm._random_test_cases = lambda x: [test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomTestStrategy)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
@@ -150,9 +150,9 @@ def test_generate_sequence_duplicate(executor):
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
     ).get_search_algorithm()
-    algorithm._random_public_method = lambda x: None
+    algorithm._random_public_method = lambda x: None  # pragma: no cover
     test_case = dtc.DefaultTestCase()
-    algorithm._random_test_cases = lambda x: [test_case]
+    algorithm._random_test_cases = lambda x: [test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomTestStrategy)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(

@@ -56,11 +56,27 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
+        module_name = config.configuration.module_name.split(".")[-1]
+        self._logger.debug("Module name: %s", module_name)
+        result: List[str] = []
+        for root, _, files in os.walk(module_path):
+            for name in files:
+                if module_name in name and "test_" in name:
+                    result.append(os.path.join(root, name))
+                    break
         try:
-            with open(os.path.abspath(module_path)) as module_file:
-                return ast.parse(module_file.read())
+            if len(result) > 0:
+                self._logger.debug("Module name found: %s", result[0])
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, True)
+                with open(result[0]) as module_file:
+                    return ast.parse(module_file.read())
+            else:
+                self._logger.debug("No suitable test module found.")
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
+                return None
         except BaseException as exception:  # pylint: disable=broad-except
             self._logger.exception("Cannot read module: %s", exception)
+            stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
     def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
@@ -125,11 +141,16 @@ class _TestTransformer(ast.NodeVisitor):
         self._current_parsable: bool = True
         self._var_refs: Dict[str, vr.VariableReference] = {}
         self._testcases: List[DefaultTestCase] = []
+        self._number_found_testcases: int = 0
 
     def visit_Module(self, node: ast.Module) -> Any:
         self.generic_visit(node)
+        stat.track_output_variable(
+            RuntimeVariable.FoundTestCases, self._number_found_testcases
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._number_found_testcases += 1
         self._current_testcase = DefaultTestCase()
         self._current_parsable = True
         self._var_refs.clear()
