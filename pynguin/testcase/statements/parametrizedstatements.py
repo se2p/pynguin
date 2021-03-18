@@ -6,7 +6,7 @@
 #
 """Provides an abstract class for statements that require parameters"""
 from abc import ABCMeta
-from typing import Any, Dict, List, Optional, Set, Type, Union, cast
+from typing import Any, Dict, Optional, Set, Type, Union, cast
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.primitivestatements as prim
@@ -36,10 +36,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         self,
         test_case: tc.TestCase,
         generic_callable: GenericCallableAccessibleObject,
-        args: Optional[List[vr.VariableReference]] = None,
-        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
-        starred_args: Optional[vr.VariableReference] = None,
-        starred_kwargs: Optional[vr.VariableReference] = None,
+        args: Optional[Dict[str, vr.VariableReference]] = None,
     ):
         """
         Create a new statement with parameters.
@@ -47,109 +44,42 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         Args:
             test_case: the containing test case.
             generic_callable: the callable
-            args: the positional parameters.
-            kwargs: the keyword parameters.
+            args: A map of parameter names to their values.
         """
         super().__init__(
             test_case,
             vri.VariableReferenceImpl(test_case, generic_callable.generated_type()),
         )
         self._generic_callable = generic_callable
-        self._args = args if args else []
-        self._kwargs = kwargs if kwargs else {}
-        self._starred_args = starred_args if starred_args else None
-        self._starred_kwargs = starred_kwargs if starred_kwargs else None
+        self._args = args if args else {}
 
     @property
-    def args(self) -> List[vr.VariableReference]:
-        """The positional parameters used in this statement.
+    def args(self) -> Dict[str, vr.VariableReference]:
+        """The dictionary mapping parameter names to the used values.
 
         Returns:
-            A list of positional parameters
+            A dict mapping parameter names to their values.
         """
         return self._args
 
     @args.setter
-    def args(self, args: List[vr.VariableReference]):
+    def args(self, args: Dict[str, vr.VariableReference]):
         self._args = args
-
-    @property
-    def kwargs(self) -> Dict[str, vr.VariableReference]:
-        """The keyword parameters used in this statement.
-
-        Returns:
-            The dictionary of keyword parameters
-        """
-        return self._kwargs
-
-    @kwargs.setter
-    def kwargs(self, kwargs: Dict[str, vr.VariableReference]):
-        self._kwargs = kwargs
-
-    @property
-    def starred_args(self) -> Optional[vr.VariableReference]:
-        """The positional parameters that are passed as *args in this statement.
-
-        Returns:
-            The variable reference that is passed as *args
-        """
-        return self._starred_args
-
-    @starred_args.setter
-    def starred_args(self, starred_args: Optional[vr.VariableReference]):
-        self._starred_args = starred_args
-
-    @property
-    def starred_kwargs(self) -> Optional[vr.VariableReference]:
-        """The keyword parameters that are passed as **kwargs in this statement.
-
-        Returns:
-            The variable reference that is passed as **kwargs, if any.
-        """
-        return self._starred_kwargs
-
-    @starred_kwargs.setter
-    def starred_kwargs(self, starred_kwargs: Optional[vr.VariableReference]):
-        self._starred_kwargs = starred_kwargs
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
         references = set()
         references.add(self.ret_val)
-        references.update(self.args)
-        references.update(self.kwargs.values())
-        if self._starred_args is not None:
-            references.add(self._starred_args)
-        if self._starred_kwargs is not None:
-            references.add(self._starred_kwargs)
+        references.update(self.args.values())
         return references
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
         if self.ret_val == old:
             self.ret_val = new
-        if self._starred_args == old:
-            self._starred_args = new
-        if self._starred_kwargs == old:
-            self._starred_kwargs = new
-        self._args = [new if arg == old else arg for arg in self._args]
-        for key, value in self._kwargs.items():
+        for key, value in self._args.items():
             if value == old:
-                self._kwargs[key] = new
+                self._args[key] = new
 
     def _clone_args(
-        self, new_test_case: tc.TestCase, offset: int = 0
-    ) -> List[vr.VariableReference]:
-        """Small helper method, to clone the args into a new test case.
-
-        Args:
-            new_test_case: The new test case in which the params are used.
-            offset: Offset when cloning into a non empty test case.
-
-        Returns:
-            A list of the arguments references
-        """
-        return [par.clone(new_test_case, offset) for par in self._args]
-
-    def _clone_kwargs(
         self, new_test_case: tc.TestCase, offset: int = 0
     ) -> Dict[str, vr.VariableReference]:
         """Small helper method, to clone the args into a new test case.
@@ -161,10 +91,10 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         Returns:
             A dictionary of key-value argument references
         """
-        new_kw_args = {}
-        for name, var in self._kwargs.items():
-            new_kw_args[name] = var.clone(new_test_case, offset)
-        return new_kw_args
+        new_args = {}
+        for name, var in self._args.items():
+            new_args[name] = var.clone(new_test_case, offset)
+        return new_args
 
     def mutate(self) -> bool:
         if randomness.next_float() >= config.configuration.change_parameter_probability:
@@ -184,7 +114,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         Returns:
             The amount of mutable parameters
         """
-        return len(self.args) + len(self.kwargs)
+        return len(self.args)
 
     # pylint: disable=unused-argument,no-self-use
     def _mutate_special_parameters(self, p_per_param: float) -> bool:
@@ -209,38 +139,45 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             Whether or not mutation changed anything
         """
         changed = False
-        for arg in range(len(self.args)):
+        for (
+            param_name,
+            param_type,
+        ) in self._generic_callable.inferred_signature.parameters.items():
             if randomness.next_float() < p_per_param:
-                changed |= self._mutate_parameter(arg)
-        for kwarg in self.kwargs.keys():
-            if randomness.next_float() < p_per_param:
-                changed |= self._mutate_parameter(kwarg)
+                changed |= self._mutate_parameter(param_name, param_type)
+
         return changed
 
-    def _mutate_parameter(self, arg: Union[int, str]) -> bool:
+    def _mutate_parameter(self, param_name: str, param_type: Optional[type]) -> bool:
         """Replace the given parameter with another one that also fits the parameter
         type.
 
         Args:
-            arg: the parameter
+            param_name: the name of the parameter that should be mutated.
 
         Returns:
             True, if the parameter was mutated.
         """
-        to_mutate = self._get_argument(arg)
-        param_type = self._get_parameter_type(arg)
+        current = self._args.get(param_name, None)
+        if current is None:
+            # TODO(fk) create values for unset parameters, i.e., ones default value.
+            return False
+
+        # TODO unset parameters that are not necessary with a certain probability,
+        # e.g., if they have default value or *args, **kwargs.
+
         possible_replacements = self.test_case.get_objects(
             param_type, self.get_position()
         )
 
-        if to_mutate in possible_replacements:
-            possible_replacements.remove(to_mutate)
+        if current in possible_replacements:
+            possible_replacements.remove(current)
 
         # Consider duplicating an existing statement/variable.
         copy: Optional[stmt.Statement] = None
         if self._param_count_of_type(param_type) > len(possible_replacements) + 1:
             original_param_source = self.test_case.get_statement(
-                to_mutate.get_statement_position()
+                current.get_statement_position()
             )
             copy = original_param_source.clone(self.test_case)
             copy.mutate()
@@ -250,7 +187,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         # to make the selection broader, but this requires access to
         # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
-        none_statement = prim.NoneStatement(self.test_case, to_mutate.variable_type)
+        none_statement = prim.NoneStatement(self.test_case, current.variable_type)
         possible_replacements.append(none_statement.ret_val)
 
         replacement = randomness.choice(possible_replacements)
@@ -263,7 +200,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             # test case.
             self.test_case.add_statement(none_statement, self.get_position())
 
-        self._replace_argument(arg, replacement)
+        self._args[param_name] = replacement
         return True
 
     def _param_count_of_type(self, type_: Optional[Type]) -> int:
@@ -278,10 +215,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         count = 0
         if not type_:
             return 0
-        for var_ref in self.args:
-            if is_assignable_to(var_ref.variable_type, type_):
-                count += 1
-        for _, var_ref in self.kwargs.items():
+        for _, var_ref in self.args.items():
             if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         return count
@@ -289,46 +223,19 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def _get_parameter_type(self, arg: Union[int, str]) -> Optional[Type]:
         parameters = self._generic_callable.inferred_signature.parameters
         if isinstance(arg, int):
-            # As of Python 3.7, Dictionaries preserve insertion order.
-            # So we can access the values by index.
+
             return list(parameters.values())[arg]
         return parameters[arg]
 
-    def _get_argument(self, arg: Union[int, str]) -> vr.VariableReference:
-        if isinstance(arg, int):
-            return self.args[arg]
-        return self.kwargs[arg]
-
-    def _replace_argument(
-        self, arg: Union[int, str], new_argument: vr.VariableReference
-    ):
-        if isinstance(arg, int):
-            self.args[arg] = new_argument
-        else:
-            self.kwargs[arg] = new_argument
-
     def __hash__(self) -> int:
-        return (
-            31
-            + 17 * hash(self._ret_val)
-            + 17 * hash(frozenset(self._args))
-            + 17 * hash(frozenset(self._kwargs.items()))
-            + 17 * hash(self._starred_args)
-            + 17 * hash(self._starred_kwargs)
-        )
+        return 31 + 17 * hash(self._ret_val) + 17 * hash(frozenset(self._args.items()))
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, ParametrizedStatement):
             return False
-        return (
-            self._ret_val == other._ret_val
-            and self._args == other._args
-            and self._kwargs == other._kwargs
-            and self._starred_args == other._starred_args
-            and self._starred_kwargs == other._starred_kwargs
-        )
+        return self._ret_val == other._ret_val and self._args == other._args
 
 
 class ConstructorStatement(ParametrizedStatement):
@@ -336,16 +243,7 @@ class ConstructorStatement(ParametrizedStatement):
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return ConstructorStatement(
-            test_case,
-            self.accessible_object(),
-            self._clone_args(test_case, offset),
-            self._clone_kwargs(test_case, offset),
-            None
-            if self._starred_args is None
-            else self._starred_args.clone(test_case, offset),
-            None
-            if self._starred_kwargs is None
-            else self._starred_kwargs.clone(test_case, offset),
+            test_case, self.accessible_object(), self._clone_args(test_case, offset)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -362,17 +260,11 @@ class ConstructorStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"ConstructorStatement({self._test_case}, "
-            + f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs})"
+            + f"{self._generic_callable}(args={self._args})"
         )
 
     def __str__(self) -> str:
-        return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs})" + "-> None"
-        )
+        return f"{self._generic_callable}(args={self._args})" + "-> None"
 
 
 class MethodStatement(ParametrizedStatement):
@@ -384,10 +276,7 @@ class MethodStatement(ParametrizedStatement):
         test_case: tc.TestCase,
         generic_callable: GenericMethod,
         callee: vr.VariableReference,
-        args: Optional[List[vr.VariableReference]] = None,
-        kwargs: Optional[Dict[str, vr.VariableReference]] = None,
-        starred_args: Optional[vr.VariableReference] = None,
-        starred_kwargs: Optional[vr.VariableReference] = None,
+        args: Optional[Dict[str, vr.VariableReference]] = None,
     ):
         """Create new method statement.
 
@@ -395,12 +284,9 @@ class MethodStatement(ParametrizedStatement):
             test_case: The containing test case
             generic_callable: The generic callable method
             callee: the object on which the method is called
-            args: the positional arguments
-            kwargs: the keyword arguments
+            args: the arguments
         """
-        super().__init__(
-            test_case, generic_callable, args, kwargs, starred_args, starred_kwargs
-        )
+        super().__init__(test_case, generic_callable, args)
         self._callee = callee
 
     def accessible_object(self) -> GenericMethod:
@@ -463,13 +349,6 @@ class MethodStatement(ParametrizedStatement):
             self.accessible_object(),
             self._callee.clone(test_case, offset),
             self._clone_args(test_case, offset),
-            self._clone_kwargs(test_case, offset),
-            None
-            if self._starred_args is None
-            else self._starred_args.clone(test_case, offset),
-            None
-            if self._starred_kwargs is None
-            else self._starred_kwargs.clone(test_case, offset),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -479,16 +358,12 @@ class MethodStatement(ParametrizedStatement):
         return (
             f"MethodStatement({self._test_case}, "
             f"{self._generic_callable}, {self._callee.variable_type}, "
-            f"args={self._args}, kwargs={self._kwargs}"
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs})"
+            f"args={self._args})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs}) -> "
+            f"{self._generic_callable}(args={self._args}) -> "
             f"{self._generic_callable.generated_type()}"
         )
 
@@ -506,16 +381,7 @@ class FunctionStatement(ParametrizedStatement):
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
         return FunctionStatement(
-            test_case,
-            self.accessible_object(),
-            self._clone_args(test_case, offset),
-            self._clone_kwargs(test_case, offset),
-            None
-            if self._starred_args is None
-            else self._starred_args.clone(test_case, offset),
-            None
-            if self._starred_kwargs is None
-            else self._starred_kwargs.clone(test_case, offset),
+            test_case, self.accessible_object(), self._clone_args(test_case, offset)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -525,15 +391,11 @@ class FunctionStatement(ParametrizedStatement):
         return (
             f"FunctionStatement({self._test_case}, "
             f"{self._generic_callable}, {self._ret_val.variable_type}, "
-            f"args={self._args}, kwargs={self._kwargs}, "
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs})"
+            f"args={self._args})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}, kwargs={self._kwargs}, "
-            f"starred_args={self._starred_args}, "
-            f"starred_kwargs={self._starred_kwargs}) -> "
+            f"{self._generic_callable}(args={self._args}) -> "
             + f"{self._ret_val.variable_type}"
         )

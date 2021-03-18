@@ -21,7 +21,7 @@ def simple_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.ret_val]
+        test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     constructor_stmt.add_assertion(pas.PrimitiveAssertion(constructor_stmt.ret_val, 3))
     test_case.add_statement(int_stmt)
@@ -35,7 +35,7 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
+        == "var0 = 5\nvar1 = module0.SomeType(y=var0)\nassert var1 == 3\n"
     )
 
 
@@ -45,11 +45,11 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
+        == "var0 = 5\nvar1 = module0.SomeType(y=var0)\nassert var1 == 3\n"
     )
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[1]))
-        == "var0 = 5\nvar1 = module0.SomeType(var0)\nassert var1 == 3\n"
+        == "var0 = 5\nvar1 = module0.SomeType(y=var0)\nassert var1 == 3\n"
     )
 
 

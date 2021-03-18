@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Set, Type, cast
+from typing import Dict, List, Optional, Set, Type, cast
 
 from typing_inspect import get_args, get_origin
 
@@ -194,7 +194,7 @@ class TestFactory:
         signature = constructor.inferred_signature
         length = test_case.size()
         try:
-            parameters: List[vr.VariableReference] = self.satisfy_parameters(
+            parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
                 test_case=test_case,
                 signature=signature,
                 position=position,
@@ -261,7 +261,7 @@ class TestFactory:
                 test_case, method.owner, position, recursion_depth, allow_none=False
             )
         assert callee, "The callee must not be None"
-        parameters: List[vr.VariableReference] = self.satisfy_parameters(
+        parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
             signature=signature,
             position=position,
@@ -365,7 +365,7 @@ class TestFactory:
 
         signature = function.inferred_signature
         length = test_case.size()
-        parameters: List[vr.VariableReference] = self.satisfy_parameters(
+        parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
             signature=signature,
             position=position,
@@ -749,7 +749,7 @@ class TestFactory:
     @staticmethod
     def _get_reuse_parameters(
         test_case: tc.TestCase, inf_signature: InferredSignature, position: int
-    ) -> List[vr.VariableReference]:
+    ) -> Dict[str, vr.VariableReference]:
         """Find specified parameters from existing objects.
 
         Args:
@@ -760,12 +760,14 @@ class TestFactory:
         Returns:
             A list of existing objects
         """
-        found = []
+        found = {}
         for parameter_name, parameter_type in inf_signature.parameters.items():
             if should_skip_parameter(inf_signature, parameter_name):
                 continue
             assert parameter_type
-            found.append(test_case.get_random_object(parameter_type, position))
+            found[parameter_name] = test_case.get_random_object(
+                parameter_type, position
+            )
         return found
 
     @staticmethod
@@ -843,7 +845,7 @@ class TestFactory:
         recursion_depth: int = 0,
         allow_none: bool = True,
         can_reuse_existing_variables: bool = True,
-    ) -> List[vr.VariableReference]:
+    ) -> Dict[str, vr.VariableReference]:
         """Satisfy a list of parameters by reusing or creating variables.
 
         Args:
@@ -857,7 +859,7 @@ class TestFactory:
                 be reused.
 
         Returns:
-            A list of variable references for the parameters
+            A dict of variable references for the parameters
 
         Raises:
             ConstructionFailedException: if construction of an object failed
@@ -865,7 +867,7 @@ class TestFactory:
         if position < 0:
             position = test_case.size()
 
-        parameters: List[vr.VariableReference] = []
+        parameters: Dict[str, vr.VariableReference] = {}
         self._logger.debug(
             "Trying to satisfy %d parameters at position %d",
             len(signature.parameters),
@@ -913,7 +915,7 @@ class TestFactory:
                     ),
                 )
 
-            parameters.append(var)
+            parameters[parameter_name] = var
             current_length = test_case.size()
             position += current_length - previous_length
 

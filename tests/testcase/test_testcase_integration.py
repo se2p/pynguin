@@ -23,7 +23,7 @@ def test_method_statement_clone(method_mock):
         test_case,
         method_mock,
         str_prim.ret_val,
-        [int_prim.ret_val],
+        {"x": int_prim.ret_val},
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(str_prim)
@@ -40,7 +40,7 @@ def test_constructor_statement_clone(constructor_mock):
     method_stmt = ps.ConstructorStatement(
         test_case,
         constructor_mock,
-        [int_prim.ret_val],
+        {"y": int_prim.ret_val},
     )
     test_case.add_statement(int_prim)
     test_case.add_statement(method_stmt)
@@ -75,7 +75,7 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     int_prim = prim.IntPrimitiveStatement(test_case, 5)
     int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.5)
-    func = ps.FunctionStatement(test_case, function_mock, [float_prim.ret_val])
+    func = ps.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
     func.add_assertion(pas.PrimitiveAssertion(func.ret_val, 3.1415))
     string_prim = prim.StringPrimitiveStatement(test_case, "Test")
     string_prim.ret_val.variable_type = type(None)
@@ -102,13 +102,13 @@ def test_test_case_equals_on_different_prim(
         ps.ConstructorStatement(
             simple_test_case,
             constructor_mock,
-            [simple_test_case.statements[0].ret_val],
+            {"y": simple_test_case.statements[0].ret_val},
         )
     )
     # Clone points to int at 1
     cloned.add_statement(
         ps.ConstructorStatement(
-            cloned, constructor_mock, [cloned.statements[1].ret_val]
+            cloned, constructor_mock, {"y": cloned.statements[1].ret_val}
         )
     )
 

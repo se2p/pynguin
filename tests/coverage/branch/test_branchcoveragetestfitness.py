@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
+import inspect
 import threading
 from unittest import mock
 from unittest.mock import MagicMock
@@ -174,19 +175,25 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
         test_case,
         gao.GenericFunction(
             module.identity,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+            InferredSignature(
+                signature=inspect.signature(module.identity),
+                parameters={"a": int},
+                return_type=int,
+            ),
         ),
-        [int_stmt.ret_val],
+        {"a": int_stmt.ret_val},
     )
     constructor_call = param_stmt.ConstructorStatement(
         test_case,
         gao.GenericConstructor(
             module.DummyClass,
             InferredSignature(
-                signature=MagicMock(), parameters={}, return_type=module.DummyClass
+                signature=inspect.signature(module.DummyClass.__init__),
+                parameters={"x": int},
+                return_type=module.DummyClass,
             ),
         ),
-        [function_call.ret_val],
+        {"x": function_call.ret_val},
     )
     method_call = param_stmt.MethodStatement(
         test_case,
@@ -211,9 +218,13 @@ def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromos
         test_case,
         gao.GenericFunction(
             module.first,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+            InferredSignature(
+                signature=inspect.signature(module.first),
+                parameters={"a": int},
+                return_type=int,
+            ),
         ),
-        [int_stmt.ret_val],
+        {"a": int_stmt.ret_val},
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(function_call)
@@ -227,9 +238,13 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
         test_case,
         gao.GenericFunction(
             module.first,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+            InferredSignature(
+                signature=inspect.signature(module.first),
+                parameters={"a": int},
+                return_type=int,
+            ),
         ),
-        [int_stmt.ret_val],
+        {"a": int_stmt.ret_val},
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(function_call)
@@ -243,9 +258,13 @@ def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
         test_case,
         gao.GenericFunction(
             module.nested_branches,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+            InferredSignature(
+                signature=inspect.signature(module.nested_branches),
+                parameters={"a": int},
+                return_type=int,
+            ),
         ),
-        [int_stmt.ret_val],
+        {"a": int_stmt.ret_val},
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(function_call)

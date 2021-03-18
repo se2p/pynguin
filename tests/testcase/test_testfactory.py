@@ -385,10 +385,10 @@ def sample_test_case(function_mock):
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     float_function2 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_function1.ret_val]
+        test_case, function_mock, {"z": float_function1.ret_val}
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_prim2)
