@@ -17,7 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_assignable_to
+from pynguin.utils.type_utils import is_assignable_to, is_type_unknown
 
 
 # pylint: disable=too-many-public-methods
@@ -196,6 +196,9 @@ class TestCase(metaclass=ABCMeta):
         statements will be considered.  Otherwise the first `position` statements of
         the test case will be considered.
 
+        If the type for which we search is not specified, all objects up to the given
+        position are returned.
+
         Args:
             parameter_type: The type of the parameter we search references for
             position: The position in the statement list until we search
@@ -203,9 +206,9 @@ class TestCase(metaclass=ABCMeta):
         Returns:
             A list of variable references satisfying the parameter type
         """
-        if not parameter_type:
-            # TODO(fk) return get_all_objects instead?
-            return []
+        if is_type_unknown(parameter_type):
+            return self.get_all_objects(position)
+
         variables: List[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
@@ -236,7 +239,7 @@ class TestCase(metaclass=ABCMeta):
         return variables
 
     def get_random_object(
-        self, parameter_type: Type, position: int
+        self, parameter_type: Optional[Type], position: int
     ) -> vr.VariableReference:
         """Get a random object of the given type up to the given position (exclusive).
 

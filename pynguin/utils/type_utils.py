@@ -166,20 +166,25 @@ def get_class_that_defined_method(method: object) -> Optional[object]:
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
 
 
-def should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
-    """There are some parameter types (*args, **kwargs) that are not handled as of now.
+def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
+    """There are some parameter types (*args, **kwargs, parameters with default) that
+    are optional.
 
-    This is a simple utility method to check if such a parameter should be skipped.
+    This is a simple utility method to check if the given parameter is optional.
 
     Args:
         inf_sig: the inferred signature
         parameter_name: the name of the parameter
 
     Returns:
-        Whether or not we should skip this parameter
+        Whether or not this parameter is optional.
     """
     parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
-    return parameter.kind in (
-        inspect.Parameter.VAR_POSITIONAL,
-        inspect.Parameter.VAR_KEYWORD,
+    return (
+        parameter.kind
+        in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        )
+        or parameter.default is not inspect.Parameter.empty
     )

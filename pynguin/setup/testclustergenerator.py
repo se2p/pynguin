@@ -32,7 +32,7 @@ from pynguin.utils.type_utils import (
     function_in_module,
     get_class_that_defined_method,
     is_primitive_type,
-    should_skip_parameter,
+    is_type_unknown,
 )
 
 
@@ -224,8 +224,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             return False
         inf_sig = accessible_object.inferred_signature
         return any(
-            not should_skip_parameter(inf_sig, param) and type_ is None
-            for param, type_ in inf_sig.parameters.items()
+            is_type_unknown(type_) for param, type_ in inf_sig.parameters.items()
         )
 
     def _resolve_dependencies_recursive(self):

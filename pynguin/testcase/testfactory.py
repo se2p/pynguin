@@ -29,9 +29,9 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 from pynguin.utils.type_utils import (
     is_assignable_to,
     is_collection_type,
+    is_optional_parameter,
     is_primitive_type,
     is_type_unknown,
-    should_skip_parameter,
 )
 
 
@@ -758,13 +758,16 @@ class TestFactory:
             position: The position
 
         Returns:
-            A list of existing objects
+            A dict of existing objects
         """
         found = {}
         for parameter_name, parameter_type in inf_signature.parameters.items():
-            if should_skip_parameter(inf_signature, parameter_name):
+            if (
+                is_optional_parameter(inf_signature, parameter_name)
+                and randomness.next_float()
+                < config.configuration.skip_optional_parameter_probability
+            ):
                 continue
-            assert parameter_type
             found[parameter_name] = test_case.get_random_object(
                 parameter_type, position
             )
@@ -879,10 +882,11 @@ class TestFactory:
 
             previous_length = test_case.size()
 
-            if should_skip_parameter(signature, parameter_name):
-                # TODO Implement generation for positional parameters of variable length
-                # TODO Implement generation for keyword parameters of variable length
-                self._logger.debug("Skip parameter %s", parameter_name)
+            if (
+                is_optional_parameter(signature, parameter_name)
+                and randomness.next_float()
+                < config.configuration.skip_optional_parameter_probability
+            ):
                 continue
 
             if can_reuse_existing_variables:

@@ -17,10 +17,10 @@ from pynguin.utils.type_utils import (
     is_assignable_to,
     is_none_type,
     is_numeric,
+    is_optional_parameter,
     is_primitive_type,
     is_string,
     is_type_unknown,
-    should_skip_parameter,
 )
 
 
@@ -115,11 +115,12 @@ def test_is_string(value, result):
         pytest.param("normal", False),
         pytest.param("args", True),
         pytest.param("kwargs", True),
+        pytest.param("default", True),
     ],
 )
 def test_should_skip_parameter(param_name, result):
-    def inner_func(normal: str, *args, **kwargs):
+    def inner_func(normal: str, *args, default="foo", **kwargs):
         pass  # pragma: no cover
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
-    assert should_skip_parameter(inf_sig, param_name) == result
+    assert is_optional_parameter(inf_sig, param_name) == result

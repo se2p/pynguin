@@ -30,7 +30,7 @@ class _InitialPopulationSeeding:
     def __init__(self):
         self._logger = logging.getLogger(__name__)
         self._testcases: List[DefaultTestCase] = []
-        self.test_cluster: TestCluster
+        self._test_cluster: TestCluster
 
     @property
     def test_cluster(self) -> TestCluster:

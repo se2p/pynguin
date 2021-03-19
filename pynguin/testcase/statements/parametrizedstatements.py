@@ -15,6 +15,7 @@ import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -22,7 +23,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
-from pynguin.utils.type_utils import is_assignable_to
+from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223
@@ -144,11 +145,13 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             param_type,
         ) in self._generic_callable.inferred_signature.parameters.items():
             if randomness.next_float() < p_per_param:
-                changed |= self._mutate_parameter(param_name, param_type)
+                changed |= self._mutate_parameter(
+                    param_name, self._generic_callable.inferred_signature
+                )
 
         return changed
 
-    def _mutate_parameter(self, param_name: str, param_type: Optional[type]) -> bool:
+    def _mutate_parameter(self, param_name: str, inf_sig: InferredSignature) -> bool:
         """Replace the given parameter with another one that also fits the parameter
         type.
 
@@ -159,16 +162,31 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             True, if the parameter was mutated.
         """
         current = self._args.get(param_name, None)
-        if current is None:
-            # TODO(fk) create values for unset parameters, i.e., ones default value.
-            return False
-
-        # TODO unset parameters that are not necessary with a certain probability,
-        # e.g., if they have default value or *args, **kwargs.
-
+        param_type = inf_sig.parameters[param_name]
         possible_replacements = self.test_case.get_objects(
             param_type, self.get_position()
         )
+
+        # Param has to be optional, otherwise it would be set.
+        if current is None:
+            # Create value for currently unset parameter.
+            if (
+                randomness.next_float()
+                > config.configuration.skip_optional_parameter_probability
+            ):
+                if len(possible_replacements) > 0:
+                    self._args[param_name] = randomness.choice(possible_replacements)
+                    return True
+            return False
+
+        if (
+            is_optional_parameter(inf_sig, param_name)
+            and randomness.next_float()
+            < config.configuration.skip_optional_parameter_probability
+        ):
+            # unset parameters that are not necessary with a certain probability,
+            # e.g., if they have default value or *args, **kwargs.
+            self._args.pop(param_name)
 
         if current in possible_replacements:
             possible_replacements.remove(current)
