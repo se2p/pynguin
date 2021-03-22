@@ -70,9 +70,8 @@ def test__setup_logging_single_verbose_without_log_file():
     importlib.reload(logging)
     _setup_logging(1)
     logger = logging.getLogger("")
-    assert len(logger.handlers) == 2
-    assert logger.handlers[0].level == logging.NOTSET
-    assert logger.handlers[1].level == logging.INFO
+    assert len(logger.handlers) == 1
+    assert logger.handlers[0].level == logging.INFO
     logging.shutdown()
     importlib.reload(logging)
 
@@ -82,9 +81,8 @@ def test__setup_logging_double_verbose_without_log_file():
     importlib.reload(logging)
     _setup_logging(2)
     logger = logging.getLogger("")
-    assert len(logger.handlers) == 2
-    assert logger.handlers[0].level == logging.NOTSET
-    assert logger.handlers[1].level == logging.DEBUG
+    assert len(logger.handlers) == 1
+    assert logger.handlers[0].level == logging.DEBUG
     logging.shutdown()
     importlib.reload(logging)
 
@@ -94,8 +92,8 @@ def test__setup_logging_quiet_without_log_file():
     importlib.reload(logging)
     _setup_logging(-1)
     logger = logging.getLogger("")
-    assert len(logger.handlers) == 2
-    assert isinstance(logger.handlers[1], logging.NullHandler)
+    assert len(logger.handlers) == 1
+    assert isinstance(logger.handlers[0], logging.NullHandler)
     logging.shutdown()
     importlib.reload(logging)
 

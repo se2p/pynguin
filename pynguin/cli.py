@@ -90,26 +90,16 @@ def _setup_logging(
     default_log_format = (
         "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
     )
+    logger = logging.getLogger("")  # get root logger
+    logger.setLevel(logging.DEBUG)
+    default_formatter = logging.Formatter(fmt=default_log_format, datefmt="%X")
     if log_file:
         log_file_path = Path(log_file).resolve()
         if not log_file_path.parent.exists():
             log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format=default_log_format,
-            datefmt="%X",
-            filemode="w",
-            filename=log_file,
-        )
-    else:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format=default_log_format,
-            datefmt="%X",
-        )
-
-    # Configure root logger
-    logger = logging.getLogger("")
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(default_formatter)
+        logger.addHandler(file_handler)
 
     if verbosity < 0:
         logger.addHandler(logging.NullHandler())
