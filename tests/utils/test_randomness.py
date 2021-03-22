@@ -77,6 +77,14 @@ def test_choice():
     assert result in ("a", "b", "c")
 
 
+def test_choices():
+    sequence = ["a", "b", "c"]
+    weights = [0.1, 0.5, 0.3]
+    result = randomness.choices(sequence, weights)
+    assert len(result) == 1
+    assert result[0] in ("a", "b", "c")
+
+
 def test_get_seed():
     rng = randomness.Random()
     assert rng.get_seed() != 0
