@@ -341,9 +341,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 param_kind = gen_callable.inferred_signature.signature.parameters[
                     param_name
                 ].kind
-                if (
-                    param_kind == Parameter.KEYWORD_ONLY
-                    or param_kind == Parameter.POSITIONAL_OR_KEYWORD
+                if param_kind in (
+                    Parameter.KEYWORD_ONLY,
+                    Parameter.POSITIONAL_OR_KEYWORD,
                 ):
                     kwargs.append(
                         ast.keyword(

@@ -140,10 +140,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             Whether or not mutation changed anything
         """
         changed = False
-        for (
-            param_name,
-            param_type,
-        ) in self._generic_callable.inferred_signature.parameters.items():
+        for param_name in self._generic_callable.inferred_signature.parameters:
             if randomness.next_float() < p_per_param:
                 changed |= self._mutate_parameter(
                     param_name, self._generic_callable.inferred_signature
@@ -185,7 +182,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             < config.configuration.skip_optional_parameter_probability
         ):
             # unset parameters that are not necessary with a certain probability,
-            # e.g., if they have default value or *args, **kwargs.
+            # e.g., if they have default value or are *args, **kwargs.
             self._args.pop(param_name)
 
         if current in possible_replacements:

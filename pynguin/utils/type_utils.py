@@ -188,3 +188,25 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
         )
         or parameter.default is not inspect.Parameter.empty
     )
+
+
+def wrap_var_param_type(type_: Optional[type], param_kind) -> Optional[type]:
+    """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
+    respectively.
+
+    Args:
+        type_: The type to be wrapped.
+        param_kind: the kind of parameter.
+
+    Returns:
+        The wrapped type, or the original type, if no wrapping is required.
+    """
+    if param_kind == inspect.Parameter.VAR_POSITIONAL:
+        if type_ is None:
+            return typing.List[typing.Any]
+        return typing.List[type_]  # type: ignore
+    if param_kind == inspect.Parameter.VAR_KEYWORD:
+        if type_ is None:
+            return typing.Dict[str, typing.Any]
+        return typing.Dict[str, type_]  # type: ignore
+    return type_

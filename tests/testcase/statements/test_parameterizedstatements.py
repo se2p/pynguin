@@ -154,12 +154,7 @@ def test_constructor_mutate_special_parameters(test_case_mock, constructor_mock)
     assert not const._mutate_special_parameters(1.0)
 
 
-def test_constructor_mutate_parameters_nothing(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
-    assert not const._mutate_parameters(1.0)
-
-
-def test_constructor_mutate_parameters_args(
+def test_constructor_mutate_parameters_nothing(
     test_case_mock, constructor_mock, variable_reference_mock
 ):
     const = ps.ConstructorStatement(
@@ -167,12 +162,24 @@ def test_constructor_mutate_parameters_args(
         MagicMock(inferred_signature=MagicMock(parameters={"a": float, "b": int})),
         {"a": variable_reference_mock, "b": variable_reference_mock},
     )
+    assert not const._mutate_parameters(0.0)
+
+
+def test_constructor_mutate_parameters_args(
+    test_case_mock, constructor_mock, variable_reference_mock
+):
+    signature = MagicMock(parameters={"a": float, "b": int})
+    const = ps.ConstructorStatement(
+        test_case_mock,
+        MagicMock(inferred_signature=signature),
+        {"a": variable_reference_mock, "b": variable_reference_mock},
+    )
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         with mock.patch.object(const, "_mutate_parameter") as mutate_parameter:
             mutate_parameter.return_value = True
             float_mock.side_effect = [0.0, 1.0]
             assert const._mutate_parameters(0.5)
-            mutate_parameter.assert_called_with("a", float)
+            mutate_parameter.assert_called_with("a", signature)
 
 
 def test_constructor_mutate_parameter_get_objects(constructor_mock):
@@ -183,10 +190,14 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock):
     test_case.add_statement(const)
     with mock.patch.object(const, "_test_case") as tc:
         tc.get_objects.return_value = [float0.ret_val]
-        assert const._mutate_parameter("a", float)
-        tc.get_objects.assert_called_with(
-            float0.ret_val.variable_type, const.get_position()
-        )
+        with mock.patch(
+            "pynguin.testcase.testfactory.is_optional_parameter"
+        ) as optional_mock:
+            optional_mock.return_value = False
+            assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
+            tc.get_objects.assert_called_with(
+                float0.ret_val.variable_type, const.get_position()
+            )
 
 
 def test_constructor_mutate_parameter_not_included(constructor_mock):
@@ -197,12 +208,16 @@ def test_constructor_mutate_parameter_not_included(constructor_mock):
     test_case.add_statement(const)
     with mock.patch.object(test_case, "get_objects") as get_objs:
         get_objs.return_value = []
-        assert const._mutate_parameter("a", float)
-        get_objs.assert_called_with(float0.ret_val.variable_type, 1)
-        assert isinstance(
-            test_case.get_statement(const.args["a"].get_statement_position()),
-            prim.NoneStatement,
-        )
+        with mock.patch(
+            "pynguin.testcase.testfactory.is_optional_parameter"
+        ) as optional_mock:
+            optional_mock.return_value = False
+            assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
+            get_objs.assert_called_with(float0.ret_val.variable_type, 1)
+            assert isinstance(
+                test_case.get_statement(const.args["a"].get_statement_position()),
+                prim.NoneStatement,
+            )
 
 
 def test_constructor_mutate_parameter_add_copy(constructor_mock):
@@ -215,9 +230,13 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock):
         with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
             choice_mock.side_effect = lambda coll: coll[0]
             param_count_of_type.return_value = 5
-            assert const._mutate_parameter("a", float)
-            param_count_of_type.assert_called_with(float0.ret_val.variable_type)
-            assert const.args["a"] != float0.ret_val
+            with mock.patch(
+                "pynguin.testcase.testfactory.is_optional_parameter"
+            ) as optional_mock:
+                optional_mock.return_value = False
+                assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
+                param_count_of_type.assert_called_with(float0.ret_val.variable_type)
+                assert const.args["a"] != float0.ret_val
 
 
 def test_constructor_mutate_parameter_choose_none(constructor_mock):
@@ -226,11 +245,15 @@ def test_constructor_mutate_parameter_choose_none(constructor_mock):
     const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
     test_case.add_statement(float0)
     test_case.add_statement(const)
-    assert const._mutate_parameter("a", float)
-    assert isinstance(
-        test_case.get_statement(const.args["a"].get_statement_position()),
-        prim.NoneStatement,
-    )
+    with mock.patch(
+        "pynguin.testcase.testfactory.is_optional_parameter"
+    ) as optional_mock:
+        optional_mock.return_value = False
+        assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
+        assert isinstance(
+            test_case.get_statement(const.args["a"].get_statement_position()),
+            prim.NoneStatement,
+        )
 
 
 def test_constructor_mutate_parameter_choose_existing(constructor_mock):
@@ -243,7 +266,11 @@ def test_constructor_mutate_parameter_choose_existing(constructor_mock):
     test_case.add_statement(const)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda coll: coll[0]
-        assert const._mutate_parameter("a", float)
+        with mock.patch(
+            "pynguin.testcase.testfactory.is_optional_parameter"
+        ) as optional_mock:
+            optional_mock.return_value = False
+            assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
 
 
 def test_constructor_param_count_of_type_none(test_case_mock, constructor_mock):

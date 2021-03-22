@@ -25,7 +25,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericMethod,
 )
 from pynguin.utils.namingscope import NamingScope
-from tests.fixtures.accessibles.accessible import SomeType
 
 
 @pytest.fixture()
