@@ -90,7 +90,7 @@ class _InitialPopulationSeeding:
             config.configuration.initial_population_seeding = False
             self._logger.info("Provided testcases are not used.")
             return
-        transformer = _TestTransformer()
+        transformer = _TestTransformer(self._test_cluster)
         transformer.visit(tree)
         self._testcases = transformer.testcases
         if not self._testcases:
@@ -136,12 +136,13 @@ class _InitialPopulationSeeding:
 
 # pylint: disable=invalid-name, missing-function-docstring
 class _TestTransformer(ast.NodeVisitor):
-    def __init__(self):
+    def __init__(self, test_cluster: TestCluster):
         self._current_testcase: DefaultTestCase = DefaultTestCase()
         self._current_parsable: bool = True
         self._var_refs: Dict[str, vr.VariableReference] = {}
         self._testcases: List[DefaultTestCase] = []
         self._number_found_testcases: int = 0
+        self._test_cluster = test_cluster
 
     def visit_Module(self, node: ast.Module) -> Any:
         self.generic_visit(node)
@@ -160,12 +161,14 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         if self._current_parsable:
-            ref_id, stmt, self._current_parsable = ats.create_assign_stmt(
-                node, self._current_testcase, self._var_refs
-            )
-            if self._current_parsable:
-                assert stmt
-                assert ref_id
+            if (
+                result := ats.create_assign_stmt(
+                    node, self._current_testcase, self._var_refs, self._test_cluster
+                )
+            ) is None:
+                self._current_parsable = False
+            else:
+                ref_id, stmt = result
                 var_ref = self._current_testcase.add_statement(stmt)
                 self._var_refs[ref_id] = var_ref
 

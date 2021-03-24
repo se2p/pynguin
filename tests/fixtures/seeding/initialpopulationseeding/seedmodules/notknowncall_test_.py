@@ -13,6 +13,6 @@ class Example:
 
 def seed_test_case0():
     var0 = 10
-    var1 = module0.Simple(x=var0)
-    var2 = var1.do_something(li=[1, 2, 3])
+    var1 = module0.Simple(var0)
+    var2 = var1.do_something([1, 2, 3])
     assert var2 == "not empty!"

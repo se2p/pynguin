@@ -10,7 +10,6 @@ import inspect
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
@@ -18,6 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
+from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.statements.collectionsstatements import (
     CollectionStatement,
     DictStatement,
@@ -40,7 +40,8 @@ def create_assign_stmt(
     assign: ast.Assign,
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Tuple[Optional[str], Optional[Statement], bool]:
+    test_cluster: TestCluster,
+) -> Optional[Tuple[str, Statement]]:
     """Creates the corresponding statement from an ast.Assign node.
 
     Args:
@@ -48,13 +49,13 @@ def create_assign_stmt(
         testcase: The testcase of the statement
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references.
+        test_cluster: The test cluster that is used to resolve classes, methods, etc.
 
     Returns:
         The corresponding statement or None if no statement type matches.
     """
     new_stmt: Optional[Statement]
     value = assign.value
-    test_cluster = initpopseeding.initialpopulationseeding.test_cluster
     objs_under_test = test_cluster.accessible_objects_under_test
     callable_objects_under_test: Set[GenericCallableAccessibleObject] = {
         o for o in objs_under_test if isinstance(o, GenericCallableAccessibleObject)
@@ -75,9 +76,9 @@ def create_assign_stmt(
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
     if new_stmt is None:
-        return None, None, False
+        return None
     ref_id = str(assign.targets[0].id)  # type: ignore
-    return ref_id, new_stmt, True
+    return ref_id, new_stmt
 
 
 def create_assert_stmt(
@@ -153,9 +154,13 @@ def create_variable_references_from_call_args(
     for (name, param), call_arg in zip(
         gen_callable.inferred_signature.signature.parameters.items(), call_args
     ):
-        if param.kind == inspect.Parameter.POSITIONAL_ONLY and isinstance(
-            call_arg, ast.Name
-        ):
+        if (
+            param.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ) and isinstance(call_arg, ast.Name):
             reference = ref_dict.get(call_arg.id)
         elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
             call_arg, ast.Starred

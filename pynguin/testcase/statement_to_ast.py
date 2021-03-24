@@ -302,7 +302,10 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 param_kind = gen_callable.inferred_signature.signature.parameters[
                     param_name
                 ].kind
-                if param_kind == Parameter.POSITIONAL_ONLY:
+                if param_kind in (
+                    Parameter.POSITIONAL_ONLY,
+                    Parameter.POSITIONAL_OR_KEYWORD,
+                ):
                     args.append(
                         au.create_var_name(
                             self._variable_names, stmt.args[param_name], True
@@ -341,10 +344,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
                 param_kind = gen_callable.inferred_signature.signature.parameters[
                     param_name
                 ].kind
-                if param_kind in (
-                    Parameter.KEYWORD_ONLY,
-                    Parameter.POSITIONAL_OR_KEYWORD,
-                ):
+                if param_kind == Parameter.KEYWORD_ONLY:
                     kwargs.append(
                         ast.keyword(
                             arg=param_name,

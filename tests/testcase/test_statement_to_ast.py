@@ -179,7 +179,7 @@ def all_types_function():
     [
         ({}, "var0 = module0.Constructor()\n"),
         ({"a": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
-        ({"b": MagicMock()}, "var0 = module0.Constructor(b=var1)\n"),
+        ({"b": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
         ({"c": MagicMock()}, "var0 = module0.Constructor(*var1)\n"),
         ({"d": MagicMock()}, "var0 = module0.Constructor(d=var1)\n"),
         ({"e": MagicMock()}, "var0 = module0.Constructor(**var1)\n"),
@@ -191,7 +191,7 @@ def all_types_function():
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var0 = module0.Constructor(var1, *var2, b=var3, d=var4, **var5)\n",
+            "var0 = module0.Constructor(var1, var2, *var3, d=var4, **var5)\n",
         ),
     ],
 )
@@ -210,7 +210,7 @@ def test_statement_to_ast_constructor_args(
     [
         ({}, "var1 = var0.method()\n"),
         ({"a": MagicMock()}, "var2 = var0.method(var1)\n"),
-        ({"b": MagicMock()}, "var2 = var0.method(b=var1)\n"),
+        ({"b": MagicMock()}, "var2 = var0.method(var1)\n"),
         ({"c": MagicMock()}, "var2 = var0.method(*var1)\n"),
         ({"d": MagicMock()}, "var2 = var0.method(d=var1)\n"),
         ({"e": MagicMock()}, "var2 = var0.method(**var1)\n"),
@@ -222,7 +222,7 @@ def test_statement_to_ast_constructor_args(
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var6 = var0.method(var1, *var2, b=var3, d=var4, **var5)\n",
+            "var6 = var0.method(var1, var2, *var3, d=var4, **var5)\n",
         ),
     ],
 )
@@ -241,7 +241,7 @@ def test_statement_to_ast_method_args(
     [
         ({}, "var0 = module0.function()\n"),
         ({"a": MagicMock()}, "var1 = module0.function(var0)\n"),
-        ({"b": MagicMock()}, "var1 = module0.function(b=var0)\n"),
+        ({"b": MagicMock()}, "var1 = module0.function(var0)\n"),
         ({"c": MagicMock()}, "var1 = module0.function(*var0)\n"),
         ({"d": MagicMock()}, "var1 = module0.function(d=var0)\n"),
         ({"e": MagicMock()}, "var1 = module0.function(**var0)\n"),
@@ -253,7 +253,7 @@ def test_statement_to_ast_method_args(
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var5 = module0.function(var0, *var1, b=var2, d=var3, **var4)\n",
+            "var5 = module0.function(var0, var1, *var2, d=var3, **var4)\n",
         ),
     ],
 )
