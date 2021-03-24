@@ -174,9 +174,8 @@ class _TestTransformer(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if self._current_parsable and config.configuration.generate_assertions:
-            assertion, var_ref = ats.create_assert_stmt(self._var_refs, node)
-            if assertion is not None:
-                assert var_ref
+            if (result := ats.create_assert_stmt(self._var_refs, node)) is not None:
+                assertion, var_ref = result
                 self._current_testcase.get_statement(
                     var_ref.get_statement_position()
                 ).add_assertion(assertion)

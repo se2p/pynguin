@@ -83,7 +83,7 @@ def create_assign_stmt(
 
 def create_assert_stmt(
     ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> Tuple[Optional[Assertion], Optional[vr.VariableReference]]:
+) -> Optional[Tuple[Assertion, vr.VariableReference]]:
     """Creates an assert statement.
 
     Args:
@@ -100,12 +100,12 @@ def create_assert_stmt(
         val_elem = assert_node.test.comparators[0]  # type: ignore
         operator = assert_node.test.ops[0]  # type: ignore
     except (KeyError, AttributeError):
-        return None, None
+        return None
     if isinstance(operator, (ast.Is, ast.Eq)):
         assertion = create_assertion(source, val_elem)
     if assertion is not None:
         return assertion, source
-    return None, None
+    return None
 
 
 def create_assertion(
