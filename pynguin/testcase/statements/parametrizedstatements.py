@@ -230,7 +230,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         count = 0
         if not type_:
             return 0
-        for _, var_ref in self.args.items():
+        for var_ref in self.args.values():
             if is_assignable_to(var_ref.variable_type, type_):
                 count += 1
         return count

@@ -285,7 +285,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
         )
 
     def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.expr]:
-        """Creates the positional arguments, i.e., POSITIONAL_ONLY and VAR_POSITIONAL
+        """Creates the positional arguments, i.e., POSITIONAL_ONLY,
+        POSITIONAL_OR_KEYWORD and VAR_POSITIONAL.
 
         Args:
             stmt: The parameterised statement
@@ -326,8 +327,7 @@ class StatementToAstVisitor(sv.StatementVisitor):
     def _create_kw_args(
         self, stmt: param_stmt.ParametrizedStatement
     ) -> List[ast.keyword]:
-        """Creates the keyword arguments, i.e., KEYWORD_ONLY, POSITIONAL_OR_KEYWORD
-        or VAR_KEYWORD.
+        """Creates the keyword arguments, i.e., KEYWORD_ONLY or VAR_KEYWORD.
 
         Args:
             stmt: The parameterised statement
