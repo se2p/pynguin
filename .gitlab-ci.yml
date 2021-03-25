@@ -13,7 +13,9 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 cache:
+  key: virtualenv
   paths:
+    - .venv/
     - .cache/pip
     - .cache/pypoetry
 
@@ -34,6 +36,7 @@ stages:
 before_script:
   - python --version
   - pip install poetry
+  - poetry config virtualenvs.in-project true
   - poetry install
 
 .unit-tests: &unit-tests
@@ -69,6 +72,7 @@ unit-tests:python-3.10:
   before_script:
     - python --version
     - pip install poetry
+    - poetry config virtualenvs.in-project true
     - poetry install
     - poetry add --dev pytest-random-order
   script:
