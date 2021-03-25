@@ -385,10 +385,10 @@ def sample_test_case(function_mock):
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     float_function2 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_function1.ret_val]
+        test_case, function_mock, {"z": float_function1.ret_val}
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_prim2)
@@ -475,11 +475,15 @@ def test_get_reuse_parameters():
     sign_mock = MagicMock(inspect.Signature)
     params = {"test0": float, "test1": float}
     inf_sig = MagicMock(InferredSignature, parameters=params, signature=sign_mock)
-    with mock.patch("pynguin.testcase.testfactory.should_skip_parameter") as skip_mock:
-        skip_mock.side_effect = [True, False]
-        assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == [
-            float0.ret_val
-        ]
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch(
+            "pynguin.testcase.testfactory.is_optional_parameter"
+        ) as optional_mock:
+            optional_mock.side_effect = [False, True]
+            assert tf.TestFactory._get_reuse_parameters(test_case, inf_sig, 1) == {
+                "test0": float0.ret_val
+            }
 
 
 def test_insert_random_statement_empty_call():
@@ -789,7 +793,7 @@ def test_delete_statement_gracefully_success(function_mock):
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim2.ret_val]
+        test_case, function_mock, {"z": float_prim2.ret_val}
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_prim2)
@@ -803,7 +807,7 @@ def test_delete_statement_gracefully_no_alternatives(function_mock):
     test_case = dtc.DefaultTestCase()
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_function1)
@@ -835,7 +839,7 @@ def test_change_random_call_no_calls(function_mock):
     test_case = dtc.DefaultTestCase()
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     test_case.add_statement(float_prim)
     test_case.add_statement(float_function1)
@@ -862,7 +866,7 @@ def test_change_random_call_success(function_mock, method_mock, constructor_mock
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     int0 = prim.IntPrimitiveStatement(test_case, 2)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     const = par_stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)
@@ -883,7 +887,7 @@ def test_change_random_call_failed(function_mock, method_mock, constructor_mock)
     float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
     int0 = prim.IntPrimitiveStatement(test_case, 2)
     float_function1 = par_stmt.FunctionStatement(
-        test_case, function_mock, [float_prim.ret_val]
+        test_case, function_mock, {"z": float_prim.ret_val}
     )
     const = par_stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)

@@ -18,12 +18,12 @@ def exportable_test_case(constructor_mock, function_mock):
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.ret_val]
+        test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     constructor_stmt.add_assertion(pas.PrimitiveAssertion(constructor_stmt.ret_val, 5))
     float_stmt = prim_stmt.FloatPrimitiveStatement(test_case, 42.23)
     function_stmt = param_stmt.FunctionStatement(
-        test_case, function_mock, [float_stmt.ret_val]
+        test_case, function_mock, {"z": float_stmt.ret_val}
     )
     function_stmt.add_assertion(pas.PrimitiveAssertion(function_stmt.ret_val, 42.23))
     test_case.add_statement(int_stmt)

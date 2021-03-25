@@ -6,10 +6,10 @@
 #
 """Provides an implementation to generate statements out of an AST."""
 import ast
+import inspect
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
@@ -17,6 +17,7 @@ import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
+from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.statements.collectionsstatements import (
     CollectionStatement,
     DictStatement,
@@ -39,7 +40,8 @@ def create_assign_stmt(
     assign: ast.Assign,
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Tuple[Optional[str], Optional[Statement], bool]:
+    test_cluster: TestCluster,
+) -> Optional[Tuple[str, Statement]]:
     """Creates the corresponding statement from an ast.Assign node.
 
     Args:
@@ -47,13 +49,13 @@ def create_assign_stmt(
         testcase: The testcase of the statement
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references.
+        test_cluster: The test cluster that is used to resolve classes, methods, etc.
 
     Returns:
         The corresponding statement or None if no statement type matches.
     """
     new_stmt: Optional[Statement]
     value = assign.value
-    test_cluster = initpopseeding.initialpopulationseeding.test_cluster
     objs_under_test = test_cluster.accessible_objects_under_test
     callable_objects_under_test: Set[GenericCallableAccessibleObject] = {
         o for o in objs_under_test if isinstance(o, GenericCallableAccessibleObject)
@@ -74,14 +76,14 @@ def create_assign_stmt(
         logger.info("Assign statement could not be parsed.")
         new_stmt = None
     if new_stmt is None:
-        return None, None, False
+        return None
     ref_id = str(assign.targets[0].id)  # type: ignore
-    return ref_id, new_stmt, True
+    return ref_id, new_stmt
 
 
 def create_assert_stmt(
     ref_dict: Dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> Tuple[Optional[Assertion], Optional[vr.VariableReference]]:
+) -> Optional[Tuple[Assertion, vr.VariableReference]]:
     """Creates an assert statement.
 
     Args:
@@ -98,12 +100,12 @@ def create_assert_stmt(
         val_elem = assert_node.test.comparators[0]  # type: ignore
         operator = assert_node.test.ops[0]  # type: ignore
     except (KeyError, AttributeError):
-        return None, None
+        return None
     if isinstance(operator, (ast.Is, ast.Eq)):
         assertion = create_assertion(source, val_elem)
     if assertion is not None:
         return assertion, source
-    return None, None
+    return None
 
 
 def create_assertion(
@@ -129,25 +131,68 @@ def create_assertion(
 
 
 def create_variable_references_from_call_args(
-    call_args: List[ast.Name], ref_dict: Dict[str, vr.VariableReference]
-) -> Optional[List[vr.VariableReference]]:
+    call_args: List[Union[ast.Name, ast.Starred]],
+    call_keywords: List[ast.keyword],
+    gen_callable: GenericCallableAccessibleObject,
+    ref_dict: Dict[str, vr.VariableReference],
+) -> Optional[Dict[str, vr.VariableReference]]:
     """Takes the arguments of an ast.Call node and returns the variable references of
     the corresponding statements.
 
     Args:
-        call_args: a list of arguments
+        call_args: the positional arguments
+        call_keywords: the keyword arguments
+        gen_callable: the callable that is called
         ref_dict: a dictionary containing the variable references
 
     Returns:
-        The list with the variable references of the call_args.
+        The dict with the variable references of the call_args.
 
     """
-    var_refs: List[vr.VariableReference] = []
-    for arg in call_args:
-        reference = ref_dict.get(arg.id)
-        if not reference:
+    var_refs: Dict[str, vr.VariableReference] = {}
+    # Handle positional arguments.
+    for (name, param), call_arg in zip(
+        gen_callable.inferred_signature.signature.parameters.items(), call_args
+    ):
+        if (
+            param.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ) and isinstance(call_arg, ast.Name):
+            reference = ref_dict.get(call_arg.id)
+        elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
+            call_arg, ast.Starred
+        ):
+            reference = ref_dict.get(call_arg.value.id)  # type: ignore
+        else:
             return None
-        var_refs.append(reference)
+        if reference is None:
+            # Reference could not be resolved
+            return None
+        var_refs[name] = reference
+
+    # Handle keyword arguments
+    for call_keyword in call_keywords:
+        keyword = call_keyword.arg
+        if keyword is None:
+            # **kwargs has to be the last parameter?
+            keyword = list(gen_callable.inferred_signature.signature.parameters.keys())[
+                -1
+            ]
+            if (
+                gen_callable.inferred_signature.signature.parameters[keyword].kind
+                != inspect.Parameter.VAR_KEYWORD
+            ):
+                return None
+        if not isinstance(call_keyword.value, ast.Name):
+            return None
+        reference = ref_dict.get(call_keyword.value.id)
+        if reference is None:
+            return None
+        var_refs[keyword] = reference
+
     return var_refs
 
 
@@ -295,16 +340,10 @@ def find_gen_callable(
 
 def assemble_stmt_from_gen_callable(
     testcase: tc.TestCase,
-    gen_callable: Union[GenericConstructor, GenericMethod, GenericFunction],
+    gen_callable: GenericCallableAccessibleObject,
     call: ast.Call,
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[
-    Union[
-        param_stmt.ConstructorStatement,
-        param_stmt.MethodStatement,
-        param_stmt.FunctionStatement,
-    ]
-]:
+) -> Optional[param_stmt.ParametrizedStatement]:
     """Takes a generic callable and assembles the corresponding parametrized statement
     from it.
 
@@ -319,12 +358,15 @@ def assemble_stmt_from_gen_callable(
         The corresponding statement.
     """
     for arg in call.args:
-        if not isinstance(arg, ast.Name):
+        if not isinstance(arg, (ast.Name, ast.Starred)):
+            return None
+    for keyword in call.keywords:
+        if not isinstance(keyword, ast.keyword):
             return None
     var_refs = create_variable_references_from_call_args(
-        call.args, ref_dict  # type: ignore
+        call.args, call.keywords, gen_callable, ref_dict  # type: ignore
     )
-    if not var_refs:
+    if var_refs is None:
         return None
     if isinstance(gen_callable, GenericFunction):
         return param_stmt.FunctionStatement(

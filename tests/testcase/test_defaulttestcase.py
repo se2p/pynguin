@@ -261,10 +261,12 @@ def test_get_dependencies_chained(default_test_case, function_mock):
     float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
 
-    func0 = ps.FunctionStatement(default_test_case, function_mock, [float0.ret_val])
+    func0 = ps.FunctionStatement(
+        default_test_case, function_mock, {"a": float0.ret_val}
+    )
     default_test_case.add_statement(func0)
 
-    func1 = ps.FunctionStatement(default_test_case, function_mock, [func0.ret_val])
+    func1 = ps.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
     default_test_case.add_statement(func1)
     dependencies = default_test_case.get_dependencies(func1.ret_val)
     assert dependencies == {float0.ret_val, func0.ret_val, func1.ret_val}

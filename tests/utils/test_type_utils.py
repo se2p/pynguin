@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,10 +17,11 @@ from pynguin.utils.type_utils import (
     is_assignable_to,
     is_none_type,
     is_numeric,
+    is_optional_parameter,
     is_primitive_type,
     is_string,
     is_type_unknown,
-    should_skip_parameter,
+    wrap_var_param_type,
 )
 
 
@@ -115,11 +116,26 @@ def test_is_string(value, result):
         pytest.param("normal", False),
         pytest.param("args", True),
         pytest.param("kwargs", True),
+        pytest.param("default", True),
     ],
 )
 def test_should_skip_parameter(param_name, result):
-    def inner_func(normal: str, *args, **kwargs):
+    def inner_func(normal: str, *args, default="foo", **kwargs):
         pass  # pragma: no cover
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
-    assert should_skip_parameter(inf_sig, param_name) == result
+    assert is_optional_parameter(inf_sig, param_name) == result
+
+
+@pytest.mark.parametrize(
+    "kind,type_,result",
+    [
+        pytest.param(inspect.Parameter.VAR_POSITIONAL, None, List[Any]),
+        pytest.param(inspect.Parameter.VAR_POSITIONAL, str, List[str]),
+        pytest.param(inspect.Parameter.VAR_KEYWORD, None, Dict[str, Any]),
+        pytest.param(inspect.Parameter.VAR_KEYWORD, str, Dict[str, str]),
+        pytest.param(inspect.Parameter.POSITIONAL_OR_KEYWORD, Dict, Dict),
+    ],
+)
+def test_wrap_var_param_type(kind, type_, result):
+    assert wrap_var_param_type(type_, kind) == result

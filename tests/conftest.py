@@ -159,7 +159,7 @@ def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
     int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = param_stmt.ConstructorStatement(
-        test_case, constructor_mock, [int_stmt.ret_val]
+        test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)

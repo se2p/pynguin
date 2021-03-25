@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import inspect
 from ast import Module
 from typing import Dict, List, Set, Tuple
 from unittest.mock import MagicMock
@@ -17,6 +18,12 @@ import pynguin.testcase.statements.fieldstatement as field_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
+from pynguin.typeinference.strategy import InferredSignature
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
 from pynguin.utils.namingscope import NamingScope
 
 
@@ -106,127 +113,156 @@ def test_statement_to_ast_field(
     statement_to_ast_visitor.visit_field_statement(f_stmt)
 
 
-def test_statement_to_ast_constructor_no_args(
-    statement_to_ast_visitor, test_case_mock, constructor_mock
-):
-    constr_stmt = param_stmt.ConstructorStatement(test_case_mock, constructor_mock)
-    statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.SomeType()\n"
+def all_param_types_signature():
+    return InferredSignature(
+        signature=inspect.Signature(
+            parameters=[
+                inspect.Parameter(
+                    name="a",
+                    kind=inspect.Parameter.POSITIONAL_ONLY,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="b",
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="c",
+                    kind=inspect.Parameter.VAR_POSITIONAL,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="d",
+                    kind=inspect.Parameter.KEYWORD_ONLY,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="e",
+                    kind=inspect.Parameter.VAR_KEYWORD,
+                    annotation=float,
+                ),
+            ]
+        ),
+        return_type=float,
+        parameters={"a": float, "b": float, "c": float, "d": float, "e": float},
     )
 
 
+@pytest.fixture()
+def all_types_constructor():
+    return GenericConstructor(
+        owner=MagicMock(__name__="Constructor"),
+        inferred_signature=all_param_types_signature(),
+    )
+
+
+@pytest.fixture()
+def all_types_method():
+    return GenericMethod(
+        owner=MagicMock(),
+        inferred_signature=all_param_types_signature(),
+        method=MagicMock(__name__="method"),
+    )
+
+
+@pytest.fixture()
+def all_types_function():
+    return GenericFunction(
+        function=MagicMock(__name__="function"),
+        inferred_signature=all_param_types_signature(),
+    )
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ({}, "var0 = module0.Constructor()\n"),
+        ({"a": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
+        ({"b": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
+        ({"c": MagicMock()}, "var0 = module0.Constructor(*var1)\n"),
+        ({"d": MagicMock()}, "var0 = module0.Constructor(d=var1)\n"),
+        ({"e": MagicMock()}, "var0 = module0.Constructor(**var1)\n"),
+        (
+            {
+                "a": MagicMock(),
+                "b": MagicMock(),
+                "c": MagicMock(),
+                "d": MagicMock(),
+                "e": MagicMock(),
+            },
+            "var0 = module0.Constructor(var1, var2, *var3, d=var4, **var5)\n",
+        ),
+    ],
+)
 def test_statement_to_ast_constructor_args(
-    statement_to_ast_visitor, test_case_mock, variable_reference_mock, constructor_mock
+    statement_to_ast_visitor, test_case_mock, all_types_constructor, args, expected
 ):
     constr_stmt = param_stmt.ConstructorStatement(
-        test_case_mock, constructor_mock, [variable_reference_mock]
+        test_case_mock, all_types_constructor, args
     )
     statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.SomeType(var1)\n"
-    )
+    assert astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == expected
 
 
-def test_statement_to_ast_constructor_kwargs(
-    statement_to_ast_visitor, test_case_mock, variable_reference_mock, constructor_mock
-):
-    constr_stmt = param_stmt.ConstructorStatement(
-        test_case_mock,
-        constructor_mock,
-        kwargs={"param1": variable_reference_mock},
-    )
-    statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.SomeType(param1=var1)\n"
-    )
-
-
-def test_statement_to_ast_method_no_args(
-    statement_to_ast_visitor, test_case_mock, variable_reference_mock, method_mock
-):
-    method_stmt = param_stmt.MethodStatement(
-        test_case_mock, method_mock, variable_reference_mock
-    )
-    statement_to_ast_visitor.visit_method_statement(method_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var1 = var0.simple_method()\n"
-    )
-
-
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ({}, "var1 = var0.method()\n"),
+        ({"a": MagicMock()}, "var2 = var0.method(var1)\n"),
+        ({"b": MagicMock()}, "var2 = var0.method(var1)\n"),
+        ({"c": MagicMock()}, "var2 = var0.method(*var1)\n"),
+        ({"d": MagicMock()}, "var2 = var0.method(d=var1)\n"),
+        ({"e": MagicMock()}, "var2 = var0.method(**var1)\n"),
+        (
+            {
+                "a": MagicMock(),
+                "b": MagicMock(),
+                "c": MagicMock(),
+                "d": MagicMock(),
+                "e": MagicMock(),
+            },
+            "var6 = var0.method(var1, var2, *var3, d=var4, **var5)\n",
+        ),
+    ],
+)
 def test_statement_to_ast_method_args(
-    statement_to_ast_visitor, test_case_mock, variable_reference_mock, method_mock
+    statement_to_ast_visitor, test_case_mock, all_types_method, args, expected
 ):
     method_stmt = param_stmt.MethodStatement(
-        test_case_mock,
-        method_mock,
-        variable_reference_mock,
-        [MagicMock(vr.VariableReference)],
+        test_case_mock, all_types_method, MagicMock(), args
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var2 = var0.simple_method(var1)\n"
-    )
+    assert astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == expected
 
 
-def test_statement_to_ast_method_kwargs(
-    statement_to_ast_visitor, test_case_mock, variable_reference_mock, method_mock
-):
-    method_stmt = param_stmt.MethodStatement(
-        test_case_mock,
-        method_mock,
-        variable_reference_mock,
-        kwargs={"param1": MagicMock(vr.VariableReference)},
-    )
-    statement_to_ast_visitor.visit_method_statement(method_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var2 = var0.simple_method(param1=var1)\n"
-    )
-
-
-def test_statement_to_ast_function_no_args(
-    statement_to_ast_visitor, test_case_mock, function_mock
-):
-    function_stmt = param_stmt.FunctionStatement(test_case_mock, function_mock)
-    statement_to_ast_visitor.visit_function_statement(function_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.simple_function()\n"
-    )
-
-
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ({}, "var0 = module0.function()\n"),
+        ({"a": MagicMock()}, "var1 = module0.function(var0)\n"),
+        ({"b": MagicMock()}, "var1 = module0.function(var0)\n"),
+        ({"c": MagicMock()}, "var1 = module0.function(*var0)\n"),
+        ({"d": MagicMock()}, "var1 = module0.function(d=var0)\n"),
+        ({"e": MagicMock()}, "var1 = module0.function(**var0)\n"),
+        (
+            {
+                "a": MagicMock(),
+                "b": MagicMock(),
+                "c": MagicMock(),
+                "d": MagicMock(),
+                "e": MagicMock(),
+            },
+            "var5 = module0.function(var0, var1, *var2, d=var3, **var4)\n",
+        ),
+    ],
+)
 def test_statement_to_ast_function_args(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, test_case_mock, all_types_function, args, expected
 ):
-    function_stmt = param_stmt.FunctionStatement(
-        test_case_mock, function_mock, [MagicMock(vr.VariableReference)]
-    )
-    statement_to_ast_visitor.visit_function_statement(function_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var1 = module0.simple_function(var0)\n"
-    )
-
-
-def test_statement_to_ast_function_kwargs(
-    statement_to_ast_visitor, test_case_mock, function_mock
-):
-    function_stmt = param_stmt.FunctionStatement(
-        test_case_mock,
-        function_mock,
-        kwargs={"param1": MagicMock(vr.VariableReference)},
-    )
-    statement_to_ast_visitor.visit_function_statement(function_stmt)
-    assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var1 = module0.simple_function(param1=var0)\n"
-    )
+    func_stmt = param_stmt.FunctionStatement(test_case_mock, all_types_function, args)
+    statement_to_ast_visitor.visit_function_statement(func_stmt)
+    assert astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == expected
 
 
 def test_statement_to_ast_with_wrap():

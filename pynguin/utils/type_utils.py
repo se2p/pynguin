@@ -166,20 +166,47 @@ def get_class_that_defined_method(method: object) -> Optional[object]:
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
 
 
-def should_skip_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
-    """There are some parameter types (*args, **kwargs) that are not handled as of now.
+def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
+    """There are some parameter types (*args, **kwargs, parameters with default) that
+    are optional.
 
-    This is a simple utility method to check if such a parameter should be skipped.
+    This is a simple utility method to check if the given parameter is optional.
 
     Args:
         inf_sig: the inferred signature
         parameter_name: the name of the parameter
 
     Returns:
-        Whether or not we should skip this parameter
+        Whether or not this parameter is optional.
     """
     parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
-    return parameter.kind in (
-        inspect.Parameter.VAR_POSITIONAL,
-        inspect.Parameter.VAR_KEYWORD,
+    return (
+        parameter.kind
+        in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        )
+        or parameter.default is not inspect.Parameter.empty
     )
+
+
+def wrap_var_param_type(type_: Optional[type], param_kind) -> Optional[type]:
+    """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
+    respectively.
+
+    Args:
+        type_: The type to be wrapped.
+        param_kind: the kind of parameter.
+
+    Returns:
+        The wrapped type, or the original type, if no wrapping is required.
+    """
+    if param_kind == inspect.Parameter.VAR_POSITIONAL:
+        if type_ is None:
+            return typing.List[typing.Any]
+        return typing.List[type_]  # type: ignore
+    if param_kind == inspect.Parameter.VAR_KEYWORD:
+        if type_ is None:
+            return typing.Dict[str, typing.Any]
+        return typing.Dict[str, type_]  # type: ignore
+    return type_

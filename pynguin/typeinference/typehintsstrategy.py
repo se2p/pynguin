@@ -11,8 +11,10 @@ from typing import Callable, Dict, Optional
 
 from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 
-
 # pylint: disable=too-few-public-methods
+from pynguin.utils.type_utils import wrap_var_param_type
+
+
 class TypeHintsInferenceStrategy(TypeInferenceStrategy):
     """A type inference strategy that simply parses the type hints.
 
@@ -32,7 +34,9 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
         for param_name in signature.parameters:
             if param_name == "self":
                 continue
-            parameters[param_name] = hints.get(param_name, None)
+            hint = hints.get(param_name, None)
+            hint = wrap_var_param_type(hint, signature.parameters[param_name].kind)
+            parameters[param_name] = hint
 
         return_type: Optional[type] = hints.get("return", None)
 

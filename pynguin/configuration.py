@@ -259,6 +259,9 @@ class Configuration:
     statement_insertion_probability: float = 0.5
     """Initial probability of inserting a new statement in a test case"""
 
+    skip_optional_parameter_probability: float = 0.7
+    """Probability to skip an optional parameter, i.e., do not fill this parameter."""
+
     max_size: int = 100
     """Maximum number of test cases in a test suite"""
 

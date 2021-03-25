@@ -8,7 +8,8 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, List
+from inspect import Parameter
+from typing import Any, List, cast
 
 import pynguin.testcase.statements.assignmentstatement as assign_stmt
 import pynguin.testcase.statements.collectionsstatements as coll_stmt
@@ -17,6 +18,9 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.utils.ast_util as au
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+)
 from pynguin.utils.namingscope import NamingScope
 
 
@@ -280,8 +284,9 @@ class StatementToAstVisitor(sv.StatementVisitor):
             value=ast.Constant(value=stmt.value),
         )
 
-    def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.Name]:
-        """Creates the positional arguments.
+    def _create_args(self, stmt: param_stmt.ParametrizedStatement) -> List[ast.expr]:
+        """Creates the positional arguments, i.e., POSITIONAL_ONLY,
+        POSITIONAL_OR_KEYWORD and VAR_POSITIONAL.
 
         Args:
             stmt: The parameterised statement
@@ -289,15 +294,40 @@ class StatementToAstVisitor(sv.StatementVisitor):
         Returns:
             A list of AST statements
         """
-        args = []
-        for arg in stmt.args:
-            args.append(au.create_var_name(self._variable_names, arg, True))
+        args: List[ast.expr] = []
+        gen_callable: GenericCallableAccessibleObject = cast(
+            GenericCallableAccessibleObject, stmt.accessible_object()
+        )
+        for param_name in gen_callable.inferred_signature.parameters:
+            if param_name in stmt.args:
+                param_kind = gen_callable.inferred_signature.signature.parameters[
+                    param_name
+                ].kind
+                if param_kind in (
+                    Parameter.POSITIONAL_ONLY,
+                    Parameter.POSITIONAL_OR_KEYWORD,
+                ):
+                    args.append(
+                        au.create_var_name(
+                            self._variable_names, stmt.args[param_name], True
+                        )
+                    )
+                elif param_kind == Parameter.VAR_POSITIONAL:
+                    # Append *args, if necessary.
+                    args.append(
+                        ast.Starred(
+                            value=au.create_var_name(
+                                self._variable_names, stmt.args[param_name], True
+                            ),
+                            ctx=ast.Load(),
+                        )
+                    )
         return args
 
     def _create_kw_args(
         self, stmt: param_stmt.ParametrizedStatement
     ) -> List[ast.keyword]:
-        """Creates the keyword arguments.
+        """Creates the keyword arguments, i.e., KEYWORD_ONLY or VAR_KEYWORD.
 
         Args:
             stmt: The parameterised statement
@@ -306,13 +336,33 @@ class StatementToAstVisitor(sv.StatementVisitor):
             A list of AST statements
         """
         kwargs = []
-        for name, value in stmt.kwargs.items():
-            kwargs.append(
-                ast.keyword(
-                    arg=name,
-                    value=au.create_var_name(self._variable_names, value, True),
-                )
-            )
+        gen_callable: GenericCallableAccessibleObject = cast(
+            GenericCallableAccessibleObject, stmt.accessible_object()
+        )
+        for param_name in gen_callable.inferred_signature.parameters:
+            if param_name in stmt.args:
+                param_kind = gen_callable.inferred_signature.signature.parameters[
+                    param_name
+                ].kind
+                if param_kind == Parameter.KEYWORD_ONLY:
+                    kwargs.append(
+                        ast.keyword(
+                            arg=param_name,
+                            value=au.create_var_name(
+                                self._variable_names, stmt.args[param_name], True
+                            ),
+                        )
+                    )
+                elif param_kind == Parameter.VAR_KEYWORD:
+                    # Append **kwargs, if necessary.
+                    kwargs.append(
+                        ast.keyword(
+                            arg=None,
+                            value=au.create_var_name(
+                                self._variable_names, stmt.args[param_name], True
+                            ),
+                        )
+                    )
         return kwargs
 
     def _create_module_alias(self, module_name) -> ast.Name:
