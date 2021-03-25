@@ -107,7 +107,7 @@ build:
   stage: build
   image: python:3.8
   script:
-    - poetry run isort **/*.py -c -v
+    - poetry run isort **/*.py -c -v --profile black
     - poetry run black --check .
     - poetry run sphinx-build docs docs/_build
   artifacts:

@@ -106,7 +106,7 @@ check-safety:
 check-style:
 	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
 	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 pynguin/**/*.py
-	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
+	$(ISORT_COMMAND_FLAG)poetry run isort --check-only . --profile black
 	$(MYPY_COMMAND_FLAG)poetry run mypy pynguin
 
 .PHONY: codestyle
@@ -131,7 +131,7 @@ flake8:
 
 .PHONY: isort
 isort:
-	poetry run isort .
+	poetry run isort . --profile black
 
 .PHONY: black
 black:
