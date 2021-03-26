@@ -27,7 +27,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 # Execution stage for Pynguin
 FROM python:3.8.8-slim-buster AS execute
-ENV PYNGUIN_VERSION "0.7.2"
+ENV PYNGUIN_VERSION "0.7.3"
 
 WORKDIR /pynguin
 
