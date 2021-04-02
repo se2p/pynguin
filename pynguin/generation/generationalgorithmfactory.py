@@ -117,9 +117,9 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
-        if (
-            config.configuration.algorithm == config.Algorithm.MOSA
-            or config.configuration.algorithm == config.Algorithm.DYNAMOSA
+        if config.configuration.algorithm in (
+            config.Algorithm.MOSA,
+            config.Algorithm.DYNAMOSA,
         ):
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
@@ -205,9 +205,9 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
-        if (
-            config.configuration.algorithm == config.Algorithm.MOSA
-            or config.configuration.algorithm == config.Algorithm.DYNAMOSA
+        if config.configuration.algorithm in (
+            config.Algorithm.MOSA,
+            config.Algorithm.DYNAMOSA,
         ):
             factory = bcf.BranchCoverageFactory(self._executor)
             fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
