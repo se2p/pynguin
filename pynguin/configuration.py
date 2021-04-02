@@ -31,6 +31,11 @@ class ExportStrategy(str, enum.Enum):
 class Algorithm(str, enum.Enum):
     """Different algorithms supported by Pynguin."""
 
+    DYNAMOSA = "DYNAMOSA"
+    """The dynamic many-objective sorting algorithm (cf. Panichella et al. Automated
+    test case generation as a many-objective optimisation problem with dynamic selection
+    of the targets.  TSE vol. 44 issue 2)."""
+
     MOSA = "MOSA"
     """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
     Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
