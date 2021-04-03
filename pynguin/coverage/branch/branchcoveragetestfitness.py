@@ -48,3 +48,12 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
             f"BranchCoverageTestFitness(executor={self._executor}, "
             f"goal={self._goal})"
         )
+
+    @property
+    def goal(self):
+        """Provides the branch-coverage goal of this fitness function.
+
+        Returns:
+            The attached branch-coverage goal
+        """
+        return self._goal
