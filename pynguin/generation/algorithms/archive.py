@@ -92,6 +92,15 @@ class Archive(Generic[F, C]):
         return set(self._covered.keys())
 
     @property
+    def objectives(self) -> Set[F]:
+        """Provides the set of all objectives.
+
+        Returns:
+            All objectives
+        """
+        return self._objectives
+
+    @property
     def solutions(self) -> Set[C]:
         """Provides the best solutions found so far.
 
