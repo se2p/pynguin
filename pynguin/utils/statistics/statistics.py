@@ -216,16 +216,6 @@ class _SearchStatistics:
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             RuntimeVariable.TotalExceptionsTimeline
         )
-        self._sequence_output_variable_factories[
-            RuntimeVariable.ArchiveSizeTimeline.name
-        ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
-            RuntimeVariable.ArchiveSizeTimeline
-        )
-        self._sequence_output_variable_factories[
-            RuntimeVariable.ArchiveCoveredGoalsTimeline.name
-        ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
-            RuntimeVariable.ArchiveCoveredGoalsTimeline
-        )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
         """Set start time for sequence data.
