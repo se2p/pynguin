@@ -31,6 +31,10 @@ class ExportStrategy(str, enum.Enum):
 class Algorithm(str, enum.Enum):
     """Different algorithms supported by Pynguin."""
 
+    MIO = "MIO"
+    """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
+    Objective (MIO) Algorithm for Test Suite Generation.  Proc. SBSE 2017)."""
+
     MOSA = "MOSA"
     """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
     Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
@@ -264,6 +268,25 @@ class Configuration:
 
     max_size: int = 100
     """Maximum number of test cases in a test suite"""
+
+    number_of_test_per_target: int = 10
+    """Number of test cases for each target goal to keep in an archive. Used for MIO."""
+
+    random_test_or_from_archive_probability: float = 0.5
+    """Probability [0,1] of sampling a new test at random or choose an existing one in
+    an archive. Used for MIO."""
+
+    max_num_mutations_before_giving_up: int = 10
+    """Maximum number of mutations allowed to be done on the same individual before
+    sampling a new one. Used for MIO."""
+
+    max_num_fitness_evaluations_before_giving_up: int = 10
+    """Maximum number of fitness evaluations allowed to be done on the same individual
+    before sampling a new one. Used for MIO."""
+
+    exploitation_starts_at_percent: float = 0.5
+    """Percentage ]0,1] of search budget after which exploitation is activated. Used
+    for MIO."""
 
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
     """What condition should be checked to end the search/test generation."""

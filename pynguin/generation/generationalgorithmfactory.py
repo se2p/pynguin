@@ -30,6 +30,7 @@ from pynguin.ga.operators.ranking.rankingfunction import (
 )
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
+from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearchstrategy import RandomSearchStrategy
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
@@ -87,6 +88,7 @@ class TestSuiteGenerationAlgorithmFactory(
     """A factory for a search algorithm generating test-suites."""
 
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+        config.Algorithm.MIO: MIOTestStrategy,
         config.Algorithm.MOSA: MOSATestStrategy,
         config.Algorithm.RANDOM: RandomTestStrategy,
         config.Algorithm.RANDOM_SEARCH: RandomSearchStrategy,
@@ -115,7 +117,10 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
-        if config.configuration.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm in (
+            config.Algorithm.MIO,
+            config.Algorithm.MOSA,
+        ):
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
@@ -200,7 +205,10 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
-        if config.configuration.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm in (
+            config.Algorithm.MIO,
+            config.Algorithm.MOSA,
+        ):
             factory = bcf.BranchCoverageFactory(self._executor)
             fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
             self._logger.info(
