@@ -22,6 +22,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
     [
         "tests.fixtures.examples.basket",
         "tests.fixtures.examples.dummies",
+        "tests.fixtures.examples.dynamosa_example",
         "tests.fixtures.examples.simple",
         "tests.fixtures.examples.exceptions",
         "tests.fixtures.examples.monkey",
