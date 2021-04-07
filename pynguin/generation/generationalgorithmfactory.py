@@ -31,7 +31,10 @@ from pynguin.ga.operators.ranking.rankingfunction import (
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.generation.algorithms.randomsearchstrategy import RandomSearchStrategy
+from pynguin.generation.algorithms.randomsearchstrategy import (
+    RandomTestCaseSearchStrategy,
+    RandomTestSuiteSearchStrategy,
+)
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
@@ -89,7 +92,8 @@ class TestSuiteGenerationAlgorithmFactory(
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
         config.Algorithm.MOSA: MOSATestStrategy,
         config.Algorithm.RANDOM: RandomTestStrategy,
-        config.Algorithm.RANDOM_SEARCH: RandomSearchStrategy,
+        config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchStrategy,
+        config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchStrategy,
         config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 
@@ -115,7 +119,10 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
             self._test_factory, test_case_factory
         )
-        if config.configuration.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm in (
+            config.Algorithm.MOSA,
+            config.Algorithm.RANDOM_TEST_CASE_SEARCH,
+        ):
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
 
@@ -200,7 +207,10 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
-        if config.configuration.algorithm == config.Algorithm.MOSA:
+        if config.configuration.algorithm in (
+            config.Algorithm.MOSA,
+            config.Algorithm.RANDOM_TEST_CASE_SEARCH,
+        ):
             factory = bcf.BranchCoverageFactory(self._executor)
             fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
             self._logger.info(
