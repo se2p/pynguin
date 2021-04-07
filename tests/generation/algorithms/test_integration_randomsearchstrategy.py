@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
+import itertools
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -19,21 +20,27 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 @pytest.mark.parametrize(
-    "module_name",
-    [
-        "tests.fixtures.examples.basket",
-        "tests.fixtures.examples.dummies",
-        "tests.fixtures.examples.exceptions",
-        "tests.fixtures.examples.monkey",
-        "tests.fixtures.examples.triangle",
-        "tests.fixtures.examples.impossible",
-        "tests.fixtures.examples.difficult",
-        "tests.fixtures.examples.queue",
-    ],
+    "module_name, algorithm",
+    itertools.product(
+        [
+            "tests.fixtures.examples.basket",
+            "tests.fixtures.examples.dummies",
+            "tests.fixtures.examples.exceptions",
+            "tests.fixtures.examples.monkey",
+            "tests.fixtures.examples.triangle",
+            "tests.fixtures.examples.impossible",
+            "tests.fixtures.examples.difficult",
+            "tests.fixtures.examples.queue",
+        ],
+        [
+            config.Algorithm.RANDOM_TEST_SUITE_SEARCH,
+            config.Algorithm.RANDOM_TEST_CASE_SEARCH,
+        ],
+    ),
 )
-def test_integrate_randomsearch(module_name: str):
+def test_integrate_randomsearch(module_name: str, algorithm):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
-    config.configuration.algorithm = config.Algorithm.RANDOM_SEARCH
+    config.configuration.algorithm = algorithm
     config.configuration.budget = 1
     config.configuration.module_name = module_name
     config.configuration.min_initial_tests = 1
@@ -47,9 +54,9 @@ def test_integrate_randomsearch(module_name: str):
 
         executor = TestCaseExecutor(tracer)
         cluster = TestClusterGenerator(module_name).generate_cluster()
-        algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
+        search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
         ).get_search_algorithm()
-        algorithm._logger = logger
-        test_cases = algorithm.generate_tests()
+        search_algorithm._logger = logger
+        test_cases = search_algorithm.generate_tests()
         assert test_cases.size() >= 0

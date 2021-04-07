@@ -11,7 +11,9 @@ import pytest
 import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.generation.algorithms.randomsearchstrategy import RandomSearchStrategy
+from pynguin.generation.algorithms.randomsearchstrategy import (
+    RandomTestSuiteSearchStrategy,
+)
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
@@ -35,7 +37,9 @@ def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
     "algorithm, cls",
     [
         pytest.param(config.Algorithm.MOSA, MOSATestStrategy),
-        pytest.param(config.Algorithm.RANDOM_SEARCH, RandomSearchStrategy),
+        pytest.param(
+            config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchStrategy
+        ),
         pytest.param(config.Algorithm.RANDOM, RandomTestStrategy),
         pytest.param(config.Algorithm.WHOLE_SUITE, WholeSuiteTestStrategy),
     ],

@@ -44,8 +44,11 @@ class Algorithm(str, enum.Enum):
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
     Proc. ICSE 2007)."""
 
-    RANDOM_SEARCH = "RANDOM_SEARCH"
+    RANDOM_TEST_SUITE_SEARCH = "RANDOM_TEST_SUITE_SEARCH"
     """Performs random search on test suites."""
+
+    RANDOM_TEST_CASE_SEARCH = "RANDOM_TEST_CASE_SEARCH"
+    """Performs random search on test cases."""
 
     WHOLE_SUITE = "WHOLE_SUITE"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
