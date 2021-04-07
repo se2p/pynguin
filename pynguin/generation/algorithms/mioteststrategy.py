@@ -6,6 +6,7 @@
 #
 """Provides a MIO."""
 import logging
+from dataclasses import dataclass
 from math import ceil
 from typing import List, Optional, cast
 
@@ -21,6 +22,27 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
+# pylint: disable=invalid-name
+@dataclass
+class Parameters:
+    """Represents the parameters that are adjusted while running the algorithm."""
+
+    # Probability for choosing creating a new test case or sampling an existing one.
+    Pr: float = config.configuration.random_test_or_from_archive_probability_initial
+
+    # The maximum size of the population kept in the archive per target
+    n: int = config.configuration.number_of_tests_per_target_initial
+
+    # The number of mutations performed on a test case before sampling again.
+    m: int = config.configuration.num_mutations_initial
+
+    def is_valid(self):
+        """Check if the parameters are valid."""
+        assert self.Pr >= 0.0
+        assert self.n >= 1
+        assert self.m >= 1
+
+
 # pylint: disable=too-few-public-methods
 class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     """Implements MIO."""
@@ -30,15 +52,17 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     def __init__(self) -> None:
         super().__init__()
         self._solution: Optional[tcc.TestCaseChromosome] = None
-        self._pr: float = config.configuration.random_test_or_from_archive_probability
-        self._n: int = config.configuration.number_of_test_per_target
         self._archive: mioa.MIOArchive
+        self._parameters = Parameters()
+        self._current_mutations = 0
+        self._focused = False
 
     def generate_tests(
         self,
     ) -> chrom.Chromosome:
         self._archive = mioa.MIOArchive(
-            cast(List[atcff.AbstractTestCaseFitnessFunction], self.fitness_functions)
+            cast(List[atcff.AbstractTestCaseFitnessFunction], self.fitness_functions),
+            self._parameters.n,
         )
         generation = 0
         while (
@@ -54,9 +78,54 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
                 test_suite.get_fitness(),
                 test_suite.get_coverage(),
             )
+            self._update_parameters()
             generation += 1
         stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
         return self.create_test_suite(self._archive.get_solutions())
+
+    def _update_parameters(self):
+        progress = self.progress()
+        progress_until_focused = (
+            progress / config.configuration.exploitation_starts_at_percent
+        )
+        if self._focused:
+            return
+
+        n_before = self._parameters.n
+        if progress > config.configuration.exploitation_starts_at_percent:
+            self._focused = True
+            self._parameters.Pr = (
+                config.configuration.random_test_or_from_archive_probability_focused
+            )
+            self._parameters.n = config.configuration.number_of_tests_per_target_focused
+            self._parameters.m = config.configuration.num_mutations_focused
+        else:
+            self._parameters.Pr = MIOTestStrategy._scale(
+                config.configuration.random_test_or_from_archive_probability_initial,
+                config.configuration.random_test_or_from_archive_probability_focused,
+                progress_until_focused,
+            )
+            self._parameters.n = ceil(
+                MIOTestStrategy._scale(
+                    config.configuration.number_of_tests_per_target_initial,
+                    config.configuration.number_of_tests_per_target_focused,
+                    progress_until_focused,
+                )
+            )
+            self._parameters.m = ceil(
+                MIOTestStrategy._scale(
+                    config.configuration.num_mutations_initial,
+                    config.configuration.num_mutations_focused,
+                    progress_until_focused,
+                )
+            )
+        self._parameters.is_valid()
+        if n_before != self._parameters.n:
+            self._archive.shrink_solutions(self._parameters.n)
+
+    @staticmethod
+    def _scale(initial, focused, progress_until_focused):
+        return initial + (focused - initial) * progress_until_focused
 
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
@@ -68,50 +137,26 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
         # Note: in MIO there is an extra parameter m which controls how many mutations
         # and fitness evaluations should be done on the same individual before sampling
         # a new one.
-        if (
-            self._solution is None
-            or self._solution.num_mutations()
-            > config.configuration.max_num_mutations_before_giving_up
-            or self._solution.get_number_of_evaluations()
-            > config.configuration.max_num_fitness_evaluations_before_giving_up
-        ):
-            if randomness.next_float() < self._pr:
-                test = self.chromosome_factory.get_chromosome()
-                self._add_fitness_functions(test)
-                if test.size() == 0:
-                    # In case we fail to generate a new random test
-                    # fetch one from the archive.
-                    test = self._archive.get_solution()
-            else:
-                test = self._archive.get_solution()
-                if test is None or test.size() == 0:
-                    test = self.chromosome_factory.get_chromosome()
-                    self._add_fitness_functions(test)
-            assert test is not None and test.size() > 0
-            self._solution = test
-
-        assert self._solution is not None
-        self._solution.mutate()
-        # TODO(fk) except ConstructionFailed exception?
-
-        used_budget = self.progress()
-        if used_budget >= config.configuration.exploitation_starts_at_percent:
-            self._pr = 0.0
-            self._n = 1
+        if self._solution is not None and self._current_mutations < self._parameters.m:
+            offspring = self._solution.clone()
+            offspring.mutate()
+            self._current_mutations += 1
+        elif randomness.next_float() < self._parameters.Pr:
+            offspring = self.chromosome_factory.get_chromosome()
+            self._add_fitness_functions(offspring)
+            self._current_mutations = 1
         else:
-            scale = used_budget / config.configuration.exploitation_starts_at_percent
-            self._pr = config.configuration.random_test_or_from_archive_probability - (
-                scale * config.configuration.random_test_or_from_archive_probability
-            )
-            self._n = ceil(
-                config.configuration.number_of_test_per_target
-                - (scale * config.configuration.number_of_test_per_target)
-            )
-
-        assert self._pr >= 0.0
-        assert self._n >= 1
-        self._archive.update_archive(self._solution)
-        self._archive.shrink_solutions(self._n)
+            maybe_offspring = self._archive.get_solution()
+            if maybe_offspring is None:
+                # Nothing in archive, so sample new one.
+                offspring = self.chromosome_factory.get_chromosome()
+                self._add_fitness_functions(offspring)
+            else:
+                offspring = maybe_offspring
+            offspring.mutate()
+            self._current_mutations = 1
+        if self._archive.update_archive(offspring):
+            self._solution = offspring
 
     def _add_fitness_functions(self, chromosome: tcc.TestCaseChromosome) -> None:
         for fitness_function in self._fitness_functions:

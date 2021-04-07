@@ -10,7 +10,6 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
 
-import pynguin.configuration as config
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
@@ -146,7 +145,7 @@ class Population:
         if current.h > candidate.h:
             return False
         if current.h < candidate.h:
-            return False
+            return True
         return Population._is_better_than_current(
             current.test_case_chromosome, candidate.test_case_chromosome
         )
@@ -177,14 +176,16 @@ class Population:
 class MIOArchive:
     """The archive that is used in MIO."""
 
-    def __init__(self, targets: List[atcff.AbstractTestCaseFitnessFunction]):
+    def __init__(
+        self, targets: List[atcff.AbstractTestCaseFitnessFunction], initial_size: int
+    ):
         self._archive: Dict[atcff.AbstractTestCaseFitnessFunction, Population] = {
-            target: Population(config.configuration.number_of_test_per_target)
-            for target in targets
+            target: Population(initial_size) for target in targets
         }
 
-    def update_archive(self, solution: tcc.TestCaseChromosome):
+    def update_archive(self, solution: tcc.TestCaseChromosome) -> bool:
         """Update the archive with the given solution."""
+        updated = False
         solution = solution.clone()
         for target in self._archive:
             fitness_value = solution.get_fitness_for(target)
@@ -195,7 +196,10 @@ class MIOArchive:
                 assert chop_position is not None
                 solution.test_case.chop(chop_position)
 
-            self._archive[target].add_solution(1.0 - normalise(fitness_value), solution)
+            updated |= self._archive[target].add_solution(
+                1.0 - normalise(fitness_value), solution
+            )
+        return updated
 
     def get_solution(self) -> Optional[tcc.TestCaseChromosome]:
         """Get a random solution."""
@@ -224,6 +228,9 @@ class MIOArchive:
             potential_targets = targets_with_solutions
 
         assert len(potential_targets) > 0
+
+        # We shuffle before, so we don't always pick the same, in case of ties.
+        randomness.RNG.shuffle(potential_targets)
 
         # Instead of choosing a target at random, we choose the one with the lowest
         # counter value. (See Section 3.3 of the paper that describes this archive

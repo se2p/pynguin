@@ -269,24 +269,33 @@ class Configuration:
     max_size: int = 100
     """Maximum number of test cases in a test suite"""
 
-    number_of_test_per_target: int = 10
-    """Number of test cases for each target goal to keep in an archive. Used for MIO."""
+    number_of_tests_per_target_initial: int = 10
+    """Number of test cases for each target goal to keep in an archive before focused
+    phase. Used for MIO."""
 
-    random_test_or_from_archive_probability: float = 0.5
+    number_of_tests_per_target_focused: int = 1
+    """Number of test cases for each target goal to keep in an archive in focused
+    phase. Used for MIO."""
+
+    random_test_or_from_archive_probability_initial: float = 0.5
     """Probability [0,1] of sampling a new test at random or choose an existing one in
-    an archive. Used for MIO."""
+    an archive before focused phase. Used for MIO."""
 
-    max_num_mutations_before_giving_up: int = 10
-    """Maximum number of mutations allowed to be done on the same individual before
-    sampling a new one. Used for MIO."""
+    random_test_or_from_archive_probability_focused: float = 0.0
+    """Probability [0,1] of sampling a new test at random or choose an existing one in
+    an archive in focused phase. Used for MIO."""
 
-    max_num_fitness_evaluations_before_giving_up: int = 10
-    """Maximum number of fitness evaluations allowed to be done on the same individual
-    before sampling a new one. Used for MIO."""
+    num_mutations_initial: int = 1
+    """Number of mutations allowed to be done on the same individual before
+    sampling a new one before focused phase. Used for MIO."""
+
+    num_mutations_focused: int = 10
+    """Number of mutations allowed to be done on the same individual before
+    sampling a new one in focused phase. Used for MIO."""
 
     exploitation_starts_at_percent: float = 0.5
-    """Percentage ]0,1] of search budget after which exploitation is activated. Used
-    for MIO."""
+    """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
+    switching to focused phase. Used for MIO."""
 
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
     """What condition should be checked to end the search/test generation."""
