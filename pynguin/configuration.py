@@ -36,6 +36,10 @@ class Algorithm(str, enum.Enum):
     test case generation as a many-objective optimisation problem with dynamic selection
     of the targets.  TSE vol. 44 issue 2)."""
 
+    MIO = "MIO"
+    """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
+    Objective (MIO) Algorithm for Test Suite Generation.  Proc. SBSE 2017)."""
+
     MOSA = "MOSA"
     """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
     Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
@@ -272,6 +276,34 @@ class Configuration:
 
     max_size: int = 100
     """Maximum number of test cases in a test suite"""
+
+    number_of_tests_per_target_initial: int = 10
+    """Number of test cases for each target goal to keep in an archive before focused
+    phase. Used for MIO."""
+
+    number_of_tests_per_target_focused: int = 1
+    """Number of test cases for each target goal to keep in an archive in focused
+    phase. Used for MIO."""
+
+    random_test_or_from_archive_probability_initial: float = 0.5
+    """Probability [0,1] of sampling a new test at random or choose an existing one in
+    an archive before focused phase. Used for MIO."""
+
+    random_test_or_from_archive_probability_focused: float = 0.0
+    """Probability [0,1] of sampling a new test at random or choose an existing one in
+    an archive in focused phase. Used for MIO."""
+
+    num_mutations_initial: int = 1
+    """Number of mutations allowed to be done on the same individual before
+    sampling a new one before focused phase. Used for MIO."""
+
+    num_mutations_focused: int = 10
+    """Number of mutations allowed to be done on the same individual before
+    sampling a new one in focused phase. Used for MIO."""
+
+    exploitation_starts_at_percent: float = 0.5
+    """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
+    switching to focused phase. Used for MIO."""
 
     stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
     """What condition should be checked to end the search/test generation."""

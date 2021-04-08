@@ -170,6 +170,15 @@ class MaxTimeStoppingCondition(StoppingCondition):
         self._max_seconds = config.configuration.budget
         self._start_time = 0
 
+    @property
+    def current_value(self) -> int:
+        current_time = time.time_ns()
+        return (current_time - self._start_time) // 1_000_000_000
+
+    @current_value.setter
+    def current_value(self, value: int) -> None:
+        self._start_time = value
+
     def limit(self) -> int:
         return self._max_seconds
 
