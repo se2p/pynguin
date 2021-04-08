@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -15,6 +16,7 @@ import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.typeinference.strategy import InferredSignature
 
 
 def test_constructor_statement_no_args(
@@ -58,6 +60,36 @@ def test_constructor_statement_eq_same(
 ):
     statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
     assert statement.__eq__(statement)
+
+
+def test_function_different_callables_different_hashes(function_mock):
+    def other_function(z: float) -> float:
+        return z
+
+    other = ps.GenericFunction(
+        function=other_function,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            return_type=float,
+            parameters={"z": float},
+        ),
+    )
+    test_case = dtc.DefaultTestCase()
+    function_statement = ps.FunctionStatement(test_case, function_mock, {})
+    other_statement = ps.FunctionStatement(test_case, other, {})
+    test_case.add_statement(function_statement)
+    test_case.add_statement(other_statement)
+    assert not function_statement.__eq__(other_statement)
+    assert not other_statement.__eq__(function_statement)
+    assert function_statement.__hash__() != other_statement.__hash__()
 
 
 def test_constructor_statement_eq_other_type(
