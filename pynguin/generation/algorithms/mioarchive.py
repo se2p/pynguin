@@ -18,7 +18,7 @@ from pynguin.utils import randomness
 
 @dataclass(frozen=True)
 class PopulationPair:
-    """A tuple of h-value of and corresponding test case."""
+    """A tuple of h-value and corresponding test case chromosome."""
 
     # The h-value as described in the MIO paper.
     # pylint: disable=invalid-name
@@ -94,12 +94,14 @@ class Population:
             # Is there still space for another solution?
             if len(self._solutions) < self._capacity:
                 # Yes, there is
+                added = True
                 self._solutions.append(candidate_solution)
             else:
                 worst_solution = self._solutions[-1]
                 if self._is_pair_better_than_current(
                     worst_solution, candidate_solution
                 ):
+                    added = True
                     self._solutions[-1] = candidate_solution
             self._sort_solutions()
 
@@ -169,7 +171,7 @@ class Population:
                 return True
 
         # Compare length otherwise
-        return candidate.size() < current.size()
+        return candidate.size() <= current.size()
         # TODO(fk) support other secondary objectives?
 
 

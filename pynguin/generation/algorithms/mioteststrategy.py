@@ -88,7 +88,10 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
         progress_until_focused = (
             progress / config.configuration.exploitation_starts_at_percent
         )
+
         if self._focused:
+            # Already in focused phase.
+            # Nothing to change.
             return
 
         n_before = self._parameters.n
