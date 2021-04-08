@@ -34,7 +34,8 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 def test_integrate_wspy(module_name: str):
     # TODO(fk) reduce direct dependencies to config.INSTANCE
     config.configuration.algorithm = config.Algorithm.MIO
-    config.configuration.budget = 1
+    # Enough time to enter focused phase.
+    config.configuration.budget = 3
     config.configuration.module_name = module_name
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()

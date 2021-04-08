@@ -96,6 +96,7 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
 
         n_before = self._parameters.n
         if progress > config.configuration.exploitation_starts_at_percent:
+            self._logger.debug("Entering focused phase.")
             self._focused = True
             self._parameters.Pr = (
                 config.configuration.random_test_or_from_archive_probability_focused
