@@ -243,14 +243,23 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return parameters[arg]
 
     def __hash__(self) -> int:
-        return 31 + 17 * hash(self._ret_val) + 17 * hash(frozenset(self._args.items()))
+        return (
+            31
+            + 17 * hash(self._ret_val)
+            + 17 * hash(frozenset(self._args.items()))
+            + 17 * hash(self._generic_callable)
+        )
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, ParametrizedStatement):
             return False
-        return self._ret_val == other._ret_val and self._args == other._args
+        return (
+            self._ret_val == other._ret_val
+            and self._args == other._args
+            and self._generic_callable == other._generic_callable
+        )
 
 
 class ConstructorStatement(ParametrizedStatement):
