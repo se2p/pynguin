@@ -194,12 +194,18 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
 
     @staticmethod
     def _filter_dead_code_nodes(graph: CFG) -> CFG:
-        for node in graph.nodes:
-            if graph.get_predecessors(node) == set() and node.index != 0:
-                # The only node in the graph that is allowed to have no predecessor
-                # is the entry node, i.e., the node with index 0.  All other nodes
-                # without predecessors are considered dead code and thus removed.
-                graph._graph.remove_node(node)
+        has_changed = True
+        while has_changed:
+            # Do this until we have reached a fixed point, i.e., removed all dead
+            # nodes from the CFG.
+            has_changed = False
+            for node in graph.nodes:
+                if graph.get_predecessors(node) == set() and node.index != 0:
+                    # The only node in the graph that is allowed to have no predecessor
+                    # is the entry node, i.e., the node with index 0.  All other nodes
+                    # without predecessors are considered dead code and thus removed.
+                    graph._graph.remove_node(node)
+                    has_changed = True
         return graph
 
     @property
