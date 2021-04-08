@@ -30,6 +30,7 @@ from pynguin.ga.operators.ranking.rankingfunction import (
 )
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
+from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearchstrategy import (
     RandomTestCaseSearchStrategy,
@@ -90,6 +91,7 @@ class TestSuiteGenerationAlgorithmFactory(
     """A factory for a search algorithm generating test-suites."""
 
     _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+        config.Algorithm.MIO: MIOTestStrategy,
         config.Algorithm.MOSA: MOSATestStrategy,
         config.Algorithm.RANDOM: RandomTestStrategy,
         config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchStrategy,
@@ -120,6 +122,7 @@ class TestSuiteGenerationAlgorithmFactory(
             self._test_factory, test_case_factory
         )
         if config.configuration.algorithm in (
+            config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
         ):
@@ -208,6 +211,7 @@ class TestSuiteGenerationAlgorithmFactory(
             A list of fitness functions
         """
         if config.configuration.algorithm in (
+            config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
         ):

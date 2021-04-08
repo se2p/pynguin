@@ -18,6 +18,14 @@ def stopping_condition():
     return MaxTimeStoppingCondition()
 
 
+def test_current_value(stopping_condition):
+    stopping_condition.reset()
+    start = time.time_ns()
+    stopping_condition.current_value = start
+    val = stopping_condition.current_value
+    assert val >= 0
+
+
 def test_set_get_limit(stopping_condition):
     stopping_condition.set_limit(42)
     assert stopping_condition.limit() == 42

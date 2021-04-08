@@ -267,3 +267,12 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             Whether or not the stopping condition is fulfilled
         """
         return stopping_condition.is_fulfilled()
+
+    def progress(self) -> float:
+        """Provides the progress of the search.
+
+        Returns:
+            A value in [0,1]."""
+        limit = self._stopping_condition.limit()
+        assert limit > 0.0
+        return self._stopping_condition.current_value / limit

@@ -44,11 +44,13 @@ class TestCaseChromosome(chrom.Chromosome):
             self._test_factory: Optional[tf.TestFactory] = test_factory
             self._changed = True
             self._last_execution_result: Optional[ExecutionResult] = None
+            self._num_mutations = 0
         else:
             self._test_case = orig._test_case.clone()
             self._test_factory = orig._test_factory
             self._changed = orig._changed
             self._last_execution_result = orig._last_execution_result
+            self._num_mutations = orig._num_mutations
 
     @property
     def test_case(self) -> tc.TestCase:
@@ -58,6 +60,14 @@ class TestCaseChromosome(chrom.Chromosome):
             the wrapped test case.
         """
         return self._test_case
+
+    def num_mutations(self) -> int:
+        """The number of mutations.
+
+        Returns:
+            the number of mutations."""
+        # TODO(fk) what to do with this when crossover is used?
+        return self._num_mutations
 
     def size(self) -> int:
         return self._test_case.size()
@@ -124,6 +134,7 @@ class TestCaseChromosome(chrom.Chromosome):
 
         if changed:
             self.set_changed(True)
+            self._num_mutations += 1
 
     def _mutation_delete(self) -> bool:
         last_mutatable_statement = self.get_last_mutatable_statement()
