@@ -76,6 +76,7 @@ class TestCaseExecutor:
                 else:
                     result = res.ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
+                return_queue.close()
                 self._after_test_case_execution(test_case, result)
         return result
 
