@@ -64,7 +64,7 @@ def test_constructor_statement_eq_same(
 
 def test_function_different_callables_different_hashes(function_mock):
     def other_function(z: float) -> float:
-        return z
+        return z  # pragma: no cover
 
     other = ps.GenericFunction(
         function=other_function,
