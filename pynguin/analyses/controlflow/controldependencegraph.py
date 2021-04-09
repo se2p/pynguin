@@ -67,7 +67,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             if least_common_ancestor is edge.source:
                 cdg.add_edge(edge.source, least_common_ancestor)
 
-        return cdg
+        return pg.filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
     @staticmethod
     def _create_augmented_graph(graph: cfg.CFG) -> cfg.CFG:
