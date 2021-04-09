@@ -5,8 +5,6 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides base classes of a program graph."""
-from __future__ import annotations
-
 from typing import Any, Generic, Optional, Set, TypeVar
 
 import networkx as nx
