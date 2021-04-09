@@ -24,7 +24,7 @@ from pynguin.utils.statistics.timers import Timers
 class Timer(ContextDecorator):
     """Time your code using a class, context manager, or decorator."""
 
-    timers: ClassVar[Timers] = Timers()
+    timers: ClassVar[Timers] = Timers()  # pylint: disable=invalid-name
     _start_time: Optional[float] = field(default=None, init=False, repr=False)
     name: Optional[str] = None
     text: str = "Elapsed time: {:0.4f} seconds"

@@ -37,17 +37,17 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 astor = "^0.8.1"
-simple-parsing = "^0.0.13"
+simple-parsing = "0.0.13"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2.5"}
 pydot = "^1.4"
-rich = "^9.11.1"
-pytest = "^6.2.2"
+rich = "^10.1"
+pytest = "^6.2"
 
 [tool.poetry.dev-dependencies]
-coverage = "^5.4"
+coverage = "^5.5"
 pytest = "^6.2"
 black = {version = "^20.8b1", allow-prereleases = true}
 pytest-cov = "^2.11"
@@ -55,20 +55,19 @@ pylint = "^2.7"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.2"
-hypothesis = "^6.3"
+hypothesis = "^6.8"
 pytest-mock = "^3.5"
-monkeytype = "^20.5.0"
 mypy = "^0.812"
-isort = {extras = ["pyproject"], version = "^5.7"}
-pre-commit = "^2.10"
-darglint = "^1.7"
-pyupgrade = "^2.10"
+isort = {extras = ["pyproject"], version = "^5.8"}
+pre-commit = "^2.12"
+darglint = "^1.8"
+pyupgrade = "^2.12"
 bandit = "^1.7"
 safety = "^1.10"
 sphinx = "^3.5"
 sphinx-autodoc-typehints = "^1.11"
-flake8 = "^3.8"
-pytest-bdd = "^4.0.2"
+flake8 = "^3.9"
+pytest-bdd = "^4.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

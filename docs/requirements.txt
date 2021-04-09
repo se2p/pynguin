@@ -1,9 +1,8 @@
-sphinx==3.5.1
+sphinx==3.5.3
 sphinx-autodoc-typehints==1.11.1
 astor
 simple-parsing
 bytecode
-monkeytype
 typing_inspect
 jellyfish
 networkx

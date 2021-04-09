@@ -114,7 +114,7 @@ class SignatureElement(metaclass=ABCMeta):
         def __str__(self) -> str:
             return f"Element({self.signature_type}, {self.confidence})"
 
-    _related_type_confidence: ClassVar[float] = 0.5
+    _related_type_confidence: ClassVar[float] = 0.5  # pylint: disable=invalid-name
 
     def __init__(self) -> None:
         self._unknown_element = self.Element(
