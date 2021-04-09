@@ -175,8 +175,11 @@ class _BranchFitnessGraph:
         self._root_branches: Set[bctf.BranchCoverageTestFitness] = set()
         self._branchless_code_objects: Set[int] = set()
         self._edge_predicate_map: Dict[
-            Tuple[pg.ProgramGraphNode, pg.ProgramGraphNode],
-            bctf.BranchCoverageTestFitness,
+            int,
+            Dict[
+                Tuple[pg.ProgramGraphNode, pg.ProgramGraphNode],
+                bctf.BranchCoverageTestFitness,
+            ],
         ] = {}
 
     @property
@@ -237,7 +240,7 @@ class _BranchFitnessGraph:
 
             # Update the goals sets
             self._root_branches.update(remaining_goals)
-            self._edge_predicate_map.update(edge_predicate_map)
+            self._edge_predicate_map[code_object_id] = edge_predicate_map
             self._control_dependence_graphs[code_object_id] = code_object.cdg
 
     def _get_edge_predicate_map_from_cfg(
@@ -316,7 +319,7 @@ class _BranchFitnessGraph:
             else:
                 new_goals.update(
                     self._retrieve_goals_from_control_dependence_graph(
-                        control_dependence_graph
+                        control_dependence_graph, code_object_id
                     )
                 )
 
@@ -336,7 +339,7 @@ class _BranchFitnessGraph:
         return result
 
     def _retrieve_goals_from_control_dependence_graph(
-        self, control_dependence_graph: ControlDependenceGraph
+        self, control_dependence_graph: ControlDependenceGraph, code_object_id: int
     ) -> Set[bctf.BranchCoverageTestFitness]:
         result: Set[bctf.BranchCoverageTestFitness] = set()
         visited: Set[pg.ProgramGraphNode] = set()
@@ -349,7 +352,7 @@ class _BranchFitnessGraph:
             visited.add(element)
             for child in control_dependence_graph.get_successors(element):
                 edge = (element, child)
-                goal = self._edge_predicate_map.get(edge)
+                goal = self._edge_predicate_map[code_object_id].get(edge)
                 if goal is not None:
                     if goal.is_covered:
                         wait_list.put(child)
