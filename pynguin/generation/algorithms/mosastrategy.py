@@ -4,12 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-
-#  This file is part of Pynguin.
-#
-#
-#  SPDX-License-Identifier: LGPL-3.0-or-later
-#
 """Provides the MOSA test-generation strategy."""
 import logging
 from typing import List, Set
@@ -117,13 +111,3 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
                 self._population.append(front[k])
 
         self._archive.update(self._population)
-
-    def _notify_iteration(self) -> None:
-        test_suite = self.create_test_suite(self._archive.solutions)
-        stat.current_individual(test_suite)
-        coverage = test_suite.get_coverage()
-        self._logger.info(
-            "Generation: %5i. Coverage: %5f",
-            self._current_iteration,
-            coverage,
-        )

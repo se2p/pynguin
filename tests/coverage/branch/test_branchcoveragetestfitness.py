@@ -53,6 +53,12 @@ def test_is_maximisation_function(empty_function):
     assert not empty_function.is_maximisation_function()
 
 
+def test_goal(executor_mock):
+    goal = MagicMock(bcg.AbstractBranchCoverageGoal)
+    func = bctf.BranchCoverageTestFitness(executor_mock, goal)
+    assert func.goal == goal
+
+
 def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_known_data.return_value = known_data_mock

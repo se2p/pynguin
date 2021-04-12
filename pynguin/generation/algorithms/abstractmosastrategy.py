@@ -12,6 +12,7 @@ from typing import List, cast
 import pynguin.configuration as config
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
@@ -123,3 +124,13 @@ class AbstractMOSATestStrategy(
 
     def _get_best_individuals(self) -> List[tcc.TestCaseChromosome]:
         return self._get_non_dominated_solutions(self._population)
+
+    def _notify_iteration(self) -> None:
+        test_suite = self.create_test_suite(self._archive.solutions)
+        stat.current_individual(test_suite)
+        coverage = test_suite.get_coverage()
+        self._logger.info(
+            "Generation: %5i. Coverage: %5f",
+            self._current_iteration,
+            coverage,
+        )

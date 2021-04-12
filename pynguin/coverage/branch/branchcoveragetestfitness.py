@@ -19,6 +19,7 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
     def __init__(self, executor: TestCaseExecutor, goal: AbstractBranchCoverageGoal):
         super().__init__(executor)
         self._goal = goal
+        self._is_covered = False
 
     def compute_fitness_values(
         self, individual: tcc.TestCaseChromosome
@@ -35,16 +36,35 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
         fitness = distance.get_resulting_branch_fitness()
 
         if fitness == 0.0:
-            # TODO mark goal as covered?
-            pass
+            self._is_covered = True
 
         return fitness
 
     def __str__(self) -> str:
-        return f"BranchCoverageTestFitness for {self._goal}"
+        return (
+            f"BranchCoverageTestFitness for {self._goal} (covered: {self._is_covered})"
+        )
 
     def __repr__(self) -> str:
         return (
             f"BranchCoverageTestFitness(executor={self._executor}, "
             f"goal={self._goal})"
         )
+
+    @property
+    def goal(self):
+        """Provides the branch-coverage goal of this fitness function.
+
+        Returns:
+            The attached branch-coverage goal
+        """
+        return self._goal
+
+    @property
+    def is_covered(self) -> bool:
+        """Whether or not this fitness goal is covered.
+
+        Returns:
+            Whether or not this fitness goal is covered
+        """
+        return self._is_covered
