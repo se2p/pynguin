@@ -101,7 +101,7 @@ class ProgramGraph(Generic[N]):
     """
 
     def __init__(self) -> None:
-        self._graph = nx.DiGraph()  # TODO(sl) consider a multi graph if necessary?!?
+        self._graph = nx.DiGraph()
 
     def add_node(self, node: N, **attr: Any) -> None:
         """Add a node to the graph
@@ -240,3 +240,34 @@ class ProgramGraph(Generic[N]):
         """
         dot = to_pydot(self._graph)
         return dot.to_string()
+
+
+G = TypeVar("G", bound=ProgramGraph)  # pylint: disable=invalid-name
+
+
+def filter_dead_code_nodes(graph: G, entry_node_index: int = 0) -> G:
+    """Prunes dead nodes from the given graph.
+
+    A dead node is a node that has no entry node.  To specify a legal entry node,
+    one can use the `entry_node_index` parameter.
+
+    Args:
+        graph: The graph to prune nodes from
+        entry_node_index: The index of the valid entry node
+
+    Returns:
+        The graph without the pruned dead nodes
+    """
+    has_changed = True
+    while has_changed:
+        # Do this until we have reached a fixed point, i.e., removed all dead
+        # nodes from the graph.
+        has_changed = False
+        for node in graph.nodes:
+            if graph.get_predecessors(node) == set() and node.index != entry_node_index:
+                # The only node in the graph that is allowed to have no predecessor
+                # is the entry node, i.e., the node with index 0.  All other nodes
+                # without predecessors are considered dead code and thus removed.
+                graph.graph.remove_node(node)
+                has_changed = True
+    return graph
