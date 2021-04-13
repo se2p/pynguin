@@ -18,11 +18,7 @@ from pynguin.ga.fitnessfunctions.fitness_utilities import (
 )
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import (
-    CodeObjectMetaData,
-    KnownData,
-    PredicateMetaData,
-)
+from pynguin.testcase.execution.executiontracer import KnownData, PredicateMetaData
 
 
 def test_normalise_less_zero():
@@ -58,9 +54,7 @@ def test_default_fitness(trace_mock, known_data_mock):
 
 
 def test_fitness_function_diff(trace_mock, known_data_mock):
-    known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
-    known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
-    known_data_mock.existing_code_objects[2] = MagicMock(CodeObjectMetaData)
+    known_data_mock.branch_less_code_objects = {0, 1, 2}
     trace_mock.executed_code_objects.add(0)
     assert compute_branch_distance_fitness(trace_mock, known_data_mock) == 2.0
 
@@ -118,15 +112,13 @@ def test_coverage_no_branch(known_data_mock, trace_mock):
 
 
 def test_coverage_half_code_objects(known_data_mock, trace_mock):
-    known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
-    known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
+    known_data_mock.branch_less_code_objects = {0, 1}
     trace_mock.executed_code_objects.add(0)
     assert compute_branch_coverage(trace_mock, known_data_mock) == 0.5
 
 
 def test_coverage_no_code_objects(known_data_mock, trace_mock):
-    known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
-    known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
+    known_data_mock.branch_less_code_objects = {0, 1}
     assert compute_branch_coverage(trace_mock, known_data_mock) == 0.0
 
 
