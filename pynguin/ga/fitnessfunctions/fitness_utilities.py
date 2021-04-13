@@ -63,8 +63,8 @@ def compute_branch_distance_fitness(
         The computed fitness value
     """
     # Check if all code objects were executed.
-    code_objects_missing: float = len(known_data.existing_code_objects) - len(
-        trace.executed_code_objects
+    code_objects_missing: float = len(
+        known_data.branch_less_code_objects.difference(trace.executed_code_objects)
     )
     assert (
         code_objects_missing >= 0.0
@@ -105,8 +105,10 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
         The computed coverage value
     """
 
-    covered = len(trace.executed_code_objects)
-    existing = len(known_data.existing_code_objects)
+    covered = len(
+        trace.executed_code_objects.intersection(known_data.branch_less_code_objects)
+    )
+    existing = len(known_data.branch_less_code_objects)
 
     # Every predicate creates two branches
     existing += len(known_data.existing_predicates) * 2
