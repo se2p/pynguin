@@ -8,7 +8,7 @@
 
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
@@ -249,13 +249,13 @@ class MIOArchive:
         for population in self._archive.values():
             population.shrink_population(new_population_size)
 
-    def get_solutions(self) -> Set[tcc.TestCaseChromosome]:
+    def get_solutions(self) -> List[tcc.TestCaseChromosome]:
         """Get all covering solutions found so far."""
-        result = set()
+        result = []
         for population in self._archive.values():
             solution = population.get_best_solution_if_any()
             if solution is not None:
-                result.add(solution)
+                result.append(solution)
         return result
 
     @property
