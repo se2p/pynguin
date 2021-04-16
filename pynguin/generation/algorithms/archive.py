@@ -7,7 +7,7 @@
 """Provides the archive for MOSA."""
 import logging
 import sys
-from typing import Dict, Generic, Iterable, List, Set, TypeVar
+from typing import Dict, Generic, Iterable, Set, TypeVar
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
@@ -96,7 +96,7 @@ class Archive(Generic[F, C]):
         return self._objectives
 
     @property
-    def solutions(self) -> List[C]:
+    def solutions(self) -> Set[C]:
         """Provides the best solutions found so far.
 
         Best solutions are those shortest test cases covering one of the targets
@@ -106,7 +106,7 @@ class Archive(Generic[F, C]):
             The best solutions in the archive
         """
         assert self._all_covered(), "Some covered targets have a fitness != 0.0"
-        return list(self._covered.values())
+        return set(self._covered.values())
 
     def reset(self) -> None:
         """Resets the archive."""

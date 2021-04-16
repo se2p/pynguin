@@ -68,11 +68,11 @@ def test_reset(objectives):
     archive.reset()
     assert archive.uncovered_goals == objectives
     assert archive.covered_goals == set()
-    assert archive.solutions == []
+    assert archive.solutions == set()
 
 
 def test_update_solution(objectives, chromosomes):
     archive = Archive(objectives)
     archive.update(chromosomes)
     solution = archive.solutions
-    assert solution == [chromosomes[0], chromosomes[0]]
+    assert solution == {chromosomes[0]}
