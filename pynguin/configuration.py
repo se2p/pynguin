@@ -301,7 +301,7 @@ class Configuration:
     """Number of mutations allowed to be done on the same individual before
     sampling a new one in focused phase. Used for MIO."""
 
-    exploitation_starts_at_percent: float = 0.5
+    exploitation_starts_at_percent: float = 0.7
     """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
     switching to focused phase. Used for MIO."""
 
