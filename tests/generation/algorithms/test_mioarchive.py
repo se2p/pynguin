@@ -123,6 +123,16 @@ def test_population_sample_solution():
     assert population.counter == 1
 
 
+def test_population_sample_solution_reset():
+    population = Population(5)
+    solution = MagicMock()
+    population.add_solution(0.1, solution)
+    assert population.sample_solution() == solution
+    assert population.counter == 1
+    assert population.add_solution(0.01, solution) is True
+    assert population.counter == 0
+
+
 def test_population_no_solution():
     population = Population(5)
     assert population.get_best_solution_if_any() is None
