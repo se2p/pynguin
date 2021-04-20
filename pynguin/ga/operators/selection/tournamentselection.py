@@ -18,14 +18,6 @@ class TournamentSelection(SelectionFunction[T]):
     """Tournament selection."""
 
     def get_index(self, population: List[T]) -> int:
-        """
-
-        Args:
-            population:
-
-        Returns:
-
-        """
         new_num = randomness.next_int(lower_bound=0, upper_bound=len(population))
         winner = new_num
 
