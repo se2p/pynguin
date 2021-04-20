@@ -7,7 +7,11 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-from pynguin.generation.algorithms.mioarchive import Population, PopulationPair
+from pynguin.generation.algorithms.mioarchive import (
+    MIOArchive,
+    Population,
+    PopulationPair,
+)
 
 
 def test_population_pair():
@@ -173,3 +177,180 @@ def test_population_make_sure_sorted():
             second,
             first,
         ]
+
+
+def test_is_better():
+    better = PopulationPair(1.0, MagicMock())
+    worse = PopulationPair(0.9, MagicMock())
+    assert Population._is_pair_better_than_current(worse, better) is True
+
+
+def test_is_worse():
+    better = PopulationPair(1.0, MagicMock())
+    worse = PopulationPair(0.9, MagicMock())
+    assert Population._is_pair_better_than_current(better, worse) is False
+
+
+def test_is_even_secondary():
+    better = PopulationPair(1.0, MagicMock())
+    worse = PopulationPair(1.0, MagicMock())
+    with mock.patch.object(Population, "_is_better_than_current") as better_mock:
+        better_mock.return_value = 42
+        assert Population._is_pair_better_than_current(better, worse) == 42
+
+
+def test_is_better_secondary_timeout():
+    result_timeout = MagicMock(timeout=True)
+    result_ok = MagicMock(timeout=False)
+    result_ok.has_test_exceptions.return_value = False
+
+    better = MagicMock()
+    better.get_last_execution_result.return_value = result_ok
+    worse = MagicMock()
+    worse.get_last_execution_result.return_value = result_timeout
+    assert Population._is_better_than_current(worse, better) is True
+
+
+def test_is_better_secondary_exception():
+    result_timeout = MagicMock(timeout=False)
+    result_timeout.has_test_exceptions.return_value = True
+    result_ok = MagicMock(timeout=False)
+    result_ok.has_test_exceptions.return_value = False
+
+    better = MagicMock()
+    better.get_last_execution_result.return_value = result_ok
+    worse = MagicMock()
+    worse.get_last_execution_result.return_value = result_timeout
+    assert Population._is_better_than_current(worse, better) is True
+
+
+def test_is_better_secondary_not_better():
+    result_timeout = MagicMock(timeout=True)
+    result_timeout.has_test_exceptions.return_value = True
+    result_ok = MagicMock(timeout=True)
+    result_ok.has_test_exceptions.return_value = True
+
+    better = MagicMock()
+    better.size.return_value = 3
+    better.get_last_execution_result.return_value = result_ok
+    worse = MagicMock()
+    worse.get_last_execution_result.return_value = result_timeout
+    worse.size.return_value = 5
+    assert Population._is_better_than_current(worse, better) is True
+
+
+def test_is_better_secondary_no_timeout_or_exception():
+    result_ok = MagicMock(timeout=False)
+    result_ok.has_test_exceptions.return_value = False
+
+    better = MagicMock()
+    better.size.return_value = 3
+    better.get_last_execution_result.return_value = result_ok
+    worse = MagicMock()
+    worse.get_last_execution_result.return_value = result_ok
+    worse.size.return_value = 5
+    assert Population._is_better_than_current(worse, better) is True
+
+
+def test_is_better_secondary_no_timeout_or_exception_swapped():
+    result_ok = MagicMock(timeout=False)
+    result_ok.has_test_exceptions.return_value = False
+
+    better = MagicMock()
+    better.size.return_value = 3
+    better.get_last_execution_result.return_value = result_ok
+    worse = MagicMock()
+    worse.get_last_execution_result.return_value = result_ok
+    worse.size.return_value = 5
+    assert Population._is_better_than_current(better, worse) is False
+
+
+def test_archive_initial_empty():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    assert archive.num_covered_targets == 0
+    assert archive.get_solutions() == []
+
+
+def test_archive_update_no_ex():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 1.0
+    result = MagicMock()
+    result.has_test_exceptions.return_value = False
+    clone.get_last_execution_result.return_value = result
+    assert archive.update_archive(solution) is True
+
+
+def test_archive_update_ex():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 1.0
+    result = MagicMock()
+    result.has_test_exceptions.return_value = True
+    clone.get_last_execution_result.return_value = result
+    clone.get_last_mutatable_statement.return_value = 3
+    test_case = MagicMock()
+    clone.test_case = test_case
+    assert archive.update_archive(solution) is True
+    test_case.chop.assert_called_with(3)
+
+
+def test_archive_get_solution_none_covered():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    assert archive.get_solution() is None
+
+
+def test_archive_get_solution_is_covered():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 0.0
+    second_clone = MagicMock()
+    clone.clone.return_value = second_clone
+    archive.update_archive(solution)
+    assert archive.get_solution() == second_clone
+
+
+def test_archive_get_solution_not_covered():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 0.5
+    second_clone = MagicMock()
+    clone.clone.return_value = second_clone
+    archive.update_archive(solution)
+    assert archive.get_solution() == second_clone
+
+
+def test_archive_get_solutions():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 0.0
+    archive.update_archive(solution)
+    assert archive.get_solutions() == [clone]
+
+
+def test_archive_num_covered_targets():
+    fitness = MagicMock()
+    archive = MIOArchive([fitness], 3)
+    solution = MagicMock()
+    clone = MagicMock()
+    solution.clone.return_value = clone
+    clone.get_fitness_for.return_value = 0.0
+    archive.update_archive(solution)
+    assert archive.num_covered_targets == 1
