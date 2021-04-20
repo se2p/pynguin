@@ -355,6 +355,9 @@ class Configuration:
     """Probability of using dynamically seeded values when a primitive seeded
      value will be used."""
 
+    tournament_size: int = 10
+    """Number of individuals for tournament selection."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(
