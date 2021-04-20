@@ -134,3 +134,7 @@ class AbstractMOSATestStrategy(
             self._current_iteration,
             coverage,
         )
+
+    def _sort_population(self) -> None:
+        """Sort the population by fitness."""
+        self._population.sort(key=lambda x: x.get_fitness())
