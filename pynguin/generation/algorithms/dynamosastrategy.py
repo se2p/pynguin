@@ -48,7 +48,6 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
 
         self._current_iteration = 0
         self._population = self._get_random_population()
-        self._sort_population()
         self._goals_manager.update(self._population)
 
         # Calculate dominance ranks and crowding distance
@@ -123,7 +122,6 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
             for k in range(remain):
                 self._population.append(front[k])
 
-        self._sort_population()
         self._goals_manager.update(self._population)
 
 
