@@ -30,6 +30,7 @@ from pynguin.ga.operators.ranking.rankingfunction import (
 )
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
+from pynguin.ga.operators.selection.tournamentselection import TournamentSelection
 from pynguin.generation.algorithms.dynamosastrategy import DynaMOSATestStrategy
 from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
@@ -191,6 +192,12 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A selection function
         """
+        if config.configuration.algorithm in (
+            config.Algorithm.DYNAMOSA,
+            config.Algorithm.MOSA,
+        ):
+            self._logger.info("Chosen selection function: TournamentSelection")
+            return TournamentSelection()
         self._logger.info("Chosen selection function: RankSelection")
         return RankSelection()
 
