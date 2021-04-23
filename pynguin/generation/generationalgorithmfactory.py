@@ -102,6 +102,11 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 
+    _selections: Dict[config.Selection, Callable[[], SelectionFunction]] = {
+        config.Selection.TOURNAMENT_SELECTION: TournamentSelection,
+        config.Selection.RANK_SELECTION: RankSelection,
+    }
+
     def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster):
         self._executor = executor
         self._test_cluster = test_cluster
@@ -183,23 +188,28 @@ class TestSuiteGenerationAlgorithmFactory(
         if config.configuration.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.configuration.algorithm)
             assert strategy, "Strategy cannot be defined as None"
+            cls._logger.info("Use strategy: %s" % config.configuration.algorithm)
             return strategy()
         raise ConfigurationException("No suitable generation strategy found.")
 
-    def _get_selection_function(self) -> SelectionFunction[tsc.TestSuiteChromosome]:
+    @classmethod
+    def _get_selection_function(cls) -> SelectionFunction[tsc.TestSuiteChromosome]:
         """Provides a selection function for the selected algorithm.
 
         Returns:
             A selection function
+
+        Raises:
+            ConfigurationException: if an unknown function was requested
         """
-        if config.configuration.algorithm in (
-            config.Algorithm.DYNAMOSA,
-            config.Algorithm.MOSA,
-        ):
-            self._logger.info("Chosen selection function: TournamentSelection")
-            return TournamentSelection()
-        self._logger.info("Chosen selection function: RankSelection")
-        return RankSelection()
+        if config.configuration.selection in cls._selections:
+            strategy = cls._selections.get(config.configuration.selection)
+            assert strategy, "Selection function cannot be defined as None"
+            cls._logger.info(
+                "Use selection function: %s" % config.configuration.selection
+            )
+            return strategy()
+        raise ConfigurationException("No suitable selection function found.")
 
     def _get_crossover_function(self) -> CrossOverFunction[tsc.TestSuiteChromosome]:
         """Provides a crossover function for the selected algorithm.

@@ -100,6 +100,16 @@ class StatisticsBackend(str, enum.Enum):
     """Write statistics to a CSV file."""
 
 
+class Selection(str, enum.Enum):
+    """Different selection algorithms to select from."""
+
+    RANK_SELECTION = "RANK_SELECTION"
+    """Rank selection."""
+
+    TOURNAMENT_SELECTION = "TOURNAMENT_SELECTION"
+    """Tournament selection.  Use `tournament_size` to set size."""
+
+
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
 class Configuration:
@@ -357,6 +367,9 @@ class Configuration:
 
     tournament_size: int = 10
     """Number of individuals for tournament selection."""
+
+    selection: Selection = Selection.TOURNAMENT_SELECTION
+    """The selection operator for genetic algorithms."""
 
 
 # Singleton instance of the configuration.
