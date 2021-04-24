@@ -150,13 +150,9 @@ def test_wrap_var_param_type(kind, type_, result):
         pytest.param(dict, True),
         pytest.param(tuple, True),
         pytest.param(List[str], True),
-        pytest.param(List, True),
         pytest.param(Set[str], True),
-        pytest.param(Set, True),
         pytest.param(Tuple[str], True),
-        pytest.param(Tuple, True),
         pytest.param(Dict[str, str], True),
-        pytest.param(Dict, True),
         pytest.param(str, False),
     ],
 )
