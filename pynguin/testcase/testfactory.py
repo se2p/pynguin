@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Set, Type, cast
+from typing import Any, Dict, List, Optional, Set, Type, cast
 
 from typing_inspect import get_args, get_origin
 
@@ -1172,19 +1172,15 @@ class TestFactory:
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        if get_origin(parameter_type) == list:
-            return self._create_list(
+        if parameter_type in (list, set) or get_origin(parameter_type) in (list, set):
+            return self._create_list_or_set(
                 test_case, parameter_type, position, recursion_depth
             )
-        if get_origin(parameter_type) == set:
-            return self._create_set(
-                test_case, parameter_type, position, recursion_depth
-            )
-        if get_origin(parameter_type) == tuple:
+        if parameter_type == tuple or get_origin(parameter_type) == tuple:
             return self._create_tuple(
                 test_case, parameter_type, position, recursion_depth
             )
-        if get_origin(parameter_type) == dict:
+        if parameter_type == dict or get_origin(parameter_type) == dict:
             return self._create_dict(
                 test_case, parameter_type, position, recursion_depth
             )
@@ -1192,7 +1188,7 @@ class TestFactory:
 
     # TODO(fk) Methods below should be refactored asap,
     # as they contain a lot of duplicate code
-    def _create_list(
+    def _create_list_or_set(
         self,
         test_case: tc.TestCase,
         parameter_type: Type,
@@ -1200,47 +1196,26 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         args = get_args(parameter_type)
-        if len(args) != 1:
-            raise ConstructionFailedException()
+        if len(args) == 1:
+            element_type = args[0]
+        else:
+            element_type = Any
         size = randomness.next_int(0, config.configuration.collection_size)
         elements = []
         for _ in range(size):
             previous_length = test_case.size()
             var = self._create_or_reuse_variable(
-                test_case, args[0], position, recursion_depth + 1, True
+                test_case, element_type, position, recursion_depth + 1, True
             )
             if var is not None:
                 elements.append(var)
             position += test_case.size() - previous_length
-        ret = test_case.add_statement(
-            coll_stmt.ListStatement(test_case, parameter_type, elements), position
+        collection_stmt = (
+            coll_stmt.ListStatement(test_case, parameter_type, elements)
+            if parameter_type == list or get_origin(parameter_type) == list
+            else coll_stmt.SetStatement(test_case, parameter_type, elements)
         )
-        ret.distance = recursion_depth
-        return ret
-
-    def _create_set(
-        self,
-        test_case: tc.TestCase,
-        parameter_type: Type,
-        position: int,
-        recursion_depth: int,
-    ) -> vr.VariableReference:
-        args = get_args(parameter_type)
-        if len(args) != 1:
-            raise ConstructionFailedException()
-        size = randomness.next_int(0, config.configuration.collection_size)
-        elements = []
-        for _ in range(size):
-            previous_length = test_case.size()
-            var = self._create_or_reuse_variable(
-                test_case, args[0], position, recursion_depth + 1, True
-            )
-            if var is not None:
-                elements.append(var)
-            position += test_case.size() - previous_length
-        ret = test_case.add_statement(
-            coll_stmt.SetStatement(test_case, parameter_type, elements), position
-        )
+        ret = test_case.add_statement(collection_stmt, position)
         ret.distance = recursion_depth
         return ret
 
@@ -1282,19 +1257,23 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         args = get_args(parameter_type)
-        if len(args) != 2:
-            raise ConstructionFailedException()
+        if len(args) == 2:
+            key_type = args[0]
+            value_type = args[1]
+        else:
+            key_type = Any
+            value_type = Any
         size = randomness.next_int(0, config.configuration.collection_size)
         elements = []
         for _ in range(size):
             previous_length = test_case.size()
             key = self._create_or_reuse_variable(
-                test_case, args[0], position, recursion_depth + 1, True
+                test_case, key_type, position, recursion_depth + 1, True
             )
             position += test_case.size() - previous_length
             previous_length = test_case.size()
             value = self._create_or_reuse_variable(
-                test_case, args[1], position, recursion_depth + 1, True
+                test_case, value_type, position, recursion_depth + 1, True
             )
             position += test_case.size() - previous_length
             if key is not None and value is not None:
