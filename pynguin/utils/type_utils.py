@@ -41,7 +41,7 @@ def is_collection_type(type_: Optional[Type]) -> bool:
     Returns:
         Whether or not the type is a collection type
     """
-    return get_origin(type_) in COLLECTIONS
+    return type_ in COLLECTIONS or get_origin(type_) in COLLECTIONS
 
 
 def class_in_module(module_name: str) -> Callable[[Any], bool]:
