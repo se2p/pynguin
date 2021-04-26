@@ -378,4 +378,4 @@ class StatementToAstVisitor(sv.StatementVisitor):
 
 
 class DuckStatementToAstVisitor(StatementToAstVisitor):
-    """A visitor """
+    """A visitor"""
