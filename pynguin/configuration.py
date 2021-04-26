@@ -311,7 +311,7 @@ class Configuration:
     """Number of mutations allowed to be done on the same individual before
     sampling a new one in focused phase. Used for MIO."""
 
-    exploitation_starts_at_percent: float = 0.7
+    exploitation_starts_at_percent: float = 0.5
     """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
     switching to focused phase. Used for MIO."""
 
@@ -324,7 +324,7 @@ class Configuration:
     stub_dir: Optional[str] = None
     """Path to the pyi-stub files for the StubInferenceStrategy"""
 
-    constant_seeding: bool = False
+    constant_seeding: bool = True
     """Should the generator use a static constant seeding technique to improve constant
     generation?"""
 
@@ -354,18 +354,18 @@ class Configuration:
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
-    dynamic_constant_seeding: bool = False
+    dynamic_constant_seeding: bool = True
     """Enables seeding of constants at runtime."""
 
-    seeded_primitives_reuse_probability: float = 0.9
+    seeded_primitives_reuse_probability: float = 0.2
     """Probability for using seeded primitive values instead of randomly
     generated ones."""
 
-    seeded_dynamic_values_reuse_probability: float = 0.9
+    seeded_dynamic_values_reuse_probability: float = 0.6
     """Probability of using dynamically seeded values when a primitive seeded
      value will be used."""
 
-    tournament_size: int = 10
+    tournament_size: int = 5
     """Number of individuals for tournament selection."""
 
     selection: Selection = Selection.TOURNAMENT_SELECTION
