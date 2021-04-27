@@ -111,7 +111,11 @@ class _StaticConstantSeeding(_ConstantSeeding):
     """
 
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], Set[Types]] = {}
+        self._constants: Dict[Type[Types], Set[Types]] = {
+            int: set(),
+            float: set(),
+            str: set(),
+        }
 
     @staticmethod
     def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:

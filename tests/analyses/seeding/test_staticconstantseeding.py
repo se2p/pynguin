@@ -8,7 +8,10 @@ import os
 
 import pytest
 
-from pynguin.analyses.seeding.constantseeding import static_constant_seeding
+from pynguin.analyses.seeding.constantseeding import (
+    _StaticConstantSeeding,
+    static_constant_seeding,
+)
 
 
 @pytest.fixture
@@ -63,3 +66,8 @@ def test_properties(has_field_name, get_field_name, type_, seeding, fixture_dir)
     constants = seeding.collect_constants(fixture_dir)
     assert getattr(seeding, has_field_name)
     assert getattr(seeding, get_field_name) in constants[type_]
+
+
+def test_has_constant_without_type():
+    seeding = _StaticConstantSeeding()
+    assert not seeding.has_constants(int)
