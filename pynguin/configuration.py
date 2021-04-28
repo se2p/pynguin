@@ -221,6 +221,10 @@ class Configuration:
     """Probability to use None in a test case instead of constructing an object.
     Expects values in [0,1]"""
 
+    random_perturbation: float = 0.2
+    """Probability to replace a primitive with a random new value rather than adding
+    a delta."""
+
     guess_unknown_types: bool = True
     """Should we guess unknown types while constructing parameters?
     This might happen in the following cases:

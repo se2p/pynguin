@@ -155,7 +155,7 @@ def test_mutation_change_single_prim(test_case_chromosome_with_test):
     int0.ret_val.distance = 5
     test_case.add_statement(int0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.side_effect = [0.0]
+        float_mock.return_value = 0.0
         assert chromosome._mutation_change()
         assert int0.ret_val.distance == 5
 
