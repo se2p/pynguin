@@ -59,7 +59,10 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
     def mutate(self) -> bool:
         old_value = self._value
         while self._value == old_value and self._value is not None:
-            self.delta()
+            if randomness.next_float() < config.configuration.random_perturbation:
+                self.randomize_value()
+            else:
+                self.delta()
         return True
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
