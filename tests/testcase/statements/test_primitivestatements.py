@@ -414,10 +414,34 @@ def test_boolean_primitive_statement_delta(test_case_mock):
     assert not statement.value
 
 
-def test_primitive_statement_mutate(test_case_mock):
-    statement = prim.BooleanPrimitiveStatement(test_case_mock, True)
-    statement.mutate()
-    assert not statement.value
+def test_primitive_statement_mutate_delta(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 2)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 1.0
+        with mock.patch.object(statement, "delta") as rnd_mock:
+
+            def mock_rnd():
+                statement._value = 42
+
+            rnd_mock.side_effect = mock_rnd
+            statement.mutate()
+            rnd_mock.assert_called_once()
+            assert statement.value == 42
+
+
+def test_primitive_statement_mutate_constant(test_case_mock):
+    statement = prim.IntPrimitiveStatement(test_case_mock, 2)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        with mock.patch.object(statement, "randomize_value") as rnd_mock:
+
+            def mock_rnd():
+                statement._value = 42
+
+            rnd_mock.side_effect = mock_rnd
+            statement.mutate()
+            rnd_mock.assert_called_once()
+            assert statement.value == 42
 
 
 def test_primitive_statement_accessible(test_case_mock):
