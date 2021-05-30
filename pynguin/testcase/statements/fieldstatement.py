@@ -59,7 +59,10 @@ class FieldStatement(stmt.Statement):
         return self._field
 
     def mutate(self) -> bool:
-        if randomness.next_float() >= config.configuration.change_parameter_probability:
+        if (
+            randomness.next_float()
+            >= config.configuration.search_algorithm.change_parameter_probability
+        ):
             return False
 
         objects = self.test_case.get_objects(

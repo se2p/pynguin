@@ -168,7 +168,7 @@ class _SearchStatistics:
         ] = {}
         self._init_factories()
         self.set_output_variable_for_runtime_variable(
-            RuntimeVariable.RandomSeed, config.configuration.seed
+            RuntimeVariable.RandomSeed, config.configuration.seeding.seed
         )
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
@@ -177,7 +177,7 @@ class _SearchStatistics:
 
     @staticmethod
     def _initialise_backend() -> Optional[sb.AbstractStatisticsBackend]:
-        backend = config.configuration.statistics_backend
+        backend = config.configuration.statistics_output.statistics_backend
         if backend == config.StatisticsBackend.CONSOLE:
             return sb.ConsoleStatisticsBackend()
         if backend == config.StatisticsBackend.CSV:
@@ -309,7 +309,7 @@ class _SearchStatistics:
     ) -> Dict[str, sb.OutputVariable]:
         output_variables_map: Dict[str, sb.OutputVariable] = {}
 
-        for variable in config.configuration.output_variables:
+        for variable in config.configuration.statistics_output.output_variables:
             variable_name = variable.name
             if variable_name in self._output_variables:
                 # Values directly sent

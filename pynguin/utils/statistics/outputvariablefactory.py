@@ -133,7 +133,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         if not self._time_stamps:
             # No data, if this is even possible.
             return 0
-        interval = config.configuration.timeline_interval
+        interval = config.configuration.statistics_output.timeline_interval
         preferred_time = interval * index
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
@@ -146,7 +146,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
                 # it is the first element, just use it as value
                 return self._values[i]
 
-            if not config.configuration.timeline_interpolation:
+            if not config.configuration.statistics_output.timeline_interpolation:
                 # if we do not want to interpolate, return last observed value
                 return self._values[i - 1]
 
@@ -165,8 +165,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
     @staticmethod
     def _calculate_number_of_intervals() -> int:
-        interval = config.configuration.timeline_interval
-        total_time = config.configuration.budget * 1_000_000_000
+        interval = config.configuration.statistics_output.timeline_interval
+        total_time = config.configuration.stopping.budget * 1_000_000_000
         number_of_intervals = total_time // interval
         return int(number_of_intervals)
 

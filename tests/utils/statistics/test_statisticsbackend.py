@@ -23,7 +23,7 @@ def test_output_variable():
 
 
 def test_write_data_csv_backend(tmpdir):
-    config.configuration.report_dir = tmpdir / "statistics"
+    config.configuration.statistics_output.report_dir = tmpdir / "statistics"
     data_1 = {
         "module": OutputVariable("module", "foo"),
         "value": OutputVariable("value", "bar"),

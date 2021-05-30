@@ -141,27 +141,27 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
 
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
-    if config.configuration.seed is None:
+    if config.configuration.seeding.seed is None:
         _LOGGER.info("No seed given. Using %d", randomness.RNG.get_seed())
     else:
-        _LOGGER.info("Using seed %d", config.configuration.seed)
-        randomness.RNG.seed(config.configuration.seed)
+        _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
+        randomness.RNG.seed(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding_collection() -> None:
     """Collect constants from SUT, if enabled."""
-    if config.configuration.constant_seeding:
+    if config.configuration.seeding.constant_seeding:
         _LOGGER.info("Collecting constants from SUT.")
         static_constant_seeding.collect_constants(config.configuration.project_path)
 
 
 def _setup_initial_population_seeding(test_cluster: TestCluster):
     """Collect and parse tests for seeding the initial population"""
-    if config.configuration.initial_population_seeding:
+    if config.configuration.seeding.initial_population_seeding:
         _LOGGER.info("Collecting and parsing provided testcases.")
         initpopseeding.initialpopulationseeding.test_cluster = test_cluster
         initpopseeding.initialpopulationseeding.collect_testcases(
-            config.configuration.initial_population_data
+            config.configuration.seeding.initial_population_data
         )
 
 
@@ -238,12 +238,12 @@ def _run() -> ReturnCode:
                 RuntimeVariable.Coverage, generation_result.get_coverage()
             )
 
-        if config.configuration.post_process:
+        if config.configuration.test_case_output.post_process:
             postprocessor = pp.ExceptionTruncation()
             generation_result.accept(postprocessor)
             # TODO(fk) add more postprocessing stuff.
 
-        if config.configuration.generate_assertions:
+        if config.configuration.test_case_output.generate_assertions:
             generator = ag.AssertionGenerator(executor)
             generation_result.accept(generator)
 
@@ -292,10 +292,11 @@ def _collect_statistics() -> None:
     )
     stat.track_output_variable(RuntimeVariable.RandomSeed, randomness.RNG.get_seed())
     stat.track_output_variable(
-        RuntimeVariable.ConfigurationId, config.configuration.configuration_id
+        RuntimeVariable.ConfigurationId,
+        config.configuration.statistics_output.configuration_id,
     )
     stat.track_output_variable(
-        RuntimeVariable.ProjectName, config.configuration.project_name
+        RuntimeVariable.ProjectName, config.configuration.statistics_output.project_name
     )
     for runtime_variable, value in stat.variables_generator:
         stat.set_output_variable_for_runtime_variable(runtime_variable, value)
@@ -334,7 +335,7 @@ def _export_test_cases(
     """
     exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
     target_file = os.path.join(
-        config.configuration.output_path,
+        config.configuration.test_case_output.output_path,
         "test_" + config.configuration.module_name.replace(".", "_") + suffix + ".py",
     )
     exporter.export_sequences(target_file, test_cases)

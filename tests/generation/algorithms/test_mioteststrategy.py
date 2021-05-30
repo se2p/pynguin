@@ -15,11 +15,14 @@ from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy, Param
 
 def test_parameters_default():
     parameters = Parameters()
-    assert parameters.n == config.configuration.number_of_tests_per_target_initial
-    assert parameters.m == config.configuration.num_mutations_initial
+    assert (
+        parameters.n
+        == config.configuration.mio.initial_config.number_of_tests_per_target
+    )
+    assert parameters.m == config.configuration.mio.initial_config.number_of_mutations
     assert (
         parameters.Pr
-        == config.configuration.random_test_or_from_archive_probability_initial
+        == config.configuration.mio.initial_config.random_test_or_from_archive_probability
     )
     parameters.is_valid()
 
@@ -27,31 +30,38 @@ def test_parameters_default():
 def test_update_parameters_gradual():
     strategy = MIOTestStrategy()
     strategy._archive = MagicMock()
-    config.configuration.exploitation_starts_at_percent = 0.4
+    config.configuration.mio.exploitation_starts_at_percent = 0.4
     with mock.patch.object(strategy, "progress") as progress_mock:
         progress_mock.return_value = 0.5
         strategy._update_parameters()
-        assert strategy._parameters.m == config.configuration.num_mutations_focused
+        assert (
+            strategy._parameters.m
+            == config.configuration.mio.focused_config.number_of_mutations
+        )
         assert (
             strategy._parameters.n
-            == config.configuration.number_of_tests_per_target_focused
+            == config.configuration.mio.focused_config.number_of_tests_per_target
         )
         assert (
             strategy._parameters.Pr
-            == config.configuration.random_test_or_from_archive_probability_focused
+            == config.configuration.mio.focused_config.random_test_or_from_archive_probability
         )
 
 
 def test_update_parameters_focused_phase():
     strategy = MIOTestStrategy()
     strategy._archive = MagicMock()
-    config.configuration.exploitation_starts_at_percent = 0.4
-    config.configuration.number_of_tests_per_target_initial = 2
-    config.configuration.num_mutations_initial = 2
-    config.configuration.random_test_or_from_archive_probability_initial = 0.2
-    config.configuration.num_mutations_focused = 4
-    config.configuration.number_of_tests_per_target_focused = 4
-    config.configuration.random_test_or_from_archive_probability_focused = 0.4
+    config.configuration.mio.exploitation_starts_at_percent = 0.4
+    config.configuration.mio.initial_config.number_of_tests_per_target = 2
+    config.configuration.mio.initial_config.number_of_mutations = 2
+    config.configuration.mio.initial_config.random_test_or_from_archive_probability = (
+        0.2
+    )
+    config.configuration.mio.focused_config.number_of_mutations = 4
+    config.configuration.mio.focused_config.number_of_tests_per_target = 4
+    config.configuration.mio.focused_config.random_test_or_from_archive_probability = (
+        0.4
+    )
     with mock.patch.object(strategy, "progress") as progress_mock:
         progress_mock.return_value = 0.2
         strategy._update_parameters()

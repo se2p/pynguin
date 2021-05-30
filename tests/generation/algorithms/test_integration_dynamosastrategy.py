@@ -35,10 +35,10 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 )
 def test_integrate_dynamosa(module_name: str):
     config.configuration.algorithm = config.Algorithm.DYNAMOSA
-    config.configuration.budget = 1
+    config.configuration.stopping.budget = 1
     config.configuration.module_name = module_name
-    config.configuration.max_initial_tests = 1
-    config.configuration.max_initial_tests = 1
+    config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.max_initial_tests = 1
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):

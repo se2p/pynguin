@@ -28,13 +28,15 @@ class Parameters:
     """Represents the parameters that are adjusted while running the algorithm."""
 
     # Probability for choosing creating a new test case or sampling an existing one.
-    Pr: float = config.configuration.random_test_or_from_archive_probability_initial
+    Pr: float = (
+        config.configuration.mio.initial_config.random_test_or_from_archive_probability
+    )
 
     # The maximum size of the population kept in the archive per target
-    n: int = config.configuration.number_of_tests_per_target_initial
+    n: int = config.configuration.mio.initial_config.number_of_tests_per_target
 
     # The number of mutations performed on a test case before sampling again.
-    m: int = config.configuration.num_mutations_initial
+    m: int = config.configuration.mio.initial_config.number_of_mutations
 
     def is_valid(self):
         """Check if the parameters are valid."""
@@ -83,10 +85,11 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
         stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
         return self.create_test_suite(self._archive.get_solutions())
 
+    # pylint:disable=line-too-long
     def _update_parameters(self):
         progress = self.progress()
         progress_until_focused = (
-            progress / config.configuration.exploitation_starts_at_percent
+            progress / config.configuration.mio.exploitation_starts_at_percent
         )
 
         if self._focused:
@@ -95,31 +98,35 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
             return
 
         n_before = self._parameters.n
-        if progress > config.configuration.exploitation_starts_at_percent:
+        if progress > config.configuration.mio.exploitation_starts_at_percent:
             self._logger.debug("Entering focused phase.")
             self._focused = True
             self._parameters.Pr = (
-                config.configuration.random_test_or_from_archive_probability_focused
+                config.configuration.mio.focused_config.random_test_or_from_archive_probability
             )
-            self._parameters.n = config.configuration.number_of_tests_per_target_focused
-            self._parameters.m = config.configuration.num_mutations_focused
+            self._parameters.n = (
+                config.configuration.mio.focused_config.number_of_tests_per_target
+            )
+            self._parameters.m = (
+                config.configuration.mio.focused_config.number_of_mutations
+            )
         else:
             self._parameters.Pr = MIOTestStrategy._scale(
-                config.configuration.random_test_or_from_archive_probability_initial,
-                config.configuration.random_test_or_from_archive_probability_focused,
+                config.configuration.mio.initial_config.random_test_or_from_archive_probability,
+                config.configuration.mio.focused_config.random_test_or_from_archive_probability,
                 progress_until_focused,
             )
             self._parameters.n = ceil(
                 MIOTestStrategy._scale(
-                    config.configuration.number_of_tests_per_target_initial,
-                    config.configuration.number_of_tests_per_target_focused,
+                    config.configuration.mio.initial_config.number_of_tests_per_target,
+                    config.configuration.mio.focused_config.number_of_tests_per_target,
                     progress_until_focused,
                 )
             )
             self._parameters.m = ceil(
                 MIOTestStrategy._scale(
-                    config.configuration.num_mutations_initial,
-                    config.configuration.num_mutations_focused,
+                    config.configuration.mio.initial_config.number_of_mutations,
+                    config.configuration.mio.focused_config.number_of_mutations,
                     progress_until_focused,
                 )
             )

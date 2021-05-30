@@ -43,9 +43,14 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
     def get_test_case(self) -> tc.TestCase:
         test_case = dtc.DefaultTestCase()
         attempts = 0
-        size = randomness.next_int(1, config.configuration.chromosome_length + 1)
+        size = randomness.next_int(
+            1, config.configuration.search_algorithm.chromosome_length + 1
+        )
 
-        while test_case.size() < size and attempts < config.configuration.max_attempts:
+        while (
+            test_case.size() < size
+            and attempts < config.configuration.test_creation.max_attempts
+        ):
             self._test_factory.insert_random_statement(test_case, test_case.size())
             attempts += 1
         return test_case
@@ -66,10 +71,10 @@ class SeededTestCaseFactory(TestCaseFactory):
 
     def get_test_case(self) -> tc.TestCase:
         if (
-            config.configuration.initial_population_seeding
+            config.configuration.seeding.initial_population_seeding
             and initpopseeding.initialpopulationseeding.has_tests
             and randomness.next_float()
-            <= config.configuration.seeded_testcases_reuse_probability
+            <= config.configuration.seeding.seeded_testcases_reuse_probability
         ):
             return initpopseeding.initialpopulationseeding.seeded_testcase
         return self._delegate.get_test_case()

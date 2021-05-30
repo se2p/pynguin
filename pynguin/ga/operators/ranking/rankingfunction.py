@@ -101,7 +101,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
         fronts.append(zero_front)
         front_index = 1
 
-        if len(zero_front) < config.configuration.population:
+        if len(zero_front) < config.configuration.search_algorithm.population:
             ranked_solutions = len(zero_front)
             comparator: DominanceComparator[C] = DominanceComparator(
                 goals=uncovered_goals
@@ -114,7 +114,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                     remaining.remove(element)
 
             while (
-                ranked_solutions < config.configuration.population
+                ranked_solutions < config.configuration.search_algorithm.population
                 and len(remaining) > 0
             ):
                 new_front: List[C] = self._get_non_dominated_solutions(

@@ -177,8 +177,8 @@ def test_generator_with_init_pop_seeding(
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
-    config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = seed_modules_path
+    config.configuration.seeding.initial_population_seeding = True
+    config.configuration.seeding.initial_population_data = seed_modules_path
     gen.set_configuration(config.configuration)
     gen._setup_initial_population_seeding(dummy_test_cluster)
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
@@ -195,9 +195,9 @@ def test_seeded_test_case_factory_no_delegation(
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
-    config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = seed_modules_path
-    config.configuration.seeded_testcases_reuse_probability = 1.0
+    config.configuration.seeding.initial_population_seeding = True
+    config.configuration.seeding.initial_population_data = seed_modules_path
+    config.configuration.seeding.seeded_testcases_reuse_probability = 1.0
     ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
@@ -216,9 +216,9 @@ def test_seeded_test_case_factory_with_delegation(
     rand_mock.return_value = 2
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
-    config.configuration.initial_population_seeding = True
-    config.configuration.initial_population_data = seed_modules_path
-    config.configuration.seeded_testcases_reuse_probability = 0.0
+    config.configuration.seeding.initial_population_seeding = True
+    config.configuration.seeding.initial_population_data = seed_modules_path
+    config.configuration.seeding.seeded_testcases_reuse_probability = 0.0
     ips.initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
@@ -239,7 +239,7 @@ def test_seeded_test_case_factory_with_delegation(
 def test_algorithm_generation_factory(
     mock_class, dummy_test_cluster, enabled, fac_type
 ):
-    config.configuration.initial_population_seeding = enabled
+    config.configuration.seeding.initial_population_seeding = enabled
     tsfactory = TestSuiteGenerationAlgorithmFactory(
         mock_class.return_value, dummy_test_cluster
     )
@@ -262,7 +262,7 @@ def test_module_not_readable(parse_mock, clear_ips_instance, seed_modules_path):
 def test_initial_mutation(
     mutate_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
-    config.configuration.initial_population_mutations = 2
+    config.configuration.seeding.initial_population_mutations = 2
     config.configuration.module_name = "primitiveseed"
     ips.initialpopulationseeding.test_cluster = dummy_test_cluster
     ips.initialpopulationseeding.collect_testcases(seed_modules_path)

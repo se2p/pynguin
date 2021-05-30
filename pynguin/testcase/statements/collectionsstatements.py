@@ -51,18 +51,23 @@ class CollectionStatement(Generic[T], stmt.Statement):
     def mutate(self) -> bool:
         changed = False
         if (
-            randomness.next_float() < config.Configuration.test_delete_probability
+            randomness.next_float()
+            < config.configuration.search_algorithm.test_delete_probability
             and len(self._elements) > 0
         ):
             changed |= self._random_deletion()
 
         if (
-            randomness.next_float() < config.Configuration.test_change_probability
+            randomness.next_float()
+            < config.configuration.search_algorithm.test_change_probability
             and len(self._elements) > 0
         ):
             changed |= self._random_replacement()
 
-        if randomness.next_float() < config.Configuration.test_insert_probability:
+        if (
+            randomness.next_float()
+            < config.configuration.search_algorithm.test_insert_probability
+        ):
             changed |= self._random_insertion()
         return changed
 

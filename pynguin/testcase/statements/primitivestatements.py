@@ -59,7 +59,10 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
     def mutate(self) -> bool:
         old_value = self._value
         while self._value == old_value and self._value is not None:
-            if randomness.next_float() < config.configuration.random_perturbation:
+            if (
+                randomness.next_float()
+                < config.configuration.search_algorithm.random_perturbation
+            ):
                 self.randomize_value()
             else:
                 self.delta()
@@ -109,29 +112,33 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.configuration.seeded_primitives_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
         )
         if (
-            config.configuration.dynamic_constant_seeding
+            config.configuration.seeding.dynamic_constant_seeding
             and dynamic_constant_seeding.has_ints
             and use_seed
-            and config.configuration.constant_seeding
+            and config.configuration.seeding.constant_seeding
             and randomness.next_float()
-            <= config.configuration.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
             self._value = dynamic_constant_seeding.random_int
         elif (
-            config.configuration.constant_seeding
+            config.configuration.seeding.constant_seeding
             and static_constant_seeding.has_ints
             and use_seed
         ):
             self._value = static_constant_seeding.random_int
         else:
-            self._value = int(randomness.next_gaussian() * config.configuration.max_int)
+            self._value = int(
+                randomness.next_gaussian() * config.configuration.test_creation.max_int
+            )
 
     def delta(self) -> None:
         assert self._value is not None
-        delta = math.floor(randomness.next_gaussian() * config.configuration.max_delta)
+        delta = math.floor(
+            randomness.next_gaussian() * config.configuration.test_creation.max_delta
+        )
         self._value += delta
 
     def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
@@ -156,25 +163,27 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.configuration.seeded_primitives_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
         )
         if (
-            config.configuration.dynamic_constant_seeding
+            config.configuration.seeding.dynamic_constant_seeding
             and dynamic_constant_seeding.has_floats
             and use_seed
-            and config.configuration.constant_seeding
+            and config.configuration.seeding.constant_seeding
             and randomness.next_float()
-            <= config.configuration.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
             self._value = dynamic_constant_seeding.random_float
         elif (
-            config.configuration.constant_seeding
+            config.configuration.seeding.constant_seeding
             and static_constant_seeding.has_floats
             and use_seed
         ):
             self._value = static_constant_seeding.random_float
         else:
-            val = randomness.next_gaussian() * config.configuration.max_int
+            val = (
+                randomness.next_gaussian() * config.configuration.test_creation.max_int
+            )
             precision = randomness.next_int(0, 7)
             self._value = round(val, precision)
 
@@ -182,7 +191,10 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         assert self._value is not None
         probability = randomness.next_float()
         if probability < 1.0 / 3.0:
-            self._value += randomness.next_gaussian() * config.configuration.max_delta
+            self._value += (
+                randomness.next_gaussian()
+                * config.configuration.test_creation.max_delta
+            )
         elif probability < 2.0 / 3.0:
             self._value += randomness.next_gaussian()
         else:
@@ -210,25 +222,27 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def randomize_value(self) -> None:
         use_seed = (
             randomness.next_float()
-            <= config.configuration.seeded_primitives_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
         )
         if (
-            config.configuration.dynamic_constant_seeding
+            config.configuration.seeding.dynamic_constant_seeding
             and dynamic_constant_seeding.has_strings
             and use_seed
-            and config.configuration.constant_seeding
+            and config.configuration.seeding.constant_seeding
             and randomness.next_float()
-            <= config.configuration.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
             self._value = dynamic_constant_seeding.random_string
         elif (
-            config.configuration.constant_seeding
+            config.configuration.seeding.constant_seeding
             and static_constant_seeding.has_strings
             and use_seed
         ):
             self._value = static_constant_seeding.random_string
         else:
-            length = randomness.next_int(0, config.configuration.string_length + 1)
+            length = randomness.next_int(
+                0, config.configuration.test_creation.string_length + 1
+            )
             self._value = randomness.next_string(length)
 
     def delta(self) -> None:
@@ -268,7 +282,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and len(working_on) < config.configuration.string_length
+            and len(working_on) < config.configuration.test_creation.string_length
         ):
             exponent += 1
             working_on = working_on[:pos] + [randomness.next_char()] + working_on[pos:]
@@ -294,7 +308,9 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         super().__init__(test_case, bytes, value)
 
     def randomize_value(self) -> None:
-        length = randomness.next_int(0, config.configuration.bytes_length + 1)
+        length = randomness.next_int(
+            0, config.configuration.test_creation.bytes_length + 1
+        )
         self._value = randomness.next_bytes(length)
 
     def delta(self) -> None:
@@ -334,7 +350,7 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and len(working_on) < config.configuration.bytes_length
+            and len(working_on) < config.configuration.test_creation.bytes_length
         ):
             exponent += 1
             working_on = working_on[:pos] + [randomness.next_byte()] + working_on[pos:]

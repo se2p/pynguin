@@ -97,6 +97,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         self, var: vr.VariableReference, value: Any
     ) -> ast.Assert:
         self._common_modules.add("pytest")
+        float_precision = config.configuration.test_case_output.float_precision
+
         return ast.Assert(
             test=ast.Compare(
                 left=au.create_var_name(self._variable_names, var, load=True),
@@ -115,14 +117,14 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                             ast.keyword(
                                 arg="abs",
                                 value=ast.Constant(
-                                    value=config.configuration.float_precision,
+                                    value=float_precision,
                                     kind=None,
                                 ),
                             ),
                             ast.keyword(
                                 arg="rel",
                                 value=ast.Constant(
-                                    value=config.configuration.float_precision,
+                                    value=float_precision,
                                     kind=None,
                                 ),
                             ),

@@ -51,7 +51,7 @@ def chromosome_mock():
     ],
 )
 def test_initialise_backend(backend, type_):
-    config.configuration.statistics_backend = backend
+    config.configuration.statistics_output.statistics_backend = backend
     statistics = stat._SearchStatistics()
     assert isinstance(statistics._backend, type_)
 
@@ -68,7 +68,7 @@ def test_output_variable(search_statistics):
 
 
 def test_write_statistics_no_backend():
-    config.configuration.statistics_backend = None
+    config.configuration.statistics_output.statistics_backend = None
     statistics = stat._SearchStatistics()
     assert not statistics.write_statistics()
 
@@ -78,7 +78,9 @@ def test_write_statistics_no_individual(search_statistics):
 
 
 def test_write_statistics_with_individual(capsys, chromosome):
-    config.configuration.statistics_backend = config.StatisticsBackend.CONSOLE
+    config.configuration.statistics_output.statistics_backend = (
+        config.StatisticsBackend.CONSOLE
+    )
     statistics = stat._SearchStatistics()
     statistics.current_individual(chromosome)
     result = statistics.write_statistics()
@@ -88,14 +90,14 @@ def test_write_statistics_with_individual(capsys, chromosome):
 
 
 def test_get_output_variables(chromosome, search_statistics):
-    config.configuration.output_variables = [
+    config.configuration.statistics_output.output_variables = [
         RuntimeVariable.Coverage,
         RuntimeVariable.CoverageTimeline,
         RuntimeVariable.Length,
         RuntimeVariable.ConfigurationId,
         RuntimeVariable.ProjectName,
     ]
-    config.configuration.budget = 0.25
+    config.configuration.stopping.budget = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )
@@ -113,7 +115,7 @@ def test_get_output_variables(chromosome, search_statistics):
 
 
 def test_current_individual_no_backend(chromosome):
-    config.configuration.statistics_backend = None
+    config.configuration.statistics_output.statistics_backend = None
     statistics = stat._SearchStatistics()
     assert statistics.current_individual(chromosome) is None
 

@@ -110,25 +110,9 @@ class Selection(str, enum.Enum):
     """Tournament selection.  Use `tournament_size` to set size."""
 
 
-# pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
-class Configuration:
-    """General configuration for the test generator."""
-
-    algorithm: Algorithm
-    """The algorithm that shall be used for generation"""
-
-    project_path: str
-    """Path to the project the generator shall create tests for."""
-
-    output_path: str
-    """Path to an output folder for the generated test cases."""
-
-    module_name: str
-    """Name of the module for which the generator shall create tests."""
-
-    seed: Optional[int] = None
-    """A predefined seed value for the random number generator that is used."""
+class StatisticsOutputConfiguration:
+    """Configuration related to output."""
 
     report_dir: str = "pynguin-report"
     """Directory in which to put HTML and CSV reports"""
@@ -161,18 +145,119 @@ class Configuration:
     """Label that identifies the project name of Pynguin.  This is useful when
     running experiments."""
 
-    budget: int = 600
-    """Time budget (in seconds) that can be used for generating tests."""
 
-    maximum_test_number: int = 60
-    """Maximum number of test cases to be created."""
+@dataclasses.dataclass
+class TestCaseOutputConfiguration:
+    """Configuration related to test case output."""
 
-    algorithm_iterations: int = 60
-    """Maximum iterations"""
+    output_path: str
+    """Path to an output folder for the generated test cases."""
 
-    global_timeout: int = 120
-    """Maximum seconds allowed for entire search when not using time as stopping
-    criterion."""
+    export_strategy: ExportStrategy = ExportStrategy.PY_TEST
+    """The export strategy determines for which test-runner system the
+    generated tests should fit."""
+
+    max_length_test_case: int = 2500
+    """The maximum number of statement in as test case (normal + assertion
+    statements)"""
+
+    generate_assertions: bool = True
+    """Should assertions be generated?"""
+
+    post_process: bool = True
+    """Should the results be post processed? For example, truncate test cases after
+    statements that raise an exception."""
+
+    float_precision: float = 0.01
+    """Precision to use in float comparisons and assertions"""
+
+
+# pylint:disable=too-many-instance-attributes
+@dataclasses.dataclass
+class SeedingConfiguration:
+    """Configuration related to seeding."""
+
+    seed: Optional[int] = None
+    """A predefined seed value for the random number generator that is used."""
+
+    constant_seeding: bool = True
+    """Should the generator use a static constant seeding technique to improve constant
+    generation?"""
+
+    initial_population_seeding: bool = False
+    """Should the generator use previously existing testcases to seed the initial
+    population?"""
+
+    initial_population_data: str = ""
+    """The path to the file with the pre-existing tests. The path has to include the
+    file itself."""
+
+    seeded_testcases_reuse_probability: float = 0.9
+    """Probability of using seeded testcases when initial population seeding is
+    enabled."""
+
+    initial_population_mutations: int = 0
+    """Number of how often the testcases collected by initial population seeding should
+    be mutated to promote diversity"""
+
+    dynamic_constant_seeding: bool = True
+    """Enables seeding of constants at runtime."""
+
+    seeded_primitives_reuse_probability: float = 0.2
+    """Probability for using seeded primitive values instead of randomly
+    generated ones."""
+
+    seeded_dynamic_values_reuse_probability: float = 0.6
+    """Probability of using dynamically seeded values when a primitive seeded
+     value will be used."""
+
+
+@dataclasses.dataclass
+class MIOPhaseConfiguration:
+    """Configuration for a phase of MIO."""
+
+    number_of_tests_per_target: int
+    """Number of test cases for each target goal to keep in an archive."""
+
+    random_test_or_from_archive_probability: float
+    """Probability [0,1] of sampling a new test at random or choose an existing one in
+    an archive."""
+
+    number_of_mutations: int
+    """Number of mutations allowed to be done on the same individual before
+    sampling a new one."""
+
+
+@dataclasses.dataclass
+class MIOConfiguration:
+    """Configuration that is specific to the MIO approach."""
+
+    initial_config: MIOPhaseConfiguration = dataclasses.field(
+        default_factory=lambda: MIOPhaseConfiguration(
+            number_of_tests_per_target=10,
+            random_test_or_from_archive_probability=0.5,
+            number_of_mutations=1,
+        )
+    )
+    """Configuration to use before focused phase."""
+
+    focused_config: MIOPhaseConfiguration = dataclasses.field(
+        default_factory=lambda: MIOPhaseConfiguration(
+            number_of_tests_per_target=1,
+            random_test_or_from_archive_probability=0.0,
+            number_of_mutations=10,
+        )
+    )
+    """Configuration to use in focused phase"""
+
+    exploitation_starts_at_percent: float = 0.5
+    """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
+    switching to focused phase."""
+
+
+@dataclasses.dataclass
+class RandomConfiguration:
+    """Configuration that is specific to the RANDOM approach."""
 
     max_sequence_length: int = 10
     """The maximum length of sequences that are generated, 0 means infinite."""
@@ -183,16 +268,35 @@ class Configuration:
     counter_threshold: int = 10
     """The counter threshold for purging sequences, 0 means infinite."""
 
-    export_strategy: ExportStrategy = ExportStrategy.PY_TEST
-    """The export strategy determines for which test-runner system the
-    generated tests should fit."""
 
-    max_recursion: int = 10
-    """Recursion depth when trying to create objects in a test case."""
+@dataclasses.dataclass
+class TypeInferenceConfiguration:
+    """Configuration related to type inference."""
+
+    guess_unknown_types: bool = True
+    """Should we guess unknown types while constructing parameters?
+    This might happen in the following cases:
+    The parameter type is unknown, e.g. a parameter is missing a type hint.
+    The parameter is not primitive and cannot be created from the test cluster,
+    e.g. Callable[...]"""
+
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+    """The strategy for type-inference that shall be used"""
 
     max_cluster_recursion: int = 10
     """The maximum level of recursion when calculating the dependencies in the test
     cluster."""
+
+    stub_dir: Optional[str] = None
+    """Path to the pyi-stub files for the StubInferenceStrategy"""
+
+
+@dataclasses.dataclass
+class TestCreationConfiguration:
+    """Configuration related to test creation."""
+
+    max_recursion: int = 10
+    """Recursion depth when trying to create objects in a test case."""
 
     max_delta: int = 20
     """Maximum size of delta for numbers during mutation"""
@@ -221,23 +325,22 @@ class Configuration:
     """Probability to use None in a test case instead of constructing an object.
     Expects values in [0,1]"""
 
-    random_perturbation: float = 0.2
-    """Probability to replace a primitive with a random new value rather than adding
-    a delta."""
+    skip_optional_parameter_probability: float = 0.7
+    """Probability to skip an optional parameter, i.e., do not fill this parameter."""
 
-    guess_unknown_types: bool = True
-    """Should we guess unknown types while constructing parameters?
-    This might happen in the following cases:
-    The parameter type is unknown, e.g. a parameter is missing a type hint.
-    The parameter is not primitive and cannot be created from the test cluster,
-    e.g. Callable[...]"""
+    max_attempts: int = 1000
+    """Number of attempts when generating an object before giving up"""
 
-    change_parameter_probability: float = 0.1
-    """Probability of replacing parameters when mutating a method or constructor
-    statement in a test case.  Expects values in [0,1]"""
+    insertion_uut: float = 0.5
+    """Score for selection of insertion of UUT calls"""
 
-    rank_bias: float = 1.7
-    """Bias for better individuals in rank selection"""
+    max_size: int = 100
+    """Maximum number of test cases in a test suite"""
+
+
+@dataclasses.dataclass
+class SearchAlgorithmConfiguration:
+    """General configuration for search algorithms."""
 
     min_initial_tests: int = 1
     """Minimum number of tests in initial test suites"""
@@ -248,24 +351,14 @@ class Configuration:
     population: int = 50
     """Population size of genetic algorithm"""
 
+    chromosome_length: int = 40
+    """Maximum length of chromosomes during search"""
+
     chop_max_length: bool = True
     """Chop statements after exception if length has reached maximum"""
 
     elite: int = 1
     """Elite size for search algorithm"""
-
-    chromosome_length: int = 40
-    """Maximum length of chromosomes during search"""
-
-    max_length_test_case: int = 2500
-    """The maximum number of statement in as test case (normal + assertion
-    statements)"""
-
-    max_attempts: int = 1000
-    """Number of attempts when generating an object before giving up"""
-
-    insertion_uut: float = 0.5
-    """Score for selection of insertion of UUT calls"""
 
     crossover_rate: float = 0.75
     """Probability of crossover"""
@@ -285,98 +378,103 @@ class Configuration:
     statement_insertion_probability: float = 0.5
     """Initial probability of inserting a new statement in a test case"""
 
-    skip_optional_parameter_probability: float = 0.7
-    """Probability to skip an optional parameter, i.e., do not fill this parameter."""
+    random_perturbation: float = 0.2
+    """Probability to replace a primitive with a random new value rather than adding
+    a delta."""
 
-    max_size: int = 100
-    """Maximum number of test cases in a test suite"""
-
-    number_of_tests_per_target_initial: int = 10
-    """Number of test cases for each target goal to keep in an archive before focused
-    phase. Used for MIO."""
-
-    number_of_tests_per_target_focused: int = 1
-    """Number of test cases for each target goal to keep in an archive in focused
-    phase. Used for MIO."""
-
-    random_test_or_from_archive_probability_initial: float = 0.5
-    """Probability [0,1] of sampling a new test at random or choose an existing one in
-    an archive before focused phase. Used for MIO."""
-
-    random_test_or_from_archive_probability_focused: float = 0.0
-    """Probability [0,1] of sampling a new test at random or choose an existing one in
-    an archive in focused phase. Used for MIO."""
-
-    num_mutations_initial: int = 1
-    """Number of mutations allowed to be done on the same individual before
-    sampling a new one before focused phase. Used for MIO."""
-
-    num_mutations_focused: int = 10
-    """Number of mutations allowed to be done on the same individual before
-    sampling a new one in focused phase. Used for MIO."""
-
-    exploitation_starts_at_percent: float = 0.5
-    """Percentage ]0,1] of search budget after which exploitation is activated, i.e.,
-    switching to focused phase. Used for MIO."""
-
-    stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
-    """What condition should be checked to end the search/test generation."""
-
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
-    """The strategy for type-inference that shall be used"""
-
-    stub_dir: Optional[str] = None
-    """Path to the pyi-stub files for the StubInferenceStrategy"""
-
-    constant_seeding: bool = True
-    """Should the generator use a static constant seeding technique to improve constant
-    generation?"""
-
-    initial_population_seeding: bool = False
-    """Should the generator use previously existing testcases to seed the initial
-    population?"""
-
-    initial_population_data: str = ""
-    """The path to the file with the pre-existing tests. The path has to include the
-    file itself."""
-
-    seeded_testcases_reuse_probability: float = 0.9
-    """Probability of using seeded testcases when initial population seeding is
-    enabled."""
-
-    initial_population_mutations: int = 0
-    """Number of how often the testcases collected by initial population seeding should
-    be mutated to promote diversity"""
-
-    generate_assertions: bool = True
-    """Should assertions be generated?"""
-
-    post_process: bool = True
-    """Should the results be post processed? For example, truncate test cases after
-    statements that raise an exception."""
-
-    float_precision: float = 0.01
-    """Precision to use in float comparisons and assertions"""
-
-    dynamic_constant_seeding: bool = True
-    """Enables seeding of constants at runtime."""
-
-    seeded_primitives_reuse_probability: float = 0.2
-    """Probability for using seeded primitive values instead of randomly
-    generated ones."""
-
-    seeded_dynamic_values_reuse_probability: float = 0.6
-    """Probability of using dynamically seeded values when a primitive seeded
-     value will be used."""
+    change_parameter_probability: float = 0.1
+    """Probability of replacing parameters when mutating a method or constructor
+    statement in a test case.  Expects values in [0,1]"""
 
     tournament_size: int = 5
     """Number of individuals for tournament selection."""
+
+    rank_bias: float = 1.7
+    """Bias for better individuals in rank selection"""
 
     selection: Selection = Selection.TOURNAMENT_SELECTION
     """The selection operator for genetic algorithms."""
 
 
+@dataclasses.dataclass
+class StoppingConfiguration:
+    """Configuration related to when Pynguin should stop."""
+
+    stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
+    """What condition should be checked to end the search/test generation."""
+
+    budget: int = 600
+    """Time budget (in seconds) that can be used for generating tests."""
+
+    maximum_test_number: int = 60
+    """Maximum number of test cases to be created."""
+
+    algorithm_iterations: int = 60
+    """Maximum iterations"""
+
+    global_timeout: int = 120
+    """Maximum seconds allowed for entire search when not using time as stopping
+    criterion."""
+
+
+# pylint: disable=too-many-instance-attributes, pointless-string-statement
+@dataclasses.dataclass
+class Configuration:
+    """General configuration for the test generator."""
+
+    algorithm: Algorithm
+    """The algorithm that shall be used for generation"""
+
+    project_path: str
+    """Path to the project the generator shall create tests for."""
+
+    module_name: str
+    """Name of the module for which the generator shall create tests."""
+
+    test_case_output: TestCaseOutputConfiguration
+    """Configuration for how test cases should be output."""
+
+    statistics_output: StatisticsOutputConfiguration = dataclasses.field(
+        default_factory=StatisticsOutputConfiguration
+    )
+    """Statistic Output configuration."""
+
+    stopping: StoppingConfiguration = dataclasses.field(
+        default_factory=StoppingConfiguration
+    )
+    """Stopping configuration."""
+
+    seeding: SeedingConfiguration = dataclasses.field(
+        default_factory=SeedingConfiguration
+    )
+    """Seeding configuration."""
+
+    type_inference: TypeInferenceConfiguration = dataclasses.field(
+        default_factory=TypeInferenceConfiguration
+    )
+    """Type inference configuration."""
+
+    test_creation: TestCreationConfiguration = dataclasses.field(
+        default_factory=TestCreationConfiguration
+    )
+    """Test creation configuration."""
+
+    search_algorithm: SearchAlgorithmConfiguration = dataclasses.field(
+        default_factory=SearchAlgorithmConfiguration
+    )
+    """Search algorithm configuration."""
+
+    mio: MIOConfiguration = dataclasses.field(default_factory=MIOConfiguration)
+    """Configuration used for the MIO algorithm."""
+
+    random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
+    """Configuration used for the RANDOM algorithm."""
+
+
 # Singleton instance of the configuration.
 configuration = Configuration(
-    algorithm=Algorithm.RANDOM, project_path="", output_path="", module_name=""
+    algorithm=Algorithm.RANDOM,
+    project_path="",
+    module_name="",
+    test_case_output=TestCaseOutputConfiguration(output_path=""),
 )

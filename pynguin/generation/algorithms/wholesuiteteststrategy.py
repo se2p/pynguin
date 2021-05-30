@@ -65,7 +65,10 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             offspring2 = parent2.clone()
 
             try:
-                if randomness.next_float() <= config.configuration.crossover_rate:
+                if (
+                    randomness.next_float()
+                    <= config.configuration.search_algorithm.crossover_rate
+                ):
                     self._crossover_function.cross_over(offspring1, offspring2)
 
                 offspring1.mutate()
@@ -99,7 +102,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
-        for _ in range(config.configuration.population):
+        for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
             for fitness_function in self._fitness_functions:
                 chromosome.add_fitness_function(fitness_function)
@@ -128,7 +131,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         Returns:
             Whether or not the population is already full
         """
-        return len(population) >= config.configuration.population
+        return len(population) >= config.configuration.search_algorithm.population
 
     def elitism(self) -> List[tsc.TestSuiteChromosome]:
         """Copy best individuals.
@@ -137,6 +140,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             A list of the best chromosomes
         """
         elite = []
-        for idx in range(config.configuration.elite):
+        for idx in range(config.configuration.search_algorithm.elite):
             elite.append(self._population[idx].clone())
         return elite

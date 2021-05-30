@@ -68,7 +68,7 @@ def test_compute_ranking_assignment(ranking_function):
         return sol[:1]
 
     ranking_function._get_zero_front = _get_zero_front
-    config.configuration.population = 1
+    config.configuration.search_algorithm.population = 1
 
     result = ranking_function.compute_ranking_assignment(solutions, set())
     assert result == expected

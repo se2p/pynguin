@@ -32,7 +32,7 @@ class RankSelection(SelectionFunction[T]):
             The index that should be used for selection
         """
         random_value = randomness.next_float()
-        bias = config.configuration.rank_bias
+        bias = config.configuration.search_algorithm.rank_bias
         return int(
             len(population)
             * (

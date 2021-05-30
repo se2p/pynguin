@@ -22,12 +22,14 @@ from pynguin.generation.export.pytestexporter import PyTestExporter
     ],
 )
 def test_get_exporter(conf, instance):
-    config.configuration.export_strategy = conf
+    config.configuration.test_case_output.export_strategy = conf
     exporter = ExportProvider.get_exporter()
     assert isinstance(exporter, instance)
 
 
 def test_unknown_strategy():
-    config.configuration.export_strategy = MagicMock(config.ExportStrategy)
+    config.configuration.test_case_output.export_strategy = MagicMock(
+        config.ExportStrategy
+    )
     with pytest.raises(Exception):
         ExportProvider.get_exporter()

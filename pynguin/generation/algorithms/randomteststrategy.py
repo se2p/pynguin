@@ -178,19 +178,20 @@ class RandomTestStrategy(TestGenerationStrategy):
         return object_under_test
 
     def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
-        if config.configuration.max_sequence_length == 0:
+        if config.configuration.random.max_sequence_length == 0:
             selectables = test_cases
         else:
             selectables = [
                 test_case
                 for test_case in test_cases
-                if len(test_case.statements) < config.configuration.max_sequence_length
+                if len(test_case.statements)
+                < config.configuration.random.max_sequence_length
             ]
-        if config.configuration.max_sequences_combined == 0:
+        if config.configuration.random.max_sequences_combined == 0:
             upper_bound = len(selectables)
         else:
             upper_bound = min(
-                len(selectables), config.configuration.max_sequences_combined
+                len(selectables), config.configuration.random.max_sequences_combined
             )
         new_test_cases = randomness.RNG.sample(
             selectables, randomness.RNG.randint(0, upper_bound)

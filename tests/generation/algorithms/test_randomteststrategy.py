@@ -32,7 +32,7 @@ def executor():
 
 
 def test_generate_sequences(executor):
-    config.configuration.budget = 1
+    config.configuration.stopping.budget = 1
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
@@ -55,7 +55,7 @@ def test_generate_sequences_exception(executor):
         chromosome.get_fitness.return_value = 1.0
         return chromosome
 
-    config.configuration.budget = 1
+    config.configuration.stopping.budget = 1
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
@@ -76,8 +76,8 @@ def test_random_test_cases_no_bounds(executor):
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    config.configuration.max_sequences_combined = 0
-    config.configuration.max_sequence_length = 0
+    config.configuration.random.max_sequences_combined = 0
+    config.configuration.random.max_sequence_length = 0
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)
@@ -94,8 +94,8 @@ def test_random_test_cases_with_bounds(executor):
         executor, MagicMock(TestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
-    config.configuration.max_sequences_combined = 2
-    config.configuration.max_sequence_length = 2
+    config.configuration.random.max_sequences_combined = 2
+    config.configuration.random.max_sequence_length = 2
     tc_1 = MagicMock(tc.TestCase)
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)

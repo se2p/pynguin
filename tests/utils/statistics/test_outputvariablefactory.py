@@ -68,7 +68,7 @@ def test_get_integer(chromosome):
 
 
 def test_get_output_variables(factory):
-    config.configuration.budget = 0
+    config.configuration.stopping.budget = 0
     result = factory.get_output_variables()
     assert result == []
 
@@ -91,7 +91,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
         assert name == f"CoverageTimeline_T{index}"  # pragma: no cover
         assert value == 42  # pragma: no cover
 
-    config.configuration.budget = 0.25
+    config.configuration.stopping.budget = 0.25
     chromosome_2 = tsc.TestSuiteChromosome()
     sequence_factory.set_start_time(time.time_ns())
     time.sleep(0.05)
@@ -126,7 +126,7 @@ def test_get_time_line_value_last(sequence_factory):
 
 
 def test_get_time_line_value_interpolation(sequence_factory):
-    config.configuration.timeline_interval = 1
+    config.configuration.statistics_output.timeline_interval = 1
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]
@@ -135,8 +135,8 @@ def test_get_time_line_value_interpolation(sequence_factory):
 
 
 def test_get_time_line_value_no_interpolation(sequence_factory):
-    config.configuration.timeline_interval = 1
-    config.configuration.timeline_interpolation = False
+    config.configuration.statistics_output.timeline_interval = 1
+    config.configuration.statistics_output.timeline_interpolation = False
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]

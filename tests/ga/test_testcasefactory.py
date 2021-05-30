@@ -17,7 +17,7 @@ def test_get_test_case_max_attempts():
     test_case_factory.get_test_case()
     assert (
         test_factory.insert_random_statement.call_count
-        == config.configuration.max_attempts
+        == config.configuration.test_creation.max_attempts
     )
 
 
@@ -31,5 +31,5 @@ def test_get_test_case_success():
     assert (
         1
         <= test_factory.insert_random_statement.call_count
-        <= config.configuration.chromosome_length
+        <= config.configuration.search_algorithm.chromosome_length
     )

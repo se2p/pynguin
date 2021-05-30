@@ -92,15 +92,15 @@ class GlobalTimeStoppingCondition(StoppingCondition):
         self._start_time = value
 
     def limit(self) -> int:
-        return config.configuration.global_timeout
+        return config.configuration.stopping.global_timeout
 
     def is_fulfilled(self) -> bool:
         current_time = time.time_ns()
         if (
-            config.configuration.global_timeout != 0
+            config.configuration.stopping.global_timeout != 0
             and self._start_time != 0
             and (current_time - self._start_time) / 1_000_000_000
-            > config.configuration.global_timeout
+            > config.configuration.stopping.global_timeout
         ):
             self._logger.info("Timeout reached")
             return True
@@ -122,7 +122,7 @@ class MaxIterationsStoppingCondition(StoppingCondition):
 
     def __init__(self):
         self._num_iterations = 0
-        self._max_iterations = config.configuration.algorithm_iterations
+        self._max_iterations = config.configuration.stopping.algorithm_iterations
 
     def limit(self) -> int:
         return self._max_iterations
@@ -145,7 +145,7 @@ class MaxTestsStoppingCondition(StoppingCondition):
 
     def __init__(self):
         self._num_tests = 0
-        self._max_tests = config.configuration.maximum_test_number
+        self._max_tests = config.configuration.stopping.maximum_test_number
 
     def limit(self) -> int:
         return self._max_tests
@@ -167,7 +167,7 @@ class MaxTimeStoppingCondition(StoppingCondition):
     """Stop search after a predefined amount of time."""
 
     def __init__(self):
-        self._max_seconds = config.configuration.budget
+        self._max_seconds = config.configuration.stopping.budget
         self._start_time = 0
 
     @property
