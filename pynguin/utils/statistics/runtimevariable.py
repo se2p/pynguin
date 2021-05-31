@@ -98,6 +98,9 @@ class RuntimeVariable(str, enum.Enum):
     # Number of all generatable types, i.e., the types we can generate values for
     GeneratableTypes = "GeneratableTypes"
 
+    # Branch Coverage that is achieved by simply importing the SUT
+    ImportBranchCoverage = "ImportBranchCoverage"
+
     # The number of goals, i.e., number of fitness functions
     Goals = "Goals"
 
