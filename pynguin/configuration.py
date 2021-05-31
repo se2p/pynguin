@@ -265,9 +265,6 @@ class RandomConfiguration:
     max_sequences_combined: int = 10
     """The maximum number of combined sequences, 0 means infinite."""
 
-    counter_threshold: int = 10
-    """The counter threshold for purging sequences, 0 means infinite."""
-
 
 @dataclasses.dataclass
 class TypeInferenceConfiguration:

@@ -6,13 +6,11 @@
 #
 """Provides an abstract base class for a test generation algorithm."""
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, List, Tuple
+from typing import Iterable, List
 
-import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
@@ -219,45 +217,6 @@ class TestGenerationStrategy(metaclass=ABCMeta):
             if isinstance(exception, (TypeError, AttributeError)):
                 return True
         return False
-
-    @staticmethod
-    def purge_test_cases(
-        test_cases: List[tc.TestCase],
-    ) -> Tuple[List[tc.TestCase], List[tc.TestCase]]:
-        """Purges a list of test cases and returns the purged and remaining.
-
-        A test case is purged if it contains more statements than configured by the
-        `counter_threshold` configuration parameter.  The result is a tuple of two
-        lists of test cases.  The first contains those test cases whose number of
-        statements exceeds the `counter_threshold` value, the second list contains
-        the remaining test cases, whose number of statements does not exceed the
-        `counter_threshold`.
-
-        In case the `counter_threshold` value is `0`, not purging happens; the first
-        list of the result tuple will be empty then, the second will be a list of all
-        test cases.
-
-        Args:
-            test_cases: A list of test cases
-
-        Returns:
-            A tuple of two lists of test cases.  The first contains test cases
-            that where purged, the second contains the remaining test cases
-        """
-        if config.configuration.random.counter_threshold <= 0:
-            return [], test_cases
-
-        purged: List[tc.TestCase] = []
-        remaining: List[tc.TestCase] = []
-        for test_case in test_cases:
-            if (
-                len(test_case.statements)
-                > config.configuration.random.counter_threshold
-            ):
-                purged.append(test_case)
-            else:
-                remaining.append(test_case)
-        return purged, remaining
 
     @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:
