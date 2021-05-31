@@ -133,13 +133,13 @@ def test_constructor_clone_args(constructor_mock):
 
 
 def test_constructor_mutate_no_mutation(constructor_mock, test_case_mock):
-    config.configuration.change_parameter_probability = 0.0
+    config.configuration.search_algorithm.change_parameter_probability = 0.0
     const = ps.ConstructorStatement(test_case_mock, constructor_mock)
     assert not const.mutate()
 
 
 def test_constructor_mutate_nothing_to_mutate(constructor_mock, test_case_mock):
-    config.configuration.change_parameter_probability = 1.0
+    config.configuration.search_algorithm.change_parameter_probability = 1.0
     const = ps.ConstructorStatement(test_case_mock, constructor_mock)
     assert not const.mutate()
 
@@ -156,7 +156,7 @@ def test_constructor_mutate_nothing_to_mutate(constructor_mock, test_case_mock):
 def test_constructor_mutate_simple(
     constructor_mock, test_case_mock, s_param, param, result
 ):
-    config.configuration.change_parameter_probability = 1.0
+    config.configuration.search_algorithm.change_parameter_probability = 1.0
     const = ps.ConstructorStatement(test_case_mock, constructor_mock)
     with mock.patch.object(const, "_mutable_argument_count") as arg_count:
         arg_count.return_value = 5

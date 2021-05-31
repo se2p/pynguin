@@ -247,13 +247,13 @@ def test_bool_primitive_statement_randomize_value(test_case_mock):
 def test_string_primitive_statement_randomize_value(test_case_mock):
     statement = prim.StringPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 0 <= len(statement.value) <= config.configuration.string_length
+    assert 0 <= len(statement.value) <= config.configuration.test_creation.string_length
 
 
 def test_bytes_primitive_statement_randomize_value(test_case_mock):
     statement = prim.BytesPrimitiveStatement(test_case_mock)
     statement.randomize_value()
-    assert 0 <= len(statement.value) <= config.configuration.bytes_length
+    assert 0 <= len(statement.value) <= config.configuration.test_creation.bytes_length
     assert isinstance(statement.value, bytes)
 
 
@@ -368,7 +368,7 @@ def test_bytes_primitive_statement_delta_all(test_case_mock):
 
 
 def test_int_primitive_statement_delta(test_case_mock):
-    config.configuration.max_delta = 10
+    config.configuration.test_creation.max_delta = 10
     statement = prim.IntPrimitiveStatement(test_case_mock, 1)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -377,7 +377,7 @@ def test_int_primitive_statement_delta(test_case_mock):
 
 
 def test_float_primitive_statement_delta_max(test_case_mock):
-    config.configuration.max_delta = 10
+    config.configuration.test_creation.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.5)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
@@ -388,7 +388,7 @@ def test_float_primitive_statement_delta_max(test_case_mock):
 
 
 def test_float_primitive_statement_delta_gauss(test_case_mock):
-    config.configuration.max_delta = 10
+    config.configuration.test_creation.max_delta = 10
     statement = prim.FloatPrimitiveStatement(test_case_mock, 1.0)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5

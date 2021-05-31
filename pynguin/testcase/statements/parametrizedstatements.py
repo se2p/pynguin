@@ -98,7 +98,10 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return new_args
 
     def mutate(self) -> bool:
-        if randomness.next_float() >= config.configuration.change_parameter_probability:
+        if (
+            randomness.next_float()
+            >= config.configuration.search_algorithm.change_parameter_probability
+        ):
             return False
 
         changed = False
@@ -169,7 +172,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             # Create value for currently unset parameter.
             if (
                 randomness.next_float()
-                > config.configuration.skip_optional_parameter_probability
+                > config.configuration.test_creation.skip_optional_parameter_probability
             ):
                 if len(possible_replacements) > 0:
                     self._args[param_name] = randomness.choice(possible_replacements)
@@ -179,7 +182,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         if (
             is_optional_parameter(inf_sig, param_name)
             and randomness.next_float()
-            < config.configuration.skip_optional_parameter_probability
+            < config.configuration.test_creation.skip_optional_parameter_probability
         ):
             # unset parameters that are not necessary with a certain probability,
             # e.g., if they have default value or are *args, **kwargs.

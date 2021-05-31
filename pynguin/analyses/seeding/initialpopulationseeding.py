@@ -87,14 +87,14 @@ class _InitialPopulationSeeding:
         """
         tree = self.get_ast_tree(module_path)
         if tree is None:
-            config.configuration.initial_population_seeding = False
+            config.configuration.seeding.initial_population_seeding = False
             self._logger.info("Provided testcases are not used.")
             return
         transformer = _TestTransformer(self._test_cluster)
         transformer.visit(tree)
         self._testcases = transformer.testcases
         if not self._testcases:
-            config.configuration.initial_population_seeding = False
+            config.configuration.seeding.initial_population_seeding = False
             self._logger.info("None of the provided test cases can be parsed.")
         else:
             self._logger.info(
@@ -108,7 +108,7 @@ class _InitialPopulationSeeding:
     def _mutate_testcases_initially(self):
         """Mutates the initial population."""
         test_factory = TestFactory(self.test_cluster)
-        for _ in range(0, config.configuration.initial_population_mutations):
+        for _ in range(0, config.configuration.seeding.initial_population_mutations):
             for testcase in self._testcases:
                 testcase_wrapper = TestCaseChromosome(testcase, test_factory)
                 testcase_wrapper.mutate()
@@ -173,7 +173,10 @@ class _TestTransformer(ast.NodeVisitor):
                 self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:
-        if self._current_parsable and config.configuration.generate_assertions:
+        if (
+            self._current_parsable
+            and config.configuration.test_case_output.generate_assertions
+        ):
             if (result := ats.create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result
                 self._current_testcase.get_statement(

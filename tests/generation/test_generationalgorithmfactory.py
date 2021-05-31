@@ -62,7 +62,7 @@ def test_instantiate_strategy(algorithm, cls, algorithm_factory):
     ],
 )
 def test_stopping_condition(condition, cls, algorithm_factory):
-    config.configuration.stopping_condition = condition
+    config.configuration.stopping.stopping_condition = condition
     strategy = algorithm_factory.get_search_algorithm()
     assert isinstance(strategy.stopping_condition, cls)
 

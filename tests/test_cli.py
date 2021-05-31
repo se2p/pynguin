@@ -141,11 +141,11 @@ def test_load_configuration_from_file(tmp_path):
     configuration = parsed.config
     expected = config.Configuration(
         algorithm=config.Algorithm.MOSA,
-        seed=42,
-        budget=50,
-        configuration_id="merge checker",
         module_name="hurz",
         project_path=str(tmp_path),
-        output_path=str(tmp_path),
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
     )
+    expected.seeding.seed = 42
+    expected.stopping.budget = 50
+    expected.statistics_output.configuration_id = "merge checker"
     assert configuration == expected

@@ -83,7 +83,7 @@ def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
 
 
 def test_mutation_insert_none(test_case_chromosome):
-    config.configuration.statement_insertion_probability = 0.0
+    config.configuration.search_algorithm.statement_insertion_probability = 0.0
     assert not test_case_chromosome._mutation_insert()
 
 
@@ -97,8 +97,8 @@ def test_mutation_insert_two():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.configuration.statement_insertion_probability = 0.5
-    config.configuration.chromosome_length = 10
+    config.configuration.search_algorithm.statement_insertion_probability = 0.5
+    config.configuration.search_algorithm.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert chromosome._mutation_insert()
@@ -116,8 +116,8 @@ def test_mutation_insert_twice_no_success():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.configuration.statement_insertion_probability = 0.5
-    config.configuration.chromosome_length = 10
+    config.configuration.search_algorithm.statement_insertion_probability = 0.5
+    config.configuration.search_algorithm.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert not chromosome._mutation_insert()
@@ -136,8 +136,8 @@ def test_mutation_insert_max_length():
     test_factory.insert_random_statement.side_effect = side_effect
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    config.configuration.statement_insertion_probability = 0.5
-    config.configuration.chromosome_length = 1
+    config.configuration.search_algorithm.statement_insertion_probability = 0.5
+    config.configuration.search_algorithm.chromosome_length = 1
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0, 0.0]
         assert chromosome._mutation_insert()
@@ -233,9 +233,9 @@ def test_mutate_chop(test_case_chromosome_with_test):
     chromosome.set_changed(False)
     for i in range(50):
         test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    config.configuration.test_insert_probability = 0.0
-    config.configuration.test_change_probability = 0.0
-    config.configuration.test_delete_probability = 0.0
+    config.configuration.search_algorithm.test_insert_probability = 0.0
+    config.configuration.search_algorithm.test_change_probability = 0.0
+    config.configuration.search_algorithm.test_delete_probability = 0.0
     with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = 5
         with mock.patch.object(chromosome, "_test_factory") as factory_mock:
@@ -251,9 +251,9 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     for i in range(50):
         test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
     chromosome.set_changed(False)
-    config.configuration.test_insert_probability = 0.0
-    config.configuration.test_change_probability = 0.0
-    config.configuration.test_delete_probability = 0.0
+    config.configuration.search_algorithm.test_insert_probability = 0.0
+    config.configuration.search_algorithm.test_change_probability = 0.0
+    config.configuration.search_algorithm.test_delete_probability = 0.0
     with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
         mut_mock.return_value = None
         with mock.patch.object(chromosome, "_test_factory") as factory_mock:
@@ -323,7 +323,7 @@ def test_crossover_too_large():
     test_case1.size.return_value = 7
     left = tcc.TestCaseChromosome(test_case0, test_factory=test_factory)
     right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
-    config.configuration.chromosome_length = 3
+    config.configuration.search_algorithm.chromosome_length = 3
     left.set_changed(False)
     left.cross_over(right, 1, 2)
     assert not left.has_changed()

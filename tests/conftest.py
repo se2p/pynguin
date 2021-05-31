@@ -41,7 +41,7 @@ def reset_configuration():
     config.configuration = config.Configuration(
         algorithm=config.Algorithm.RANDOM,
         project_path="",
-        output_path="",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=""),
         module_name="",
     )
 

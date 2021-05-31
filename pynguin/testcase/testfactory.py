@@ -184,7 +184,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding constructor %s", constructor)
-        if recursion_depth > config.configuration.max_recursion:
+        if recursion_depth > config.configuration.test_creation.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -247,7 +247,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding method %s", method)
-        if recursion_depth > config.configuration.max_recursion:
+        if recursion_depth > config.configuration.test_creation.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -309,7 +309,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding field %s", field)
-        if recursion_depth > config.configuration.max_recursion:
+        if recursion_depth > config.configuration.test_creation.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -356,7 +356,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         self._logger.debug("Adding function %s", function)
-        if recursion_depth > config.configuration.max_recursion:
+        if recursion_depth > config.configuration.test_creation.max_recursion:
             self._logger.debug("Max recursion depth reached")
             raise ConstructionFailedException("Max recursion depth reached")
 
@@ -427,7 +427,7 @@ class TestFactory:
         rand = randomness.next_float()
 
         position = randomness.next_int(0, last_position + 1)
-        if rand <= config.configuration.insertion_uut:
+        if rand <= config.configuration.test_creation.insertion_uut:
             success = self.insert_random_call(test_case, position)
         else:
             success = self.insert_random_call_on_object(test_case, position)
@@ -765,7 +765,7 @@ class TestFactory:
             if (
                 is_optional_parameter(inf_signature, parameter_name)
                 and randomness.next_float()
-                < config.configuration.skip_optional_parameter_probability
+                < config.configuration.test_creation.skip_optional_parameter_probability
             ):
                 continue
             found[parameter_name] = test_case.get_random_object(
@@ -885,7 +885,7 @@ class TestFactory:
             if (
                 is_optional_parameter(signature, parameter_name)
                 and randomness.next_float()
-                < config.configuration.skip_optional_parameter_probability
+                < config.configuration.test_creation.skip_optional_parameter_probability
             ):
                 continue
 
@@ -942,9 +942,9 @@ class TestFactory:
 
         objects = test_case.get_objects(parameter_type, position)
         probability = (
-            config.configuration.primitive_reuse_probability
+            config.configuration.test_creation.primitive_reuse_probability
             if is_primitive_type(parameter_type)
-            else config.configuration.object_reuse_probability
+            else config.configuration.test_creation.object_reuse_probability
         )
         if objects and randomness.next_float() <= probability:
             var = randomness.choice(objects)
@@ -980,7 +980,7 @@ class TestFactory:
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
             if (
-                config.configuration.guess_unknown_types
+                config.configuration.type_inference.guess_unknown_types
                 and randomness.next_float() <= 0.85
             ):
                 return self._create_random_type_variable(
@@ -1013,7 +1013,7 @@ class TestFactory:
         exclude: Optional[vr.VariableReference] = None,
     ) -> Optional[vr.VariableReference]:
         if is_type_unknown(parameter_type):
-            if config.configuration.guess_unknown_types:
+            if config.configuration.type_inference.guess_unknown_types:
                 parameter_type = randomness.choice(
                     self._test_cluster.get_all_generatable_types()
                 )
@@ -1072,7 +1072,8 @@ class TestFactory:
 
         if (
             allow_none
-            and randomness.next_float() <= config.configuration.none_probability
+            and randomness.next_float()
+            <= config.configuration.test_creation.none_probability
         ):
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
@@ -1200,7 +1201,9 @@ class TestFactory:
             element_type = args[0]
         else:
             element_type = Any
-        size = randomness.next_int(0, config.configuration.collection_size)
+        size = randomness.next_int(
+            0, config.configuration.test_creation.collection_size
+        )
         elements = []
         for _ in range(size):
             previous_length = test_case.size()
@@ -1229,7 +1232,9 @@ class TestFactory:
         args = get_args(parameter_type)
         if len(args) == 0:
             # Untyped tuple, time to guess...
-            size = randomness.next_int(0, config.configuration.collection_size)
+            size = randomness.next_int(
+                0, config.configuration.test_creation.collection_size
+            )
             args = [
                 randomness.choice(self._test_cluster.get_all_generatable_types())
                 for _ in range(size)
@@ -1263,7 +1268,9 @@ class TestFactory:
         else:
             key_type = Any
             value_type = Any
-        size = randomness.next_int(0, config.configuration.collection_size)
+        size = randomness.next_int(
+            0, config.configuration.test_creation.collection_size
+        )
         elements = []
         for _ in range(size):
             previous_length = test_case.size()

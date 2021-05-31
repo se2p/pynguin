@@ -23,7 +23,9 @@ class TournamentSelection(SelectionFunction[T]):
 
         tournament_round = 0
 
-        while tournament_round < config.Configuration.tournament_size - 1:
+        while (
+            tournament_round < config.configuration.search_algorithm.tournament_size - 1
+        ):
             new_num = randomness.next_int(lower_bound=0, upper_bound=len(population))
             selected = population[new_num]
 

@@ -96,7 +96,10 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
 
         # Form the next population using “preference sorting and non-dominated
         # sorting” on the updated set of goals
-        remain = max(config.configuration.population, len(fronts.get_sub_front(0)))
+        remain = max(
+            config.configuration.search_algorithm.population,
+            len(fronts.get_sub_front(0)),
+        )
         index = 0
         self._population.clear()
 

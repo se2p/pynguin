@@ -66,7 +66,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         Returns:
             A stopping condition
         """
-        stopping_condition = config.configuration.stopping_condition
+        stopping_condition = config.configuration.stopping.stopping_condition
         self._logger.info("Setting stopping condition: %s", stopping_condition)
         if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
             return MaxIterationsStoppingCondition()
@@ -122,7 +122,7 @@ class TestSuiteGenerationAlgorithmFactory(
         test_case_factory: tcf.TestCaseFactory = tcf.RandomLengthTestCaseFactory(
             self._test_factory
         )
-        if config.configuration.initial_population_seeding:
+        if config.configuration.seeding.initial_population_seeding:
             test_case_factory = tcf.SeededTestCaseFactory(
                 test_case_factory, self._test_factory
             )
@@ -202,11 +202,14 @@ class TestSuiteGenerationAlgorithmFactory(
         Raises:
             ConfigurationException: if an unknown function was requested
         """
-        if config.configuration.selection in cls._selections:
-            strategy = cls._selections.get(config.configuration.selection)
+        if config.configuration.search_algorithm.selection in cls._selections:
+            strategy = cls._selections.get(
+                config.configuration.search_algorithm.selection
+            )
             assert strategy, "Selection function cannot be defined as None"
             cls._logger.info(
-                "Use selection function: %s" % config.configuration.selection
+                "Use selection function: %s"
+                % config.configuration.search_algorithm.selection
             )
             return strategy()
         raise ConfigurationException("No suitable selection function found.")

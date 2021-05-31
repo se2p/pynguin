@@ -69,7 +69,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 for assertion in trace.get_assertions(statement):
                     if (
                         test_case.size_with_assertions()
-                        >= config.configuration.max_length_test_case
+                        >= config.configuration.test_case_output.max_length_test_case
                     ):
                         self._logger.debug(
                             "No more assertions are added, because the maximum length "

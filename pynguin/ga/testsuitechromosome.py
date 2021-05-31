@@ -167,11 +167,11 @@ class TestSuiteChromosome(chrom.Chromosome):
                     changed = True
 
         # Randomly add new test cases.
-        alpha = config.configuration.test_insertion_probability
+        alpha = config.configuration.search_algorithm.test_insertion_probability
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.configuration.max_size
+            and self.size() < config.configuration.test_creation.max_size
         ):
             self.add_test_case_chromosome(
                 self._test_case_chromosome_factory.get_chromosome()

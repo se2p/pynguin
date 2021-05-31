@@ -96,7 +96,10 @@ class TestCaseChromosome(chrom.Chromosome):
                 offspring.test_case, other.test_case.get_statement(j)
             )
 
-        if offspring.test_case.size() < config.configuration.chromosome_length:
+        if (
+            offspring.test_case.size()
+            < config.configuration.search_algorithm.chromosome_length
+        ):
             self._test_case = offspring.test_case
             self.set_changed(True)
 
@@ -104,8 +107,8 @@ class TestCaseChromosome(chrom.Chromosome):
         changed = False
 
         if (
-            config.configuration.chop_max_length
-            and self.size() >= config.configuration.chromosome_length
+            config.configuration.search_algorithm.chop_max_length
+            and self.size() >= config.configuration.search_algorithm.chromosome_length
         ):
             last_mutatable_position = self.get_last_mutatable_statement()
             if last_mutatable_position is not None:
@@ -115,15 +118,24 @@ class TestCaseChromosome(chrom.Chromosome):
         # In case mutation removes all calls on the SUT.
         backup = self.test_case.clone()
 
-        if randomness.next_float() <= config.configuration.test_delete_probability:
+        if (
+            randomness.next_float()
+            <= config.configuration.search_algorithm.test_delete_probability
+        ):
             if self._mutation_delete():
                 changed = True
 
-        if randomness.next_float() <= config.configuration.test_change_probability:
+        if (
+            randomness.next_float()
+            <= config.configuration.search_algorithm.test_change_probability
+        ):
             if self._mutation_change():
                 changed = True
 
-        if randomness.next_float() <= config.configuration.test_insert_probability:
+        if (
+            randomness.next_float()
+            <= config.configuration.search_algorithm.test_insert_probability
+        ):
             if self._mutation_insert():
                 changed = True
 
@@ -189,11 +201,11 @@ class TestCaseChromosome(chrom.Chromosome):
             Whether or not the test case was changed
         """
         changed = False
-        alpha = config.configuration.statement_insertion_probability
+        alpha = config.configuration.search_algorithm.statement_insertion_probability
         exponent = 1
         while (
             randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.configuration.chromosome_length
+            and self.size() < config.configuration.search_algorithm.chromosome_length
         ):
             assert self._test_factory, "Mutation requires a test factory."
             max_position = self.get_last_mutatable_statement()

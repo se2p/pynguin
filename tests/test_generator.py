@@ -34,8 +34,9 @@ def test__load_sut_success():
 def test_setup_test_cluster_empty():
     gen.set_configuration(
         configuration=MagicMock(
-            log_file=None,
-            type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+            type_inference=MagicMock(
+                type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS
+            ),
         )
     )
     with mock.patch(
@@ -50,8 +51,9 @@ def test_setup_test_cluster_empty():
 def test_setup_test_cluster_not_empty():
     gen.set_configuration(
         configuration=MagicMock(
-            log_file=None,
-            type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+            type_inference=MagicMock(
+                type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS
+            ),
         )
     )
     with mock.patch(
@@ -108,12 +110,13 @@ def test_integrate(tmp_path):
     project_path = project_path / "docs" / "source" / "_static"
     configuration = config.Configuration(
         algorithm=config.Algorithm.MOSA,
-        budget=1,
+        stopping=config.StoppingConfiguration(budget=1),
         module_name="example",
-        output_path=str(tmp_path),
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(project_path),
-        report_dir=str(tmp_path),
-        statistics_backend=config.StatisticsBackend.NONE,
+        statistics_output=config.StatisticsOutputConfiguration(
+            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+        ),
     )
     gen.set_configuration(configuration)
     result = gen.run_pynguin()

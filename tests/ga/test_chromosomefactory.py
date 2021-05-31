@@ -15,12 +15,12 @@ import pynguin.ga.testsuitechromosomefactory as tscf
 def test_get_chromosome():
     test_case_chromosome_factory = MagicMock(tccf.TestCaseChromosomeFactory)
     factory = tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
-    config.configuration.min_initial_tests = 5
-    config.configuration.max_initial_tests = 5
+    config.configuration.search_algorithm.min_initial_tests = 5
+    config.configuration.search_algorithm.max_initial_tests = 5
     chromosome = factory.get_chromosome()
     assert (
-        config.configuration.min_initial_tests
+        config.configuration.search_algorithm.min_initial_tests
         <= test_case_chromosome_factory.get_chromosome.call_count
-        <= config.configuration.max_initial_tests
+        <= config.configuration.search_algorithm.max_initial_tests
     )
     assert isinstance(chromosome, tsc.TestSuiteChromosome)
