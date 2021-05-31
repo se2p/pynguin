@@ -147,6 +147,13 @@ class ExecutionTracer:
         """
         self._current_thread_ident = current
 
+    @property
+    def import_trace(self) -> ExecutionTrace:
+        """The trace that was generated when the SUT was imported."""
+        copied = ExecutionTrace()
+        copied.merge(self._import_trace)
+        return copied
+
     def get_known_data(self) -> KnownData:
         """Provide known data.
 

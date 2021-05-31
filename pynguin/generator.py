@@ -35,6 +35,7 @@ import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.seeding.constantseeding import static_constant_seeding
+from pynguin.ga.fitnessfunctions.fitness_utilities import compute_branch_coverage
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
@@ -211,6 +212,11 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
     stat.track_output_variable(
         RuntimeVariable.GeneratableTypes,
         len(test_cluster.get_all_generatable_types()),
+    )
+    # TODO(fk) make this work for other criteria beyond branch coverage.
+    stat.track_output_variable(
+        RuntimeVariable.ImportBranchCoverage,
+        compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
     )
 
 
