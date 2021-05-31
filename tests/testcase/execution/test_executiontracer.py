@@ -93,6 +93,14 @@ def test_passed_cmp_predicate():
         pytest.param(Compare.EQ, 0, 0, 0, 1),
         pytest.param(Compare.EQ, "string", 0, inf, 0),
         pytest.param(Compare.EQ, "abc", "cde", 3, 0),
+        pytest.param(Compare.EQ, bytes(range(3)), bytes(range(4, 6)), 3, 0),
+        pytest.param(Compare.EQ, bytes(range(3)), bytes(range(3)), 0, 1),
+        pytest.param(
+            Compare.EQ, bytearray(bytes(range(3))), bytearray(bytes(range(4, 6))), 3, 0
+        ),
+        pytest.param(
+            Compare.EQ, bytearray(bytes(range(3))), bytearray(bytes(range(3))), 0, 1
+        ),
         pytest.param(Compare.NE, 5, 0, 0, 5),
         pytest.param(Compare.NE, 0, 0, 1, 0),
         pytest.param(Compare.NE, "string", 0, 0, inf),

@@ -137,6 +137,18 @@ def is_string(value: Any) -> bool:
     return isinstance(value, str)
 
 
+def is_bytes(value: Any) -> bool:
+    """Check if the given value is a bytes or bytearray
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type bytes or bytearray
+    """
+    return isinstance(value, (bytes, bytearray))
+
+
 def get_class_that_defined_method(method: object) -> Optional[object]:
     """Retrieves the class that defines a method.
 

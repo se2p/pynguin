@@ -18,7 +18,7 @@ from jellyfish import levenshtein_distance
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.utils.type_utils import is_numeric, is_string
+from pynguin.utils.type_utils import is_bytes, is_numeric, is_string
 
 
 @dataclasses.dataclass
@@ -365,6 +365,10 @@ def _eq(val1, val2) -> float:
         return abs(val1 - val2)
     if is_string(val1) and is_string(val2):
         return levenshtein_distance(val1, val2)
+    if is_bytes(val1) and is_bytes(val2):
+        return levenshtein_distance(
+            val1.decode("iso-8859-1"), val2.decode("iso-8859-1")
+        )
     return inf
 
 

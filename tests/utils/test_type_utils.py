@@ -15,6 +15,7 @@ from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
     is_assignable_to,
+    is_bytes,
     is_collection_type,
     is_none_type,
     is_numeric,
@@ -109,6 +110,14 @@ def test_is_numeric(value, result):
 )
 def test_is_string(value, result):
     assert is_string(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [(b"5", True), ("foo", False), (bytearray("test", "ascii"), True), (None, False)],
+)
+def test_is_bytes(value, result):
+    assert is_bytes(value) == result
 
 
 @pytest.mark.parametrize(
