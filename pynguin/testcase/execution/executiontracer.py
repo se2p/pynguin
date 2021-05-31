@@ -427,10 +427,14 @@ def _in(val1, val2) -> float:
     Returns:
         the distance
     """
-    # TODO(fk) iterate over elements and return smallest distance?
     if val1 in val2:
         return 0.0
-    return 1.0
+    # TODO(fk) maybe limit this to certain collections?
+    # Check only if collection size is within some range,
+    # otherwise the check might take very long.
+
+    # Use smallest distance to any element.
+    return min([_eq(val1, v) for v in val2] + [inf])
 
 
 def _nin(val1, val2) -> float:
