@@ -142,7 +142,7 @@ def main(argv: List[str] = None) -> int:
 
     argument_parser = _create_argument_parser()
     parsed = argument_parser.parse_args(argv)
-    _setup_output_path(parsed.config.output_path)
+    _setup_output_path(parsed.config.test_case_output.output_path)
     _setup_logging(parsed.verbosity, parsed.log_file)
 
     set_configuration(parsed.config)
