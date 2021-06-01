@@ -201,24 +201,6 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         """Sends statistics of the current strategy to tracker."""
 
     @staticmethod
-    def has_type_violations(exceptions: List[Exception]) -> bool:
-        """Returns whether or not a list of exceptions contains a type violation.
-
-        A type violation is an exception that indicates such a violation, i.e.,
-        `TypeError` or `Attribute` error.
-
-        Args:
-            exceptions: A list of exceptions
-
-        Returns:
-            Whether or not the list contains a type violations
-        """
-        for exception in exceptions:
-            if isinstance(exception, (TypeError, AttributeError)):
-                return True
-        return False
-
-    @staticmethod
     def is_fulfilled(stopping_condition: StoppingCondition) -> bool:
         """Checks whether a stopping condition is fulfilled.
 

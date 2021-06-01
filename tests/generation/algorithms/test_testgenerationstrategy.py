@@ -28,14 +28,6 @@ def algorithm():
     return _TestGenerationStrategy()
 
 
-def test_not_has_type_violations(algorithm):
-    assert not algorithm.has_type_violations([])
-
-
-def test_has_type_violations(algorithm):
-    assert algorithm.has_type_violations([Exception(), TypeError(), AttributeError()])
-
-
 def test_is_fulfilled(algorithm):
     stopping_condition = MagicMock(StoppingCondition)
     stopping_condition.is_fulfilled.return_value = True
