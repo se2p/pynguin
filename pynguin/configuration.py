@@ -9,6 +9,8 @@ import dataclasses
 import enum
 from typing import List, Optional
 
+from simple_parsing import choice
+
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -419,9 +421,6 @@ class StoppingConfiguration:
 class Configuration:
     """General configuration for the test generator."""
 
-    algorithm: Algorithm
-    """The algorithm that shall be used for generation"""
-
     project_path: str
     """Path to the project the generator shall create tests for."""
 
@@ -430,6 +429,9 @@ class Configuration:
 
     test_case_output: TestCaseOutputConfiguration
     """Configuration for how test cases should be output."""
+
+    algorithm: Algorithm = choice(Algorithm)
+    """The algorithm that shall be used for generation"""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(
         default_factory=StatisticsOutputConfiguration
