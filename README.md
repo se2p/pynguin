@@ -27,8 +27,6 @@ Pynguin is developed at the
 [Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
 of the [University of Passau](https://www.uni-passau.de).
 
-[![pipeline status](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/main/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/main)
-[![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/main/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/main)
 [![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
@@ -40,6 +38,16 @@ of the [University of Passau](https://www.uni-passau.de).
 
 
 ![Pynguin Logo](https://raw.githubusercontent.com/se2p/pynguin/master/docs/source/_static/pynguin-logo.png "Pynguin Logo")
+
+## Attention
+
+Pynguin executes the module under test!
+As a consequence, depending on what code is in that module,
+running Pynguin can cause serious harm to your computer,
+for example, whipe your entire hard disk!
+We recommend running Pynguin in an isolated environment,
+for example, a Docker container, to minimise the risk of damaging
+your system.
 
 
 ## Prerequisites

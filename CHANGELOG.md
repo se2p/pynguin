@@ -9,6 +9,14 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.8.1
+
+- Regroup configuration options
+- Improve branch-distance calculations for data containers
+- Save *import coverage* to a separate output variable
+- Delete some unused code
+- Add warning notice to read-me file
+
 ## Pynguin 0.8.0
 
 - *Breaking:* Renamed `RANDOM_SEARCH` to `RANDOM_TEST_SUITE_SEARCH` to select the 
