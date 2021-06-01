@@ -67,7 +67,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
             A stopping condition
         """
         stopping_condition = config.configuration.stopping.stopping_condition
-        self._logger.info("Setting stopping condition: %s", stopping_condition)
+        self._logger.info("Use stopping condition: %s", stopping_condition)
         if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
             return MaxIterationsStoppingCondition()
         if stopping_condition == config.StoppingCondition.MAX_TESTS:
@@ -220,11 +220,11 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A crossover function
         """
-        self._logger.info("Chosen crossover function: SinglePointRelativeCrossOver()")
+        self._logger.info("Use crossover function: SinglePointRelativeCrossOver")
         return SinglePointRelativeCrossOver()
 
     def _get_ranking_function(self) -> RankingFunction:
-        self._logger.info("Chosen ranking function: RankBasedPreferenceSorting")
+        self._logger.info("Use ranking function: RankBasedPreferenceSorting")
         return RankBasedPreferenceSorting()
 
     def _get_fitness_functions(self) -> List[ff.FitnessFunction]:
