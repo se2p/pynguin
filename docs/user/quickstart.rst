@@ -98,3 +98,6 @@ return values.
   achieve a truly deterministic behaviour and computation.
   Furthermore, it is necessary to set the ``--seed`` command-line option to a fixed value.
 
+.. warning::
+  A yet to be found bug currently prevents Pynguin from having reproducible runs,
+  even when using the options listed below.
