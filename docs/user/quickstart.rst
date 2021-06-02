@@ -100,4 +100,4 @@ return values.
 
 .. warning::
   A yet to be found bug currently prevents Pynguin from having reproducible runs,
-  even when using the options listed below.
+  even when using the options listed above.
