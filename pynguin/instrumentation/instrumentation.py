@@ -222,12 +222,16 @@ class BranchCoverageInstrumentation(Instrumentation):
                     )
                 elif maybe_jump.is_cond_jump():
                     predicate_id = self._instrument_cond_jump(
-                        code_object_id, maybe_compare, node.basic_block
+                        code_object_id, maybe_compare, maybe_jump, node.basic_block
                     )
         return predicate_id
 
     def _instrument_cond_jump(
-        self, code_object_id: int, maybe_compare: Optional[Instr], block: BasicBlock
+        self,
+        code_object_id: int,
+        maybe_compare: Optional[Instr],
+        jump: Instr,
+        block: BasicBlock,
     ) -> int:
         """Instrument a conditional jump.
 
@@ -238,6 +242,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         Args:
             code_object_id: The id of the containing Code Object.
             maybe_compare: The comparison operation, if any.
+            jump: The jump operation.
             block: The containing basic block.
 
         Returns:
@@ -255,6 +260,13 @@ class BranchCoverageInstrumentation(Instrumentation):
             )
         ):
             return self._instrument_compare_based_conditional_jump(
+                block, code_object_id
+            )
+        # Up to 3.9, there was COMPARE_OP EXC_MATCH which was handled below
+        # Beginning with 3.9, there is a combined compare+jump op, which is handled
+        # here.
+        if jump.name == "JUMP_IF_NOT_EXC_MATCH":
+            return self._instrument_exception_based_conditional_jump(
                 block, code_object_id
             )
         return self._instrument_bool_based_conditional_jump(block, code_object_id)
@@ -347,6 +359,44 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("LOAD_CONST", predicate_id, lineno=lineno),
             Instr("LOAD_CONST", compare, lineno=lineno),
             Instr("CALL_METHOD", 4, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
+        return predicate_id
+
+    def _instrument_exception_based_conditional_jump(
+        self, block: BasicBlock, code_object_id: int
+    ) -> int:
+        """Instrument exception-based conditional jumps.
+
+        We add a call to the tracer which reports the values that will be used
+        in the following exception matching case.
+
+        Args:
+            block: The containing basic block.
+            code_object_id: The id of the containing Code Object.
+
+        Returns:
+            The id assigned to the predicate.
+        """
+        lineno = block[self._JUMP_OP_POS].lineno
+        predicate_id = self._tracer.register_predicate(
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
+        )
+        # Insert instructions right before the conditional jump.
+        # We duplicate the values on top of the stack and report
+        # them to the tracer.
+        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
+            Instr("DUP_TOP_TWO", lineno=lineno),
+            Instr("LOAD_CONST", self._tracer, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                ExecutionTracer.executed_exception_match.__name__,
+                lineno=lineno,
+            ),
+            Instr("ROT_FOUR", lineno=lineno),
+            Instr("ROT_FOUR", lineno=lineno),
+            Instr("LOAD_CONST", predicate_id, lineno=lineno),
+            Instr("CALL_METHOD", 3, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
