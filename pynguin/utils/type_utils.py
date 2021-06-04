@@ -232,6 +232,9 @@ def given_exception_matches(err, exc) -> bool:
     Args:
         err: The raised exception
         exc: The matching exception class
+
+    Returns:
+        True, iff the exception matches.
     """
     if err is None or exc is None:
         return False
