@@ -86,6 +86,26 @@ def test_passed_cmp_predicate():
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
+def test_passed_exception_match():
+    tracer = ExecutionTracer()
+    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_exception_match(ValueError(), ValueError, 0)
+    assert (0, 1) in tracer.get_trace().executed_predicates.items()
+    assert (0, 0.0) in tracer.get_trace().true_distances.items()
+    assert (0, 1.0) in tracer.get_trace().false_distances.items()
+
+
+def test_passed_exception_match_not():
+    tracer = ExecutionTracer()
+    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_exception_match(NameError(), ValueError, 0)
+    assert (0, 1) in tracer.get_trace().executed_predicates.items()
+    assert (0, 1.0) in tracer.get_trace().true_distances.items()
+    assert (0, 0.0) in tracer.get_trace().false_distances.items()
+
+
 @pytest.mark.parametrize(
     "cmp,val1,val2,true_dist,false_dist",
     [

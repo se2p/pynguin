@@ -6,6 +6,7 @@
 #
 import importlib
 import os
+import sys
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -18,6 +19,7 @@ from pynguin.instrumentation.instrumentation import (
     DynamicSeedingInstrumentation,
 )
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from tests.conftest import python38, python39plus
 
 
 @pytest.fixture()
@@ -247,7 +249,43 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
+@python38
 def test_exception():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise ValueError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+        func()
+        trace_mock.assert_called_with(True, 0)
+
+
+@python38
+def test_exception_no_match():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise RuntimeError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+        with pytest.raises(RuntimeError):
+            func()
+        trace_mock.assert_called_with(False, 0)
+
+
+@python39plus
+def test_exception_39plus():
     tracer = ExecutionTracer()
 
     def func():
@@ -263,7 +301,8 @@ def test_exception():
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
-def test_exception_no_match():
+@python39plus
+def test_exception_no_match_39plus():
     tracer = ExecutionTracer()
 
     def func():
