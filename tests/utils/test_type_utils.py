@@ -23,7 +23,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     is_string,
     is_type_unknown,
-    wrap_var_param_type,
+    wrap_var_param_type, given_exception_matches,
 )
 
 
@@ -167,3 +167,16 @@ def test_wrap_var_param_type(kind, type_, result):
 )
 def test_is_collection_type(type_, result):
     assert is_collection_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "exception,ex_match,result",
+    [
+        pytest.param(ValueError, ValueError, True),
+        pytest.param(ValueError(), ValueError, True),
+        pytest.param(ValueError(), Exception, True),
+        pytest.param(ValueError(), NameError, False),
+    ],
+)
+def test_given_exception_matches(exception, ex_match, result):
+    assert given_exception_matches(exception, ex_match) == result

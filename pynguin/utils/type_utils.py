@@ -222,3 +222,19 @@ def wrap_var_param_type(type_: Optional[type], param_kind) -> Optional[type]:
             return typing.Dict[str, typing.Any]
         return typing.Dict[str, type_]  # type: ignore
     return type_
+
+
+def given_exception_matches(err, exc) -> bool:
+    """This is a naive approach to figure out if an exception matches, similar to
+    what CPython does here:
+    https://github.com/python/cpython/blob/ae3c66acb89a6104fcd0eea760f80a0287327cc4/Python/errors.c#L231
+
+    Args:
+        err: The raised exception
+        exc: The matching exception class
+    """
+    if err is None or exc is None:
+        return False
+    if not isclass(err):
+        err = type(err)
+    return issubclass(err, exc)
