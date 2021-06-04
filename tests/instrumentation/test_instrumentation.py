@@ -258,9 +258,9 @@ def test_exception():
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+    with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         func()
-        trace_mock.assert_called_with(True, 0)
+        trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
 def test_exception_no_match():
@@ -274,10 +274,10 @@ def test_exception_no_match():
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+    with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         with pytest.raises(RuntimeError):
             func()
-        trace_mock.assert_called_with(False, 0)
+        trace_mock.assert_called_with(RuntimeError, ValueError, 0)
 
 
 @pytest.fixture()
