@@ -323,9 +323,9 @@ class BranchCoverageInstrumentation(Instrumentation):
             compare = operation.arg
         elif operation.name == "IS_OP":
             # Beginning with 3.9, there are separate OPs for various comparisons.
-            compare = Compare.IS if operation.arg else Compare.IS_NOT
+            compare = Compare.IS_NOT if operation.arg else Compare.IS
         elif operation.name == "CONTAINS_OP":
-            compare = Compare.IN if operation.arg else Compare.NOT_IN
+            compare = Compare.NOT_IN if operation.arg else Compare.IN
         else:
             raise RuntimeError(f"Unknown comparison OP {operation}")
 
