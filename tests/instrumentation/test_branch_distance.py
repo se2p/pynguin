@@ -5,9 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from bytecode import Compare
 
 from pynguin.instrumentation.branch_distance import BranchDistanceInstrumentation
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
@@ -18,6 +20,13 @@ def simple_module():
     simple = importlib.import_module("tests.fixtures.instrumentation.simple")
     simple = importlib.reload(simple)
     return simple
+
+
+@pytest.fixture()
+def comparison_module():
+    comparison = importlib.import_module("tests.fixtures.instrumentation.comparison")
+    comparison = importlib.reload(comparison)
+    return comparison
 
 
 @pytest.fixture()
@@ -215,3 +224,19 @@ def test_integrate_branch_distance_instrumentation(
         == branchless_function_count
     )
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
+
+
+@pytest.mark.parametrize(
+    "op",
+    [pytest.param(op) for op in Compare if op != Compare.EXC_MATCH],
+)
+def test_comparison(comparison_module, op):
+    tracer = ExecutionTracer()
+    function_callable = getattr(comparison_module, "_" + op.name.lower())
+    instr = BranchDistanceInstrumentation(tracer)
+    function_callable.__code__ = instr._instrument_code_recursive(
+        function_callable.__code__, 0
+    )
+    with mock.patch.object(tracer, "executed_compare_predicate") as trace_mock:
+        function_callable("a", "a")
+        trace_mock.assert_called_with("a", "a", 0, op)
