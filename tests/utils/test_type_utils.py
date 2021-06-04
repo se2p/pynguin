@@ -14,6 +14,7 @@ from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
+    given_exception_matches,
     is_assignable_to,
     is_bytes,
     is_collection_type,
@@ -23,7 +24,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     is_string,
     is_type_unknown,
-    wrap_var_param_type, given_exception_matches,
+    wrap_var_param_type,
 )
 
 
