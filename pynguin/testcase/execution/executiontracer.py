@@ -268,7 +268,7 @@ class ExecutionTracer:
     def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
-        """A predicate that is based on a comparision was executed.
+        """A predicate that is based on a comparison was executed.
 
         Args:
             value1: the first value
