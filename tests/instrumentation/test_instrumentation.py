@@ -247,6 +247,39 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
+def test_exception():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise ValueError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+        func()
+        trace_mock.assert_called_with(True, 0)
+
+
+def test_exception_no_match():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise RuntimeError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
+        with pytest.raises(RuntimeError):
+            func()
+        trace_mock.assert_called_with(False, 0)
+
+
 @pytest.fixture()
 def instr():
     instr = DynamicSeedingInstrumentation()
