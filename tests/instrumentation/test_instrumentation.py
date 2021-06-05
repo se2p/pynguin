@@ -6,6 +6,7 @@
 #
 import importlib
 import os
+import threading
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -316,6 +317,45 @@ def test_exception_no_match_39plus():
         with pytest.raises(RuntimeError):
             func()
         trace_mock.assert_called_with(RuntimeError, ValueError, 0)
+
+
+def test_exception_integrate():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise ValueError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    tracer.current_thread_ident = threading.currentThread().ident
+    func()
+    assert {0} == tracer.get_trace().executed_code_objects
+    assert {0: 1} == tracer.get_trace().executed_predicates
+    assert {0: 0.0} == tracer.get_trace().true_distances
+    assert {0: 1.0} == tracer.get_trace().false_distances
+
+
+def test_exception_no_match_integrate():
+    tracer = ExecutionTracer()
+
+    def func():
+        try:
+            raise RuntimeError()
+        except ValueError:
+            pass
+
+    instr = BranchCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    tracer.current_thread_ident = threading.currentThread().ident
+    with pytest.raises(RuntimeError):
+        func()
+    assert {0} == tracer.get_trace().executed_code_objects
+    assert {0: 1} == tracer.get_trace().executed_predicates
+    assert {0: 1.0} == tracer.get_trace().true_distances
+    assert {0: 0.0} == tracer.get_trace().false_distances
 
 
 @pytest.fixture()
