@@ -61,7 +61,7 @@ your system.
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.8 (we have not yet tested with Python 3.9, there might
+- You have installed Python 3.8 or 3.9 (we have not yet tested with Python 3.10, there might
   be some problems due to changed internals regarding the byte-code instrumentation).
 - You have a recent Linux/macOS/Windows machine.
 
