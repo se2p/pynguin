@@ -18,7 +18,12 @@ from jellyfish import levenshtein_distance
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.utils.type_utils import is_bytes, is_numeric, is_string
+from pynguin.utils.type_utils import (
+    given_exception_matches,
+    is_bytes,
+    is_numeric,
+    is_string,
+)
 
 
 @dataclasses.dataclass
@@ -268,12 +273,12 @@ class ExecutionTracer:
     def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
     ) -> None:
-        """A predicate that is based on a comparision was executed.
+        """A predicate that is based on a comparison was executed.
 
         Args:
             value1: the first value
             value2: the second value
-            predicate: the predicate
+            predicate: the predicate identifier
             cmp_op: the compare operation
         """
         if threading.currentThread().ident != self._current_thread_ident:
@@ -300,7 +305,7 @@ class ExecutionTracer:
 
         Args:
             value: the value
-            predicate: the predicate
+            predicate: the predicate identifier
         """
         if threading.currentThread().ident != self._current_thread_ident:
             return
@@ -316,6 +321,36 @@ class ExecutionTracer:
             distance_true = 0.0
             distance_false = 0.0
             if value:
+                distance_false = 1.0
+            else:
+                distance_true = 1.0
+
+            self._update_metrics(distance_false, distance_true, predicate)
+        finally:
+            self.enable()
+
+    def executed_exception_match(self, err, exc, predicate: int):
+        """A predicate that is based on exception matching was executed.
+
+        Args:
+            err: The raised exception
+            exc: The matching condition
+            predicate: the predicate identifier
+        """
+        if threading.currentThread().ident != self._current_thread_ident:
+            return
+
+        if self._is_disabled():
+            return
+
+        try:
+            self.disable()
+            assert (
+                predicate in self._known_data.existing_predicates
+            ), "Cannot trace unknown predicate"
+            distance_true = 0.0
+            distance_false = 0.0
+            if given_exception_matches(err, exc):
                 distance_false = 1.0
             else:
                 distance_true = 1.0

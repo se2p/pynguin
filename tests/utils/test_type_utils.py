@@ -14,6 +14,7 @@ from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
+    given_exception_matches,
     is_assignable_to,
     is_bytes,
     is_collection_type,
@@ -167,3 +168,16 @@ def test_wrap_var_param_type(kind, type_, result):
 )
 def test_is_collection_type(type_, result):
     assert is_collection_type(type_) == result
+
+
+@pytest.mark.parametrize(
+    "exception,ex_match,result",
+    [
+        pytest.param(ValueError, ValueError, True),
+        pytest.param(ValueError(), ValueError, True),
+        pytest.param(ValueError(), Exception, True),
+        pytest.param(ValueError(), NameError, False),
+    ],
+)
+def test_given_exception_matches(exception, ex_match, result):
+    assert given_exception_matches(exception, ex_match) == result
