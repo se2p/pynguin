@@ -88,7 +88,7 @@ Pynguin will then print a list of its command-line parameters.
 
 A minimal full command line to invoke Pynguin could be the following,
 where we assume that a project `foo` is located in `/tmp/foo`,
-we want to store Pynguin's in `/tmp/testgen`,
+we want to store Pynguin's generated tests in `/tmp/testgen`,
 and we want to generate tests using a whole-suite approach for the module `foo.bar`
 (wrapped for better readability):
 ```bash
