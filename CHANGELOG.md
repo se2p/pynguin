@@ -9,6 +9,12 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.9.0
+
+- Proper support for Python 3.9
+- Improve branch-distance calculations for `byte` values
+- Cleanup algorithm implementations
+
 ## Pynguin 0.8.1
 
 - Regroup configuration options
