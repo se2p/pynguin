@@ -274,7 +274,7 @@ def test_exception_no_match():
         try:
             raise RuntimeError()
         except ValueError:
-            pass
+            pass  # pragma: no cover
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
@@ -345,7 +345,7 @@ def test_exception_no_match_integrate():
         try:
             raise RuntimeError()
         except ValueError:
-            pass
+            pass  # pragma: no cover
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
