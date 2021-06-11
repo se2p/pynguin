@@ -43,28 +43,28 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2.5"}
 pydot = "^1.4"
-rich = "^10.1"
+rich = "^10.3"
 pytest = "^6.2"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
 pytest = "^6.2"
-black = {version = "^21.4b0", allow-prereleases = true}
-pytest-cov = "^2.11"
+black = {version = "^21.6b0", allow-prereleases = true}
+pytest-cov = "^2.12"
 pylint = "^2.8"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.2"
-hypothesis = "^6.10"
+hypothesis = "^6.14"
 pytest-mock = "^3.6"
-mypy = "^0.812"
+mypy = "^0.902"
 isort = {extras = ["pyproject"], version = "^5.8"}
-pre-commit = "^2.12"
+pre-commit = "^2.13"
 darglint = "^1.8"
-pyupgrade = "^2.13"
+pyupgrade = "^2.19"
 bandit = "^1.7"
 safety = "^1.10"
-sphinx = "^3.5"
+sphinx = "^4.0"
 sphinx-autodoc-typehints = "^1.12"
 flake8 = "^3.9"
 pytest-bdd = "^4.0"
@@ -116,6 +116,15 @@ line_length=88
 multi_line_output=3
 include_trailing_comma=true
 indent='    '
+
+[tool.mypy]
+check_untyped_defs = true
+ignore_errors = false
+ignore_missing_imports = true
+strict_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
 
 [tool.pytest.ini_options]
 minversion = "6.0.0rc1"
