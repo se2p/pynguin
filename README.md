@@ -52,7 +52,7 @@ of the [University of Passau](https://www.uni-passau.de).
 Pynguin executes the module under test!
 As a consequence, depending on what code is in that module,
 running Pynguin can cause serious harm to your computer,
-for example, whipe your entire hard disk!
+for example, wipe your entire hard disk!
 We recommend running Pynguin in an isolated environment,
 for example, a Docker container, to minimise the risk of damaging
 your system.
