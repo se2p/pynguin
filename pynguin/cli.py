@@ -11,6 +11,7 @@ line.
 """
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -133,6 +134,14 @@ def main(argv: List[str] = None) -> int:
         An integer representing the success of the program run.  0 means
         success, all non-zero exit codes indicate errors.
     """
+    if "PYNGUIN_DANGER_AWARE" not in os.environ:
+        print("Environment variable 'PYNGUIN_DANGER_AWARE' not set. Aborting...")
+        print(
+            "Please refer to the documentation (https://pynguin.readthedocs.io/en/latest/)"
+        )
+        print("to see why this happens and what you must do to prevent it.")
+        return -1
+
     install()
     if argv is None:
         argv = sys.argv
