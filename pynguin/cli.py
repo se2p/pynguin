@@ -119,6 +119,10 @@ def _setup_logging(
         logger.addHandler(console_handler)
 
 
+_DANGER_ENV = "PYNGUIN_DANGER_AWARE"
+"""People may wipe their disk, so we give them a heads up."""
+
+
 def main(argv: List[str] = None) -> int:
     """Entry point for the CLI of the Pynguin automatic unit test generation framework.
 
@@ -134,12 +138,12 @@ def main(argv: List[str] = None) -> int:
         An integer representing the success of the program run.  0 means
         success, all non-zero exit codes indicate errors.
     """
-    if "PYNGUIN_DANGER_AWARE" not in os.environ:
-        print("Environment variable 'PYNGUIN_DANGER_AWARE' not set. Aborting...")
+    if _DANGER_ENV not in os.environ:
         print(
-            "Please refer to the documentation (https://pynguin.readthedocs.io/en/latest/)"
+            f"""Environment variable '{_DANGER_ENV}' not set. Aborting...
+Please refer to the documentation (https://pynguin.readthedocs.io/en/latest/)"
+to see why this happens and what you must do to prevent it."""
         )
-        print("to see why this happens and what you must do to prevent it.")
         return -1
 
     install()

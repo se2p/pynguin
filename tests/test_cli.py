@@ -7,6 +7,7 @@
 import argparse
 import importlib
 import logging
+import os
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, call
@@ -15,6 +16,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.cli import (
+    _DANGER_ENV,
     _create_argument_parser,
     _expand_arguments_if_necessary,
     _setup_logging,
@@ -28,11 +30,12 @@ def test_main_empty_argv():
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
                 with mock.patch("pynguin.cli._setup_output_path"):
-                    generator_mock.return_value = ReturnCode.OK
-                    parser = MagicMock()
-                    parser_mock.return_value = parser
-                    main()
-                    assert len(parser.parse_args.call_args[0][0]) > 0
+                    with mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}):
+                        generator_mock.return_value = ReturnCode.OK
+                        parser = MagicMock()
+                        parser_mock.return_value = parser
+                        main()
+                        assert len(parser.parse_args.call_args[0][0]) > 0
 
 
 def test_main_with_argv():
@@ -40,12 +43,18 @@ def test_main_with_argv():
         with mock.patch("pynguin.cli._create_argument_parser") as parser_mock:
             with mock.patch("pynguin.cli._setup_logging"):
                 with mock.patch("pynguin.cli._setup_output_path"):
-                    generator_mock.return_value = ReturnCode.OK
-                    parser = MagicMock()
-                    parser_mock.return_value = parser
-                    args = ["foo", "--help"]
-                    main(args)
-                    assert parser.parse_args.call_args == call(args[1:])
+                    with mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}):
+                        generator_mock.return_value = ReturnCode.OK
+                        parser = MagicMock()
+                        parser_mock.return_value = parser
+                        args = ["foo", "--help"]
+                        main(args)
+                        assert parser.parse_args.call_args == call(args[1:])
+
+
+def test_main_no_env_marker():
+    with mock.patch.dict(os.environ, {}, clear=True):
+        assert main([]) == -1
 
 
 def test__create_argument_parser():
