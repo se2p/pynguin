@@ -52,8 +52,8 @@ of the [University of Passau](https://www.uni-passau.de).
 Pynguin executes the module under test!
 As a consequence, depending on what code is in that module,
 running Pynguin can cause serious harm to your computer,
-for example, whipe your entire hard disk!
-We recommend running Pynguin in an isolated environment,
+for example, wipe your entire hard disk!
+We recommend running Pynguin in an isolated environment;
 for example, a Docker container, to minimise the risk of damaging
 your system.
 
@@ -75,8 +75,8 @@ Pynguin can be easily installed using the `pip` tool by typing:
 pip install pynguin
 ```
 
-Make sure that your version of `pip` is the one of the Python 3.8 interpreted or a
-virtual environment that uses Python 3.8 as its interpreter as any older version is
+Make sure that your version of `pip` is the same as the Python 3.8 interpreted or a
+virtual environment that uses Python 3.8 as its interpreter, as any older version is
 not supported by Pynguin!
 
 ## Using Pynguin
