@@ -9,6 +9,10 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.9.1
+
+- Fix spelling errors in README
+
 ## Pynguin 0.9.0
 
 - Proper support for Python 3.9
