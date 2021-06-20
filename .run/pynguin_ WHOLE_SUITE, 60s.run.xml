@@ -14,6 +14,7 @@
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
       <env name="PYTHONHASHSEED" value="0" />
+      <env name="PYNGUIN_DANGER_AWARE" value="" />
     </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/pynguin" />
