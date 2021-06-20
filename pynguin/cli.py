@@ -140,8 +140,10 @@ def main(argv: List[str] = None) -> int:
     """
     if _DANGER_ENV not in os.environ:
         print(
-            f"""Environment variable '{_DANGER_ENV}' not set. Aborting...
-Please refer to the documentation (https://pynguin.readthedocs.io/en/latest/)"
+            f"""Environment variable '{_DANGER_ENV}' not set.
+Aborting to avoid harming your system.
+Please refer to the documentation
+(https://pynguin.readthedocs.io/en/latest/user/quickstart.html)
 to see why this happens and what you must do to prevent it."""
         )
         return -1

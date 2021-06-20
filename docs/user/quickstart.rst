@@ -6,19 +6,27 @@ Quickstart
 Eager to start?  Make sure that Pynguin is :ref:`installed <install>` properly.
 
 .. warning::
-  Pynguin actually executes the code of the subject under test.  That
+  Pynguin actually executes the code of the module under test.  That
   means, if the code you want to generate tests for does something bad, for example
   wipes your disk, there is nothing that prevents it from doing so!
+  This also includes code that is transitively imported by the module under test.
+
   To mitigate this issue, we recommend running Pynguin in a Docker container with
   appropriate mounts from the host system's file system.
   See the ``pynguin-docker.sh`` script in Pynguin's source repository for documentation
   on the necessary mounts.
-  We do not provide any support and are not reliable if you break your computer by
+
+  To help prevent harming the system that runs Pynguin, its CLI will immediately abort
+  unless the environment variable ``PYNGUIN_DANGER_AWARE`` is set. In setting this
+  variable, you acknowledge that you are aware of the possible dangers of executing code
+  with random inputs.
+
+  We do not provide any support and are not responsible if you break your computer by
   executing Pynguin on some random code from the internet!
   Be careful and check the code before actually executing it—which is good advice anyway.
 
-*Developers:* If you know of a similar technique to Java's security manager mechanism
-in Python, which we can use to mitigate this issue, please let us know.
+  *Developers:* If you know of a similar technique to Java's security manager mechanism
+  in Python, which we can use to mitigate this issue, please let us know.
 
 Use the Bundled Example
 -----------------------

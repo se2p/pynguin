@@ -81,6 +81,8 @@ not supported by Pynguin!
 
 ## Using Pynguin
 
+Before you continue, please read the [quick start guide](https://pynguin.readthedocs.io/en/latest/user/quickstart.html)
+
 Pynguin is a command-line application.
 Once you installed it to a virtual environment, you can invoke the tool by typing
 `pynguin` inside this virtual environment.
