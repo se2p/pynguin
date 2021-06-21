@@ -9,6 +9,18 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.9.2
+
+- Add explicit code-execution prevention (thanks to @Wooza).
+
+  Pynguin now requires you to set the `PYNGUIN_DANGER_AWARE` environment
+  variable before it actually does test generation.  This was added due to the
+  fact that Pynguin executes the module under test, including its dependencies,
+  which could potentially cause harm on the user's system.  By requiring the
+  variable to be set explicitly, a user confirms that they are aware of this
+  issue.  Inside the Docker container, the variable is set automatically; we
+  highly recommend this way of executing Pynguin!
+
 ## Pynguin 0.9.1
 
 - Fix spelling errors in README
