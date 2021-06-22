@@ -57,7 +57,7 @@ pytest-picked = "^0.4"
 pytest-xdist = "^2.2"
 hypothesis = "^6.14"
 pytest-mock = "^3.6"
-mypy = "^0.902"
+mypy = "^0.910"
 isort = {extras = ["pyproject"], version = "^5.8"}
 pre-commit = "^2.13"
 darglint = "^1.8"
