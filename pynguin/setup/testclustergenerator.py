@@ -9,6 +9,7 @@ import dataclasses
 import importlib
 import inspect
 import logging
+import typing
 from typing import List, Set, Type
 
 from typing_inspect import get_args, is_union_type
@@ -62,6 +63,13 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._inference = typeinference.TypeInference(
             strategies=self._initialise_type_inference_strategies()
         )
+        self._enable_conditional_typing_imports()
+
+    @staticmethod
+    def _enable_conditional_typing_imports():
+        """Enable imports that are conditional on the typing.TYPE_CHECKING variable.
+        See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING"""
+        typing.TYPE_CHECKING = True
 
     @staticmethod
     def _initialise_type_inference_strategies() -> List[TypeInferenceStrategy]:
