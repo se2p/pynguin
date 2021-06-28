@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import os
-from typing import Dict, Set, Type
+from typing import Dict, Set, Type, cast
 
 import pytest
 
@@ -155,3 +155,15 @@ def _extract_method_names(accessible_objects: Set[GenericAccessibleObject]) -> S
         else f"{elem.owner.__name__}.__init__"
         for elem in accessible_objects
     }
+
+
+def test_conditional_import_forward_ref():
+    cluster = TestClusterGenerator(
+        "tests.fixtures.cluster.conditional_import"
+    ).generate_cluster()
+    accessible_objects = list(cluster.accessible_objects_under_test)
+    constructor = cast(GenericConstructor, accessible_objects[0])
+    assert (
+        str(constructor.inferred_signature.parameters["arg0"])
+        == "<class 'tests.fixtures.cluster.complex_dependency.SomeOtherType'>"
+    )
