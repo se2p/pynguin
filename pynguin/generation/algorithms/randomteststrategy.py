@@ -20,7 +20,6 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.statistics.timer import Timer
 
 
 class RandomTestStrategy(TestGenerationStrategy):
@@ -35,9 +34,9 @@ class RandomTestStrategy(TestGenerationStrategy):
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
+        self.before_search_start()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
-        generation: int = 0
         for fitness_function in self._fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
@@ -46,60 +45,43 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome, failing_test_chromosome
         )
 
-        while (
-            not self._stopping_condition.is_fulfilled()
-            and combined_chromosome.get_fitness() != 0.0
-        ):
+        self.before_first_search_iteration(combined_chromosome)
+        while self.resources_left() and combined_chromosome.get_fitness() != 0.0:
             try:
-                generation += 1
-                self._stopping_condition.iterate()
                 self.generate_sequence(
                     test_chromosome,
                     failing_test_chromosome,
-                    generation,
                 )
                 combined_chromosome = self._combine_current_individual(
                     test_chromosome, failing_test_chromosome
-                )
-                stat.current_individual(combined_chromosome)
-                self._logger.info(
-                    "Generation: %5i. Best fitness: %5f, Best coverage %5f",
-                    generation,
-                    combined_chromosome.get_fitness(),
-                    combined_chromosome.get_coverage(),
                 )
             except (ConstructionFailedException, GenerationException) as exception:
                 self._logger.debug(
                     "Generate test case failed with exception %s", exception
                 )
+            self.after_search_iteration(combined_chromosome)
 
-        self._logger.debug("Number of algorithm iterations: %d", generation)
-        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
-
-        combined_chromosome = self._combine_current_individual(
-            test_chromosome, failing_test_chromosome
+        # TODO(fk) is this still required?
+        stat.track_output_variable(
+            RuntimeVariable.ExecutionResults, self._execution_results
         )
+        self.after_search_finish()
         return combined_chromosome
 
     def generate_sequence(
         self,
         test_chromosome: tsc.TestSuiteChromosome,
         failing_test_chromosome: tsc.TestSuiteChromosome,
-        execution_counter: int,
     ) -> None:
         """Implements one step of the adapted Randoop algorithm.
 
         Args:
             test_chromosome: The list of currently successful test cases
             failing_test_chromosome: The list of currently not successful test cases
-            execution_counter: A current number of algorithm iterations
 
         Raises:
             GenerationException: In case an error occurs during generation
         """
-        self._logger.info("Algorithm iteration %d", execution_counter)
-        timer = Timer(name="Sequence generation", logger=None)
-        timer.start()
         objects_under_test: Set[
             gao.GenericAccessibleObject
         ] = self.test_cluster.accessible_objects_under_test
@@ -136,9 +118,10 @@ class RandomTestStrategy(TestGenerationStrategy):
         ):
             return
 
-        with Timer(name="Execution time", logger=None):
-            # Execute new sequence
-            exec_result = self._executor.execute(new_test.test_case)
+        # Execute new sequence
+        exec_result = self._executor.execute(new_test.test_case)
+        new_test.set_last_execution_result(exec_result)
+        new_test.set_changed(False)
 
         # Classify new test case and outputs
         if exec_result.has_test_exceptions():
@@ -147,7 +130,6 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome.add_test_case_chromosome(new_test)
             # TODO(sl) What about extensible flags?
         self._execution_results.append(exec_result)
-        timer.stop()
 
     @staticmethod
     def _combine_current_individual(
@@ -157,12 +139,6 @@ class RandomTestStrategy(TestGenerationStrategy):
         combined = passing_chromosome.clone()
         combined.add_test_case_chromosomes(failing_chromosome.test_case_chromosomes)
         return combined
-
-    def send_statistics(self) -> None:
-        super().send_statistics()
-        stat.track_output_variable(
-            RuntimeVariable.ExecutionResults, self._execution_results
-        )
 
     @staticmethod
     def _random_public_method(

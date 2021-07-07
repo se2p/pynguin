@@ -43,7 +43,6 @@ def test_generate_sequences(executor):
     algorithm.generate_sequence = lambda t, f, e: None  # pragma: no cover
     test_cases = algorithm.generate_tests()
     assert test_cases.size() == 0
-    assert len(logger.method_calls) == 1
 
 
 def test_generate_sequences_exception(executor):
@@ -139,7 +138,6 @@ def test_generate_sequence(has_exceptions, executor):
         algorithm.generate_sequence(
             tsc.TestSuiteChromosome(),
             tsc.TestSuiteChromosome(),
-            0,
         )
 
 
@@ -158,5 +156,4 @@ def test_generate_sequence_duplicate(executor):
         algorithm.generate_sequence(
             tsc.TestSuiteChromosome(),
             tsc.TestSuiteChromosome(),
-            0,
         )

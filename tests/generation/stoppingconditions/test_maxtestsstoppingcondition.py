@@ -7,13 +7,13 @@
 import pytest
 
 from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxTestsStoppingCondition,
+    MaxTestExecutionsStoppingCondition,
 )
 
 
 @pytest.fixture
 def stopping_condition():
-    return MaxTestsStoppingCondition()
+    return MaxTestExecutionsStoppingCondition()
 
 
 def test_set_get_limit(stopping_condition):
@@ -28,6 +28,6 @@ def test_is_not_fulfilled(stopping_condition):
 
 def test_is_fulfilled(stopping_condition):
     stopping_condition.set_limit(1)
-    stopping_condition.iterate()
-    stopping_condition.iterate()
+    stopping_condition.after_test_case_execution(None, None)
+    stopping_condition.after_test_case_execution(None, None)
     assert stopping_condition.is_fulfilled()

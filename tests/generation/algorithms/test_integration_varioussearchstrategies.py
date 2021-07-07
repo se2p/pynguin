@@ -31,20 +31,27 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
             "tests.fixtures.examples.impossible",
             "tests.fixtures.examples.difficult",
             "tests.fixtures.examples.queue",
+            "tests.fixtures.examples.type_inference",
         ],
         [
             config.Algorithm.RANDOM_TEST_SUITE_SEARCH,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
+            config.Algorithm.MIO,
+            config.Algorithm.WHOLE_SUITE,
+            config.Algorithm.RANDOM,
         ],
     ),
 )
-def test_integrate_randomsearch(module_name: str, algorithm):
-    # TODO(fk) reduce direct dependencies to config.INSTANCE
+def test_integrate_algorithms(module_name: str, algorithm):
     config.configuration.algorithm = algorithm
-    config.configuration.stopping.budget = 1
+    config.configuration.stopping.maximum_test_executions = 10
+    config.configuration.stopping.stopping_condition = (
+        config.StoppingCondition.MAX_TEST_EXECUTIONS
+    )
     config.configuration.module_name = module_name
     config.configuration.search_algorithm.min_initial_tests = 1
     config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.population = 2
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):

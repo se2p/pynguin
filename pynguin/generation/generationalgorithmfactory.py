@@ -19,7 +19,9 @@ import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
+import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
+import pynguin.utils.statistics.statisticsobserver as sso
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
@@ -44,7 +46,8 @@ from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestS
 from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
-    MaxTestsStoppingCondition,
+    MaxStatementExecutionsStoppingCondition,
+    MaxTestExecutionsStoppingCondition,
     MaxTimeStoppingCondition,
     StoppingCondition,
 )
@@ -60,6 +63,16 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
+    # pylint:disable=line-too-long
+    _stopping_conditions: Dict[
+        config.StoppingCondition, Callable[[], StoppingCondition]
+    ] = {
+        config.StoppingCondition.MAX_ITERATIONS: MaxIterationsStoppingCondition,
+        config.StoppingCondition.MAX_TEST_EXECUTIONS: MaxTestExecutionsStoppingCondition,
+        config.StoppingCondition.MAX_STATEMENT_EXECUTIONS: MaxStatementExecutionsStoppingCondition,
+        config.StoppingCondition.MAX_TIME: MaxTimeStoppingCondition,
+    }
+
     def get_stopping_condition(self) -> StoppingCondition:
         """Instantiates the stopping condition depending on the configuration settings.
 
@@ -68,12 +81,8 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         """
         stopping_condition = config.configuration.stopping.stopping_condition
         self._logger.info("Use stopping condition: %s", stopping_condition)
-        if stopping_condition == config.StoppingCondition.MAX_ITERATIONS:
-            return MaxIterationsStoppingCondition()
-        if stopping_condition == config.StoppingCondition.MAX_TESTS:
-            return MaxTestsStoppingCondition()
-        if stopping_condition == config.StoppingCondition.MAX_TIME:
-            return MaxTimeStoppingCondition()
+        if stopping_condition in self._stopping_conditions:
+            return self._stopping_conditions[stopping_condition]()
         self._logger.warning("Unknown stopping condition: %s", stopping_condition)
         return MaxTimeStoppingCondition()
 
@@ -165,7 +174,13 @@ class TestSuiteGenerationAlgorithmFactory(
 
         stopping_condition = self.get_stopping_condition()
         strategy.stopping_condition = stopping_condition
-        strategy.reset_stopping_conditions()
+        strategy.add_search_observer(stopping_condition)
+        if stopping_condition.observes_execution:
+            self._executor.add_observer(stopping_condition)
+        strategy.add_search_observer(so.LogSearchObserver())
+        strategy.add_search_observer(sso.SequenceStartTimeObserver())
+        strategy.add_search_observer(sso.IterationObserver())
+        strategy.add_search_observer(sso.BestIndividualObserver())
 
         crossover_function = self._get_crossover_function()
         strategy.crossover_function = crossover_function

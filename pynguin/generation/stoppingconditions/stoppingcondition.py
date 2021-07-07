@@ -5,41 +5,37 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an interface for a stopping condition of the algorithm."""
-import logging
 import time
 from abc import ABCMeta, abstractmethod
+from typing import Optional
 
 import pynguin.configuration as config
+import pynguin.ga.testsuitechromosome as tsc
+import pynguin.generation.searchobserver as so
+import pynguin.testcase.execution.executionobserver as eo
+import pynguin.testcase.execution.executionresult as res
+import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.testcase as tc
+from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
-class StoppingCondition(metaclass=ABCMeta):
+class StoppingCondition(so.SearchObserver, eo.ExecutionObserver, metaclass=ABCMeta):
     """Provides an interface for a stopping condition of the algorithm."""
 
-    _current_value = 0
+    def __init__(self, observes_execution: bool = False):
+        self._observes_execution = observes_execution
 
-    @property
+    @abstractmethod
     def current_value(self) -> int:
         """Provide how much of the budget we have used.
 
         Returns:
             The current value of the budget
         """
-        return self._current_value
-
-    @current_value.setter
-    def current_value(self, value: int) -> None:
-        """Forces a specific amount of used budget.  Handle with care!
-
-        Args:
-            value: The new amount of used budget for this StoppingCondition
-        """
-        self._current_value = value
 
     @abstractmethod
     def limit(self) -> int:
         """Get upper limit of resources.
-
-        Mainly used for `__repr__()` and `__str__()`
 
         Returns:
             The limit  # noqa: DAR202
@@ -65,55 +61,45 @@ class StoppingCondition(metaclass=ABCMeta):
             limit: The new upper limit
         """
 
-    @abstractmethod
-    def iterate(self) -> None:
-        """Shall be called in each algorithm iteration.
-
-        Does nothing if the stopping condition does not care for algorithm
-        iterations, it must not raise an exception in such a case!
-        """
-
-
-class GlobalTimeStoppingCondition(StoppingCondition):
-    """Provides a stopping condition respecting the global time."""
-
-    _logger = logging.getLogger(__name__)
-
-    def __init__(self):
-        self._start_time = 0
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.current_value} / {self.limit()}"
 
     @property
-    def current_value(self) -> int:
-        current_time = time.time_ns()
-        return (current_time - self._start_time) // 1_000_000_000
+    def observes_execution(self) -> bool:
+        """Should this observer be attached to the executor?"""
+        return self._observes_execution
 
-    @current_value.setter
-    def current_value(self, value: int) -> None:
-        self._start_time = value
-
-    def limit(self) -> int:
-        return config.configuration.stopping.global_timeout
-
-    def is_fulfilled(self) -> bool:
-        current_time = time.time_ns()
-        if (
-            config.configuration.stopping.global_timeout != 0
-            and self._start_time != 0
-            and (current_time - self._start_time) / 1_000_000_000
-            > config.configuration.stopping.global_timeout
-        ):
-            self._logger.info("Timeout reached")
-            return True
-        return False
-
-    def reset(self) -> None:
-        if self._start_time == 0:
-            self._start_time = time.time_ns()
-
-    def set_limit(self, limit: int) -> None:
+    def before_test_case_execution(self, test_case: tc.TestCase):
         pass
 
-    def iterate(self) -> None:
+    def after_test_case_execution(
+        self, test_case: tc.TestCase, result: res.ExecutionResult
+    ):
+        pass
+
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ):
+        pass
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        pass
+
+    def before_search_start(self, start_time_ns: int) -> None:
+        pass
+
+    def before_first_search_iteration(self, initial: tsc.TestSuiteChromosome) -> None:
+        pass
+
+    def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
+        pass
+
+    def after_search_finish(self) -> None:
         pass
 
 
@@ -121,8 +107,12 @@ class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
     def __init__(self):
+        super().__init__()
         self._num_iterations = 0
         self._max_iterations = config.configuration.stopping.algorithm_iterations
+
+    def current_value(self) -> int:
+        return self._num_iterations
 
     def limit(self) -> int:
         return self._max_iterations
@@ -136,55 +126,100 @@ class MaxIterationsStoppingCondition(StoppingCondition):
     def set_limit(self, limit: int) -> None:
         self._max_iterations = limit
 
-    def iterate(self) -> None:
+    def before_search_start(self, start_time_ns: int) -> None:
+        self._num_iterations = 0
+
+    def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
         self._num_iterations += 1
 
 
-class MaxTestsStoppingCondition(StoppingCondition):
-    """A stopping condition that checks the maximum number of test cases."""
+class MaxTestExecutionsStoppingCondition(StoppingCondition):
+    """A stopping condition that checks the maximum number of test case executions."""
 
     def __init__(self):
-        self._num_tests = 0
-        self._max_tests = config.configuration.stopping.maximum_test_number
+        super().__init__(observes_execution=True)
+        self._num_executed_tests = 0
+        self._max_test_executions = (
+            config.configuration.stopping.maximum_test_executions
+        )
+
+    def current_value(self) -> int:
+        return self._num_executed_tests
 
     def limit(self) -> int:
-        return self._max_tests
+        return self._max_test_executions
 
     def is_fulfilled(self) -> bool:
-        return self._num_tests >= self._max_tests
+        return self._num_executed_tests >= self._max_test_executions
 
     def reset(self) -> None:
-        self._num_tests = 0
+        self._num_executed_tests = 0
 
     def set_limit(self, limit: int) -> None:
-        self._max_tests = limit
+        self._max_test_executions = limit
 
-    def iterate(self) -> None:
-        self._num_tests += 1
+    def before_search_start(self, start_time_ns: int) -> None:
+        self._num_executed_tests = 0
+
+    def after_test_case_execution(
+        self, test_case: tc.TestCase, result: res.ExecutionResult
+    ):
+        self._num_executed_tests += 1
+
+
+class MaxStatementExecutionsStoppingCondition(StoppingCondition):
+    """A stopping condition that checks the maximum number of executed statements."""
+
+    def __init__(self):
+        super().__init__(observes_execution=True)
+        self._num_executed_statements = 0
+        self._max_executed_statements = (
+            config.configuration.stopping.maximum_statement_executions
+        )
+
+    def current_value(self) -> int:
+        return self._num_executed_statements
+
+    def limit(self) -> int:
+        return self._max_executed_statements
+
+    def is_fulfilled(self) -> bool:
+        return self._num_executed_statements >= self._max_executed_statements
+
+    def reset(self) -> None:
+        self._num_executed_statements = 0
+
+    def set_limit(self, limit: int) -> None:
+        self._max_executed_statements = limit
+
+    def before_search_start(self, start_time_ns: int) -> None:
+        self._num_executed_statements = 0
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        self._num_executed_statements += 1
 
 
 class MaxTimeStoppingCondition(StoppingCondition):
     """Stop search after a predefined amount of time."""
 
     def __init__(self):
+        super().__init__()
         self._max_seconds = config.configuration.stopping.budget
         self._start_time = 0
 
-    @property
     def current_value(self) -> int:
-        current_time = time.time_ns()
-        return (current_time - self._start_time) // 1_000_000_000
-
-    @current_value.setter
-    def current_value(self, value: int) -> None:
-        self._start_time = value
+        return (time.time_ns() - self._start_time) // 1_000_000_000
 
     def limit(self) -> int:
         return self._max_seconds
 
     def is_fulfilled(self) -> bool:
-        current_time = time.time_ns()
-        return (current_time - self._start_time) / 1_000_000_000 > self._max_seconds
+        return ((time.time_ns() - self._start_time) / 1_000_000_000) > self._max_seconds
 
     def reset(self) -> None:
         self._start_time = time.time_ns()
@@ -192,5 +227,5 @@ class MaxTimeStoppingCondition(StoppingCondition):
     def set_limit(self, limit: int) -> None:
         self._max_seconds = limit
 
-    def iterate(self) -> None:
-        pass
+    def before_search_start(self, start_time_ns: int) -> None:
+        self._start_time = start_time_ns

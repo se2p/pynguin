@@ -7,7 +7,6 @@
 """Provides a mixin that wraps test-case chromosomes into a test-suite chromosome."""
 from typing import Iterable
 
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testcasechromosome as tcc
@@ -36,7 +35,7 @@ class WrapTestSuiteMixin:
 
     def create_test_suite(
         self, population: Iterable[tcc.TestCaseChromosome]
-    ) -> chrom.Chromosome:
+    ) -> tsc.TestSuiteChromosome:
         """Wraps a population of test-case chromosomes in a test-suite chromosome.
 
         This will add the fitness function attached to this mixin to the resulting

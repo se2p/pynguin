@@ -38,7 +38,7 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
         self._goals_manager: _GoalsManager
 
     def generate_tests(self) -> chrom.Chromosome:
-        self._logger.info("Start generating tests")
+        self.before_search_start()
         self._archive = Archive(set(self._fitness_functions))
         self._goals_manager = _GoalsManager(self._archive, self.executor)
         self._number_of_goals = len(self._fitness_functions)
@@ -46,7 +46,6 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
             RuntimeVariable.Goals, self._number_of_goals
         )
 
-        self._current_iteration = 0
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
 
@@ -59,17 +58,14 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
                 fronts.get_sub_front(i), self._goals_manager.current_goals
             )
 
-        while (
-            not self._stopping_condition.is_fulfilled()
-            and len(self._goals_manager.uncovered_goals) > 0
-        ):
-            self.evolve()
-            self._notify_iteration()
-            self._current_iteration += 1
-
-        stat.track_output_variable(
-            RuntimeVariable.AlgorithmIterations, self._current_iteration
+        self.before_first_search_iteration(
+            self.create_test_suite(self._archive.solutions)
         )
+        while self.resources_left() and len(self._goals_manager.uncovered_goals) > 0:
+            self.evolve()
+            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+
+        self.after_search_finish()
         return self.create_test_suite(
             self._archive.solutions
             if len(self._archive.solutions) > 0

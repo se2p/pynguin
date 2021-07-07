@@ -22,7 +22,6 @@ import logging
 import os
 import sys
 import threading
-import time
 from typing import List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
@@ -232,12 +231,10 @@ def _run() -> ReturnCode:
         _LOGGER.info(
             "Start generating sequences using %s", config.configuration.algorithm
         )
-        stat.set_sequence_start_time(time.time_ns())
         generation_result = algorithm.generate_tests()
         _LOGGER.info(
             "Stop generating sequences using %s", config.configuration.algorithm
         )
-        algorithm.send_statistics()
 
         with Timer(name="Re-execution time", logger=None):
             stat.track_output_variable(

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import time
+from unittest import mock
 
 import pytest
 
@@ -19,11 +20,11 @@ def stopping_condition():
 
 
 def test_current_value(stopping_condition):
-    stopping_condition.reset()
-    start = time.time_ns()
-    stopping_condition.current_value = start
-    val = stopping_condition.current_value
-    assert val >= 0
+    const = 1_000_000_000
+    with mock.patch("time.time_ns") as time_mock:
+        time_mock.return_value = 6 * const
+        stopping_condition.before_search_start(5 * const)
+        assert stopping_condition.current_value() == 1
 
 
 def test_set_get_limit(stopping_condition):
@@ -41,7 +42,3 @@ def test_is_fulfilled(stopping_condition):
     stopping_condition.set_limit(0)
     time.sleep(0.05)
     assert stopping_condition.is_fulfilled()
-
-
-def test_iterate(stopping_condition):
-    stopping_condition.iterate()

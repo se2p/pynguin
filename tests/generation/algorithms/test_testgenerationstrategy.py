@@ -1,40 +1,34 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2020 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from unittest.mock import MagicMock
 
-import pytest
-
-import pynguin.ga.chromosome as chrom
+from pynguin.ga import chromosome as chrom
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.generation.stoppingconditions.stoppingcondition import (
+    MaxStatementExecutionsStoppingCondition,
+)
 
 
-class _TestGenerationStrategy(TestGenerationStrategy):
-    def __init__(self):
-        super().__init__()
-
+class DummyTestStrategy(TestGenerationStrategy):
     def generate_tests(self) -> chrom.Chromosome:
-        raise NotImplementedError(
-            "This class is not intended for usage but only for testing"
-        )
+        pass  # pragma: no cover
 
 
-@pytest.fixture
-def algorithm():
-    return _TestGenerationStrategy()
+def test_progress():
+    strategy = DummyTestStrategy()
+    stopping = MaxStatementExecutionsStoppingCondition()
+    stopping.set_limit(10)
+    stopping.after_statement_execution(None, None)
+    strategy.stopping_condition = stopping
+    assert strategy.progress() == 0.1
 
 
-def test_is_fulfilled(algorithm):
-    stopping_condition = MagicMock(StoppingCondition)
-    stopping_condition.is_fulfilled.return_value = True
-    assert algorithm.is_fulfilled(stopping_condition)
-
-
-def test_is_not_fulfilled(algorithm):
-    stopping_condition = MagicMock(StoppingCondition)
-    stopping_condition.is_fulfilled.return_value = False
-    assert not algorithm.is_fulfilled(stopping_condition)
+def test_add_search_observer():
+    strategy = DummyTestStrategy()
+    obs = MagicMock()
+    strategy.add_search_observer(obs)
+    assert strategy._search_observers == [obs]
