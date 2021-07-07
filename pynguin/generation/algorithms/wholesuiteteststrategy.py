@@ -31,6 +31,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self.before_search_start()
         self._population = self._get_random_population()
         self._sort_population()
+        self.before_first_search_iteration(self._get_best_individual())
         while (
             self.resources_left() and self._get_best_individual().get_fitness() != 0.0
         ):
