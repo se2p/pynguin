@@ -41,7 +41,7 @@ simple-parsing = "^0.0.15"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
-networkx = {extras = ["pydot"], version = "^2.5"}
+networkx = {extras = ["pydot"], version = "2.5.1"}
 pydot = "^1.4"
 rich = "^10.3"
 pytest = "^6.2"
