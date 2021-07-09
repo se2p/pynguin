@@ -8,7 +8,6 @@ import logging
 import queue
 from typing import Dict, List, Set, Tuple
 
-import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.programgraph as pg
 import pynguin.configuration as config
 import pynguin.coverage.branch.branchcoveragegoal as bcg
@@ -17,6 +16,7 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.controlflow import cfg
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,

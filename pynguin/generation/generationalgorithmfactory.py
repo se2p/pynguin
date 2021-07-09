@@ -188,7 +188,7 @@ class TestSuiteGenerationAlgorithmFactory(
         if config.configuration.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.configuration.algorithm)
             assert strategy, "Strategy cannot be defined as None"
-            cls._logger.info("Use strategy: %s" % config.configuration.algorithm)
+            cls._logger.info("Use strategy: %s", config.configuration.algorithm)
             return strategy()
         raise ConfigurationException("No suitable generation strategy found.")
 
@@ -208,8 +208,8 @@ class TestSuiteGenerationAlgorithmFactory(
             )
             assert strategy, "Selection function cannot be defined as None"
             cls._logger.info(
-                "Use selection function: %s"
-                % config.configuration.search_algorithm.selection
+                "Use selection function: %s",
+                config.configuration.search_algorithm.selection,
             )
             return strategy()
         raise ConfigurationException("No suitable selection function found.")

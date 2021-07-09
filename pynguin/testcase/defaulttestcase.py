@@ -139,8 +139,8 @@ class DefaultTestCase(tc.TestCase):
         else:
             if len(self._statements) != len(other._statements):
                 return False
-            for i in range(len(self._statements)):
-                if self._statements[i] != other._statements[i]:
+            for i, st in enumerate(self._statements):
+                if st != other._statements[i]:
                     return False
         return True
 

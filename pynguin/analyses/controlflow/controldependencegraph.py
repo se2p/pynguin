@@ -11,9 +11,9 @@ import sys
 from dataclasses import dataclass
 from typing import Set
 
-import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
+from pynguin.analyses.controlflow import cfg
 
 
 # pylint:disable=too-few-public-methods.
