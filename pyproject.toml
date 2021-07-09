@@ -28,6 +28,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Topic :: Education :: Testing",
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Unit",
