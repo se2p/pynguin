@@ -319,7 +319,7 @@ def find_gen_callable(
     call_name = str(call.func.attr)  # type: ignore
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
-            owner = str(obj.owner).split(".")[-1].split("'")[0]
+            owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0]
             call_id = call.func.value.id  # type: ignore
             if call_name == owner and call_id not in ref_dict:
                 return obj
