@@ -414,7 +414,7 @@ class StoppingConfiguration:
     maximum_statement_executions: int = 600
     """Maximum number of test cases to be executed."""
 
-    algorithm_iterations: int = 60
+    maximum_iterations: int = 60
     """Maximum iterations"""
 
     global_timeout: int = 120

@@ -109,7 +109,7 @@ class MaxIterationsStoppingCondition(StoppingCondition):
     def __init__(self):
         super().__init__()
         self._num_iterations = 0
-        self._max_iterations = config.configuration.stopping.algorithm_iterations
+        self._max_iterations = config.configuration.stopping.maximum_iterations
 
     def current_value(self) -> int:
         return self._num_iterations
