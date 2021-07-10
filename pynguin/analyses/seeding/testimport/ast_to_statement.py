@@ -292,7 +292,7 @@ def find_gen_callable(
     """Traverses the accessible objects under test and returns the one matching with the
     ast.call object. Unfortunately, there is no possibility to clearly determine if the
     ast.call object is a constructor, method or function. Hence, the looping over all
-    ccessible objects is unavoidable. Then, by the name of the ast.call and by the
+    accessible objects is unavoidable. Then, by the name of the ast.call and by the
     owner (functions do not have one, constructors and methods have), it is possible to
     decide which accessible object to choose. This should also be unique, because the
     name of a function should be unique in a module. The name of a method should be
@@ -319,7 +319,7 @@ def find_gen_callable(
     call_name = str(call.func.attr)  # type: ignore
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
-            owner = str(obj.owner).split(".")[-1].split("'")[0]
+            owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0]
             call_id = call.func.value.id  # type: ignore
             if call_name == owner and call_id not in ref_dict:
                 return obj

@@ -10,8 +10,8 @@ from __future__ import annotations
 import queue
 from typing import Dict, Set
 
-import pynguin.analyses.controlflow.cfg as cfg
 import pynguin.analyses.controlflow.programgraph as pg
+from pynguin.analyses.controlflow import cfg
 
 
 class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):

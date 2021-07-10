@@ -135,6 +135,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             return 0
         interval = config.configuration.statistics_output.timeline_interval
         preferred_time = interval * index
+        # pylint:disable=consider-using-enumerate
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
             # the value for
