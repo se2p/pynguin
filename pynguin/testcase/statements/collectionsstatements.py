@@ -295,7 +295,7 @@ class DictStatement(
         )
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
-        if len(possibles_keys) == 0 and len(possibles_values) == 0:
+        if len(possibles_keys) == 0 or len(possibles_values) == 0:
             return None
         return (
             randomness.choice(possibles_keys),
