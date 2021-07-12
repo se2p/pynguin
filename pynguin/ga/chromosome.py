@@ -7,16 +7,15 @@
 """Provides an abstract base class for chromosomes"""
 from __future__ import annotations
 
-import abc
-from abc import abstractmethod
-from statistics import mean
+import statistics
+from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Optional
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.fitnessfunction as ff
 
 
-class Chromosome(metaclass=abc.ABCMeta):
+class Chromosome(metaclass=ABCMeta):
     """An abstract base class for chromosomes"""
 
     def __init__(self, orig: Optional[Chromosome] = None):
@@ -166,7 +165,9 @@ class Chromosome(metaclass=abc.ABCMeta):
             The mean coverage value
         """
         self._check_for_new_evaluation()
-        return mean([value.coverage for value in self._fitness_values.values()])
+        return statistics.mean(
+            [value.coverage for value in self._fitness_values.values()]
+        )
 
     def get_coverage_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Provides the coverage value for a certain fitness function
