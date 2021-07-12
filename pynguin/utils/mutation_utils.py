@@ -38,7 +38,7 @@ def alpha_exponent_insertion(
     while randomness.next_float() <= pow(alpha, exponent):
         # Randomize the position for each insertion.
         if len(elements) > 0:
-            randomness.next_int(0, len(elements) + 1)
+            pos = randomness.next_int(0, len(elements) + 1)
 
         exponent += 1
         value = value_supplier()
