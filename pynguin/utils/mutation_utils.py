@@ -9,8 +9,7 @@ from typing import Callable, List, Optional, TypeVar
 
 from pynguin.utils import randomness
 
-#  pylint:disable=invalid-name
-T = TypeVar("T")
+T = TypeVar("T")  # pylint:disable=invalid-name
 
 
 def alpha_exponent_insertion(
