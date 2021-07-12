@@ -276,6 +276,7 @@ class DictStatement(
             )
             + [element[change_idx]]
         )
+        assert len(new) == 2, "Tuple must consist of key and value"
         return new[0], new[1]
 
     def _insertion_supplier(
