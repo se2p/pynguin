@@ -152,6 +152,13 @@ class TestFactory:
                 position=new_position,
                 recursion_depth=recursion_depth,
             )
+        if isinstance(accessible, gao.GenericEnum):
+            return self.add_enum(
+                test_case,
+                accessible,
+                position=new_position,
+                recursion_depth=recursion_depth,
+            )
         raise ConstructionFailedException(f"Unknown accessible type: {accessible}")
 
     # pylint: disable=too-many-arguments
@@ -324,6 +331,43 @@ class TestFactory:
         assert callee, "The callee must not be None"
         position = position + test_case.size() - length
         statement = f_stmt.FieldStatement(test_case, field, callee)
+        return test_case.add_statement(statement, position)
+
+    def add_enum(
+        self,
+        test_case: tc.TestCase,
+        enum_: gao.GenericEnum,
+        position: int = -1,
+        recursion_depth: int = 0,
+    ) -> vr.VariableReference:
+        """Adds a primitive based on an enum value at a given position.
+
+        If the position is not given, the enum access will be appended to the end of
+        the test case.  A given recursion depth controls how far the factory searches
+        for suitable parameter values.
+
+        Args:
+            test_case: The test case
+            enum_: The enum to add to the test case
+            position: The position where to put the statement in the test case,
+                defaults to the end of the test case
+            recursion_depth: A recursion limit for the search of values
+
+        Returns:
+            A variable reference to the enum value
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
+        """
+        self._logger.debug("Adding enum %s", enum_)
+        if recursion_depth > config.configuration.test_creation.max_recursion:
+            self._logger.debug("Max recursion depth reached")
+            raise ConstructionFailedException("Max recursion depth reached")
+
+        if position < 0:
+            position = test_case.size()
+
+        statement = prim.EnumPrimitiveStatement(test_case, enum_)
         return test_case.add_statement(statement, position)
 
     # pylint: disable=too-many-arguments

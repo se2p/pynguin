@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import enum
 import inspect
 from inspect import Parameter, Signature
 from unittest import mock
@@ -211,6 +212,18 @@ def test_add_function(provide_callables_from_fixtures_modules):
     result = factory.add_function(test_case, generic_function, position=0)
     assert isinstance(result.variable_type, type(None))
     assert test_case.size() <= 4
+
+
+def test_add_enum(provide_callables_from_fixtures_modules):
+    test_case = dtc.DefaultTestCase()
+    enum_ = enum.Enum("Foo", "BAR")
+    generic_enum = gao.GenericEnum(enum_)
+    cluster = MagicMock(TestCluster)
+    factory = tf.TestFactory(cluster)
+    result = factory.add_enum(test_case, generic_enum)
+    assert test_case.statements[0].value_name == "BAR"
+    assert result.variable_type == enum_
+    assert test_case.size() == 1
 
 
 @pytest.mark.parametrize(
