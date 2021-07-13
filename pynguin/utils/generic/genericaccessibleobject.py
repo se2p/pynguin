@@ -5,11 +5,12 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """
-Provide wrappers around constructors, methods, function and fields.
+Provide wrappers around constructors, methods, function, fields and enums.
 Think of these like the reflection classes in Java.
 """
 import abc
-from typing import Callable, Optional, Set, Type
+import enum
+from typing import Callable, List, Optional, Set, Type, cast
 
 from pynguin.typeinference.strategy import InferredSignature
 
@@ -36,6 +37,15 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
             The owner of this accessible object
         """
         return self._owner
+
+    # pylint: disable=no-self-use
+    def is_enum(self) -> bool:
+        """Is this a enum?
+
+        Returns:
+            Whether or not this is an enum
+        """
+        return False
 
     # pylint: disable=no-self-use
     def is_method(self) -> bool:
@@ -89,6 +99,44 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         Returns:
             A set of types  # noqa: DAR202
         """
+
+
+class GenericEnum(GenericAccessibleObject):
+    """Models an enum."""
+
+    def __init__(self, owner: Type[enum.Enum]):
+        super().__init__(owner)
+        self._names = list(map(lambda e: e.name, cast(List[enum.Enum], list(owner))))
+
+    def generated_type(self) -> Optional[Type]:
+        return self._owner
+
+    @property
+    def names(self) -> List[str]:
+        """All names that this enum has.
+
+        Returns:
+            All possible values of this enum."""
+        return self._names
+
+    def is_enum(self) -> bool:
+        return True
+
+    def get_dependencies(self) -> Set[Type]:
+        return set()  # pylint:disable=no-self-use
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericEnum):
+            return False
+        return self._owner == other._owner
+
+    def __hash__(self):
+        return hash(self._owner)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.owner})"
 
 
 class GenericCallableAccessibleObject(
