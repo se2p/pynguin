@@ -6,6 +6,7 @@
 #
 """Provides capabilities to create a test cluster"""
 import dataclasses
+import enum
 import importlib
 import inspect
 import logging
@@ -25,6 +26,7 @@ from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
+    GenericEnum,
     GenericFunction,
     GenericMethod,
 )
@@ -87,7 +89,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         raise ConfigurationException("Invalid type-inference strategy")
 
     def generate_cluster(self) -> TestCluster:
-        """Generate new test cluster from the configured modules.
+        """Generate new test cluster from the configured module.
 
         Returns:
             The new test cluster
@@ -166,19 +168,24 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             return
         self._analyzed_classes.add(klass)
         self._logger.debug("Analyzing class %s", klass)
-        generic_constructor = GenericConstructor(
-            klass, self._inference.infer_type_info(klass.__init__)[0]
-        )
-        if self._discard_accessible_with_missing_type_hints(generic_constructor):
-            return
+        if issubclass(klass, enum.Enum):
+            generic: typing.Union[GenericEnum, GenericConstructor] = GenericEnum(klass)
+        else:
+            generic = generic_constructor = GenericConstructor(
+                klass, self._inference.infer_type_info(klass.__init__)[0]
+            )
+            if self._discard_accessible_with_missing_type_hints(generic_constructor):
+                return
+            self._add_callable_dependencies(generic_constructor, recursion_level)
 
-        self._test_cluster.add_generator(generic_constructor)
+        self._test_cluster.add_generator(generic)
         if add_to_test:
-            self._test_cluster.add_accessible_object_under_test(generic_constructor)
-        self._add_callable_dependencies(generic_constructor, recursion_level)
+            self._test_cluster.add_accessible_object_under_test(generic)
 
         for method_name, method in inspect.getmembers(klass, inspect.isfunction):
             # TODO(fk) why does inspect.ismethod not work here?!
+            # TODO(fk) Instance methods of enums are only visible on elements of the
+            # enum but not the class itself :|
             self._logger.debug("Analyzing method %s", method_name)
 
             generic_method = GenericMethod(
