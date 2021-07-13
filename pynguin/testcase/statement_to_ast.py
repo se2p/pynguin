@@ -114,6 +114,24 @@ class StatementToAstVisitor(sv.StatementVisitor):
     ) -> None:
         self._ast_nodes.append(self._create_constant(stmt))
 
+    def visit_enum_statement(self, stmt: prim_stmt.EnumPrimitiveStatement) -> None:
+        owner = stmt.accessible_object().owner
+        assert owner
+        self._ast_nodes.append(
+            ast.Assign(
+                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                value=ast.Attribute(
+                    value=ast.Attribute(
+                        value=self._create_module_alias(owner.__module__),
+                        attr=owner.__name__,
+                        ctx=ast.Load(),
+                    ),
+                    attr=stmt.value_name,
+                    ctx=ast.Load(),
+                ),
+            )
+        )
+
     def visit_none_statement(self, stmt: prim_stmt.NoneStatement) -> None:
         self._ast_nodes.append(self._create_constant(stmt))
 
