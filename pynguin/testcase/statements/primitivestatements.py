@@ -19,8 +19,12 @@ from pynguin.analyses.seeding.constantseeding import (
     dynamic_constant_seeding,
     static_constant_seeding,
 )
+from pynguin.testcase.statements.statement import Statement
 from pynguin.utils import randomness
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
+    GenericEnum,
+)
 
 # pylint:disable=invalid-name
 T = TypeVar("T")
@@ -393,6 +397,62 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_boolean_primitive_statement(self)
+
+
+class EnumPrimitiveStatement(PrimitiveStatement[int]):
+    """Primitive Statement that references the value of an enum.
+    We simply store the index of the element in the Enum."""
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        generic_enum: GenericEnum,
+        value: Optional[int] = None,
+    ):
+        self._generic_enum = generic_enum
+        super().__init__(test_case, generic_enum.generated_type(), value)
+
+    def accessible_object(self) -> GenericEnum:
+        return self._generic_enum
+
+    @property
+    def value_name(self) -> str:
+        """Convenience method to access the enum name that is associated with
+        the stored index.
+
+        Returns:
+            The associated enum value."""
+        assert self._value is not None
+        return self._generic_enum.names[self._value]
+
+    def randomize_value(self) -> None:
+        self._value = randomness.next_int(0, len(self._generic_enum.names))
+
+    def delta(self) -> None:
+        assert self._value is not None
+        self._value += randomness.choice([-1, 1])
+        self._value = (self._value + len(self._generic_enum.names)) % len(
+            self._generic_enum.names
+        )
+
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> Statement:
+        return EnumPrimitiveStatement(test_case, self._generic_enum, value=self.value)
+
+    def __repr__(self) -> str:
+        return f"EnumPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self.value_name}: Enum"
+
+    def __eq__(self, other):
+        return (
+            super().__eq__(other)
+            and isinstance(other, EnumPrimitiveStatement)
+            and other._generic_enum == self._generic_enum
+        )
+
+    def accept(self, visitor: sv.StatementVisitor) -> None:
+        visitor.visit_enum_statement(self)
 
 
 class NoneStatement(PrimitiveStatement):

@@ -474,3 +474,73 @@ def test_primitive_statement_get_position():
     statement = prim.IntPrimitiveStatement(test_case, 5)
     test_case.add_statement(statement)
     assert statement.get_position() == 0
+
+
+def test_enum_statement_accessible_object(test_case_mock):
+    enum_ = MagicMock(names=["FOO"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    assert statement.accessible_object() == enum_
+
+
+def test_enum_statement_value_name(test_case_mock):
+    enum_ = MagicMock(names=["FOO"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    assert statement.value == 0
+    assert statement.value_name == "FOO"
+
+
+def test_enum_statement_randomize_value(test_case_mock):
+    enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
+        int_mock.return_value = 2
+        statement.randomize_value()
+        assert statement.value == 2
+        assert statement.value_name == "BAZ"
+
+
+def test_enum_statement_delta(test_case_mock):
+    enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    prev = statement.value
+    statement.delta()
+    assert statement.value != prev
+    assert 0 <= statement.value <= 2
+
+
+def test_enum_statement_clone(test_case_mock):
+    enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    clone = statement.clone(test_case_mock)
+    assert clone.value == statement.value
+
+
+def test_enum_statement_eq():
+    test_case = dtc.DefaultTestCase()
+    enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
+    statement = prim.EnumPrimitiveStatement(test_case, enum_)
+    test_case.add_statement(statement)
+    test_case2 = dtc.DefaultTestCase()
+    clone = statement.clone(test_case2)
+    test_case2.add_statement(clone)
+    assert clone == statement
+
+
+def test_enum_statement_not_eq():
+    test_case = dtc.DefaultTestCase()
+    enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
+    statement = prim.EnumPrimitiveStatement(test_case, enum_)
+    test_case.add_statement(statement)
+    test_case2 = dtc.DefaultTestCase()
+    clone = statement.clone(test_case2)
+    test_case2.add_statement(clone)
+    statement._generic_enum = MagicMock()
+    assert clone != statement
+
+
+def test_enum_statement_accept(test_case_mock):
+    enum_ = MagicMock(names=["FOO"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    visitor = MagicMock()
+    statement.accept(visitor)
+    visitor.visit_enum_statement.assert_called_once()
