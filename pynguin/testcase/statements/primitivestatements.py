@@ -451,6 +451,9 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
             and other._generic_enum == self._generic_enum
         )
 
+    def __hash__(self):
+        return hash((super().__hash__(), self._generic_enum))
+
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_enum_statement(self)
 
