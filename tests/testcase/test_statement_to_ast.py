@@ -93,6 +93,19 @@ def test_statement_to_ast_none(statement_to_ast_visitor):
     )
 
 
+def test_statement_to_ast_enum(statement_to_ast_visitor):
+    enum_stmt = MagicMock()
+    enum_stmt.accessible_object.return_value = MagicMock(
+        owner=MagicMock(__name__="Foo")
+    )
+    enum_stmt.value_name = "BAR"
+    statement_to_ast_visitor.visit_enum_statement(enum_stmt)
+    assert (
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var0 = module0.Foo.BAR\n"
+    )
+
+
 def test_statement_to_ast_assignment(variable_reference_mock, statement_to_ast_visitor):
     assign_stmt = MagicMock(stmt.Statement)
     assign_stmt.ret_val = variable_reference_mock
