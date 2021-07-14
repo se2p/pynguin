@@ -18,7 +18,8 @@ from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
-    MaxTestsStoppingCondition,
+    MaxStatementExecutionsStoppingCondition,
+    MaxTestExecutionsStoppingCondition,
     MaxTimeStoppingCondition,
 )
 from pynguin.setup.testcluster import TestCluster
@@ -53,7 +54,14 @@ def test_instantiate_strategy(algorithm, cls, algorithm_factory):
 @pytest.mark.parametrize(
     "condition, cls",
     [
-        pytest.param(config.StoppingCondition.MAX_TESTS, MaxTestsStoppingCondition),
+        pytest.param(
+            config.StoppingCondition.MAX_TEST_EXECUTIONS,
+            MaxTestExecutionsStoppingCondition,
+        ),
+        pytest.param(
+            config.StoppingCondition.MAX_STATEMENT_EXECUTIONS,
+            MaxStatementExecutionsStoppingCondition,
+        ),
         pytest.param(config.StoppingCondition.MAX_TIME, MaxTimeStoppingCondition),
         pytest.param(
             config.StoppingCondition.MAX_ITERATIONS, MaxIterationsStoppingCondition

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
+import itertools
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -19,26 +20,34 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 @pytest.mark.parametrize(
-    "module_name",
-    [
-        "tests.fixtures.examples.basket",
-        "tests.fixtures.examples.dummies",
-        "tests.fixtures.examples.simple",
-        "tests.fixtures.examples.exceptions",
-        "tests.fixtures.examples.monkey",
-        "tests.fixtures.examples.triangle",
-        "tests.fixtures.examples.impossible",
-        "tests.fixtures.examples.difficult",
-        "tests.fixtures.examples.queue",
-        "tests.fixtures.examples.flaky",
-    ],
+    "module_name,algorithm",
+    itertools.product(
+        [
+            "tests.fixtures.examples.basket",
+            "tests.fixtures.examples.dummies",
+            "tests.fixtures.examples.simple",
+            "tests.fixtures.examples.exceptions",
+            "tests.fixtures.examples.monkey",
+            "tests.fixtures.examples.triangle",
+            "tests.fixtures.examples.impossible",
+            "tests.fixtures.examples.difficult",
+            "tests.fixtures.examples.queue",
+            "tests.fixtures.examples.flaky",
+        ],
+        [config.Algorithm.MOSA, config.Algorithm.DYNAMOSA],
+    ),
 )
-def test_integrate_mosa(module_name: str):
-    config.configuration.algorithm = config.Algorithm.MOSA
-    config.configuration.stopping.budget = 1
+def test_integrate_mosa(module_name: str, algorithm):
+    config.configuration.algorithm = algorithm
+    config.configuration.stopping.maximum_iterations = 2
+    config.configuration.stopping.stopping_condition = (
+        config.StoppingCondition.MAX_ITERATIONS
+    )
     config.configuration.module_name = module_name
     config.configuration.search_algorithm.max_initial_tests = 1
     config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.test_insertion_probability = 0.5
+    config.configuration.search_algorithm.population = 3
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):

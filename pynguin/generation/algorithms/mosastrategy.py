@@ -27,14 +27,13 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
     _logger = logging.getLogger(__name__)
 
     def generate_tests(self) -> chrom.Chromosome:
-        self._logger.info("Start generating tests")
+        self.before_search_start()
         self._archive = Archive(set(self._fitness_functions))
         self._number_of_goals = len(self._fitness_functions)
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.Goals, self._number_of_goals
         )
 
-        self._current_iteration = 0
         self._population = self._get_random_population()
         self._archive.update(self._population)
 
@@ -47,17 +46,17 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
                 fronts.get_sub_front(i), self._archive.uncovered_goals
             )
 
+        self.before_first_search_iteration(
+            self.create_test_suite(self._archive.solutions)
+        )
         while (
-            not self._stopping_condition.is_fulfilled()
+            self.resources_left()
             and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             self.evolve()
-            self._notify_iteration()
-            self._current_iteration += 1
+            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        stat.track_output_variable(
-            RuntimeVariable.AlgorithmIterations, self._current_iteration
-        )
+        self.after_search_finish()
         return self.create_test_suite(
             self._archive.solutions
             if len(self._archive.solutions) > 0
