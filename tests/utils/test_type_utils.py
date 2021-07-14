@@ -177,6 +177,7 @@ def test_is_collection_type(type_, result):
         pytest.param(ValueError(), ValueError, True),
         pytest.param(ValueError(), Exception, True),
         pytest.param(ValueError(), NameError, False),
+        pytest.param(None, None, False),
     ],
 )
 def test_given_exception_matches(exception, ex_match, result):

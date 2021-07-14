@@ -72,8 +72,11 @@ class StoppingCondition(str, enum.Enum):
     MAX_ITERATIONS = "MAX_ITERATIONS"
     """Stop after a maximum number of algorithm iterations."""
 
-    MAX_TESTS = "MAX_TESTS"
-    """Stop as soon as a maximum number of tests was generated."""
+    MAX_TEST_EXECUTIONS = "MAX_TEST_EXECUTIONS"
+    """Stop as soon as a maximum number of tests were executed."""
+
+    MAX_STATEMENT_EXECUTIONS = "MAX_STATEMENT_EXECUTIONS"
+    """Stop as soon as a maximum number of statements were executed."""
 
 
 class TypeInferenceStrategy(str, enum.Enum):
@@ -405,10 +408,13 @@ class StoppingConfiguration:
     budget: int = 600
     """Time budget (in seconds) that can be used for generating tests."""
 
-    maximum_test_number: int = 60
-    """Maximum number of test cases to be created."""
+    maximum_test_executions: int = 60
+    """Maximum number of test cases to be executed."""
 
-    algorithm_iterations: int = 60
+    maximum_statement_executions: int = 600
+    """Maximum number of test cases to be executed."""
+
+    maximum_iterations: int = 60
     """Maximum iterations"""
 
     global_timeout: int = 120

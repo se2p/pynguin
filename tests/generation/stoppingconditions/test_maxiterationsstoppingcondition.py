@@ -22,12 +22,24 @@ def test_set_get_limit(stopping_condition):
 
 
 def test_is_not_fulfilled(stopping_condition):
-    stopping_condition.reset()
     assert not stopping_condition.is_fulfilled()
+
+
+def test_reset(stopping_condition):
+    stopping_condition.after_search_iteration(None)
+    stopping_condition.reset()
+    assert stopping_condition.current_value() == 0
+
+
+def test_before_search_start(stopping_condition):
+    stopping_condition.after_search_iteration(None)
+    assert stopping_condition.current_value() == 1
+    stopping_condition.before_search_start(None)
+    assert stopping_condition.current_value() == 0
 
 
 def test_is_fulfilled(stopping_condition):
     stopping_condition.set_limit(1)
-    stopping_condition.iterate()
-    stopping_condition.iterate()
+    stopping_condition.after_search_iteration(None)
+    stopping_condition.after_search_iteration(None)
     assert stopping_condition.is_fulfilled()

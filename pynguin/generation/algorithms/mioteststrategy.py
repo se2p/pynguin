@@ -15,11 +15,9 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.generation.algorithms.mioarchive as mioa
-import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.utils import randomness
-from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 # pylint: disable=invalid-name
@@ -62,27 +60,24 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     def generate_tests(
         self,
     ) -> chrom.Chromosome:
+        self.before_search_start()
         self._archive = mioa.MIOArchive(
             cast(List[atcff.AbstractTestCaseFitnessFunction], self.fitness_functions),
             self._parameters.n,
         )
-        generation = 0
+        self.before_first_search_iteration(
+            self.create_test_suite(self._archive.get_solutions())
+        )
         while (
-            not self._stopping_condition.is_fulfilled()
+            self.resources_left()
             and len(self.fitness_functions) - self._archive.num_covered_targets != 0
         ):
             self.evolve()
-            test_suite = self.create_test_suite(self._archive.get_solutions())
-            stat.current_individual(test_suite)
-            self._logger.info(
-                "Generation: %5i. Best fitness: %5f, Best coverage %5f",
-                generation,
-                test_suite.get_fitness(),
-                test_suite.get_coverage(),
-            )
             self._update_parameters()
-            generation += 1
-        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, generation)
+            self.after_search_iteration(
+                self.create_test_suite(self._archive.get_solutions())
+            )
+        self.after_search_finish()
         return self.create_test_suite(self._archive.get_solutions())
 
     # pylint:disable=line-too-long
