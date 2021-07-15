@@ -7,7 +7,7 @@
 """Provides a singleton instance of Random that can be seeded."""
 import random
 import string
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Optional, Sequence, TypeVar
 
 
 class Random(random.Random):
@@ -111,7 +111,10 @@ def next_gaussian() -> float:
     return RNG.gauss(0, 1)
 
 
-def choice(sequence: Sequence[Any]) -> Any:
+_T = TypeVar("_T")  # pylint:disable=invalid-name
+
+
+def choice(sequence: Sequence[_T]) -> _T:
     """Return a random element from a non-empty sequence.
 
     If the sequence is empty, it raises an `IndexError`.

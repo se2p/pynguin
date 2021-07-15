@@ -32,6 +32,8 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
             "tests.fixtures.examples.impossible",
             "tests.fixtures.examples.difficult",
             "tests.fixtures.examples.queue",
+            "tests.fixtures.examples.type_inference",
+            "tests.fixtures.examples.enums",
             "tests.fixtures.examples.flaky",
         ],
         [config.Algorithm.MOSA, config.Algorithm.DYNAMOSA],

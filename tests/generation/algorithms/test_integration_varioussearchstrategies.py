@@ -25,6 +25,7 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
         [
             "tests.fixtures.examples.basket",
             "tests.fixtures.examples.dummies",
+            "tests.fixtures.examples.simple",
             "tests.fixtures.examples.exceptions",
             "tests.fixtures.examples.monkey",
             "tests.fixtures.examples.triangle",
@@ -32,6 +33,8 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
             "tests.fixtures.examples.difficult",
             "tests.fixtures.examples.queue",
             "tests.fixtures.examples.type_inference",
+            "tests.fixtures.examples.enums",
+            "tests.fixtures.examples.flaky",
         ],
         [
             config.Algorithm.RANDOM_TEST_SUITE_SEARCH,

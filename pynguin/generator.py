@@ -179,8 +179,13 @@ def _setup_and_check() -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
     tracer = _setup_import_hook()
     if not _load_sut(tracer):
         return None
+
+    # Analyzing the SUT should not cause any coverage.
+    tracer.disable()
     if (test_cluster := _setup_test_cluster()) is None:
         return None
+    tracer.enable()
+
     executor = TestCaseExecutor(tracer)
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()

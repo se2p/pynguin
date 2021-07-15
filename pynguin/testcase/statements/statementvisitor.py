@@ -55,6 +55,14 @@ class StatementVisitor(ABC):
         """
 
     @abstractmethod
+    def visit_enum_statement(self, stmt) -> None:
+        """Visit enum.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
     def visit_none_statement(self, stmt) -> None:
         """Visit none.
 
