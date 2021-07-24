@@ -37,6 +37,7 @@ before_script:
   - python --version
   - pip install poetry
   - poetry config virtualenvs.in-project true
+  - poetry config experimental.new-installer false
   - poetry install
 
 .unit-tests: &unit-tests
