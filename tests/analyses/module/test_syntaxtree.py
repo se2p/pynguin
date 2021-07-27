@@ -115,7 +115,7 @@ def test__get_return_type():
 
 def test__get_line_number_for_function(comments_tree):
     functions = {func.name: func for func in get_all_functions(comments_tree)}
-    assert get_line_number_for_function(functions["public_function"]) == 8
+    assert get_line_number_for_function(functions["public_function"]) == 14
     assert get_line_number_for_function(ast.FunctionDef(lineno=42)) == 42
 
 
