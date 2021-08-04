@@ -237,12 +237,6 @@ class _DynamicConstantSeeding(_ConstantSeeding):
     instead of randomly generating a new one.
     """
 
-    _dynamic_pool: Dict[Type[Types], Set[Types]] = {
-        int: set(),
-        float: set(),
-        str: set(),
-    }
-
     _string_functions_lookup = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
         "islower": lambda value: value.upper() if value.islower() else value.lower(),
@@ -260,6 +254,17 @@ class _DynamicConstantSeeding(_ConstantSeeding):
         "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
         "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
     }
+
+    def __init__(self):
+        self._dynamic_pool: Dict[Type[Types], Set[Types]] = {
+            int: set(),
+            float: set(),
+            str: set(),
+        }
+
+    def reset(self) -> None:
+        """Delete all currently stored dynamic constants"""
+        self._dynamic_pool = {k: set() for k in self._dynamic_pool}
 
     def has_constants(self, type_: Type[Types]) -> bool:
         assert type_ in self._dynamic_pool

@@ -16,7 +16,7 @@ from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
+from pynguin.analyses.seeding.constantseeding import _DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
@@ -586,6 +586,9 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
+    def __init__(self, dynamic_constant_seeding: _DynamicConstantSeeding):
+        self._dynamic_constant_seeding = dynamic_constant_seeding
+
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
           'string1.startswith(string2)' the
@@ -600,10 +603,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                self._dynamic_constant_seeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -626,10 +629,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                _DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -652,10 +655,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value_for_strings.__name__,
+                _DynamicConstantSeeding.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -691,20 +694,20 @@ class DynamicSeedingInstrumentation(Instrumentation):
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                _DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                _DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),

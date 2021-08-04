@@ -17,6 +17,7 @@ from types import CodeType
 from typing import List, cast
 
 import pynguin.configuration as config
+from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -53,7 +54,9 @@ class InstrumentationLoader(SourceFileLoader):
             BranchCoverageInstrumentation(self._tracer)
         ]
         if config.configuration.seeding.dynamic_constant_seeding:
-            instrumentations.append(DynamicSeedingInstrumentation())
+            instrumentations.append(
+                DynamicSeedingInstrumentation(dynamic_constant_seeding)
+            )
 
         for instrumentation in instrumentations:
             to_instrument = instrumentation.instrument_module(to_instrument)
