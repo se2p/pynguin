@@ -417,10 +417,6 @@ class StoppingConfiguration:
     maximum_iterations: int = 60
     """Maximum iterations"""
 
-    global_timeout: int = 120
-    """Maximum seconds allowed for entire search when not using time as stopping
-    criterion."""
-
 
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
