@@ -223,7 +223,7 @@ class _ConstantCollector(ast.NodeVisitor):
         self._constants[str] -= self._string_expressions
 
 
-class _DynamicConstantSeeding(_ConstantSeeding):
+class DynamicConstantSeeding(_ConstantSeeding):
     """Provides a dynamic pool and methods to add and retrieve values.
 
     The methods in this class are added to the module under test during an instruction
@@ -236,12 +236,6 @@ class _DynamicConstantSeeding(_ConstantSeeding):
     is needed, this module provides methods to get values from the dynamic pool
     instead of randomly generating a new one.
     """
-
-    _dynamic_pool: Dict[Type[Types], Set[Types]] = {
-        int: set(),
-        float: set(),
-        str: set(),
-    }
 
     _string_functions_lookup = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
@@ -260,6 +254,18 @@ class _DynamicConstantSeeding(_ConstantSeeding):
         "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
         "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
     }
+
+    def __init__(self):
+        self._dynamic_pool: Dict[Type[Types], Set[Types]] = {
+            int: set(),
+            float: set(),
+            str: set(),
+        }
+
+    def reset(self) -> None:
+        """Delete all currently stored dynamic constants"""
+        for elem in self._dynamic_pool.values():
+            elem.clear()
 
     def has_constants(self, type_: Type[Types]) -> bool:
         assert type_ in self._dynamic_pool
@@ -295,4 +301,4 @@ class _DynamicConstantSeeding(_ConstantSeeding):
 
 
 static_constant_seeding = _StaticConstantSeeding()
-dynamic_constant_seeding = _DynamicConstantSeeding()
+dynamic_constant_seeding = DynamicConstantSeeding()
