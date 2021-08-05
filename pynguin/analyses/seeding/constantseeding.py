@@ -223,7 +223,7 @@ class _ConstantCollector(ast.NodeVisitor):
         self._constants[str] -= self._string_expressions
 
 
-class _DynamicConstantSeeding(_ConstantSeeding):
+class DynamicConstantSeeding(_ConstantSeeding):
     """Provides a dynamic pool and methods to add and retrieve values.
 
     The methods in this class are added to the module under test during an instruction
@@ -300,4 +300,4 @@ class _DynamicConstantSeeding(_ConstantSeeding):
 
 
 static_constant_seeding = _StaticConstantSeeding()
-dynamic_constant_seeding = _DynamicConstantSeeding()
+dynamic_constant_seeding = DynamicConstantSeeding()

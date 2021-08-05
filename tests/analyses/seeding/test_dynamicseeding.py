@@ -6,12 +6,12 @@
 #
 import pytest
 
-from pynguin.analyses.seeding.constantseeding import _DynamicConstantSeeding
+from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 
 
 @pytest.fixture()
-def dynamic_seeding() -> _DynamicConstantSeeding:
-    return _DynamicConstantSeeding()
+def dynamic_seeding() -> DynamicConstantSeeding:
+    return DynamicConstantSeeding()
 
 
 def test_random_int(dynamic_seeding):

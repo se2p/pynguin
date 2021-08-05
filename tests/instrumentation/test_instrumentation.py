@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, call
 import pytest
 from bytecode import Compare
 
-from pynguin.analyses.seeding.constantseeding import _DynamicConstantSeeding
+from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -360,7 +360,7 @@ def test_exception_no_match_integrate():
 
 @pytest.fixture()
 def dynamic_instr():
-    dynamic_constants = _DynamicConstantSeeding()
+    dynamic_constants = DynamicConstantSeeding()
     instr = DynamicSeedingInstrumentation(dynamic_constants)
     return dynamic_constants, instr
 

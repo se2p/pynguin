@@ -16,7 +16,7 @@ from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.analyses.seeding.constantseeding import _DynamicConstantSeeding
+from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
@@ -586,7 +586,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, dynamic_constant_seeding: _DynamicConstantSeeding):
+    def __init__(self, dynamic_constant_seeding: DynamicConstantSeeding):
         self._dynamic_constant_seeding = dynamic_constant_seeding
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
@@ -632,7 +632,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                _DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -658,7 +658,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                _DynamicConstantSeeding.add_value_for_strings.__name__,
+                DynamicConstantSeeding.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -697,7 +697,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                _DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -707,7 +707,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                _DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
