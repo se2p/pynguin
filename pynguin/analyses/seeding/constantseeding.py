@@ -264,7 +264,8 @@ class DynamicConstantSeeding(_ConstantSeeding):
 
     def reset(self) -> None:
         """Delete all currently stored dynamic constants"""
-        self._dynamic_pool = {k: set() for k in self._dynamic_pool}
+        for elem in self._dynamic_pool.values():
+            elem.clear()
 
     def has_constants(self, type_: Type[Types]) -> bool:
         assert type_ in self._dynamic_pool
