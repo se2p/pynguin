@@ -46,6 +46,7 @@ networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
 rich = "^10.3"
 pytest = "^6.2"
+Jinja2 = "^3.0.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
