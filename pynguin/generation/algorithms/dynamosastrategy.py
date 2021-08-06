@@ -12,9 +12,9 @@ import pynguin.analyses.controlflow.programgraph as pg
 import pynguin.configuration as config
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchcoveragetestfitness as bctf
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow import cfg
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
@@ -37,7 +37,7 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
         super().__init__()
         self._goals_manager: _GoalsManager
 
-    def generate_tests(self) -> chrom.Chromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._archive = Archive(set(self._fitness_functions))
         self._goals_manager = _GoalsManager(self._archive, self.executor)
