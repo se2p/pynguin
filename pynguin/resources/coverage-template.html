@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="github-dark.min.css">
+  <script src="highlight.min.js"></script>
+  <title>Pynguin coverage report</title>
+  <style>
+body{
+    color: #c9d1d9;
+    background: #0d1117;
+    font-family: monospace;
+    font-size: 16px;
+}
+
+td.lines span{
+    display: block;
+    padding-right: 8px;
+}
+
+.notCovered{
+    border-right: 3px solid darkred;
+}
+.partiallyCovered{
+    border-right: 3px solid orangered;
+}
+.fullyCovered{
+    border-right: 3px solid darkgreen;
+}
+.notRelevant{
+    border-right: 3px solid transparent;
+}
+
+</style>
+</head>
+<body>
+<h1>Pynguin coverage report for module '{{cov_data.module}}'</h1>
+Achieved {{"{:.2%}".format(cov_data.branch_coverage)}} branch coverage.
+{{cov_data.branchless_code_objects.covered}}/{{cov_data.branchless_code_objects.existing}} branchless code objects covered.
+{{cov_data.branches.covered}}/{{cov_data.branches.existing}} branches covered.
+  <table>
+    <tbody>
+        <tr>
+            <td style="width: 40px; text-align: right;" class="lines">
+                {% for line in cov_data.line_annotations -%}
+                  {% if line.total.existing == 0 -%}
+                    <span class="notRelevant">{{line.line_no}}</span>
+                  {% elif line.total.covered == 0 -%}
+                    <span title="{{line.message()}}" class="notCovered">{{line.line_no}}</span>
+                  {% elif line.total.covered < line.total.existing -%}
+                    <span title="{{line.message()}}" class="partiallyCovered">{{line.line_no}}</span>
+                  {% else -%}
+                    <span title="{{line.message()}}" class="fullyCovered">{{line.line_no}}</span>
+                  {% endif -%}
+                {% endfor -%}
+            </td>
+            <td><pre><code class="language-python">{{''.join(cov_data.source) | e}}</code></pre></td>
+        </tr>
+    </tbody>
+</table>
+<script>hljs.highlightAll();</script>
+</body>
+</html>
