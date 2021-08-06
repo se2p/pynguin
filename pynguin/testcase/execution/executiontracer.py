@@ -48,7 +48,7 @@ class PredicateMetaData:
     """Stores meta data of a predicate."""
 
     # Line number where the predicate is defined.
-    line_no: Optional[int]
+    line_no: int
 
     # Id of the code object where the predicate was defined.
     code_object_id: int
