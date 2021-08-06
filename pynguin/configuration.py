@@ -115,6 +115,7 @@ class Selection(str, enum.Enum):
     """Tournament selection.  Use `tournament_size` to set size."""
 
 
+# pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
 class StatisticsOutputConfiguration:
     """Configuration related to output."""
@@ -149,6 +150,9 @@ class StatisticsOutputConfiguration:
     project_name: str = ""
     """Label that identifies the project name of Pynguin.  This is useful when
     running experiments."""
+
+    create_coverage_report: bool = False
+    """Create a coverage report for the tested module."""
 
 
 @dataclasses.dataclass
