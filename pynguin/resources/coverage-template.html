@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="github-dark.min.css">
-  <script src="highlight.min.js"></script>
   <title>Pynguin coverage report</title>
   <style>
+{# Little hack to embed pygments css styles  #}
+{{formatter(style="solarized-dark").get_style_defs('.highlight')}}
+
 body{
     color: #c9d1d9;
     background: #0d1117;
@@ -16,6 +17,7 @@ body{
 td.lines span{
     display: block;
     padding-right: 8px;
+    line-height: 125%;
 }
 
 .notCovered{
@@ -54,10 +56,9 @@ Achieved {{"{:.2%}".format(cov_data.branch_coverage)}} branch coverage.
                   {% endif -%}
                 {% endfor -%}
             </td>
-            <td><pre><code class="language-python">{{''.join(cov_data.source) | e}}</code></pre></td>
+            <td style="width: 100%;">{{highlight("".join(cov_data.source), lexer(), formatter(style="solarized-dark"))}}</td>
         </tr>
     </tbody>
 </table>
-<script>hljs.highlightAll();</script>
 </body>
 </html>
