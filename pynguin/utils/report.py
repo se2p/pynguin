@@ -161,7 +161,14 @@ def _write_results(cov_data: CoverageData) -> None:
         template = Template(
             importlib.resources.read_text("pynguin.resources", "coverage-template.html")
         )
-        html_file.write(template.render(cov_data=cov_data, highlight=pygments.highlight, lexer=PythonLexer, formatter=HtmlFormatter))
+        html_file.write(
+            template.render(
+                cov_data=cov_data,
+                highlight=pygments.highlight,
+                lexer=PythonLexer,
+                formatter=HtmlFormatter,
+            )
+        )
 
 
 def _get_line_to_branch_coverage(known_data, trace):
