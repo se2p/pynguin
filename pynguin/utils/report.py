@@ -14,7 +14,10 @@ import sys
 from pathlib import Path
 from typing import List
 
+import pygments
 from jinja2 import Template
+from pygments.formatters.html import HtmlFormatter
+from pygments.lexers.python import PythonLexer
 
 import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
@@ -158,11 +161,7 @@ def _write_results(cov_data: CoverageData) -> None:
         template = Template(
             importlib.resources.read_text("pynguin.resources", "coverage-template.html")
         )
-        html_file.write(template.render(cov_data=cov_data))
-    # Copy required files.
-    for file in ["highlight.min.js", "github-dark.min.css"]:
-        with (report_dir / file).open(mode="w", encoding="utf-8") as out:
-            out.write(importlib.resources.read_text("pynguin.resources", file))
+        html_file.write(template.render(cov_data=cov_data, highlight=pygments.highlight, lexer=PythonLexer, formatter=HtmlFormatter))
 
 
 def _get_line_to_branch_coverage(known_data, trace):
