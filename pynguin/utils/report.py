@@ -12,7 +12,7 @@ import importlib.resources
 import inspect
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 import pygments
 from jinja2 import Template
@@ -135,7 +135,7 @@ def create_coverage_report(
         branches += cov
 
     line_annotations = [
-        _get_line(
+        _get_line_annotations(
             idx + 1, line_to_branchless_code_object_coverage, line_to_branch_coverage
         )
         for idx in range(len(source))
@@ -196,7 +196,7 @@ def _get_line_to_branchless_code_object_coverage(known_data, trace):
     return line_to_branchless_code_object_coverage
 
 
-def _get_line(lineno, code_object_coverage, predicate_coverage) -> LineAnnotation:
+def _get_line_annotations(lineno: int, code_object_coverage: Dict[int, CoverageEntry], predicate_coverage: Dict[int, CoverageEntry]) -> LineAnnotation:
     """Compute line annotation for the given line no.
 
     Args:
