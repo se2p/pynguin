@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import threading
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
@@ -140,6 +141,22 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
     return True
 
 
+def _setup_report_dir() -> bool:
+    # Report dir only needs to be created when statistics or coverage report is enabled.
+    if (
+        config.configuration.statistics_output.statistics_backend
+        != config.StatisticsBackend.NONE
+        or config.configuration.statistics_output.create_coverage_report
+    ):
+        report_dir = Path(config.configuration.statistics_output.report_dir).absolute()
+        try:
+            report_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, FileNotFoundError):
+            _LOGGER.error("Cannot create report dir %s", config.configuration.statistics_output.report_dir, exc_info=True)
+            return False
+    return True
+
+
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
     if config.configuration.seeding.seed is None:
@@ -179,6 +196,8 @@ def _setup_and_check() -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
         return None
     tracer = _setup_import_hook()
     if not _load_sut(tracer):
+        return None
+    if not _setup_report_dir():
         return None
 
     # Analyzing the SUT should not cause any coverage.
