@@ -55,11 +55,11 @@ td.lines span{
                   {% if line.total.existing == 0 -%}
                     <span class="notRelevant">{{line.line_no}}</span>
                   {% elif line.total.covered == 0 -%}
-                    <span title="{{line.message()}}" class="notCovered">{{line.line_no}}</span>
+                    <span class="notCovered" title="{{line.message()}}">{{line.line_no}}</span>
                   {% elif line.total.covered < line.total.existing -%}
-                    <span title="{{line.message()}}" class="partiallyCovered">{{line.line_no}}</span>
+                    <span class="partiallyCovered" title="{{line.message()}}">{{line.line_no}}</span>
                   {% else -%}
-                    <span title="{{line.message()}}" class="fullyCovered">{{line.line_no}}</span>
+                    <span class="fullyCovered" title="{{line.message()}}">{{line.line_no}}</span>
                   {% endif -%}
                 {% endfor -%}
             </td>
