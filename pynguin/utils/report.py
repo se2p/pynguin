@@ -48,7 +48,7 @@ class CoverageEntry:
 
 @dataclasses.dataclass
 class LineAnnotation:
-    """Coverage information per line."""
+    """Coverage information for a single line."""
 
     line_no: int
 
