@@ -43,15 +43,15 @@ td.lines span{
 </style>
 </head>
 <body>
-<h1>Pynguin coverage report for module '{{cov_data.module}}'</h1>
-<p>Achieved {{"{:.2%}".format(cov_data.branch_coverage)}} branch coverage.
-<p>{{cov_data.branchless_code_objects.covered}}/{{cov_data.branchless_code_objects.existing}} branchless code objects covered.</p>
-<p>{{cov_data.branches.covered}}/{{cov_data.branches.existing}} branches covered.</p>
+<h1>Pynguin coverage report for module '{{cov_report.module}}'</h1>
+<p>Achieved {{"{:.2%}".format(cov_report.branch_coverage)}} branch coverage.
+<p>{{cov_report.branchless_code_objects.covered}}/{{cov_report.branchless_code_objects.existing}} branchless code objects covered.</p>
+<p>{{cov_report.branches.covered}}/{{cov_report.branches.existing}} branches covered.</p>
   <table>
     <tbody>
         <tr>
             <td style="width: 40px; text-align: right;" class="lines">
-                {% for line in cov_data.line_annotations -%}
+                {% for line in cov_report.line_annotations -%}
                   {% if line.total.existing == 0 -%}
                     <span class="notRelevant">{{line.line_no}}</span>
                   {% elif line.total.covered == 0 -%}
@@ -63,7 +63,7 @@ td.lines span{
                   {% endif -%}
                 {% endfor -%}
             </td>
-            <td style="width: 100%;">{{highlight("".join(cov_data.source), lexer(), formatter(style="solarized-dark"))}}</td>
+            <td style="width: 100%;">{{highlight("".join(cov_report.source), lexer(), formatter(style="solarized-dark"))}}</td>
         </tr>
     </tbody>
 </table>

@@ -44,7 +44,7 @@ from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.report import create_coverage_report
+from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.timer import Timer
 
@@ -298,7 +298,10 @@ def _run() -> ReturnCode:
             )
 
     if config.configuration.statistics_output.create_coverage_report:
-        create_coverage_report(generation_result, executor)
+        render_coverage_report(
+            get_coverage_report(generation_result, executor),
+            Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+        )
     _track_statistics(passing, failing, generation_result)
     _collect_statistics()
     if not stat.write_statistics():

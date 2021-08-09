@@ -12,7 +12,7 @@ import importlib.resources
 import inspect
 import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 import pygments
 from jinja2 import Template
@@ -32,18 +32,21 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 class CoverageEntry:
     """How many things exist and how many are covered?"""
 
-    existing: int = 0
     covered: int = 0
+    existing: int = 0
 
     def __add__(self, other: CoverageEntry) -> CoverageEntry:
         """Add data from another coverage entry to this one.
 
         Args:
             other: another CoverageEntry whose values are added to this one.
+
         Returns:
             A new coverage entry with the summed up elements of self and other.
         """
-        return CoverageEntry(self.existing + other.existing, self.covered + other.covered)
+        return CoverageEntry(
+            self.covered + other.covered, self.existing + other.existing
+        )
 
 
 @dataclasses.dataclass
@@ -66,21 +69,21 @@ class LineAnnotation:
             The message for this line.
         """
         msgs = []
+        if self.branches.existing > 0:
+            msgs.append(
+                f"{self.branches.covered}/{self.branches.existing} branches covered"
+            )
         if self.branchless_code_objects.existing > 0:
             msgs.append(
                 f"{self.branchless_code_objects.covered}/"
                 f"{self.branchless_code_objects.existing}"
                 f" branchless code objects covered"
             )
-        if self.branches.existing > 0:
-            msgs.append(
-                f"{self.branches.covered}/{self.branches.existing} branches covered"
-            )
         return ";".join(msgs)
 
 
 @dataclasses.dataclass
-class CoverageData:
+class CoverageReport:
     """All coverage related data required to create a coverage report."""
 
     module: str
@@ -101,14 +104,17 @@ class CoverageData:
 
 
 # pylint:disable=too-many-locals
-def create_coverage_report(
+def get_coverage_report(
     suite: tsc.TestSuiteChromosome, executor: TestCaseExecutor
-) -> None:
+) -> CoverageReport:
     """Create a coverage report for the given test suite
 
     Args:
         suite: The suite for which a coverage report should be generated.
         executor: The executor
+
+    Returns:
+        The coverage report.
     """
     results = []
     for test_case_chromosome in suite.test_case_chromosomes:
@@ -141,7 +147,7 @@ def create_coverage_report(
         for idx in range(len(source))
     ]
 
-    cov_data = CoverageData(
+    return CoverageReport(
         config.configuration.module_name,
         source,
         branch_coverage,
@@ -149,20 +155,22 @@ def create_coverage_report(
         branchless_code_objects,
         line_annotations,
     )
-    _write_results(cov_data)
 
 
-def _write_results(cov_data: CoverageData) -> None:
-    report_dir = Path(config.configuration.statistics_output.report_dir).absolute()
-    report_dir.mkdir(parents=True, exist_ok=True)
-    output_file = report_dir / "cov_report.html"
-    with output_file.open(mode="w", encoding="utf-8") as html_file:
+def render_coverage_report(cov_report: CoverageReport, report_path: Path) -> None:
+    """Render the given coverage report to the given file.
+
+    Args:
+        cov_report: The coverage report to render
+        report_path: To file where the report should be rendered to.
+    """
+    with report_path.open(mode="w", encoding="utf-8") as html_file:
         template = Template(
             importlib.resources.read_text("pynguin.resources", "coverage-template.html")
         )
         html_file.write(
             template.render(
-                cov_data=cov_data,
+                cov_report=cov_report,
                 highlight=pygments.highlight,
                 lexer=PythonLexer,
                 formatter=HtmlFormatter,
@@ -196,7 +204,11 @@ def _get_line_to_branchless_code_object_coverage(known_data, trace):
     return line_to_branchless_code_object_coverage
 
 
-def _get_line_annotations(lineno: int, code_object_coverage: Dict[int, CoverageEntry], predicate_coverage: Dict[int, CoverageEntry]) -> LineAnnotation:
+def _get_line_annotations(
+    lineno: int,
+    code_object_coverage: Dict[int, CoverageEntry],
+    predicate_coverage: Dict[int, CoverageEntry],
+) -> LineAnnotation:
     """Compute line annotation for the given line no.
 
     Args:
