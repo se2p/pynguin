@@ -28,21 +28,22 @@ from pynguin.ga.fitnessfunctions.fitness_utilities import (
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class CoverageEntry:
     """How many things exist and how many are covered?"""
 
     existing: int = 0
     covered: int = 0
 
-    def add(self, other: CoverageEntry) -> None:
+    def __add__(self, other: CoverageEntry) -> CoverageEntry:
         """Add data from another coverage entry to this one.
 
         Args:
             other: another CoverageEntry whose values are added to this one.
+        Returns:
+            A new coverage entry with the summed up elements of self and other.
         """
-        self.existing += other.existing
-        self.covered += other.covered
+        return CoverageEntry(self.existing + other.existing, self.covered + other.covered)
 
 
 @dataclasses.dataclass
@@ -130,10 +131,10 @@ def create_coverage_report(
 
     branchless_code_objects = CoverageEntry()
     for cov in line_to_branchless_code_object_coverage.values():
-        branchless_code_objects.add(cov)
+        branchless_code_objects += cov
     branches = CoverageEntry()
     for cov in line_to_branch_coverage.values():
-        branches.add(cov)
+        branches += cov
 
     line_annotations = [
         _get_line(
@@ -177,11 +178,11 @@ def _get_line_to_branch_coverage(known_data, trace):
         lineno = known_data.existing_predicates[predicate].line_no
         if lineno not in line_to_branch_coverage:
             line_to_branch_coverage[lineno] = CoverageEntry()
-        line_to_branch_coverage[lineno].existing += 2
+        line_to_branch_coverage[lineno] += CoverageEntry(existing=2)
         if (predicate, 0.0) in trace.true_distances.items():
-            line_to_branch_coverage[lineno].covered += 1
+            line_to_branch_coverage[lineno] += CoverageEntry(covered=1)
         if (predicate, 0.0) in trace.false_distances.items():
-            line_to_branch_coverage[lineno].covered += 1
+            line_to_branch_coverage[lineno] += CoverageEntry(covered=1)
     return line_to_branch_coverage
 
 
@@ -191,9 +192,9 @@ def _get_line_to_branchless_code_object_coverage(known_data, trace):
         lineno = known_data.existing_code_objects[code].code_object.co_firstlineno
         if lineno not in line_to_branchless_code_object_coverage:
             line_to_branchless_code_object_coverage[lineno] = CoverageEntry()
-        line_to_branchless_code_object_coverage[lineno].existing += 1
+        line_to_branchless_code_object_coverage[lineno] += CoverageEntry(existing=1)
         if code in trace.executed_code_objects:
-            line_to_branchless_code_object_coverage[lineno].covered += 1
+            line_to_branchless_code_object_coverage[lineno] += CoverageEntry(covered=1)
     return line_to_branchless_code_object_coverage
 
 
@@ -213,8 +214,8 @@ def _get_line(lineno, code_object_coverage, predicate_coverage) -> LineAnnotatio
     branchless_code_objects = CoverageEntry()
     if lineno in code_object_coverage:
         branchless_code_objects = code_object_coverage[lineno]
-        total.add(branchless_code_objects)
+        total += branchless_code_objects
     if lineno in predicate_coverage:
         branches = predicate_coverage[lineno]
-        total.add(branches)
+        total += branches
     return LineAnnotation(lineno, total, branches, branchless_code_objects)
