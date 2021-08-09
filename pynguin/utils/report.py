@@ -76,9 +76,7 @@ class LineAnnotation:
             msgs.append(
                 f"{self.branches.covered}/{self.branches.existing} branches covered"
             )
-        if msgs:
-            return ";".join(msgs)
-        return ""
+        return ";".join(msgs)
 
 
 @dataclasses.dataclass
