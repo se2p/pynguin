@@ -152,7 +152,10 @@ class StatisticsOutputConfiguration:
     running experiments."""
 
     create_coverage_report: bool = False
-    """Create a coverage report for the tested module."""
+    """Create a coverage report for the tested module.
+    This can be helpful to find hard to cover parts because Pynguin measures coverage
+    on bytecode level which might yield different results when compared with other
+    tools, e.g., Coverage.py."""
 
 
 @dataclasses.dataclass
