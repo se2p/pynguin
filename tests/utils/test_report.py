@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import importlib
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -61,16 +62,28 @@ def test_line_annotation_message(line, msg):
 
 
 @pytest.fixture()
+def demo_module() -> str:
+    return """def foo():
+    pass
+
+
+def baz():
+    assert 3 == 5 and 3 == -3
+
+
+def bar(x: int):
+    if x:
+        pass
+    else:
+        pass
+"""
+
+
+@pytest.fixture()
 def sample_report() -> CoverageReport:
     return CoverageReport(
-        module="tests.fixtures.report.cov_report",
+        module="cov_demo",
         source=[
-            "#  This file is part of Pynguin.\n",
-            "#\n",
-            "#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors\n",
-            "#\n",
-            "#  SPDX-License-Identifier: LGPL-3.0-or-later\n",
-            "#\n",
             "def foo():\n",
             "    pass\n",
             "\n",
@@ -91,9 +104,9 @@ def sample_report() -> CoverageReport:
         line_annotations=[
             LineAnnotation(
                 line_no=1,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=1, existing=2),
                 branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                branchless_code_objects=CoverageEntry(covered=1, existing=2),
             ),
             LineAnnotation(
                 line_no=2,
@@ -121,15 +134,15 @@ def sample_report() -> CoverageReport:
             ),
             LineAnnotation(
                 line_no=6,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=2, existing=4),
+                branches=CoverageEntry(covered=2, existing=4),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=7,
-                total=CoverageEntry(covered=1, existing=2),
+                total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=1, existing=2),
+                branchless_code_objects=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=8,
@@ -145,8 +158,8 @@ def sample_report() -> CoverageReport:
             ),
             LineAnnotation(
                 line_no=10,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=2),
+                branches=CoverageEntry(covered=0, existing=2),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
@@ -157,8 +170,8 @@ def sample_report() -> CoverageReport:
             ),
             LineAnnotation(
                 line_no=12,
-                total=CoverageEntry(covered=2, existing=4),
-                branches=CoverageEntry(covered=2, existing=4),
+                total=CoverageEntry(covered=0, existing=0),
+                branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
@@ -167,47 +180,18 @@ def sample_report() -> CoverageReport:
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
             ),
-            LineAnnotation(
-                line_no=14,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
-            LineAnnotation(
-                line_no=15,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
-            LineAnnotation(
-                line_no=16,
-                total=CoverageEntry(covered=0, existing=2),
-                branches=CoverageEntry(covered=0, existing=2),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
-            LineAnnotation(
-                line_no=17,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
-            LineAnnotation(
-                line_no=18,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
-            LineAnnotation(
-                line_no=19,
-                total=CoverageEntry(covered=0, existing=0),
-                branches=CoverageEntry(covered=0, existing=0),
-                branchless_code_objects=CoverageEntry(covered=0, existing=0),
-            ),
         ],
     )
 
 
-def test_get_coverage_report(sample_report):
+def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
+    target = tmp_path / "foo"
+    target.mkdir()
+    test_module = "cov_demo"
+    with (target / (test_module + ".py")).open(mode="w", encoding="utf-8") as out_file:
+        out_file.write(demo_module)
+    sys.path.insert(0, str(target.absolute()))
+
     test_case = MagicMock()
     last_result = MagicMock(
         execution_trace=ExecutionTrace({0}, {}, {0: 0.0, 1: 1.0}, {0: 1.0, 1: 0.0})
@@ -215,7 +199,7 @@ def test_get_coverage_report(sample_report):
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
     tracer = ExecutionTracer()
-    test_module = "tests.fixtures.report.cov_report"
+
     with install_import_hook(test_module, tracer):
         importlib.import_module(test_module)
     executor = MagicMock(tracer=tracer)
@@ -227,9 +211,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
     render_coverage_report(sample_report, report_path)
     with report_path.open(encoding="utf-8", mode="r") as file:
-        foo = file.readlines()
-        print(foo)
-        assert foo == [
+        content = file.readlines()
+        assert content == [
             "<!DOCTYPE html>\n",
             '<html lang="en">\n',
             "<head>\n",
@@ -350,7 +333,7 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "</style>\n",
             "</head>\n",
             "<body>\n",
-            "<h1>Pynguin coverage report for module 'tests.fixtures.report.cov_report'</h1>\n",
+            "<h1>Pynguin coverage report for module 'cov_demo'</h1>\n",
             "<p>Achieved 37.50% branch coverage.\n",
             "<p>1/2 branchless code objects covered.</p>\n",
             "<p>2/6 branches covered.</p>\n",
@@ -358,33 +341,21 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "    <tbody>\n",
             "        <tr>\n",
             '            <td style="width: 40px; text-align: right;" class="lines">\n',
-            '                <span class="notRelevant">1</span>\n',
+            '                <span class="partiallyCovered" title="1/2 branchless code objects covered">1</span>\n',
             '                  <span class="notRelevant">2</span>\n',
             '                  <span class="notRelevant">3</span>\n',
             '                  <span class="notRelevant">4</span>\n',
             '                  <span class="notRelevant">5</span>\n',
-            '                  <span class="notRelevant">6</span>\n',
-            '                  <span class="partiallyCovered" title="1/2 branchless code objects covered">7</span>\n',
+            '                  <span class="partiallyCovered" title="2/4 branches covered">6</span>\n',
+            '                  <span class="notRelevant">7</span>\n',
             '                  <span class="notRelevant">8</span>\n',
             '                  <span class="notRelevant">9</span>\n',
-            '                  <span class="notRelevant">10</span>\n',
+            '                  <span class="notCovered" title="0/2 branches covered">10</span>\n',
             '                  <span class="notRelevant">11</span>\n',
-            '                  <span class="partiallyCovered" title="2/4 branches covered">12</span>\n',
+            '                  <span class="notRelevant">12</span>\n',
             '                  <span class="notRelevant">13</span>\n',
-            '                  <span class="notRelevant">14</span>\n',
-            '                  <span class="notRelevant">15</span>\n',
-            '                  <span class="notCovered" title="0/2 branches covered">16</span>\n',
-            '                  <span class="notRelevant">17</span>\n',
-            '                  <span class="notRelevant">18</span>\n',
-            '                  <span class="notRelevant">19</span>\n',
             "                  </td>\n",
-            '            <td style="width: 100%;"><div class="highlight"><pre><span></span><span class="c1">#  This file is part of Pynguin.</span>\n',
-            '<span class="c1">#</span>\n',
-            '<span class="c1">#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors</span>\n',
-            '<span class="c1">#</span>\n',
-            '<span class="c1">#  SPDX-License-Identifier: LGPL-3.0-or-later</span>\n',
-            '<span class="c1">#</span>\n',
-            '<span class="k">def</span> <span class="nf">foo</span><span class="p">():</span>\n',
+            '            <td style="width: 100%;"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">foo</span><span class="p">():</span>\n',
             '    <span class="k">pass</span>\n',
             "\n",
             "\n",

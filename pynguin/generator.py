@@ -152,7 +152,11 @@ def _setup_report_dir() -> bool:
         try:
             report_dir.mkdir(parents=True, exist_ok=True)
         except (OSError, FileNotFoundError):
-            _LOGGER.error("Cannot create report dir %s", config.configuration.statistics_output.report_dir, exc_info=True)
+            _LOGGER.error(
+                "Cannot create report dir %s",
+                config.configuration.statistics_output.report_dir,
+                exc_info=True,
+            )
             return False
     return True
 
