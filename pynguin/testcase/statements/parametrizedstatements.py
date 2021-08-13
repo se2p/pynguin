@@ -81,20 +81,19 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
                 self._args[key] = new
 
     def _clone_args(
-        self, new_test_case: tc.TestCase, offset: int = 0
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> Dict[str, vr.VariableReference]:
         """Small helper method, to clone the args into a new test case.
 
         Args:
-            new_test_case: The new test case in which the params are used.
-            offset: Offset when cloning into a non empty test case.
+            memo: foo
 
         Returns:
             A dictionary of key-value argument references
         """
         new_args = {}
         for name, var in self._args.items():
-            new_args[name] = var.clone(new_test_case, offset)
+            new_args[name] = var.clone(memo)
         return new_args
 
     def mutate(self) -> bool:
@@ -197,7 +196,10 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             original_param_source = self.test_case.get_statement(
                 current.get_statement_position()
             )
-            copy = original_param_source.clone(self.test_case)
+            copy = original_param_source.clone(
+                self.test_case,
+                {s.ret_val: s.ret_val for s in self.test_case.statements},
+            )
             copy.mutate()
             possible_replacements.append(copy.ret_val)
 
@@ -210,7 +212,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
 
         replacement = randomness.choice(possible_replacements)
 
-        if copy and replacement is copy.ret_val:
+        if copy and replacement == copy.ret_val:
             # The chosen replacement is a copy, so we have to add it to the test case.
             self.test_case.add_statement(copy, self.get_position())
         elif replacement is none_statement.ret_val:
@@ -245,32 +247,40 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
             return list(parameters.values())[arg]
         return parameters[arg]
 
-    def __hash__(self) -> int:
+    def structural_hash(self) -> int:
         return (
             31
-            + 17 * hash(self._ret_val)
-            + 17 * hash(frozenset(self._args.items()))
+            + 17 * self._ret_val.structural_hash()
             + 17 * hash(self._generic_callable)
+            + 17
+            * hash(frozenset((k, v.structural_hash()) for k, v in self._args.items()))
         )
 
-    def __eq__(self, other: Any) -> bool:
-        if self is other:
-            return True
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
         if not isinstance(other, ParametrizedStatement):
             return False
         return (
-            self._ret_val == other._ret_val
-            and self._args == other._args
+            self._ret_val.structural_eq(other._ret_val, memo)
             and self._generic_callable == other._generic_callable
+            and self._args.keys() == other._args.keys()
+            and all(
+                {v.structural_eq(other._args[k], memo) for k, v in self._args.items()}
+            )
         )
 
 
 class ConstructorStatement(ParametrizedStatement):
     """A statement that constructs an object."""
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> stmt.Statement:
         return ConstructorStatement(
-            test_case, self.accessible_object(), self._clone_args(test_case, offset)
+            test_case, self.accessible_object(), self._clone_args(memo)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -370,12 +380,16 @@ class MethodStatement(ParametrizedStatement):
         """
         self._callee = new_callee
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> stmt.Statement:
         return MethodStatement(
             test_case,
             self.accessible_object(),
-            self._callee.clone(test_case, offset),
-            self._clone_args(test_case, offset),
+            self._callee.clone(memo),
+            self._clone_args(memo),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -406,9 +420,13 @@ class FunctionStatement(ParametrizedStatement):
         """
         return cast(GenericFunction, self._generic_callable)
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> stmt.Statement:
         return FunctionStatement(
-            test_case, self.accessible_object(), self._clone_args(test_case, offset)
+            test_case, self.accessible_object(), self._clone_args(memo)
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:

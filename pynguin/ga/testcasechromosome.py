@@ -81,26 +81,20 @@ class TestCaseChromosome(chrom.Chromosome):
         assert isinstance(
             other, TestCaseChromosome
         ), "Cannot perform crossover with " + str(type(other))
-        offspring = self.clone()
-        offspring.test_case.statements.clear()
-
         assert self._test_factory is not None, "Crossover requires a test factory."
 
-        for i in range(position1):
-            offspring.test_case.add_statement(
-                self.test_case.get_statement(i).clone(offspring.test_case)
-            )
+        offspring_test_case = self.test_case.clone(position1)
 
         for j in range(position2, other.test_case.size()):
             self._test_factory.append_statement(
-                offspring.test_case, other.test_case.get_statement(j)
+                offspring_test_case, other.test_case.get_statement(j)
             )
 
         if (
-            offspring.test_case.size()
+            offspring_test_case.size()
             < config.configuration.search_algorithm.chromosome_length
         ):
-            self._test_case = offspring.test_case
+            self._test_case = offspring_test_case
             self.set_changed(True)
 
     def mutate(self) -> None:

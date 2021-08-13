@@ -7,7 +7,7 @@
 """
 Provide a statement that performs assignments.
 """
-from typing import Any, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.statements.statementvisitor as sv
@@ -37,11 +37,15 @@ class AssignmentStatement(stmt.Statement):
         """
         return self._rhs
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> stmt.Statement:
         return AssignmentStatement(
             test_case,
-            self.ret_val.clone(test_case, offset),
-            self._rhs.clone(test_case, offset),
+            self.ret_val.clone(memo),
+            self._rhs.clone(memo),
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -62,12 +66,16 @@ class AssignmentStatement(stmt.Statement):
         if self._rhs == old:
             self._rhs = new
 
-    def __hash__(self) -> int:
-        return 31 + 17 * hash(self._ret_val) + 17 * hash(self._rhs)
+    def structural_hash(self) -> int:
+        return (
+            31 + 17 * self._ret_val.structural_hash() + 17 * self._rhs.structural_hash()
+        )
 
-    def __eq__(self, other: Any) -> bool:
-        if self is other:
-            return True
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
         if not isinstance(other, AssignmentStatement):
             return False
-        return self._ret_val == other._ret_val and self._rhs == other._rhs
+        return self._ret_val.structural_eq(
+            other._ret_val, memo
+        ) and self._rhs.structural_eq(other._rhs, memo)

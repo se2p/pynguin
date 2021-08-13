@@ -8,7 +8,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Set
+from itertools import islice
+from typing import Any, Dict, List, Optional, Set
 
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.statements.statement as stmt
@@ -55,9 +56,11 @@ class DefaultTestCase(tc.TestCase):
         self._statements.extend(statements)
 
     def append_test_case(self, test_case: tc.TestCase) -> None:
-        size = self.size()
+        memo: Dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in test_case.statements:
-            self._statements.append(statement.clone(self, size))
+            clone = statement.clone(self, memo)
+            memo[statement.ret_val] = clone.ret_val
+            self._statements.append(clone)
 
     def remove(self, position: int) -> None:
         self._logger.debug("Removing statement at position %d", position)
@@ -87,12 +90,14 @@ class DefaultTestCase(tc.TestCase):
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
-    def clone(self) -> tc.TestCase:
+    def clone(self, limit: Optional[int] = None) -> tc.TestCase:
         test_case = DefaultTestCase()
-        for statement in self._statements:
-            copy = statement.clone(test_case)
+        memo: Dict[vr.VariableReference, vr.VariableReference] = {}
+        for statement in islice(self._statements, limit):
+            copy = statement.clone(test_case, memo)
+            memo[statement.ret_val] = copy.ret_val
             test_case._statements.append(copy)
-            copy.assertions = statement.copy_assertions(test_case, 0)
+            copy.assertions = statement.copy_assertions(memo)
         test_case._id = self._id_generator.inc()
         return test_case
 
@@ -139,8 +144,10 @@ class DefaultTestCase(tc.TestCase):
         else:
             if len(self._statements) != len(other._statements):
                 return False
-            for i, st in enumerate(self._statements):
-                if st != other._statements[i]:
+            memo = {}
+            for left, right in zip(self._statements, other._statements):
+                memo[left.ret_val] = right.ret_val
+                if not left.structural_eq(right, memo):
                     return False
         return True
 

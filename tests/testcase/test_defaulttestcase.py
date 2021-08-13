@@ -148,27 +148,29 @@ def test_eq_parameterized(test_case, other, result):
 
 
 def test_eq_same(default_test_case):
-    assert default_test_case.__eq__(default_test_case)
+    assert default_test_case == default_test_case
 
 
 def test_eq_statements_1(default_test_case):
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_2(default_test_case):
     default_test_case._statements = [MagicMock(st.Statement)]
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_3(default_test_case):
-    default_test_case._statements = [MagicMock(st.Statement)]
+    stmt1 = MagicMock()
+    stmt1.structural_eq.return_value = False
+    default_test_case._statements = [stmt1]
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_4(default_test_case):

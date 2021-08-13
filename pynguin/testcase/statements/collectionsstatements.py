@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, List, Optional, Set, Tuple, Type, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, TypeVar
 
 from typing_inspect import get_args
 
@@ -122,16 +122,6 @@ class CollectionStatement(Generic[T], stmt.Statement):
         """
         return alpha_exponent_insertion(self._elements, self._insertion_supplier)
 
-    def __hash__(self) -> int:
-        return 31 + 17 * hash(self._ret_val) + 17 * hash(frozenset(self._elements))
-
-    def __eq__(self, other: Any) -> bool:
-        if self is other:
-            return True
-        if not isinstance(other, self.__class__):
-            return False
-        return self._ret_val == other._ret_val and self._elements == other._elements
-
 
 class NonDictCollection(CollectionStatement[vr.VariableReference], ABC):
     """Abstract base class for collections that are not dicts.
@@ -159,6 +149,29 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], ABC):
             + [element]
         )
 
+    def structural_hash(self) -> int:
+        return (
+            31
+            + 17 * self._ret_val.structural_hash()
+            + 17 * hash(frozenset((v.structural_hash()) for v in self._elements))
+        )
+
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return (
+            self._ret_val.structural_eq(other._ret_val, memo)
+            and len(self._elements) == len(other._elements)
+            and all(
+                {
+                    left.structural_eq(right, memo)
+                    for left, right in zip(self._elements, other._elements)
+                }
+            )
+        )
+
 
 class ListStatement(NonDictCollection):
     """Represents a list."""
@@ -174,11 +187,15 @@ class ListStatement(NonDictCollection):
             self.ret_val = new
         self._elements = [new if arg == old else arg for arg in self._elements]
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> ListStatement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> ListStatement:
         return ListStatement(
             test_case,
             self.ret_val.variable_type,
-            [var.clone(test_case, offset) for var in self._elements],
+            [var.clone(memo) for var in self._elements],
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -199,11 +216,15 @@ class SetStatement(NonDictCollection):
             self.ret_val = new
         self._elements = [new if arg == old else arg for arg in self._elements]
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> SetStatement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> SetStatement:
         return SetStatement(
             test_case,
             self.ret_val.variable_type,
-            [var.clone(test_case, offset) for var in self._elements],
+            [var.clone(memo) for var in self._elements],
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -224,11 +245,15 @@ class TupleStatement(NonDictCollection):
             self.ret_val = new
         self._elements = [new if arg == old else arg for arg in self._elements]
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> TupleStatement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> TupleStatement:
         return TupleStatement(
             test_case,
             self.ret_val.variable_type,
-            [var.clone(test_case, offset) for var in self._elements],
+            [var.clone(memo) for var in self._elements],
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
@@ -302,15 +327,45 @@ class DictStatement(
             randomness.choice(possibles_values),
         )
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> DictStatement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> DictStatement:
         return DictStatement(
             test_case,
             self.ret_val.variable_type,
-            [
-                (var[0].clone(test_case, offset), var[1].clone(test_case, offset))
-                for var in self._elements
-            ],
+            [(var[0].clone(memo), var[1].clone(memo)) for var in self._elements],
         )
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_dict_statement(self)
+
+    def structural_hash(self) -> int:
+        return (
+            31
+            + 17 * self._ret_val.structural_hash()
+            + 17
+            * hash(
+                frozenset(
+                    (k.structural_hash(), v.structural_hash())
+                    for k, v in self._elements
+                )
+            )
+        )
+
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return (
+            self._ret_val.structural_eq(other._ret_val, memo)
+            and len(self._elements) == len(other._elements)
+            and all(
+                {
+                    lk.structural_eq(rk, memo) and lk.structural_eq(rk, memo)
+                    for (lk, lv), (rk, rv) in zip(self._elements, other._elements)
+                }
+            )
+        )

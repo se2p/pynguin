@@ -7,8 +7,10 @@
 """Provides an assertion for primitive values."""
 from __future__ import annotations
 
+from typing import Dict
+
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 
@@ -18,5 +20,7 @@ class PrimitiveAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         visitor.visit_primitive_assertion(self)
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> PrimitiveAssertion:
-        return PrimitiveAssertion(self._source.clone(new_test_case, offset), self.value)
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> PrimitiveAssertion:
+        return PrimitiveAssertion(self._source.clone(memo), self.value)

@@ -48,21 +48,17 @@ def test_constructor_statement_accept(
     visitor.visit_constructor_statement.assert_called_once_with(statement)
 
 
-def test_constructor_statement_hash(
-    test_case_mock, variable_reference_mock, constructor_mock
-):
+def test_constructor_statement_hash(test_case_mock, constructor_mock):
     statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
-    assert statement.__hash__() != 0
+    assert statement.structural_hash() != 0
 
 
-def test_constructor_statement_eq_same(
-    test_case_mock, variable_reference_mock, constructor_mock
-):
+def test_constructor_statement_eq_same(test_case_mock, constructor_mock):
     statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
-    assert statement.__eq__(statement)
+    assert statement.structural_eq(statement, {statement.ret_val: statement.ret_val})
 
 
-def test_function_different_callables_different_hashes(function_mock):
+def test_function_different_callables_different_hashes(test_case_mock, function_mock):
     def other_function(z: float) -> float:
         return z  # pragma: no cover
 
@@ -82,21 +78,22 @@ def test_function_different_callables_different_hashes(function_mock):
             parameters={"z": float},
         ),
     )
-    test_case = dtc.DefaultTestCase()
-    function_statement = ps.FunctionStatement(test_case, function_mock, {})
-    other_statement = ps.FunctionStatement(test_case, other, {})
-    test_case.add_statement(function_statement)
-    test_case.add_statement(other_statement)
-    assert not function_statement.__eq__(other_statement)
-    assert not other_statement.__eq__(function_statement)
-    assert function_statement.__hash__() != other_statement.__hash__()
+    function_statement = ps.FunctionStatement(test_case_mock, function_mock, {})
+    other_statement = ps.FunctionStatement(test_case_mock, other, {})
+    assert not function_statement.structural_eq(
+        other_statement, {function_statement.ret_val: function_statement.ret_val}
+    )
+    assert not other_statement.structural_eq(
+        function_statement, {other_statement.ret_val: other_statement.ret_val}
+    )
+    assert function_statement.structural_hash() != other_statement.structural_hash()
 
 
 def test_constructor_statement_eq_other_type(
     test_case_mock, variable_reference_mock, constructor_mock
 ):
     statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
-    assert not statement.__eq__(variable_reference_mock)
+    assert not statement.structural_eq(variable_reference_mock, {})
 
 
 def test_constructor_replace_args(constructor_mock):
@@ -121,15 +118,11 @@ def test_constructor_replace_return_value(constructor_mock):
     assert const.ret_val == new_value.ret_val
 
 
-def test_constructor_clone_args(constructor_mock):
-    test_case = dtc.DefaultTestCase()
-    new_test_case = dtc.DefaultTestCase()
-    to_clone = MagicMock(vri.VariableReferenceImpl)
-    the_clone = MagicMock(vri.VariableReferenceImpl)
-    to_clone.clone.return_value = the_clone
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": to_clone})
-    assert const._clone_args(new_test_case, 10) == {"a": the_clone}
-    to_clone.clone.assert_called_with(new_test_case, 10)
+def test_constructor_clone_args(constructor_mock, test_case_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, float)
+    clone = vri.VariableReferenceImpl(test_case_mock, float)
+    const = ps.ConstructorStatement(test_case_mock, constructor_mock, {"a": ref})
+    assert const._clone_args({ref: clone}) == {"a": clone}
 
 
 def test_constructor_mutate_no_mutation(constructor_mock, test_case_mock):
