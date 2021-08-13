@@ -16,6 +16,7 @@ framework.
 Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
+import datetime
 import enum
 import importlib
 import logging
@@ -305,6 +306,7 @@ def _run() -> ReturnCode:
         render_coverage_report(
             get_coverage_report(generation_result, executor),
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+            datetime.datetime.now(),
         )
     _track_statistics(passing, failing, generation_result)
     _collect_statistics()

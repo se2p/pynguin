@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import importlib.resources
 import inspect
 import sys
@@ -157,10 +158,13 @@ def get_coverage_report(
     )
 
 
-def render_coverage_report(cov_report: CoverageReport, report_path: Path) -> None:
+def render_coverage_report(
+    cov_report: CoverageReport, report_path: Path, timestamp: datetime.datetime
+) -> None:
     """Render the given coverage report to the given file.
 
     Args:
+        timestamp: The timestamp for create of the report.
         cov_report: The coverage report to render
         report_path: To file where the report should be rendered to.
     """
@@ -174,6 +178,7 @@ def render_coverage_report(cov_report: CoverageReport, report_path: Path) -> Non
                 highlight=pygments.highlight,
                 lexer=PythonLexer,
                 formatter=HtmlFormatter,
+                date=timestamp,
             )
         )
 

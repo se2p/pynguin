@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import datetime
 import importlib
 import sys
 from pathlib import Path
@@ -209,7 +210,7 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
 
 def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
-    render_coverage_report(sample_report, report_path)
+    render_coverage_report(sample_report, report_path, datetime.datetime(1970, 1, 1))
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()
         assert content == [
@@ -373,6 +374,9 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "        </tr>\n",
             "    </tbody>\n",
             "</table>\n",
+            "<footer>\n",
+            "  <p>Created at 1970-01-01 00:00:00</p>\n",
+            "</footer>\n",
             "</body>\n",
             "</html>",
         ]
