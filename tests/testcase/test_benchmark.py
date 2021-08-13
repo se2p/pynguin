@@ -42,18 +42,22 @@ def benchmark_test_case(constructor_mock, function_mock):
     return test_case
 
 
+# Turn this up for more precise measurements.
+BENCHMARK_REPETITIONS = 2
+
+
 def test_benchmark_eq(benchmark_test_case):
     cloned = benchmark_test_case.clone()
-    res = all([benchmark_test_case == cloned for _ in range(10000)])
+    res = all([benchmark_test_case == cloned for _ in range(BENCHMARK_REPETITIONS)])
     assert res
 
 
 def test_benchmark_hash(benchmark_test_case):
-    assert len({benchmark_test_case.clone() for _ in range(10000)}) == 1
+    assert len({benchmark_test_case.clone() for _ in range(BENCHMARK_REPETITIONS)}) == 1
 
 
 def test_benchmark_clone(benchmark_test_case):
     cloned = benchmark_test_case.clone()
-    for i in range(10000):
+    for i in range(BENCHMARK_REPETITIONS):
         cloned = cloned.clone()
     assert cloned == benchmark_test_case
