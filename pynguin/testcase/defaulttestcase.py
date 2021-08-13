@@ -152,4 +152,4 @@ class DefaultTestCase(tc.TestCase):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum([17 * s.__hash__() for s in self._statements])
+        return 31 + sum([17 * s.structural_hash() for s in self._statements])

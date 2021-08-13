@@ -48,6 +48,10 @@ def test_benchmark_eq(benchmark_test_case):
     assert res
 
 
+def test_benchmark_hash(benchmark_test_case):
+    assert len({benchmark_test_case.clone() for _ in range(10000)}) == 1
+
+
 def test_benchmark_clone(benchmark_test_case):
     cloned = benchmark_test_case.clone()
     for i in range(10000):
