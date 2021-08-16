@@ -164,7 +164,7 @@ def render_coverage_report(
     """Render the given coverage report to the given file.
 
     Args:
-        timestamp: The timestamp for create of the report.
+        timestamp: When was the report created.
         cov_report: The coverage report to render
         report_path: To file where the report should be rendered to.
     """
