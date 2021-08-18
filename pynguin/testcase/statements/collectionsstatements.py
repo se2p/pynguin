@@ -364,7 +364,7 @@ class DictStatement(
             and len(self._elements) == len(other._elements)
             and all(
                 {
-                    lk.structural_eq(rk, memo) and lk.structural_eq(rk, memo)
+                    lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
                     for (lk, lv), (rk, rv) in zip(self._elements, other._elements)
                 }
             )
