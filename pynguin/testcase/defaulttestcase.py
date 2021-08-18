@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import logging
 from itertools import islice
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
+
+from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.statements.statement as stmt
@@ -101,13 +103,15 @@ class DefaultTestCase(tc.TestCase):
         test_case._id = self._id_generator.inc()
         return test_case
 
-    def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
-        dependencies = set()
+    def get_dependencies(
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
+        dependencies = OrderedSet()
 
         # TODO(fk) a variable will be a dependency of itself?!
         dependent_stmts = {self.get_statement(var.get_statement_position())}
         for idx in range(var.get_statement_position(), -1, -1):
-            new_stmts = set()
+            new_stmts = OrderedSet()
             for statement in dependent_stmts:
                 if statement.references(self.get_statement(idx).ret_val):
                     new_stmts.add(self.get_statement(idx))

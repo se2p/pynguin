@@ -6,7 +6,9 @@
 #
 """Provides various crowding-distance assignment implementations."""
 import sys
-from typing import List, Set, TypeVar
+from typing import List, TypeVar
+
+from ordered_set import OrderedSet
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
@@ -15,7 +17,7 @@ C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
 
 def fast_epsilon_dominance_assignment(
-    front: List[C], goals: Set[ff.FitnessFunction]
+    front: List[C], goals: OrderedSet[ff.FitnessFunction]
 ) -> None:
     """Implements a "fast" version of the variant of the crowding distance.
 

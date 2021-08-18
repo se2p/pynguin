@@ -9,14 +9,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import inf
-from typing import Dict, Set
+from typing import Dict
+
+from ordered_set import OrderedSet
 
 
 @dataclass()
 class ExecutionTrace:
     """Stores trace information about the execution."""
 
-    executed_code_objects: Set[int] = field(default_factory=set)
+    executed_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_predicates: Dict[int, int] = field(default_factory=dict)
     true_distances: Dict[int, float] = field(default_factory=dict)
     false_distances: Dict[int, float] = field(default_factory=dict)

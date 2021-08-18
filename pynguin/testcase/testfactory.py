@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Set, Type, cast
 
+from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin
 
 import pynguin.configuration as config
@@ -1148,9 +1149,9 @@ class TestFactory:
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        type_generators: Set[GenericAccessibleObject],
+        type_generators: OrderedSet[GenericAccessibleObject],
     ) -> Optional[vr.VariableReference]:
-        type_generator = randomness.choice(list(type_generators))
+        type_generator = randomness.choice(type_generators)
         return self.append_generic_accessible(
             test_case,
             type_generator,
