@@ -297,7 +297,7 @@ python-versions = "*"
 
 [[package]]
 name = "hypothesis"
-version = "6.14.6"
+version = "6.14.8"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -374,7 +374,7 @@ plugins = ["setuptools"]
 
 [[package]]
 name = "jellyfish"
-version = "0.8.4"
+version = "0.8.8"
 description = "a library for doing approximate and phonetic matching of strings."
 category = "main"
 optional = false
@@ -608,7 +608,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
 name = "pygments"
-version = "2.9.0"
+version = "2.10.0"
 description = "Pygments is a syntax highlighting package written in Python."
 category = "main"
 optional = false
@@ -1270,8 +1270,8 @@ glob2 = [
     {file = "glob2-0.7.tar.gz", hash = "sha256:85c3dbd07c8aa26d63d7aacee34fa86e9a91a3873bc30bf62ec46e531f92ab8c"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.14.6-py3-none-any.whl", hash = "sha256:a776b4545e8ad54c68f001591cd5c39c8c05dfd340d0cf974112bf89439f126b"},
-    {file = "hypothesis-6.14.6.tar.gz", hash = "sha256:2586eae07e48b35ab5a2d61d607d29ba76939ce140c427d66ccf5db4ddc788d2"},
+    {file = "hypothesis-6.14.8-py3-none-any.whl", hash = "sha256:f86ded26e49c810f8b34f39112d819a06af4bae94e08a71f07285f0e376f6471"},
+    {file = "hypothesis-6.14.8.tar.gz", hash = "sha256:cb80e06ca44992b08d2889734b740e67c8b41337315bbd6dba2ef43ca816cfe3"},
 ]
 identify = [
     {file = "identify-2.2.13-py2.py3-none-any.whl", hash = "sha256:7199679b5be13a6b40e6e19ea473e789b11b4e3b60986499b1f589ffb03c217c"},
@@ -1293,16 +1293,19 @@ isort = [
     {file = "isort-5.9.3.tar.gz", hash = "sha256:9c2ea1e62d871267b78307fe511c0838ba0da28698c5732d54e2790bf3ba9899"},
 ]
 jellyfish = [
-    {file = "jellyfish-0.8.4-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:fb92ffbc994c46bbdcb960318372841de54d89097959fe8f54a6802558da9beb"},
-    {file = "jellyfish-0.8.4-cp36-cp36m-win_amd64.whl", hash = "sha256:4764714f050935ac88f899cd79600b5788bb22f1eeb1c26893229b42f6df589b"},
-    {file = "jellyfish-0.8.4-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:2fe80bc7e3e7b025c0d8a9f4c9d83301cecad617fd3cfadf7e6197bccae4d635"},
-    {file = "jellyfish-0.8.4-cp37-cp37m-win_amd64.whl", hash = "sha256:b551182a1d4c0bf401deaee31b89dc230dddfb7a5114d735644921983cfbe703"},
-    {file = "jellyfish-0.8.4-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:0c96e591c805733dd3938765424bc1278fec4d4c00fea51962935e397ca56830"},
-    {file = "jellyfish-0.8.4-cp38-cp38-win_amd64.whl", hash = "sha256:a649ff9324d38ea77421e481b706e24e8c203312313dc945aa21bee82455bbba"},
-    {file = "jellyfish-0.8.4-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:7bb576403cd46211ec188d0f578beb988263d88cb3298db10c904f9f7c810b06"},
-    {file = "jellyfish-0.8.4-cp39-cp39-win_amd64.whl", hash = "sha256:d5a6becffd143544fe4ace753653eb2ebc9d3210b843fb5a7d68a335b4094330"},
-    {file = "jellyfish-0.8.4-py3-none-any.whl", hash = "sha256:01f0ff6b9c9e967a0f6b075b2bc38512024809792d89a2c853ca20c6afec37c1"},
-    {file = "jellyfish-0.8.4.tar.gz", hash = "sha256:e07c9346c6e82f7de83b983910617a82d1a993f8f93c232a60142b5bcb85c1cc"},
+    {file = "jellyfish-0.8.8-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:0cec0236be371faa2aa711561d4a564ffcc4804624a25d9efd012eeb2f5aa676"},
+    {file = "jellyfish-0.8.8-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ebbb99b7ff7ce2d8fb2d93e6e3a8573a5d2f5ab91f9fea32d0ef5b41d9fd4e00"},
+    {file = "jellyfish-0.8.8-cp36-cp36m-win_amd64.whl", hash = "sha256:2a390319d74d3e4f9c76b78ac90574ba546093d44e053d289d017a470eda8c6f"},
+    {file = "jellyfish-0.8.8-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:7e910e891defba7ad73379d5d678b776983d9851991c136f1f01bfd896d6b03b"},
+    {file = "jellyfish-0.8.8-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:18895debc063f9f46b2739d849305aba94614be0b9ca347ea3f91e4ea5ef2217"},
+    {file = "jellyfish-0.8.8-cp37-cp37m-win_amd64.whl", hash = "sha256:bede82c2a7879d53ac0fadf6871adee07476f62812096618a63a490b3dddfb40"},
+    {file = "jellyfish-0.8.8-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:10008dcc8cc0881e7f0709d952205905dcd0aabaf5e24af915bdd6a4f5407944"},
+    {file = "jellyfish-0.8.8-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:eef478362c03ba11e46c63747a44bdbac1cbf0f2cb2e0ab3b34efcc68f563644"},
+    {file = "jellyfish-0.8.8-cp38-cp38-win_amd64.whl", hash = "sha256:ddfb50b15cebbf6c660f3d2425980c422caafc139b30e797ad754b50e9ec7b2f"},
+    {file = "jellyfish-0.8.8-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:e5e3138ea47c5d585158df5fc0a4311548ff556a9c67ccfc2d7b981b1d064b26"},
+    {file = "jellyfish-0.8.8-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:63d8c61d0b74c74dea2daf2813776a316bc8d006902a7c13548c2ec274f96a54"},
+    {file = "jellyfish-0.8.8-cp39-cp39-win_amd64.whl", hash = "sha256:a8597e05559078ff3790ad44fd4697c5dc55ab7a2a7a98c751176ced5903d6ba"},
+    {file = "jellyfish-0.8.8.tar.gz", hash = "sha256:0506089cacf9b5897442134417b04b3c6610c19f280ae535eace390dc6325a5c"},
 ]
 jinja2 = [
     {file = "Jinja2-3.0.1-py3-none-any.whl", hash = "sha256:1f06f2da51e7b56b8f238affdd6b4e2c61e39598a378cc49345bc1bd42a978a4"},
@@ -1461,8 +1464,8 @@ pyflakes = [
     {file = "pyflakes-2.3.1.tar.gz", hash = "sha256:f5bc8ecabc05bb9d291eb5203d6810b49040f6ff446a756326104746cc00c1db"},
 ]
 pygments = [
-    {file = "Pygments-2.9.0-py3-none-any.whl", hash = "sha256:d66e804411278594d764fc69ec36ec13d9ae9147193a1740cd34d272ca383b8e"},
-    {file = "Pygments-2.9.0.tar.gz", hash = "sha256:a18f47b506a429f6f4b9df81bb02beab9ca21d0a5fee38ed15aef65f0545519f"},
+    {file = "Pygments-2.10.0-py3-none-any.whl", hash = "sha256:b8e67fe6af78f492b3c4b3e2970c0624cbf08beb1e493b2c99b9fa1b67a20380"},
+    {file = "Pygments-2.10.0.tar.gz", hash = "sha256:f398865f7eb6874156579fdf36bc840a03cab64d1cde9e93d68f46a425ec52c6"},
 ]
 pylint = [
     {file = "pylint-2.9.6-py3-none-any.whl", hash = "sha256:2e1a0eb2e8ab41d6b5dbada87f066492bb1557b12b76c47c2ee8aa8a11186594"},
