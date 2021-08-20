@@ -107,7 +107,7 @@ def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool
     Returns:
         True if `from_type` is assignable to `to_type`
     """
-    if to_type == typing.Any:
+    if to_type == typing.Any:  # pylint:disable=comparison-with-callable
         return True
     if is_union_type(to_type):
         return from_type in get_args(to_type)
