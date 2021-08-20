@@ -36,7 +36,13 @@ Note that this assumes that you have the source code checked out, installed Pyng
 properly—as mentioned before, we recommend a virtual environment, which needs to be
 sourced manually—and that your shell is pointing to the root directory of Pynguin's
 source repository.
-We run all commands on a command-line shell.
+We run all commands on a command-line shell where we assume that the environment variable
+``PYNGUIN_DANGER_AWARE`` is set.
+
+.. note::
+  We don't use docker in our examples, because we know that our examples
+  do not contain or use code that might harm our system.
+  But for unknown code we highly recommend using some form of isolation.
 
 First, let's look at the code of the example file (which is located in
 ``docs/source/_static/example.py``):
@@ -57,37 +63,36 @@ Linux or macOS machine, but similar can be done on Windows) using the command li
 
    $ mkdir -p /tmp/pynguin-results
 
-We will now invoke Pynguin (using its random test-generation algorithm) to let
+We will now invoke Pynguin (using its default test-generation algorithm) to let
 it generate test cases (we use ``\`` and the line breaks for better readability here,
 you can just omit them and type everything in one line)::
 
    $ pynguin \
-       --algorithm RANDOM \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example
 
-This runs for quite a while without showing any output.  Thus, to have some output as
-well as a more limited time (10 seconds here), we add some more parameters::
+This runs for a moment without showing any output.  Thus, to have some more verbose
+output we add the ``-v`` parameter::
 
    $ pynguin \
-       --algorithm RANDOM \
        --project_path ./docs/source/_static \
        --output_path /tmp/pynguin-results \
        --module_name example \
        -v
-       --budget 10
 
 The output on the command line might be something like the following:
 
 .. literalinclude:: ../source/_static/example-stdout.txt
-    :emphasize-lines: 1-3,16-20
 
-The first three line show that Pynguin starts, that it has not gotten any seed—that
-is a fixed start number of its (pseudo) random-number generator, and that it starts
-sequence generation using the *RANDOOPY* algorithm.
-It then yields that it took six algorithm iterations, and concludes with its results:
-ten test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+The first few lines show that Pynguin starts, that it has not gotten any seed for its
+(pseudo) random-number generator, followed by the configuration
+options that are used for its *DYNAMOSA* algorithm.
+We can also see that it ran zero iterations of that algorithm, i.e.,
+the initial random test cases were sufficient to cover all branches.
+This was to be expected, since the triangle example can be trivially covered with tests.
+The output then concludes with its results:
+Four test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -95,6 +100,68 @@ like the following (the result can differ on your machine):
     :language: python
     :lines: 8-
 
-As of version 0.6.0, Pynguin is now also able to generate assertions for simple data
-types (``int``, ``float``, ``str``, and ``bool``), as well as checks for ``None``
-return values.
+We can see that each test case consists of one or more invocations of the ``triangle`` function
+and that there are assertions that check for the correct return value.
+
+.. note::
+  As of version 0.6.0, Pynguin is able to generate assertions for simple data
+  types (``int``, ``float``, ``str``, ``bytes`` and ``bool``), as well as checks for ``None``
+  return values.
+
+
+A more complex example
+----------------------
+
+The above ``triangle`` example is really simple and could also be covered by a simple fuzzing tool.
+Thus, now we look at a more complex example: An implementation of a ``Queue`` for ``int`` elements.
+(located in ``docs/source/_static/queue_example.py``):
+
+.. literalinclude:: ../source/_static/queue_example.py
+    :linenos:
+    :language: python
+    :lines: 7-
+
+Testing this queue is more complex. One needs to instantiate it, add items, etc.
+Similar to the ``triangle`` example, we start pynguin with the following command::
+
+    $ pynguin \
+        --project-path ./docs/source/_static/ \
+        --output-path /tmp/pynguin-results \
+        --module-name queue_example \
+        -v \
+        --seed 1629381673714481067
+
+.. note::
+  We used a predefined seed here, because we know that Pynguin requires less iterations with this seed in this specific example and version.
+  This was done to get a clearer log.
+
+The command yields the following output:
+
+.. literalinclude:: ../source/_static/queue-example-stdout.txt
+
+We can see that the *DYNAMOSA* algorithm had to perform ten iterations to fully cover the ``Queue`` example with the given seed.
+We can also see that Pynguin generated three successful testcases:
+
+.. literalinclude:: ../source/_static/test_queue_example.py
+    :linenos:
+    :language: python
+    :lines: 8-
+
+
+And that it also generated five failing test cases. One of which looks this:
+
+.. literalinclude:: ../source/_static/test_queue_example_failing.py
+    :linenos:
+    :language: python
+    :lines: 52-101
+
+Failing test cases hereby identify test cases that raised an exception during their execution.
+For now, Pynguin cannot know if an exception is expected program behavior,
+caused by an invalid input or an actual fault.
+Thus, these test cases are wrapped in ``try-except`` blocks and should be manually inspected.
+
+.. note::
+  Generated test cases may contain a lot of superfluous statements.
+  Future versions of Pynguin will try minimize test cases as much as possible
+  while retaining their coverage.
+
