@@ -104,6 +104,16 @@ def test_remove(default_test_case):
     assert default_test_case._statements == [stmt_1, stmt_3]
 
 
+def test_remove_statement(default_test_case):
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
+    default_test_case.add_statements([stmt_1, stmt_2, stmt_3])
+    assert default_test_case.size() == 3
+    default_test_case.remove_statement(stmt_2)
+    assert default_test_case.statements == [stmt_1, stmt_3]
+
+
 def test_get_statement(default_test_case):
     stmt_1 = MagicMock(st.Statement)
     stmt_2 = MagicMock(st.Statement)

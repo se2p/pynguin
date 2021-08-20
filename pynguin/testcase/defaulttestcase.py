@@ -70,6 +70,9 @@ class DefaultTestCase(tc.TestCase):
             return
         del self._statements[position]
 
+    def remove_statement(self, statement: stmt.Statement) -> None:
+        self._statements.remove(statement)
+
     def chop(self, pos: int) -> None:
         assert pos >= 0
         while len(self._statements) > pos + 1:

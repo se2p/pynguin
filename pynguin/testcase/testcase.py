@@ -93,6 +93,14 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def remove_statement(self, statement: stmt.Statement) -> None:
+        """Remove the given statement from this test case.
+
+        Args:
+            statement: The statement to remove.
+        """
+
+    @abstractmethod
     def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 
