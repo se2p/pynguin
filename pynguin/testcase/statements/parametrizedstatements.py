@@ -259,7 +259,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
     def structural_eq(
         self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> bool:
-        if not isinstance(other, ParametrizedStatement):
+        if not isinstance(other, self.__class__):
             return False
         return (
             self._ret_val.structural_eq(other._ret_val, memo)
@@ -394,6 +394,16 @@ class MethodStatement(ParametrizedStatement):
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_method_statement(self)
+
+    def structural_hash(self) -> int:
+        return hash((super().structural_hash(), self._callee.structural_hash()))
+
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        return super().structural_eq(other, memo) and self._callee.structural_eq(
+            other._callee, memo
+        )
 
     def __repr__(self) -> str:
         return (
