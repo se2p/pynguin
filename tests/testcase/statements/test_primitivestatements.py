@@ -536,6 +536,13 @@ def test_enum_statement_not_eq():
     assert not statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
+def test_enum_statement_hash(test_case_mock):
+    enum_ = MagicMock(names=["FOO"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    statement2 = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    assert statement.structural_hash() == statement2.structural_hash()
+
+
 def test_enum_statement_accept(test_case_mock):
     enum_ = MagicMock(names=["FOO"])
     statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)

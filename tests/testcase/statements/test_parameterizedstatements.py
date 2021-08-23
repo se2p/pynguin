@@ -336,6 +336,37 @@ def test_method_statement_args(test_case_mock, variable_reference_mock, method_m
     assert statement.args == references
 
 
+def test_method_statement_not_eq(test_case_mock, method_mock):
+    var1 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+    var2 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+
+    args = {
+        "a": var1,
+    }
+
+    statement = ps.MethodStatement(test_case_mock, method_mock, var1, args)
+    statement2 = ps.MethodStatement(test_case_mock, method_mock, var2, args)
+    assert not statement.structural_eq(
+        statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
+    )
+
+
+def test_method_statement_eq(test_case_mock, method_mock):
+    var1 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+    var2 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+
+    args = {
+        "a": var1,
+    }
+
+    statement = ps.MethodStatement(test_case_mock, method_mock, var1, args)
+    statement2 = ps.MethodStatement(test_case_mock, method_mock, var1, args)
+    assert statement.structural_eq(
+        statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
+    )
+    assert statement.structural_hash() == statement2.structural_hash()
+
+
 def test_method_statement_accept(test_case_mock, variable_reference_mock, method_mock):
     statement = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
     visitor = MagicMock(sv.StatementVisitor)
