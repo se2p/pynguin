@@ -24,63 +24,77 @@ def test_case_1():
     var0 = 2311
     var1 = module0.Queue(var0)
     assert var1 is not None
-    var2 = var1.full()
-    assert var2 is False
-    var3 = module0.Queue(var0)
-    assert var3 is not None
-    var4 = module0.Queue(var0)
-    assert var4 is not None
-    var5 = var3.full()
-    assert var5 is False
-    var6 = 2477
-    var7 = var3.enqueue(var6)
-    assert var7 is True
-    var8 = var3.empty()
-    assert var8 is True
-    var9 = var3.dequeue()
-    assert var9 == 2477
+    var2 = module0.Queue(var0)
+    assert var2 is not None
+    var3 = var2.full()
+    assert var3 is False
+    var4 = 2477
+    var5 = var2.enqueue(var4)
+    assert var5 is True
+    var6 = var1.empty()
+    assert var6 is False
+    var7 = var2.dequeue()
+    assert var7 == 2477
 
 
 def test_case_2():
-    var0 = 1769
-    var1 = 1080
-    var2 = 3
-    var3 = module0.Queue(var2)
+    var0 = 2311
+    var1 = module0.Queue(var0)
+    assert var1 is not None
+    var2 = module0.Queue(var0)
+    assert var2 is not None
+    var3 = module0.Queue(var0)
     assert var3 is not None
-    var4 = var3.full()
+    var4 = var2.full()
     assert var4 is False
-    var5 = var3.empty()
-    assert var5 is False
-    var6 = 1235
-    var7 = var3.enqueue(var6)
+    var5 = 2477
+    var6 = var2.enqueue(var5)
+    assert var6 is True
+    var7 = var2.empty()
     assert var7 is True
-    var8 = var3.empty()
+    var8 = var3.dequeue()
+    assert var8 is None
+
+
+def test_case_3():
+    var0 = 3
+    var1 = module0.Queue(var0)
+    assert var1 is not None
+    var2 = var1.full()
+    assert var2 is False
+    var3 = var1.empty()
+    assert var3 is False
+    var4 = var1.dequeue()
+    assert var4 is None
+    var5 = 1235
+    var6 = var1.enqueue(var5)
+    assert var6 is True
+    var7 = var1.empty()
+    assert var7 is True
+    var8 = var1.enqueue(var0)
     assert var8 is True
-    var9 = var3.dequeue()
-    assert var9 == 1235
-    var10 = var3.dequeue()
-    assert var10 is None
-    var11 = var3.empty()
-    assert var11 is False
-    var12 = 2245
-    var13 = var3.empty()
-    assert var13 is False
-    var14 = var3.empty()
-    assert var14 is False
-    var15 = -461
-    var16 = -1408
-    var17 = 4317
-    var18 = var3.enqueue(var17)
-    assert var18 is True
-    var19 = var3.dequeue()
-    assert var19 == 4317
-    var20 = var3.full()
-    assert var20 is False
-    var21 = var3.enqueue(var12)
-    assert var21 is True
-    var22 = var3.full()
+    var9 = var1.empty()
+    assert var9 is True
+    var10 = var1.empty()
+    assert var10 is True
+    var11 = var1.enqueue(var0)
+    assert var11 is True
+    var12 = 455
+    var13 = module0.Queue(var12)
+    assert var13 is not None
+    var14 = var1.empty()
+    assert var14 is True
+    var15 = var13.dequeue()
+    assert var15 is None
+    var16 = var13.empty()
+    assert var16 is False
+    var17 = var1.empty()
+    assert var17 is True
+    var18 = -1435
+    var19 = var1.enqueue(var18)
+    assert var19 is False
+    var20 = 2071
+    var21 = module0.Queue(var20)
+    assert var21 is not None
+    var22 = var21.full()
     assert var22 is False
-    var23 = module0.Queue(var17)
-    assert var23 is not None
-    var24 = var23.empty()
-    assert var24 is False

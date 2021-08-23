@@ -28,8 +28,8 @@ Eager to start?  Make sure that Pynguin is :ref:`installed <install>` properly.
   *Developers:* If you know of a similar technique to Java's security manager mechanism
   in Python, which we can use to mitigate this issue, please let us know.
 
-Use the Bundled Example
------------------------
+A Simple Example
+----------------
 
 For a first impression, we use the bundled example file and generate tests for it.
 Note that this assumes that you have the source code checked out, installed Pynguin
@@ -113,7 +113,7 @@ A more complex example
 ----------------------
 
 The above ``triangle`` example is really simple and could also be covered by a simple fuzzing tool.
-Thus, now we look at a more complex example: An implementation of a ``Queue`` for ``int`` elements.
+Thus, we now look at a more complex example: An implementation of a ``Queue`` for ``int`` elements.
 (located in ``docs/source/_static/queue_example.py``):
 
 .. literalinclude:: ../source/_static/queue_example.py
@@ -122,7 +122,7 @@ Thus, now we look at a more complex example: An implementation of a ``Queue`` fo
     :lines: 7-
 
 Testing this queue is more complex. One needs to instantiate it, add items, etc.
-Similar to the ``triangle`` example, we start pynguin with the following command::
+Similar to the ``triangle`` example, we start Pynguin with the following command::
 
     $ pynguin \
         --project-path ./docs/source/_static/ \
@@ -139,8 +139,8 @@ The command yields the following output:
 
 .. literalinclude:: ../source/_static/queue-example-stdout.txt
 
-We can see that the *DYNAMOSA* algorithm had to perform ten iterations to fully cover the ``Queue`` example with the given seed.
-We can also see that Pynguin generated three successful testcases:
+We can see that the *DYNAMOSA* algorithm had to perform six iterations to fully cover the ``Queue`` example with the given seed.
+We can also see that Pynguin generated four successful testcases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:
@@ -148,14 +148,14 @@ We can also see that Pynguin generated three successful testcases:
     :lines: 8-
 
 
-And that it also generated five failing test cases. One of which looks this:
+And that it also generated four failing test cases. One of which looks this:
 
 .. literalinclude:: ../source/_static/test_queue_example_failing.py
     :linenos:
     :language: python
-    :lines: 52-101
+    :lines: 33-62
 
-Failing test cases hereby identify test cases that raised an exception during their execution.
+Failing test cases hereby are test cases that raised an exception during their execution.
 For now, Pynguin cannot know if an exception is expected program behavior,
 caused by an invalid input or an actual fault.
 Thus, these test cases are wrapped in ``try-except`` blocks and should be manually inspected.

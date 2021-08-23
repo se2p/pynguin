@@ -24,148 +24,86 @@ def test_case_1():
         assert var1 is not None
         var2 = var1.full()
         assert var2 is False
-        var3 = -1653
-        var4 = -475
-        var5 = module0.Queue(var4)
+        var3 = -475
+        var4 = module0.Queue(var3)
     except BaseException:
         pass
 
 
 def test_case_2():
     try:
-        var0 = 3390
-        var1 = module0.Queue(var0)
-        assert var1 is not None
-        var2 = var1.empty()
-        assert var2 is False
-        var3 = -439
-        var4 = 2337
-        var5 = module0.Queue(var4)
-        assert var5 is not None
-        var6 = var5.enqueue(var3)
+        var0 = -1745
+        var1 = 3
+        var2 = module0.Queue(var1)
+        assert var2 is not None
+        var3 = var2.full()
+        assert var3 is False
+        var4 = var2.empty()
+        assert var4 is False
+        var5 = 1235
+        var6 = var2.enqueue(var5)
         assert var6 is True
-        var7 = module0.Queue(var3)
+        var7 = var2.empty()
+        assert var7 is True
+        var8 = var2.enqueue(var1)
+        assert var8 is True
+        var9 = var2.empty()
+        assert var9 is True
+        var10 = var2.dequeue()
+        assert var10 == 1235
+        var11 = var2.dequeue()
+        assert var11 == 3
+        var12 = var2.enqueue(var5)
+        assert var12 is True
+        var13 = var2.empty()
+        assert var13 is True
+        var14 = module0.Queue(var0)
     except BaseException:
         pass
 
 
 def test_case_3():
     try:
-        var0 = -1745
-        var1 = 1769
-        var2 = 1080
-        var3 = 3
-        var4 = module0.Queue(var3)
-        assert var4 is not None
-        var5 = var4.full()
-        assert var5 is False
-        var6 = var4.empty()
-        assert var6 is False
-        var7 = 1235
-        var8 = var4.enqueue(var7)
-        assert var8 is True
-        var9 = var4.empty()
+        var0 = 1080
+        var1 = 3
+        var2 = module0.Queue(var1)
+        assert var2 is not None
+        var3 = var2.full()
+        assert var3 is False
+        var4 = var2.empty()
+        assert var4 is False
+        var5 = 1235
+        var6 = var2.enqueue(var5)
+        assert var6 is True
+        var7 = var2.empty()
+        assert var7 is True
+        var8 = var2.full()
+        assert var8 is False
+        var9 = var2.empty()
         assert var9 is True
-        var10 = var4.dequeue()
+        var10 = var2.dequeue()
         assert var10 == 1235
-        var11 = var4.dequeue()
-        assert var11 is None
-        var12 = var4.empty()
-        assert var12 is False
-        var13 = 2245
-        var14 = var4.empty()
-        assert var14 is False
-        var15 = var4.empty()
-        assert var15 is False
-        var16 = -461
-        var17 = -1408
-        var18 = 4317
-        var19 = var4.enqueue(var18)
+        var11 = 1235
+        var12 = -2114
+        var13 = var2.enqueue(var12)
+        assert var13 is True
+        var14 = var2.empty()
+        assert var14 is True
+        var15 = var2.enqueue(var0)
+        assert var15 is True
+        var16 = var2.empty()
+        assert var16 is True
+        var17 = var2.dequeue()
+        assert var17 == -2114
+        var18 = var2.dequeue()
+        assert var18 == 1080
+        var19 = var2.enqueue(var12)
         assert var19 is True
-        var20 = var4.dequeue()
-        assert var20 == 4317
-        var21 = -630
-        var22 = var4.enqueue(var21)
-        assert var22 is True
-        var23 = var4.dequeue()
-        assert var23 == -630
-        var24 = var4.full()
-        assert var24 is False
-        var25 = var4.enqueue(var3)
-        assert var25 is True
-        var26 = var4.full()
-        assert var26 is False
-        var27 = None
-        var28 = module0.Queue(var27)
-    except BaseException:
-        pass
-
-
-def test_case_4():
-    try:
-        var0 = -1745
-        var1 = 1790
-        var2 = 1065
-        var3 = 3
-        var4 = module0.Queue(var3)
-        assert var4 is not None
-        var5 = var4.full()
-        assert var5 is False
-        var6 = var4.empty()
-        assert var6 is False
-        var7 = 1235
-        var8 = var4.enqueue(var7)
-        assert var8 is True
-        var9 = var4.empty()
-        assert var9 is True
-        var10 = var4.dequeue()
-        assert var10 == 1235
-        var11 = var4.dequeue()
-        assert var11 is None
-        var12 = var4.empty()
-        assert var12 is False
-        var13 = var4.empty()
-        assert var13 is False
-        var14 = var4.dequeue()
-        assert var14 is None
-        var15 = module0.Queue(var2)
-        assert var15 is not None
-        var16 = var4.empty()
-        assert var16 is False
-        var17 = 788
-        var18 = 3058
-        var19 = var4.enqueue(var18)
-        assert var19 is True
-        var20 = 877
-        var21 = var4.enqueue(var20)
-        assert var21 is True
-        var22 = 2245
-        var23 = var4.empty()
-        assert var23 is True
-        var24 = var4.empty()
-        assert var24 is True
-        var25 = -461
-        var26 = -1408
-        var27 = 4317
-        var28 = -1324
-        var29 = 4893
-        var30 = var4.enqueue(var29)
-        assert var30 is True
-        var31 = var4.enqueue(var0)
-        assert var31 is False
-        var32 = var4.dequeue()
-        assert var32 == 3058
-        var33 = var4.full()
-        assert var33 is False
-        var34 = var4.empty()
-        assert var34 is True
-        var35 = 1539
-        var36 = var4.enqueue(var35)
-        assert var36 is True
-        var37 = var4.full()
-        assert var37 is True
-        var38 = -5590
-        var39 = -577
-        var40 = module0.Queue(var39)
+        var20 = module0.Queue(var11)
+        assert var20 is not None
+        var21 = var20.empty()
+        assert var21 is False
+        var22 = -1063
+        var23 = module0.Queue(var22)
     except BaseException:
         pass
