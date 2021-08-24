@@ -41,9 +41,9 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self._archive = Archive(OrderedSet(self._fitness_functions))
+        self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
         self._goals_manager = _GoalsManager(self._archive, self.executor)
-        self._number_of_goals = len(self._fitness_functions)
+        self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.Goals, self._number_of_goals
         )
