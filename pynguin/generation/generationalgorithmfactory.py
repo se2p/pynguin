@@ -43,7 +43,6 @@ from pynguin.generation.algorithms.randomsearchstrategy import (
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
-from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
     MaxStatementExecutionsStoppingCondition,
@@ -161,12 +160,8 @@ class TestSuiteGenerationAlgorithmFactory(
         strategy.test_cluster = self._test_cluster
         strategy.test_factory = self._test_factory
 
-        fitness_functions = self._get_fitness_functions()
-        strategy.fitness_functions = fitness_functions
-
-        if isinstance(strategy, WrapTestSuiteMixin):
-            test_suite_fitness_function = self._get_test_suite_fitness_function()
-            strategy.test_suite_fitness_function = test_suite_fitness_function
+        strategy.test_case_fitness_functions = self._get_test_case_fitness_functions()
+        strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()
 
         selection_function = self._get_selection_function()
         selection_function.maximize = False
@@ -242,7 +237,7 @@ class TestSuiteGenerationAlgorithmFactory(
         self._logger.info("Use ranking function: RankBasedPreferenceSorting")
         return RankBasedPreferenceSorting()
 
-    def _get_fitness_functions(self) -> List[ff.FitnessFunction]:
+    def _get_test_case_fitness_functions(self) -> List[ff.FitnessFunction]:
         """Converts a criterion into a test suite fitness function.
 
         Returns:
@@ -253,6 +248,7 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
+            config.Algorithm.WHOLE_SUITE,
         ):
             factory = bcf.BranchCoverageFactory(self._executor)
             fitness_functions: List[ff.FitnessFunction] = factory.get_coverage_goals()
@@ -260,7 +256,7 @@ class TestSuiteGenerationAlgorithmFactory(
                 "Instantiated %d fitness functions", len(fitness_functions)
             )
             return fitness_functions
-        return [self._get_test_suite_fitness_function()]
+        return []
 
-    def _get_test_suite_fitness_function(self) -> ff.FitnessFunction:
-        return bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)
+    def _get_test_suite_fitness_functions(self) -> List[ff.FitnessFunction]:
+        return [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]

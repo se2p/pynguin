@@ -15,7 +15,6 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 
 
 # pylint: disable=too-few-public-methods
@@ -41,13 +40,13 @@ class RandomTestSuiteSearchStrategy(TestGenerationStrategy):
     def _get_random_solution(self) -> tsc.TestSuiteChromosome:
         """Small helper to create new solution and add fitness functions."""
         solution = self._chromosome_factory.get_chromosome()
-        for fitness_function in self._fitness_functions:
+        for fitness_function in self._test_suite_fitness_functions:
             solution.add_fitness_function(fitness_function)
 
         return solution
 
 
-class RandomTestCaseSearchStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
+class RandomTestCaseSearchStrategy(TestGenerationStrategy):
     """Creates random test suites based on test-case chromosomes."""
 
     _logger = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ class RandomTestCaseSearchStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     def generate_tests(self) -> chrom.Chromosome:
         self.before_search_start()
         archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
-            OrderedSet(self._fitness_functions)
+            OrderedSet(self._test_case_fitness_functions)
         )
         solution = self._get_random_solution()
         archive.update([solution])
@@ -71,6 +70,6 @@ class RandomTestCaseSearchStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
 
     def _get_random_solution(self) -> tcc.TestCaseChromosome:
         solution = self._chromosome_factory.get_chromosome()
-        for fitness_function in self._fitness_functions:
+        for fitness_function in self._test_case_fitness_functions:
             solution.add_fitness_function(fitness_function)
         return solution

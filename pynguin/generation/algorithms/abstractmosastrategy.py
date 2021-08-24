@@ -15,14 +15,11 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
-class AbstractMOSATestStrategy(
-    TestGenerationStrategy, WrapTestSuiteMixin, metaclass=ABCMeta
-):
+class AbstractMOSATestStrategy(TestGenerationStrategy, metaclass=ABCMeta):
     """An abstract base implementation for MOSA and its derivatives."""
 
     _logger = logging.getLogger(__name__)
@@ -71,7 +68,7 @@ class AbstractMOSATestStrategy(
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
-                for fitness_function in self._fitness_functions:
+                for fitness_function in self._test_case_fitness_functions:
                     tch.add_fitness_function(fitness_function)
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
@@ -118,7 +115,7 @@ class AbstractMOSATestStrategy(
         population: List[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._fitness_functions:
+            for fitness_function in self._test_case_fitness_functions:
                 chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population

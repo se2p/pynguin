@@ -39,7 +39,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         self.before_search_start()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
-        for fitness_function in self._fitness_functions:
+        for fitness_function in self._test_suite_fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
 

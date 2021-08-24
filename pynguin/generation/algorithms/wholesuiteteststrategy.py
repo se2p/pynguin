@@ -8,8 +8,13 @@
 import logging
 from typing import List
 
+from ordered_set import OrderedSet
+
 import pynguin.configuration as config
+import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -24,11 +29,13 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def __init__(self) -> None:
         super().__init__()
         self._population: List[tsc.TestSuiteChromosome] = []
+        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
+        self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
         self._population = self._get_random_population()
         self._sort_population()
         self.before_first_search_iteration(self._get_best_individual())
@@ -90,7 +97,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         population = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._fitness_functions:
+            for fitness_function in self._test_suite_fitness_functions:
                 chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
