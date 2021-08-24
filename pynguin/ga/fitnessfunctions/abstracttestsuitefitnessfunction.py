@@ -36,6 +36,7 @@ class AbstractTestSuiteFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
                     self._executor.execute(test_case_chromosome.test_case)
                 )
                 test_case_chromosome.set_changed(False)
+                test_case_chromosome.invalidate_fitness_values()
             result = test_case_chromosome.get_last_execution_result()
             assert result is not None
             results.append(result)

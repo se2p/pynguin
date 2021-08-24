@@ -86,7 +86,7 @@ class Chromosome(metaclass=ABCMeta):
             len(self._fitness_functions) > 0
         ), "Cannot evaluate fitness, if no fitness functions are defined."
 
-        if self._changed:
+        if self._changed or len(self._fitness_values) == 0:
             for fitness_func in self._fitness_functions:
                 new_values = fitness_func.compute_fitness_values(self)
                 self._update_fitness_values(fitness_func, new_values)
