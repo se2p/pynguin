@@ -35,6 +35,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
+        # These fitness functions are to fine grained...
         self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
         self._population = self._get_random_population()
         self._sort_population()
@@ -43,7 +44,8 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             self.resources_left() and self._get_best_individual().get_fitness() != 0.0
         ):
             self.evolve()
-            self.after_search_iteration(self._get_best_individual())
+            self._update_archive()
+            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
         self.after_search_finish()
         return self._get_best_individual()
 
@@ -97,10 +99,13 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         population = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._test_suite_fitness_functions:
-                chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
+
+    def _update_archive(self) -> None:
+        """Store covering test cases in archive."""
+        for suite in self._population:
+            self._archive.update(suite.test_case_chromosomes)
 
     def _sort_population(self) -> None:
         """Sort the population by fitness."""
