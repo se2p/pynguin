@@ -166,7 +166,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         Returns:
             The used test suite fitness functions
         """
-        return self._test_case_fitness_functions
+        return self._test_suite_fitness_functions
 
     @test_suite_fitness_functions.setter
     def test_suite_fitness_functions(
