@@ -68,8 +68,6 @@ class AbstractMOSATestStrategy(TestGenerationStrategy, metaclass=ABCMeta):
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
-                for fitness_function in self._test_case_fitness_functions:
-                    tch.add_fitness_function(fitness_function)
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
@@ -115,8 +113,6 @@ class AbstractMOSATestStrategy(TestGenerationStrategy, metaclass=ABCMeta):
         population: List[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._test_case_fitness_functions:
-                chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
 

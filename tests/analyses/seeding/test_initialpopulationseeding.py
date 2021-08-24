@@ -240,13 +240,14 @@ def test_algorithm_generation_factory(
     mock_class, dummy_test_cluster, enabled, fac_type
 ):
     config.configuration.seeding.initial_population_seeding = enabled
+    config.configuration.algorithm = config.Algorithm.MIO
     tsfactory = TestSuiteGenerationAlgorithmFactory(
         mock_class.return_value, dummy_test_cluster
     )
-    chromosome_factory = tsfactory._get_chromosome_factory()
-    test_case_factory = (
-        chromosome_factory.test_case_chromosome_factory._test_case_factory
+    chromosome_factory = tsfactory._get_chromosome_factory(
+        MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
     )
+    test_case_factory = chromosome_factory._test_case_factory
     assert type(test_case_factory) == fac_type
 
 

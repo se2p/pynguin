@@ -120,8 +120,13 @@ class TestSuiteGenerationAlgorithmFactory(
         self._test_cluster = test_cluster
         self._test_factory = tf.TestFactory(self._test_cluster)
 
-    def _get_chromosome_factory(self) -> cf.ChromosomeFactory:
+    def _get_chromosome_factory(
+        self, strategy: TestGenerationStrategy
+    ) -> cf.ChromosomeFactory:
         """Provides a chromosome factory.
+
+        Args:
+            strategy: The strategy that is currently configured.
 
         Returns:
             A chromosome factory
@@ -135,7 +140,7 @@ class TestSuiteGenerationAlgorithmFactory(
                 test_case_factory, self._test_factory
             )
         test_case_chromosome_factory = tccf.TestCaseChromosomeFactory(
-            self._test_factory, test_case_factory
+            self._test_factory, test_case_factory, strategy.test_case_fitness_functions
         )
         if config.configuration.algorithm in (
             config.Algorithm.DYNAMOSA,
@@ -144,7 +149,9 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
         ):
             return test_case_chromosome_factory
-        return tscf.TestSuiteChromosomeFactory(test_case_chromosome_factory)
+        return tscf.TestSuiteChromosomeFactory(
+            test_case_chromosome_factory, strategy.test_suite_fitness_functions
+        )
 
     def get_search_algorithm(self) -> TestGenerationStrategy:
         """Initialises and sets up the test-generation strategy to use.
@@ -152,16 +159,15 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A fully configured test-generation strategy
         """
-        chromosome_factory = self._get_chromosome_factory()
         strategy = self._get_generation_strategy()
+        strategy.test_case_fitness_functions = self._get_test_case_fitness_functions()
+        strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()
 
+        chromosome_factory = self._get_chromosome_factory(strategy)
         strategy.chromosome_factory = chromosome_factory
         strategy.executor = self._executor
         strategy.test_cluster = self._test_cluster
         strategy.test_factory = self._test_factory
-
-        strategy.test_case_fitness_functions = self._get_test_case_fitness_functions()
-        strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()
 
         selection_function = self._get_selection_function()
         selection_function.maximize = False

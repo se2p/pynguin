@@ -153,21 +153,15 @@ class MIOTestStrategy(TestGenerationStrategy):
             self._current_mutations += 1
         elif randomness.next_float() < self._parameters.Pr:
             offspring = self.chromosome_factory.get_chromosome()
-            self._add_fitness_functions(offspring)
             self._current_mutations = 1
         else:
             maybe_offspring = self._archive.get_solution()
             if maybe_offspring is None:
                 # Nothing in archive, so sample new one.
                 offspring = self.chromosome_factory.get_chromosome()
-                self._add_fitness_functions(offspring)
             else:
                 offspring = maybe_offspring
             offspring.mutate()
             self._current_mutations = 1
         if self._archive.update_archive(offspring):
             self._solution = offspring
-
-    def _add_fitness_functions(self, chromosome: tcc.TestCaseChromosome) -> None:
-        for fitness_function in self._test_case_fitness_functions:
-            chromosome.add_fitness_function(fitness_function)
