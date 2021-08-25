@@ -1,6 +1,24 @@
 Development Hints
 =================
 
+Deterministic behavior
+----------------------
+Pynguin's behavior is inherently probabilistic.
+However, in order to easily reproduce an execution, e.g. for an evaluation or for debugging purposes,
+it must be possible to achieve :ref:`deterministic behavior <reproducible>`.
+
+For this purpose, whenever an implementation uses randomness, it must be done via ``pynguin.utils.randomness``.
+This module contains a singleton instance of a random number generator that is seeded at startup (using ``--seed``).
+
+Furthermore, when an implementation's behavior depends on the iteration order of a data structure,
+e.g., when picking a random element from it, one has to ensure that this order is deterministic:
+
+- lists and tuples are ordered by design.
+- dicts store their insertion order beginning with Python 3.7 and are therefore safe to use.
+- Python's builtin sets do not guarantee any order, thus one has to use ``OrderedSet``, which is a set implementation that stores the insertion order of its elements.
+
+
+
 Overriding ``__eq__`` and ``__hash__`` methods
 ----------------------------------------------
 

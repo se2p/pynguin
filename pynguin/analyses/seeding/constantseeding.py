@@ -12,9 +12,10 @@ import logging
 import os
 from abc import abstractmethod
 from pkgutil import iter_modules
-from typing import Any, Dict, Set, Type, Union, cast
+from typing import Any, Dict, Type, Union, cast
 
 from _py_abc import ABCMeta
+from ordered_set import OrderedSet
 from setuptools import find_packages
 
 from pynguin.utils import randomness
@@ -111,15 +112,15 @@ class _StaticConstantSeeding(_ConstantSeeding):
     """
 
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], Set[Types]] = {
-            int: set(),
-            float: set(),
-            str: set(),
+        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+            int: OrderedSet(),
+            float: OrderedSet(),
+            str: OrderedSet(),
         }
 
     @staticmethod
-    def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
-        modules: Set[str] = set()
+    def _find_modules(project_path: Union[str, os.PathLike]) -> OrderedSet[str]:
+        modules: OrderedSet[str] = OrderedSet()
         for package in find_packages(
             project_path,
             exclude=[
@@ -143,7 +144,7 @@ class _StaticConstantSeeding(_ConstantSeeding):
 
     def collect_constants(
         self, project_path: Union[str, os.PathLike]
-    ) -> Dict[Type[Types], Set[Types]]:
+    ) -> Dict[Type[Types], OrderedSet[Types]]:
         """Collect all constants for a given project.
 
         Args:
@@ -176,12 +177,12 @@ class _StaticConstantSeeding(_ConstantSeeding):
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], Set[Types]] = {
-            float: set(),
-            int: set(),
-            str: set(),
+        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+            float: OrderedSet(),
+            int: OrderedSet(),
+            str: OrderedSet(),
         }
-        self._string_expressions: Set[str] = set()
+        self._string_expressions: OrderedSet[str] = OrderedSet()
 
     def visit_Constant(self, node: ast.Constant) -> Any:
         if isinstance(node.value, str):
@@ -210,7 +211,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self.generic_visit(node)
 
     @property
-    def constants(self) -> Dict[Type[Types], Set[Types]]:
+    def constants(self) -> Dict[Type[Types], OrderedSet[Types]]:
         """Provides the collected constants.
 
         Returns:
@@ -256,10 +257,10 @@ class DynamicConstantSeeding(_ConstantSeeding):
     }
 
     def __init__(self):
-        self._dynamic_pool: Dict[Type[Types], Set[Types]] = {
-            int: set(),
-            float: set(),
-            str: set(),
+        self._dynamic_pool: Dict[Type[Types], OrderedSet[Types]] = {
+            int: OrderedSet(),
+            float: OrderedSet(),
+            str: OrderedSet(),
         }
 
     def reset(self) -> None:

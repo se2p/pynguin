@@ -8,6 +8,7 @@ from typing import Any, Union
 from unittest.mock import MagicMock
 
 import pytest
+from ordered_set import OrderedSet
 
 from pynguin.setup.testcluster import TestCluster
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -20,7 +21,7 @@ def test_add_generator_primitive():
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = int
     cluster.add_generator(generator)
-    assert cluster.get_generators_for(int) == set()
+    assert cluster.get_generators_for(int) == OrderedSet([])
 
 
 def test_add_generator():
@@ -28,7 +29,7 @@ def test_add_generator():
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = MagicMock
     cluster.add_generator(generator)
-    assert cluster.get_generators_for(MagicMock) == {generator}
+    assert cluster.get_generators_for(MagicMock) == OrderedSet([generator])
 
 
 def test_add_generator_two():
@@ -39,7 +40,7 @@ def test_add_generator_two():
     generator2 = MagicMock(GenericMethod)
     generator2.generated_type.return_value = MagicMock
     cluster.add_generator(generator2)
-    assert cluster.get_generators_for(MagicMock) == {generator, generator2}
+    assert cluster.get_generators_for(MagicMock) == OrderedSet([generator, generator2])
 
 
 def test_add_accessible_object_under_test():
@@ -48,7 +49,7 @@ def test_add_accessible_object_under_test():
     aoc2 = MagicMock(GenericMethod)
     cluster.add_accessible_object_under_test(aoc)
     cluster.add_accessible_object_under_test(aoc2)
-    assert cluster.accessible_objects_under_test == {aoc, aoc2}
+    assert cluster.accessible_objects_under_test == OrderedSet([aoc, aoc2])
 
 
 def test_add_modifier():
@@ -56,7 +57,7 @@ def test_add_modifier():
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
     cluster.add_modifier(int, modifier)
-    assert cluster.get_modifiers_for(int) == {modifier}
+    assert cluster.get_modifiers_for(int) == OrderedSet([modifier])
 
 
 def test_add_modifier_two():
@@ -67,7 +68,7 @@ def test_add_modifier_two():
     modifier2 = MagicMock(GenericMethod)
     modifier2.generated_type.return_value = MagicMock
     cluster.add_modifier(int, modifier2)
-    assert cluster.get_modifiers_for(int) == {modifier, modifier2}
+    assert cluster.get_modifiers_for(int) == OrderedSet([modifier, modifier2])
 
 
 def test_get_random_modifier():
@@ -89,7 +90,7 @@ def test_get_random_modifier_none():
 
 def test_get_modifier_none_available():
     cluster = TestCluster()
-    assert cluster.get_modifiers_for(int) == set()
+    assert cluster.get_modifiers_for(int) == OrderedSet()
 
 
 def test_get_random_accessible():

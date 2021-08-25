@@ -10,6 +10,8 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import Generic, List, Optional, Set, TypeVar
 
+from ordered_set import OrderedSet
+
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
@@ -60,7 +62,7 @@ class RankingFunction(Generic[C], metaclass=ABCMeta):
 
     @abstractmethod
     def compute_ranking_assignment(
-        self, solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
+        self, solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> RankedFronts:
         """Computes the ranking assignment for the given population of solutions.
 
@@ -143,7 +145,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     def _get_zero_front(
         solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
     ) -> List[C]:
-        zero_front: Set[C] = set()
+        zero_front: OrderedSet[C] = OrderedSet()
         for goal in uncovered_goals:
             comparator: PreferenceSortingComparator[C] = PreferenceSortingComparator(
                 goal

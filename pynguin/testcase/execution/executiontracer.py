@@ -10,10 +10,11 @@ import logging
 import threading
 from math import inf
 from types import CodeType
-from typing import Any, Callable, Dict, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
+from ordered_set import OrderedSet
 
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
@@ -68,7 +69,9 @@ class KnownData:
     # Stores which of the existing code objects do not contain a branch, i.e.,
     # they do not contain a predicate. Every code object is initially seen as
     # branch-less until a predicate is registered for it.
-    branch_less_code_objects: Set[int] = dataclasses.field(default_factory=set)
+    branch_less_code_objects: OrderedSet[int] = dataclasses.field(
+        default_factory=OrderedSet
+    )
 
     # Maps all known ids of predicates to meta information
     existing_predicates: Dict[int, PredicateMetaData] = dataclasses.field(

@@ -9,6 +9,8 @@ import logging
 import sys
 from typing import Dict, Generic, Iterable, Set, TypeVar
 
+from ordered_set import OrderedSet
+
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 
@@ -36,9 +38,9 @@ class Archive(Generic[F, C]):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, objectives: Set[F]) -> None:
+    def __init__(self, objectives: OrderedSet[F]) -> None:
         self._covered: Dict[F, C] = {}
-        self._uncovered = set(objectives)
+        self._uncovered = OrderedSet(objectives)
         self._objectives = objectives
 
     def update(self, solutions: Iterable[C]) -> None:
@@ -69,7 +71,7 @@ class Archive(Generic[F, C]):
         self._logger.debug("ArchiveCoverageGoals: %d", len(self._covered))
 
     @property
-    def uncovered_goals(self) -> Set[F]:
+    def uncovered_goals(self) -> OrderedSet[F]:
         """Provides the set of goals that are yet to cover.
 
         Returns:
@@ -87,7 +89,7 @@ class Archive(Generic[F, C]):
         return set(self._covered.keys())
 
     @property
-    def objectives(self) -> Set[F]:
+    def objectives(self) -> OrderedSet[F]:
         """Provides the set of all objectives.
 
         Returns:
@@ -96,7 +98,7 @@ class Archive(Generic[F, C]):
         return self._objectives
 
     @property
-    def solutions(self) -> Set[C]:
+    def solutions(self) -> OrderedSet[C]:
         """Provides the best solutions found so far.
 
         Best solutions are those shortest test cases covering one of the targets
@@ -106,7 +108,7 @@ class Archive(Generic[F, C]):
             The best solutions in the archive
         """
         assert self._all_covered(), "Some covered targets have a fitness != 0.0"
-        return set(self._covered.values())
+        return OrderedSet(self._covered.values())
 
     def reset(self) -> None:
         """Resets the archive."""

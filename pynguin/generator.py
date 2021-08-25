@@ -237,6 +237,8 @@ def _run() -> ReturnCode:
             "Start generating sequences using %s", config.configuration.algorithm
         )
         generation_result = algorithm.generate_tests()
+        if algorithm.stopping_condition.is_fulfilled():
+            _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
         _LOGGER.info(
             "Stop generating sequences using %s", config.configuration.algorithm
         )

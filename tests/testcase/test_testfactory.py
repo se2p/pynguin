@@ -11,6 +11,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
@@ -214,7 +215,7 @@ def test_add_function(provide_callables_from_fixtures_modules):
     assert test_case.size() <= 4
 
 
-def test_add_enum(provide_callables_from_fixtures_modules):
+def test_add_enum():
     test_case = dtc.DefaultTestCase()
     enum_ = enum.Enum("Foo", "BAR")
     generic_enum = gao.GenericEnum(enum_)
@@ -255,7 +256,7 @@ def test_attempt_generation_for_type(test_case_mock):
     factory = tf.TestFactory(MagicMock(TestCluster))
     factory.append_generic_accessible = mock_method
     factory._attempt_generation_for_type(
-        test_case_mock, 0, 0, True, {MagicMock(gao.GenericAccessibleObject)}
+        test_case_mock, 0, 0, True, OrderedSet([MagicMock(gao.GenericAccessibleObject)])
     )
 
 
