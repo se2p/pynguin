@@ -344,13 +344,3 @@ def test_accept(test_case_chromosome):
     visitor = MagicMock()
     test_case_chromosome.accept(visitor)
     visitor.visit_test_case_chromosome.assert_called_once_with(test_case_chromosome)
-
-
-def test_invalidate_fitness_cache(test_case_chromosome):
-    fitness = MagicMock()
-    fitness.is_maximisation_function.return_value = False
-    test_case_chromosome.add_fitness_function(fitness)
-    test_case_chromosome._update_fitness_values(fitness, MagicMock())
-    assert test_case_chromosome.fitness_values != {}
-    test_case_chromosome.invalidate_fitness_values()
-    assert test_case_chromosome.fitness_values == {}
