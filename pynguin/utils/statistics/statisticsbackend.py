@@ -52,7 +52,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
         try:
             output_dir = Path(
                 config.configuration.statistics_output.report_dir
-            ).absolute()
+            ).resolve()
             output_file = output_dir / "statistics.csv"
             with output_file.open(mode="a") as csv_file:
                 field_names = [k for k, _ in data.items()]
