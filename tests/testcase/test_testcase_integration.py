@@ -113,7 +113,7 @@ def test_test_case_equals_on_different_prim(
     )
 
     # Even though they both point to an int, they are not equal
-    assert not simple_test_case == cloned
+    assert simple_test_case != cloned
 
 
 def test_get_all_objects_short(simple_test_case):

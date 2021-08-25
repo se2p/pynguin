@@ -48,6 +48,7 @@ rich = "^10.3"
 pytest = "^6.2"
 Jinja2 = "^3.0.1"
 Pygments = "^2.9.0"
+ordered-set = "^4.0.2"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"

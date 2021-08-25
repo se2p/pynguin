@@ -6,7 +6,9 @@
 #
 """Provides a random test generation algorithm similar to Randoop."""
 import logging
-from typing import List, Set
+from typing import List
+
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -82,7 +84,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         Raises:
             GenerationException: In case an error occurs during generation
         """
-        objects_under_test: Set[
+        objects_under_test: OrderedSet[
             gao.GenericAccessibleObject
         ] = self.test_cluster.accessible_objects_under_test
 
@@ -142,7 +144,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     @staticmethod
     def _random_public_method(
-        objects_under_test: Set[gao.GenericAccessibleObject],
+        objects_under_test: OrderedSet[gao.GenericAccessibleObject],
     ) -> gao.GenericCallableAccessibleObject:
         object_under_test = randomness.RNG.choice(
             [

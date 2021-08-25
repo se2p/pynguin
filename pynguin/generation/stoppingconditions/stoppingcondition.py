@@ -62,7 +62,7 @@ class StoppingCondition(so.SearchObserver, eo.ExecutionObserver, metaclass=ABCMe
         """
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.current_value} / {self.limit()}"
+        return f"{self.__class__.__name__}: {self.current_value()} / {self.limit()}"
 
     @property
     def observes_execution(self) -> bool:

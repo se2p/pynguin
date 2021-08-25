@@ -715,7 +715,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._logger.info("Instrumented compare_op")
+        self._logger.debug("Instrumented compare_op")
 
     def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
         """Apply the instrumentation to all constants of the given code object.

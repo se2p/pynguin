@@ -13,13 +13,13 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
 @pytest.fixture
-def assignment_statement(test_case_mock, variable_reference_mock):
-    return astmt.AssignmentStatement(
-        test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
-    )
+def assignment_statement(test_case_mock) -> astmt.AssignmentStatement:
+    lhs = vri.VariableReferenceImpl(test_case_mock, int)
+    rhs = vri.VariableReferenceImpl(test_case_mock, float)
+    return astmt.AssignmentStatement(test_case_mock, lhs, rhs)
 
 
-def test_field_statement(test_case_mock, variable_reference_mock):
+def test_rhs(test_case_mock, variable_reference_mock):
     rhs = MagicMock(vri.VariableReferenceImpl)
     field_statement = astmt.AssignmentStatement(
         test_case_mock, variable_reference_mock, rhs
@@ -27,29 +27,52 @@ def test_field_statement(test_case_mock, variable_reference_mock):
     assert field_statement.rhs == rhs
 
 
-def test_hash(assignment_statement):
-    assert assignment_statement.__hash__() != 0
+def test_structural_hash(assignment_statement):
+    assert assignment_statement.structural_hash() != 0
 
 
-def test_eq_same(assignment_statement):
-    assert assignment_statement.__eq__(assignment_statement)
+def test_structural_hash_same(assignment_statement):
+    assert (
+        assignment_statement.structural_hash() == assignment_statement.structural_hash()
+    )
 
 
-def test_eq_other_type(test_case_mock, variable_reference_mock):
+def test_structural_eq_same(assignment_statement):
+    assert assignment_statement.structural_eq(
+        assignment_statement,
+        {
+            assignment_statement.ret_val: assignment_statement.ret_val,
+            assignment_statement.rhs: assignment_statement.rhs,
+        },
+    )
+
+
+def test_structural_eq_other_type(test_case_mock, variable_reference_mock):
     statement = astmt.AssignmentStatement(
         test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
     )
-    assert not statement.__eq__(test_case_mock)
+    assert not statement.structural_eq(test_case_mock, {})
 
 
-def test_eq_other(test_case_mock, variable_reference_mock):
-    statement_1 = astmt.AssignmentStatement(
-        test_case_mock, variable_reference_mock, variable_reference_mock
-    )
-    statement_2 = astmt.AssignmentStatement(
-        test_case_mock, variable_reference_mock, variable_reference_mock
-    )
-    assert statement_1.__eq__(statement_2)
+@pytest.mark.parametrize(
+    "lhs,rhs,res",
+    [
+        (True, True, True),
+        (True, False, False),
+        (False, True, False),
+        (False, False, False),
+    ],
+)
+def test_structural_eq_other_different_types(test_case_mock, lhs, rhs, res):
+    lhs1 = MagicMock(vri.VariableReferenceImpl)
+    lhs1.structural_eq.return_value = lhs
+    lhs2 = MagicMock(vri.VariableReferenceImpl)
+    rhs1 = MagicMock(vri.VariableReferenceImpl)
+    rhs1.structural_eq.return_value = rhs
+    rhs2 = MagicMock(vri.VariableReferenceImpl)
+    statement_1 = astmt.AssignmentStatement(test_case_mock, lhs1, rhs1)
+    statement_2 = astmt.AssignmentStatement(test_case_mock, lhs2, rhs2)
+    assert statement_1.structural_eq(statement_2, {lhs1: lhs2, rhs1: rhs2}) == res
 
 
 def test_accept(test_case_mock, variable_reference_mock):

@@ -6,7 +6,9 @@
 #
 """Provides the MOSA test-generation strategy."""
 import logging
-from typing import List, Set
+from typing import List
+
+from ordered_set import OrderedSet
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
@@ -28,7 +30,7 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self._archive = Archive(set(self._fitness_functions))
+        self._archive = Archive(OrderedSet(self._fitness_functions))
         self._number_of_goals = len(self._fitness_functions)
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.Goals, self._number_of_goals
@@ -74,7 +76,7 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
         union.extend(self._population)
         union.extend(offspring_population)
 
-        uncovered_goals: Set[ff.FitnessFunction] = self._archive.uncovered_goals
+        uncovered_goals: OrderedSet[ff.FitnessFunction] = self._archive.uncovered_goals
 
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))

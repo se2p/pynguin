@@ -8,10 +8,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Dict
 
 import pynguin.assertion.assertionvisitor as av
-import pynguin.testcase.testcase as tc  # pylint:disable=cyclic-import
 import pynguin.testcase.variable.variablereference as vr
 
 
@@ -55,12 +54,13 @@ class Assertion:
         """
 
     @abstractmethod
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> Assertion:
-        """Clone this assertion into the new test case at the given offset.
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> Assertion:
+        """Clone this assertion.
 
         Args:
-            new_test_case: the test case in which this assertion cloned.
-            offset: the offset at which the assertion is cloned.
+            memo: Mapping from old to new variables.
 
         Returns: the cloned assertion
         """

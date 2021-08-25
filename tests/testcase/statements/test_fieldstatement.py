@@ -89,22 +89,16 @@ def test_field_statement_eq_other_type(
     statement = fstmt.FieldStatement(
         test_case_mock, field_mock, variable_reference_mock
     )
-    assert not statement.__eq__(variable_reference_mock)
+    assert not statement.structural_eq(variable_reference_mock, {})
 
 
-def test_field_statement_eq_clone(field_mock):
-    test_case1 = dtc.DefaultTestCase()
-    test_case1.add_statement(prim.IntPrimitiveStatement(test_case1, 0))
-    test_case2 = dtc.DefaultTestCase()
-    test_case2.add_statement(prim.IntPrimitiveStatement(test_case2, 0))
-
-    statement = fstmt.FieldStatement(
-        test_case1, field_mock, test_case1.statements[0].ret_val
-    )
-    test_case1.add_statement(statement)
-    clone = statement.clone(test_case2)
-    test_case2.add_statement(clone)
-    assert statement.__eq__(clone)
+def test_field_statement_eq_clone(test_case_mock, field_mock):
+    ref = vri.VariableReferenceImpl(test_case_mock, float)
+    statement = fstmt.FieldStatement(test_case_mock, field_mock, ref)
+    memo = {ref: ref}
+    clone = statement.clone(test_case_mock, memo)
+    memo[statement.ret_val] = clone.ret_val
+    assert statement.structural_eq(clone, memo)
 
 
 def test_hash_same(test_case_mock, variable_reference_mock, field_mock):
@@ -114,7 +108,7 @@ def test_hash_same(test_case_mock, variable_reference_mock, field_mock):
     statement2 = fstmt.FieldStatement(
         test_case_mock, field_mock, variable_reference_mock
     )
-    assert hash(statement) == hash(statement2)
+    assert statement.structural_hash() == statement2.structural_hash()
 
 
 def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):

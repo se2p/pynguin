@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Optional, Type
+from typing import Any, Dict, Optional, Type
 
 import pynguin.testcase.testcase as tc
 from pynguin.utils import type_utils
@@ -25,7 +25,9 @@ class VariableReference(metaclass=ABCMeta):
         self._distance = 0
 
     @abstractmethod
-    def clone(self, new_test_case: tc.TestCase, offset: int = 0) -> VariableReference:
+    def clone(
+        self, memo: Dict[VariableReference, VariableReference]
+    ) -> VariableReference:
         """This method is essential for the whole variable references to work while
         cloning.
 
@@ -34,13 +36,7 @@ class VariableReference(metaclass=ABCMeta):
         Actual cloning is only performed on statement level.
 
         Args:
-            new_test_case: the new test case in which we search for the corresponding
-                variable reference.
-            offset: Offset must be used when cloning is performed on a test case,
-                which already contains statements, i.e., when appending on test case
-                onto another. The position of the statement which defines the new
-                reference within the new test case will be different, so we have to add
-                the offset when searching for the new reference.
+            memo: A mapping from old to new variable references.
 
         Returns:  # noqa: DAR202
             The corresponding variable reference of this variable in the new test case.
@@ -131,23 +127,28 @@ class VariableReference(metaclass=ABCMeta):
     def __str__(self) -> str:
         return f"{self._variable_type}"
 
-    def __eq__(self, other: Any) -> bool:
-        if self is other:
-            return True
+    def structural_eq(
+        self, other: Any, memo: Dict[VariableReference, VariableReference]
+    ) -> bool:
+        """Compare if this variable reference is the same as the other and points to
+        the same variable.
+
+        Args:
+            other: The variable to compare
+            memo: A mapping from old to new variables.
+
+        Returns:
+            True, iff this variable is the same as the other and points to the same
+            location.
+        """
         if not isinstance(other, VariableReference):
             return False
-        return (
-            self._variable_type == other._variable_type
-            and self.get_statement_position() == other.get_statement_position()
-        )
+        return self._variable_type == other._variable_type and memo[self] == other
 
-    def __hash__(self) -> int:
-        # Hash and equals implementation use different fields here on purpose.  The
-        # statement position is computed depending on the test case, which is
-        # reasonable and necessary for equality—such that we can filter out equal
-        # statements.  For hash computation, however, this cannot be done as it would
-        # cause infinite loops in the computation.  It should not affect behaviour
-        # anyway.  We could, however, inspect whether we are able to come up with a
-        # different way of comparing equality and computing hash codes for variable
-        # references in the future...
+    def structural_hash(self) -> int:
+        """Required for structural_eq to work.
+
+        Returns:
+            A hash value.
+        """
         return 31 * 17 + hash(self._variable_type)

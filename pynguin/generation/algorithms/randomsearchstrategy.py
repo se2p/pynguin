@@ -7,6 +7,8 @@
 """Provides a random test generator, that creates random test suites."""
 import logging
 
+from ordered_set import OrderedSet
+
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -52,7 +54,7 @@ class RandomTestCaseSearchStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
-            set(self._fitness_functions)
+            OrderedSet(self._fitness_functions)
         )
         solution = self._get_random_solution()
         archive.update([solution])
