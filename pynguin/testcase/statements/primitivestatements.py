@@ -100,7 +100,7 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
         other: stmt.Statement,
         memo: Dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
-        if not isinstance(other, PrimitiveStatement):
+        if not isinstance(other, self.__class__):
             return False
         return (
             self._ret_val.structural_eq(other._ret_val, memo)
@@ -484,7 +484,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         )
 
     def structural_hash(self) -> int:
-        return hash((super().__hash__(), self._generic_enum))
+        return hash((super().structural_hash(), self._generic_enum))
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_enum_statement(self)
