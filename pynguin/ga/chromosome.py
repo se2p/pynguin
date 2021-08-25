@@ -86,7 +86,11 @@ class Chromosome(metaclass=ABCMeta):
             len(self._fitness_functions) > 0
         ), "Cannot evaluate fitness, if no fitness functions are defined."
 
-        if self._changed or len(self._fitness_values) == 0:
+        # The second condition is for cases, where the chromosome did not change,
+        # but we still need to evaluate the fitness again, e.g., because a new
+        # fitness function was added, or the way how a fitness function calculates
+        # its fitness has changed.
+        if self._changed or len(self._fitness_values) != len(self._fitness_functions):
             for fitness_func in self._fitness_functions:
                 new_values = fitness_func.compute_fitness_values(self)
                 self._update_fitness_values(fitness_func, new_values)
@@ -122,6 +126,13 @@ class Chromosome(metaclass=ABCMeta):
             A dictionary from fitness function to fitness value
         """
         return self._fitness_values
+
+    def invalidate_fitness_values(self):
+        """Invalidate this chromosome's fitness values.
+        This can be necessary if the containing test suite is evaluated.
+        In such a case, this chromosome does not need to be run again,
+        but it must recompute its fitness values."""
+        self._fitness_values.clear()
 
     def add_fitness_function(
         self,

@@ -137,3 +137,13 @@ def test_fitness_values_two_fitness_functions(chromosome, fitness_function):
     chromosome.add_fitness_function(fitness_func2)
     chromosome._update_fitness_values(fitness_func2, ff.FitnessValues(0.23, 0.5))
     assert len(chromosome.fitness_values) == 2
+
+
+def test_invalidate_fitness_cache(chromosome):
+    fitness = MagicMock()
+    fitness.is_maximisation_function.return_value = False
+    chromosome.add_fitness_function(fitness)
+    chromosome._update_fitness_values(fitness, MagicMock())
+    assert chromosome.fitness_values != {}
+    chromosome.invalidate_fitness_values()
+    assert chromosome.fitness_values == {}

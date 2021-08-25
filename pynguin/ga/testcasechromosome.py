@@ -257,13 +257,6 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         self._last_execution_result = result
 
-    def invalidate_fitness_values(self):
-        """Invalidate this chromosome's fitness values.
-        This can be necessary if the containing test suite is evaluated.
-        In such a case, this chromosome does not need to be run again,
-        but it must recompute its fitness values."""
-        self._fitness_values.clear()
-
     def is_failing(self) -> bool:
         """Returns whether or not the encapsulated test case is a failing test.
 
