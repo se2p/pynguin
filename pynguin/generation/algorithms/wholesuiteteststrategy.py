@@ -37,17 +37,21 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         self.before_search_start()
         # These fitness functions are to fine grained...
         self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
+        # TODO(fk) update suite fitness function with covered goals
+        # TODO(fk) reuse test cases from archive
+        # TODO(fk) restrict test cluster to elements that are not fully covered.
         self._population = self._get_random_population()
         self._sort_population()
-        self.before_first_search_iteration(self._get_best_individual())
-        while (
-            self.resources_left() and self._get_best_individual().get_fitness() != 0.0
-        ):
+        self._update_archive()
+        suite = self.create_test_suite(self._archive.solutions)
+        self.before_first_search_iteration(suite)
+        while self.resources_left() and suite.get_fitness() != 0.0:
             self.evolve()
             self._update_archive()
-            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+            suite = self.create_test_suite(self._archive.solutions)
+            self.after_search_iteration(suite)
         self.after_search_finish()
-        return self._get_best_individual()
+        return suite
 
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
