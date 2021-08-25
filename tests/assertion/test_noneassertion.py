@@ -21,8 +21,7 @@ def test_clone():
     cloned_ref = MagicMock()
     source.clone.return_value = cloned_ref
     assertion = na.NoneAssertion(source, True)
-    new_test_case = MagicMock()
-    cloned = assertion.clone(new_test_case, 20)
-    source.clone.assert_called_with(new_test_case, 20)
+    cloned = assertion.clone({})
+    source.clone.assert_called_with({})
     assert cloned.source == cloned_ref
     assert cloned.value

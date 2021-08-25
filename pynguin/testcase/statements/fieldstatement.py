@@ -7,7 +7,7 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Any, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
@@ -83,10 +83,12 @@ class FieldStatement(stmt.Statement):
         """
         return self._field
 
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> stmt.Statement:
-        return FieldStatement(
-            test_case, self._field, self._source.clone(test_case, offset)
-        )
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> stmt.Statement:
+        return FieldStatement(test_case, self._field, self._source.clone(memo))
 
     def accept(self, visitor: sv.StatementVisitor) -> None:
         visitor.visit_field_statement(self)
@@ -98,12 +100,14 @@ class FieldStatement(stmt.Statement):
         if self.source == old:
             self.source = new
 
-    def __eq__(self, other: Any) -> bool:
-        if self is other:
-            return True
+    def structural_eq(
+        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
         if not isinstance(other, FieldStatement):
             return False
-        return self._field == other._field
+        return self._field == other._field and self._ret_val.structural_eq(
+            other._ret_val, memo
+        )
 
-    def __hash__(self) -> int:
-        return 31 + 17 * hash(self._field)
+    def structural_hash(self) -> int:
+        return 31 + 17 * hash(self._field) + 17 * self._ret_val.structural_hash()

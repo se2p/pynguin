@@ -307,8 +307,6 @@ def test_crossover_success():
     right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
 
     left.cross_over(right, 4, 3)
-    assert test_case0.get_statement.call_count == 4
-    assert test_case0_clone.add_statement.call_count == 4
     assert test_case1.get_statement.call_count == 4
     assert test_factory.append_statement.call_count == 4
 

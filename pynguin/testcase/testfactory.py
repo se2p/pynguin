@@ -449,7 +449,7 @@ class TestFactory:
             position = test_case.size()
 
         self._logger.debug("Adding primitive %s", primitive)
-        statement = primitive.clone(test_case)
+        statement = primitive.clone(test_case, {})
         return test_case.add_statement(statement, position)
 
     def insert_random_statement(

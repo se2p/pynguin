@@ -148,8 +148,11 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clone(self) -> TestCase:
+    def clone(self, limit: Optional[int] = None) -> TestCase:
         """Provides a deep copy of the test case.
+
+        Args:
+            limit: Clone this test case only upto the given number of statements.
 
         Returns:
             A deep copy of this test case  # noqa: DAR202

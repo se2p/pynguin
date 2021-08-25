@@ -19,11 +19,11 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(prim.IntPrimitiveStatement, 42),
-        pytest.param(prim.FloatPrimitiveStatement, 42.23),
-        pytest.param(prim.StringPrimitiveStatement, "foo"),
-        pytest.param(prim.BytesPrimitiveStatement, b"test"),
-        pytest.param(prim.BooleanPrimitiveStatement, True),
+        (prim.IntPrimitiveStatement, 42),
+        (prim.FloatPrimitiveStatement, 42.23),
+        (prim.StringPrimitiveStatement, "foo"),
+        (prim.BytesPrimitiveStatement, b"test"),
+        (prim.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_value(statement_type, test_case_mock, value):
@@ -34,11 +34,11 @@ def test_primitive_statement_value(statement_type, test_case_mock, value):
 @pytest.mark.parametrize(
     "statement_type",
     [
-        pytest.param(prim.IntPrimitiveStatement),
-        pytest.param(prim.FloatPrimitiveStatement),
-        pytest.param(prim.StringPrimitiveStatement),
-        pytest.param(prim.BytesPrimitiveStatement),
-        pytest.param(prim.BooleanPrimitiveStatement),
+        prim.IntPrimitiveStatement,
+        prim.FloatPrimitiveStatement,
+        prim.StringPrimitiveStatement,
+        prim.BytesPrimitiveStatement,
+        prim.BooleanPrimitiveStatement,
     ],
 )
 def test_primitive_statement_value_none(statement_type, test_case_mock):
@@ -67,31 +67,31 @@ def test_primitive_statement_set_value(
 @pytest.mark.parametrize(
     "statement_type,test_case,new_test_case,value",
     [
-        pytest.param(
+        (
             prim.IntPrimitiveStatement,
             MagicMock(tc.TestCase),
             MagicMock(tc.TestCase),
             42,
         ),
-        pytest.param(
+        (
             prim.FloatPrimitiveStatement,
             MagicMock(tc.TestCase),
             MagicMock(tc.TestCase),
             42.23,
         ),
-        pytest.param(
+        (
             prim.StringPrimitiveStatement,
             MagicMock(tc.TestCase),
             MagicMock(tc.TestCase),
             "foo",
         ),
-        pytest.param(
+        (
             prim.BytesPrimitiveStatement,
             MagicMock(tc.TestCase),
             MagicMock(tc.TestCase),
             b"foo",
         ),
-        pytest.param(
+        (
             prim.BooleanPrimitiveStatement,
             MagicMock(tc.TestCase),
             MagicMock(tc.TestCase),
@@ -101,7 +101,7 @@ def test_primitive_statement_set_value(
 )
 def test_primitive_statement_clone(statement_type, test_case, new_test_case, value):
     statement = statement_type(test_case, value)
-    new_statement = statement.clone(new_test_case)
+    new_statement = statement.clone(new_test_case, {})
     assert new_statement.test_case == new_test_case
     assert new_statement.ret_val.variable_type == statement.ret_val.variable_type
     assert new_statement.value == statement.value
@@ -152,11 +152,11 @@ def test_primitive_statement_accept(statement_type, test_case, value, visitor_me
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(prim.IntPrimitiveStatement, 42),
-        pytest.param(prim.FloatPrimitiveStatement, 42.23),
-        pytest.param(prim.StringPrimitiveStatement, "foo"),
-        pytest.param(prim.BytesPrimitiveStatement, b"foo"),
-        pytest.param(prim.BooleanPrimitiveStatement, True),
+        (prim.IntPrimitiveStatement, 42),
+        (prim.FloatPrimitiveStatement, 42.23),
+        (prim.StringPrimitiveStatement, "foo"),
+        (prim.BytesPrimitiveStatement, b"foo"),
+        (prim.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_equals_same(statement_type, value):
@@ -168,27 +168,27 @@ def test_primitive_statement_equals_same(statement_type, value):
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(prim.IntPrimitiveStatement, 42),
-        pytest.param(prim.FloatPrimitiveStatement, 42.23),
-        pytest.param(prim.StringPrimitiveStatement, "foo"),
-        pytest.param(prim.BytesPrimitiveStatement, b"foo"),
-        pytest.param(prim.BooleanPrimitiveStatement, True),
+        (prim.IntPrimitiveStatement, 42),
+        (prim.FloatPrimitiveStatement, 42.23),
+        (prim.StringPrimitiveStatement, "foo"),
+        (prim.BytesPrimitiveStatement, b"foo"),
+        (prim.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_equals_other_type(statement_type, value):
     test_case = MagicMock(tc.TestCase)
     statement = statement_type(test_case, value)
-    assert not statement.__eq__(test_case)
+    assert not statement.structural_eq(test_case, {})
 
 
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(prim.IntPrimitiveStatement, 42),
-        pytest.param(prim.FloatPrimitiveStatement, 42.23),
-        pytest.param(prim.StringPrimitiveStatement, "foo"),
-        pytest.param(prim.BytesPrimitiveStatement, b"foo"),
-        pytest.param(prim.BooleanPrimitiveStatement, True),
+        (prim.IntPrimitiveStatement, 42),
+        (prim.FloatPrimitiveStatement, 42.23),
+        (prim.StringPrimitiveStatement, "foo"),
+        (prim.BytesPrimitiveStatement, b"foo"),
+        (prim.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_equals_clone(statement_type, value):
@@ -196,9 +196,8 @@ def test_primitive_statement_equals_clone(statement_type, value):
     statement = statement_type(test_case, value)
     test_case.statements = [statement]
     test_case2 = MagicMock(tc.TestCase)
-    clone = statement.clone(test_case2)
-    test_case2.statements = [clone]
-    assert statement.__eq__(clone)
+    clone = statement.clone(test_case2, {})
+    assert statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
 def test_none_statement_equals_clone():
@@ -206,9 +205,8 @@ def test_none_statement_equals_clone():
     statement = prim.NoneStatement(test_case, type(None))
     test_case.statements = [statement]
     test_case2 = MagicMock(tc.TestCase)
-    clone = statement.clone(test_case2)
-    test_case2.statements = [clone]
-    assert statement.__eq__(clone)
+    clone = statement.clone(test_case2, {})
+    assert statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
 @pytest.mark.parametrize(
@@ -223,7 +221,7 @@ def test_none_statement_equals_clone():
 )
 def test_primitive_statement_hash(statement_type, value):
     statement = statement_type(MagicMock(tc.TestCase), value)
-    assert statement.__hash__() != 0
+    assert statement.structural_hash() != 0
 
 
 def test_int_primitive_statement_randomize_value(test_case_mock):
@@ -511,7 +509,7 @@ def test_enum_statement_delta(test_case_mock):
 def test_enum_statement_clone(test_case_mock):
     enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
     statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
-    clone = statement.clone(test_case_mock)
+    clone = statement.clone(test_case_mock, {})
     assert clone.value == statement.value
 
 
@@ -521,9 +519,9 @@ def test_enum_statement_eq():
     statement = prim.EnumPrimitiveStatement(test_case, enum_)
     test_case.add_statement(statement)
     test_case2 = dtc.DefaultTestCase()
-    clone = statement.clone(test_case2)
+    clone = statement.clone(test_case2, {})
     test_case2.add_statement(clone)
-    assert clone == statement
+    assert statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
 def test_enum_statement_not_eq():
@@ -532,10 +530,17 @@ def test_enum_statement_not_eq():
     statement = prim.EnumPrimitiveStatement(test_case, enum_)
     test_case.add_statement(statement)
     test_case2 = dtc.DefaultTestCase()
-    clone = statement.clone(test_case2)
+    clone = statement.clone(test_case2, {})
     test_case2.add_statement(clone)
     statement._generic_enum = MagicMock()
-    assert clone != statement
+    assert not statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
+
+
+def test_enum_statement_hash(test_case_mock):
+    enum_ = MagicMock(names=["FOO"])
+    statement = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    statement2 = prim.EnumPrimitiveStatement(test_case_mock, enum_)
+    assert statement.structural_hash() == statement2.structural_hash()
 
 
 def test_enum_statement_accept(test_case_mock):

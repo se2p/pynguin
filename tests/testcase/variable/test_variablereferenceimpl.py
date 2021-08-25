@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereferenceimpl as vri
 
 
@@ -28,30 +27,10 @@ def test_setters(test_case_mock):
 
 def test_clone(test_case_mock):
     orig_ref = vri.VariableReferenceImpl(test_case_mock, int)
-    orig_statement = MagicMock(stmt.Statement)
-    orig_statement.ret_val = orig_ref
-    test_case_mock.statements = [orig_statement]
+    new_ref = vri.VariableReferenceImpl(test_case_mock, int)
 
-    new_test_case = MagicMock(tc.TestCase)
-    new_ref = vri.VariableReferenceImpl(new_test_case, int)
-    new_statement = MagicMock(stmt.Statement)
-    new_statement.ret_val = new_ref
-    new_test_case.get_statement.return_value = new_statement
-
-    clone = orig_ref.clone(new_test_case)
-    assert clone is new_ref
-
-
-def test_clone_with_offset(test_case_mock):
-    orig_ref = vri.VariableReferenceImpl(test_case_mock, int)
-    orig_statement = MagicMock(stmt.Statement)
-    orig_statement.ret_val = orig_ref
-    test_case_mock.statements = [orig_statement]
-
-    new_test_case = MagicMock(tc.TestCase)
-    new_test_case.get_statement.return_value = MagicMock(stmt.Statement)
-    orig_ref.clone(new_test_case, 5)
-    new_test_case.get_statement.assert_called_once_with(5)
+    clone = orig_ref.clone({orig_ref: new_ref})
+    assert clone == new_ref
 
 
 def test_get_position(test_case_mock):
@@ -72,17 +51,23 @@ def test_get_position_no_statements(test_case_mock):
 
 def test_hash(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
-    assert ref.__hash__() != 0
+    assert ref.structural_hash() != 0
 
 
 def test_eq_same(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
-    assert ref.__eq__(ref)
+    assert ref.structural_eq(ref, {ref: ref})
+
+
+def test_eq_differnt_var_type(test_case_mock):
+    ref1 = vri.VariableReferenceImpl(test_case_mock, int)
+    ref2 = vri.VariableReferenceImpl(test_case_mock, float)
+    assert not ref1.structural_eq(ref2, {ref1: ref2})
 
 
 def test_eq_other_type(test_case_mock):
     ref = vri.VariableReferenceImpl(test_case_mock, int)
-    assert not ref.__eq__(test_case_mock)
+    assert not ref.structural_eq(test_case_mock, {})
 
 
 def test_distance(test_case_mock):
