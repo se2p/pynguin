@@ -10,9 +10,9 @@ from typing import List
 
 from ordered_set import OrderedSet
 
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
@@ -28,7 +28,7 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(self) -> chrom.Chromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
         self._number_of_goals = len(self._test_case_fitness_functions)

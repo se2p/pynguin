@@ -9,7 +9,6 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import Iterable, List
 
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
@@ -195,7 +194,7 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         return suite
 
     @abstractmethod
-    def generate_tests(self) -> chrom.Chromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         """Generates tests for a given module until the time limit is reached.
 
         Returns:  # noqa: DAR202

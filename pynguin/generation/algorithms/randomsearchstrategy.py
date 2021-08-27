@@ -9,7 +9,6 @@ import logging
 
 from ordered_set import OrderedSet
 
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -43,7 +42,7 @@ class RandomTestCaseSearchStrategy(TestGenerationStrategy):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(self) -> chrom.Chromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
             OrderedSet(self._test_case_fitness_functions)
