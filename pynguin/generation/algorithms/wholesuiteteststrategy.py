@@ -6,12 +6,14 @@
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import List
+from typing import List, Set
 
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
+import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.generation.algorithms.archive import Archive
@@ -41,7 +43,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
         # TODO(fk) reuse test cases from archive
         # TODO(fk) restrict test cluster to elements that are not fully covered.
         self._population = self._get_random_population()
-        self._sort_population()
         self._update_archive()
         suite = self.create_test_suite(self._archive.solutions)
         self.before_first_search_iteration(suite)
@@ -56,6 +57,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
         new_generation = []
+        self._sort_population()
         new_generation.extend(self.elitism())
         while not self.is_next_population_full(new_generation):
             parent1 = self._selection_function.select(self._population, 1)[0]
@@ -97,7 +99,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 new_generation.append(parent2)
 
         self._population = new_generation
-        self._sort_population()
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
@@ -108,8 +109,34 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     def _update_archive(self) -> None:
         """Store covering test cases in archive."""
+        before = len(self._archive.uncovered_goals)
         for suite in self._population:
             self._archive.update(suite.test_case_chromosomes)
+        # New goals were covered
+        if before != len(self._archive.uncovered_goals):
+            exclude_code: Set[int] = set()
+            exclude_true: Set[int] = set()
+            exclude_false: Set[int] = set()
+            # Below code should be refactored, to be more general.
+
+            for covered in self._archive.covered_goals:
+                goal = covered.goal
+                if isinstance(goal, bcg.RootBranchCoverageGoal):
+                    exclude_code.add(goal.code_object_id)
+                elif isinstance(goal, bcg.NonRootBranchCoverageGoal):
+                    if goal.value:
+                        exclude_true.add(goal.predicate_id)
+                    else:
+                        exclude_false.add(goal.predicate_id)
+                else:
+                    raise NotImplementedError("Unknown coverage goal")
+
+            for func in self.test_suite_fitness_functions:
+                assert isinstance(func, bdtsf.BranchDistanceTestSuiteFitnessFunction)
+                func.restrict(exclude_code, exclude_true, exclude_false)
+            # Force re-computation of fitness.
+            for chromosome in self._population:
+                chromosome.invalidate_fitness_values()
 
     def _sort_population(self) -> None:
         """Sort the population by fitness."""
