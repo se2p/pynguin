@@ -62,6 +62,7 @@ class TestCaseExecutor:
         Returns:
             Result of the execution
         """
+        # pylint:disable=unspecified-encoding
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
