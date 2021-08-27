@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provide a fitness function based on branch distances."""
+from typing import Set
+
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testsuitechromosome as tsc
@@ -24,6 +26,14 @@ class BranchDistanceTestSuiteFitnessFunction(atsff.AbstractTestSuiteFitnessFunct
         self._excluded_code_objects = set()
         self._excluded_true_predicates = set()
         self._excluded_false_predicates = set()
+
+    def restrict(
+        self, exclude_code: Set[int], exclude_true: Set[int], exclude_false: Set[int]
+    ):
+        """Restrict this fitness function, i.e., which branches/code objects it considers"""
+        self._excluded_code_objects.update(exclude_code)
+        self._excluded_true_predicates.update(exclude_true)
+        self._excluded_false_predicates.update(exclude_false)
 
     def compute_fitness_values(
         self,
