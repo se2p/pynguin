@@ -8,9 +8,9 @@
 from __future__ import annotations
 
 import sys
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple
 
-from bytecode import Bytecode, ControlFlowGraph
+from bytecode import Bytecode, ControlFlowGraph, Instr
 from networkx import NetworkXError, diameter
 
 import pynguin.analyses.controlflow.programgraph as pg
@@ -59,7 +59,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         cfg = CFG(blocks)
 
         # Create the nodes and a mapping of all edges to generate
-        edges, nodes = CFG._create_nodes(blocks)
+        edges, nodes = CFG._create_nodes_and_edges(blocks)
 
         # Insert all edges between the previously generated nodes
         CFG._create_graph(cfg, edges, nodes)
@@ -131,11 +131,11 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         return CFG.copy_graph(self)
 
     @staticmethod
-    def _create_nodes(
+    def _create_nodes_and_edges(
         blocks: ControlFlowGraph,
-    ) -> Tuple[Dict[int, List[int]], Dict[int, pg.ProgramGraphNode]]:
+    ) -> Tuple[Dict[int, List[Tuple[int, Dict]]], Dict[int, pg.ProgramGraphNode]]:
         nodes: Dict[int, pg.ProgramGraphNode] = {}
-        edges: Dict[int, List[int]] = {}
+        edges: Dict[int, List[Tuple[int, Dict]]] = {}
         for node_index, block in enumerate(blocks):
             node = pg.ProgramGraphNode(index=node_index, basic_block=block)
             nodes[node_index] = node
@@ -143,31 +143,63 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
                 edges[node_index] = []
 
             next_block = block.next_block
-            if next_block:
-                next_index = blocks.get_block_index(next_block)
-                edges[node_index].append(next_index)
-            if target_block := block.get_jump():
-                next_index = blocks.get_block_index(target_block)
-                edges[node_index].append(next_index)
+            target_block = block.get_jump()
+
+            last_instr = block[-1]
+            if isinstance(last_instr, Instr) and (
+                last_instr.is_cond_jump() or last_instr.name == "FOR_ITER"
+            ):
+                if last_instr.name in ("POP_JUMP_IF_TRUE", "JUMP_IF_TRUE_OR_POP"):
+                    # These jump to arg if ToS is True
+                    true_branch = target_block
+                    false_branch = next_block
+                elif last_instr.name in (
+                    "POP_JUMP_IF_FALSE",
+                    "JUMP_IF_FALSE_OR_POP",
+                    "JUMP_IF_NOT_EXC_MATCH",
+                    "FOR_ITER",
+                ):
+                    # These jump to arg if ToS is False, is Empty or if Exc does
+                    # not match.
+                    true_branch = next_block
+                    false_branch = target_block
+                else:
+                    raise RuntimeError(
+                        "Unknown conditional Jump instruction in bytecode "
+                        + last_instr.name
+                    )
+                for next_branch, value in [(true_branch, True), (false_branch, False)]:
+                    next_index = blocks.get_block_index(next_branch)
+                    # 'label' is also set to value, to get a nicer DOT representation,
+                    # because 'label' is a keyword for labelling edges.
+                    edges[node_index].append((next_index, {"branch_value": value, "label": value}))
+            else:
+                if next_block:
+                    next_index = blocks.get_block_index(next_block)
+                    edges[node_index].append((next_index, {}))
+                if target_block := block.get_jump():
+                    next_index = blocks.get_block_index(target_block)
+                    edges[node_index].append((next_index, {}))
         return edges, nodes
 
     @staticmethod
     def _create_graph(
-        cfg: CFG, edges: Dict[int, List[int]], nodes: Dict[int, pg.ProgramGraphNode]
+        cfg: CFG,
+        edges: Dict[int, List[Tuple[int, Dict]]],
+        nodes: Dict[int, pg.ProgramGraphNode],
     ):
         # add nodes to graph
         for node in nodes.values():
             cfg.add_node(node)
 
         # add edges to graph
-        for predecessor in edges.keys():
-            successors = edges.get(predecessor)
-            for successor in cast(List[int], successors):
+        for predecessor, successors in edges.items():
+            for successor, attrs in successors:
                 predecessor_node = nodes.get(predecessor)
                 successor_node = nodes.get(successor)
                 assert predecessor_node
                 assert successor_node
-                cfg.add_edge(predecessor_node, successor_node)
+                cfg.add_edge(predecessor_node, successor_node, **attrs)
 
     @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> CFG:

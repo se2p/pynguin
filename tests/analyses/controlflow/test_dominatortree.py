@@ -21,19 +21,49 @@ def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
     dot_representation = post_dominator_tree.dot
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(3)";
-"ProgramGraphNode(2)";
-"ProgramGraphNode(1)";
-"ProgramGraphNode(0)";
+"ProgramGraphNode(3)
+CALL_FUNCTION 1
+LOAD_CONST None
+RETURN_VALUE ";
+"ProgramGraphNode(2)
+LOAD_CONST 'no'";
+"ProgramGraphNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD ProgramGraphNode";
+"ProgramGraphNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE ProgramGraphNode";
 "ProgramGraphNode(-1)";
-"ProgramGraphNode(9223372036854775807)" -> "ProgramGraphNode(3)";
-"ProgramGraphNode(3)" -> "ProgramGraphNode(2)";
-"ProgramGraphNode(3)" -> "ProgramGraphNode(1)";
-"ProgramGraphNode(3)" -> "ProgramGraphNode(0)";
-"ProgramGraphNode(0)" -> "ProgramGraphNode(-1)";
+"ProgramGraphNode(9223372036854775807)" -> "ProgramGraphNode(3)
+CALL_FUNCTION 1
+LOAD_CONST None
+RETURN_VALUE ";
+"ProgramGraphNode(3)
+CALL_FUNCTION 1
+LOAD_CONST None
+RETURN_VALUE " -> "ProgramGraphNode(2)
+LOAD_CONST 'no'";
+"ProgramGraphNode(3)
+CALL_FUNCTION 1
+LOAD_CONST None
+RETURN_VALUE " -> "ProgramGraphNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD ProgramGraphNode";
+"ProgramGraphNode(3)
+CALL_FUNCTION 1
+LOAD_CONST None
+RETURN_VALUE " -> "ProgramGraphNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE ProgramGraphNode";
+"ProgramGraphNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(-1)";
 }
 """
-    assert dot_representation == graph
+    assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(graph, "utf-8").decode("unicode_escape")
     assert post_dominator_tree.entry_node.index == sys.maxsize
 
 
