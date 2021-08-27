@@ -8,7 +8,7 @@
 from typing import Any, Generic, Optional, Set, TypeVar
 
 import networkx as nx
-from bytecode import BasicBlock, UNSET, Compare
+from bytecode import UNSET, BasicBlock, Compare
 from networkx import lowest_common_ancestor
 from networkx.drawing.nx_pydot import to_pydot
 
@@ -96,10 +96,13 @@ class ProgramGraphNode:
                 elif isinstance(arg, Compare):
                     arg = arg.name
                 elif arg is UNSET:
-                    arg = ''
+                    arg = ""
                 else:
                     arg = repr(arg)
-                instructions.append(f"{instr.name} {arg}")
+                formatted = instr.name
+                if arg != "":
+                    formatted += f" {arg}"
+                instructions.append(formatted)
             result += "\n" + "\n".join(instructions)
         return result
 

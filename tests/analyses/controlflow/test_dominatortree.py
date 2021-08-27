@@ -24,7 +24,7 @@ def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
 "ProgramGraphNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE ";
+RETURN_VALUE";
 "ProgramGraphNode(2)
 LOAD_CONST 'no'";
 "ProgramGraphNode(1)
@@ -38,22 +38,22 @@ POP_JUMP_IF_FALSE ProgramGraphNode";
 "ProgramGraphNode(9223372036854775807)" -> "ProgramGraphNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE ";
+RETURN_VALUE";
 "ProgramGraphNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE " -> "ProgramGraphNode(2)
+RETURN_VALUE" -> "ProgramGraphNode(2)
 LOAD_CONST 'no'";
 "ProgramGraphNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE " -> "ProgramGraphNode(1)
+RETURN_VALUE" -> "ProgramGraphNode(1)
 LOAD_CONST 'yes'
 JUMP_FORWARD ProgramGraphNode";
 "ProgramGraphNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE " -> "ProgramGraphNode(0)
+RETURN_VALUE" -> "ProgramGraphNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
 POP_JUMP_IF_FALSE ProgramGraphNode";
@@ -63,7 +63,9 @@ LOAD_NAME 'test'
 POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(-1)";
 }
 """
-    assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(graph, "utf-8").decode("unicode_escape")
+    assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(
+        graph, "utf-8"
+    ).decode("unicode_escape")
     assert post_dominator_tree.entry_node.index == sys.maxsize
 
 
