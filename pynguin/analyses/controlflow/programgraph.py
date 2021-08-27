@@ -8,7 +8,7 @@
 from typing import Any, Generic, Optional, Set, TypeVar
 
 import networkx as nx
-from bytecode import BasicBlock
+from bytecode import BasicBlock, UNSET, Compare
 from networkx import lowest_common_ancestor
 from networkx.drawing.nx_pydot import to_pydot
 
@@ -84,7 +84,24 @@ class ProgramGraphNode:
         return 31 + 17 * self._index
 
     def __str__(self) -> str:
-        return f"ProgramGraphNode({self._index})"
+        result = f"ProgramGraphNode({self._index})"
+
+        if self._basic_block is not None:
+            instructions = []
+            for instr in self._basic_block:
+                arg = instr.arg
+                if isinstance(arg, BasicBlock):
+                    # We cannot determine which ProgramGraphNode this is.
+                    arg = "ProgramGraphNode"
+                elif isinstance(arg, Compare):
+                    arg = arg.name
+                elif arg is UNSET:
+                    arg = ''
+                else:
+                    arg = repr(arg)
+                instructions.append(f"{instr.name} {arg}")
+            result += "\n" + "\n".join(instructions)
+        return result
 
     def __repr__(self) -> str:
         return f"ProgramGraphNode(index={self._index}, basic_block={self._basic_block})"
