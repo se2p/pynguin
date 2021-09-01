@@ -47,7 +47,6 @@ from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.statistics.timer import Timer
 
 
 @enum.unique
@@ -95,14 +94,13 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> Optional[TestCluster]:
-    with Timer(name="Test-cluster generation time", logger=None):
-        test_cluster = TestClusterGenerator(
-            config.configuration.module_name
-        ).generate_cluster()
-        if test_cluster.num_accessible_objects_under_test() == 0:
-            _LOGGER.error("SUT contains nothing we can test.")
-            return None
-        return test_cluster
+    test_cluster = TestClusterGenerator(
+        config.configuration.module_name
+    ).generate_cluster()
+    if test_cluster.num_accessible_objects_under_test() == 0:
+        _LOGGER.error("SUT contains nothing we can test.")
+        return None
+    return test_cluster
 
 
 def _setup_path() -> bool:
@@ -254,56 +252,54 @@ def _run() -> ReturnCode:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster = setup_result
 
-    with Timer(name="Test generation time", logger=None):
-        algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
-            executor, test_cluster
+    algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
+        executor, test_cluster
+    )
+    _LOGGER.info("Start generating test cases")
+    generation_result = algorithm.generate_tests()
+    if algorithm.stopping_condition.is_fulfilled():
+        _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
+    _LOGGER.info("Stop generating test cases")
+
+    # Track coverage of the generated test suites.
+    # This possibly re-executes the test suites.
+    stat.track_output_variable(
+        RuntimeVariable.Coverage, generation_result.get_coverage()
+    )
+
+    if config.configuration.test_case_output.post_process:
+        truncation = pp.ExceptionTruncation()
+        generation_result.accept(truncation)
+
+        unused_primitives_removal = pp.TestCasePostProcessor(
+            [pp.UnusedStatementsTestCaseVisitor()]
         )
-        _LOGGER.info("Start generating test cases")
-        generation_result = algorithm.generate_tests()
-        if algorithm.stopping_condition.is_fulfilled():
-            _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
-        _LOGGER.info("Stop generating test cases")
+        generation_result.accept(unused_primitives_removal)
+        # TODO(fk) add more postprocessing stuff.
 
-        with Timer(name="Re-execution time", logger=None):
-            stat.track_output_variable(
-                RuntimeVariable.Coverage, generation_result.get_coverage()
-            )
+    if config.configuration.test_case_output.generate_assertions:
+        generator = ag.AssertionGenerator(executor)
+        generation_result.accept(generator)
 
-        if config.configuration.test_case_output.post_process:
-            truncation = pp.ExceptionTruncation()
-            generation_result.accept(truncation)
-
-            unused_primitives_removal = pp.TestCasePostProcessor(
-                [pp.UnusedStatementsTestCaseVisitor()]
-            )
-            generation_result.accept(unused_primitives_removal)
-            # TODO(fk) add more postprocessing stuff.
-
-        if config.configuration.test_case_output.generate_assertions:
-            generator = ag.AssertionGenerator(executor)
-            generation_result.accept(generator)
-
-        with Timer(name="Export time", logger=None):
-            converter = cc.ChromosomeConverter()
-            generation_result.accept(converter)
-            failing = converter.failing_test_suite
-            passing = converter.passing_test_suite
-            written_to = _export_test_cases(
-                [t.test_case for t in passing.test_case_chromosomes]
-            )
-            _LOGGER.info(
-                "Export %i successful test cases to %s",
-                passing.size(),
-                written_to,
-            )
-            written_to = _export_test_cases(
-                [t.test_case for t in failing.test_case_chromosomes],
-                "_failing",
-                wrap_code=True,
-            )
-            _LOGGER.info(
-                "Export %i failing test cases to %s", failing.size(), written_to
-            )
+    # Export the generated test suites
+    converter = cc.ChromosomeConverter()
+    generation_result.accept(converter)
+    failing = converter.failing_test_suite
+    passing = converter.passing_test_suite
+    written_to = _export_test_cases(
+        [t.test_case for t in passing.test_case_chromosomes]
+    )
+    _LOGGER.info(
+        "Export %i successful test cases to %s",
+        passing.size(),
+        written_to,
+    )
+    written_to = _export_test_cases(
+        [t.test_case for t in failing.test_case_chromosomes],
+        "_failing",
+        wrap_code=True,
+    )
+    _LOGGER.info("Export %i failing test cases to %s", failing.size(), written_to)
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
