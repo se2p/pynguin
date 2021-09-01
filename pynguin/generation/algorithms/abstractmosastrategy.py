@@ -74,7 +74,7 @@ class AbstractMOSATestStrategy(
                 for fitness_function in self._fitness_functions:
                     tch.add_fitness_function(fitness_function)
             else:
-                tch = randomness.choice(list(self._archive.solutions)).clone()
+                tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
 
             if tch.has_changed() and tch.size() > 0:

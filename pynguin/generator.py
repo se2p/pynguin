@@ -258,15 +258,11 @@ def _run() -> ReturnCode:
         algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
             executor, test_cluster
         )
-        _LOGGER.info(
-            "Start generating sequences using %s", config.configuration.algorithm
-        )
+        _LOGGER.info("Start generating test cases")
         generation_result = algorithm.generate_tests()
         if algorithm.stopping_condition.is_fulfilled():
             _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
-        _LOGGER.info(
-            "Stop generating sequences using %s", config.configuration.algorithm
-        )
+        _LOGGER.info("Stop generating test cases")
 
         with Timer(name="Re-execution time", logger=None):
             stat.track_output_variable(
@@ -274,8 +270,13 @@ def _run() -> ReturnCode:
             )
 
         if config.configuration.test_case_output.post_process:
-            postprocessor = pp.ExceptionTruncation()
-            generation_result.accept(postprocessor)
+            truncation = pp.ExceptionTruncation()
+            generation_result.accept(truncation)
+
+            unused_primitives_removal = pp.TestCasePostProcessor(
+                [pp.UnusedStatementsTestCaseVisitor()]
+            )
+            generation_result.accept(unused_primitives_removal)
             # TODO(fk) add more postprocessing stuff.
 
         if config.configuration.test_case_output.generate_assertions:

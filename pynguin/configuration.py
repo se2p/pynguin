@@ -9,8 +9,6 @@ import dataclasses
 import enum
 from typing import List, Optional
 
-from simple_parsing import choice
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -439,7 +437,7 @@ class Configuration:
     test_case_output: TestCaseOutputConfiguration
     """Configuration for how test cases should be output."""
 
-    algorithm: Algorithm = choice(Algorithm)
+    algorithm: Algorithm = Algorithm.DYNAMOSA
     """The algorithm that shall be used for generation"""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(

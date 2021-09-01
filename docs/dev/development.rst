@@ -8,7 +8,7 @@ However, in order to easily reproduce an execution, e.g. for an evaluation or fo
 it must be possible to achieve :ref:`deterministic behavior <reproducible>`.
 
 For this purpose, whenever an implementation uses randomness, it must be done via ``pynguin.utils.randomness``.
-This module contains a singleton instance of a random number generator that is seeded at startup (using ``--seed``).
+This module contains a singleton instance of a (pseudo) random-number generator that is seeded at startup (using ``--seed``).
 
 Furthermore, when an implementation's behavior depends on the iteration order of a data structure,
 e.g., when picking a random element from it, one has to ensure that this order is deterministic:

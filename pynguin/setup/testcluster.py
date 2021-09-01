@@ -190,7 +190,7 @@ class TestCluster:
         Returns:
             An optional type
         """
-        if select_from == Any:
+        if select_from == Any:  # pylint:disable=comparison-with-callable
             return randomness.choice(self.get_all_generatable_types())
         if is_union_type(select_from):
             possible_types = get_args(select_from)
