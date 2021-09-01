@@ -1,0 +1,39 @@
+# vim: set ft=yaml ts=2 sts=2 sw=2 expandtab:
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+#
+# SPDX-License-Identifier: CC0-1.0
+cff-version: "1.2.0"
+authors:
+  - family-names: Lukasczyk
+    given-names: Stephan
+    orcid: "https://orcid.org/0000-0002-0092-3476"
+  - family-names: Kroiß
+    given-names: Florian
+  - family-names: Steffens
+    given-names: Lukas
+doi: "10.5281/zenodo.3989840"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.3989840
+    description: General DOI for Pynguin pointing to the latest version automatically.
+keywords:
+  - python
+  - "test generation"
+  - "unit test"
+license: "LGPL-3.0+"
+references:
+  - authors:
+    - family-names: Lukasczyk
+      given-names: Stephan
+    - family-names: Kroiß
+      given-names: Florian
+    - family-names: Fraser
+      given-names: Gordon
+    doi: 10.1007/978-3-030-59762-7_2
+    conference:
+      name: "12th International Symposium on Search-Based Software Engineering (SSBSE)"
+    type: proceedings
+    year: 2020
+message: "If you use this software, please cite it using these metadata."
+repository-code: "https://github.com/se2p/pynguin"
+title: "Pynguin"

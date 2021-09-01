@@ -65,6 +65,7 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=print-statement,
+        comparison-with-callable,
         duplicate-code,
         bad-continuation,
         protected-access,

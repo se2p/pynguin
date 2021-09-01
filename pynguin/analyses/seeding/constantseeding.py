@@ -156,7 +156,9 @@ class _StaticConstantSeeding(_ConstantSeeding):
         assert self._constants is not None
         collector = _ConstantCollector()
         for module in self._find_modules(project_path):
-            with open(os.path.join(project_path, module)) as module_file:
+            with open(
+                os.path.join(project_path, module), encoding="utf-8"
+            ) as module_file:
                 try:
                     tree = ast.parse(module_file.read())
                     collector.visit(tree)

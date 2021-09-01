@@ -47,7 +47,7 @@ class StubInferenceStrategy(TypeInferenceStrategy):
             return self._cache[path]
 
         try:
-            with open(path) as pyi_file:
+            with open(path, encoding="utf-8") as pyi_file:
                 pyi_content = pyi_file.read()
                 pyi_ast = ast.parse(pyi_content)
                 self._cache[path] = pyi_ast
