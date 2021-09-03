@@ -72,7 +72,9 @@ class UnusedPrimitiveOrCollectionStatementVisitor(sv.StatementVisitor):
         self._used_references = set()
 
     def _handle_collection_or_primitive(self, stmt) -> None:
-        if stmt.ret_val not in self._used_references:
+        if stmt.ret_val in self._used_references:
+            self._handle_remaining(stmt)
+        else:
             stmt.test_case.remove_statement(stmt)
 
     def _handle_remaining(self, stmt) -> None:
