@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from typing import List
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -11,6 +12,7 @@ import pytest
 
 import pynguin.ga.postprocess as pp
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 
@@ -72,17 +74,20 @@ def test_remove_integration(constructor_mock):
     test_case = dtc.DefaultTestCase()
     test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case))
     test_case.add_statement(prim_stmt.FloatPrimitiveStatement(test_case))
+    int0 = prim_stmt.IntPrimitiveStatement(test_case)
+    test_case.add_statement(int0)
+    list0 = coll_stmt.ListStatement(test_case, List[int], [int0.ret_val])
+    test_case.add_statement(list0)
     float0 = prim_stmt.FloatPrimitiveStatement(test_case)
     test_case.add_statement(float0)
-    test_case.add_statement(
-        param_stmt.ConstructorStatement(
-            test_case, constructor_mock, {"foo": float0.ret_val}
-        )
+    ctor0 = param_stmt.ConstructorStatement(
+        test_case, constructor_mock, {"foo": float0.ret_val, "bar": list0.ret_val}
     )
-    assert test_case.size() == 4
+    test_case.add_statement(ctor0)
+    assert test_case.size() == 6
     visitor = pp.UnusedStatementsTestCaseVisitor()
     test_case.accept(visitor)
-    assert test_case.size() == 2
+    assert test_case.statements == [int0, list0, float0, ctor0]
 
 
 @pytest.mark.parametrize(
