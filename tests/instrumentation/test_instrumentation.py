@@ -81,8 +81,10 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
-    tracer_mock.executed_bool_predicate.assert_called_with(True, 0)
-    assert tracer_mock.executed_bool_predicate.call_count == 1
+    tracer_mock.executed_bool_predicate.assert_has_calls(
+        [call(True, 0), call(True, 0), call(True, 0), call(False, 0)]
+    )
+    assert tracer_mock.executed_bool_predicate.call_count == 4
 
 
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
@@ -120,15 +122,10 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
     simple_module.multi_loop.__code__ = instr._instrument_code_recursive(
         simple_module.multi_loop.__code__, True
     )
-    assert simple_module.multi_loop(5) == 25
+    assert simple_module.multi_loop(2) == 4
     assert tracer_mock.register_predicate.call_count == 3
-    calls = [
-        call(True, 0),
-        call(True, 1),
-        call(True, 1),
-        call(True, 1),
-        call(True, 1),
-        call(True, 1),
+    calls = [call(True, 0), call(True, 1), call(True, 1), call(False, 1)] * 2 + [
+        call(False, 0),
         call(False, 2),
     ]
     assert tracer_mock.executed_bool_predicate.call_count == len(calls)
