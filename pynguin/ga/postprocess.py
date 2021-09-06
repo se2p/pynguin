@@ -48,31 +48,33 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
 
 # pylint:disable=too-few-public-methods
 class UnusedStatementsTestCaseVisitor(tcv.TestCaseVisitor):
-    """Removes unused primitive and collections statements."""
+    """Removes unused primitive and collection statements."""
 
     _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case) -> None:
-        primitive_remover = UnusedPrimitiveStatementVisitor()
+        primitive_remover = UnusedPrimitiveOrCollectionStatementVisitor()
         size_before = test_case.size()
         # Iterate over copy, to be able to modify original.
         for stmt in reversed(list(test_case.statements)):
             stmt.accept(primitive_remover)
         self._logger.debug(
-            "Removed %s unused primitives from test case",
+            "Removed %s unused primitives/collections from test case",
             size_before - test_case.size(),
         )
 
 
-class UnusedPrimitiveStatementVisitor(sv.StatementVisitor):
-    """Visits all statements and removes the unused ones.
+class UnusedPrimitiveOrCollectionStatementVisitor(sv.StatementVisitor):
+    """Visits all statements and removes the unused primitives and collections.
     Has to visit the statements in reverse order."""
 
     def __init__(self):
         self._used_references = set()
 
     def _handle_collection_or_primitive(self, stmt) -> None:
-        if stmt.ret_val not in self._used_references:
+        if stmt.ret_val in self._used_references:
+            self._handle_remaining(stmt)
+        else:
             stmt.test_case.remove_statement(stmt)
 
     def _handle_remaining(self, stmt) -> None:

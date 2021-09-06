@@ -22,7 +22,6 @@ import pynguin.testcase.variable.variablereferenceimpl as vri
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
@@ -164,11 +163,6 @@ def short_test_case(constructor_mock):
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
     return test_case
-
-
-@pytest.fixture(autouse=True)
-def reset_test_cluster():
-    TestCluster._instance = None
 
 
 @pytest.fixture(autouse=True)
