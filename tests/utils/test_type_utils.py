@@ -18,11 +18,15 @@ from pynguin.utils.type_utils import (
     is_assignable_to,
     is_bytes,
     is_collection_type,
+    is_dict,
+    is_list,
     is_none_type,
     is_numeric,
     is_optional_parameter,
     is_primitive_type,
+    is_set,
     is_string,
+    is_tuple,
     is_type_unknown,
     wrap_var_param_type,
 )
@@ -119,6 +123,50 @@ def test_is_string(value, result):
 )
 def test_is_bytes(value, result):
     assert is_bytes(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [(['foo', 'bar'], True),
+     ({'foo', 'bar'}, False),
+     ({'foo': 'bar'}, False),
+     (('foo', 'bar'), False)],
+)
+def test_is_list(value, result):
+    assert is_list(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [(['foo', 'bar'], False),
+     ({'foo', 'bar'}, True),
+     ({'foo': 'bar'}, False),
+     (('foo', 'bar'), False)],
+)
+def test_is_set(value, result):
+    assert is_set(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [(['foo', 'bar'], False),
+     ({'foo', 'bar'}, False),
+     ({'foo': 'bar'}, True),
+     (('foo', 'bar'), False)],
+)
+def test_is_dict(value, result):
+    assert is_dict(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [(['foo', 'bar'], False),
+     ({'foo', 'bar'}, False),
+     ({'foo': 'bar'}, False),
+     (('foo', 'bar'), True)],
+)
+def test_is_tuple(value, result):
+    assert is_tuple(value) == result
 
 
 @pytest.mark.parametrize(

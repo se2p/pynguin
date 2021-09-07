@@ -6,7 +6,8 @@
 #
 """Provides an assertion visitor to transform assertions to AST."""
 import ast
-from typing import Any, List, Set
+from _ast import Constant, Name
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
@@ -14,24 +15,33 @@ import pynguin.assertion.primitiveassertion as pa
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.ast_util as au
+import pynguin.utils.type_utils as tu
 from pynguin.utils.namingscope import NamingScope
 
 
 class AssertionToAstVisitor(av.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes."""
 
-    def __init__(self, common_modules: Set[str], variable_names: NamingScope):
+    COMPARISON_OBJECT_IDENTIFIER: str = "obj"
+    _obj_index: int = 0
+
+    def __init__(self, common_modules: Set[str], module_aliases: NamingScope,
+                 variable_names: NamingScope):
         """Create a new assertion visitor.
 
         Args:
             variable_names: the naming scope that is used to resolve the names
                             of the variables used in the assertions.
+            module_aliases: the naming scope that is used to resolve the aliases of the
+                            modules used in the assertions.
             common_modules: the set of common modules that are used. Modules may be
                             added when transforming the assertions.
         """
         self._common_modules = common_modules
+        self._module_aliases = module_aliases
         self._variable_names = variable_names
         self._nodes: List[ast.stmt] = []
+        self._obj_stack: List[str] = []
 
     @property
     def nodes(self) -> List[ast.stmt]:
@@ -80,6 +90,43 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                 assertion.source, ast.Is() if assertion.value else ast.IsNot(), None
             )
         )
+
+    def visit_complex_assertion(self, assertion) -> None:
+        """
+        Creates an assertion of form "assert var0 == obj" or "assert var0 == collection".
+
+        Args:
+            assertion: the assertion that is visited.
+        """
+        if tu.is_primitive_type(type(assertion.value)):
+            self.visit_primitive_assertion(assertion)
+        else:
+            self._create_comparison_object(assertion.value)
+            self._create_object_assertion(assertion.source)
+
+    def visit_field_assertion(self, assertion) -> None:
+        """
+        Creates an assertion of form "assert var0.field == value".
+
+        Args:
+            assertion: the assertion that is visited.
+        """
+        if tu.is_primitive_type(type(assertion.value)):
+            self._create_field_assertion_primitive(assertion.source,
+                                                   assertion.value,
+                                                   assertion.field,
+                                                   assertion.module,
+                                                   assertion.owners)
+        else:
+            if tu.is_collection_type(type(assertion.value)):
+                self._create_collection(assertion.value)
+            else:
+                self._create_comparison_object(assertion.value)
+            self._create_field_assertion(assertion.source,
+                                         assertion.field,
+                                         assertion.module,
+                                         assertion.owners)
+            pass
 
     def _create_constant_assert(
         self, var: vr.VariableReference, operator: ast.cmpop, value: Any
@@ -134,3 +181,208 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             ),
             msg=None,
         )
+
+    def _create_comparison_object(self, value) -> None:
+        if tu.is_collection_type(type(value)):
+            self._create_collection(value)
+        else:
+            self._create_object(value)
+
+            for field, field_val in vars(value).items():
+                self._create_init_field(field, field_val)
+
+    def _create_assertion(self, left, op, comp):
+        test = self._create_ast_compare(left, op, comp)
+        self._nodes.append(self._create_ast_assert(test))
+
+    def _create_object_assertion(self, var: vr.VariableReference) -> None:
+        left = au.create_var_name(self._variable_names, var, load=True)
+        comp = self._create_ast_name(self._get_current_comparison_object())
+        self._create_assertion(left, ast.Eq(), comp)
+        self._pop_current_comparison_object()
+
+    def _create_field_assertion_primitive(self,
+                                          var: vr.VariableReference,
+                                          value: Any,
+                                          field: str,
+                                          module: str,
+                                          owners: List[str]) -> None:
+        left = self._construct_field_attribute(var, field, module, owners)
+        comp = self._create_ast_constant(value)
+        if isinstance(value, float):
+            float_precision = config.configuration.test_case_output.float_precision
+            func = self._create_ast_attribute(self._create_ast_name("pytest"), "approx")
+            keywords = [
+                self._create_ast_keyword("abs",
+                                         self._create_ast_constant(float_precision)),
+                self._create_ast_keyword("rel",
+                                         self._create_ast_constant(float_precision))
+            ]
+            comp = self._create_ast_call(func, comp, keywords)
+        self._create_assertion(left, ast.Eq(), comp)
+
+    def _create_field_assertion(self,
+                                var: vr.VariableReference,
+                                field: str,
+                                module: str,
+                                owners: List[str]) -> None:
+        left = self._construct_field_attribute(var, field, module, owners)
+        comp = self._create_ast_name(self._get_current_comparison_object())
+        self._create_assertion(left, ast.Eq(), comp)
+        self._pop_current_comparison_object()
+
+    def _construct_field_attribute(self,
+                                   var: vr.VariableReference,
+                                   field: str,
+                                   module: str,
+                                   owners: List[str]) -> ast.Attribute:
+        if var and owners is None and module is None:
+            obj = au.create_var_name(self._variable_names, var, load=True)
+            return self._create_ast_attribute(field, obj)
+        elif var is None and owners is None and module is not None:
+            attr = self._create_ast_name(module)
+            return self._create_ast_attribute(field, attr)
+        else:
+            attr = self._create_ast_name(self._get_module(owners[0]))
+            for owner in owners:
+                attr = self._create_ast_attribute(owner, attr)
+            return self._create_ast_attribute(field, attr)
+
+    def _create_object(self, value) -> None:
+        obj_id = self._get_comparison_object()
+        target = self._create_ast_name(obj_id)
+        class_name = value.__class__.__name__
+        module = self._create_ast_name(self._get_module(class_name))
+        cls = self._create_ast_attribute(class_name, module)
+        val = self._create_ast_attribute("__class__", cls)
+        self._nodes.append(self._create_ast_assign(target, val))
+
+    def _create_init_field(self, field, value) -> None:
+        if tu.is_collection_type(type(value)):
+            self._create_collection(value)
+        elif not tu.is_primitive_type(type(value)):
+            self._create_comparison_object(value)
+        else:
+            obj = self._create_ast_name(self._get_current_comparison_object())
+            attr = self._create_ast_attribute(field, obj, True)
+            val = self._create_ast_constant(value)
+            self._nodes.append(self._create_ast_assign(attr, val))
+
+    def _create_collection(self, value) -> None:
+        obj_id = self._get_comparison_object()
+        if tu.is_list(value):
+            self._create_list(value, obj_id)
+        elif tu.is_set(value):
+            self._create_set(value, obj_id)
+        elif tu.is_dict(value):
+            self._create_dict(value, obj_id)
+        elif tu.is_tuple(value):
+            self._create_tuple(value, obj_id)
+
+    def _create_list(self, value: List[Any], obj_id: str) -> None:
+        elts = self._construct_collection_elts(value)
+        target = self._create_ast_name(obj_id)
+        assg_val = self._create_ast_list_load(elts)
+        self._nodes.append(self._create_ast_assign(target, assg_val))
+
+    def _create_dict(self, value: Dict[Any, Any], obj_id: str) -> None:
+        keys = self._construct_collection_elts(value.keys())
+        values = self._construct_collection_elts(value.values())
+        target = self._create_ast_name(obj_id)
+        assg_val = self._create_ast_dict(keys, values)
+        self._nodes.append(self._create_ast_assign(target, assg_val))
+
+    def _create_set(self, value: Set[Any], obj_id: str) -> None:
+        elts = self._construct_collection_elts(value)
+        target = self._create_ast_name(obj_id)
+        assg_val = self._create_ast_set(elts)
+        self._nodes.append(self._create_ast_assign(target, assg_val))
+
+    def _create_tuple(self, value: Tuple[Any], obj_id) -> None:
+        elts = self._construct_collection_elts(value)
+        target = self._create_ast_name(obj_id)
+        assg_val = self._create_ast_tuple_load(elts)
+        self._nodes.append(self._create_ast_assign(target, assg_val))
+
+    def _construct_collection_elts(self, value: any) -> List[Union[Constant, Name]]:
+        elts = []
+        for item in value:
+            if tu.is_primitive_type(type(item)):
+                elts.append(self._create_ast_constant(item))
+            else:
+                if tu.is_collection_type(type(item)):
+                    self._create_collection(item)
+                else:
+                    self._create_comparison_object(item)
+                elts.append(self._create_ast_name(self._get_current_comparison_object()))
+                self._pop_current_comparison_object()
+        return elts
+
+    @staticmethod
+    def _create_ast_name(name_id: str, store: bool = False) -> ast.Name:
+        return ast.Name(id=name_id, ctx=ast.Store() if store else ast.Load)
+
+    @staticmethod
+    def _create_ast_assign(target, value) -> ast.Assign:
+        return ast.Assign(targets=[target], value=value)
+
+    @staticmethod
+    def _create_ast_attribute(attr, value, store: bool = False) -> ast.Attribute:
+        return ast.Attribute(attr=attr,
+                             ctx=ast.Store() if store else ast.Load(),
+                             value=value)
+
+    @staticmethod
+    def _create_ast_list_load(elts) -> ast.List:
+        return ast.List(ctx=ast.Load(), elts=elts)
+
+    @staticmethod
+    def _create_ast_dict(keys, values) -> ast.Dict:
+        return ast.Dict(keys=keys, values=values)
+
+    @staticmethod
+    def _create_ast_set(elts) -> ast.Set:
+        return ast.Set(elts=elts)
+
+    @staticmethod
+    def _create_ast_tuple_load(elts) -> ast.Tuple:
+        return ast.Tuple(ctx=ast.Load(), elts=elts)
+
+    @staticmethod
+    def _create_ast_constant(value) -> ast.Constant:
+        return ast.Constant(value=value, kind=None)
+
+    @staticmethod
+    def _create_ast_assert(test) -> ast.Assert:
+        return ast.Assert(test=test, msg=None)
+
+    @staticmethod
+    def _create_ast_compare(left, op, comparator) -> ast.Compare:
+        return ast.Compare(left=left, ops=[op], comparators=[comparator])
+
+    @staticmethod
+    def _create_ast_call(func, args, keywords) -> ast.Call:
+        return ast.Call(func=func, args=args, keywords=keywords)
+
+    @staticmethod
+    def _create_ast_keyword(arg, value) -> ast.keyword:
+        return ast.keyword(arg=arg, value=value)
+
+    def _pop_current_comparison_object(self) -> None:
+        self._obj_stack.pop()
+
+    def _get_current_comparison_object(self) -> str:
+        return self._obj_stack[-1]
+
+    # TODO(fs) replace with NamingScope
+    def _get_comparison_object(self) -> str:
+        obj_id = self._get_comparison_object_name()
+        AssertionToAstVisitor._obj_index += 1
+        self._obj_stack.append(obj_id)
+        return obj_id
+
+    def _get_comparison_object_name(self) -> str:
+        return self.COMPARISON_OBJECT_IDENTIFIER + str(AssertionToAstVisitor._obj_index)
+
+    def _get_module(self, class_name: str) -> str:
+        return self._module_aliases.get_name(class_name.lower())

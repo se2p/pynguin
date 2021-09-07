@@ -26,6 +26,7 @@ from typing import List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
@@ -252,7 +253,11 @@ def _run() -> ReturnCode:
             # TODO(fk) add more postprocessing stuff.
 
         if config.configuration.test_case_output.generate_assertions:
-            generator = ag.AssertionGenerator(executor)
+            ass_gen = config.configuration.assertion_generation
+            if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+                generator = mag.MutationAnalysisGenerator(executor)
+            else:
+                generator = ag.AssertionGenerator(executor)
             generation_result.accept(generator)
 
         with Timer(name="Export time", logger=None):

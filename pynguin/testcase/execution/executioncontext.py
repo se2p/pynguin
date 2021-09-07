@@ -6,7 +6,6 @@
 #
 """Provides an execution context that can be used when executing test cases."""
 import ast
-import sys
 from types import ModuleType
 from typing import Any, Dict, Optional
 
@@ -14,6 +13,7 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
+from pynguin.utils.moduleloader import ModuleLoader
 
 
 class ExecutionContext:
@@ -120,7 +120,6 @@ class ExecutionContext:
         """
         global_namespace: Dict[str, ModuleType] = {}
         for required_module in modules_aliases.known_name_indices:
-            global_namespace[modules_aliases.get_name(required_module)] = sys.modules[
-                required_module
-            ]
+            module_name = modules_aliases.get_name(required_module)
+            global_namespace[module_name] = ModuleLoader.load_module(required_module)
         return global_namespace

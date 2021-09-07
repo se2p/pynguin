@@ -51,6 +51,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         statement: stmt.Statement,
+        position: int = -1,
         allow_none: bool = True,
     ) -> None:
         """Appends a statement to a test case.
@@ -58,40 +59,47 @@ class TestFactory:
         Args:
             test_case: The test case
             statement: The statement to append
+            position: The position to insert the statement, default is at the end
+                of the test case
             allow_none: Whether or not parameter variables can hold None values
 
         Raises:
             ConstructionFailedException: if construction of an object failed
         """
+        new_position = test_case.size() if position == -1 else position
         if isinstance(statement, par_stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
                 statement.accessible_object(),
-                position=test_case.size(),
+                position=new_position,
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.MethodStatement):
             self.add_method(
                 test_case,
                 statement.accessible_object(),
-                position=test_case.size(),
+                position=new_position,
                 allow_none=allow_none,
             )
         elif isinstance(statement, par_stmt.FunctionStatement):
             self.add_function(
                 test_case,
                 statement.accessible_object(),
-                position=test_case.size(),
+                position=new_position,
                 allow_none=allow_none,
             )
         elif isinstance(statement, f_stmt.FieldStatement):
             self.add_field(
                 test_case,
                 statement.field,
-                position=test_case.size(),
+                position=new_position,
             )
         elif isinstance(statement, prim.PrimitiveStatement):
-            self.add_primitive(test_case, statement, position=test_case.size())
+            self.add_primitive(
+                test_case,
+                statement,
+                position=new_position
+            )
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 

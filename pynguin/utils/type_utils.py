@@ -149,6 +149,54 @@ def is_bytes(value: Any) -> bool:
     return isinstance(value, (bytes, bytearray))
 
 
+def is_list(value: Any) -> bool:
+    """Check if the given value is a list.
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type list.
+    """
+    return isinstance(value, list)
+
+
+def is_set(value: Any) -> bool:
+    """Check if the given value is a set.
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type set.
+    """
+    return isinstance(value, set)
+
+
+def is_dict(value: Any) -> bool:
+    """Check if the given value is a dict.
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type dict.
+    """
+    return isinstance(value, dict)
+
+
+def is_tuple(value: Any) -> bool:
+    """Check if the given value is a tuple.
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type tuple.
+    """
+    return isinstance(value, tuple)
+
+
 def get_class_that_defined_method(method: object) -> Optional[object]:
     """Retrieves the class that defines a method.
 

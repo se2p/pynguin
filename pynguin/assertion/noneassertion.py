@@ -19,4 +19,6 @@ class NoneAssertion(ass.Assertion):
         visitor.visit_none_assertion(self)
 
     def clone(self, new_test_case: tc.TestCase, offset: int) -> NoneAssertion:
-        return NoneAssertion(self._source.clone(new_test_case, offset), self.value)
+        return NoneAssertion(self._source.clone(new_test_case, offset)
+                             if self._source else None,
+                             self.value)

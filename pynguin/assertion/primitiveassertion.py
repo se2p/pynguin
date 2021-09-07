@@ -19,4 +19,6 @@ class PrimitiveAssertion(ass.Assertion):
         visitor.visit_primitive_assertion(self)
 
     def clone(self, new_test_case: tc.TestCase, offset: int) -> PrimitiveAssertion:
-        return PrimitiveAssertion(self._source.clone(new_test_case, offset), self.value)
+        return PrimitiveAssertion(self._source.clone(new_test_case, offset)
+                                  if self._source else None,
+                                  self.value)
