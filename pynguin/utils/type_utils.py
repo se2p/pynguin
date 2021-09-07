@@ -12,12 +12,13 @@ import typing
 from inspect import isclass, isfunction
 from typing import Any, Callable, Optional, Type
 
+from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
 
 from pynguin.typeinference.strategy import InferredSignature
 
-PRIMITIVES = {int, str, bytes, bool, float, complex}
-COLLECTIONS = {list, set, tuple, dict}
+PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
+COLLECTIONS = OrderedSet([list, set, tuple, dict])
 
 
 def is_primitive_type(type_: Optional[Type]) -> bool:
@@ -106,7 +107,7 @@ def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool
     Returns:
         True if `from_type` is assignable to `to_type`
     """
-    if to_type == typing.Any:
+    if to_type == typing.Any:  # pylint:disable=comparison-with-callable
         return True
     if is_union_type(to_type):
         return from_type in get_args(to_type)

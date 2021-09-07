@@ -93,6 +93,14 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def remove_statement(self, statement: stmt.Statement) -> None:
+        """Remove the given statement from this test case.
+
+        Args:
+            statement: The statement to remove.
+        """
+
+    @abstractmethod
     def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 
@@ -148,8 +156,11 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clone(self) -> TestCase:
+    def clone(self, limit: Optional[int] = None) -> TestCase:
         """Provides a deep copy of the test case.
+
+        Args:
+            limit: Clone this test case only upto the given number of statements.
 
         Returns:
             A deep copy of this test case  # noqa: DAR202

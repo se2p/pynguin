@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Optional, Set
+from typing import Dict, Optional, Set
 
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.statements.statementvisitor as sv
@@ -59,12 +59,16 @@ class Statement(metaclass=ABCMeta):
         return self._test_case
 
     @abstractmethod
-    def clone(self, test_case: tc.TestCase, offset: int = 0) -> Statement:
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
+    ) -> Statement:
         """Provides a deep clone of this statement.
 
         Args:
             test_case: the new test case in which the clone will be used.
-            offset: Offset when cloning into a non empty test case.
+            memo: A memo that maps old variable reference to new ones.
 
         Returns:
             A deep clone of this statement  # noqa: DAR202
@@ -137,12 +141,12 @@ class Statement(metaclass=ABCMeta):
         self._assertions.add(assertion)
 
     def copy_assertions(
-        self, new_test_case: tc.TestCase, offset: int
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> Set[ass.Assertion]:
         """Returns a copy of the assertions of this statement."""
         copy = set()
         for assertion in self._assertions:
-            copy.add(assertion.clone(new_test_case, offset))
+            copy.add(assertion.clone(memo))
         return copy
 
     @property
@@ -155,10 +159,28 @@ class Statement(metaclass=ABCMeta):
     def assertions(self, assertions: Set[ass.Assertion]) -> None:
         self._assertions = assertions
 
-    def __eq__(self, other: Any) -> bool:
-        raise NotImplementedError("You need to override __eq__ for your statement type")
+    @abstractmethod
+    def structural_eq(
+        self, other: Statement, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        """Comparing a statement with another statement only makes sense in the context
+        of a test case. This context is added by the memo, which maps variable used in
+        this test case to their counterparts in the other test case.
 
-    def __hash__(self) -> int:
-        raise NotImplementedError(
-            "You need to override __hash__ for your statement type"
-        )
+        Args:
+            other: Check if this statement is equal to the other.
+            memo: A dictionary that maps variable to their corresponding values in the
+            other test case.
+
+        Returns:
+            True, if this statement is equal to the other statement and references the
+            same variables.
+        """
+
+    @abstractmethod
+    def structural_hash(self) -> int:
+        """Required for structural_eq to work.
+
+        Returns:
+            A hash.
+        """

@@ -16,7 +16,7 @@ class FooAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         pass  # pragma: no cover
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> Assertion:
+    def clone(self, new_test_case: tc.TestCase, memo) -> Assertion:
         pass  # pragma: no cover
 
 

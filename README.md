@@ -118,11 +118,11 @@ To start developing, follow these steps:
 ### Development using PyCharm.
 
 If you want to use the PyCharm IDE you have to set up a few things:
-1. Import pynguin into PyCharm.
-2. Find the location of the virtual environment by running `poetry env info` in the project directory.
-3. Go to `Settings` / `Project: pynguin` / `Project interpreter`
-4. Add and use a new interpreter that points to the path of the virtual environment
-5. Set the default test runner to `pytest`
+1. Install the [poetry plugin](https://plugins.jetbrains.com/plugin/14307-poetry) for PyCharm 
+2. Import pynguin into PyCharm.
+3. Let the poetry plugin configure a virtual environment.
+4. Set the default test runner to `pytest`
+5. Set the DocString format to `Google`
 
 ## License
 

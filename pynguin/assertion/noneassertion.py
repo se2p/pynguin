@@ -7,8 +7,10 @@
 """Provides a none assertion."""
 from __future__ import annotations
 
+from typing import Dict
+
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 
@@ -18,7 +20,7 @@ class NoneAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         visitor.visit_none_assertion(self)
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> NoneAssertion:
-        return NoneAssertion(self._source.clone(new_test_case, offset)
-                             if self._source else None,
-                             self.value)
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> NoneAssertion:
+        return NoneAssertion(self._source.clone(memo), self.value)

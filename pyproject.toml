@@ -42,11 +42,14 @@ simple-parsing = "^0.0.15"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
-networkx = {extras = ["pydot"], version = "2.5.1"}
+networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
 rich = "^10.3"
 pytest = "^6.2"
 mutpy = { git = "https://github.com/f-str/mutpy", branch = "pynguin" }
+Jinja2 = "^3.0.1"
+Pygments = "^2.9.0"
+ordered-set = "^4.0.2"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"

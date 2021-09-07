@@ -56,7 +56,7 @@ class _InitialPopulationSeeding:
         Returns:
             The ast tree of the given module.
         """
-        module_name = config.configuration.module_name.split(".")[-1]
+        module_name = config.configuration.module_name.rsplit(".", maxsplit=1)[-1]
         self._logger.debug("Module name: %s", module_name)
         result: List[str] = []
         for root, _, files in os.walk(module_path):
@@ -68,7 +68,7 @@ class _InitialPopulationSeeding:
             if len(result) > 0:
                 self._logger.debug("Module name found: %s", result[0])
                 stat.track_output_variable(RuntimeVariable.SuitableTestModule, True)
-                with open(result[0]) as module_file:
+                with open(result[0], encoding="utf-8") as module_file:
                     return ast.parse(module_file.read())
             else:
                 self._logger.debug("No suitable test module found.")

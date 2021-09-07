@@ -10,6 +10,8 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+from ordered_set import OrderedSet
+
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
@@ -249,13 +251,13 @@ class MIOArchive:
         for population in self._archive.values():
             population.shrink_population(new_population_size)
 
-    def get_solutions(self) -> List[tcc.TestCaseChromosome]:
+    def get_solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:
         """Get all covering solutions found so far."""
-        result = []
+        result = OrderedSet()
         for population in self._archive.values():
             solution = population.get_best_solution_if_any()
             if solution is not None:
-                result.append(solution)
+                result.add(solution)
         return result
 
     @property

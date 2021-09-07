@@ -104,6 +104,16 @@ def test_remove(default_test_case):
     assert default_test_case._statements == [stmt_1, stmt_3]
 
 
+def test_remove_statement(default_test_case):
+    stmt_1 = MagicMock(st.Statement)
+    stmt_2 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement)
+    default_test_case.add_statements([stmt_1, stmt_2, stmt_3])
+    assert default_test_case.size() == 3
+    default_test_case.remove_statement(stmt_2)
+    assert default_test_case.statements == [stmt_1, stmt_3]
+
+
 def test_get_statement(default_test_case):
     stmt_1 = MagicMock(st.Statement)
     stmt_2 = MagicMock(st.Statement)
@@ -148,27 +158,29 @@ def test_eq_parameterized(test_case, other, result):
 
 
 def test_eq_same(default_test_case):
-    assert default_test_case.__eq__(default_test_case)
+    assert default_test_case == default_test_case
 
 
 def test_eq_statements_1(default_test_case):
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_2(default_test_case):
     default_test_case._statements = [MagicMock(st.Statement)]
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_3(default_test_case):
-    default_test_case._statements = [MagicMock(st.Statement)]
+    stmt1 = MagicMock()
+    stmt1.structural_eq.return_value = False
+    default_test_case._statements = [stmt1]
     other = dtc.DefaultTestCase()
     other._statements = [MagicMock(st.Statement)]
-    assert not default_test_case.__eq__(other)
+    assert default_test_case != other
 
 
 def test_eq_statements_4(default_test_case):

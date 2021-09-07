@@ -35,6 +35,7 @@ unit tests for your project
    user/intro
    user/install
    user/quickstart
+   user/reproducible
 
 The Contributor Guide
 ---------------------

@@ -6,15 +6,17 @@
 """Provides the DynaMOSA test-generation strategy."""
 import logging
 import queue
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
+
+from ordered_set import OrderedSet
 
 import pynguin.analyses.controlflow.programgraph as pg
 import pynguin.configuration as config
 import pynguin.coverage.branch.branchcoveragegoal as bcg
 import pynguin.coverage.branch.branchcoveragetestfitness as bctf
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow import cfg
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
@@ -37,9 +39,9 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
         super().__init__()
         self._goals_manager: _GoalsManager
 
-    def generate_tests(self) -> chrom.Chromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self._archive = Archive(set(self._fitness_functions))
+        self._archive = Archive(OrderedSet(self._fitness_functions))
         self._goals_manager = _GoalsManager(self._archive, self.executor)
         self._number_of_goals = len(self._fitness_functions)
         stat.set_output_variable_for_runtime_variable(
@@ -132,10 +134,10 @@ class _GoalsManager:
         self._graph = _create_branch_fitness_graph(
             archive.uncovered_goals, executor.tracer.get_known_data()
         )
-        self._current_goals: Set[ff.FitnessFunction] = self._graph.root_branches
+        self._current_goals: OrderedSet[ff.FitnessFunction] = self._graph.root_branches
 
     @property
-    def current_goals(self) -> Set[ff.FitnessFunction]:
+    def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
         """Provides the set of current goals.
 
         Returns:
@@ -144,7 +146,7 @@ class _GoalsManager:
         return self._current_goals
 
     @property
-    def uncovered_goals(self) -> Set[ff.FitnessFunction]:
+    def uncovered_goals(self) -> OrderedSet[ff.FitnessFunction]:
         """Provides the set of yet uncovered goals.
 
         Returns:
@@ -162,8 +164,8 @@ class _GoalsManager:
         self._archive.update(solutions)
 
         # Update the set of current goals
-        new_goals = self._graph.retrieve_new_goals(self._current_goals)  # type: ignore
-        self._current_goals = new_goals  # type: ignore
+        new_goals = self._graph.retrieve_new_goals(self._current_goals)
+        self._current_goals = new_goals
 
 
 class _BranchFitnessGraph:
@@ -171,8 +173,8 @@ class _BranchFitnessGraph:
 
     def __init__(self) -> None:
         self._control_dependence_graphs: Dict[int, ControlDependenceGraph] = {}
-        self._root_branches: Set[bctf.BranchCoverageTestFitness] = set()
-        self._branchless_code_objects: Set[int] = set()
+        self._root_branches: OrderedSet[bctf.BranchCoverageTestFitness] = OrderedSet()
+        self._branchless_code_objects: OrderedSet[int] = OrderedSet()
         self._edge_predicate_map: Dict[
             int,
             Dict[
@@ -182,7 +184,7 @@ class _BranchFitnessGraph:
         ] = {}
 
     @property
-    def root_branches(self) -> Set[ff.FitnessFunction]:
+    def root_branches(self) -> OrderedSet[ff.FitnessFunction]:
         """Provides the root branches.
 
         The root branches are those branches that are not control dependent on
@@ -191,10 +193,10 @@ class _BranchFitnessGraph:
         Returns:
             The set of root branches
         """
-        return self._root_branches  # type: ignore
+        return self._root_branches
 
     def build_graph(
-        self, goals: Set[bctf.BranchCoverageTestFitness], known_data: KnownData
+        self, goals: OrderedSet[bctf.BranchCoverageTestFitness], known_data: KnownData
     ) -> None:
         """Builds the data structure.
 
@@ -215,7 +217,7 @@ class _BranchFitnessGraph:
                 bctf.BranchCoverageTestFitness,
             ] = self._get_edge_predicate_map_from_cfg(code_object.cfg, goals)
 
-            seen_goals: Set[bctf.BranchCoverageTestFitness] = set()
+            seen_goals: OrderedSet[bctf.BranchCoverageTestFitness] = OrderedSet()
 
             # Collect those targets that are control dependent
             for edge in code_object.cdg.graph.edges:
@@ -243,7 +245,7 @@ class _BranchFitnessGraph:
             self._control_dependence_graphs[code_object_id] = code_object.cdg
 
     def _get_edge_predicate_map_from_cfg(
-        self, graph: cfg.CFG, goals: Set[bctf.BranchCoverageTestFitness]
+        self, graph: cfg.CFG, goals: OrderedSet[bctf.BranchCoverageTestFitness]
     ) -> Dict[
         Tuple[pg.ProgramGraphNode, pg.ProgramGraphNode], bctf.BranchCoverageTestFitness
     ]:
@@ -264,7 +266,7 @@ class _BranchFitnessGraph:
 
     @staticmethod
     def _find_goals_for_predicate(
-        goals: Set[bctf.BranchCoverageTestFitness], predicate_id: int
+        goals: OrderedSet[bctf.BranchCoverageTestFitness], predicate_id: int
     ) -> List[bctf.BranchCoverageTestFitness]:
         goals_for_predicate = [
             goal
@@ -279,7 +281,7 @@ class _BranchFitnessGraph:
         return goals_for_predicate
 
     def _handle_root_branches(
-        self, code_object_id: int, goals: Set[bctf.BranchCoverageTestFitness]
+        self, code_object_id: int, goals: OrderedSet[bctf.BranchCoverageTestFitness]
     ) -> None:
         for goal in goals:
             if (
@@ -290,8 +292,8 @@ class _BranchFitnessGraph:
                 self._branchless_code_objects.add(code_object_id)
 
     def retrieve_new_goals(
-        self, old_goals: Set[bctf.BranchCoverageTestFitness]
-    ) -> Set[bctf.BranchCoverageTestFitness]:
+        self, old_goals: OrderedSet[bctf.BranchCoverageTestFitness]
+    ) -> OrderedSet[bctf.BranchCoverageTestFitness]:
         """Retrieves the set of new goals.
 
         Args:
@@ -300,7 +302,7 @@ class _BranchFitnessGraph:
         Returns:
             A set of new goals to consider for the search
         """
-        new_goals: Set[bctf.BranchCoverageTestFitness] = set()
+        new_goals: OrderedSet[bctf.BranchCoverageTestFitness] = OrderedSet()
 
         # Re-add those that were not covered in previous iteration
         for old_goal in old_goals:
@@ -326,8 +328,8 @@ class _BranchFitnessGraph:
 
     def _retrieve_goals_for_branchless_code_object(
         self, code_object_id: int
-    ) -> Set[bctf.BranchCoverageTestFitness]:
-        result: Set[bctf.BranchCoverageTestFitness] = set()
+    ) -> OrderedSet[bctf.BranchCoverageTestFitness]:
+        result: OrderedSet[bctf.BranchCoverageTestFitness] = OrderedSet()
         for root_branch in self._root_branches:
             if (
                 isinstance(root_branch.goal, bcg.RootBranchCoverageGoal)
@@ -339,9 +341,9 @@ class _BranchFitnessGraph:
 
     def _retrieve_goals_from_control_dependence_graph(
         self, control_dependence_graph: ControlDependenceGraph, code_object_id: int
-    ) -> Set[bctf.BranchCoverageTestFitness]:
-        result: Set[bctf.BranchCoverageTestFitness] = set()
-        visited: Set[pg.ProgramGraphNode] = set()
+    ) -> OrderedSet[bctf.BranchCoverageTestFitness]:
+        result: OrderedSet[bctf.BranchCoverageTestFitness] = OrderedSet()
+        visited: OrderedSet[pg.ProgramGraphNode] = OrderedSet()
         wait_list: queue.Queue = queue.Queue()
         wait_list.put(control_dependence_graph.entry_node)
         while not wait_list.empty():
@@ -363,9 +365,9 @@ class _BranchFitnessGraph:
 
 
 def _create_branch_fitness_graph(
-    goals: Set[ff.FitnessFunction], known_data: KnownData
+    goals: OrderedSet[ff.FitnessFunction], known_data: KnownData
 ) -> _BranchFitnessGraph:
     assert all(isinstance(goal, bctf.BranchCoverageTestFitness) for goal in goals)
     graph = _BranchFitnessGraph()
-    graph.build_graph(goals, known_data)  # type: ignore  # We know types are correct!
+    graph.build_graph(goals, known_data)
     return graph

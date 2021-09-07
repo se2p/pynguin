@@ -50,7 +50,9 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
 
     def write_data(self, data: Dict[str, OutputVariable]) -> None:
         try:
-            output_dir = self._get_report_dir()
+            output_dir = Path(
+                config.configuration.statistics_output.report_dir
+            ).resolve()
             output_file = output_dir / "statistics.csv"
             with output_file.open(mode="a") as csv_file:
                 field_names = [k for k, _ in data.items()]
@@ -62,20 +64,6 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                 csv_writer.writerow({k: str(v.value) for k, v in data.items()})
         except OSError as error:
             logging.exception("Error while writing statistics: %s", error)
-
-    def _get_report_dir(self) -> Path:
-        report_dir = Path(config.configuration.statistics_output.report_dir).absolute()
-        if not report_dir.exists():
-            try:
-                report_dir.mkdir(parents=True, exist_ok=True)
-            except OSError as exception:
-                msg = (
-                    "Cannot create report dir %s",
-                    config.configuration.statistics_output.report_dir,
-                )
-                self._logger.error(msg)
-                raise RuntimeError(msg) from exception
-        return report_dir
 
 
 # pylint: disable=too-few-public-methods

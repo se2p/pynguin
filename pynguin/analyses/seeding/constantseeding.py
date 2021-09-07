@@ -12,9 +12,10 @@ import logging
 import os
 from abc import abstractmethod
 from pkgutil import iter_modules
-from typing import Any, Dict, Set, Type, Union, cast
+from typing import Any, Dict, Type, Union, cast
 
 from _py_abc import ABCMeta
+from ordered_set import OrderedSet
 from setuptools import find_packages
 
 from pynguin.utils import randomness
@@ -111,15 +112,15 @@ class _StaticConstantSeeding(_ConstantSeeding):
     """
 
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], Set[Types]] = {
-            int: set(),
-            float: set(),
-            str: set(),
+        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+            int: OrderedSet(),
+            float: OrderedSet(),
+            str: OrderedSet(),
         }
 
     @staticmethod
-    def _find_modules(project_path: Union[str, os.PathLike]) -> Set[str]:
-        modules: Set[str] = set()
+    def _find_modules(project_path: Union[str, os.PathLike]) -> OrderedSet[str]:
+        modules: OrderedSet[str] = OrderedSet()
         for package in find_packages(
             project_path,
             exclude=[
@@ -143,7 +144,7 @@ class _StaticConstantSeeding(_ConstantSeeding):
 
     def collect_constants(
         self, project_path: Union[str, os.PathLike]
-    ) -> Dict[Type[Types], Set[Types]]:
+    ) -> Dict[Type[Types], OrderedSet[Types]]:
         """Collect all constants for a given project.
 
         Args:
@@ -155,7 +156,9 @@ class _StaticConstantSeeding(_ConstantSeeding):
         assert self._constants is not None
         collector = _ConstantCollector()
         for module in self._find_modules(project_path):
-            with open(os.path.join(project_path, module)) as module_file:
+            with open(
+                os.path.join(project_path, module), encoding="utf-8"
+            ) as module_file:
                 try:
                     tree = ast.parse(module_file.read())
                     collector.visit(tree)
@@ -176,12 +179,12 @@ class _StaticConstantSeeding(_ConstantSeeding):
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], Set[Types]] = {
-            float: set(),
-            int: set(),
-            str: set(),
+        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+            float: OrderedSet(),
+            int: OrderedSet(),
+            str: OrderedSet(),
         }
-        self._string_expressions: Set[str] = set()
+        self._string_expressions: OrderedSet[str] = OrderedSet()
 
     def visit_Constant(self, node: ast.Constant) -> Any:
         if isinstance(node.value, str):
@@ -210,7 +213,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self.generic_visit(node)
 
     @property
-    def constants(self) -> Dict[Type[Types], Set[Types]]:
+    def constants(self) -> Dict[Type[Types], OrderedSet[Types]]:
         """Provides the collected constants.
 
         Returns:
@@ -223,7 +226,7 @@ class _ConstantCollector(ast.NodeVisitor):
         self._constants[str] -= self._string_expressions
 
 
-class _DynamicConstantSeeding(_ConstantSeeding):
+class DynamicConstantSeeding(_ConstantSeeding):
     """Provides a dynamic pool and methods to add and retrieve values.
 
     The methods in this class are added to the module under test during an instruction
@@ -236,12 +239,6 @@ class _DynamicConstantSeeding(_ConstantSeeding):
     is needed, this module provides methods to get values from the dynamic pool
     instead of randomly generating a new one.
     """
-
-    _dynamic_pool: Dict[Type[Types], Set[Types]] = {
-        int: set(),
-        float: set(),
-        str: set(),
-    }
 
     _string_functions_lookup = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
@@ -260,6 +257,18 @@ class _DynamicConstantSeeding(_ConstantSeeding):
         "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
         "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
     }
+
+    def __init__(self):
+        self._dynamic_pool: Dict[Type[Types], OrderedSet[Types]] = {
+            int: OrderedSet(),
+            float: OrderedSet(),
+            str: OrderedSet(),
+        }
+
+    def reset(self) -> None:
+        """Delete all currently stored dynamic constants"""
+        for elem in self._dynamic_pool.values():
+            elem.clear()
 
     def has_constants(self, type_: Type[Types]) -> bool:
         assert type_ in self._dynamic_pool
@@ -295,4 +304,4 @@ class _DynamicConstantSeeding(_ConstantSeeding):
 
 
 static_constant_seeding = _StaticConstantSeeding()
-dynamic_constant_seeding = _DynamicConstantSeeding()
+dynamic_constant_seeding = DynamicConstantSeeding()

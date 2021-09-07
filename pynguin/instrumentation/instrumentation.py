@@ -14,9 +14,8 @@ from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.analyses.controlflow.dominatortree import DominatorTree
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
+from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
@@ -174,11 +173,8 @@ class BranchCoverageInstrumentation(Instrumentation):
             code_object_id: The id of the code object which contains this CFG.
         """
         # Required to transform for loops.
-        dominator_tree = DominatorTree.compute(cfg)
         for node in cfg.nodes:
-            predicate_id = self._instrument_node(
-                cfg, code_object_id, dominator_tree, node
-            )
+            predicate_id = self._instrument_node(cfg, code_object_id, node)
             if predicate_id is not None:
                 node.predicate_id = predicate_id
 
@@ -186,7 +182,6 @@ class BranchCoverageInstrumentation(Instrumentation):
         self,
         cfg: CFG,
         code_object_id: int,
-        dominator_tree: DominatorTree,
         node: ProgramGraphNode,
     ) -> Optional[int]:
         """Instrument a single node in the CFG.
@@ -196,7 +191,6 @@ class BranchCoverageInstrumentation(Instrumentation):
         Args:
             cfg: The containing CFG.
             code_object_id: The containing Code Object
-            dominator_tree: The dominator tree of the CFG
             node: The node that should be instrumented.
 
         Returns:
@@ -217,9 +211,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             )
             if isinstance(maybe_jump, Instr):
                 if maybe_jump.name == "FOR_ITER":
-                    predicate_id = self._instrument_for_loop(
-                        cfg, dominator_tree, node, code_object_id
-                    )
+                    predicate_id = self._instrument_for_loop(cfg, node, code_object_id)
                 elif maybe_jump.is_cond_jump():
                     predicate_id = self._instrument_cond_jump(
                         code_object_id, maybe_compare, maybe_jump, node.basic_block
@@ -436,13 +428,12 @@ class BranchCoverageInstrumentation(Instrumentation):
     def _instrument_for_loop(
         self,
         cfg: CFG,
-        dominator_tree: DominatorTree,
         node: ProgramGraphNode,
         code_object_id: int,
     ) -> int:
         """Transform the for loop whose header is defined in the given node.
         We only transform the underlying bytecode cfg, by partially unrolling the first
-        iteration. For this, we add three basic blocks after the loop header:
+        iteration. For this, we add two basic blocks after the loop header:
 
         The first block is called, if the iterator on which the loop is based
         yields at least one element, in which case we report the boolean value True
@@ -453,9 +444,6 @@ class BranchCoverageInstrumentation(Instrumentation):
         does not yield an element, in which case we report the boolean value False
         to the tracer and jump to the exit instruction of the loop.
 
-        The third block acts as the new internal header of the for loop. It consists
-        of a copy of the original "FOR_ITER" instruction of the loop.
-
         The original loop header is changed such that it either falls through to the
         first block or jumps to the second, if no element is yielded.
 
@@ -463,13 +451,9 @@ class BranchCoverageInstrumentation(Instrumentation):
         directly into the loop that bypass the loop header (e.g., GOTO).
         Jumps which reach the loop header from outside the loop will still target
         the original loop header, so they don't need to be modified.
-        Jumps which originate from within the loop (e.g., break or continue) need
-        to be redirected to the new internal header (3rd new block).
-        We use a dominator tree to find and redirect the jumps of such instructions.
 
         Args:
             cfg: The CFG that contains the loop
-            dominator_tree: The dominator tree of the given CFG.
             node: The node which contains the header of the for loop.
             code_object_id: The id of the containing Code Object.
 
@@ -483,13 +467,12 @@ class BranchCoverageInstrumentation(Instrumentation):
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
         )
-        for_instr_copy = for_instr.copy()
         for_loop_exit = for_instr.arg
         for_loop_body = node.basic_block.next_block
 
         # pylint:disable=unbalanced-tuple-unpacking
-        entered, not_entered, new_header = self._create_consecutive_blocks(
-            cfg.bytecode_cfg(), node.basic_block, 3
+        entered, not_entered = self._create_consecutive_blocks(
+            cfg.bytecode_cfg(), node.basic_block, 2
         )
         for_instr.arg = not_entered
 
@@ -525,15 +508,6 @@ class BranchCoverageInstrumentation(Instrumentation):
             ]
         )
 
-        new_header.append(for_instr_copy)
-
-        # Redirect internal jumps to the new loop header
-        for successor in dominator_tree.get_transitive_successors(node):
-            if (
-                successor.basic_block is not None
-                and successor.basic_block[self._JUMP_OP_POS].arg is node.basic_block
-            ):
-                successor.basic_block[self._JUMP_OP_POS].arg = new_header
         return predicate_id
 
 
@@ -586,6 +560,9 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
+    def __init__(self, dynamic_constant_seeding: DynamicConstantSeeding):
+        self._dynamic_constant_seeding = dynamic_constant_seeding
+
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
           'string1.startswith(string2)' the
@@ -600,10 +577,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("ROT_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                self._dynamic_constant_seeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -626,10 +603,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -652,10 +629,10 @@ class DynamicSeedingInstrumentation(Instrumentation):
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
             Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value_for_strings.__name__,
+                DynamicConstantSeeding.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -691,20 +668,20 @@ class DynamicSeedingInstrumentation(Instrumentation):
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
             Instr("ROT_THREE", lineno=lineno),
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", dynamic_constant_seeding, lineno=lineno),
+            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                dynamic_constant_seeding.add_value.__name__,
+                DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -712,7 +689,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
-        self._logger.info("Instrumented compare_op")
+        self._logger.debug("Instrumented compare_op")
 
     def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
         """Apply the instrumentation to all constants of the given code object.

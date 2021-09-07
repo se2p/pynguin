@@ -7,8 +7,9 @@
 """Provides a test cluster."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Type
+from typing import Any, Dict, List, Optional, Type
 
+from ordered_set import OrderedSet
 from typing_inspect import get_args, is_union_type
 
 from pynguin.utils import randomness, type_utils
@@ -24,9 +25,11 @@ class TestCluster:
 
     def __init__(self):
         """Create new test cluster."""
-        self._generators: Dict[Type, Set[GenericAccessibleObject]] = {}
-        self._modifiers: Dict[Type, Set[GenericAccessibleObject]] = {}
-        self._accessible_objects_under_test: Set[GenericAccessibleObject] = set()
+        self._generators: Dict[Type, OrderedSet[GenericAccessibleObject]] = {}
+        self._modifiers: Dict[Type, OrderedSet[GenericAccessibleObject]] = {}
+        self._accessible_objects_under_test: OrderedSet[
+            GenericAccessibleObject
+        ] = OrderedSet()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
@@ -46,7 +49,7 @@ class TestCluster:
         if type_ in self._generators:
             self._generators[type_].add(generator)
         else:
-            self._generators[type_] = {generator}
+            self._generators[type_] = OrderedSet([generator])
 
     def add_accessible_object_under_test(self, obj: GenericAccessibleObject) -> None:
         """Add accessible object to the objects under test.
@@ -69,10 +72,10 @@ class TestCluster:
         if type_ in self._modifiers:
             self._modifiers[type_].add(obj)
         else:
-            self._modifiers[type_] = {obj}
+            self._modifiers[type_] = OrderedSet([obj])
 
     @property
-    def accessible_objects_under_test(self) -> Set[GenericAccessibleObject]:
+    def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
         """Provides all accessible objects that are under test.
 
         Returns:
@@ -90,7 +93,7 @@ class TestCluster:
         """
         return len(self._accessible_objects_under_test)
 
-    def get_generators_for(self, for_type: Type) -> Set[GenericAccessibleObject]:
+    def get_generators_for(self, for_type: Type) -> OrderedSet[GenericAccessibleObject]:
         """Retrieve all known generators for the given type.
 
         Args:
@@ -101,9 +104,9 @@ class TestCluster:
         """
         if for_type in self._generators:
             return self._generators[for_type]
-        return set()
+        return OrderedSet()
 
-    def get_modifiers_for(self, for_type: Type) -> Set[GenericAccessibleObject]:
+    def get_modifiers_for(self, for_type: Type) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers of a type.
 
         This currently does not take inheritance into account.
@@ -116,10 +119,10 @@ class TestCluster:
         """
         if for_type in self._modifiers:
             return self._modifiers[for_type]
-        return set()
+        return OrderedSet()
 
     @property
-    def generators(self) -> Dict[Type, Set[GenericAccessibleObject]]:
+    def generators(self) -> Dict[Type, OrderedSet[GenericAccessibleObject]]:
         """Provides all available generators.
 
         Returns:
@@ -128,7 +131,7 @@ class TestCluster:
         return self._generators
 
     @property
-    def modifiers(self) -> Dict[Type, Set[GenericAccessibleObject]]:
+    def modifiers(self) -> Dict[Type, OrderedSet[GenericAccessibleObject]]:
         """Provides all available modifiers.
 
         Returns:
@@ -144,7 +147,7 @@ class TestCluster:
         """
         if self.num_accessible_objects_under_test() == 0:
             return None
-        return randomness.choice(list(self._accessible_objects_under_test))
+        return randomness.choice(self._accessible_objects_under_test)
 
     def get_random_call_for(self, type_: Type) -> GenericAccessibleObject:
         """Get a random modifier for the given type.
@@ -161,7 +164,7 @@ class TestCluster:
         accessible_objects = self.get_modifiers_for(type_)
         if len(accessible_objects) == 0:
             raise ConstructionFailedException("No modifiers for " + str(type_))
-        return randomness.choice(list(accessible_objects))
+        return randomness.choice(accessible_objects)
 
     def get_all_generatable_types(self) -> List[Type]:
         """Provides all types that can be generated, including primitives
@@ -187,7 +190,7 @@ class TestCluster:
         Returns:
             An optional type
         """
-        if select_from == Any:
+        if select_from == Any:  # pylint:disable=comparison-with-callable
             return randomness.choice(self.get_all_generatable_types())
         if is_union_type(select_from):
             possible_types = get_args(select_from)

@@ -94,6 +94,26 @@ def test_setup_hook():
         hook_mock.assert_called_once()
 
 
+def test__setup_report_dir(tmp_path: Path):
+    path = tmp_path / "foo" / "bar"
+    config.configuration.statistics_output.report_dir = path.absolute()
+    config.configuration.statistics_output.create_coverage_report = True
+    assert gen._setup_report_dir()
+    assert path.exists()
+    assert path.is_dir()
+
+
+def test__setup_report_dir_not_required(tmp_path: Path):
+    path = tmp_path / "foo" / "bar"
+    config.configuration.statistics_output.report_dir = path.absolute()
+    config.configuration.statistics_output.create_coverage_report = False
+    config.configuration.statistics_output.statistics_backend = (
+        config.StatisticsBackend.NONE
+    )
+    assert gen._setup_report_dir()
+    assert not path.exists()
+
+
 def test_run(tmp_path):
     gen.set_configuration(
         configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")

@@ -11,9 +11,9 @@ from math import ceil
 from typing import List, Optional, cast
 
 import pynguin.configuration as config
-import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.algorithms.mioarchive as mioa
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
@@ -59,7 +59,7 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
 
     def generate_tests(
         self,
-    ) -> chrom.Chromosome:
+    ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._archive = mioa.MIOArchive(
             cast(List[atcff.AbstractTestCaseFitnessFunction], self.fitness_functions),
