@@ -63,6 +63,16 @@ class Algorithm(str, enum.Enum):
     Object-Oriented Software. Proc. ESEC/FSE 2011)."""
 
 
+class AssertionGenerator(str, enum.Enum):
+    """Different approaches for assertion generation supported by Pynguin."""
+
+    MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
+    """Use the mutation analysis approach for assertion generation."""
+
+    SIMPLE = "SIMPLE"
+    """Use the simple approach for primitive and none assertion generation."""
+
+
 class StoppingCondition(str, enum.Enum):
     """The different stopping conditions for the algorithms."""
 
@@ -437,7 +447,10 @@ class Configuration:
     """Configuration for how test cases should be output."""
 
     algorithm: Algorithm = choice(Algorithm)
-    """The algorithm that shall be used for generation"""
+    """The algorithm that shall be used for generation."""
+
+    assertion_generation: AssertionGenerator = choice(AssertionGenerator)
+    """The generator that shall be used for assertion generation."""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(
         default_factory=StatisticsOutputConfiguration
@@ -479,6 +492,7 @@ class Configuration:
 # Singleton instance of the configuration.
 configuration = Configuration(
     algorithm=Algorithm.RANDOM,
+    assertion_generation=AssertionGenerator.SIMPLE,
     project_path="",
     module_name="",
     test_case_output=TestCaseOutputConfiguration(output_path=""),

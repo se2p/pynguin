@@ -23,7 +23,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pynguin/__main__.py" />
-    <option name="PARAMETERS" value="--algorithm MOSA --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name example --budget 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v" />
+    <option name="PARAMETERS" value="--algorithm MOSA --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name example --budget 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v --assertion-generation SIMPLE" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
