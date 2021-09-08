@@ -260,13 +260,17 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _create_init_field(self, field, value) -> None:
         if tu.is_collection_type(type(value)):
             self._create_collection(value)
+            val = self._create_ast_name(self._get_current_comparison_object())
+            self._pop_current_comparison_object()
         elif not tu.is_primitive_type(type(value)):
             self._create_comparison_object(value)
+            val = self._create_ast_name(self._get_current_comparison_object())
+            self._pop_current_comparison_object()
         else:
-            obj = self._create_ast_name(self._get_current_comparison_object())
-            attr = self._create_ast_attribute(field, obj, True)
             val = self._create_ast_constant(value)
-            self._nodes.append(self._create_ast_assign(attr, val))
+        obj = self._create_ast_name(self._get_current_comparison_object())
+        attr = self._create_ast_attribute(field, obj, True)
+        self._nodes.append(self._create_ast_assign(attr, val))
 
     def _create_collection(self, value) -> None:
         obj_id = self._get_comparison_object()
