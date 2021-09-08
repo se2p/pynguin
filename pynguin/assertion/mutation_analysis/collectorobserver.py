@@ -42,6 +42,10 @@ class CollectionObserver(eo.ExecutionObserver):
     def after_statement_execution(self, statement: stmt.Statement,
                                   exec_ctx: ExecutionContext,
                                   exception: Optional[Exception] = None) -> None:
+        # When an exception was raised do not do anything
+        if exception is not None:
+            return
+
         # Get the test case id of the current statement
         test_case_id: int = cast(dtc.DefaultTestCase, statement.test_case).id
 
