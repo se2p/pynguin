@@ -6,9 +6,10 @@
 #
 """Provides a object assertion."""
 from __future__ import annotations
+from typing import Dict
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.testcase as tc
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 
@@ -18,7 +19,9 @@ class ComplexAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         visitor.visit_complex_assertion(self)
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> ComplexAssertion:
-        return ComplexAssertion(self._source.clone(new_test_case, offset)
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> ComplexAssertion:
+        return ComplexAssertion(self._source.clone(memo)
                                 if self._source else None,
                                 self.value)

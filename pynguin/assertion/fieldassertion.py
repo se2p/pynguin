@@ -7,10 +7,9 @@
 """Provides a field assertion."""
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
@@ -71,8 +70,10 @@ class FieldAssertion(ass.Assertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         visitor.visit_field_assertion(self)
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> FieldAssertion:
-        return FieldAssertion(self._source.clone(new_test_case, offset)
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> FieldAssertion:
+        return FieldAssertion(self._source.clone(memo)
                               if self._source else None,
                               self.value,
                               self._field,
