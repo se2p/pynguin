@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Pynguin
 
-Pynguin,
+Pynguin (IPA: ˈpɪŋɡuiːn),
 the
 PYthoN
 General

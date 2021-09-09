@@ -18,7 +18,8 @@ Release v\ |version|. (:ref:`Installation <install>`)
 .. image:: https://readthedocs.org/projects/pynguin/badge/?version=latest
     :target: https://readthedocs.io/en/latest/?badge=latest
 
-**Pynguin** is a framework that allows automated unit test generation for Python.
+**Pynguin** (IPA: ˈpɪŋɡuiːn) is a framework that allows automated unit test
+generation for Python.
 It is an extensible tool that allows the implementation of various
 test-generation approaches.
 
