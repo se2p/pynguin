@@ -104,20 +104,15 @@ def test_complex_list(assertion_to_ast):
     )
 
 
-# TODO(fs) flaky test since a set is not always ordered in the same way
 def test_complex_set(assertion_to_ast):
     value = {Foo("foo"), Foo("bar"), 42}
     assertion = MagicMock(value=value)
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert (
-        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
-        "obj1._bar = 'bar'\n"
-        "obj2 = var0.Foo.__class__\n"
-        "obj2._bar = 'foo'\n"
-        "obj0 = {42, obj1, obj2}\n"
-        "assert var0 == obj0\n"
-    )
+    source = astor.to_source(module)
+    assert len(source) == 132
+    assert source.startswith("obj1 = var0.Foo.__class__\nobj1._bar = ")
+    assert source.endswith("\nassert var0 == obj0\n")
 
 
 def test_complex_dict(assertion_to_ast):

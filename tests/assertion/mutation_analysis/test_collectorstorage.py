@@ -18,6 +18,8 @@ class Foo:
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():
+    cs.CollectorStorage._entries = [[]]
+    cs.CollectorStorage._execution_index = 0
     yield
     cs.CollectorStorage._entries = [[]]
     cs.CollectorStorage._execution_index = 0
