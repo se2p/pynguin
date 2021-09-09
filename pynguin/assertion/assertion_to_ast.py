@@ -6,8 +6,9 @@
 #
 """Provides an assertion visitor to transform assertions to AST."""
 import ast
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+
 from _ast import Constant, Name
-from typing import Any, Dict, List, Set, Tuple, Union
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
@@ -25,8 +26,12 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     COMPARISON_OBJECT_IDENTIFIER: str = "obj"
     _obj_index: int = 0
 
-    def __init__(self, common_modules: Set[str], module_aliases: NamingScope,
-                 variable_names: NamingScope):
+    def __init__(
+        self,
+        common_modules: Set[str],
+        module_aliases: NamingScope,
+        variable_names: NamingScope,
+    ):
         """Create a new assertion visitor.
 
         Args:
@@ -93,7 +98,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
 
     def visit_complex_assertion(self, assertion) -> None:
         """
-        Creates an assertion of form "assert var0 == obj" or "assert var0 == collection".
+        Creates an assertion of form "assert var0 == obj" or
+        "assert var0 == collection".
 
         Args:
             assertion: the assertion that is visited.
@@ -112,24 +118,24 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             assertion: the assertion that is visited.
         """
         if tu.is_primitive_type(type(assertion.value)):
-            self._create_field_assertion_primitive(assertion.source,
-                                                   assertion.value,
-                                                   assertion.field,
-                                                   assertion.module,
-                                                   assertion.owners)
+            self._create_field_assertion_primitive(
+                assertion.source,
+                assertion.value,
+                assertion.field,
+                assertion.module,
+                assertion.owners,
+            )
         else:
             if tu.is_collection_type(type(assertion.value)):
                 self._create_collection(assertion.value)
             else:
                 self._create_comparison_object(assertion.value)
-            self._create_field_assertion(assertion.source,
-                                         assertion.field,
-                                         assertion.module,
-                                         assertion.owners)
-            pass
+            self._create_field_assertion(
+                assertion.source, assertion.field, assertion.module, assertion.owners
+            )
 
     def _create_constant_assert(
-        self, var: vr.VariableReference, operator: ast.cmpop, value: Any
+        self, var: Optional[vr.VariableReference], operator: ast.cmpop, value: Any
     ) -> ast.Assert:
         return ast.Assert(
             test=ast.Compare(
@@ -141,7 +147,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         )
 
     def _create_float_delta_assert(
-        self, var: vr.VariableReference, value: Any
+        self, var: Optional[vr.VariableReference], value: Any
     ) -> ast.Assert:
         self._common_modules.add("pytest")
         float_precision = config.configuration.test_case_output.float_precision
@@ -191,8 +197,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             for field, field_val in vars(value).items():
                 self._create_init_field(field, field_val)
 
-    def _create_assertion(self, left, op, comp):
-        test = self._create_ast_compare(left, op, comp)
+    def _create_assertion(self, left, operator, comp):
+        test = self._create_ast_compare(left, operator, comp)
         self._nodes.append(self._create_ast_assert(test))
 
     def _create_object_assertion(self, var: vr.VariableReference) -> None:
@@ -201,52 +207,54 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         self._create_assertion(left, ast.Eq(), comp)
         self._pop_current_comparison_object()
 
-    def _create_field_assertion_primitive(self,
-                                          var: vr.VariableReference,
-                                          value: Any,
-                                          field: str,
-                                          module: str,
-                                          owners: List[str]) -> None:
+    # pylint: disable=too-many-arguments
+    def _create_field_assertion_primitive(
+        self,
+        var: vr.VariableReference,
+        value: Any,
+        field: str,
+        module: str,
+        owners: List[str],
+    ) -> None:
         left = self._construct_field_attribute(var, field, module, owners)
         comp = self._create_ast_constant(value)
         if isinstance(value, float):
             float_precision = config.configuration.test_case_output.float_precision
             func = self._create_ast_attribute(self._create_ast_name("pytest"), "approx")
             keywords = [
-                self._create_ast_keyword("abs",
-                                         self._create_ast_constant(float_precision)),
-                self._create_ast_keyword("rel",
-                                         self._create_ast_constant(float_precision))
+                self._create_ast_keyword(
+                    "abs", self._create_ast_constant(float_precision)
+                ),
+                self._create_ast_keyword(
+                    "rel", self._create_ast_constant(float_precision)
+                ),
             ]
-            comp = self._create_ast_call(func, comp, keywords)
-        self._create_assertion(left, ast.Eq(), comp)
+            comp_float = self._create_ast_call(func, comp, keywords)
+            self._create_assertion(left, ast.Eq(), comp_float)
+        else:
+            self._create_assertion(left, ast.Eq(), comp)
 
-    def _create_field_assertion(self,
-                                var: vr.VariableReference,
-                                field: str,
-                                module: str,
-                                owners: List[str]) -> None:
+    def _create_field_assertion(
+        self, var: vr.VariableReference, field: str, module: str, owners: List[str]
+    ) -> None:
         left = self._construct_field_attribute(var, field, module, owners)
         comp = self._create_ast_name(self._get_current_comparison_object())
         self._create_assertion(left, ast.Eq(), comp)
         self._pop_current_comparison_object()
 
-    def _construct_field_attribute(self,
-                                   var: vr.VariableReference,
-                                   field: str,
-                                   module: str,
-                                   owners: List[str]) -> ast.Attribute:
+    def _construct_field_attribute(
+        self, var: vr.VariableReference, field: str, module: str, owners: List[str]
+    ) -> ast.Attribute:
         if var and owners is None and module is None:
             obj = au.create_var_name(self._variable_names, var, load=True)
             return self._create_ast_attribute(field, obj)
-        elif var is None and owners is None and module is not None:
+        if var is None and owners is None and module is not None:
             attr = self._create_ast_name(module)
             return self._create_ast_attribute(field, attr)
-        else:
-            attr = self._create_ast_name(self._get_module(owners[0]))
-            for owner in owners:
-                attr = self._create_ast_attribute(owner, attr)
-            return self._create_ast_attribute(field, attr)
+        attr = self._create_ast_name(self._get_module(owners[0]))
+        for owner in owners:
+            attr = cast(Name, self._create_ast_attribute(owner, attr))
+        return self._create_ast_attribute(field, attr)
 
     def _create_object(self, value) -> None:
         obj_id = self._get_comparison_object()
@@ -267,7 +275,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             val = self._create_ast_name(self._get_current_comparison_object())
             self._pop_current_comparison_object()
         else:
-            val = self._create_ast_constant(value)
+            val = cast(Name, self._create_ast_constant(value))
         obj = self._create_ast_name(self._get_current_comparison_object())
         attr = self._create_ast_attribute(field, obj, True)
         self._nodes.append(self._create_ast_assign(attr, val))
@@ -308,8 +316,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         assg_val = self._create_ast_tuple_load(elts)
         self._nodes.append(self._create_ast_assign(target, assg_val))
 
-    def _construct_collection_elts(self, value: any) -> List[Union[Constant, Name]]:
-        elts = []
+    def _construct_collection_elts(self, value: Any) -> List[Union[Constant, Name]]:
+        elts: List[Union[Constant, Name]] = []
         for item in value:
             if tu.is_primitive_type(type(item)):
                 elts.append(self._create_ast_constant(item))
@@ -318,7 +326,9 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                     self._create_collection(item)
                 else:
                     self._create_comparison_object(item)
-                elts.append(self._create_ast_name(self._get_current_comparison_object()))
+                elts.append(
+                    self._create_ast_name(self._get_current_comparison_object())
+                )
                 self._pop_current_comparison_object()
         return elts
 
@@ -332,9 +342,9 @@ class AssertionToAstVisitor(av.AssertionVisitor):
 
     @staticmethod
     def _create_ast_attribute(attr, value, store: bool = False) -> ast.Attribute:
-        return ast.Attribute(attr=attr,
-                             ctx=ast.Store() if store else ast.Load(),
-                             value=value)
+        return ast.Attribute(
+            attr=attr, ctx=ast.Store() if store else ast.Load(), value=value
+        )
 
     @staticmethod
     def _create_ast_list_load(elts) -> ast.List:
@@ -361,8 +371,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         return ast.Assert(test=test, msg=None)
 
     @staticmethod
-    def _create_ast_compare(left, op, comparator) -> ast.Compare:
-        return ast.Compare(left=left, ops=[op], comparators=[comparator])
+    def _create_ast_compare(left, operator, comparator) -> ast.Compare:
+        return ast.Compare(left=left, ops=[operator], comparators=[comparator])
 
     @staticmethod
     def _create_ast_call(func, args, keywords) -> ast.Call:

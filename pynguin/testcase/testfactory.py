@@ -96,11 +96,7 @@ class TestFactory:
                 position=new_position,
             )
         elif isinstance(statement, prim.PrimitiveStatement):
-            self.add_primitive(
-                test_case,
-                statement,
-                position=new_position
-            )
+            self.add_primitive(test_case, statement, position=new_position)
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 

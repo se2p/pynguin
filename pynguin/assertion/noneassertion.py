@@ -23,5 +23,6 @@ class NoneAssertion(ass.Assertion):
     def clone(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> NoneAssertion:
-        return NoneAssertion(self._source.clone(memo) if self._source else None,
-                             self.value)
+        return NoneAssertion(
+            self._source.clone(memo) if self._source else None, self.value
+        )

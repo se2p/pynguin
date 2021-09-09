@@ -32,6 +32,7 @@ import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
@@ -281,7 +282,9 @@ def _run() -> ReturnCode:
         if config.configuration.test_case_output.generate_assertions:
             ass_gen = config.configuration.assertion_generation
             if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-                generator = mag.MutationAnalysisGenerator(executor)
+                generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(
+                    executor
+                )
             else:
                 generator = ag.AssertionGenerator(executor)
             generation_result.accept(generator)

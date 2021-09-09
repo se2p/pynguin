@@ -4,25 +4,30 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List
+"""Handles the execution of testcases during the the mutation-analysis approach."""
 from types import ModuleType
+from typing import List
+
+import pynguin.assertion.mutation_analysis.collectorstorage as cs
+import pynguin.configuration as config
 import pynguin.testcase.execution.testcaseexecutor as ex
 import pynguin.testcase.testcase as tc
-import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.utils.moduleloader as ml
-import pynguin.configuration as config
 
 
-class MutationAnalysisExecution:
+class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
     """Class for handling the execution on the mutation analysis approach."""
 
-    def __init__(self, executor: ex.TestCaseExecutor, mutated_modules: List[ModuleType]):
+    def __init__(
+        self, executor: ex.TestCaseExecutor, mutated_modules: List[ModuleType]
+    ):
         """
         Create new collector execution.
 
         Args:
             executor: the executor that will be used to execute the test cases.
-            mutated_modules: list of mutated modules on which the tests should be executed
+            mutated_modules: list of mutated modules on which the tests should
+                             be executed
         """
         self._executor = executor
         self._mutated_modules = mutated_modules
@@ -42,12 +47,14 @@ class MutationAnalysisExecution:
             ml.ModuleLoader.reload_module(config.configuration.module_name)
             self._executor.execute(test_case)
 
-    def _execute_on_mutated(self, test_cases: List[tc.TestCase],
-                            mutated_module: ModuleType) -> None:
+    def _execute_on_mutated(
+        self, test_cases: List[tc.TestCase], mutated_module: ModuleType
+    ) -> None:
         # Hand the mutated module over to the mutation module observer
         # which injects it to the execution context
-        ml.ModuleLoader.add_mutated_version(module_name=config.configuration.module_name,
-                                            mutated_module=mutated_module)
+        ml.ModuleLoader.add_mutated_version(
+            module_name=config.configuration.module_name, mutated_module=mutated_module
+        )
 
         # Create a new storage slot for the execution on the given mutated module
         cs.CollectorStorage.append_execution()

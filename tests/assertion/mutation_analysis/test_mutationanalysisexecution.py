@@ -6,13 +6,13 @@
 #
 from unittest.mock import MagicMock
 
-import pynguin.configuration as config
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as mae
+import pynguin.configuration as config
 
 
 def test_execute_default():
-    config.configuration.module_name = 'sys'
+    config.configuration.module_name = "sys"
     executor = MagicMock()
     execution = mae.MutationAnalysisExecution(executor, [])
     execution.execute([MagicMock()])
@@ -20,7 +20,7 @@ def test_execute_default():
 
 
 def test_execute_mutations():
-    config.configuration.module_name = 'sys'
+    config.configuration.module_name = "sys"
     executor = MagicMock()
     mutation = MagicMock()
     execution = mae.MutationAnalysisExecution(executor, [mutation])

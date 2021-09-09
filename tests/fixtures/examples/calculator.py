@@ -5,13 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
+
 class CalculatorResult:
     def __init__(self, op: str, result: float):
         self.last_op = op
         self.last_result = result
 
     def __repr__(self) -> str:
-        return f'{self.last_op.upper()}: {self.last_result}'
+        return f"{self.last_op.upper()}: {self.last_result}"
 
 
 class Calculator:
@@ -47,4 +48,4 @@ class Calculator:
         return a / b
 
     def output_results(self) -> str:
-        return "".join([str(x) + '\n' for x in self.results]).rstrip()
+        return "".join([str(x) + "\n" for x in self.results]).rstrip()

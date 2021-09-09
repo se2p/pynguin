@@ -21,7 +21,7 @@ class FooAssertion(fa.FieldAssertion):
 
 def test_accept():
     visitor = MagicMock()
-    assertion = fa.FieldAssertion(MagicMock(), 1337, 'field')
+    assertion = fa.FieldAssertion(MagicMock(), 1337, "field")
     assertion.accept(visitor)
     visitor.visit_field_assertion.assert_called_with(assertion)
 
@@ -30,32 +30,32 @@ def test_clone():
     source = MagicMock()
     cloned_ref = MagicMock()
     source.clone.return_value = cloned_ref
-    assertion = fa.FieldAssertion(source, 1337, 'field')
-    new_test_case = MagicMock()
-    cloned = assertion.clone(new_test_case, 20)
-    source.clone.assert_called_with(new_test_case, 20)
+    assertion = fa.FieldAssertion(source, 1337, "field")
+    cloned = assertion.clone({})
+    source.clone.assert_called_with({})
     assert cloned.source == cloned_ref
     assert cloned.value == 1337
-    assert cloned.field == 'field'
+    assert cloned.field == "field"
     assert cloned.owners is None
 
 
 def test_eq():
     var = MagicMock()
-    assert FooAssertion(var, True, 'foo') == FooAssertion(var, True, 'foo')
+    assert FooAssertion(var, True, "foo") == FooAssertion(var, True, "foo")
 
 
 def test_neq():
-    assert FooAssertion(MagicMock(), True, 'foo') != FooAssertion(MagicMock(),
-                                                                  True, 'foo')
+    assert FooAssertion(MagicMock(), True, "foo") != FooAssertion(
+        MagicMock(), True, "foo"
+    )
 
 
 def test_hash():
     var = MagicMock()
-    assert hash(FooAssertion(var, True, 'foo')) == hash(FooAssertion(var, True, 'foo'))
+    assert hash(FooAssertion(var, True, "foo")) == hash(FooAssertion(var, True, "foo"))
 
 
 def test_neq_hash():
-    assert hash(FooAssertion(MagicMock(), True, 'foo')) != hash(
-        FooAssertion(MagicMock(), True, 'foo')
+    assert hash(FooAssertion(MagicMock(), True, "foo")) != hash(
+        FooAssertion(MagicMock(), True, "foo")
     )

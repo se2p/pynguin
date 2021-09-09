@@ -4,11 +4,11 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from _ast import Module
 from unittest.mock import MagicMock
 
 import astor
 import pytest
+from _ast import Module
 
 import pynguin.assertion.assertion_to_ast as ata
 from pynguin.utils.namingscope import NamingScope
@@ -73,12 +73,14 @@ class Foo:
 
 
 def test_complex_object(assertion_to_ast):
-    assertion = MagicMock(value=Foo('bar'))
+    assertion = MagicMock(value=Foo("bar"))
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert astor.to_source(module) == "obj0 = var0.Foo.__class__\n" \
-                                      "obj0._bar = 'bar'\n" \
-                                      "assert var0 == obj0\n"
+    assert (
+        astor.to_source(module) == "obj0 = var0.Foo.__class__\n"
+        "obj0._bar = 'bar'\n"
+        "assert var0 == obj0\n"
+    )
 
 
 def test_complex_primitive(assertion_to_ast):
@@ -88,74 +90,82 @@ def test_complex_primitive(assertion_to_ast):
 
 
 def test_complex_list(assertion_to_ast):
-    value = [Foo('foo'), Foo('bar'), 42]
+    value = [Foo("foo"), Foo("bar"), 42]
     assertion = MagicMock(value=value)
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert astor.to_source(module) == "obj1 = var0.Foo.__class__\n" \
-                                      "obj1._bar = 'foo'\n" \
-                                      "obj2 = var0.Foo.__class__\n" \
-                                      "obj2._bar = 'bar'\n" \
-                                      "obj0 = [obj1, obj2, 42]\n" \
-                                      "assert var0 == obj0\n"
+    assert (
+        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        "obj1._bar = 'foo'\n"
+        "obj2 = var0.Foo.__class__\n"
+        "obj2._bar = 'bar'\n"
+        "obj0 = [obj1, obj2, 42]\n"
+        "assert var0 == obj0\n"
+    )
 
 
 # TODO(fs) flaky test since a set is not always ordered in the same way
 def test_complex_set(assertion_to_ast):
-    value = {Foo('foo'), Foo('bar'), 42}
+    value = {Foo("foo"), Foo("bar"), 42}
     assertion = MagicMock(value=value)
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert astor.to_source(module) == "obj1 = var0.Foo.__class__\n" \
-                                      "obj1._bar = 'bar'\n" \
-                                      "obj2 = var0.Foo.__class__\n" \
-                                      "obj2._bar = 'foo'\n" \
-                                      "obj0 = {42, obj1, obj2}\n" \
-                                      "assert var0 == obj0\n"
+    assert (
+        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        "obj1._bar = 'bar'\n"
+        "obj2 = var0.Foo.__class__\n"
+        "obj2._bar = 'foo'\n"
+        "obj0 = {42, obj1, obj2}\n"
+        "assert var0 == obj0\n"
+    )
 
 
 def test_complex_dict(assertion_to_ast):
-    value = {Foo('foo'): 'foo', 'bar': Foo('bar'), 42: 1337}
+    value = {Foo("foo"): "foo", "bar": Foo("bar"), 42: 1337}
     assertion = MagicMock(value=value)
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert astor.to_source(module) == "obj1 = var0.Foo.__class__\n" \
-                                      "obj1._bar = 'foo'\n" \
-                                      "obj2 = var0.Foo.__class__\n" \
-                                      "obj2._bar = 'bar'\n" \
-                                      "obj0 = {obj1: 'foo', 'bar': obj2, (42): 1337}\n" \
-                                      "assert var0 == obj0\n"
+    assert (
+        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        "obj1._bar = 'foo'\n"
+        "obj2 = var0.Foo.__class__\n"
+        "obj2._bar = 'bar'\n"
+        "obj0 = {obj1: 'foo', 'bar': obj2, (42): 1337}\n"
+        "assert var0 == obj0\n"
+    )
 
 
 def test_complex_tuple(assertion_to_ast):
-    value = (Foo('foo'), Foo('bar'), 42)
+    value = (Foo("foo"), Foo("bar"), 42)
     assertion = MagicMock(value=value)
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
-    assert astor.to_source(module) == "obj1 = var0.Foo.__class__\n" \
-                                      "obj1._bar = 'foo'\n" \
-                                      "obj2 = var0.Foo.__class__\n" \
-                                      "obj2._bar = 'bar'\n" \
-                                      "obj0 = obj1, obj2, 42\n" \
-                                      "assert var0 == obj0\n"
+    assert (
+        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        "obj1._bar = 'foo'\n"
+        "obj2 = var0.Foo.__class__\n"
+        "obj2._bar = 'bar'\n"
+        "obj0 = obj1, obj2, 42\n"
+        "assert var0 == obj0\n"
+    )
 
 
 def test_field_global(assertion_to_ast):
-    assertion = MagicMock(value=42, field='foo', module='var0')
+    assertion = MagicMock(value=42, field="foo", module="var0")
     assertion_to_ast.visit_field_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert astor.to_source(module) == "assert var0.foo == 42\n"
 
 
 def test_field_attribute(assertion_to_ast):
-    assertion = MagicMock(value=42, field='foo')
+    assertion = MagicMock(value=42, field="foo")
     assertion_to_ast.visit_field_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert astor.to_source(module) == "assert var0.foo == 42\n"
 
 
 def test_field_class(assertion_to_ast):
-    assertion = MagicMock(value=42, field='foo', owners=['clazz'])
+    assertion = MagicMock(value=42, field="foo", owners=["clazz"])
     assertion_to_ast.visit_field_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert astor.to_source(module) == "assert var0.clazz.foo == 42\n"

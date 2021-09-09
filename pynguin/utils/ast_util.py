@@ -6,13 +6,14 @@
 #
 """Utility methods for AST manipulation."""
 import ast
+from typing import Optional
 
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
 
 
 def create_var_name(
-    variable_names: NamingScope, var: vr.VariableReference, load: bool
+    variable_names: NamingScope, var: Optional[vr.VariableReference], load: bool
 ) -> ast.Name:
     """Create a name node for the corresponding variable.
 

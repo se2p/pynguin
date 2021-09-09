@@ -6,6 +6,7 @@
 #
 """Provides a object assertion."""
 from __future__ import annotations
+
 from typing import Dict
 
 import pynguin.assertion.assertion as ass
@@ -22,6 +23,6 @@ class ComplexAssertion(ass.Assertion):
     def clone(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> ComplexAssertion:
-        return ComplexAssertion(self._source.clone(memo)
-                                if self._source else None,
-                                self.value)
+        return ComplexAssertion(
+            self._source.clone(memo) if self._source else None, self.value
+        )

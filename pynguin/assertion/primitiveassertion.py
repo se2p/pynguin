@@ -23,5 +23,6 @@ class PrimitiveAssertion(ass.Assertion):
     def clone(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> PrimitiveAssertion:
-        return PrimitiveAssertion(self._source.clone(memo) if self._source else None,
-                                  self.value)
+        return PrimitiveAssertion(
+            self._source.clone(memo) if self._source else None, self.value
+        )

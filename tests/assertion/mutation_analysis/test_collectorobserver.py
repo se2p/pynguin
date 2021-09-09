@@ -14,8 +14,9 @@ from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
 class FooObserver(co.CollectionObserver):
-    def before_statement_execution(self, statement: stmt.Statement,
-                                   exec_ctx: ExecutionContext) -> None:
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ) -> None:
         pass  # pragma: no cover
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:

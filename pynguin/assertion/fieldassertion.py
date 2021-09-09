@@ -17,16 +17,20 @@ from pynguin.assertion import assertionvisitor as av
 class FieldAssertion(ass.Assertion):
     """An assertion for asserting fields."""
 
-    def __init__(self,
-                 source: Optional[vr.VariableReference],
-                 value: Any,
-                 field: str,
-                 module: str = None,
-                 owners: List[str] = None):
+    # pylint: disable=too-many-arguments
+    def __init__(
+        self,
+        source: Optional[vr.VariableReference],
+        value: Any,
+        field: str,
+        module: str = None,
+        owners: List[Optional[str]] = None,
+    ):
         """Creates a new field assertion.
 
         Args:
-            source: optional for a variable in the testcase on which we assert something.
+            source: optional for a variable in the testcase on which we assert
+                    something.
             value: the expected value of the assertion.
             field: the field which should be asserted
             module: the module which contains the field
@@ -49,7 +53,7 @@ class FieldAssertion(ass.Assertion):
         return self._field
 
     @property
-    def module(self) -> str:
+    def module(self) -> Optional[str]:
         """Provides the module which contains the field to assert.
 
         Returns:
@@ -58,7 +62,7 @@ class FieldAssertion(ass.Assertion):
         return self._module
 
     @property
-    def owners(self) -> List[str]:
+    def owners(self) -> Optional[List[Optional[str]]]:
         """Provides a list of owners of the field.
         If this is set to 'None' the field is an attribute from an object.
 
@@ -73,12 +77,13 @@ class FieldAssertion(ass.Assertion):
     def clone(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> FieldAssertion:
-        return FieldAssertion(self._source.clone(memo)
-                              if self._source else None,
-                              self.value,
-                              self._field,
-                              self._module,
-                              self._owners)
+        return FieldAssertion(
+            self._source.clone(memo) if self._source else None,
+            self.value,
+            self._field,
+            self._module,
+            self._owners,
+        )
 
     def __eq__(self, other: object) -> bool:
         return (

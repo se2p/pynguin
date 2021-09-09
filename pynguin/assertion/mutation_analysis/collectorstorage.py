@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+"""Storage for collected data, which was collected during a testcase execution."""
 import copy
 from types import ModuleType
 from typing import Any, Dict, List
@@ -17,12 +18,12 @@ class CollectorStorage:
     mutation analysis approach for assertion generation.
     """
 
-    KEY_TEST_ID = '__ID__'
-    KEY_POSITION = '__POS__'
-    KEY_RETURN_VALUE = '__RV__'
-    KEY_GLOBALS = '__G__'
-    KEY_CLASS_FIELD = '__CF__'
-    KEY_OBJECT_ATTRIBUTE = '__OA__'
+    KEY_TEST_ID = "__ID__"
+    KEY_POSITION = "__POS__"
+    KEY_RETURN_VALUE = "__RV__"
+    KEY_GLOBALS = "__G__"
+    KEY_CLASS_FIELD = "__CF__"
+    KEY_OBJECT_ATTRIBUTE = "__OA__"
 
     _entries: List[List[Dict[str, Any]]] = [[]]
     _execution_index: int = 0
@@ -38,15 +39,22 @@ class CollectorStorage:
             entry: a dict for a new entry or an entry with more fields.
         """
         entry_list = CollectorStorage._entries[CollectorStorage._execution_index]
-        index = next((i for i, d in enumerate(entry_list)
-                      if d[CollectorStorage.KEY_TEST_ID] == entry[CollectorStorage.
-                     KEY_TEST_ID]
-                      and d[CollectorStorage.KEY_POSITION] == entry[CollectorStorage.
-                     KEY_POSITION]),
-                     None)
+        index = next(
+            (
+                i
+                for i, d in enumerate(entry_list)
+                if d[CollectorStorage.KEY_TEST_ID]
+                == entry[CollectorStorage.KEY_TEST_ID]
+                and d[CollectorStorage.KEY_POSITION]
+                == entry[CollectorStorage.KEY_POSITION]
+            ),
+            None,
+        )
         if index is not None:
-            new = {**CollectorStorage._entries[CollectorStorage._execution_index][index],
-                   **entry}
+            new = {
+                **CollectorStorage._entries[CollectorStorage._execution_index][index],
+                **entry,
+            }
             CollectorStorage._entries[CollectorStorage._execution_index][index] = new
         else:
             CollectorStorage._entries[CollectorStorage._execution_index].append(entry)
@@ -61,11 +69,13 @@ class CollectorStorage:
         CollectorStorage._entries.append([])
 
     @staticmethod
-    def collect_states(test_case_id: int = 0,
-                       position: int = 0,
-                       objects: List[object] = None,
-                       modules: Dict[str, Any] = None,
-                       return_value=None) -> None:
+    def collect_states(
+        test_case_id: int = 0,
+        position: int = 0,
+        objects: List[object] = None,
+        modules: Dict[str, Any] = None,
+        return_value=None,
+    ) -> None:
         """Collects the states of all fields. These include fields at global level as
         well as class level and attributes of the given object.
 
@@ -79,34 +89,38 @@ class CollectorStorage:
         if objects is None:
             objects = []
 
-        # TODO(fs) what type hint for x is here necessary?
-        def condition(x) -> bool:
+        def condition(item) -> bool:
             return (
-                not x[0].startswith('__')
-                and not x[0].endswith('__')
-                and not callable(x[1])
-                and not isinstance(x[1], ModuleType)
+                not item[0].startswith("__")
+                and not item[0].endswith("__")
+                and not callable(item[1])
+                and not isinstance(item[1], ModuleType)
             )
 
         # Log testcase id, position in the test case and return value
         states = {
             CollectorStorage.KEY_TEST_ID: test_case_id,
             CollectorStorage.KEY_POSITION: position,
-            CollectorStorage.KEY_RETURN_VALUE: copy.deepcopy(return_value)}
+            CollectorStorage.KEY_RETURN_VALUE: copy.deepcopy(return_value),
+        }
 
         # Log global fields
-        if len(modules) > 0:
+        if modules and len(modules) > 0:
             global_dict = {}
             for module_alias, module in modules.items():
-                global_dict[module_alias] = dict(filter(condition, vars(module).items()))
+                global_dict[module_alias] = dict(
+                    filter(condition, vars(module).items())
+                )
             states[CollectorStorage.KEY_GLOBALS] = global_dict
 
         for index, obj in enumerate(objects):
             # Log all class variables and object attributes
-            objdict = {CollectorStorage.KEY_CLASS_FIELD: dict(filter(condition,
-                                                                     vars(obj.__class__)
-                                                                     .items())),
-                       CollectorStorage.KEY_OBJECT_ATTRIBUTE: vars(obj)}
+            objdict = {
+                CollectorStorage.KEY_CLASS_FIELD: dict(
+                    filter(condition, vars(obj.__class__).items())
+                ),
+                CollectorStorage.KEY_OBJECT_ATTRIBUTE: vars(obj),
+            }
 
             # TODO(fs) find corresponding mutation and exclude those
             # Some mutations will result in type errors when performing a deepcopy
@@ -120,7 +134,7 @@ class CollectorStorage:
 
     @staticmethod
     def _get_object_key(index: int) -> str:
-        return f'__OBJ-{index}__'
+        return f"__OBJ-{index}__"
 
     @staticmethod
     def get_items(index: int) -> List[Dict[str, Any]]:
@@ -137,16 +151,30 @@ class CollectorStorage:
     def get_data_of_mutations() -> List[List[Dict[str, Any]]]:
         """Only get the data of the executions on the mutated version of the module.
 
-        Returns: A list of all the data collected during the execution on mutated modules.
+        Returns: A list of all the data collected during the execution on
+                 mutated modules.
         """
         return CollectorStorage._entries[1:]
 
     @staticmethod
-    def get_dataframe_of_mutations(test_case_id: int,
-                                   position: int) -> List[Dict[str, Any]]:
-        dict_filter = {CollectorStorage.KEY_TEST_ID: test_case_id,
-                       CollectorStorage.KEY_POSITION: position}
-        df = []
+    def get_dataframe_of_mutations(
+        test_case_id: int, position: int
+    ) -> List[Dict[str, Any]]:
+        """Gets the dataframes of all mutations for a given testcase id and position.
+
+        Args:
+            test_case_id: for the id of the testcase.
+            position: for the position.
+
+        Returns: A list of all dataframes with matching test case id and position,
+                 which where collected during executions on mutated modules.
+        """
+
+        dict_filter = {
+            CollectorStorage.KEY_TEST_ID: test_case_id,
+            CollectorStorage.KEY_POSITION: position,
+        }
+        dataframe: List[Dict[str, Any]] = []
         for mutation in CollectorStorage.get_data_of_mutations():
-            df = [*df, *cu.filter_dictlist_by_dict(dict_filter, mutation)]
-        return df
+            dataframe = [*dataframe, *cu.filter_dictlist_by_dict(dict_filter, mutation)]
+        return dataframe

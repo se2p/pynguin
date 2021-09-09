@@ -127,10 +127,12 @@ def test_is_bytes(value, result):
 
 @pytest.mark.parametrize(
     "value, result",
-    [(['foo', 'bar'], True),
-     ({'foo', 'bar'}, False),
-     ({'foo': 'bar'}, False),
-     (('foo', 'bar'), False)],
+    [
+        (["foo", "bar"], True),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), False),
+    ],
 )
 def test_is_list(value, result):
     assert is_list(value) == result
@@ -138,10 +140,12 @@ def test_is_list(value, result):
 
 @pytest.mark.parametrize(
     "value, result",
-    [(['foo', 'bar'], False),
-     ({'foo', 'bar'}, True),
-     ({'foo': 'bar'}, False),
-     (('foo', 'bar'), False)],
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, True),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), False),
+    ],
 )
 def test_is_set(value, result):
     assert is_set(value) == result
@@ -149,10 +153,12 @@ def test_is_set(value, result):
 
 @pytest.mark.parametrize(
     "value, result",
-    [(['foo', 'bar'], False),
-     ({'foo', 'bar'}, False),
-     ({'foo': 'bar'}, True),
-     (('foo', 'bar'), False)],
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, True),
+        (("foo", "bar"), False),
+    ],
 )
 def test_is_dict(value, result):
     assert is_dict(value) == result
@@ -160,10 +166,12 @@ def test_is_dict(value, result):
 
 @pytest.mark.parametrize(
     "value, result",
-    [(['foo', 'bar'], False),
-     ({'foo', 'bar'}, False),
-     ({'foo': 'bar'}, False),
-     (('foo', 'bar'), True)],
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), True),
+    ],
 )
 def test_is_tuple(value, result):
     assert is_tuple(value) == result

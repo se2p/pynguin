@@ -21,7 +21,8 @@ class Assertion:
         """Create new assertion.
 
         Args:
-            source: optional for a variable in the testcase on which we assert something.
+            source: optional for a variable in the testcase on which we assert
+                    something.
             value: the expected value of the assertion.
         """
         self._source = source
