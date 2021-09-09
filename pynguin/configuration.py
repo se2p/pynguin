@@ -9,8 +9,6 @@ import dataclasses
 import enum
 from typing import List, Optional
 
-from simple_parsing import choice
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -452,7 +450,7 @@ class Configuration:
     algorithm: Algorithm = Algorithm.DYNAMOSA
     """The algorithm that shall be used for generation."""
 
-    assertion_generation: AssertionGenerator = choice(AssertionGenerator)
+    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
     """The generator that shall be used for assertion generation."""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(
