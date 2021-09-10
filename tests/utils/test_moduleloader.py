@@ -31,11 +31,3 @@ def test_clear_mutated_modules():
     ml.ModuleLoader.add_mutated_version("foo", MagicMock())
     ml.ModuleLoader.clear_mutated_modules()
     assert len(ml.ModuleLoader._mutated_module_aliases) == 0
-
-
-def test_reload_module():
-    # TODO(fs) does not work -> can we find a better way?
-    # with mock.patch("importlib.reload", autospec=True) as reload_mock:
-    #    ml.ModuleLoader.reload_module("sys")
-    #    reload_mock.assert_called_once()
-    pass

@@ -4,18 +4,21 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from typing import Dict
 from unittest.mock import MagicMock
 
 import pynguin.assertion.fieldassertion as fa
+import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
-from pynguin.testcase import testcase as tc
 
 
 class FooAssertion(fa.FieldAssertion):
     def accept(self, visitor: av.AssertionVisitor) -> None:
         pass  # pragma: no cover
 
-    def clone(self, new_test_case: tc.TestCase, offset: int) -> fa.FieldAssertion:
+    def clone(
+        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+    ) -> fa.FieldAssertion:
         pass  # pragma: no cover
 
 
