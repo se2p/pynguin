@@ -30,6 +30,12 @@ FROM python:3.8.10-slim-buster AS execute
 ENV PYNGUIN_VERSION "0.9.3"
 ENV PYNGUIN_DANGER_AWARE ""
 
+# Temporarily add `git' here to install our MutPy fork from GitHub, which is a
+# dependency of Pynguin
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /pynguin
 
 COPY --from=build /pynguin-build/dist/pynguin-$PYNGUIN_VERSION.tar.gz .
