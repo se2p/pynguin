@@ -201,10 +201,6 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             statement.add_assertion(assertion)
 
     @staticmethod
-    def _compare_attributes(dataframe: Dict[Any, Any]):
-        pass
-
-    @staticmethod
     def _get_testcase_by_id(
         test_cases: List[tc.TestCase], test_case_id: int
     ) -> Optional[tc.TestCase]:
