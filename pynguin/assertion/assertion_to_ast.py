@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an assertion visitor to transform assertions to AST."""
+import array
 import ast
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
@@ -106,6 +107,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         """
         if tu.is_primitive_type(type(assertion.value)):
             self.visit_primitive_assertion(assertion)
+        elif tu.is_none_type(type(assertion.value)):
+            self.visit_none_assertion(assertion)
         else:
             self._create_comparison_object(assertion.value)
             self._create_object_assertion(assertion.source)
@@ -191,6 +194,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _create_comparison_object(self, value) -> None:
         if tu.is_collection_type(type(value)):
             self._create_collection(value)
+        elif isinstance(value, array.ArrayType):
+            self._create_comparison_array(value)
         else:
             self._create_object(value)
 
@@ -290,6 +295,19 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             self._create_dict(value, obj_id)
         elif tu.is_tuple(value):
             self._create_tuple(value, obj_id)
+
+    def _create_comparison_array(self, value) -> None:
+        obj_id = self._get_comparison_object()
+        self._create_collection(value.tolist())
+        target = self._create_ast_name(obj_id, True)
+        self._common_modules.add("array")
+        func_attr_name = self._create_ast_name("array")
+        func_attr = self._create_ast_attribute("array", func_attr_name)
+        constant = self._create_ast_constant(value.typecode)
+        arr = self._create_ast_name(self._get_current_comparison_object())
+        self._pop_current_comparison_object()
+        call = self._create_ast_call(func_attr, [constant, arr], [])
+        self._nodes.append(self._create_ast_assign(target, call))
 
     def _create_list(self, value: List[Any], obj_id: str) -> None:
         elts = self._construct_collection_elts(value)
