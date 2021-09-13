@@ -24,7 +24,7 @@ from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
-from pynguin.generation.algorithms.archive import Archive
+from pynguin.generation.algorithms.archive import CoverageArchive
 from pynguin.testcase.execution.executiontracer import KnownData
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable

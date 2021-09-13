@@ -7,12 +7,7 @@
 """Provides a random test generator, that creates random test suites."""
 import logging
 
-from ordered_set import OrderedSet
-
-import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.generation.algorithms.archive import Archive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 
 
@@ -44,17 +39,14 @@ class RandomTestCaseSearchStrategy(TestGenerationStrategy):
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome] = Archive(
-            OrderedSet(self._test_case_fitness_functions)
-        )
         solution = self._chromosome_factory.get_chromosome()
-        archive.update([solution])
-        test_suite = self.create_test_suite(archive.solutions)
+        self._archive.update([solution])
+        test_suite = self.create_test_suite(self._archive.solutions)
         self.before_first_search_iteration(test_suite)
         while self.resources_left() and test_suite.get_fitness() != 0.0:
             candidate = self._chromosome_factory.get_chromosome()
-            archive.update([candidate])
-            test_suite = self.create_test_suite(archive.solutions)
+            self._archive.update([candidate])
+            test_suite = self.create_test_suite(self._archive.solutions)
             self.after_search_iteration(test_suite)
         self.after_search_finish()
-        return self.create_test_suite(archive.solutions)
+        return self.create_test_suite(self._archive.solutions)
