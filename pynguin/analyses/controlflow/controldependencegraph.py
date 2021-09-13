@@ -74,7 +74,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
                 current = predecessors.pop()
 
             if least_common_ancestor is edge.source:
-                cdg.add_edge(edge.source, least_common_ancestor)
+                cdg.add_edge(edge.source, least_common_ancestor, **dict(edge.data))
 
         return pg.filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
