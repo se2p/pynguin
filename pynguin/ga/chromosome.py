@@ -80,22 +80,39 @@ class Chromosome(metaclass=ABCMeta):
         """
         return self._fitness_functions
 
-    def _check_for_new_evaluation(self) -> None:
-        """Check if the fitness values need to be evaluated."""
+    def _check_for_new_evaluation(
+        self, only: Optional[ff.FitnessFunction] = None
+    ) -> None:
+        """Check if the fitness values need to be evaluated.
+
+        Args:
+            only: Only compute the fitness values for this function.
+        """
         assert (
             len(self._fitness_functions) > 0
         ), "Cannot evaluate fitness, if no fitness functions are defined."
 
-        # The second condition is for cases, where the chromosome did not change,
-        # but we still need to evaluate the fitness again, e.g., because a new
-        # fitness function was added, or the way how a fitness function calculates
-        # its fitness has changed.
-        if self._changed or len(self._fitness_values) != len(self._fitness_functions):
-            for fitness_func in self._fitness_functions:
-                new_values = fitness_func.compute_fitness_values(self)
-                self._update_fitness_values(fitness_func, new_values)
+        if self._changed:
+            # If the chromosome has changed, we invalidate all values computed so far
+            self.invalidate_fitness_values()
+            # Compute those values in which we are interested.
+            self._compute_requested_fitness_values(only)
             self._changed = False
             self._number_of_evaluations += 1
+        elif len(self._fitness_values) != len(self._fitness_functions):
+            # This condition is for cases, where the chromosome did not change,
+            # but we still need to evaluate the fitness again, e.g., because a new
+            # fitness function was added, or the way how a fitness function calculates
+            # its fitness has changed.
+            self._compute_requested_fitness_values(only)
+
+    def _compute_requested_fitness_values(
+        self, only: Optional[ff.FitnessFunction] = None
+    ):
+        for fitness_func in self._fitness_functions if only is None else [only]:
+            if fitness_func not in self._fitness_values:
+                new_values = fitness_func.compute_fitness_values(self)
+                self._update_fitness_values(fitness_func, new_values)
 
     def _update_fitness_values(
         self, fitness_function: ff.FitnessFunction, new_value: ff.FitnessValues
@@ -118,21 +135,21 @@ class Chromosome(metaclass=ABCMeta):
             raise RuntimeError(", ".join(violations))
         self._fitness_values[fitness_function] = new_value
 
-    @property
-    def fitness_values(self) -> Dict[ff.FitnessFunction, ff.FitnessValues]:
-        """Provides the registered fitness values.
-
-        Returns:
-            A dictionary from fitness function to fitness value
-        """
-        return self._fitness_values
-
-    def invalidate_fitness_values(self):
+    def invalidate_fitness_values(
+        self, only: Optional[ff.FitnessFunction] = None
+    ) -> None:
         """Invalidate this chromosome's fitness values.
         This can be necessary if the containing test suite is evaluated.
         In such a case, this chromosome does not need to be run again,
-        but it must recompute its fitness values."""
-        self._fitness_values.clear()
+        but it must recompute its fitness values.
+
+        Args:
+            only: Invalidate only the values for this function.
+        """
+        if only is None:
+            self._fitness_values.clear()
+        else:
+            self._fitness_values.pop(only, None)
 
     def add_fitness_function(
         self,
@@ -166,7 +183,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             Its fitness value
         """
-        self._check_for_new_evaluation()
+        self._check_for_new_evaluation(fitness_function)
         return self._fitness_values[fitness_function].fitness
 
     def get_coverage(self) -> float:
@@ -190,7 +207,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The coverage value for the fitness function
         """
-        self._check_for_new_evaluation()
+        self._check_for_new_evaluation(fitness_function)
         return self._fitness_values[fitness_function].coverage
 
     def get_number_of_evaluations(self):

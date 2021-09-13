@@ -65,6 +65,6 @@ def test_run_test_suite_chromosome_cache():
     indiv.add_test_case_chromosome(test_case1)
     indiv.add_test_case_chromosome(test_case2)
     assert ff._run_test_suite_chromosome(indiv) == [result0, result1, result2]
-    assert test_case0.fitness_values == {}
-    assert test_case1.fitness_values == {}
-    assert test_case2.fitness_values == {"foo": "bar"}
+    assert test_case0._fitness_values == {}
+    assert test_case1._fitness_values == {}
+    assert test_case2._fitness_values == {"foo": "bar"}
