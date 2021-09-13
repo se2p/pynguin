@@ -30,7 +30,8 @@ class BranchDistanceTestSuiteFitnessFunction(atsff.AbstractTestSuiteFitnessFunct
     def restrict(
         self, exclude_code: Set[int], exclude_true: Set[int], exclude_false: Set[int]
     ):
-        """Restrict this fitness function, i.e., which branches/code objects it considers"""
+        """Restrict this fitness function, i.e., which branches/code objects it
+        considers"""
         self._excluded_code_objects.update(exclude_code)
         self._excluded_true_predicates.update(exclude_true)
         self._excluded_false_predicates.update(exclude_false)
