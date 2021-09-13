@@ -234,6 +234,16 @@ class SeedingConfiguration:
     """Probability of using dynamically seeded values when a primitive seeded
      value will be used."""
 
+    seed_from_archive: bool = False
+    """When sampling new test cases reuse some from the archive, if one is used."""
+
+    seed_from_archive_probability: float = 0.2
+    """Instead of creating a new test case, reuse a covering solution from the archive,
+    iff an archive is used."""
+
+    seed_from_archive_mutations: int = 3
+    """Number of mutations applied when sampling from the archive."""
+
 
 @dataclasses.dataclass
 class MIOPhaseConfiguration:
@@ -414,6 +424,15 @@ class SearchAlgorithmConfiguration:
 
     selection: Selection = Selection.TOURNAMENT_SELECTION
     """The selection operator for genetic algorithms."""
+
+    use_archive: bool = False
+    """Some algorithms can be enhanced with an optional archive, e.g. Whole Suite ->
+    Whole Suite + Archive. Use this option to enable the usage of an archive.
+    Algorithms that always use an archive are not affected by this option."""
+
+    filter_covered_targets_from_test_cluster: bool = False
+    """Focus search by filtering out elements from the test cluster when
+     they are fully covered."""
 
 
 @dataclasses.dataclass
