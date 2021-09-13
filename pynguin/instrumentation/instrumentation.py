@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides classes for various bytecode instrumentations."""
+import json
 import logging
 from abc import abstractmethod
 from types import CodeType
@@ -21,6 +22,8 @@ from pynguin.testcase.execution.executiontracer import (
     ExecutionTracer,
     PredicateMetaData,
 )
+
+CODE_OBJECT_ID_KEY = "code_object_id"
 
 
 # pylint:disable=too-few-public-methods
@@ -156,6 +159,10 @@ class BranchCoverageInstrumentation(Instrumentation):
                 cdg=cdg,
             )
         )
+        # Overwrite/Set docstring to carry tagging information, i.e.,
+        # the code object id. Convert to JSON string because I'm not sure where this
+        # value might be used in CPython.
+        cfg.bytecode_cfg().docstring = json.dumps({CODE_OBJECT_ID_KEY: code_object_id})
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
