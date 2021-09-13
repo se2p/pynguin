@@ -11,6 +11,8 @@ import sys
 from dataclasses import dataclass
 from typing import Set
 
+from ordered_set import OrderedSet
+
 import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
 from pynguin.analyses.controlflow import cfg
@@ -78,6 +80,41 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
 
         return pg.filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
+    def get_control_dependencies(
+        self, node: pg.ProgramGraphNode
+    ) -> OrderedSet[ControlDependency]:
+        """Get the immediate control dependencies of this node.
+
+        Args:
+            node: the node whose dependencies should be retrieved.
+
+        Returns:
+            The direct control dependencies of the given node, if any.
+        """
+        assert node is not None
+        assert node in self.graph.nodes
+        return self._retrieve_control_dependencies(node, OrderedSet())
+
+    def _retrieve_control_dependencies(
+        self, node: pg.ProgramGraphNode, handled: OrderedSet
+    ) -> OrderedSet[ControlDependency]:
+        result = OrderedSet()
+        for pred in self._graph.predecessors(node):
+            if (pred, node) in handled:
+                continue
+            handled.add((pred, node))
+
+            if (
+                branch_value := self._graph.get_edge_data(pred, node).get(
+                    pg.EDGE_DATA_BRANCH_VALUE, None
+                )
+            ) is not None:
+                assert pred.predicate_id is not None
+                result.add(ControlDependency(pred.predicate_id, branch_value))
+            else:
+                result.update(self._retrieve_control_dependencies(pred, handled))
+        return result
+
     @staticmethod
     def _create_augmented_graph(graph: cfg.CFG) -> cfg.CFG:
         entry_node = graph.entry_node
@@ -96,3 +133,11 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         source: pg.ProgramGraphNode
         target: pg.ProgramGraphNode
         data: frozenset
+
+
+@dataclass(eq=True, frozen=True)
+class ControlDependency:
+    """Models a control dependency."""
+
+    predicate_id: int
+    branch_value: bool
