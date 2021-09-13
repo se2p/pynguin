@@ -190,6 +190,7 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
 
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = MagicMock(ExecutionTracer)
+    tracer.register_code_object.return_value = 0
     instr = BranchCoverageInstrumentation(tracer)
     already_instrumented = instr.instrument_module(simple_module.cmp_predicate.__code__)
     with pytest.raises(AssertionError):
