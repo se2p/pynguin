@@ -16,6 +16,7 @@ from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
+import pynguin.analyses.controlflow.programgraph as pg
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
@@ -53,6 +54,9 @@ class PredicateMetaData:
 
     # Id of the code object where the predicate was defined.
     code_object_id: int
+
+    # The node in the program graph, that defines this predicate.
+    node: pg.ProgramGraphNode
 
 
 @dataclasses.dataclass
