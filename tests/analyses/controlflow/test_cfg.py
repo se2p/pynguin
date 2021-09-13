@@ -134,7 +134,7 @@ RETURN_VALUE";
     ).decode("unicode_escape")
 
 
-def control_flow_labelling(foo):
+def control_flow_labelling(foo):  # pragma: no cover
     if foo:
         print("a")
     elif foo == 42:
