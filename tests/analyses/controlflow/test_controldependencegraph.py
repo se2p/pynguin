@@ -4,7 +4,12 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import pytest
+
 import pynguin.analyses.controlflow.controldependencegraph as cdt
+import pynguin.analyses.controlflow.programgraph as pg
+from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
+from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 def test_integration(small_control_flow_graph):
@@ -30,3 +35,51 @@ def test_integration(small_control_flow_graph):
 """
     assert dot_representation == graph
     assert control_dependence_graph.entry_node.is_artificial
+
+
+def small_fixture(x, y):  # pragma: no cover
+    if x <= y:
+        if x == y:
+            print("Some output")
+        if x > 0:
+            if y == 17:
+                return True
+    return False
+
+
+@pytest.mark.parametrize(
+    "node,deps",
+    [
+        pytest.param(
+            pg.ProgramGraphNode(index=5),
+            {cdt.ControlDependency(0, True)},
+            id="return True depends on y == 17",
+        ),
+        pytest.param(pg.ProgramGraphNode(index=0), set(), id="Entry has no dependency"),
+        pytest.param(
+            pg.ProgramGraphNode(index=6),
+            {
+                cdt.ControlDependency(predicate_id=0, branch_value=False),
+                cdt.ControlDependency(predicate_id=2, branch_value=False),
+                cdt.ControlDependency(predicate_id=3, branch_value=False),
+            },
+            id="return False depends on all False branches",
+        ),
+    ],
+)
+def test_get_control_dependencies(node, deps):
+    tracer = ExecutionTracer()
+    instr = BranchCoverageInstrumentation(tracer)
+    instr.instrument_module(small_fixture.__code__)
+    cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
+    assert set(cdg.get_control_dependencies(node)) == deps
+
+
+@pytest.mark.parametrize("node", ["foobar", None])
+def test_get_control_dependencies_asserts(node):
+    tracer = ExecutionTracer()
+    instr = BranchCoverageInstrumentation(tracer)
+    instr.instrument_module(small_fixture.__code__)
+    cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
+    with pytest.raises(AssertionError):
+        cdg.get_control_dependencies(node)
