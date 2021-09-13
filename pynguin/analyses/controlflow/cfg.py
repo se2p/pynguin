@@ -173,7 +173,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
                     # 'label' is also set to value, to get a nicer DOT representation,
                     # because 'label' is a keyword for labelling edges.
                     edges[node_index].append(
-                        (next_index, {"branch_value": value, "label": value})
+                        (next_index, {pg.EDGE_DATA_BRANCH_VALUE: value, "label": value})
                     )
             else:
                 if next_block:
