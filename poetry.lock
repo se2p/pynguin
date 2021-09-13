@@ -786,7 +786,7 @@ requests = "*"
 
 [[package]]
 name = "simple-parsing"
-version = "0.0.15.post1"
+version = "0.0.16.post2"
 description = "A small utility for simplifying and cleaning up argument parsing scripts."
 category = "main"
 optional = false
@@ -1050,7 +1050,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "299bd2aeb5c968c13c9dd1e0fc3de26ecce68a13e3b221e96cc24ae11673dec0"
+content-hash = "f10e7bb1c86ee1a3389b76e4b38c311ab5dc688ae201d999253836a6947386be"
 
 [metadata.files]
 alabaster = [
@@ -1548,8 +1548,8 @@ safety = [
     {file = "safety-1.10.3.tar.gz", hash = "sha256:30e394d02a20ac49b7f65292d19d38fa927a8f9582cdfd3ad1adbbc66c641ad5"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.15.post1-py3-none-any.whl", hash = "sha256:967bd39006393064516117ac515dd77cc8529a9d8b7bf41cee5214f75b653cf8"},
-    {file = "simple_parsing-0.0.15.post1.tar.gz", hash = "sha256:37991ddbf9c85667703212ab84fa30634640d6a4edaafdde90feb29f0d2a9ed8"},
+    {file = "simple_parsing-0.0.16.post2-py3-none-any.whl", hash = "sha256:c4a1b3256ef4d8e732b31f4427dc54885c0724824273b5832fc556811398e486"},
+    {file = "simple_parsing-0.0.16.post2.tar.gz", hash = "sha256:e1b1dd83e770feca7b78c3caf471ee9d9ad7b71ada43149594a63616ffb7d640"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
