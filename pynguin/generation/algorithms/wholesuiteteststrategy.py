@@ -51,7 +51,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
         new_generation = []
-        self._sort_population()
         new_generation.extend(self.elitism())
         while not self.is_next_population_full(new_generation):
             parent1 = self._selection_function.select(self._population, 1)[0]
@@ -93,6 +92,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
                 new_generation.append(parent2)
 
         self._population = new_generation
+        self._sort_population()
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
