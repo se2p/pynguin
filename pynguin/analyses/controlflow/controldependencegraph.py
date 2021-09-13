@@ -45,8 +45,15 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         for source in nodes:
             for target in augmented_cfg.get_successors(source):
                 if source not in post_dominator_tree.get_transitive_successors(target):
+                    # Store branching data from edge, i.e., which outcome of the the
+                    # branching node leads to this node.
+                    data = frozenset(
+                        augmented_cfg.graph.get_edge_data(source, target).items()
+                    )
                     edges.add(
-                        ControlDependenceGraph._Edge(source=source, target=target)
+                        ControlDependenceGraph._Edge(
+                            source=source, target=target, data=data
+                        )
                     )
 
         # Mark nodes in the PDT and construct edges for them.
@@ -56,7 +63,9 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             )
             current = edge.target
             while current != least_common_ancestor:
-                cdg.add_edge(edge.source, current)
+                # TODO(fk) can the branching info be actually used here?
+                # Seems ok?
+                cdg.add_edge(edge.source, current, **dict(edge.data))
                 predecessors = post_dominator_tree.get_predecessors(current)
                 assert len(predecessors) == 1, (
                     "Cannot have more than one predecessor in a tree, this violates a "
@@ -86,3 +95,4 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
     class _Edge:
         source: pg.ProgramGraphNode
         target: pg.ProgramGraphNode
+        data: frozenset
