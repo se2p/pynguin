@@ -5,25 +5,29 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test case chromosomes."""
-from typing import List
+from ordered_set import OrderedSet
 
+import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasefactory as tcf
+import pynguin.generation.algorithms.archive as arch
 import pynguin.testcase.testfactory as tf
+from pynguin.utils import randomness
 
 
 class TestCaseChromosomeFactory(
     cf.ChromosomeFactory[tcc.TestCaseChromosome]
 ):  # pylint:disable=too-few-public-methods.
-    """A factory that creates test case chromosomes."""
+    """A factory that creates test case chromosomes using the given test case factory.
+    Also add the given fitness functions to the newly created test case chromosome."""
 
     def __init__(
         self,
         test_factory: tf.TestFactory,
         test_case_factory: tcf.TestCaseFactory,
-        fitness_functions: List[ff.FitnessFunction],
+        fitness_functions: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
     ) -> None:
         """Instantiates a new factory to create test case chromosomes.
 
@@ -46,3 +50,31 @@ class TestCaseChromosomeFactory(
         for func in self._fitness_functions:
             chrom.add_fitness_function(func)
         return chrom
+
+
+class ArchiveReuseTestCaseChromosomeFactory(
+    cf.ChromosomeFactory[tcc.TestCaseChromosome]
+):  # pylint:disable=too-few-public-methods.
+    """Provides test case chromosomes from an archive with some probability,
+    otherwise delegates to wrapped chromosome factory."""
+
+    def __init__(
+        self,
+        delegate: cf.ChromosomeFactory[tcc.TestCaseChromosome],
+        archive: arch.Archive,
+    ):
+        self._delegate = delegate
+        self._archive = archive
+
+    def get_chromosome(self) -> tcc.TestCaseChromosome:
+        pick_from = self._archive.solutions
+        if (
+            len(pick_from) > 0
+            and randomness.next_float()
+            <= config.configuration.seeding.seed_from_archive_probability
+        ):
+            selected = randomness.choice(pick_from).clone()
+            for _ in range(config.configuration.seeding.seed_from_archive_mutations):
+                selected.mutate()
+            return selected
+        return self._delegate.get_chromosome()
