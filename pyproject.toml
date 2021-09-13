@@ -44,35 +44,34 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^10.3"
+rich = "^10.9"
 pytest = "^6.2"
 Jinja2 = "^3.0.1"
-Pygments = "^2.9.0"
+Pygments = "^2.10.0"
 ordered-set = "^4.0.2"
 MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
 pytest = "^6.2"
-black = {version = "^21.6b0", allow-prereleases = true}
+black = {version = "^21.8b0", allow-prereleases = true}
 pytest-cov = "^2.12"
-pylint = "^2.8"
+pylint = "^2.10"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
-pytest-xdist = "^2.2"
-hypothesis = "^6.14"
+pytest-xdist = "^2.3"
+hypothesis = "^6.21"
 pytest-mock = "^3.6"
 mypy = "^0.910"
-isort = {extras = ["pyproject"], version = "^5.8"}
-pre-commit = "^2.13"
+isort = {extras = ["pyproject"], version = "^5.9"}
+pre-commit = "^2.15"
 darglint = "^1.8"
-pyupgrade = "^2.19"
+pyupgrade = "^2.26"
 bandit = "^1.7"
 safety = "^1.10"
-sphinx = "^4.0"
+sphinx = "^4.2"
 sphinx-autodoc-typehints = "^1.12"
 flake8 = "^3.9"
-pytest-bdd = "^4.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
