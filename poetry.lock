@@ -99,7 +99,7 @@ stevedore = ">=1.20.0"
 
 [[package]]
 name = "black"
-version = "21.8b0"
+version = "21.9b0"
 description = "The uncompromising code formatter."
 category = "dev"
 optional = false
@@ -150,7 +150,7 @@ python-versions = ">=3.6.1"
 
 [[package]]
 name = "charset-normalizer"
-version = "2.0.4"
+version = "2.0.5"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 category = "dev"
 optional = false
@@ -297,11 +297,7 @@ typing-extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.10\"
 
 [[package]]
 name = "hypothesis"
-<<<<<<< HEAD
-version = "6.18.0"
-=======
-version = "6.21.1"
->>>>>>> d15f1b9 (Update dependencies)
+version = "6.21.4"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -818,7 +814,7 @@ requests = "*"
 
 [[package]]
 name = "simple-parsing"
-version = "0.0.15.post1"
+version = "0.0.16.post2"
 description = "A small utility for simplifying and cleaning up argument parsing scripts."
 category = "main"
 optional = false
@@ -1082,11 +1078,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-<<<<<<< HEAD
-content-hash = "e8b29d64376a80c36886cdae8667326344b96cb15dcce00a198dce19ccec3156"
-=======
-content-hash = "299bd2aeb5c968c13c9dd1e0fc3de26ecce68a13e3b221e96cc24ae11673dec0"
->>>>>>> d15f1b9 (Update dependencies)
+content-hash = "26a2b3d2dce8632781d6d08a9bdc97fb61282159f07056f5cf40735c79740d49"
 
 [metadata.files]
 alabaster = [
@@ -1125,8 +1117,8 @@ bandit = [
     {file = "bandit-1.7.0.tar.gz", hash = "sha256:8a4c7415254d75df8ff3c3b15cfe9042ecee628a1e40b44c15a98890fbfc2608"},
 ]
 black = [
-    {file = "black-21.8b0-py3-none-any.whl", hash = "sha256:2a0f9a8c2b2a60dbcf1ccb058842fb22bdbbcb2f32c6cc02d9578f90b92ce8b7"},
-    {file = "black-21.8b0.tar.gz", hash = "sha256:570608d28aa3af1792b98c4a337dbac6367877b47b12b88ab42095cfc1a627c2"},
+    {file = "black-21.9b0-py3-none-any.whl", hash = "sha256:380f1b5da05e5a1429225676655dddb96f5ae8c75bdf91e53d798871b902a115"},
+    {file = "black-21.9b0.tar.gz", hash = "sha256:7de4cfc7eb6b710de325712d40125689101d21d25283eed7e9998722cf10eb91"},
 ]
 bytecode = [
     {file = "bytecode-0.12.0-py3-none-any.whl", hash = "sha256:40659445900e11cb1f5f09b0e35fe0af2f04661691ca8dc0b505f7bd3d8b8959"},
@@ -1141,8 +1133,8 @@ cfgv = [
     {file = "cfgv-3.3.1.tar.gz", hash = "sha256:f5a830efb9ce7a445376bb66ec94c638a9787422f96264c98edc6bdeed8ab736"},
 ]
 charset-normalizer = [
-    {file = "charset-normalizer-2.0.4.tar.gz", hash = "sha256:f23667ebe1084be45f6ae0538e4a5a865206544097e4e8bbcacf42cd02a348f3"},
-    {file = "charset_normalizer-2.0.4-py3-none-any.whl", hash = "sha256:0c8911edd15d19223366a194a513099a302055a962bca2cec0f54b8b63175d8b"},
+    {file = "charset-normalizer-2.0.5.tar.gz", hash = "sha256:7098e7e862f6370a2a8d1a6398cd359815c45d12626267652c3f13dec58e2367"},
+    {file = "charset_normalizer-2.0.5-py3-none-any.whl", hash = "sha256:fa471a601dfea0f492e4f4fca035cd82155e65dc45c9b83bf4322dfab63755dd"},
 ]
 click = [
     {file = "click-8.0.1-py3-none-any.whl", hash = "sha256:fba402a4a47334742d782209a7c79bc448911afe1149d07bdabdf480b3e2f4b6"},
@@ -1247,13 +1239,8 @@ gitpython = [
     {file = "GitPython-3.1.23.tar.gz", hash = "sha256:aaae7a3bfdf0a6db30dc1f3aeae47b71cd326d86b936fe2e158aa925fdf1471c"},
 ]
 hypothesis = [
-<<<<<<< HEAD
-    {file = "hypothesis-6.18.0-py3-none-any.whl", hash = "sha256:69744c1f9a6c23757a4295403a9aac9c451dcc0c15ae872ad37d2b92d217d8b1"},
-    {file = "hypothesis-6.18.0.tar.gz", hash = "sha256:a7566c573d234242ad2b6f20cdec353511d4a7557074065f566c6c97d6579898"},
-=======
-    {file = "hypothesis-6.21.1-py3-none-any.whl", hash = "sha256:25eb0cfca5efdfcc3dba52ba61e415882ca0ac410bff9557d730d078608d77b4"},
-    {file = "hypothesis-6.21.1.tar.gz", hash = "sha256:48e618e1c279ffa6a2c3be4625628f3ebd8e91732d7f4af64039a0377776cfcd"},
->>>>>>> d15f1b9 (Update dependencies)
+    {file = "hypothesis-6.21.4-py3-none-any.whl", hash = "sha256:0729766a5969bcde9d01a625c7dc3f64705efa7cb47e567504eacfebc08e4d3c"},
+    {file = "hypothesis-6.21.4.tar.gz", hash = "sha256:92810e59f01ed25a18589d92fd38c931a4c8509134c7a9d18ed1b6c3a8464f5e"},
 ]
 identify = [
     {file = "identify-2.2.14-py2.py3-none-any.whl", hash = "sha256:113a76a6ba614d2a3dd408b3504446bcfac0370da5995aa6a17fd7c6dffde02d"},
@@ -1596,8 +1583,8 @@ safety = [
     {file = "safety-1.10.3.tar.gz", hash = "sha256:30e394d02a20ac49b7f65292d19d38fa927a8f9582cdfd3ad1adbbc66c641ad5"},
 ]
 simple-parsing = [
-    {file = "simple_parsing-0.0.15.post1-py3-none-any.whl", hash = "sha256:967bd39006393064516117ac515dd77cc8529a9d8b7bf41cee5214f75b653cf8"},
-    {file = "simple_parsing-0.0.15.post1.tar.gz", hash = "sha256:37991ddbf9c85667703212ab84fa30634640d6a4edaafdde90feb29f0d2a9ed8"},
+    {file = "simple_parsing-0.0.16.post2-py3-none-any.whl", hash = "sha256:c4a1b3256ef4d8e732b31f4427dc54885c0724824273b5832fc556811398e486"},
+    {file = "simple_parsing-0.0.16.post2.tar.gz", hash = "sha256:e1b1dd83e770feca7b78c3caf471ee9d9ad7b71ada43149594a63616ffb7d640"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
