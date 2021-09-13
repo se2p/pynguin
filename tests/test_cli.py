@@ -121,6 +121,14 @@ def test__setup_logging_quiet_without_log_file():
             ["--foo", "bar", "--output_variables", "baz", "--bar", "foo"],
             ["--foo", "bar", "--output_variables", "baz", "--bar", "foo"],
         ),
+        pytest.param(
+            ["--foo", "bar", "--output-variables", "foo,bar,baz", "--bar", "foo"],
+            ["--foo", "bar", "--output-variables", "foo", "bar", "baz", "--bar", "foo"],
+        ),
+        pytest.param(
+            ["--foo", "bar", "--output-variables", "baz", "--bar", "foo"],
+            ["--foo", "bar", "--output-variables", "baz", "--bar", "foo"],
+        ),
     ],
 )
 def test__expand_arguments_if_necessary(arguments, expected):

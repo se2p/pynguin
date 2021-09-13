@@ -66,11 +66,28 @@ def _create_argument_parser() -> argparse.ArgumentParser:
 
 
 def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
-    """Hacky way to pass comma separated output variables.
-    Should be eliminated asap."""
-    if "--output_variables" not in arguments:
+    """Expand command-line arguments, if necessary.
+
+    This is a hacky way to pass comma separated output variables.  The reason to have
+    this is an issue with the automatically-generated bash scripts for Pynguin cluster
+    execution, for which I am not able to solve the (I assume) globbing issues.  This
+    function allows to provide the output variables either separated by spaces or by
+    commas, which works as a work-around for the aforementioned problem.
+
+    This function replaces the commas for the ``--output-variables`` parameter by spaces
+    that can then be handled by the argument-parsing code.
+
+    Args:
+        arguments: The list of command-line arguments
+    Returns:
+        The (potentially) processed list of command-line arguments
+    """
+    if "--output_variables" not in arguments and "--output-variables" not in arguments:
         return arguments
-    index = arguments.index("--output_variables")
+    if "--output_variables" in arguments:
+        index = arguments.index("--output_variables")
+    else:
+        index = arguments.index("--output-variables")
     if "," not in arguments[index + 1]:
         return arguments
     variables = arguments[index + 1].split(",")
