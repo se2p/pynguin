@@ -23,7 +23,7 @@ def test_run_test_case_chromosome_no_result():
     executor = MagicMock()
     result0 = MagicMock()
     executor.execute.return_value = result0
-    ff = DummyTestSuiteFitnessFunction(executor)
+    ff = DummyTestSuiteFitnessFunction(executor, code_object_id=0)
     test_case0 = tcc.TestCaseChromosome(MagicMock())
     test_case0.set_changed(True)
     assert ff._run_test_case_chromosome(test_case0) == result0
@@ -34,7 +34,7 @@ def test_run_test_case_chromosome_has_result():
     executor = MagicMock()
     result0 = MagicMock()
     executor.execute.return_value = result0
-    ff = DummyTestSuiteFitnessFunction(executor)
+    ff = DummyTestSuiteFitnessFunction(executor, code_object_id=0)
     test_case0 = tcc.TestCaseChromosome(MagicMock())
     test_case0.set_changed(False)
     test_case0.set_last_execution_result(result0)
