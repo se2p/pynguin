@@ -35,7 +35,7 @@ def known_data_mock():
 
 
 def test_is_maximisation_function(executor_mock):
-    ff = BranchDistanceTestCaseFitnessFunction(executor_mock)
+    ff = BranchDistanceTestCaseFitnessFunction(executor_mock, 0)
     assert not ff.is_maximisation_function()
 
 
@@ -43,7 +43,7 @@ def test_compute_fitness_values(known_data_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_known_data.return_value = known_data_mock
     executor_mock.tracer.return_value = tracer
-    ff = BranchDistanceTestCaseFitnessFunction(executor_mock)
+    ff = BranchDistanceTestCaseFitnessFunction(executor_mock, 0)
     indiv = MagicMock()
     with mock.patch.object(ff, "_run_test_case_chromosome") as run_suite_mock:
         result = ExecutionResult()
