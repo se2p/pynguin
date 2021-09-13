@@ -140,56 +140,16 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _create_constant_assert(
         self, var: Optional[vr.VariableReference], operator: ast.cmpop, value: Any
     ) -> ast.Assert:
-        return ast.Assert(
-            test=ast.Compare(
-                left=au.create_var_name(self._variable_names, var, load=True),
-                ops=[operator],
-                comparators=[ast.Constant(value=value, kind=None)],
-            ),
-            msg=None,
-        )
+        left = au.create_var_name(self._variable_names, var, load=True)
+        comp = au.create_ast_constant(value)
+        return au.create_ast_assert(au.create_ast_compare(left, operator, comp))
 
     def _create_float_delta_assert(
         self, var: Optional[vr.VariableReference], value: Any
     ) -> ast.Assert:
-        self._common_modules.add("pytest")
-        float_precision = config.configuration.test_case_output.float_precision
-
-        return ast.Assert(
-            test=ast.Compare(
-                left=au.create_var_name(self._variable_names, var, load=True),
-                ops=[ast.Eq()],
-                comparators=[
-                    ast.Call(
-                        func=ast.Attribute(
-                            value=ast.Name(id="pytest", ctx=ast.Load()),
-                            attr="approx",
-                            ctx=ast.Load(),
-                        ),
-                        args=[
-                            ast.Constant(value=value, kind=None),
-                        ],
-                        keywords=[
-                            ast.keyword(
-                                arg="abs",
-                                value=ast.Constant(
-                                    value=float_precision,
-                                    kind=None,
-                                ),
-                            ),
-                            ast.keyword(
-                                arg="rel",
-                                value=ast.Constant(
-                                    value=float_precision,
-                                    kind=None,
-                                ),
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            msg=None,
-        )
+        left = au.create_var_name(self._variable_names, var, load=True)
+        comp = self._construct_float_comparator(au.create_ast_constant(value))
+        return au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
 
     def _create_comparison_object(self, value) -> None:
         if tu.is_collection_type(type(value)):
@@ -203,12 +163,12 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                 self._create_init_field(field, field_val)
 
     def _create_assertion(self, left, operator, comp):
-        test = self._create_ast_compare(left, operator, comp)
-        self._nodes.append(self._create_ast_assert(test))
+        test = au.create_ast_compare(left, operator, comp)
+        self._nodes.append(au.create_ast_assert(test))
 
     def _create_object_assertion(self, var: vr.VariableReference) -> None:
         left = au.create_var_name(self._variable_names, var, load=True)
-        comp = self._create_ast_name(self._get_current_comparison_object())
+        comp = au.create_ast_name(self._get_current_comparison_object())
         self._create_assertion(left, ast.Eq(), comp)
         self._pop_current_comparison_object()
 
@@ -222,28 +182,29 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         owners: List[str],
     ) -> None:
         left = self._construct_field_attribute(var, field, module, owners)
-        comp = self._create_ast_constant(value)
+        comp = au.create_ast_constant(value)
         if isinstance(value, float):
-            float_precision = config.configuration.test_case_output.float_precision
-            func = self._create_ast_attribute(self._create_ast_name("pytest"), "approx")
-            keywords = [
-                self._create_ast_keyword(
-                    "abs", self._create_ast_constant(float_precision)
-                ),
-                self._create_ast_keyword(
-                    "rel", self._create_ast_constant(float_precision)
-                ),
-            ]
-            comp_float = self._create_ast_call(func, comp, keywords)
+            comp_float = self._construct_float_comparator(comp)
             self._create_assertion(left, ast.Eq(), comp_float)
         else:
             self._create_assertion(left, ast.Eq(), comp)
+
+    def _construct_float_comparator(self, comp):
+        self._common_modules.add("pytest")
+        float_precision = config.configuration.test_case_output.float_precision
+        func = au.create_ast_attribute("approx", au.create_ast_name("pytest"))
+        keywords = [
+            au.create_ast_keyword("abs", au.create_ast_constant(float_precision)),
+            au.create_ast_keyword("rel", au.create_ast_constant(float_precision)),
+        ]
+        comp_float = au.create_ast_call(func, [comp], keywords)
+        return comp_float
 
     def _create_field_assertion(
         self, var: vr.VariableReference, field: str, module: str, owners: List[str]
     ) -> None:
         left = self._construct_field_attribute(var, field, module, owners)
-        comp = self._create_ast_name(self._get_current_comparison_object())
+        comp = au.create_ast_name(self._get_current_comparison_object())
         self._create_assertion(left, ast.Eq(), comp)
         self._pop_current_comparison_object()
 
@@ -252,38 +213,38 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     ) -> ast.Attribute:
         if var and owners is None and module is None:
             obj = au.create_var_name(self._variable_names, var, load=True)
-            return self._create_ast_attribute(field, obj)
+            return au.create_ast_attribute(field, obj)
         if var is None and owners is None and module is not None:
-            attr = self._create_ast_name(module)
-            return self._create_ast_attribute(field, attr)
-        attr = self._create_ast_name(self._get_module(owners[0]))
+            attr = au.create_ast_name(module)
+            return au.create_ast_attribute(field, attr)
+        attr = au.create_ast_name(self._get_module(owners[0]))
         for owner in owners:
-            attr = cast(Name, self._create_ast_attribute(owner, attr))
-        return self._create_ast_attribute(field, attr)
+            attr = cast(Name, au.create_ast_attribute(owner, attr))
+        return au.create_ast_attribute(field, attr)
 
     def _create_object(self, value) -> None:
         obj_id = self._get_comparison_object()
-        target = self._create_ast_name(obj_id)
+        target = au.create_ast_name(obj_id)
         class_name = value.__class__.__name__
-        module = self._create_ast_name(self._get_module(class_name))
-        cls = self._create_ast_attribute(class_name, module)
-        val = self._create_ast_attribute("__class__", cls)
-        self._nodes.append(self._create_ast_assign(target, val))
+        module = au.create_ast_name(self._get_module(class_name))
+        cls = au.create_ast_attribute(class_name, module)
+        val = au.create_ast_attribute("__class__", cls)
+        self._nodes.append(au.create_ast_assign(target, val))
 
     def _create_init_field(self, field, value) -> None:
         if tu.is_collection_type(type(value)):
             self._create_collection(value)
-            val = self._create_ast_name(self._get_current_comparison_object())
+            val = au.create_ast_name(self._get_current_comparison_object())
             self._pop_current_comparison_object()
         elif not tu.is_primitive_type(type(value)):
             self._create_comparison_object(value)
-            val = self._create_ast_name(self._get_current_comparison_object())
+            val = au.create_ast_name(self._get_current_comparison_object())
             self._pop_current_comparison_object()
         else:
-            val = cast(Name, self._create_ast_constant(value))
-        obj = self._create_ast_name(self._get_current_comparison_object())
-        attr = self._create_ast_attribute(field, obj, True)
-        self._nodes.append(self._create_ast_assign(attr, val))
+            val = cast(Name, au.create_ast_constant(value))
+        obj = au.create_ast_name(self._get_current_comparison_object())
+        attr = au.create_ast_attribute(field, obj, True)
+        self._nodes.append(au.create_ast_assign(attr, val))
 
     def _create_collection(self, value) -> None:
         obj_id = self._get_comparison_object()
@@ -299,106 +260,54 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _create_comparison_array(self, value) -> None:
         obj_id = self._get_comparison_object()
         self._create_collection(value.tolist())
-        target = self._create_ast_name(obj_id, True)
+        target = au.create_ast_name(obj_id, True)
         self._common_modules.add("array")
-        func_attr_name = self._create_ast_name("array")
-        func_attr = self._create_ast_attribute("array", func_attr_name)
-        constant = self._create_ast_constant(value.typecode)
-        arr = self._create_ast_name(self._get_current_comparison_object())
+        func_attr_name = au.create_ast_name("array")
+        func_attr = au.create_ast_attribute("array", func_attr_name)
+        constant = au.create_ast_constant(value.typecode)
+        arr = au.create_ast_name(self._get_current_comparison_object())
         self._pop_current_comparison_object()
-        call = self._create_ast_call(func_attr, [constant, arr], [])
-        self._nodes.append(self._create_ast_assign(target, call))
+        call = au.create_ast_call(func_attr, [constant, arr], [])
+        self._nodes.append(au.create_ast_assign(target, call))
 
     def _create_list(self, value: List[Any], obj_id: str) -> None:
         elts = self._construct_collection_elts(value)
-        target = self._create_ast_name(obj_id)
-        assg_val = self._create_ast_list_load(elts)
-        self._nodes.append(self._create_ast_assign(target, assg_val))
+        target = au.create_ast_name(obj_id)
+        assg_val = au.create_ast_list(elts)
+        self._nodes.append(au.create_ast_assign(target, assg_val))
 
     def _create_dict(self, value: Dict[Any, Any], obj_id: str) -> None:
         keys = self._construct_collection_elts(value.keys())
         values = self._construct_collection_elts(value.values())
-        target = self._create_ast_name(obj_id)
-        assg_val = self._create_ast_dict(keys, values)
-        self._nodes.append(self._create_ast_assign(target, assg_val))
+        target = au.create_ast_name(obj_id)
+        assg_val = au.create_ast_dict(keys, values)
+        self._nodes.append(au.create_ast_assign(target, assg_val))
 
     def _create_set(self, value: Set[Any], obj_id: str) -> None:
         elts = self._construct_collection_elts(value)
-        target = self._create_ast_name(obj_id)
-        assg_val = self._create_ast_set(elts)
-        self._nodes.append(self._create_ast_assign(target, assg_val))
+        target = au.create_ast_name(obj_id)
+        assg_val = au.create_ast_set(elts)
+        self._nodes.append(au.create_ast_assign(target, assg_val))
 
     def _create_tuple(self, value: Tuple[Any], obj_id) -> None:
         elts = self._construct_collection_elts(value)
-        target = self._create_ast_name(obj_id)
-        assg_val = self._create_ast_tuple_load(elts)
-        self._nodes.append(self._create_ast_assign(target, assg_val))
+        target = au.create_ast_name(obj_id)
+        assg_val = au.create_ast_tuple(elts)
+        self._nodes.append(au.create_ast_assign(target, assg_val))
 
     def _construct_collection_elts(self, value: Any) -> List[Union[Constant, Name]]:
         elts: List[Union[Constant, Name]] = []
         for item in value:
             if tu.is_primitive_type(type(item)):
-                elts.append(self._create_ast_constant(item))
+                elts.append(au.create_ast_constant(item))
             else:
                 if tu.is_collection_type(type(item)):
                     self._create_collection(item)
                 else:
                     self._create_comparison_object(item)
-                elts.append(
-                    self._create_ast_name(self._get_current_comparison_object())
-                )
+                elts.append(au.create_ast_name(self._get_current_comparison_object()))
                 self._pop_current_comparison_object()
         return elts
-
-    @staticmethod
-    def _create_ast_name(name_id: str, store: bool = False) -> ast.Name:
-        return ast.Name(id=name_id, ctx=ast.Store() if store else ast.Load)
-
-    @staticmethod
-    def _create_ast_assign(target, value) -> ast.Assign:
-        return ast.Assign(targets=[target], value=value)
-
-    @staticmethod
-    def _create_ast_attribute(attr, value, store: bool = False) -> ast.Attribute:
-        return ast.Attribute(
-            attr=attr, ctx=ast.Store() if store else ast.Load(), value=value
-        )
-
-    @staticmethod
-    def _create_ast_list_load(elts) -> ast.List:
-        return ast.List(ctx=ast.Load(), elts=elts)
-
-    @staticmethod
-    def _create_ast_dict(keys, values) -> ast.Dict:
-        return ast.Dict(keys=keys, values=values)
-
-    @staticmethod
-    def _create_ast_set(elts) -> ast.Set:
-        return ast.Set(elts=elts)
-
-    @staticmethod
-    def _create_ast_tuple_load(elts) -> ast.Tuple:
-        return ast.Tuple(ctx=ast.Load(), elts=elts)
-
-    @staticmethod
-    def _create_ast_constant(value) -> ast.Constant:
-        return ast.Constant(value=value, kind=None)
-
-    @staticmethod
-    def _create_ast_assert(test) -> ast.Assert:
-        return ast.Assert(test=test, msg=None)
-
-    @staticmethod
-    def _create_ast_compare(left, operator, comparator) -> ast.Compare:
-        return ast.Compare(left=left, ops=[operator], comparators=[comparator])
-
-    @staticmethod
-    def _create_ast_call(func, args, keywords) -> ast.Call:
-        return ast.Call(func=func, args=args, keywords=keywords)
-
-    @staticmethod
-    def _create_ast_keyword(arg, value) -> ast.keyword:
-        return ast.keyword(arg=arg, value=value)
 
     def _pop_current_comparison_object(self) -> None:
         self._obj_stack.pop()
@@ -406,7 +315,6 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _get_current_comparison_object(self) -> str:
         return self._obj_stack[-1]
 
-    # TODO(fs) replace with NamingScope
     def _get_comparison_object(self) -> str:
         obj_id = self._get_comparison_object_name()
         AssertionToAstVisitor._obj_index += 1
