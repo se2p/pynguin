@@ -77,7 +77,8 @@ def test_complex_object(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert (
-        astor.to_source(module) == "obj0 = var0.Foo.__class__\n"
+        astor.to_source(module) == "obj0 = type('', (object,), {})()\n"
+        "obj0.__class__ = var0.Foo\n"
         "obj0._bar = 'bar'\n"
         "assert var0 == obj0\n"
     )
@@ -95,9 +96,11 @@ def test_complex_list(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert (
-        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        astor.to_source(module) == "obj1 = type('', (object,), {})()\n"
+        "obj1.__class__ = var0.Foo\n"
         "obj1._bar = 'foo'\n"
-        "obj2 = var0.Foo.__class__\n"
+        "obj2 = type('', (object,), {})()\n"
+        "obj2.__class__ = var0.Foo\n"
         "obj2._bar = 'bar'\n"
         "obj0 = [obj1, obj2, 42]\n"
         "assert var0 == obj0\n"
@@ -110,8 +113,10 @@ def test_complex_set(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     source = astor.to_source(module)
-    assert len(source) == 132
-    assert source.startswith("obj1 = var0.Foo.__class__\nobj1._bar = ")
+    assert len(source) == 198
+    assert source.startswith(
+        "obj1 = type('', (object,), {})()\nobj1.__class__ = var0.Foo\nobj1._bar = "
+    )
     assert source.endswith("\nassert var0 == obj0\n")
 
 
@@ -121,9 +126,11 @@ def test_complex_dict(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert (
-        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        astor.to_source(module) == "obj1 = type('', (object,), {})()\n"
+        "obj1.__class__ = var0.Foo\n"
         "obj1._bar = 'foo'\n"
-        "obj2 = var0.Foo.__class__\n"
+        "obj2 = type('', (object,), {})()\n"
+        "obj2.__class__ = var0.Foo\n"
         "obj2._bar = 'bar'\n"
         "obj0 = {obj1: 'foo', 'bar': obj2, (42): 1337}\n"
         "assert var0 == obj0\n"
@@ -136,9 +143,11 @@ def test_complex_tuple(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert (
-        astor.to_source(module) == "obj1 = var0.Foo.__class__\n"
+        astor.to_source(module) == "obj1 = type('', (object,), {})()\n"
+        "obj1.__class__ = var0.Foo\n"
         "obj1._bar = 'foo'\n"
-        "obj2 = var0.Foo.__class__\n"
+        "obj2 = type('', (object,), {})()\n"
+        "obj2.__class__ = var0.Foo\n"
         "obj2._bar = 'bar'\n"
         "obj0 = obj1, obj2, 42\n"
         "assert var0 == obj0\n"

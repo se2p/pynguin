@@ -227,12 +227,25 @@ class AssertionToAstVisitor(av.AssertionVisitor):
 
     def _create_object(self, value) -> None:
         obj_id = self._get_comparison_object()
-        target = au.create_ast_name(obj_id)
-        class_name = value.__class__.__name__
-        module = au.create_ast_name(self._get_module(class_name))
-        cls = au.create_ast_attribute(class_name, module)
-        val = au.create_ast_attribute("__class__", cls)
-        self._nodes.append(au.create_ast_assign(target, val))
+
+        # Create dummy inline class
+        target = au.create_ast_name(obj_id, True)
+        args = [
+            au.create_ast_constant(""),
+            au.create_ast_tuple([au.create_ast_name("object")]),
+            au.create_ast_dict([], []),
+        ]
+        func_name = au.create_ast_name("type")
+        call = au.create_ast_call(au.create_ast_call(func_name, args, []), [], [])
+        self._nodes.append(au.create_ast_assign(target, call))
+
+        # Assign right class type
+        obj_name = au.create_ast_name(obj_id)
+        attr = au.create_ast_attribute("__class__", obj_name, True)
+        module_name = value.__class__.__module__
+        module = au.create_ast_name(self._get_module(module_name))
+        cls = au.create_ast_attribute(value.__class__.__name__, module)
+        self._nodes.append(au.create_ast_assign(attr, cls))
 
     def _create_init_field(self, field, value) -> None:
         if tu.is_collection_type(type(value)):
