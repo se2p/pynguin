@@ -35,3 +35,8 @@ class Calculator:
         ret = a / b
         Calculator.results.append(ret)
         return ret
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Calculator):
+            return self.amount_calculation == other.amount_calculation
+        return False
