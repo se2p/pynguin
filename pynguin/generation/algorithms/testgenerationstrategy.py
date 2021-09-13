@@ -6,13 +6,18 @@
 #
 """Provides an abstract base class for a test generation algorithm."""
 import time
-from abc import ABCMeta, abstractmethod
-from typing import Iterable, List
+from abc import abstractmethod
+from typing import Generic, Iterable, List, TypeVar
 
+from ordered_set import OrderedSet
+
+import pynguin.coverage.branchgoals as bg
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
@@ -22,12 +27,16 @@ from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCond
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
+A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
 
-# pylint: disable=too-many-instance-attributes
-class TestGenerationStrategy(metaclass=ABCMeta):
+
+class TestGenerationStrategy(
+    Generic[A]
+):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self) -> None:
+        self._archive: A
         self._chromosome_factory: cf.ChromosomeFactory
         self._executor: TestCaseExecutor
         self._test_cluster: TestCluster
@@ -36,8 +45,13 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         self._stopping_condition: StoppingCondition
         self._crossover_function: CrossOverFunction
         self._ranking_function: RankingFunction
-        self._test_case_fitness_functions: List[ff.FitnessFunction] = []
-        self._test_suite_fitness_functions: List[ff.FitnessFunction] = []
+        self._test_case_fitness_functions: OrderedSet[
+            atcff.AbstractTestCaseFitnessFunction
+        ] = OrderedSet()
+        self._test_suite_fitness_functions: OrderedSet[
+            atsff.AbstractTestSuiteFitnessFunction
+        ] = OrderedSet()
+        self._branch_goal_pool: bg.BranchGoalPool
         self._search_observers: List[so.SearchObserver] = []
 
     @property
@@ -93,6 +107,26 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         self._test_factory = test_factory
 
     @property
+    def archive(self) -> A:
+        """Provide the used archive."""
+        return self._archive
+
+    @archive.setter
+    def archive(self, archive: A) -> None:
+        """Set the used archive."""
+        self._archive = archive
+
+    @property
+    def branch_goal_pool(self) -> bg.BranchGoalPool:
+        """Provides the used branch goal pool."""
+        return self._branch_goal_pool
+
+    @branch_goal_pool.setter
+    def branch_goal_pool(self, branch_goal_pool: bg.BranchGoalPool) -> None:
+        """Set the used branch goal."""
+        self._branch_goal_pool = branch_goal_pool
+
+    @property
     def selection_function(self) -> SelectionFunction:
         """Provides the used selection function.
 
@@ -145,7 +179,9 @@ class TestGenerationStrategy(metaclass=ABCMeta):
         self._ranking_function = ranking_function
 
     @property
-    def test_case_fitness_functions(self) -> List[ff.FitnessFunction]:
+    def test_case_fitness_functions(
+        self,
+    ) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
         """Provides the list of test case fitness functions.
 
         Returns:
@@ -155,12 +191,15 @@ class TestGenerationStrategy(metaclass=ABCMeta):
 
     @test_case_fitness_functions.setter
     def test_case_fitness_functions(
-        self, test_case_fitness_functions: List[ff.FitnessFunction]
+        self,
+        test_case_fitness_functions: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
     ) -> None:
         self._test_case_fitness_functions = test_case_fitness_functions
 
     @property
-    def test_suite_fitness_functions(self) -> List[ff.FitnessFunction]:
+    def test_suite_fitness_functions(
+        self,
+    ) -> OrderedSet[atsff.AbstractTestSuiteFitnessFunction]:
         """Provides the list of test suite fitness functions.
 
         Returns:
@@ -170,7 +209,10 @@ class TestGenerationStrategy(metaclass=ABCMeta):
 
     @test_suite_fitness_functions.setter
     def test_suite_fitness_functions(
-        self, test_suite_fitness_functions: List[ff.FitnessFunction]
+        self,
+        test_suite_fitness_functions: OrderedSet[
+            atsff.AbstractTestSuiteFitnessFunction
+        ],
     ) -> None:
         self._test_suite_fitness_functions = test_suite_fitness_functions
 

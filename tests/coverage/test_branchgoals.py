@@ -12,9 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.coverage.branch.branchcoveragefactory as bcf
-import pynguin.coverage.branch.branchcoveragegoal as bcg
-import pynguin.coverage.branch.branchcoveragetestfitness as bctf
+import pynguin.coverage.branchgoals as bg
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
@@ -30,8 +28,81 @@ from pynguin.typeinference.strategy import InferredSignature
 
 
 @pytest.fixture
+def branchless_codeobject_goal():
+    return bg.BranchlessCodeObjectGoal(0)
+
+
+@pytest.fixture
+def branch_goal():
+    return bg.BranchGoal(0, 0, True)
+
+
+def test_root_branch_coverage_goal(branchless_codeobject_goal):
+    assert branchless_codeobject_goal.code_object_id == 0
+
+
+def test_non_root_branch_coverage_goal(branch_goal):
+    assert branch_goal.predicate_id == 0
+    assert branch_goal.value is True
+
+
+def test_root_hash(branchless_codeobject_goal):
+    assert branchless_codeobject_goal.__hash__() != 0
+
+
+def test_non_root_hash(branch_goal):
+    assert branch_goal.__hash__() != 0
+
+
+def test_root_eq_same(branchless_codeobject_goal):
+    assert branchless_codeobject_goal.__eq__(branchless_codeobject_goal)
+
+
+def test_non_root_eq_same(branch_goal):
+    assert branch_goal.__eq__(branch_goal)
+
+
+def test_root_eq_other_type(branchless_codeobject_goal):
+    assert not branchless_codeobject_goal.__eq__(MagicMock())
+
+
+def test_non_root_eq_other_type(branch_goal):
+    assert not branch_goal.__eq__(MagicMock())
+
+
+def test_root_eq_other(branchless_codeobject_goal):
+    other = bg.BranchlessCodeObjectGoal(0)
+    assert branchless_codeobject_goal.__eq__(other)
+
+
+def test_non_root_eq_other(branch_goal):
+    other = bg.BranchGoal(0, 0, True)
+    assert branch_goal.__eq__(other)
+
+
+def test_root_get_distance(branchless_codeobject_goal, mocker):
+    mock = mocker.patch(
+        "pynguin.coverage.branchgoals.cfd" ".get_root_control_flow_distance",
+        return_value=42,
+    )
+    distance = branchless_codeobject_goal.get_distance(MagicMock(), MagicMock())
+    assert distance == 42
+    mock.assert_called_once()
+
+
+def test_non_root_get_distance(branch_goal, mocker):
+    mock = mocker.patch(
+        "pynguin.coverage.branchgoals.cfd" ".get_non_root_control_flow_distance",
+        return_value=42,
+    )
+    distance = branch_goal.get_distance(MagicMock(), MagicMock())
+    assert distance == 42
+    mock.assert_called_once()
+
+
+@pytest.fixture
 def empty_function():
-    return bctf.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
+    return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
 
 @pytest.fixture()
@@ -54,8 +125,8 @@ def test_is_maximisation_function(empty_function):
 
 
 def test_goal(executor_mock):
-    goal = MagicMock(bcg.AbstractBranchCoverageGoal)
-    func = bctf.BranchCoverageTestFitness(executor_mock, goal)
+    goal = MagicMock(bg.AbstractBranchCoverageGoal)
+    func = bg.BranchCoverageTestFitness(executor_mock, goal)
     assert func.goal == goal
 
 
@@ -63,9 +134,9 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
     tracer = MagicMock()
     tracer.get_known_data.return_value = known_data_mock
     executor_mock.tracer.return_value = tracer
-    goal = MagicMock(bcg.AbstractBranchCoverageGoal)
+    goal = MagicMock(bg.AbstractBranchCoverageGoal)
     goal.get_distance.return_value = cfd.ControlFlowDistance(1, 2)
-    ff = bctf.BranchCoverageTestFitness(executor_mock, goal)
+    ff = bg.BranchCoverageTestFitness(executor_mock, goal)
     indiv = MagicMock()
     with mock.patch.object(ff, "_run_test_case_chromosome") as run_suite_mock:
         result = ExecutionResult()
@@ -87,7 +158,8 @@ def test_compute_fitness_values_no_branches():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_no_branches_fixture(module)
-        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        pool = bg.BranchGoalPool(tracer.get_known_data())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
@@ -98,12 +170,12 @@ def test_compute_fitness_values_no_branches():
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
-        assert chromosome.fitness_values[goals_dict["__init__"]].fitness == 0.0
-        assert chromosome.fitness_values[goals_dict["other"]].fitness == 1.0
-        assert chromosome.fitness_values[goals_dict["<module>"]].fitness == 0.0
-        assert chromosome.fitness_values[goals_dict["get_x"]].fitness == 0.0
-        assert chromosome.fitness_values[goals_dict["identity"]].fitness == 0.0
-        assert chromosome.fitness_values[goals_dict["DummyClass"]].fitness == 0.0
+        assert chromosome.get_fitness_for(goals_dict["__init__"]) == 0.0
+        assert chromosome.get_fitness_for(goals_dict["other"]) == 1.0
+        assert chromosome.get_fitness_for(goals_dict["<module>"]) == 0.0
+        assert chromosome.get_fitness_for(goals_dict["get_x"]) == 0.0
+        assert chromosome.get_fitness_for(goals_dict["identity"]) == 0.0
+        assert chromosome.get_fitness_for(goals_dict["DummyClass"]) == 0.0
 
 
 def test_compute_fitness_values_single_branches_if():
@@ -116,7 +188,8 @@ def test_compute_fitness_values_single_branches_if():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_single_branch_if_branch_fixture(module)
-        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        pool = bg.BranchGoalPool(tracer.get_known_data())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
@@ -133,7 +206,8 @@ def test_compute_fitness_values_single_branches_else():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_single_branch_else_branch_fixture(module)
-        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        pool = bg.BranchGoalPool(tracer.get_known_data())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
@@ -150,7 +224,8 @@ def test_compute_fitness_values_two_method_single_branches_else():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_single_branch_else_branch_fixture(module)
-        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        pool = bg.BranchGoalPool(tracer.get_known_data())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
@@ -167,7 +242,8 @@ def test_compute_fitness_values_nested_branches():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_nested_branch_fixture(module)
-        goals = bcf.BranchCoverageFactory(executor).get_coverage_goals()
+        pool = bg.BranchGoalPool(tracer.get_known_data())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()

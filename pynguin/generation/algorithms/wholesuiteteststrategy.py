@@ -6,24 +6,23 @@
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import List, Set
-
-from ordered_set import OrderedSet
+from typing import List, Set, cast
 
 import pynguin.configuration as config
-import pynguin.coverage.branch.branchcoveragegoal as bcg
-import pynguin.ga.fitnessfunction as ff
+import pynguin.coverage.branchgoals as bg
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
-import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.generation.algorithms.archive import Archive
+import pynguin.generation.algorithms.archive as arch
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
+# TODO(fk) instead of switching on 'use_archive' on two locations, we could
+# also create another subclass?
+
 
 # pylint: disable=too-few-public-methods
-class WholeSuiteTestStrategy(TestGenerationStrategy):
+class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 
     _logger = logging.getLogger(__name__)
@@ -31,25 +30,20 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     def __init__(self) -> None:
         super().__init__()
         self._population: List[tsc.TestSuiteChromosome] = []
-        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
 
     def generate_tests(
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        # These fitness functions are to fine grained...
-        self._archive = Archive(OrderedSet(self._test_case_fitness_functions))
-        # TODO(fk) update suite fitness function with covered goals
-        # TODO(fk) reuse test cases from archive
-        # TODO(fk) restrict test cluster to elements that are not fully covered.
         self._population = self._get_random_population()
         self._update_archive()
-        suite = self.create_test_suite(self._archive.solutions)
+        self._sort_population()
+        suite = self._get_solution()
         self.before_first_search_iteration(suite)
         while self.resources_left() and suite.get_fitness() != 0.0:
             self.evolve()
             self._update_archive()
-            suite = self.create_test_suite(self._archive.solutions)
+            suite = self._get_solution()
             self.after_search_iteration(suite)
         self.after_search_finish()
         return suite
@@ -109,6 +103,9 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
 
     def _update_archive(self) -> None:
         """Store covering test cases in archive."""
+        if not config.configuration.search_algorithm.use_archive:
+            return
+
         before = len(self._archive.uncovered_goals)
         for suite in self._population:
             self._archive.update(suite.test_case_chromosomes)
@@ -117,17 +114,20 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             exclude_code: Set[int] = set()
             exclude_true: Set[int] = set()
             exclude_false: Set[int] = set()
-            # Below code should be refactored, to be more general.
 
+            # TODO(fk) Move this logic to BranchCoverageTestFitness?
+            # i.e. combine with Archive.add_on_target_covered()
             for covered in self._archive.covered_goals:
+                assert isinstance(covered, bg.BranchCoverageTestFitness)
                 goal = covered.goal
-                if isinstance(goal, bcg.RootBranchCoverageGoal):
+                if goal.is_branchless_code_object:
                     exclude_code.add(goal.code_object_id)
-                elif isinstance(goal, bcg.NonRootBranchCoverageGoal):
-                    if goal.value:
-                        exclude_true.add(goal.predicate_id)
+                elif goal.is_branch:
+                    branch_goal = cast(bg.BranchGoal, goal)
+                    if branch_goal.value:
+                        exclude_true.add(branch_goal.predicate_id)
                     else:
-                        exclude_false.add(goal.predicate_id)
+                        exclude_false.add(branch_goal.predicate_id)
                 else:
                     raise NotImplementedError("Unknown coverage goal")
 
@@ -149,6 +149,14 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             The best chromosome
         """
         return self._population[0]
+
+    def _get_solution(self) -> tsc.TestSuiteChromosome:
+        """Get the solution."""
+        if config.configuration.search_algorithm.use_archive:
+            # If we use an archive, use the best found solutions.
+            return self.create_test_suite(self._archive.solutions)
+        # If we don't use an archive, use the current best individual.
+        return self._get_best_individual()
 
     @staticmethod
     def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:
