@@ -11,9 +11,9 @@ from typing import Any, List, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testcasechromosomefactory as tccf
 from pynguin.utils import randomness
 
 
@@ -22,7 +22,9 @@ class TestSuiteChromosome(chrom.Chromosome):
 
     def __init__(
         self,
-        test_case_chromosome_factory: Optional[tccf.TestCaseChromosomeFactory] = None,
+        test_case_chromosome_factory: Optional[
+            cf.ChromosomeFactory[tcc.TestCaseChromosome]
+        ] = None,
         orig: Optional[TestSuiteChromosome] = None,
     ):
         """
@@ -38,7 +40,7 @@ class TestSuiteChromosome(chrom.Chromosome):
 
         if orig is None:
             self._test_case_chromosome_factory: Optional[
-                tccf.TestCaseChromosomeFactory
+                cf.ChromosomeFactory[tcc.TestCaseChromosome]
             ] = test_case_chromosome_factory
             self._test_case_chromosomes: List[tcc.TestCaseChromosome] = []
         else:

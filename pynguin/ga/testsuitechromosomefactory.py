@@ -5,12 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test suite chromosomes."""
-from typing import List
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.testcasechromosomefactory as tccf
+import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
@@ -22,8 +21,8 @@ class TestSuiteChromosomeFactory(
 
     def __init__(
         self,
-        test_case_chromosome_factory: tccf.TestCaseChromosomeFactory,
-        fitness_functions: List[ff.FitnessFunction],
+        test_case_chromosome_factory: cf.ChromosomeFactory,
+        fitness_functions: OrderedSet[atsff.AbstractTestSuiteFitnessFunction],
     ):
         """Instantiates a new factory
 
