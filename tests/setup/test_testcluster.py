@@ -10,14 +10,14 @@ from unittest.mock import MagicMock
 import pytest
 from ordered_set import OrderedSet
 
-from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testcluster import FullTestCluster
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 def test_add_generator_primitive():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = int
     cluster.add_generator(generator)
@@ -25,7 +25,7 @@ def test_add_generator_primitive():
 
 
 def test_add_generator():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = MagicMock
     cluster.add_generator(generator)
@@ -33,7 +33,7 @@ def test_add_generator():
 
 
 def test_add_generator_two():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = MagicMock
     cluster.add_generator(generator)
@@ -44,7 +44,7 @@ def test_add_generator_two():
 
 
 def test_add_accessible_object_under_test():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     aoc = MagicMock(GenericMethod)
     aoc2 = MagicMock(GenericMethod)
     cluster.add_accessible_object_under_test(aoc)
@@ -53,7 +53,7 @@ def test_add_accessible_object_under_test():
 
 
 def test_add_modifier():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
     cluster.add_modifier(int, modifier)
@@ -61,7 +61,7 @@ def test_add_modifier():
 
 
 def test_add_modifier_two():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
     cluster.add_modifier(int, modifier)
@@ -72,7 +72,7 @@ def test_add_modifier_two():
 
 
 def test_get_random_modifier():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
     cluster.add_modifier(int, modifier)
@@ -83,23 +83,23 @@ def test_get_random_modifier():
 
 
 def test_get_random_modifier_none():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     with pytest.raises(ConstructionFailedException):
         cluster.get_random_call_for(int)
 
 
 def test_get_modifier_none_available():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     assert cluster.get_modifiers_for(int) == OrderedSet()
 
 
 def test_get_random_accessible():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     assert cluster.get_random_accessible() is None
 
 
 def test_get_random_accessible_two():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     modifier = MagicMock(GenericMethod)
     modifier2 = MagicMock(GenericMethod)
     cluster.add_accessible_object_under_test(modifier)
@@ -117,11 +117,11 @@ def test_get_random_accessible_two():
     ],
 )
 def test_select_concrete_type_union_unary(type_, result):
-    assert TestCluster().select_concrete_type(type_) in result
+    assert FullTestCluster().select_concrete_type(type_) in result
 
 
 def test_select_concrete_type_any():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     cluster._generators[MagicMock] = MagicMock
     assert cluster.select_concrete_type(Any) in list(PRIMITIVES) + list(COLLECTIONS) + [
         MagicMock
@@ -129,12 +129,12 @@ def test_select_concrete_type_any():
 
 
 def test_get_all_generatable_types_only_primitive():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     assert cluster.get_all_generatable_types() == list(PRIMITIVES) + list(COLLECTIONS)
 
 
 def test_get_all_generatable_types():
-    cluster = TestCluster()
+    cluster = FullTestCluster()
     cluster._generators[MagicMock] = MagicMock
     assert cluster.get_all_generatable_types() == [MagicMock] + list(PRIMITIVES) + list(
         COLLECTIONS
