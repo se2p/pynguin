@@ -146,7 +146,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             if ref_value != value:
                 obj_vr = self._get_current_object_ref(test_case, pos)
                 obj_class = self._get_current_object_class(obj_vr)
-                assertion = fa.FieldAssertion(None, ref_value, field, None, [obj_class])
+                obj_module = self._get_current_object_module(obj_vr)
+                assertion = fa.FieldAssertion(
+                    None, ref_value, field, obj_module, [obj_class]
+                )
                 if assertion not in self._field_assertions:
                     self._field_assertions.add(assertion)
                     statement.add_assertion(assertion)
@@ -233,4 +236,12 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     ) -> Optional[str]:
         if var_ref and var_ref.variable_type:
             return var_ref.variable_type.__name__
+        return None
+
+    @staticmethod
+    def _get_current_object_module(
+        var_ref: Optional[vr.VariableReference],
+    ) -> Optional[str]:
+        if var_ref and var_ref.variable_type:
+            return var_ref.variable_type.__module__
         return None

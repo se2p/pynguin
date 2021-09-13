@@ -211,13 +211,16 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _construct_field_attribute(
         self, var: vr.VariableReference, field: str, module: str, owners: List[str]
     ) -> ast.Attribute:
+        # Attribute
         if var and owners is None and module is None:
             obj = au.create_var_name(self._variable_names, var, load=True)
             return au.create_ast_attribute(field, obj)
+        # Global field
         if var is None and owners is None and module is not None:
             attr = au.create_ast_name(module)
             return au.create_ast_attribute(field, attr)
-        attr = au.create_ast_name(self._get_module(owners[0]))
+        # Class variable
+        attr = au.create_ast_name(self._get_module(module))
         for owner in owners:
             attr = cast(Name, au.create_ast_attribute(owner, attr))
         return au.create_ast_attribute(field, attr)
@@ -324,5 +327,5 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _get_comparison_object_name(self) -> str:
         return self.COMPARISON_OBJECT_IDENTIFIER + str(AssertionToAstVisitor._obj_index)
 
-    def _get_module(self, class_name: str) -> str:
-        return self._module_aliases.get_name(class_name.lower())
+    def _get_module(self, module_name: str) -> str:
+        return self._module_aliases.get_name(module_name)
