@@ -10,23 +10,23 @@ from abc import ABCMeta
 from typing import List, cast
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
-from pynguin.generation.algorithms.archive import Archive
+from pynguin.generation.algorithms.archive import CoverageArchive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
-class AbstractMOSATestStrategy(TestGenerationStrategy, metaclass=ABCMeta):
+class AbstractMOSATestStrategy(
+    TestGenerationStrategy[CoverageArchive], metaclass=ABCMeta
+):
     """An abstract base implementation for MOSA and its derivatives."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         super().__init__()
-        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
         self._population: List[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
 
