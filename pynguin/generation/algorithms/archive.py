@@ -70,7 +70,7 @@ class Archive(ABC):
         self._on_target_covered_callbacks.append(callback)
 
     def _on_target_covered(self, target: atcff.AbstractTestCaseFitnessFunction) -> None:
-        self._logger.info("Target covered: %s", target)
+        self._logger.debug("Target covered: %s", target)
         for callback in self._on_target_covered_callbacks:
             callback(target)
 
