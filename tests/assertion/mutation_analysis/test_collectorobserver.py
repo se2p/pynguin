@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pynguin.assertion.mutation_analysis.collectorobserver as co
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -35,7 +36,9 @@ def test_after_test_case_execution():
 def test_after_statement_execution():
     observer = FooObserver()
     with mock.patch.object(observer, "_increment_position") as incpos_mock:
-        observer.after_statement_execution(MagicMock(), MagicMock())
+        observer.after_statement_execution(
+            MagicMock(test_case=MagicMock(spec=dtc.DefaultTestCase)), MagicMock()
+        )
         incpos_mock.assert_called_once()
 
 
@@ -55,6 +58,7 @@ def test_after_statement_execution_ctor_statement(cs_mock):
         exec_ctx = ExecutionContext()
         exec_ctx._local_namespace = {"foo": "bar"}
         observer.after_statement_execution(
-            ps.ConstructorStatement(MagicMock(), MagicMock()), exec_ctx
+            ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
+            exec_ctx,
         )
         incpos_mock.assert_called_once()

@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Observer collecting stating of various fields during the execution."""
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.testcase.defaulttestcase as dtc
@@ -52,7 +52,8 @@ class CollectionObserver(eo.ExecutionObserver):
             return
 
         # Get the test case id of the current statement
-        test_case_id: int = cast(dtc.DefaultTestCase, statement.test_case).id
+        assert isinstance(statement.test_case, dtc.DefaultTestCase)
+        test_case_id: int = statement.test_case.id
 
         # If the statement was a constructor call, collect the returned object
         if isinstance(statement, ps.ConstructorStatement):
