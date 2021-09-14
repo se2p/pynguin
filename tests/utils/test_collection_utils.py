@@ -25,6 +25,6 @@ def test_filter_dictlist_by_dict():
 
 def test_dict_without_keys():
     test_dict = {"foo": "bar", "bar": "foo", "test": 123}
-    filter_keys = ["test", "bar"]
+    filter_keys = {"test", "bar"}
     result = cu.dict_without_keys(test_dict, filter_keys)
     assert result == {"foo": "bar"}

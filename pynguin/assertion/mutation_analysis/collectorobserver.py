@@ -67,7 +67,7 @@ class CollectionObserver(eo.ExecutionObserver):
             return_value = list(exec_ctx.local_namespace.values())[-1]
 
             # Get all loaded modules without the built in ones
-            modules = cu.dict_without_keys(exec_ctx.global_namespace, ["__builtins__"])
+            modules = cu.dict_without_keys(exec_ctx.global_namespace, {"__builtins__"})
 
             # Collect the states
             cs.CollectorStorage.collect_states(

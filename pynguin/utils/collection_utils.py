@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Utility methods for collections."""
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 
 
 def filter_dictlist_by_dict(
@@ -33,9 +33,7 @@ def filter_dictlist_by_dict(
     ]
 
 
-def dict_without_keys(
-    dict_to_change: Dict[Any, Any], keys: List[Any]
-) -> Dict[Any, Any]:
+def dict_without_keys(dict_to_change: Dict[Any, Any], keys: Set[Any]) -> Dict[Any, Any]:
     """
     Removes the given keys from the given dict.
 

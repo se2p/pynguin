@@ -94,7 +94,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             # Get all stored object fragments
             remainders = cu.dict_without_keys(
                 ref_dataframe,
-                [cs.KEY_TEST_ID, cs.KEY_POSITION, cs.KEY_RETURN_VALUE, cs.KEY_GLOBALS],
+                {cs.KEY_TEST_ID, cs.KEY_POSITION, cs.KEY_RETURN_VALUE, cs.KEY_GLOBALS},
             )
 
             self._last_obj_assertion = None
