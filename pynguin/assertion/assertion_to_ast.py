@@ -252,6 +252,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             self._create_collection(value)
             val = au.create_ast_name(self._get_current_comparison_object())
             self._pop_current_comparison_object()
+        elif tu.is_none_type(type(value)):
+            val = cast(Name, au.create_ast_constant(None))
         elif not tu.is_primitive_type(type(value)):
             self._create_comparison_object(value)
             val = au.create_ast_name(self._get_current_comparison_object())
