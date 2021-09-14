@@ -15,11 +15,14 @@ class CalculatorResult:
         return f"{self.last_op.upper()}: {self.last_result}"
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, CalculatorResult):
-            return (
-                self.last_op == other.last_op and self.last_result == other.last_result
-            )
-        return False
+        return (
+            isinstance(other, CalculatorResult)
+            and self.last_op == other.last_op
+            and self.last_result == other.last_result
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.last_op, self.last_result))
 
 
 class Calculator:

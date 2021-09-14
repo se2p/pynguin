@@ -37,6 +37,10 @@ class Calculator:
         return ret
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Calculator):
-            return self.amount_calculation == other.amount_calculation
-        return False
+        return (
+            isinstance(other, Calculator)
+            and self.amount_calculation == other.amount_calculation
+        )
+
+    def __hash__(self) -> int:
+        return hash(self.amount_calculation)
