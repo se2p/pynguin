@@ -40,9 +40,9 @@ class AbstractTestCaseFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
 
     @property
     def code_object_id(self) -> int:
-        """The code object id, where the target of fitness function is located.
+        """The code object id, where the target of the fitness function is located.
 
         Returns:
-            The code object id where the target of fitness function is located.
+            The code object id where the target of the fitness function is located.
         """
         return self._code_object_id
