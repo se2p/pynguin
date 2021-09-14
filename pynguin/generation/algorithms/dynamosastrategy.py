@@ -143,7 +143,7 @@ class _GoalsManager:
         for fit in fitness_functions:
             assert isinstance(fit, bg.BranchCoverageTestFitness)
             branch_fitness_functions.add(fit)
-        self._graph = BranchFitnessGraph(branch_fitness_functions, known_data)
+        self._graph = _BranchFitnessGraph(branch_fitness_functions, known_data)
         self._current_goals: OrderedSet[
             bg.BranchCoverageTestFitness
         ] = self._graph.root_branches
@@ -185,7 +185,7 @@ class _GoalsManager:
             self._archive.add_goals(self._current_goals)
 
 
-class BranchFitnessGraph:
+class _BranchFitnessGraph:
     """Best effort re-implementation of EvoSuite's BranchFitnessGraph.
 
     Arranges the fitness functions for all branches according to their control
