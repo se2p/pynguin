@@ -7,7 +7,7 @@
 """Provides utility functions for fitness calculations."""
 
 import math
-from typing import Dict, List
+from typing import Dict, List, Optional, Set
 
 from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
@@ -51,30 +51,52 @@ def analyze_results(results: List[ExecutionResult]) -> ExecutionTrace:
 
 
 def compute_branch_distance_fitness(
-    trace: ExecutionTrace, known_data: KnownData
+    trace: ExecutionTrace,
+    known_data: KnownData,
+    exclude_code: Optional[Set[int]] = None,
+    exclude_true: Optional[Set[int]] = None,
+    exclude_false: Optional[Set[int]] = None,
 ) -> float:
     """Computes fitness based on covered branches and branch distances.
 
     Args:
         trace: The execution trace
         known_data: All known data
+        exclude_code: Ids of the code objects that should not be considered.
+        exclude_true: Ids of predicates whose True branch should not be considered.
+        exclude_false: Ids of predicates whose False branch should not be considered.
 
     Returns:
         The computed fitness value
     """
-    # Check if all code objects were executed.
+    # Handle None. Cannot use empty set as default, because of mutable default args.
+    exclude_code = set() if exclude_code is None else exclude_code
+
+    # Check if all branch-less code objects were executed.
     code_objects_missing: float = len(
-        known_data.branch_less_code_objects.difference(trace.executed_code_objects)
+        known_data.branch_less_code_objects.difference(
+            trace.executed_code_objects, exclude_code
+        )
     )
     assert (
         code_objects_missing >= 0.0
     ), "Amount of non covered code objects cannot be negative"
 
+    # Handle None for branches.
+    exclude_true = set() if exclude_true is None else exclude_true
+    exclude_false = set() if exclude_false is None else exclude_false
+
     # Check if all predicates are covered
     predicate_fitness: float = 0.0
     for predicate in known_data.existing_predicates:
-        predicate_fitness += _predicate_fitness(predicate, trace.true_distances, trace)
-        predicate_fitness += _predicate_fitness(predicate, trace.false_distances, trace)
+        if predicate not in exclude_true:
+            predicate_fitness += _predicate_fitness(
+                predicate, trace.true_distances, trace
+            )
+        if predicate not in exclude_false:
+            predicate_fitness += _predicate_fitness(
+                predicate, trace.false_distances, trace
+            )
     assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
     total_fitness = code_objects_missing + predicate_fitness
     return total_fitness

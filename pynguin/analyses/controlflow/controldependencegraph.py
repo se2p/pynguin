@@ -11,6 +11,8 @@ import sys
 from dataclasses import dataclass
 from typing import Set
 
+from ordered_set import OrderedSet
+
 import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
 from pynguin.analyses.controlflow import cfg
@@ -45,8 +47,15 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         for source in nodes:
             for target in augmented_cfg.get_successors(source):
                 if source not in post_dominator_tree.get_transitive_successors(target):
+                    # Store branching data from edge, i.e., which outcome of the
+                    # branching node leads to this node.
+                    data = frozenset(
+                        augmented_cfg.graph.get_edge_data(source, target).items()
+                    )
                     edges.add(
-                        ControlDependenceGraph._Edge(source=source, target=target)
+                        ControlDependenceGraph._Edge(
+                            source=source, target=target, data=data
+                        )
                     )
 
         # Mark nodes in the PDT and construct edges for them.
@@ -56,7 +65,9 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             )
             current = edge.target
             while current != least_common_ancestor:
-                cdg.add_edge(edge.source, current)
+                # TODO(fk) can the branching info be actually used here?
+                # Seems ok?
+                cdg.add_edge(edge.source, current, **dict(edge.data))
                 predecessors = post_dominator_tree.get_predecessors(current)
                 assert len(predecessors) == 1, (
                     "Cannot have more than one predecessor in a tree, this violates a "
@@ -65,9 +76,44 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
                 current = predecessors.pop()
 
             if least_common_ancestor is edge.source:
-                cdg.add_edge(edge.source, least_common_ancestor)
+                cdg.add_edge(edge.source, least_common_ancestor, **dict(edge.data))
 
         return pg.filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
+
+    def get_control_dependencies(
+        self, node: pg.ProgramGraphNode
+    ) -> OrderedSet[ControlDependency]:
+        """Get the immediate control dependencies of this node.
+
+        Args:
+            node: the node whose dependencies should be retrieved.
+
+        Returns:
+            The direct control dependencies of the given node, if any.
+        """
+        assert node is not None
+        assert node in self.graph.nodes
+        return self._retrieve_control_dependencies(node, OrderedSet())
+
+    def _retrieve_control_dependencies(
+        self, node: pg.ProgramGraphNode, handled: OrderedSet
+    ) -> OrderedSet[ControlDependency]:
+        result = OrderedSet()
+        for pred in self._graph.predecessors(node):
+            if (pred, node) in handled:
+                continue
+            handled.add((pred, node))
+
+            if (
+                branch_value := self._graph.get_edge_data(pred, node).get(
+                    pg.EDGE_DATA_BRANCH_VALUE, None
+                )
+            ) is not None:
+                assert pred.predicate_id is not None
+                result.add(ControlDependency(pred.predicate_id, branch_value))
+            else:
+                result.update(self._retrieve_control_dependencies(pred, handled))
+        return result
 
     @staticmethod
     def _create_augmented_graph(graph: cfg.CFG) -> cfg.CFG:
@@ -82,7 +128,16 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             augmented_graph.add_edge(start_node, exit_node)
         return augmented_graph
 
-    @dataclass(eq=True, frozen=True)
+    @dataclass(frozen=True)
     class _Edge:
         source: pg.ProgramGraphNode
         target: pg.ProgramGraphNode
+        data: frozenset
+
+
+@dataclass(frozen=True)
+class ControlDependency:
+    """Models a control dependency."""
+
+    predicate_id: int
+    branch_value: bool

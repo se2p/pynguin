@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunction as ff
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
@@ -51,14 +50,3 @@ def test_property_ranking_function(mosa_strategy):
     ranking_function = MagicMock(RankingFunction)
     mosa_strategy.ranking_function = ranking_function
     assert mosa_strategy.ranking_function == ranking_function
-
-
-def test_property_fitness_functions(mosa_strategy):
-    fitness_1 = MagicMock(ff.FitnessFunction)
-    fitness_2 = MagicMock(ff.FitnessFunction)
-    mosa_strategy.add_fitness_function(fitness_1)
-    mosa_strategy.add_fitness_functions([fitness_2])
-    assert mosa_strategy.fitness_functions == [fitness_1, fitness_2]
-
-    assert mosa_strategy.remove_fitness_function(fitness_2)
-    assert not mosa_strategy.remove_fitness_function(MagicMock(ff.FitnessFunction))

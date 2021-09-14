@@ -18,7 +18,7 @@ import pynguin.testcase.defaulttestcase as dtc
 from pynguin.generation.generationalgorithmfactory import (
     TestSuiteGenerationAlgorithmFactory,
 )
-from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testcluster import FullTestCluster, TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.testfactory import TestFactory
 
@@ -40,7 +40,7 @@ def seed_modules_path():
 @pytest.fixture()
 def clear_ips_instance():
     ips.initialpopulationseeding._testcases = []
-    ips.initialpopulationseeding.test_cluster = TestCluster()
+    ips.initialpopulationseeding.test_cluster = FullTestCluster()
 
 
 @pytest.fixture()
@@ -240,13 +240,14 @@ def test_algorithm_generation_factory(
     mock_class, dummy_test_cluster, enabled, fac_type
 ):
     config.configuration.seeding.initial_population_seeding = enabled
+    config.configuration.algorithm = config.Algorithm.MIO
     tsfactory = TestSuiteGenerationAlgorithmFactory(
         mock_class.return_value, dummy_test_cluster
     )
-    chromosome_factory = tsfactory._get_chromosome_factory()
-    test_case_factory = (
-        chromosome_factory.test_case_chromosome_factory._test_case_factory
+    chromosome_factory = tsfactory._get_chromosome_factory(
+        MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
     )
+    test_case_factory = chromosome_factory._test_case_factory
     assert type(test_case_factory) == fac_type
 
 

@@ -10,18 +10,16 @@ from abc import ABCMeta
 from typing import List, cast
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
-from pynguin.generation.algorithms.archive import Archive
+from pynguin.generation.algorithms.archive import CoverageArchive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
 class AbstractMOSATestStrategy(
-    TestGenerationStrategy, WrapTestSuiteMixin, metaclass=ABCMeta
+    TestGenerationStrategy[CoverageArchive], metaclass=ABCMeta
 ):
     """An abstract base implementation for MOSA and its derivatives."""
 
@@ -29,7 +27,6 @@ class AbstractMOSATestStrategy(
 
     def __init__(self) -> None:
         super().__init__()
-        self._archive: Archive[ff.FitnessFunction, tcc.TestCaseChromosome]
         self._population: List[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
 
@@ -71,8 +68,6 @@ class AbstractMOSATestStrategy(
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
-                for fitness_function in self._fitness_functions:
-                    tch.add_fitness_function(fitness_function)
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
@@ -118,8 +113,6 @@ class AbstractMOSATestStrategy(
         population: List[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._fitness_functions:
-                chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
 

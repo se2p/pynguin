@@ -5,9 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test suite chromosomes."""
+from ordered_set import OrderedSet
+
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.testcasechromosomefactory as tccf
+import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
 
@@ -17,7 +19,11 @@ class TestSuiteChromosomeFactory(
 ):  # pylint:disable=too-few-public-methods.
     """A factory that provides new test suite chromosomes of random length."""
 
-    def __init__(self, test_case_chromosome_factory: tccf.TestCaseChromosomeFactory):
+    def __init__(
+        self,
+        test_case_chromosome_factory: cf.ChromosomeFactory,
+        fitness_functions: OrderedSet[atsff.AbstractTestSuiteFitnessFunction],
+    ):
         """Instantiates a new factory
 
         Args:
@@ -25,11 +31,14 @@ class TestSuiteChromosomeFactory(
                                           which provides the test case chromosomes that
                                           will be part of a newly generated test suite
                                           chromosome
+            fitness_functions: The fitness functions that will be added to every
+                               newly generated chromosome.
         """
-        self.test_case_chromosome_factory = test_case_chromosome_factory
+        self._test_case_chromosome_factory = test_case_chromosome_factory
+        self._fitness_functions = fitness_functions
 
     def get_chromosome(self) -> tsc.TestSuiteChromosome:
-        chromosome = tsc.TestSuiteChromosome(self.test_case_chromosome_factory)
+        chromosome = tsc.TestSuiteChromosome(self._test_case_chromosome_factory)
         num_tests = randomness.next_int(
             config.configuration.search_algorithm.min_initial_tests,
             config.configuration.search_algorithm.max_initial_tests + 1,
@@ -37,7 +46,8 @@ class TestSuiteChromosomeFactory(
 
         for _ in range(num_tests):
             chromosome.add_test_case_chromosome(
-                self.test_case_chromosome_factory.get_chromosome()
+                self._test_case_chromosome_factory.get_chromosome()
             )
-
+        for func in self._fitness_functions:
+            chromosome.add_fitness_function(func)
         return chromosome

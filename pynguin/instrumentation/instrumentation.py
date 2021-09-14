@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides classes for various bytecode instrumentations."""
+import json
 import logging
 from abc import abstractmethod
 from types import CodeType
@@ -21,6 +22,8 @@ from pynguin.testcase.execution.executiontracer import (
     ExecutionTracer,
     PredicateMetaData,
 )
+
+CODE_OBJECT_ID_KEY = "code_object_id"
 
 
 # pylint:disable=too-few-public-methods
@@ -156,6 +159,10 @@ class BranchCoverageInstrumentation(Instrumentation):
                 cdg=cdg,
             )
         )
+        # Overwrite/Set docstring to carry tagging information, i.e.,
+        # the code object id. Convert to JSON string because I'm not sure where this
+        # value might be used in CPython.
+        cfg.bytecode_cfg().docstring = json.dumps({CODE_OBJECT_ID_KEY: code_object_id})
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
@@ -214,7 +221,11 @@ class BranchCoverageInstrumentation(Instrumentation):
                     predicate_id = self._instrument_for_loop(cfg, node, code_object_id)
                 elif maybe_jump.is_cond_jump():
                     predicate_id = self._instrument_cond_jump(
-                        code_object_id, maybe_compare, maybe_jump, node.basic_block
+                        code_object_id,
+                        maybe_compare,
+                        maybe_jump,
+                        node.basic_block,
+                        node,
                     )
         return predicate_id
 
@@ -224,7 +235,9 @@ class BranchCoverageInstrumentation(Instrumentation):
         maybe_compare: Optional[Instr],
         jump: Instr,
         block: BasicBlock,
+        node: ProgramGraphNode,
     ) -> int:
+        # pylint:disable=too-many-arguments
         """Instrument a conditional jump.
 
         If it is based on a prior comparison, we track
@@ -236,6 +249,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             maybe_compare: The comparison operation, if any.
             jump: The jump operation.
             block: The containing basic block.
+            node: The associated node from the CFG.
 
         Returns:
             The id that was assigned to the predicate.
@@ -252,19 +266,19 @@ class BranchCoverageInstrumentation(Instrumentation):
             )
         ):
             return self._instrument_compare_based_conditional_jump(
-                block, code_object_id
+                block, code_object_id, node
             )
         # Up to 3.9, there was COMPARE_OP EXC_MATCH which was handled below
         # Beginning with 3.9, there is a combined compare+jump op, which is handled
         # here.
         if jump.name == "JUMP_IF_NOT_EXC_MATCH":
             return self._instrument_exception_based_conditional_jump(
-                block, code_object_id
+                block, code_object_id, node
             )
-        return self._instrument_bool_based_conditional_jump(block, code_object_id)
+        return self._instrument_bool_based_conditional_jump(block, code_object_id, node)
 
     def _instrument_bool_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int
+        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
     ) -> int:
         """Instrument boolean-based conditional jumps.
 
@@ -274,13 +288,14 @@ class BranchCoverageInstrumentation(Instrumentation):
         Args:
             block: The containing basic block.
             code_object_id: The id of the containing Code Object.
+            node: The associated node from the CFG.
 
         Returns:
             The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
@@ -302,7 +317,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int
+        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
     ) -> int:
         """Instrument compare-based conditional jumps.
 
@@ -312,6 +327,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         Args:
             block: The containing basic block.
             code_object_id: The id of the containing Code Object.
+            node: The associated node from the CFG.
 
         Raises:
             RuntimeError: If an unknown operation is encountered.
@@ -321,7 +337,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         """
         lineno = block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         operation = block[self._COMPARE_OP_POS]
 
@@ -356,7 +372,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         return predicate_id
 
     def _instrument_exception_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int
+        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
     ) -> int:
         """Instrument exception-based conditional jumps.
 
@@ -366,13 +382,14 @@ class BranchCoverageInstrumentation(Instrumentation):
         Args:
             block: The containing basic block.
             code_object_id: The id of the containing Code Object.
+            node: The associated node from the CFG.
 
         Returns:
             The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
@@ -465,7 +482,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         assert for_instr.name == "FOR_ITER"
         lineno = for_instr.lineno
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id)
+            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         for_loop_exit = for_instr.arg
         for_loop_body = node.basic_block.next_block

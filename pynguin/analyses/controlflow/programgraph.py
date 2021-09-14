@@ -12,6 +12,9 @@ from bytecode import UNSET, BasicBlock, Compare
 from networkx import lowest_common_ancestor
 from networkx.drawing.nx_pydot import to_pydot
 
+# Key for storing branch value in networkx edge.
+EDGE_DATA_BRANCH_VALUE = "branch_value"
+
 
 class ProgramGraphNode:
     """A base class for a node of the program graph."""

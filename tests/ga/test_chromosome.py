@@ -136,4 +136,60 @@ def test_fitness_values_two_fitness_functions(chromosome, fitness_function):
     fitness_func2.is_maximisation_function.return_value = False
     chromosome.add_fitness_function(fitness_func2)
     chromosome._update_fitness_values(fitness_func2, ff.FitnessValues(0.23, 0.5))
-    assert len(chromosome.fitness_values) == 2
+    assert len(chromosome._fitness_values) == 2
+
+
+def test_invalidate_fitness_cache(chromosome):
+    fitness = MagicMock()
+    fitness.is_maximisation_function.return_value = False
+    chromosome.add_fitness_function(fitness)
+    chromosome._update_fitness_values(fitness, MagicMock())
+    assert chromosome._fitness_values != {}
+    chromosome.invalidate_fitness_values()
+    assert chromosome._fitness_values == {}
+
+
+def test_fitness_cache_selective(chromosome):
+    fitness1 = MagicMock()
+    fitness1.is_maximisation_function.return_value = False
+    chromosome.add_fitness_function(fitness1)
+    fitness2 = MagicMock()
+    fitness2.is_maximisation_function.return_value = False
+    fitness2.compute_fitness_values.return_value = ff.FitnessValues(0, 0.9)
+    chromosome.add_fitness_function(fitness2)
+    assert chromosome.get_fitness_for(fitness2) == 0.0
+    assert set(chromosome._fitness_values.keys()) == {fitness2}
+
+
+def test_coverage_cache_selective(chromosome):
+    fitness1 = MagicMock()
+    fitness1.is_maximisation_function.return_value = False
+    fitness1.compute_fitness_values.return_value = ff.FitnessValues(0, 0.9)
+    chromosome.add_fitness_function(fitness1)
+    fitness2 = MagicMock()
+    fitness2.is_maximisation_function.return_value = False
+    chromosome.add_fitness_function(fitness2)
+    assert chromosome.get_coverage_for(fitness1) == 0.9
+    assert set(chromosome._fitness_values.keys()) == {fitness1}
+
+
+def test_cache_when_changed(chromosome):
+    fitness1 = MagicMock()
+    fitness1.is_maximisation_function.return_value = False
+    fitness1.compute_fitness_values.side_effect = [
+        ff.FitnessValues(0, 0.9),
+        ff.FitnessValues(0.1, 0.8),
+    ]
+    chromosome.add_fitness_function(fitness1)
+    fitness2 = MagicMock()
+    fitness2.is_maximisation_function.return_value = False
+    fitness2.compute_fitness_values.side_effect = [
+        ff.FitnessValues(0, 0.9),
+        ff.FitnessValues(0.1, 0.8),
+    ]
+    chromosome.add_fitness_function(fitness2)
+    assert chromosome.get_fitness_for(fitness1) == 0.0
+    assert chromosome.get_fitness_for(fitness2) == 0.0
+    chromosome.set_changed(True)
+    assert chromosome.get_fitness_for(fitness1) == 0.1
+    assert chromosome.get_fitness_for(fitness2) == 0.1

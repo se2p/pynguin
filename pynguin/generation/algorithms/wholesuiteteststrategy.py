@@ -6,17 +6,23 @@
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
 import logging
-from typing import List
+from typing import List, Set, cast
 
 import pynguin.configuration as config
+import pynguin.coverage.branchgoals as bg
+import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.generation.algorithms.archive as arch
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
+# TODO(fk) instead of switching on 'use_archive' on two locations, we could
+# also create another subclass?
+
 
 # pylint: disable=too-few-public-methods
-class WholeSuiteTestStrategy(TestGenerationStrategy):
+class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 
     _logger = logging.getLogger(__name__)
@@ -30,15 +36,16 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._population = self._get_random_population()
+        self._update_archive()
         self._sort_population()
-        self.before_first_search_iteration(self._get_best_individual())
-        while (
-            self.resources_left() and self._get_best_individual().get_fitness() != 0.0
-        ):
+        suite = self._get_solution()
+        self.before_first_search_iteration(suite)
+        while self.resources_left() and suite.get_fitness() != 0.0:
             self.evolve()
-            self.after_search_iteration(self._get_best_individual())
+            suite = self._get_solution()
+            self.after_search_iteration(suite)
         self.after_search_finish()
-        return self._get_best_individual()
+        return suite
 
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
@@ -84,16 +91,52 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
                 new_generation.append(parent2)
 
         self._population = new_generation
+        self._update_archive()
         self._sort_population()
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
         population = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
-            for fitness_function in self._fitness_functions:
-                chromosome.add_fitness_function(fitness_function)
             population.append(chromosome)
         return population
+
+    def _update_archive(self) -> None:
+        """Store covering test cases in archive."""
+        if not config.configuration.search_algorithm.use_archive:
+            return
+
+        before = len(self._archive.uncovered_goals)
+        for suite in self._population:
+            self._archive.update(suite.test_case_chromosomes)
+        # New goals were covered
+        if before != len(self._archive.uncovered_goals):
+            exclude_code: Set[int] = set()
+            exclude_true: Set[int] = set()
+            exclude_false: Set[int] = set()
+
+            # TODO(fk) Move this logic to BranchCoverageTestFitness?
+            # i.e. combine with Archive.add_on_target_covered()
+            for covered in self._archive.covered_goals:
+                assert isinstance(covered, bg.BranchCoverageTestFitness)
+                goal = covered.goal
+                if goal.is_branchless_code_object:
+                    exclude_code.add(goal.code_object_id)
+                elif goal.is_branch:
+                    branch_goal = cast(bg.BranchGoal, goal)
+                    if branch_goal.value:
+                        exclude_true.add(branch_goal.predicate_id)
+                    else:
+                        exclude_false.add(branch_goal.predicate_id)
+                else:
+                    raise ValueError("Unknown coverage goal")
+
+            for func in self.test_suite_fitness_functions:
+                assert isinstance(func, bdtsf.BranchDistanceTestSuiteFitnessFunction)
+                func.restrict(exclude_code, exclude_true, exclude_false)
+            # Force re-computation of fitness.
+            for chromosome in self._population:
+                chromosome.invalidate_fitness_values()
 
     def _sort_population(self) -> None:
         """Sort the population by fitness."""
@@ -106,6 +149,14 @@ class WholeSuiteTestStrategy(TestGenerationStrategy):
             The best chromosome
         """
         return self._population[0]
+
+    def _get_solution(self) -> tsc.TestSuiteChromosome:
+        """Get the solution."""
+        if config.configuration.search_algorithm.use_archive:
+            # If we use an archive, use the best found solutions.
+            return self.create_test_suite(self._archive.solutions)
+        # If we don't use an archive, use the current best individual.
+        return self._get_best_individual()
 
     @staticmethod
     def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:

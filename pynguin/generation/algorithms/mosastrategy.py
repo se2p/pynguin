@@ -18,7 +18,6 @@ from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
-from pynguin.generation.algorithms.archive import Archive
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -30,8 +29,7 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self._archive = Archive(OrderedSet(self._fitness_functions))
-        self._number_of_goals = len(self._fitness_functions)
+        self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.Goals, self._number_of_goals
         )

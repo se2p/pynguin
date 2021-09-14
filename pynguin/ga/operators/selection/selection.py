@@ -36,7 +36,7 @@ class SelectionFunction(Generic[T]):
 
         Args:
             population: A list of chromosomes, the population
-            number: The index to select
+            number: The number of elements to select
 
         Returns:
             A list of chromosomes that was selected

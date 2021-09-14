@@ -15,6 +15,10 @@ from pynguin.testcase.execution.executionresult import ExecutionResult
 class AbstractTestCaseFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
     """Abstract fitness function for test case chromosomes."""
 
+    def __init__(self, executor, code_object_id: int):
+        super().__init__(executor)
+        self._code_object_id = code_object_id
+
     def _run_test_case_chromosome(self, individual) -> ExecutionResult:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
@@ -33,3 +37,12 @@ class AbstractTestCaseFitnessFunction(ff.FitnessFunction, metaclass=ABCMeta):
         result = individual.get_last_execution_result()
         assert result is not None
         return result
+
+    @property
+    def code_object_id(self) -> int:
+        """The code object id, where the target of the fitness function is located.
+
+        Returns:
+            The code object id where the target of the fitness function is located.
+        """
+        return self._code_object_id

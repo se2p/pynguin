@@ -16,7 +16,7 @@ from typing import List, Set, Type
 from typing_inspect import get_args, is_union_type
 
 import pynguin.configuration as config
-from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testcluster import FullTestCluster, TestCluster
 from pynguin.typeinference import typeinference
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 from pynguin.typeinference.strategy import TypeInferenceStrategy
@@ -61,7 +61,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._module_name = modules_name
         self._analyzed_classes: Set[Type] = set()
         self._dependencies_to_solve: Set[DependencyPair] = set()
-        self._test_cluster: TestCluster = TestCluster()
+        self._test_cluster: FullTestCluster = FullTestCluster()
         self._inference = typeinference.TypeInference(
             strategies=self._initialise_type_inference_strategies()
         )

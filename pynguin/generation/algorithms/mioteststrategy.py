@@ -8,15 +8,13 @@
 import logging
 from dataclasses import dataclass
 from math import ceil
-from typing import List, Optional, cast
+from typing import Optional
 
 import pynguin.configuration as config
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.generation.algorithms.mioarchive as mioa
+import pynguin.generation.algorithms.archive as arch
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.generation.algorithms.wraptestsuitemixin import WrapTestSuiteMixin
 from pynguin.utils import randomness
 
 
@@ -44,7 +42,7 @@ class Parameters:
 
 
 # pylint: disable=too-few-public-methods
-class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
+class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
     """Implements MIO."""
 
     _logger = logging.getLogger(__name__)
@@ -52,7 +50,6 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
     def __init__(self) -> None:
         super().__init__()
         self._solution: Optional[tcc.TestCaseChromosome] = None
-        self._archive: mioa.MIOArchive
         self._parameters = Parameters()
         self._current_mutations = 0
         self._focused = False
@@ -61,24 +58,20 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self._archive = mioa.MIOArchive(
-            cast(List[atcff.AbstractTestCaseFitnessFunction], self.fitness_functions),
-            self._parameters.n,
-        )
         self.before_first_search_iteration(
-            self.create_test_suite(self._archive.get_solutions())
+            self.create_test_suite(self._archive.solutions)
         )
         while (
             self.resources_left()
-            and len(self.fitness_functions) - self._archive.num_covered_targets != 0
+            and len(self._test_case_fitness_functions)
+            - self._archive.num_covered_targets
+            != 0
         ):
             self.evolve()
             self._update_parameters()
-            self.after_search_iteration(
-                self.create_test_suite(self._archive.get_solutions())
-            )
+            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
         self.after_search_finish()
-        return self.create_test_suite(self._archive.get_solutions())
+        return self.create_test_suite(self._archive.solutions)
 
     # pylint:disable=line-too-long
     def _update_parameters(self):
@@ -149,21 +142,15 @@ class MIOTestStrategy(TestGenerationStrategy, WrapTestSuiteMixin):
             self._current_mutations += 1
         elif randomness.next_float() < self._parameters.Pr:
             offspring = self.chromosome_factory.get_chromosome()
-            self._add_fitness_functions(offspring)
             self._current_mutations = 1
         else:
             maybe_offspring = self._archive.get_solution()
             if maybe_offspring is None:
                 # Nothing in archive, so sample new one.
                 offspring = self.chromosome_factory.get_chromosome()
-                self._add_fitness_functions(offspring)
             else:
                 offspring = maybe_offspring
             offspring.mutate()
             self._current_mutations = 1
-        if self._archive.update_archive(offspring):
+        if self._archive.update([offspring]):
             self._solution = offspring
-
-    def _add_fitness_functions(self, chromosome: tcc.TestCaseChromosome) -> None:
-        for fitness_function in self._fitness_functions:
-            chromosome.add_fitness_function(fitness_function)
