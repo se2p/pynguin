@@ -47,7 +47,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         for source in nodes:
             for target in augmented_cfg.get_successors(source):
                 if source not in post_dominator_tree.get_transitive_successors(target):
-                    # Store branching data from edge, i.e., which outcome of the the
+                    # Store branching data from edge, i.e., which outcome of the
                     # branching node leads to this node.
                     data = frozenset(
                         augmented_cfg.graph.get_edge_data(source, target).items()
