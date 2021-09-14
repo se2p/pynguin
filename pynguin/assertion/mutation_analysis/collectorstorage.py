@@ -7,7 +7,7 @@
 """Storage for collected data, which was collected during a testcase execution."""
 import copy
 from types import ModuleType
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pynguin.utils.collection_utils as cu
 
@@ -70,8 +70,8 @@ class CollectorStorage:
     def collect_states(
         test_case_id: int = 0,
         position: int = 0,
-        objects: List[object] = None,
-        modules: Dict[str, Any] = None,
+        objects: Optional[List[Any]] = None,
+        modules: Optional[Dict[str, Any]] = None,
         return_value=None,
     ) -> None:
         """Collects the states of all fields. These include fields at global level as
