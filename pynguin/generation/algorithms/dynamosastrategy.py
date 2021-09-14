@@ -202,7 +202,14 @@ class _BranchFitnessGraph:
         # Branch less code objects and branches that are not control dependent on other
         # branches.
         self._root_branches = OrderedSet()
+        self._build_graph(fitness_functions, known_data)
 
+    def _build_graph(
+        self,
+        fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
+        known_data: KnownData,
+    ):
+        """Construct the actual graph from the given fitness functions."""
         for fitness in fitness_functions:
             self._graph.add_node(fitness)
 
