@@ -209,7 +209,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         test_cases: List[tc.TestCase], test_case_id: int
     ) -> Optional[tc.TestCase]:
         for test_case in test_cases:
-            if cast(dtc.DefaultTestCase, test_case).id == test_case_id:
+            if (
+                isinstance(test_case, dtc.DefaultTestCase)
+                and test_case.id == test_case_id
+            ):
                 return test_case
         return None
 
