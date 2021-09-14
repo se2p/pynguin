@@ -83,7 +83,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
             A stopping condition
         """
         stopping_condition = config.configuration.stopping.stopping_condition
-        self._logger.info("Use stopping condition: %s", stopping_condition)
+        self._logger.info("Using stopping condition: %s", stopping_condition)
         if stopping_condition in self._stopping_conditions:
             return self._stopping_conditions[stopping_condition]()
         self._logger.warning("Unknown stopping condition: %s", stopping_condition)
@@ -223,7 +223,7 @@ class TestSuiteGenerationAlgorithmFactory(
         if config.configuration.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.configuration.algorithm)
             assert strategy, "Strategy cannot be defined as None"
-            cls._logger.info("Use strategy: %s", config.configuration.algorithm)
+            cls._logger.info("Using strategy: %s", config.configuration.algorithm)
             return strategy()
         raise ConfigurationException("No suitable generation strategy found.")
 
@@ -243,7 +243,7 @@ class TestSuiteGenerationAlgorithmFactory(
             )
             assert strategy, "Selection function cannot be defined as None"
             cls._logger.info(
-                "Use selection function: %s",
+                "Using selection function: %s",
                 config.configuration.search_algorithm.selection,
             )
             return strategy()
@@ -255,19 +255,19 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A crossover function
         """
-        self._logger.info("Use crossover function: SinglePointRelativeCrossOver")
+        self._logger.info("Using crossover function: SinglePointRelativeCrossOver")
         return SinglePointRelativeCrossOver()
 
     def _get_archive(self, strategy: TestGenerationStrategy) -> arch.Archive:
         if config.configuration.algorithm == config.Algorithm.MIO:
-            self._logger.info("Use MIOArchive")
+            self._logger.info("Using MIOArchive")
             size = config.configuration.mio.initial_config.number_of_tests_per_target
             return arch.MIOArchive(
                 strategy.test_case_fitness_functions,
                 initial_size=size,
             )
         # Use CoverageArchive as default, even if it the algorithm does not use it.
-        self._logger.info("Use CoverageArchive")
+        self._logger.info("Using CoverageArchive")
         if config.configuration.algorithm == config.Algorithm.DYNAMOSA:
             # DynaMOSA gradually adds its fitness functions, so we initialize
             # with an empty set.
@@ -275,7 +275,7 @@ class TestSuiteGenerationAlgorithmFactory(
         return arch.CoverageArchive(OrderedSet(strategy.test_case_fitness_functions))
 
     def _get_ranking_function(self) -> RankingFunction:
-        self._logger.info("Use ranking function: RankBasedPreferenceSorting")
+        self._logger.info("Using ranking function: RankBasedPreferenceSorting")
         return RankBasedPreferenceSorting()
 
     def _get_test_case_fitness_functions(
