@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from typing import Dict
 
-import pynguin.assertion.assertion as ass
+import pynguin.assertion.variableassertion as va
 import pynguin.testcase.variable.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 
-class PrimitiveAssertion(ass.Assertion):
+class PrimitiveAssertion(va.VariableAssertion):
     """An assertion for primitive values."""
 
     def accept(self, visitor: av.AssertionVisitor) -> None:
@@ -23,6 +23,4 @@ class PrimitiveAssertion(ass.Assertion):
     def clone(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> PrimitiveAssertion:
-        return PrimitiveAssertion(
-            self._source.clone(memo) if self._source else None, self.value
-        )
+        return PrimitiveAssertion(self.source.clone(memo), self.value)

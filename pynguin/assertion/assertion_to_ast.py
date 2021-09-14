@@ -7,7 +7,7 @@
 """Provides an assertion visitor to transform assertions to AST."""
 import array
 import ast
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, List, Set, Tuple, Union, cast
 
 from _ast import Constant, Name
 
@@ -138,14 +138,14 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             )
 
     def _create_constant_assert(
-        self, var: Optional[vr.VariableReference], operator: ast.cmpop, value: Any
+        self, var: vr.VariableReference, operator: ast.cmpop, value: Any
     ) -> ast.Assert:
         left = au.create_var_name(self._variable_names, var, load=True)
         comp = au.create_ast_constant(value)
         return au.create_ast_assert(au.create_ast_compare(left, operator, comp))
 
     def _create_float_delta_assert(
-        self, var: Optional[vr.VariableReference], value: Any
+        self, var: vr.VariableReference, value: Any
     ) -> ast.Assert:
         left = au.create_var_name(self._variable_names, var, load=True)
         comp = self._construct_float_comparator(au.create_ast_constant(value))
