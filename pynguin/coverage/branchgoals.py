@@ -213,15 +213,14 @@ class BranchGoalPool:
         ]
 
     @property
-    def branch_coverage_goals(self) -> List[AbstractBranchCoverageGoal]:
+    def branch_coverage_goals(self) -> OrderedSet[AbstractBranchCoverageGoal]:
         """Provide all goals related to branch coverage.
 
         Returns:
             All goals related to branch coverage.
         """
-        goals: List[AbstractBranchCoverageGoal] = []
-        goals.extend(self.branch_goals)
-        goals.extend(self.branchless_code_object_goals)
+        goals: OrderedSet[AbstractBranchCoverageGoal] = OrderedSet(self.branch_goals)
+        goals.update(self.branchless_code_object_goals)
         return goals
 
     @staticmethod
@@ -239,8 +238,8 @@ class BranchGoalPool:
         for predicate_id, meta in known_data.existing_predicates.items():
             entry: List[BranchGoal] = []
             goal_map[predicate_id] = entry
-            for value in [True, False]:
-                entry.append(BranchGoal(meta.code_object_id, predicate_id, value))
+            entry.append(BranchGoal(meta.code_object_id, predicate_id, True))
+            entry.append(BranchGoal(meta.code_object_id, predicate_id, False))
         return goal_map
 
 
