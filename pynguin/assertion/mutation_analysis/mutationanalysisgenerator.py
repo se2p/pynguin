@@ -9,7 +9,7 @@ import logging
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
-import pynguin.assertion.complexassertion as oa
+import pynguin.assertion.complexassertion as ca
 import pynguin.assertion.fieldassertion as fa
 import pynguin.assertion.mutation_analysis.collectorobserver as mo
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
@@ -42,6 +42,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._executor.add_observer(mo.CollectionObserver())
         self._global_assertions: Set[fa.FieldAssertion] = set()
         self._field_assertions: Set[fa.FieldAssertion] = set()
+        self._last_obj_assertion: Optional[ca.ComplexAssertion] = None
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         test_cases = [chrom.test_case for chrom in chromosome.test_case_chromosomes]
@@ -103,6 +104,8 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             remainders = cu.dict_without_keys(
                 ref_dataframe, [key_id, key_pos, key_retval, key_global]
             )
+
+            self._last_obj_assertion = None
 
             # Iterate over all mutated dataframes and compare
             for dataframe in mutated_dataframes:
@@ -193,14 +196,23 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                         self._global_assertions.add(assertion)
                         statement.add_assertion(assertion)
 
-    @staticmethod
     def _compare_return_value(
-        dataframe: Dict[Any, Any], ref_rv: Any, statement: st.Statement, key_retval: str
+        self,
+        dataframe: Dict[Any, Any],
+        ref_rv: Any,
+        statement: st.Statement,
+        key_retval: str,
     ) -> None:
         retval = dataframe.get(key_retval)
         if retval != ref_rv:
             statement_vr = statement.ret_val
-            assertion = oa.ComplexAssertion(statement_vr, ref_rv)
+            assertion = ca.ComplexAssertion(statement_vr, ref_rv)
+            if (
+                self._last_obj_assertion
+                and self._last_obj_assertion.value is assertion.value
+            ):
+                return
+            self._last_obj_assertion = assertion
             statement.add_assertion(assertion)
 
     @staticmethod
