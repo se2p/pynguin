@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import typing
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 
 from ordered_set import OrderedSet
@@ -31,7 +31,7 @@ if typing.TYPE_CHECKING:  # Break circular dependencies at runtime.
     import pynguin.generation.algorithms.archive as arch
 
 
-class TestCluster:
+class TestCluster(ABC):
     """A test cluster which contains all methods/constructors/functions
     and all required transitive dependencies.
     """

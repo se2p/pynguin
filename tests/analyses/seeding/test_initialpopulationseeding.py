@@ -18,7 +18,7 @@ import pynguin.testcase.defaulttestcase as dtc
 from pynguin.generation.generationalgorithmfactory import (
     TestSuiteGenerationAlgorithmFactory,
 )
-from pynguin.setup.testcluster import TestCluster
+from pynguin.setup.testcluster import FullTestCluster, TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.testfactory import TestFactory
 
@@ -40,7 +40,7 @@ def seed_modules_path():
 @pytest.fixture()
 def clear_ips_instance():
     ips.initialpopulationseeding._testcases = []
-    ips.initialpopulationseeding.test_cluster = TestCluster()
+    ips.initialpopulationseeding.test_cluster = FullTestCluster()
 
 
 @pytest.fixture()
