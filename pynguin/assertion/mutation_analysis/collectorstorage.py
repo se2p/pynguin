@@ -38,16 +38,16 @@ class CollectorStorage:
         Args:
             entry: a dict for a new entry or an entry with more fields.
         """
+        def condition(item):
+            return (
+                item[KEY_TEST_ID] == entry[KEY_TEST_ID]
+                and item[KEY_POSITION] == entry[KEY_POSITION]
+            )
+
         entry_list = CollectorStorage._entries[CollectorStorage._execution_index]
-        index = next(
-            (
-                i
-                for i, d in enumerate(entry_list)
-                if d[KEY_TEST_ID] == entry[KEY_TEST_ID]
-                and d[KEY_POSITION] == entry[KEY_POSITION]
-            ),
-            None,
-        )
+
+        index = next((i for i, d in enumerate(entry_list) if condition(d)), None)
+
         if index is not None:
             new = {
                 **CollectorStorage._entries[CollectorStorage._execution_index][index],
