@@ -172,7 +172,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
         prime = 31
         result = 1
         result = prime * result + self._predicate_id
-        result = prime * result + 1337 if self._value else 2112
+        result = prime * result + int(self._value)
         return result
 
     def __eq__(self, other: Any) -> bool:
