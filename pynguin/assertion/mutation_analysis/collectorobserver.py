@@ -25,7 +25,6 @@ class CollectionObserver(eo.ExecutionObserver):
     pos_incr_step: int = 1
 
     def __init__(self):
-        super().__init__()
         self._position: int = self.pos_default_val
         self._objects: List[object] = []
 
