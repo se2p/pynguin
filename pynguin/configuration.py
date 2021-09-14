@@ -493,7 +493,6 @@ class Configuration:
 # Singleton instance of the configuration.
 configuration = Configuration(
     algorithm=Algorithm.RANDOM,
-    assertion_generation=AssertionGenerator.SIMPLE,
     project_path="",
     module_name="",
     test_case_output=TestCaseOutputConfiguration(output_path=""),
