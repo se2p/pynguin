@@ -320,7 +320,7 @@ class FilteredTestCluster(TestCluster):
             targets_for_acc.remove(target)
             if len(targets_for_acc) == 0:
                 self._accessible_to_targets.pop(acc)
-                self._logger.info(
+                self._logger.debug(
                     "Removed %s from test cluster because all "
                     "targets within it are covered",
                     acc,
