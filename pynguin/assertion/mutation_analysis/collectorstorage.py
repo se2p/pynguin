@@ -106,15 +106,17 @@ class CollectorStorage:
         if modules and len(modules) > 0:
             global_dict = {}
             for module_alias, module in modules.items():
-                global_dict[module_alias] = dict(
-                    filter(condition, vars(module).items())
-                )
+                global_dict[module_alias] = {
+                    k: v for (k, v) in vars(module).items() if condition((k, v))
+                }
             states[KEY_GLOBALS] = global_dict
 
         for index, obj in enumerate(objects):
             # Log all class variables and object attributes
             objdict = {
-                KEY_CLASS_FIELD: dict(filter(condition, vars(obj.__class__).items())),
+                KEY_CLASS_FIELD: {
+                    k: v for (k, v) in vars(obj.__class__).items() if condition((k, v))
+                },
                 KEY_OBJECT_ATTRIBUTE: vars(obj),
             }
 
