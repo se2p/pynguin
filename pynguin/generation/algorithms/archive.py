@@ -7,7 +7,7 @@
 """Provides archives to store found solutions."""
 import logging
 import sys
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional
 
@@ -19,7 +19,7 @@ from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.utils import randomness
 
 
-class Archive:
+class Archive(ABC):
     """Abstract base class for archives that store individuals."""
 
     _logger = logging.getLogger(__name__)
