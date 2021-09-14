@@ -104,7 +104,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             for dataframe in mutated_dataframes:
 
                 # Compare the Return Value
-                self._compare_return_value(dataframe, ref_rv, statement)
+                self._compare_return_value(
+                    dataframe[cs.KEY_RETURN_VALUE], ref_rv, statement
+                )
 
                 # Compare the global fields
                 self._compare_globals(dataframe[cs.KEY_GLOBALS], ref_globals, statement)
@@ -131,9 +133,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     # pylint: disable=too-many-arguments
     def _compare_class_fields(
         self,
-        frag_val: Dict[Any, Any],
+        frag_val: Dict[str, Any],
         pos: int,
-        ref_frag_val: Dict[Any, Any],
+        ref_frag_val: Dict[str, Any],
         statement: st.Statement,
         test_case: tc.TestCase,
     ) -> None:
@@ -153,9 +155,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     # pylint: disable=too-many-arguments
     def _compare_object_attributes(
         self,
-        frag_val: Dict[Any, Any],
+        frag_val: Dict[str, Any],
         pos: int,
-        ref_frag_val: Dict[Any, Any],
+        ref_frag_val: Dict[str, Any],
         statement: st.Statement,
         test_case: tc.TestCase,
     ) -> None:
@@ -170,8 +172,8 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
 
     def _compare_globals(
         self,
-        globals_frame: Dict[Any, Any],
-        globals_frame_ref: Dict[Any, Any],
+        globals_frame: Dict[str, Dict[str, Any]],
+        globals_frame_ref: Dict[str, Dict[str, Any]],
         statement: st.Statement,
     ) -> None:
         for module_alias in globals_frame_ref.keys():
@@ -190,9 +192,8 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                         statement.add_assertion(assertion)
 
     def _compare_return_value(
-        self, dataframe: Dict[Any, Any], ref_rv: Any, statement: st.Statement
+        self, retval, ref_rv: Any, statement: st.Statement
     ) -> None:
-        retval = dataframe.get(cs.KEY_RETURN_VALUE)
         if retval != ref_rv:
             statement_vr = statement.ret_val
             assertion = ca.ComplexAssertion(statement_vr, ref_rv)
