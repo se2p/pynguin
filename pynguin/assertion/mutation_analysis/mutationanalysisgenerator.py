@@ -56,7 +56,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._generate_assertions(test_cases)
 
     def visit_test_case_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
-        pass
+        pass  # nothing to do here
 
     @staticmethod
     def _mutate_module() -> List[Tuple[ModuleType, Any]]:

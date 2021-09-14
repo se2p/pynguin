@@ -30,7 +30,7 @@ class CollectionObserver(eo.ExecutionObserver):
         self._objects: List[object] = []
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:
-        pass
+        pass  # nothing to do here
 
     def after_test_case_execution(
         self, test_case: tc.TestCase, result: res.ExecutionResult
@@ -40,7 +40,7 @@ class CollectionObserver(eo.ExecutionObserver):
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ) -> None:
-        pass
+        pass  # nothing to do here
 
     def after_statement_execution(
         self,
