@@ -11,10 +11,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 import pynguin.assertion.complexassertion as ca
 import pynguin.assertion.fieldassertion as fa
-import pynguin.assertion.mutation_analysis.collectorobserver as mo
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as ce
+import pynguin.assertion.mutation_analysis.statecollectingobserver as sco
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
@@ -41,7 +41,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         # TODO(fk) permanently disable tracer
         self._executor = executor
         # TODO(fk) what to do with existing observers?
-        self._executor.add_observer(mo.CollectionObserver())
+        self._executor.add_observer(sco.StateCollectingObserver())
         self._global_assertions: Set[fa.FieldAssertion] = set()
         self._field_assertions: Set[fa.FieldAssertion] = set()
         self._last_obj_assertion: Optional[ca.ComplexAssertion] = None

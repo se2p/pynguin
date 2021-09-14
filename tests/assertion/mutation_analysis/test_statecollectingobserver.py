@@ -7,8 +7,8 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pynguin.assertion.mutation_analysis.collectorobserver as co
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
+import pynguin.assertion.mutation_analysis.statecollectingobserver as co
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.statement as stmt
@@ -16,7 +16,7 @@ import pynguin.testcase.testcase as tc
 from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
-class FooObserver(co.CollectionObserver):
+class FooObserver(co.StateCollectingObserver):
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ) -> None:

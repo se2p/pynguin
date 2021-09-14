@@ -18,7 +18,7 @@ from pynguin.testcase.execution.executioncontext import ExecutionContext
 from pynguin.testcase.statements import statement as stmt
 
 
-class CollectionObserver(eo.ExecutionObserver):
+class StateCollectingObserver(eo.ExecutionObserver):
     """Observer that collects the states of different fields during execution."""
 
     pos_default_val: int = 0
