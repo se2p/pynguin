@@ -52,7 +52,8 @@ def test_after_statement_execution_exception():
 
 
 @mock.patch.object(cs.CollectorStorage, "collect_states")
-def test_after_statement_execution_ctor_statement(cs_mock):
+@mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
+def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
     observer = FooObserver()
     with mock.patch.object(observer, "_increment_position") as incpos_mock:
         exec_ctx = ExecutionContext()
