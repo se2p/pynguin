@@ -129,7 +129,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
                     else:
                         exclude_false.add(branch_goal.predicate_id)
                 else:
-                    raise NotImplementedError("Unknown coverage goal")
+                    raise ValueError("Unknown coverage goal")
 
             for func in self.test_suite_fitness_functions:
                 assert isinstance(func, bdtsf.BranchDistanceTestSuiteFitnessFunction)
