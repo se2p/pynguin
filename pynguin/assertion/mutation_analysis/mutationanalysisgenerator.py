@@ -38,7 +38,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         Args:
             executor: the executor that will be used to execute the test cases.
         """
+        # TODO(fk) permanently disable tracer
         self._executor = executor
+        # TODO(fk) what to do with existing observers?
         self._executor.add_observer(mo.CollectionObserver())
         self._global_assertions: Set[fa.FieldAssertion] = set()
         self._field_assertions: Set[fa.FieldAssertion] = set()
