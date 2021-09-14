@@ -279,15 +279,15 @@ def _run() -> ReturnCode:
         generation_result.accept(unused_primitives_removal)
         # TODO(fk) add more postprocessing stuff.
 
-        if config.configuration.test_case_output.generate_assertions:
-            ass_gen = config.configuration.assertion_generation
-            if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-                generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(
-                    executor
-                )
-            else:
-                generator = ag.AssertionGenerator(executor)
-            generation_result.accept(generator)
+    if config.configuration.test_case_output.generate_assertions:
+        ass_gen = config.configuration.assertion_generation
+        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+            generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(
+                executor
+            )
+        else:
+            generator = ag.AssertionGenerator(executor)
+        generation_result.accept(generator)
 
     # Export the generated test suites
     converter = cc.ChromosomeConverter()
