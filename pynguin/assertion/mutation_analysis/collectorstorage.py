@@ -172,5 +172,5 @@ class CollectorStorage:
         }
         dataframe: List[Dict[str, Any]] = []
         for mutation in CollectorStorage.get_data_of_mutations():
-            dataframe = [*dataframe, *cu.filter_dictlist_by_dict(dict_filter, mutation)]
+            dataframe.extend(cu.filter_dictlist_by_dict(dict_filter, mutation))
         return dataframe
