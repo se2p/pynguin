@@ -128,14 +128,14 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             augmented_graph.add_edge(start_node, exit_node)
         return augmented_graph
 
-    @dataclass(eq=True, frozen=True)
+    @dataclass(frozen=True)
     class _Edge:
         source: pg.ProgramGraphNode
         target: pg.ProgramGraphNode
         data: frozenset
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(frozen=True)
 class ControlDependency:
     """Models a control dependency."""
 
