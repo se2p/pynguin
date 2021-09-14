@@ -152,6 +152,9 @@ class CollectorStorage:
         Returns: A list of all the data collected during the execution on
                  mutated modules.
         """
+        # The first value in the _entries contains the data from the execution on
+        # the not mutated module. But here we just need the values from the execution
+        # on the mutated modules, so we omit the first value.
         return CollectorStorage._entries[1:]
 
     @staticmethod
@@ -167,7 +170,6 @@ class CollectorStorage:
         Returns: A list of all dataframes with matching test case id and position,
                  which where collected during executions on mutated modules.
         """
-
         dict_filter = {
             KEY_TEST_ID: test_case_id,
             KEY_POSITION: position,
