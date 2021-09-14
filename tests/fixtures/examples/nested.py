@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-def testMe(x, y):
+def test_me(x, y):
     if x <= y:
         if x == y:
             print("Some output")

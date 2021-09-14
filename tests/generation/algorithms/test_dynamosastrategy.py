@@ -3,6 +3,7 @@
 #  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
+import importlib
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,18 +16,11 @@ from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 @pytest.fixture
 def known_data():
-    def testMe(x, y):  # pragma: no cover
-        if x <= y:
-            if x == y:
-                print("Some output")
-            if x > 0:
-                if y == 17:
-                    return True
-        return False
+    nested_module = importlib.import_module("tests.fixtures.examples.nested")
 
     tracer = ExecutionTracer()
     instr = BranchCoverageInstrumentation(tracer)
-    instr.instrument_module(testMe.__code__)
+    instr.instrument_module(nested_module.test_me.__code__)
     return tracer.get_known_data()
 
 
