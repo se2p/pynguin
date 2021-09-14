@@ -70,6 +70,9 @@ class AssertionGenerator(str, enum.Enum):
     SIMPLE = "SIMPLE"
     """Use the simple approach for primitive and none assertion generation."""
 
+    NONE = "NONE"
+    """Do not create any assertions."""
+
 
 class StoppingCondition(str, enum.Enum):
     """The different stopping conditions for the algorithms."""
@@ -181,8 +184,8 @@ class TestCaseOutputConfiguration:
     """The maximum number of statement in as test case (normal + assertion
     statements)"""
 
-    generate_assertions: bool = True
-    """Should assertions be generated?"""
+    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
+    """The generator that shall be used for assertion generation."""
 
     post_process: bool = True
     """Should the results be post processed? For example, truncate test cases after
@@ -449,9 +452,6 @@ class Configuration:
 
     algorithm: Algorithm = Algorithm.DYNAMOSA
     """The algorithm that shall be used for generation."""
-
-    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
-    """The generator that shall be used for assertion generation."""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(
         default_factory=StatisticsOutputConfiguration
