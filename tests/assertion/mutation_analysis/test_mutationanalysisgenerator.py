@@ -46,26 +46,26 @@ def test_visit_test_suite_chromosome_step2(adapter_mock, execution_mock):
 def test_visit_test_suite_chromosome_step3(adapter_mock, get_tc_mock, get_st_mock):
     dfs = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: MagicMock(),
-            cs.CollectorStorage.KEY_POSITION: 0,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 0,
-            cs.CollectorStorage.KEY_GLOBALS: {"module0": {"foo": "bar"}},
+            cs.KEY_TEST_ID: MagicMock(),
+            cs.KEY_POSITION: 0,
+            cs.KEY_RETURN_VALUE: 0,
+            cs.KEY_GLOBALS: {"module0": {"foo": "bar"}},
             cs.CollectorStorage._get_object_key(0): {
-                cs.CollectorStorage.KEY_CLASS_FIELD: {"foo": 42},
-                cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"test": "foo"},
+                cs.KEY_CLASS_FIELD: {"foo": 42},
+                cs.KEY_OBJECT_ATTRIBUTE: {"test": "foo"},
             },
         }
     ]
 
     dfs_mut = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: MagicMock(),
-            cs.CollectorStorage.KEY_POSITION: 0,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 1,
-            cs.CollectorStorage.KEY_GLOBALS: {"module0": {"foo": "test"}},
+            cs.KEY_TEST_ID: MagicMock(),
+            cs.KEY_POSITION: 0,
+            cs.KEY_RETURN_VALUE: 1,
+            cs.KEY_GLOBALS: {"module0": {"foo": "test"}},
             cs.CollectorStorage._get_object_key(0): {
-                cs.CollectorStorage.KEY_CLASS_FIELD: {"foo": 1337},
-                cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"test": "bar"},
+                cs.KEY_CLASS_FIELD: {"foo": 1337},
+                cs.KEY_OBJECT_ATTRIBUTE: {"test": "bar"},
             },
         }
     ]

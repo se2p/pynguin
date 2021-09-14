@@ -68,20 +68,12 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         # Get the reference data from the execution on the not mutate module
         reference = cs.CollectorStorage.get_items(0)
 
-        # Just here to keep everything short and tidy
-        key_id = cs.CollectorStorage.KEY_TEST_ID
-        key_pos = cs.CollectorStorage.KEY_POSITION
-        key_global = cs.CollectorStorage.KEY_GLOBALS
-        key_retval = cs.CollectorStorage.KEY_RETURN_VALUE
-        key_cf = cs.CollectorStorage.KEY_CLASS_FIELD
-        key_oa = cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE
-
         # Iterate over all dataframes for the reference execution
         for ref_dataframe in reference:
 
             # Get the test case id and position of the frame
-            tc_id = cast(int, ref_dataframe[key_id])
-            pos = cast(int, ref_dataframe[key_pos])
+            tc_id = cast(int, ref_dataframe[cs.KEY_TEST_ID])
+            pos = cast(int, ref_dataframe[cs.KEY_POSITION])
 
             # Get the corresponding test case and statement
             test_case = self._get_testcase_by_id(test_cases, tc_id)
@@ -95,14 +87,15 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             )
 
             # Get the reference state of the return value of the current statement
-            ref_rv = ref_dataframe[key_retval]
+            ref_rv = ref_dataframe[cs.KEY_RETURN_VALUE]
 
             # Get the reference states of the global fields at this dataframe
-            ref_globals = ref_dataframe[key_global]
+            ref_globals = ref_dataframe[cs.KEY_GLOBALS]
 
             # Get all stored object fragments
             remainders = cu.dict_without_keys(
-                ref_dataframe, [key_id, key_pos, key_retval, key_global]
+                ref_dataframe,
+                [cs.KEY_TEST_ID, cs.KEY_POSITION, cs.KEY_RETURN_VALUE, cs.KEY_GLOBALS],
             )
 
             self._last_obj_assertion = None
@@ -111,10 +104,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             for dataframe in mutated_dataframes:
 
                 # Compare the Return Value
-                self._compare_return_value(dataframe, ref_rv, statement, key_retval)
+                self._compare_return_value(dataframe, ref_rv, statement)
 
                 # Compare the global fields
-                self._compare_globals(dataframe[key_global], ref_globals, statement)
+                self._compare_globals(dataframe[cs.KEY_GLOBALS], ref_globals, statement)
 
                 # Compare the remaining objects
                 for key, ref_fragment in remainders.items():
@@ -124,12 +117,12 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                     ), "Expected any data from the datafragment"
                     for frag_key, ref_frag_val in ref_fragment.items():
                         frag_val = fragment.get(frag_key)
-                        if frag_key == key_cf:
+                        if frag_key == cs.KEY_CLASS_FIELD:
                             # Class fields
                             self._compare_class_fields(
                                 frag_val, pos, ref_frag_val, statement, test_case
                             )
-                        elif frag_key == key_oa:
+                        elif frag_key == cs.KEY_OBJECT_ATTRIBUTE:
                             # Object attributes
                             self._compare_object_attributes(
                                 frag_val, pos, ref_frag_val, statement, test_case
@@ -197,13 +190,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                         statement.add_assertion(assertion)
 
     def _compare_return_value(
-        self,
-        dataframe: Dict[Any, Any],
-        ref_rv: Any,
-        statement: st.Statement,
-        key_retval: str,
+        self, dataframe: Dict[Any, Any], ref_rv: Any, statement: st.Statement
     ) -> None:
-        retval = dataframe.get(key_retval)
+        retval = dataframe.get(cs.KEY_RETURN_VALUE)
         if retval != ref_rv:
             statement_vr = statement.ret_val
             assertion = ca.ComplexAssertion(statement_vr, ref_rv)

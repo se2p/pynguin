@@ -27,22 +27,22 @@ def run_before_and_after_tests():
 
 def test_insert():
     entry_part1 = {
-        cs.CollectorStorage.KEY_TEST_ID: 1,
-        cs.CollectorStorage.KEY_POSITION: 1,
+        cs.KEY_TEST_ID: 1,
+        cs.KEY_POSITION: 1,
         cs.CollectorStorage._get_object_key(0): {
-            cs.CollectorStorage.KEY_CLASS_FIELD: {},
-            cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
+            cs.KEY_CLASS_FIELD: {},
+            cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
         },
         cs.CollectorStorage._get_object_key(1): {
-            cs.CollectorStorage.KEY_CLASS_FIELD: {},
-            cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
+            cs.KEY_CLASS_FIELD: {},
+            cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
         },
     }
     cs.CollectorStorage.insert(entry_part1)
     entry_part2 = {
-        cs.CollectorStorage.KEY_TEST_ID: 1,
-        cs.CollectorStorage.KEY_POSITION: 1,
-        cs.CollectorStorage.KEY_RETURN_VALUE: 42,
+        cs.KEY_TEST_ID: 1,
+        cs.KEY_POSITION: 1,
+        cs.KEY_RETURN_VALUE: 42,
     }
     cs.CollectorStorage.insert(entry_part2)
     assert cs.CollectorStorage._entries[0][0] == {**entry_part1, **entry_part2}
@@ -63,16 +63,16 @@ def test_collect_states():
     cs.CollectorStorage.collect_states(tc_id, pos, objs, {}, retval)
     expected = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: tc_id,
-            cs.CollectorStorage.KEY_POSITION: pos,
-            cs.CollectorStorage.KEY_RETURN_VALUE: retval,
+            cs.KEY_TEST_ID: tc_id,
+            cs.KEY_POSITION: pos,
+            cs.KEY_RETURN_VALUE: retval,
             cs.CollectorStorage._get_object_key(0): {
-                cs.CollectorStorage.KEY_CLASS_FIELD: {},
-                cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
+                cs.KEY_CLASS_FIELD: {},
+                cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
             },
             cs.CollectorStorage._get_object_key(1): {
-                cs.CollectorStorage.KEY_CLASS_FIELD: {},
-                cs.CollectorStorage.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
+                cs.KEY_CLASS_FIELD: {},
+                cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
             },
         }
     ]
@@ -101,37 +101,37 @@ def test_get_dataframe_of_mutations():
     cs.CollectorStorage._entries[0] = entry
     mut1 = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: "foo",
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: "foo",
         },
         {
-            cs.CollectorStorage.KEY_TEST_ID: 0,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 1447,
+            cs.KEY_TEST_ID: 0,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: 1447,
         },
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 0,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 42,
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 0,
+            cs.KEY_RETURN_VALUE: 42,
         },
     ]
     cs.CollectorStorage._entries.append(mut1)
     mut2 = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: "bar",
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: "bar",
         },
         {
-            cs.CollectorStorage.KEY_TEST_ID: 0,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 42,
+            cs.KEY_TEST_ID: 0,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: 42,
         },
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 0,
-            cs.CollectorStorage.KEY_RETURN_VALUE: 1337,
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 0,
+            cs.KEY_RETURN_VALUE: 1337,
         },
     ]
     cs.CollectorStorage._entries.append(mut2)
@@ -139,14 +139,14 @@ def test_get_dataframe_of_mutations():
     retval = cs.CollectorStorage.get_dataframe_of_mutations(1, 1)
     expected = [
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: "foo",
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: "foo",
         },
         {
-            cs.CollectorStorage.KEY_TEST_ID: 1,
-            cs.CollectorStorage.KEY_POSITION: 1,
-            cs.CollectorStorage.KEY_RETURN_VALUE: "bar",
+            cs.KEY_TEST_ID: 1,
+            cs.KEY_POSITION: 1,
+            cs.KEY_RETURN_VALUE: "bar",
         },
     ]
     assert retval == expected

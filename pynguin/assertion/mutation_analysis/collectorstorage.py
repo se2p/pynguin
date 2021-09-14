@@ -11,19 +11,19 @@ from typing import Any, Dict, List
 
 import pynguin.utils.collection_utils as cu
 
+KEY_TEST_ID = "__ID__"
+KEY_POSITION = "__POS__"
+KEY_RETURN_VALUE = "__RV__"
+KEY_GLOBALS = "__G__"
+KEY_CLASS_FIELD = "__CF__"
+KEY_OBJECT_ATTRIBUTE = "__OA__"
+
 
 class CollectorStorage:
     """
     Class for storing the collected data during from test instrumentation for the
     mutation analysis approach for assertion generation.
     """
-
-    KEY_TEST_ID = "__ID__"
-    KEY_POSITION = "__POS__"
-    KEY_RETURN_VALUE = "__RV__"
-    KEY_GLOBALS = "__G__"
-    KEY_CLASS_FIELD = "__CF__"
-    KEY_OBJECT_ATTRIBUTE = "__OA__"
 
     _entries: List[List[Dict[str, Any]]] = [[]]
     _execution_index: int = 0
@@ -43,10 +43,8 @@ class CollectorStorage:
             (
                 i
                 for i, d in enumerate(entry_list)
-                if d[CollectorStorage.KEY_TEST_ID]
-                == entry[CollectorStorage.KEY_TEST_ID]
-                and d[CollectorStorage.KEY_POSITION]
-                == entry[CollectorStorage.KEY_POSITION]
+                if d[KEY_TEST_ID] == entry[KEY_TEST_ID]
+                and d[KEY_POSITION] == entry[KEY_POSITION]
             ),
             None,
         )
@@ -99,9 +97,9 @@ class CollectorStorage:
 
         # Log testcase id, position in the test case and return value
         states = {
-            CollectorStorage.KEY_TEST_ID: test_case_id,
-            CollectorStorage.KEY_POSITION: position,
-            CollectorStorage.KEY_RETURN_VALUE: copy.deepcopy(return_value),
+            KEY_TEST_ID: test_case_id,
+            KEY_POSITION: position,
+            KEY_RETURN_VALUE: copy.deepcopy(return_value),
         }
 
         # Log global fields
@@ -111,15 +109,13 @@ class CollectorStorage:
                 global_dict[module_alias] = dict(
                     filter(condition, vars(module).items())
                 )
-            states[CollectorStorage.KEY_GLOBALS] = global_dict
+            states[KEY_GLOBALS] = global_dict
 
         for index, obj in enumerate(objects):
             # Log all class variables and object attributes
             objdict = {
-                CollectorStorage.KEY_CLASS_FIELD: dict(
-                    filter(condition, vars(obj.__class__).items())
-                ),
-                CollectorStorage.KEY_OBJECT_ATTRIBUTE: vars(obj),
+                KEY_CLASS_FIELD: dict(filter(condition, vars(obj.__class__).items())),
+                KEY_OBJECT_ATTRIBUTE: vars(obj),
             }
 
             # TODO(fs) find corresponding mutation and exclude those
@@ -171,8 +167,8 @@ class CollectorStorage:
         """
 
         dict_filter = {
-            CollectorStorage.KEY_TEST_ID: test_case_id,
-            CollectorStorage.KEY_POSITION: position,
+            KEY_TEST_ID: test_case_id,
+            KEY_POSITION: position,
         }
         dataframe: List[Dict[str, Any]] = []
         for mutation in CollectorStorage.get_data_of_mutations():
