@@ -30,7 +30,7 @@ class AbstractBranchCoverageGoal:
     ):
         assert (
             is_branchless_code_object ^ is_branch
-        ), "Must be branch-less code object or branch."
+        ), "Must be either branch-less code object or branch."
         self._is_branchless_code_object = is_branchless_code_object
         self._is_branch = is_branch
         self._code_object_id = code_object_id
