@@ -282,9 +282,7 @@ def _run() -> ReturnCode:
     if config.configuration.test_case_output.generate_assertions:
         ass_gen = config.configuration.assertion_generation
         if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-            generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(
-                executor
-            )
+            generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(executor)
         else:
             generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)

@@ -38,6 +38,7 @@ class CollectorStorage:
         Args:
             entry: a dict for a new entry or an entry with more fields.
         """
+
         def condition(item):
             return (
                 item[KEY_TEST_ID] == entry[KEY_TEST_ID]

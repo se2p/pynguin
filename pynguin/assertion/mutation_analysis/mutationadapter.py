@@ -17,13 +17,13 @@ import pynguin.configuration as config
 
 
 class MutationAdapter:  # pylint: disable=too-few-public-methods
-    """ "Adapter class for interactions with the MutPy mutation testing framework."""
+    """Adapter class for interactions with the MutPy mutation testing framework."""
 
     def __init__(self):
         self.target_loader: Optional[mu.ModulesLoader] = None
 
     def mutate_module(self) -> List[Tuple[ModuleType, List[mo.Mutation]]]:
-        """ "Mutates the modules specified in the configuration by using MutPys'
+        """Mutates the modules specified in the configuration by using MutPys'
         mutation procedure.
 
         Returns:
