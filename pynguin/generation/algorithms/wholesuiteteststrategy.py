@@ -42,7 +42,6 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
         self.before_first_search_iteration(suite)
         while self.resources_left() and suite.get_fitness() != 0.0:
             self.evolve()
-            self._update_archive()
             suite = self._get_solution()
             self.after_search_iteration(suite)
         self.after_search_finish()
@@ -92,6 +91,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
                 new_generation.append(parent2)
 
         self._population = new_generation
+        self._update_archive()
         self._sort_population()
 
     def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
