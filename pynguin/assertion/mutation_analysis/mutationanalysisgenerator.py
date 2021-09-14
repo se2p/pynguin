@@ -47,8 +47,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         test_cases = [chrom.test_case for chrom in chromosome.test_case_chromosomes]
 
-        mutated = self._mutate_module()
-        mutated_modules = [x for x, y in mutated]
+        mutated_modules = [x for x, _ in self._mutate_module()]
 
         execution = ce.MutationAnalysisExecution(self._executor, mutated_modules)
         execution.execute(test_cases)
