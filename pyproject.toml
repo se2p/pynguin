@@ -54,7 +54,7 @@ MutPy-Pynguin = "^0.7.1"
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
 pytest = "^6.2"
-black = {version = "^21.8b0", allow-prereleases = true}
+black = {version = "^21.9b0", allow-prereleases = true}
 pytest-cov = "^2.12"
 pylint = "^2.10"
 pytest-sugar = "^0.9"
