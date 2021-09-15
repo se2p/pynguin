@@ -122,8 +122,7 @@ class CollectorStorage:
                 KEY_OBJECT_ATTRIBUTE: vars(obj),
             }
 
-            # TODO(fs) find corresponding mutation and exclude those
-            # Some mutations will result in type errors when performing a deepcopy
+            # Some objects will result in type errors when performing a deepcopy
             try:
                 states[self._get_object_key(index)] = copy.deepcopy(objdict)
             except TypeError:

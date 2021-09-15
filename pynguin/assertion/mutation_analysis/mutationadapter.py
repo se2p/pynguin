@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 
 import mutpy.controller as mc
 import mutpy.operators as mo
+import mutpy.operators.loop as mol
 import mutpy.utils as mu
 import mutpy.views as mv
 
@@ -65,9 +66,14 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
     @staticmethod
     def _get_mutant_generator() -> mc.FirstOrderMutator:
         operators_set = set()
-        # TODO(fs) Some of these mess up everything
-        # operators_set |= mo.experimental_operators
         operators_set |= mo.standard_operators
+
+        # Only use a selected set of the experimental operators.
+        operators_set |= {
+            mol.OneIterationLoop,
+            mol.ReverseIterationLoop,
+            mol.ZeroIterationLoop,
+        }
 
         # percentage of the generated mutants (mutation sampling)
         percentage = 100
