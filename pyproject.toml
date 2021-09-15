@@ -77,7 +77,7 @@ pynguin = "pynguin.cli:main"
 
 [tool.black]
 line-length = 88
-target_version = ['py38']
+target_version = ['py38', 'py39']
 include = '\.pyi?$'
 exclude = '''
 
