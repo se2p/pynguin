@@ -25,11 +25,12 @@ class CollectorStorage:
     mutation analysis approach for assertion generation.
     """
 
-    _entries: List[List[Dict[str, Any]]] = [[]]
-    _execution_index: int = 0
+    def __init__(self):
+        """Creates a new CollectorStorage."""
+        self._entries: List[List[Dict[str, Any]]] = [[]]
+        self._execution_index: int = 0
 
-    @staticmethod
-    def insert(entry: Dict[str, Any]) -> None:
+    def insert(self, entry: Dict[str, Any]) -> None:
         """Inserts an entry to to all the class level entries.
         If an entry with the same test id and position are already in the entries,
         the other values will be merged.
@@ -45,30 +46,30 @@ class CollectorStorage:
                 and item[KEY_POSITION] == entry[KEY_POSITION]
             )
 
-        entry_list = CollectorStorage._entries[CollectorStorage._execution_index]
+        entry_list = self._entries[self._execution_index]
 
         index = next((i for i, d in enumerate(entry_list) if condition(d)), None)
 
         if index is not None:
             new = {
-                **CollectorStorage._entries[CollectorStorage._execution_index][index],
+                **self._entries[self._execution_index][index],
                 **entry,
             }
-            CollectorStorage._entries[CollectorStorage._execution_index][index] = new
+            self._entries[self._execution_index][index] = new
         else:
-            CollectorStorage._entries[CollectorStorage._execution_index].append(entry)
+            self._entries[self._execution_index].append(entry)
 
-    @staticmethod
-    def append_execution() -> None:
+    def append_execution(self) -> None:
         """Creates a new entry for the next execution.
         Here the index gets incremented and a new empty list is appended to the list of
         entries.
         """
-        CollectorStorage._execution_index += 1
-        CollectorStorage._entries.append([])
+        self._execution_index += 1
+        self._entries.append([])
 
-    @staticmethod
+    # pylint: disable=too-many-arguments
     def collect_states(
+        self,
         test_case_id: int = 0,
         position: int = 0,
         objects: Optional[List[Any]] = None,
@@ -124,19 +125,18 @@ class CollectorStorage:
             # TODO(fs) find corresponding mutation and exclude those
             # Some mutations will result in type errors when performing a deepcopy
             try:
-                states[CollectorStorage._get_object_key(index)] = copy.deepcopy(objdict)
+                states[self._get_object_key(index)] = copy.deepcopy(objdict)
             except TypeError:
                 pass
 
         # Append the collected data to collector storage
-        CollectorStorage.insert(states)
+        self.insert(states)
 
     @staticmethod
     def _get_object_key(index: int) -> str:
         return f"__OBJ-{index}__"
 
-    @staticmethod
-    def get_items(index: int) -> List[Dict[str, Any]]:
+    def get_items(self, index: int) -> List[Dict[str, Any]]:
         """Gets the collected states of the given execution index.
 
         Args:
@@ -144,10 +144,9 @@ class CollectorStorage:
 
         Returns: A list of all states of the execution.
         """
-        return CollectorStorage._entries[index]
+        return self._entries[index]
 
-    @staticmethod
-    def get_data_of_mutations() -> List[List[Dict[str, Any]]]:
+    def get_data_of_mutations(self) -> List[List[Dict[str, Any]]]:
         """Only get the data of the executions on the mutated version of the module.
 
         Returns: A list of all the data collected during the execution on
@@ -156,11 +155,10 @@ class CollectorStorage:
         # The first value in the _entries contains the data from the execution on
         # the not mutated module. But here we just need the values from the execution
         # on the mutated modules, so we omit the first value.
-        return CollectorStorage._entries[1:]
+        return self._entries[1:]
 
-    @staticmethod
     def get_dataframe_of_mutations(
-        test_case_id: int, position: int
+        self, test_case_id: int, position: int
     ) -> List[Dict[str, Any]]:
         """Gets the dataframes of all mutations for a given testcase id and position.
 
@@ -176,6 +174,6 @@ class CollectorStorage:
             KEY_POSITION: position,
         }
         dataframe: List[Dict[str, Any]] = []
-        for mutation in CollectorStorage.get_data_of_mutations():
+        for mutation in self.get_data_of_mutations():
             dataframe.extend(cu.filter_dictlist_by_dict(dict_filter, mutation))
         return dataframe

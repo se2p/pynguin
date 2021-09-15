@@ -14,7 +14,7 @@ import pynguin.configuration as config
 def test_execute_default():
     config.configuration.module_name = "sys"
     executor = MagicMock()
-    execution = mae.MutationAnalysisExecution(executor, [])
+    execution = mae.MutationAnalysisExecution(executor, [], MagicMock())
     execution.execute([MagicMock()])
     executor.execute.assert_called_once()
 
@@ -23,7 +23,8 @@ def test_execute_mutations():
     config.configuration.module_name = "sys"
     executor = MagicMock()
     mutation = MagicMock()
-    execution = mae.MutationAnalysisExecution(executor, [mutation])
+    storage = cs.CollectorStorage()
+    execution = mae.MutationAnalysisExecution(executor, [mutation], storage)
     execution.execute([MagicMock()])
-    assert cs.CollectorStorage._execution_index == 1
+    assert storage._execution_index == 1
     assert executor.execute.call_count == 2

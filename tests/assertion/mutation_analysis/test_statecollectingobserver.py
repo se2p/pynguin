@@ -27,14 +27,14 @@ class FooObserver(co.StateCollectingObserver):
 
 
 def test_after_test_case_execution():
-    observer = FooObserver()
+    observer = FooObserver(MagicMock())
     with mock.patch.object(observer, "_clear") as clear_mock:
         observer.after_test_case_execution(MagicMock(), MagicMock())
         clear_mock.assert_called_once()
 
 
 def test_after_statement_execution():
-    observer = FooObserver()
+    observer = FooObserver(MagicMock())
     with mock.patch.object(observer, "_increment_position") as incpos_mock:
         observer.after_statement_execution(
             MagicMock(test_case=MagicMock(spec=dtc.DefaultTestCase)), MagicMock()
@@ -43,7 +43,7 @@ def test_after_statement_execution():
 
 
 def test_after_statement_execution_exception():
-    observer = FooObserver()
+    observer = FooObserver(MagicMock())
     with mock.patch.object(observer, "_increment_position") as incpos_mock:
         observer.after_statement_execution(
             MagicMock(), MagicMock(), TypeError(MagicMock())
@@ -54,7 +54,7 @@ def test_after_statement_execution_exception():
 @mock.patch.object(cs.CollectorStorage, "collect_states")
 @mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
 def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
-    observer = FooObserver()
+    observer = FooObserver(MagicMock())
     with mock.patch.object(observer, "_increment_position") as incpos_mock:
         exec_ctx = ExecutionContext()
         exec_ctx._local_namespace = {"foo": "bar"}

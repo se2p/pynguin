@@ -19,7 +19,10 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
     """Class for handling the execution on the mutation analysis approach."""
 
     def __init__(
-        self, executor: ex.TestCaseExecutor, mutated_modules: List[ModuleType]
+        self,
+        executor: ex.TestCaseExecutor,
+        mutated_modules: List[ModuleType],
+        storage: cs.CollectorStorage,
     ):
         """
         Create new collector execution.
@@ -31,6 +34,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         """
         self._executor = executor
         self._mutated_modules = mutated_modules
+        self._storage = storage
 
     def execute(self, test_cases: List[tc.TestCase]) -> None:
         """Executes the given list of test cases first on the not mutated module and
@@ -57,7 +61,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         )
 
         # Create a new storage slot for the execution on the given mutated module
-        cs.CollectorStorage.append_execution()
+        self._storage.append_execution()
 
         # Execute the tests
         self._execute_on_default(test_cases)

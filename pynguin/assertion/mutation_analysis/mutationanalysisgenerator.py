@@ -38,10 +38,11 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         Args:
             executor: the executor that will be used to execute the test cases.
         """
+        self._storage = cs.CollectorStorage()
         # TODO(fk) permanently disable tracer
         self._executor = executor
         # TODO(fk) what to do with existing observers?
-        self._executor.add_observer(sco.StateCollectingObserver())
+        self._executor.add_observer(sco.StateCollectingObserver(self._storage))
         self._global_assertions: Set[fa.FieldAssertion] = set()
         self._field_assertions: Set[fa.FieldAssertion] = set()
         self._last_obj_assertion: Optional[ca.ComplexAssertion] = None
@@ -51,7 +52,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
 
         mutated_modules = [x for x, _ in self._mutate_module()]
 
-        execution = ce.MutationAnalysisExecution(self._executor, mutated_modules)
+        execution = ce.MutationAnalysisExecution(
+            self._executor, mutated_modules, self._storage
+        )
         execution.execute(test_cases)
 
         self._generate_assertions(test_cases)
@@ -67,7 +70,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     # pylint: disable=too-many-locals
     def _generate_assertions(self, test_cases: List[tc.TestCase]) -> None:
         # Get the reference data from the execution on the not mutate module
-        reference = cs.CollectorStorage.get_items(0)
+        reference = self._storage.get_items(0)
 
         # Iterate over all dataframes for the reference execution
         for ref_dataframe in reference:
@@ -83,9 +86,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             assert statement is not None, "Expected a statement to be found."
 
             # Get the mutated frames corresponding to the id and position
-            mutated_dataframes = cs.CollectorStorage.get_dataframe_of_mutations(
-                tc_id, pos
-            )
+            mutated_dataframes = self._storage.get_dataframe_of_mutations(tc_id, pos)
 
             # Get the reference state of the return value of the current statement
             ref_rv = ref_dataframe[cs.KEY_RETURN_VALUE]

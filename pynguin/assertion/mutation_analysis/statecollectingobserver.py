@@ -24,9 +24,10 @@ class StateCollectingObserver(eo.ExecutionObserver):
     pos_default_val: int = 0
     pos_incr_step: int = 1
 
-    def __init__(self):
+    def __init__(self, storage: cs.CollectorStorage):
         self._position: int = self.pos_default_val
         self._objects: List[object] = []
+        self._storage = storage
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:
         pass  # nothing to do here
@@ -72,7 +73,7 @@ class StateCollectingObserver(eo.ExecutionObserver):
             modules = cu.dict_without_keys(exec_ctx.global_namespace, {"__builtins__"})
 
             # Collect the states
-            cs.CollectorStorage.collect_states(
+            self._storage.collect_states(
                 test_case_id=test_case_id,
                 position=self._position,
                 objects=self._objects,
