@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Observer collecting stating of various fields during the execution."""
+import dataclasses
 from typing import List, Optional
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
@@ -18,15 +19,21 @@ from pynguin.testcase.execution.executioncontext import ExecutionContext
 from pynguin.testcase.statements import statement as stmt
 
 
+@dataclasses.dataclass
+class _ExecutionState:
+    position: int = 0
+    objects: List[object] = dataclasses.field(default_factory=list)
+
+    def increment(self):
+        """Increments the position by one."""
+        self.position += 1
+
+
 class StateCollectingObserver(eo.ExecutionObserver):
     """Observer that collects the states of different fields during execution."""
 
-    pos_default_val: int = 0
-    pos_incr_step: int = 1
-
     def __init__(self, storage: cs.CollectorStorage):
-        self._position: int = self.pos_default_val
-        self._objects: List[object] = []
+        self._execution_state = _ExecutionState()
         self._storage = storage
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:
@@ -35,7 +42,7 @@ class StateCollectingObserver(eo.ExecutionObserver):
     def after_test_case_execution(
         self, test_case: tc.TestCase, result: res.ExecutionResult
     ) -> None:
-        self._clear()
+        self._execution_state = _ExecutionState()
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
@@ -60,7 +67,9 @@ class StateCollectingObserver(eo.ExecutionObserver):
 
         # If the statement was a constructor call, collect the returned object
         if isinstance(statement, ps.ConstructorStatement):
-            self._objects.append(exec_ctx.get_variable_value(statement.ret_val))
+            self._execution_state.objects.append(
+                exec_ctx.get_variable_value(statement.ret_val)
+            )
 
         if isinstance(
             statement,
@@ -75,16 +84,9 @@ class StateCollectingObserver(eo.ExecutionObserver):
             # Collect the states
             self._storage.collect_states(
                 test_case_id=test_case_id,
-                position=self._position,
-                objects=self._objects,
+                position=self._execution_state.position,
+                objects=self._execution_state.objects,
                 modules=modules,
                 return_value=return_value,
             )
-        self._increment_position()
-
-    def _increment_position(self) -> None:
-        self._position += self.pos_incr_step
-
-    def _clear(self):
-        self._position = self.pos_default_val
-        self._objects = []
+        self._execution_state.increment()
