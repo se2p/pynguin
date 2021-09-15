@@ -8,16 +8,18 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Set, Type
+from typing import TYPE_CHECKING, List, Optional, Set, Type
 
-import pynguin.assertion.assertion as ass
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcasevisitor as tcv
-import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.type_utils import is_assignable_to, is_type_unknown
+
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcasevisitor as tcv
+    import pynguin.testcase.variable.variablereference as vr
 
 
 # pylint: disable=too-many-public-methods

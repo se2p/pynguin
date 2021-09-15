@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import logging
 from itertools import islice
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ordered_set import OrderedSet
 
-import pynguin.assertion.assertion as ass
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.testcasevisitor as tcv
-import pynguin.testcase.variable.variablereference as vr
+
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcasevisitor as tcv
+    import pynguin.testcase.variable.variablereference as vr
 
 
 # pylint:disable=too-many-public-methods

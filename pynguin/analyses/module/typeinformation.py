@@ -9,10 +9,22 @@ from __future__ import annotations
 import functools
 import math
 from abc import ABCMeta, abstractmethod
-from typing import Any, ClassVar, Iterable, Iterator, NamedTuple, Optional, Set, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Iterable,
+    Iterator,
+    NamedTuple,
+    Optional,
+    Set,
+    Type,
+)
 
-from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
 
 
 # pylint: disable=too-few-public-methods

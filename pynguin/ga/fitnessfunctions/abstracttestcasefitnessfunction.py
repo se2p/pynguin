@@ -5,10 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract fitness function for test suites."""
+from __future__ import annotations
+
 from abc import ABCMeta
+from typing import TYPE_CHECKING
 
 import pynguin.ga.fitnessfunction as ff
-from pynguin.testcase.execution.executionresult import ExecutionResult
+
+if TYPE_CHECKING:
+    from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 # pylint: disable=abstract-method

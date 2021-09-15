@@ -7,14 +7,18 @@
 """
 Provides chromosome visitors to perform post processing.
 """
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import pynguin.ga.chromosomevisitor as cv
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcasevisitor as tcv
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):

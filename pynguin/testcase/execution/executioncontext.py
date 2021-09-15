@@ -5,15 +5,19 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an execution context that can be used when executing test cases."""
+from __future__ import annotations
+
 import ast
 import sys
 from types import ModuleType
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.variable.variablereference as vr
 
 
 class ExecutionContext:

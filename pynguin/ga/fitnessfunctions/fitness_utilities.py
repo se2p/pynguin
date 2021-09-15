@@ -5,13 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides utility functions for fitness calculations."""
+from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
-from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import KnownData
+
+if TYPE_CHECKING:
+    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution.executiontracer import KnownData
 
 
 def normalise(value: float) -> float:

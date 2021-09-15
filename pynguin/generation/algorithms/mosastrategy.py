@@ -5,20 +5,24 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides the MOSA test-generation strategy."""
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from ordered_set import OrderedSet
 
 import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 # pylint: disable=too-many-instance-attributes

@@ -5,17 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract class for statements that require parameters"""
+from __future__ import annotations
+
 from abc import ABCMeta
-from typing import Any, Dict, Optional, Set, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Type, Union, cast
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -24,6 +22,12 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericMethod,
 )
 from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statementvisitor as sv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.typeinference.strategy import InferredSignature
 
 
 class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disable=W0223

@@ -5,10 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a random test generator, that creates random test suites."""
+from __future__ import annotations
+
 import logging
 
-import pynguin.ga.testsuitechromosome as tsc
+from typing_extensions import TYPE_CHECKING
+
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+
+if TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 # pylint: disable=too-few-public-methods

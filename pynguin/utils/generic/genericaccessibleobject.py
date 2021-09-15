@@ -8,11 +8,15 @@
 Provide wrappers around constructors, methods, function, fields and enums.
 Think of these like the reflection classes in Java.
 """
+from __future__ import annotations
+
 import abc
 import enum
+import typing
 from typing import Callable, List, Optional, Set, Type, cast
 
-from pynguin.typeinference.strategy import InferredSignature
+if typing.TYPE_CHECKING:
+    from pynguin.typeinference.strategy import InferredSignature
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):

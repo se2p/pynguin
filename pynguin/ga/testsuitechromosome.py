@@ -7,14 +7,16 @@
 """Provides a test suite chromosome."""
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.chromosomevisitor as cv
-import pynguin.ga.testcasechromosome as tcc
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.chromosomefactory as cf
+    import pynguin.ga.chromosomevisitor as cv
+    import pynguin.ga.testcasechromosome as tcc
 
 
 class TestSuiteChromosome(chrom.Chromosome):

@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
-import pynguin.assertion.assertion as ass
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
 
 
 class OutputTraceEntry:

@@ -7,11 +7,13 @@
 """Provides an assertion for primitive values."""
 from __future__ import annotations
 
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.assertion import assertionvisitor as av
+
+if TYPE_CHECKING:
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.assertion import assertionvisitor as av
 
 
 class PrimitiveAssertion(ass.Assertion):

@@ -7,12 +7,14 @@
 """Provides an entry for none assertions"""
 from __future__ import annotations
 
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
-import pynguin.assertion.assertion as ass
 import pynguin.assertion.noneassertion as nas
 import pynguin.assertion.outputtraceentry as ote
-import pynguin.testcase.variable.variablereference as vr
+
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.variable.variablereference as vr
 
 
 class NoneTraceEntry(ote.OutputTraceEntry):

@@ -10,11 +10,10 @@ import typing
 from typing import Callable, Dict, Optional
 
 from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
-
-# pylint: disable=too-few-public-methods
 from pynguin.utils.type_utils import wrap_var_param_type
 
 
+# pylint: disable=too-few-public-methods
 class TypeHintsInferenceStrategy(TypeInferenceStrategy):
     """A type inference strategy that simply parses the type hints.
 

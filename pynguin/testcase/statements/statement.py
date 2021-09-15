@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Set
+from typing import TYPE_CHECKING, Dict, Optional, Set
 
-import pynguin.assertion.assertion as ass
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.statements.statementvisitor as sv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class Statement(metaclass=ABCMeta):

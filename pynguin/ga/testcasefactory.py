@@ -5,15 +5,19 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factories for generating different kind of test cases."""
+from __future__ import annotations
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.testfactory as tf
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.testfactory as tf
 
 
 # pylint:disable=too-few-public-methods

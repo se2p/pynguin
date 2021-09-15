@@ -5,18 +5,22 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides archives to store found solutions."""
+from __future__ import annotations
+
 import logging
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional
 
 from ordered_set import OrderedSet
 
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 
 
 class Archive(ABC):

@@ -5,33 +5,37 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an implementation to generate statements out of an AST."""
+from __future__ import annotations
+
 import ast
 import inspect
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.assertion.assertion import Assertion
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.statements.collectionsstatements import (
-    CollectionStatement,
     DictStatement,
     ListStatement,
     SetStatement,
     TupleStatement,
 )
-from pynguin.testcase.statements.statement import Statement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericFunction,
     GenericMethod,
 )
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.assertion.assertion import Assertion
+    from pynguin.setup.testcluster import TestCluster
+    from pynguin.testcase.statements.collectionsstatements import CollectionStatement
+    from pynguin.testcase.statements.statement import Statement
 
 logger = logging.getLogger(__name__)
 

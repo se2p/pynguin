@@ -9,19 +9,32 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from typing_inspect import get_args
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
-import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.testcase.statements import statementvisitor as sv
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
+    import pynguin.utils.generic.genericaccessibleobject as gao
+    from pynguin.testcase.statements import statementvisitor as sv
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 

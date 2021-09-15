@@ -5,11 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a comparator for dominance comparisons."""
-from typing import Generic, Optional, Set, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Generic, Optional, Set, TypeVar
 
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
 from pynguin.ga.fitnessfunctions.fitness_utilities import compare
+
+if TYPE_CHECKING:
+    import pynguin.ga.fitnessfunction as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

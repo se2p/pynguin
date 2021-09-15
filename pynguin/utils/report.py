@@ -12,6 +12,7 @@ import datetime
 import importlib.resources
 import inspect
 import sys
+import typing
 from pathlib import Path
 from typing import Dict, List
 
@@ -21,12 +22,14 @@ from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
 
 import pynguin.configuration as config
-import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.fitnessfunctions.fitness_utilities import (
     analyze_results,
     compute_branch_coverage,
 )
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+
+if typing.TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
+    from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 
 @dataclasses.dataclass(frozen=True)

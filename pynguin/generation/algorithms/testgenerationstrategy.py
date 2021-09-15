@@ -5,27 +5,33 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract base class for a test generation algorithm."""
+from __future__ import annotations
+
 import time
 from abc import abstractmethod
-from typing import Generic, Iterable, List, TypeVar
+from typing import TYPE_CHECKING, Generic, Iterable, List, TypeVar
 
 from ordered_set import OrderedSet
 
-import pynguin.coverage.branchgoals as bg
-import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
-import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.algorithms.archive as arch
-import pynguin.generation.searchobserver as so
-import pynguin.testcase.testfactory as tf
-from pynguin.ga.operators.crossover.crossover import CrossOverFunction
-from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
-from pynguin.ga.operators.selection.selection import SelectionFunction
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
-from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+
+if TYPE_CHECKING:
+    import pynguin.coverage.branchgoals as bg
+    import pynguin.ga.chromosomefactory as cf
+    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+    import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.generation.searchobserver as so
+    import pynguin.testcase.testfactory as tf
+    from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+    from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
+    from pynguin.ga.operators.selection.selection import SelectionFunction
+    from pynguin.generation.stoppingconditions.stoppingcondition import (
+        StoppingCondition,
+    )
+    from pynguin.setup.testcluster import TestCluster
+    from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
 
