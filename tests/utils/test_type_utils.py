@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import enum
 import inspect
 from typing import Any, Dict, List, Set, Tuple, Union
 from unittest.mock import MagicMock, patch
@@ -19,6 +20,7 @@ from pynguin.utils.type_utils import (
     is_bytes,
     is_collection_type,
     is_dict,
+    is_enum,
     is_list,
     is_none_type,
     is_numeric,
@@ -175,6 +177,13 @@ def test_is_dict(value, result):
 )
 def test_is_tuple(value, result):
     assert is_tuple(value) == result
+
+
+def test_is_enum():
+    class Foo(enum.Enum):
+        pass
+
+    assert is_enum(Foo)
 
 
 @pytest.mark.parametrize(

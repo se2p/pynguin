@@ -109,6 +109,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             self.visit_primitive_assertion(assertion)
         elif tu.is_none_type(type(assertion.value)):
             self.visit_none_assertion(assertion)
+        elif tu.is_enum(type(assertion.value)):
+            self._create_enum_assertion(assertion.source, assertion.value)
         else:
             self._create_comparison_object(assertion.value)
             self._create_object_assertion(assertion.source)
@@ -200,6 +202,14 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         comp_float = au.create_ast_call(func, [comp], keywords)
         return comp_float
 
+    def _create_enum_assertion(self, var: vr.VariableReference, value: Any) -> None:
+        enum_attr = self._construct_enum_attr(value)
+        comp = au.create_ast_attribute(value.name, enum_attr)
+        left = au.create_var_name(self._variable_names, var, load=True)
+        self._nodes.append(
+            au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
+        )
+
     def _create_field_assertion(
         self, var: vr.VariableReference, field: str, module: str, owners: List[str]
     ) -> None:
@@ -254,6 +264,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             self._pop_current_comparison_object()
         elif tu.is_none_type(type(value)):
             val = cast(Name, au.create_ast_constant(None))
+        elif tu.is_enum(type(value)):
+            val = cast(Name, self._construct_enum_attr(value))
         elif not tu.is_primitive_type(type(value)):
             self._create_comparison_object(value)
             val = au.create_ast_name(self._get_current_comparison_object())
@@ -263,6 +275,11 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         obj = au.create_ast_name(self._get_current_comparison_object())
         attr = au.create_ast_attribute(field, obj, True)
         self._nodes.append(au.create_ast_assign(attr, val))
+
+    def _construct_enum_attr(self, value) -> ast.Attribute:
+        module = self._get_module(value.__class__.__module__)
+        enum_name = value.__class__.__name__
+        return au.create_ast_attribute(enum_name, au.create_ast_name(module))
 
     def _create_collection(self, value) -> None:
         obj_id = self._get_comparison_object()

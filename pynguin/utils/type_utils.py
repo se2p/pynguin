@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides utilities when working with types."""
+import enum
 import inspect
 import numbers
 import types
@@ -196,6 +197,18 @@ def is_tuple(value: Any) -> bool:
         Whether or not the given value is of type tuple.
     """
     return isinstance(value, tuple)
+
+
+def is_enum(value: Any) -> bool:
+    """Check if the given value is an enum.
+
+    Args:
+        value: an arbitrary value
+
+    Returns:
+        Whether or not the given value is of type enum.
+    """
+    return issubclass(value, enum.Enum)
 
 
 def get_class_that_defined_method(method: object) -> Optional[object]:
