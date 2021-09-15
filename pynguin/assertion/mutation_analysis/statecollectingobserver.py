@@ -47,7 +47,9 @@ class StateCollectingObserver(eo.ExecutionObserver):
         exec_ctx: ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
-        # When an exception was raised do not do anything
+        # When an exception was raised do not do anything.
+        # This is done because after an exception has occurred, the execution of the
+        # test case stops and fields may be in an undefined state.
         if exception is not None:
             return
 
