@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an adapter for the MutPy mutation testing framework."""
+import logging
 from types import ModuleType
 from typing import List, Optional, Tuple
 
@@ -15,6 +16,9 @@ import mutpy.utils as mu
 import mutpy.views as mv
 
 import pynguin.configuration as config
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MutationAdapter:  # pylint: disable=too-few-public-methods
@@ -38,7 +42,9 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
 
         if self.target_loader is not None:
             for target_module, to_mutate in self.target_loader.load():
+                _LOGGER.info("Build AST for %s", target_module.__name__)
                 target_ast = controller.create_target_ast(target_module)
+                _LOGGER.info("Mutate module %s", target_module.__name__)
                 mutant_modules = controller.mutate_module(
                     target_module=target_module,
                     to_mutate=to_mutate,
@@ -46,9 +52,11 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
                 )
                 for mutant_module, mutations in mutant_modules:
                     mutants.append((mutant_module, mutations))
+        _LOGGER.info("Generated %d mutants", len(mutants))
         return mutants
 
     def _build_mutation_controller(self) -> mc.MutationController:
+        _LOGGER.info("Setup mutation controller")
         built_views = self._get_views()
         mutant_generator = self._get_mutant_generator()
         self.target_loader = mu.ModulesLoader(

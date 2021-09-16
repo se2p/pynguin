@@ -26,6 +26,9 @@ import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.collection_utils as cu
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     """Assertion generator using the mutation analysis approach."""
 
@@ -55,8 +58,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         execution = ce.MutationAnalysisExecution(
             self._executor, mutated_modules, self._storage
         )
+        _LOGGER.info("Execute %d test cases", len(test_cases))
         execution.execute(test_cases)
 
+        _LOGGER.info("Generate assertions for test cases")
         self._generate_assertions(test_cases)
 
     def visit_test_case_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
