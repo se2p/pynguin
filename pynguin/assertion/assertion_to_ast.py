@@ -9,7 +9,7 @@ import array
 import ast
 from typing import Any, Dict, List, Set, Tuple, Union, cast
 
-from _ast import Constant, Name
+from _ast import Attribute, Constant, Name
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
@@ -332,11 +332,18 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         assg_val = au.create_ast_tuple(elts)
         self._nodes.append(au.create_ast_assign(target, assg_val))
 
-    def _construct_collection_elts(self, value: Any) -> List[Union[Constant, Name]]:
-        elts: List[Union[Constant, Name]] = []
+    def _construct_collection_elts(
+        self, value: Any
+    ) -> List[Union[Constant, Name, Attribute]]:
+        elts: List[Union[Constant, Name, Attribute]] = []
         for item in value:
-            if tu.is_primitive_type(type(item)):
+            if tu.is_primitive_type(type(item)) or tu.is_none_type(type(item)):
                 elts.append(au.create_ast_constant(item))
+            elif tu.is_enum(type(item)):
+                attr = au.create_ast_attribute(
+                    item.name, self._construct_enum_attr(item)
+                )
+                elts.append(attr)
             else:
                 if tu.is_collection_type(type(item)):
                     self._create_collection(item)
