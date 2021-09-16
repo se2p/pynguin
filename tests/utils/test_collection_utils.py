@@ -28,3 +28,11 @@ def test_dict_without_keys():
     filter_keys = {"test", "bar"}
     result = cu.dict_without_keys(test_dict, filter_keys)
     assert result == {"foo": "bar"}
+
+
+def test_find_xth_element_of_type():
+    test_list = [1, 2, "three", 4, "five", 6]
+    assert "five" == cu.find_xth_element_of_type(test_list, str, 2)
+    assert 4 == cu.find_xth_element_of_type(test_list, int, 3)
+    assert not cu.find_xth_element_of_type(test_list, bool, 1)
+    assert not cu.find_xth_element_of_type(test_list, int, 0)

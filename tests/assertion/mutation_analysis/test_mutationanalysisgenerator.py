@@ -12,6 +12,7 @@ import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as mae
 import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.testcase.execution.testcaseexecutor as ex
+import pynguin.testcase.statements.parametrizedstatements as ps
 
 
 def test_init():
@@ -38,19 +39,26 @@ def test_visit_test_suite_chromosome_step2(adapter_mock, execution_mock):
 
 @mock.patch.object(ma.MutationAdapter, "mutate_module", return_value=MagicMock())
 @mock.patch.object(
-    mag.MutationAnalysisGenerator, "_get_testcase_by_id", return_value=MagicMock()
+    mag.MutationAnalysisGenerator,
+    "_get_testcase_by_id",
+    return_value=MagicMock(statements=[MagicMock(spec=ps.ConstructorStatement)]),
+)
+@mock.patch.object(
+    mag.MutationAnalysisGenerator, "_get_current_object_class", return_value=MagicMock()
 )
 @mock.patch.object(
     mag.MutationAnalysisGenerator, "_get_statement_by_pos", return_value=MagicMock()
 )
-def test_visit_test_suite_chromosome_step3(adapter_mock, get_tc_mock, get_st_mock):
+def test_visit_test_suite_chromosome_step3(
+    adapter_mock, get_tc_mock, get_obj_class_mock, get_st_mock
+):
     dfs = [
         {
             cs.KEY_TEST_ID: MagicMock(),
             cs.KEY_POSITION: 0,
             cs.KEY_RETURN_VALUE: 0,
             cs.KEY_GLOBALS: {"module0": {"foo": "bar"}},
-            cs.CollectorStorage._get_object_key(0): {
+            "0": {
                 cs.KEY_CLASS_FIELD: {"foo": 42},
                 cs.KEY_OBJECT_ATTRIBUTE: {"test": "foo"},
             },
@@ -63,7 +71,7 @@ def test_visit_test_suite_chromosome_step3(adapter_mock, get_tc_mock, get_st_moc
             cs.KEY_POSITION: 0,
             cs.KEY_RETURN_VALUE: 1,
             cs.KEY_GLOBALS: {"module0": {"foo": "test"}},
-            cs.CollectorStorage._get_object_key(0): {
+            "0": {
                 cs.KEY_CLASS_FIELD: {"foo": 1337},
                 cs.KEY_OBJECT_ATTRIBUTE: {"test": "bar"},
             },

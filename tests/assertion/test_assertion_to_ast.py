@@ -143,14 +143,16 @@ def test_complex_tuple(assertion_to_ast):
     assertion_to_ast.visit_complex_assertion(assertion)
     module = Module(body=assertion_to_ast.nodes)
     assert (
-        astor.to_source(module) == "obj1 = type('', (object,), {})()\n"
-        "obj1.__class__ = var0.Foo\n"
-        "obj1._bar = 'foo'\n"
-        "obj2 = type('', (object,), {})()\n"
-        "obj2.__class__ = var0.Foo\n"
-        "obj2._bar = 'bar'\n"
-        "obj0 = obj1, obj2, 42\n"
-        "assert var0 == obj0\n"
+        astor.to_source(module)
+        == """obj1 = type('', (object,), {})()
+obj1.__class__ = var0.Foo
+obj1._bar = 'foo'
+obj2 = type('', (object,), {})()
+obj2.__class__ = var0.Foo
+obj2._bar = 'bar'
+obj0 = obj1, obj2, 42
+assert var0 == obj0
+"""
     )
 
 

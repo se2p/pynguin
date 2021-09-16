@@ -7,7 +7,7 @@
 """Provides an assertion visitor to transform assertions to AST."""
 import array
 import ast
-from typing import Any, Dict, List, Set, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 from _ast import Attribute, Constant, Name
 
@@ -270,16 +270,12 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         module: Optional[str],
         owners: List[str],
     ) -> ast.Attribute:
-        # Attribute
-        if var and owners is None and module is None:
-            obj = au.create_var_name(self._variable_names, var, load=True)
-            return au.create_ast_attribute(field, obj)
-        # Global field
-        if var is None and owners is None and module is not None:
-            attr = au.create_ast_name(module)
-            return au.create_ast_attribute(field, attr)
-        # Class variable
-        attr = au.create_ast_name(self._get_module(module))
+        if var is not None and module is None:
+            # Attribute
+            attr = au.create_var_name(self._variable_names, var, load=True)
+        else:
+            # Class variable or global field
+            attr = au.create_ast_name(self._get_module(module))
         for owner in owners:
             attr = cast(Name, au.create_ast_attribute(owner, attr))
         return au.create_ast_attribute(field, attr)
@@ -314,7 +310,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         elif tu.is_none_type(type(value)):
             val = cast(Name, au.create_ast_constant(None))
         elif tu.is_enum(type(value)):
-            val = cast(Name, self._construct_enum_attr(value))
+            attr = au.create_ast_attribute(value.name, self._construct_enum_attr(value))
+            val = cast(Name, attr)
         elif not tu.is_primitive_type(type(value)):
             self._create_comparison_object(value)
             val = au.create_ast_name(self._get_current_comparison_object())
@@ -415,5 +412,5 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     def _get_comparison_object_name(self) -> str:
         return self.COMPARISON_OBJECT_IDENTIFIER + str(AssertionToAstVisitor._obj_index)
 
-    def _get_module(self, module_name: str) -> str:
+    def _get_module(self, module_name: Optional[str]) -> str:
         return self._module_aliases.get_name(module_name)

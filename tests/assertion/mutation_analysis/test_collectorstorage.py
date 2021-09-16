@@ -19,11 +19,11 @@ def test_insert():
     entry_part1 = {
         cs.KEY_TEST_ID: 1,
         cs.KEY_POSITION: 1,
-        storage._get_object_key(0): {
+        "0": {
             cs.KEY_CLASS_FIELD: {},
             cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
         },
-        storage._get_object_key(1): {
+        "1": {
             cs.KEY_CLASS_FIELD: {},
             cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
         },
@@ -58,11 +58,11 @@ def test_collect_states():
             cs.KEY_TEST_ID: tc_id,
             cs.KEY_POSITION: pos,
             cs.KEY_RETURN_VALUE: retval,
-            storage._get_object_key(0): {
+            "0": {
                 cs.KEY_CLASS_FIELD: {},
                 cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
             },
-            storage._get_object_key(1): {
+            "1": {
                 cs.KEY_CLASS_FIELD: {},
                 cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
             },

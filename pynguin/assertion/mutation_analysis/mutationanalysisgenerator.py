@@ -9,6 +9,7 @@ import logging
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
+import pynguin.assertion.assertion as ass
 import pynguin.assertion.complexassertion as ca
 import pynguin.assertion.fieldassertion as fa
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
@@ -24,9 +25,7 @@ import pynguin.testcase.statements.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.collection_utils as cu
-
-
-_LOGGER = logging.getLogger(__name__)
+import pynguin.utils.type_utils as tu
 
 
 class MutationAnalysisGenerator(cv.ChromosomeVisitor):
@@ -48,7 +47,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._executor.add_observer(sco.StateCollectingObserver(self._storage))
         self._global_assertions: Set[fa.FieldAssertion] = set()
         self._field_assertions: Set[fa.FieldAssertion] = set()
-        self._last_obj_assertion: Optional[ca.ComplexAssertion] = None
+        self._last_obj_assertion: Optional[ass.Assertion] = None
+
+        self._statement: Optional[st.Statement] = None
+        self._test_case: Optional[tc.TestCase] = None
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         test_cases = [chrom.test_case for chrom in chromosome.test_case_chromosomes]
@@ -58,10 +60,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         execution = ce.MutationAnalysisExecution(
             self._executor, mutated_modules, self._storage
         )
-        _LOGGER.info("Execute %d test cases", len(test_cases))
+        self._logger.info("Execute %d test cases", len(test_cases))
         execution.execute(test_cases)
 
-        _LOGGER.info("Generate assertions for test cases")
+        self._logger.info("Generating assertions for test cases")
         self._generate_assertions(test_cases)
 
     def visit_test_case_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
@@ -72,7 +74,6 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         adapter = ma.MutationAdapter()
         return adapter.mutate_module()
 
-    # pylint: disable=too-many-locals
     def _generate_assertions(self, test_cases: List[tc.TestCase]) -> None:
         # Get the reference data from the execution on the not mutate module
         reference = self._storage.get_items(0)
@@ -85,10 +86,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             pos = cast(int, ref_dataframe[cs.KEY_POSITION])
 
             # Get the corresponding test case and statement
-            test_case = self._get_testcase_by_id(test_cases, tc_id)
-            assert test_case is not None, "Expected a testcase to be found."
-            statement = self._get_statement_by_pos(test_case, pos)
-            assert statement is not None, "Expected a statement to be found."
+            self._test_case = self._get_testcase_by_id(test_cases, tc_id)
+            assert self._test_case is not None, "Expected a testcase to be found."
+            self._statement = self._get_statement_by_pos(self._test_case, pos)
+            assert self._statement is not None, "Expected a statement to be found."
 
             # Get the mutated frames corresponding to the id and position
             mutated_dataframes = self._storage.get_dataframe_of_mutations(tc_id, pos)
@@ -105,112 +106,203 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                 {cs.KEY_TEST_ID, cs.KEY_POSITION, cs.KEY_RETURN_VALUE, cs.KEY_GLOBALS},
             )
 
+            # Reset the last obj assertion
             self._last_obj_assertion = None
 
-            # Iterate over all mutated dataframes and compare
-            for dataframe in mutated_dataframes:
+            # Compare the data of the not mutated run with the ones with mutations
+            self._compare_with_mutated(
+                mutated_dataframes, ref_globals, ref_rv, remainders
+            )
 
-                # Compare the Return Value
-                self._compare_return_value(
-                    dataframe[cs.KEY_RETURN_VALUE], ref_rv, statement
-                )
+    def _compare_with_mutated(
+        self, mutated_dataframes, ref_globals, ref_rv, remainders
+    ):
+        # Iterate over all mutated dataframes and compare
+        for dataframe in mutated_dataframes:
 
-                # Compare the global fields
-                self._compare_globals(dataframe[cs.KEY_GLOBALS], ref_globals, statement)
+            # Compare the Return Value
+            self._compare_return_value(dataframe[cs.KEY_RETURN_VALUE], ref_rv)
 
-                # Compare the remaining objects
-                for key, ref_fragment in remainders.items():
-                    fragment = dataframe.get(key)
-                    assert (
-                        fragment is not None
-                    ), "Expected any data from the datafragment"
-                    for frag_key, ref_frag_val in ref_fragment.items():
-                        frag_val = fragment.get(frag_key)
-                        if frag_key == cs.KEY_CLASS_FIELD:
-                            # Class fields
-                            self._compare_class_fields(
-                                frag_val, pos, ref_frag_val, statement, test_case
-                            )
-                        elif frag_key == cs.KEY_OBJECT_ATTRIBUTE:
-                            # Object attributes
-                            self._compare_object_attributes(
-                                frag_val, pos, ref_frag_val, statement, test_case
-                            )
+            # Compare the global fields
+            self._compare_globals(dataframe[cs.KEY_GLOBALS], ref_globals)
+
+            # Compare the remaining objects
+            for key, ref_fragment in remainders.items():
+                fragment = dataframe.get(key)
+                assert fragment is not None, "Expected any data from the datafragment"
+                for frag_key, ref_frag_val in ref_fragment.items():
+                    frag_val = fragment.get(frag_key)
+                    if frag_key == cs.KEY_CLASS_FIELD:
+                        # Class fields
+                        self._compare_class_fields(frag_val, ref_frag_val, key)
+                    elif frag_key == cs.KEY_OBJECT_ATTRIBUTE:
+                        # Object attributes
+                        self._compare_object_attributes(frag_val, ref_frag_val, key)
 
     # pylint: disable=too-many-arguments
     def _compare_class_fields(
-        self,
-        frag_val: Dict[str, Any],
-        pos: int,
-        ref_frag_val: Dict[str, Any],
-        statement: st.Statement,
-        test_case: tc.TestCase,
+        self, frag_val: Dict[str, Any], ref_frag_val: Dict[str, Any], obj_index: int
     ) -> None:
         for field, ref_value in ref_frag_val.items():
-            value = frag_val.get(field)
-            if ref_value != value:
-                obj_vr = self._get_current_object_ref(test_case, pos)
+            if ref_value != frag_val.get(field):
+                obj_vr = self._get_current_object_ref(obj_index)
                 obj_class = self._get_current_object_class(obj_vr)
                 obj_module = self._get_current_object_module(obj_vr)
+                if self._is_assertable_item(ref_value):
+                    # Class variable can be asserted straight away
+                    self._gen_assertable_cf(field, obj_class, obj_module, ref_value)
+                elif hasattr(ref_value, "__dict__"):
+                    # Class variable cannot be asserted, if the attribute is an object,
+                    # we try to generate an assertion for each of the attributes
+                    # of this object
+                    self._gen_not_assertable_cf(field, obj_class, obj_module, ref_value)
+
+    def _gen_assertable_cf(
+        self,
+        field: str,
+        obj_class: Optional[str],
+        obj_module: Optional[str],
+        ref_value: Any,
+    ) -> None:
+        assertion = fa.FieldAssertion(None, ref_value, field, obj_module, [obj_class])
+        if assertion and assertion not in self._field_assertions:
+            self._field_assertions.add(assertion)
+            self._add_assertion(assertion)
+
+    def _gen_not_assertable_cf(
+        self,
+        field: str,
+        obj_class: Optional[str],
+        obj_module: Optional[str],
+        ref_value: Any,
+    ) -> None:
+        for item_field, field_val in vars(ref_value).items():
+            if self._is_assertable_item(field_val):
                 assertion = fa.FieldAssertion(
-                    None, ref_value, field, obj_module, [obj_class]
+                    None,
+                    ref_value,
+                    item_field,
+                    obj_module,
+                    [field, obj_class],
                 )
                 if assertion not in self._field_assertions:
                     self._field_assertions.add(assertion)
-                    statement.add_assertion(assertion)
+                    self._add_assertion(assertion)
 
     # pylint: disable=too-many-arguments
     def _compare_object_attributes(
-        self,
-        frag_val: Dict[str, Any],
-        pos: int,
-        ref_frag_val: Dict[str, Any],
-        statement: st.Statement,
-        test_case: tc.TestCase,
+        self, frag_val: Dict[str, Any], ref_frag_val: Dict[str, Any], obj_index: int
     ) -> None:
         for field, ref_value in ref_frag_val.items():
             value = frag_val.get(field)
             if ref_value != value:
-                obj_vr = self._get_current_object_ref(test_case, pos)
-                assertion = fa.FieldAssertion(obj_vr, ref_value, field)
+                obj_vr = self._get_current_object_ref(obj_index)
+                if self._is_assertable_item(ref_value):
+                    # Attribute can be asserted straight away
+                    self._gen_assertable_attr(field, obj_vr, ref_value)
+                elif hasattr(ref_value, "__dict__"):
+                    # Attribute cannot be asserted, if the attribute is an object,
+                    # we try to generate an assertion for each of the attributes
+                    # of this object
+                    self._gen_not_assertable_attr(field, obj_vr, ref_value)
+
+    def _gen_assertable_attr(
+        self, field: str, obj_vr: Optional[vr.VariableReference], ref_value: Any
+    ) -> None:
+        assertion = fa.FieldAssertion(obj_vr, ref_value, field)
+        if assertion not in self._field_assertions:
+            self._field_assertions.add(assertion)
+            self._add_assertion(assertion)
+
+    def _gen_not_assertable_attr(
+        self, field: str, obj_vr: Optional[vr.VariableReference], ref_value: Any
+    ) -> None:
+        for item_field, field_val in vars(ref_value).items():
+            if self._is_assertable_item(field_val):
+                assertion = fa.FieldAssertion(
+                    obj_vr, ref_value, item_field, None, [field]
+                )
                 if assertion not in self._field_assertions:
                     self._field_assertions.add(assertion)
-                    statement.add_assertion(assertion)
+                    self._add_assertion(assertion)
 
     def _compare_globals(
         self,
         globals_frame: Dict[str, Dict[str, Any]],
         globals_frame_ref: Dict[str, Dict[str, Any]],
-        statement: st.Statement,
     ) -> None:
-        for module_alias in globals_frame_ref.keys():
-            globals_frame_ref_modules = globals_frame_ref.get(module_alias)
+        for module_name in globals_frame_ref.keys():
+            globals_frame_ref_modules = globals_frame_ref.get(module_name)
             assert (
                 globals_frame_ref_modules is not None
             ), "Expected a module for the module alias"
             for global_field, ref_value in globals_frame_ref_modules.items():
-                value = globals_frame[module_alias][global_field]
+                value = globals_frame[module_name][global_field]
                 if ref_value != value:
-                    assertion = fa.FieldAssertion(
-                        None, ref_value, global_field, module_alias
-                    )
-                    if assertion not in self._global_assertions:
-                        self._global_assertions.add(assertion)
-                        statement.add_assertion(assertion)
+                    if self._is_assertable_item(ref_value):
+                        # Global field can be asserted straight away
+                        self._gen_assertable_global(
+                            global_field, module_name, ref_value
+                        )
+                    elif hasattr(ref_value, "__dict__"):
+                        # Global field cannot be asserted, if the attribute is an
+                        # object, we try to generate an assertion for each of
+                        # the attributes of this object
+                        self._gen_not_assertable_global(
+                            global_field, module_name, ref_value
+                        )
 
-    def _compare_return_value(
-        self, retval, ref_rv: Any, statement: st.Statement
+    def _gen_assertable_global(
+        self, global_field: str, module_name: str, ref_value: Any
     ) -> None:
+        assertion = fa.FieldAssertion(None, ref_value, global_field, module_name)
+        if assertion not in self._global_assertions:
+            self._global_assertions.add(assertion)
+            self._add_assertion(assertion)
+
+    def _gen_not_assertable_global(
+        self, global_field: str, module_name: str, ref_value: Any
+    ) -> None:
+        for field, field_val in vars(ref_value).items():
+            if self._is_assertable_item(field_val):
+                assertion = fa.FieldAssertion(
+                    None, ref_value, field, module_name, [global_field]
+                )
+                if assertion not in self._global_assertions:
+                    self._global_assertions.add(assertion)
+                    self._add_assertion(assertion)
+
+    def _compare_return_value(self, retval: Any, ref_rv: Any) -> None:
         if retval != ref_rv:
-            statement_vr = statement.ret_val
-            assertion = ca.ComplexAssertion(statement_vr, ref_rv)
-            if (
-                self._last_obj_assertion
-                and self._last_obj_assertion.value is assertion.value
-            ):
-                return
+            if self._is_assertable_item(ref_rv):
+                # Return value can be asserted straight away
+                self._gen_assertable_retval(ref_rv)
+            elif hasattr(ref_rv, "__dict__"):
+                # Return value cannot be asserted, if the attribute is an object,
+                # we try to generate an assertion for each of the attributes
+                # of this object
+                self._gen_not_assertable_retval(ref_rv)
+
+    def _gen_assertable_retval(self, ref_rv: Any) -> None:
+        assertion: ass.Assertion = ca.ComplexAssertion(
+            self._get_variable_reference(), ref_rv
+        )
+        if (
+            not self._last_obj_assertion
+            or self._last_obj_assertion.value is not assertion.value
+        ):
             self._last_obj_assertion = assertion
-            statement.add_assertion(assertion)
+            self._add_assertion(assertion)
+
+    def _gen_not_assertable_retval(self, ref_rv: Any) -> None:
+        for field, field_val in vars(ref_rv).items():
+            if self._is_assertable_item(field_val):
+                assertion = fa.FieldAssertion(
+                    self._get_variable_reference(), field_val, field
+                )
+                if assertion not in self._field_assertions:
+                    self._field_assertions.add(assertion)
+                    self._add_assertion(assertion)
 
     @staticmethod
     def _get_testcase_by_id(
@@ -232,15 +324,14 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             return test_case.statements[position]
         return None
 
-    @staticmethod
-    def _get_current_object_ref(
-        test_case: tc.TestCase, position: int
-    ) -> Optional[vr.VariableReference]:
-        while position >= 0:
-            if isinstance(test_case.statements[position], ps.ConstructorStatement):
-                return test_case.statements[position].ret_val
-            position -= 1
-        return None
+    def _get_current_object_ref(self, obj_index: int) -> Optional[vr.VariableReference]:
+        if self._test_case:
+            return cu.find_xth_element_of_type(
+                self._test_case.statements, ps.ConstructorStatement, int(obj_index) + 1
+            ).ret_val
+        raise ValueError(
+            "A test case must be present in order to get the object reference."
+        )
 
     @staticmethod
     def _get_current_object_class(
@@ -257,3 +348,31 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         if var_ref and var_ref.variable_type:
             return var_ref.variable_type.__module__
         return None
+
+    @staticmethod
+    def _is_comparable_object(obj: Any) -> bool:
+        return vars(obj.__class__).get("__eq__", None) and vars(obj.__class__).get(
+            "__hash__", None
+        )
+
+    def _is_assertable_item(self, item: Any) -> bool:
+        return (
+            tu.is_primitive_type(type(item))
+            or tu.is_none_type(type(item))
+            or tu.is_enum(type(item))
+            or tu.is_collection_type(type(item))
+            or self._is_comparable_object(item)
+        )
+
+    def _add_assertion(self, assertion: ass.Assertion) -> None:
+        if self._statement:
+            self._statement.add_assertion(assertion)
+        else:
+            raise ValueError("A statement must be present in order to add an assertion")
+
+    def _get_variable_reference(self) -> vr.VariableReference:
+        if self._statement:
+            return self._statement.ret_val
+        raise ValueError(
+            "A statement must be present in order to get the variable reference."
+        )

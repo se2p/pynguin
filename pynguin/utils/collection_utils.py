@@ -45,3 +45,30 @@ def dict_without_keys(dict_to_change: Dict[Any, Any], keys: Set[Any]) -> Dict[An
         the dict without the specified keys.
     """
     return {k: v for k, v in dict_to_change.items() if k not in keys}
+
+
+def find_xth_element_of_type(
+    list_to_search: List[Any], value_type: Any, count: int
+) -> Any:
+    """
+    Gets the x-th element with the specified type in the given list.
+
+    Args:
+        list_to_search: The list where the value should be get.
+        value_type: for the type which the value should have.
+        count: for how often a value with this type must have occurred
+
+    Returns:
+        The value with the specified type which must have occurred exactly count times.
+        If the given count is bigger than the list is long or the list does not contain
+        enough items of the specified type, in either way 'None' will be returned.
+    """
+    if count > len(list_to_search) or count <= 0:
+        return None
+    counter = 0
+    for element in list_to_search:
+        if isinstance(element, value_type):
+            counter += 1
+            if counter == count:
+                return element
+    return None

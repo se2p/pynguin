@@ -35,9 +35,11 @@ class FieldAssertion(ass.Assertion):
             field: the field which should be asserted
             module: the module which contains the field
             owners: the list of owners of the field.
-                    If this is set to 'None' the field is an attribute
         """
         super().__init__(source, value)
+
+        if owners is None:
+            owners = []
 
         self._field = field
         self._module = module
@@ -89,7 +91,10 @@ class FieldAssertion(ass.Assertion):
         return (
             isinstance(other, FieldAssertion)
             and self._source == other._source
-            and self._value == other._value
+            and (
+                self._value == other._value
+                or isinstance(self._value, type(other.value))
+            )
             and self._field == other._field
             and self._module == other._module
             and self._owners == other._owners

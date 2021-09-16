@@ -107,8 +107,9 @@ class CollectorStorage:
         # Log global fields
         if modules and len(modules) > 0:
             global_dict = {}
-            for module_alias, module in modules.items():
-                global_dict[module_alias] = {
+            for _, module in modules.items():
+                module_name = module.__name__
+                global_dict[module_name] = {
                     k: v for (k, v) in vars(module).items() if condition((k, v))
                 }
             states[KEY_GLOBALS] = global_dict
@@ -124,16 +125,12 @@ class CollectorStorage:
 
             # Some objects will result in type errors when performing a deepcopy
             try:
-                states[self._get_object_key(index)] = copy.deepcopy(objdict)
+                states[str(index)] = copy.deepcopy(objdict)
             except TypeError:
                 pass
 
         # Append the collected data to collector storage
         self.insert(states)
-
-    @staticmethod
-    def _get_object_key(index: int) -> str:
-        return f"__OBJ-{index}__"
 
     def get_items(self, index: int) -> List[Dict[str, Any]]:
         """Gets the collected states of the given execution index.

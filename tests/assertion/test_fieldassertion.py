@@ -39,7 +39,7 @@ def test_clone():
     assert cloned.source == cloned_ref
     assert cloned.value == 1337
     assert cloned.field == "field"
-    assert cloned.owners is None
+    assert cloned.owners == []
 
 
 def test_eq():
