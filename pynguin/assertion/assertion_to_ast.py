@@ -130,13 +130,32 @@ class AssertionToAstVisitor(av.AssertionVisitor):
                 assertion.module,
                 assertion.owners,
             )
+        elif tu.is_none_type(type(assertion.value)):
+            self._create_field_none_assertion(
+                assertion.source,
+                assertion.value,
+                assertion.field,
+                assertion.module,
+                assertion.owners,
+            )
+        elif tu.is_enum(type(assertion.value)):
+            self._create_field_enum_assertion(
+                assertion.source,
+                assertion.value,
+                assertion.field,
+                assertion.module,
+                assertion.owners,
+            )
         else:
             if tu.is_collection_type(type(assertion.value)):
                 self._create_collection(assertion.value)
             else:
                 self._create_comparison_object(assertion.value)
             self._create_field_assertion(
-                assertion.source, assertion.field, assertion.module, assertion.owners
+                assertion.source,
+                assertion.field,
+                assertion.module,
+                assertion.owners,
             )
 
     def _create_constant_assert(
@@ -212,6 +231,30 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
         )
 
+    def _create_field_enum_assertion(
+        self,
+        var: vr.VariableReference,
+        value: Any,
+        field: str,
+        module: str,
+        owners: List[str],
+    ) -> None:
+        left = self._construct_field_attribute(var, field, module, owners)
+        comp = au.create_ast_attribute(value.name, self._construct_enum_attr(value))
+        self._create_assertion(left, ast.Eq(), comp)
+
+    def _create_field_none_assertion(
+        self,
+        var: vr.VariableReference,
+        value: Any,
+        field: str,
+        module: str,
+        owners: List[str],
+    ):
+        left = self._construct_field_attribute(var, field, module, owners)
+        comp = au.create_ast_constant(value)
+        self._create_assertion(left, ast.Is() if value is None else ast.IsNot(), comp)
+
     def _create_field_assertion(
         self, var: vr.VariableReference, field: str, module: str, owners: List[str]
     ) -> None:
@@ -221,7 +264,11 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         self._pop_current_comparison_object()
 
     def _construct_field_attribute(
-        self, var: vr.VariableReference, field: str, module: str, owners: List[str]
+        self,
+        var: Optional[vr.VariableReference],
+        field: str,
+        module: Optional[str],
+        owners: List[str],
     ) -> ast.Attribute:
         # Attribute
         if var and owners is None and module is None:
