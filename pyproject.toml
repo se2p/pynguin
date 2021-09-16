@@ -46,10 +46,10 @@ networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
 rich = "^10.3"
 pytest = "^6.2"
-mutpy = { git = "https://github.com/f-str/mutpy", branch = "pynguin" }
 Jinja2 = "^3.0.1"
 Pygments = "^2.9.0"
 ordered-set = "^4.0.2"
+MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
