@@ -188,6 +188,8 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         if isinstance(value, float):
             comp_float = self._construct_float_comparator(comp)
             self._create_assertion(left, ast.Eq(), comp_float)
+        elif isinstance(value, bool):
+            self._create_assertion(left, ast.Is(), comp)
         else:
             self._create_assertion(left, ast.Eq(), comp)
 
