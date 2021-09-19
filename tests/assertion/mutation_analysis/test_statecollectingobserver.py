@@ -28,46 +28,53 @@ class FooObserver(sco.StateCollectingObserver):
 
 def test_after_test_case_execution():
     observer = FooObserver(MagicMock())
-    with mock.patch.object(
-        sco._ExecutionState, "__init__", return_value=None
-    ) as state_mock:
-        observer.after_test_case_execution(MagicMock(), MagicMock())
-        state_mock.assert_called_once()
+    observer._objects = {"foo": "bar"}
+    observer.after_test_case_execution(MagicMock(), MagicMock())
+    assert observer._objects == {}
 
 
-def test_after_statement_execution():
-    observer = FooObserver(MagicMock())
-    execution_state = sco._ExecutionState()
-    observer._execution_state = execution_state
-    with mock.patch.object(execution_state, "increment") as incpos_mock:
-        observer.after_statement_execution(
-            MagicMock(test_case=MagicMock(spec=dtc.DefaultTestCase)), MagicMock()
-        )
-        incpos_mock.assert_called_once()
-
-
-def test_after_statement_execution_exception():
-    observer = FooObserver(MagicMock())
-    execution_state = sco._ExecutionState()
-    observer._execution_state = execution_state
-    with mock.patch.object(execution_state, "increment") as incpos_mock:
-        observer.after_statement_execution(
-            MagicMock(), MagicMock(), TypeError(MagicMock())
-        )
-        incpos_mock.assert_not_called()
-
-
-@mock.patch.object(cs.CollectorStorage, "collect_states")
 @mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
-def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
+def test_after_statement_execution(exec_ctx_mock):
     observer = FooObserver(MagicMock())
-    execution_state = sco._ExecutionState()
-    observer._execution_state = execution_state
-    with mock.patch.object(execution_state, "increment") as incpos_mock:
-        exec_ctx = ExecutionContext()
-        exec_ctx._local_namespace = {"foo": "bar"}
-        observer.after_statement_execution(
-            ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
-            exec_ctx,
-        )
-        incpos_mock.assert_called_once()
+    exec_ctx = ExecutionContext()
+    exec_ctx._local_namespace = {"foo": "bar"}
+    with mock.patch.object(observer._storage, "collect_return_value") as cs_mock_rv:
+        with mock.patch.object(observer._storage, "collect_objects") as cs_mock_obj:
+            with mock.patch.object(observer._storage, "collect_globals") as cs_mock_g:
+                observer.after_statement_execution(
+                    ps.ConstructorStatement(
+                        MagicMock(spec=dtc.DefaultTestCase), MagicMock()
+                    ),
+                    exec_ctx,
+                )
+                cs_mock_rv.assert_called_once()
+                cs_mock_obj.assert_called_once()
+                cs_mock_g.assert_called_once()
+
+
+@mock.patch.object(cs.CollectorStorage, "collect_return_value")
+@mock.patch.object(cs.CollectorStorage, "collect_objects")
+@mock.patch.object(cs.CollectorStorage, "collect_globals")
+def test_after_statement_execution_exception(cs_mock_rv, cs_mock_obj, cs_mock_g):
+    observer = FooObserver(MagicMock())
+    observer.after_statement_execution(MagicMock(), MagicMock(), TypeError(MagicMock()))
+    cs_mock_rv.assert_not_called()
+    cs_mock_obj.assert_not_called()
+    cs_mock_g.assert_not_called()
+
+
+@mock.patch.object(cs.CollectorStorage, "collect_return_value")
+@mock.patch.object(cs.CollectorStorage, "collect_objects")
+@mock.patch.object(cs.CollectorStorage, "collect_globals")
+@mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
+def test_after_statement_execution_ctor_statement(
+    cs_mock_rv, cs_mock_obj, cs_mock_g, exec_ctx_mock
+):
+    observer = FooObserver(MagicMock())
+    exec_ctx = ExecutionContext()
+    exec_ctx._local_namespace = {"foo": "bar"}
+    observer.after_statement_execution(
+        ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
+        exec_ctx,
+    )
+    assert len(observer._objects) == 1

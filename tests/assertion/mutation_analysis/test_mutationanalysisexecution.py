@@ -26,5 +26,5 @@ def test_execute_mutations():
     storage = cs.CollectorStorage()
     execution = mae.MutationAnalysisExecution(executor, [mutation], storage)
     execution.execute([MagicMock()])
-    assert storage._execution_index == 1
+    assert len(storage._storage) == 2
     assert executor.execute.call_count == 2

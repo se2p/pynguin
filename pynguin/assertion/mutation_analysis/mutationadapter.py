@@ -17,7 +17,6 @@ import mutpy.views as mv
 
 import pynguin.configuration as config
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

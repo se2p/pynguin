@@ -4,144 +4,92 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from unittest import mock
 from unittest.mock import MagicMock
+
+import pytest
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 
 
 class Foo:
+    _foo = 42
+
     def __init__(self, bar):
         self._bar = bar
 
 
-def test_insert():
+def test_collect_return_value():
     storage = cs.CollectorStorage()
-    entry_part1 = {
-        cs.KEY_TEST_ID: 1,
-        cs.KEY_POSITION: 1,
-        "0": {
-            cs.KEY_CLASS_FIELD: {},
-            cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
-        },
-        "1": {
-            cs.KEY_CLASS_FIELD: {},
-            cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
-        },
-    }
-    storage.insert(entry_part1)
-    entry_part2 = {
-        cs.KEY_TEST_ID: 1,
-        cs.KEY_POSITION: 1,
-        cs.KEY_RETURN_VALUE: 42,
-    }
-    storage.insert(entry_part2)
-    assert storage._entries[0][0] == {**entry_part1, **entry_part2}
+    storage.append_execution()
+    statement = MagicMock()
+    storage.collect_return_value(statement, "foo")
+    assert storage._storage[0][(cs.EntryTypes.RETURN_VALUE, statement)] == "foo"
+
+
+def test_collect_objects_attr():
+    storage = cs.CollectorStorage()
+    storage.append_execution()
+    statement = MagicMock()
+    vr = MagicMock()
+    storage.collect_objects(statement, {vr: Foo(2)})
+    assert (
+        storage._storage[0][(cs.EntryTypes.OBJECT_ATTRIBUTE, statement, vr, "_bar")]
+        == 2
+    )
+    assert (
+        storage._storage[0][(cs.EntryTypes.CLASS_FIELD, statement, Foo, "_foo")] == 42
+    )
+
+
+@mock.patch("builtins.vars", return_value={"foo": 123, "bar": 321})
+def test_collect_globals(vars_mock):
+    storage = cs.CollectorStorage()
+    storage.append_execution()
+    statement = MagicMock()
+    modules = {"alias": MagicMock(__name__="test")}
+    storage.collect_globals(statement, modules)
+    assert (
+        storage._storage[0][(cs.EntryTypes.GLOBAL_FIELD, statement, "test", "foo")]
+        == 123
+    )
+    assert (
+        storage._storage[0][(cs.EntryTypes.GLOBAL_FIELD, statement, "test", "bar")]
+        == 321
+    )
 
 
 def test_append_execution():
     storage = cs.CollectorStorage()
     storage.append_execution()
-    assert storage._execution_index == 1
-    assert len(storage._entries) == 2
-    assert storage._entries[1] == []
+    storage.append_execution()
+    assert len(storage._storage) == 2
+    assert storage._storage[0] == {}
+    assert storage._storage[1] == {}
 
 
-def test_collect_states():
-    tc_id = 1
-    pos = 1
-    objs = [Foo("one"), Foo("two")]
-    retval = 42
+def test_get_execution_entry():
     storage = cs.CollectorStorage()
-    storage.collect_states(tc_id, pos, objs, {}, retval)
-    expected = [
-        {
-            cs.KEY_TEST_ID: tc_id,
-            cs.KEY_POSITION: pos,
-            cs.KEY_RETURN_VALUE: retval,
-            "0": {
-                cs.KEY_CLASS_FIELD: {},
-                cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "one"},
-            },
-            "1": {
-                cs.KEY_CLASS_FIELD: {},
-                cs.KEY_OBJECT_ATTRIBUTE: {"_bar": "two"},
-            },
-        }
-    ]
-    assert expected == storage._entries[0]
+    storage.append_execution()
+    assert {} == storage.get_execution_entry(0)
 
 
-def test_get_items():
-    entry = MagicMock()
+def test_get_execution_entry_exception():
     storage = cs.CollectorStorage()
-    storage._entries[0] = entry
-    assert storage.get_items(0) == entry
+    with pytest.raises(IndexError):
+        storage.get_execution_entry(0)
 
 
-def test_get_data_of_mutations():
+def test_get_mutations():
     storage = cs.CollectorStorage()
-    entry = MagicMock()
-    storage._entries[0] = entry
-    mut1 = MagicMock()
-    storage._entries.append(mut1)
-    mut2 = MagicMock()
-    storage._execution_index = 2
-    storage._entries.append(mut2)
-    assert storage.get_data_of_mutations() == [mut1, mut2]
-
-
-def test_get_dataframe_of_mutations():
-    storage = cs.CollectorStorage()
-    entry = MagicMock()
-    storage._entries[0] = entry
-    mut1 = [
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: "foo",
-        },
-        {
-            cs.KEY_TEST_ID: 0,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: 1447,
-        },
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 0,
-            cs.KEY_RETURN_VALUE: 42,
-        },
-    ]
-    storage._entries.append(mut1)
-    mut2 = [
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: "bar",
-        },
-        {
-            cs.KEY_TEST_ID: 0,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: 42,
-        },
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 0,
-            cs.KEY_RETURN_VALUE: 1337,
-        },
-    ]
-    storage._entries.append(mut2)
-    storage._execution_index = 2
-    retval = storage.get_dataframe_of_mutations(1, 1)
-    expected = [
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: "foo",
-        },
-        {
-            cs.KEY_TEST_ID: 1,
-            cs.KEY_POSITION: 1,
-            cs.KEY_RETURN_VALUE: "bar",
-        },
-    ]
-    assert retval == expected
+    statement = MagicMock()
+    storage.append_execution()
+    storage.collect_return_value(statement, "foo")
+    storage.append_execution()
+    storage.collect_return_value(statement, "pynguin")
+    storage.append_execution()
+    storage.collect_return_value(statement, "bar")
+    storage.append_execution()
+    storage.collect_return_value(statement, "test")
+    key = (cs.EntryTypes.RETURN_VALUE, statement)
+    assert storage.get_mutations(key) == ["pynguin", "bar", "test"]

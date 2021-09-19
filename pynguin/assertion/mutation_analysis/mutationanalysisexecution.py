@@ -46,9 +46,12 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
             self._execute_on_mutated(test_cases, mutated_module)
 
     def _execute_on_default(self, test_cases: List[tc.TestCase]) -> None:
-        # Iterate over all test cases and execute each test case
+        # Expand the storage by one
+        self._storage.append_execution()
         for test_case in test_cases:
+            # Reload the module under test
             ml.ModuleLoader.reload_module(config.configuration.module_name)
+            # Execute
             self._executor.execute(test_case)
 
     def _execute_on_mutated(
@@ -59,9 +62,6 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         ml.ModuleLoader.add_mutated_version(
             module_name=config.configuration.module_name, mutated_module=mutated_module
         )
-
-        # Create a new storage slot for the execution on the given mutated module
-        self._storage.append_execution()
 
         # Execute the tests
         self._execute_on_default(test_cases)

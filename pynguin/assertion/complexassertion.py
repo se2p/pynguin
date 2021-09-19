@@ -24,3 +24,13 @@ class ComplexAssertion(va.VariableAssertion):
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> ComplexAssertion:
         return ComplexAssertion(self.source.clone(memo), self.value)
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, ComplexAssertion)
+            and self._source == other._source
+            and (self._value == other._value or self._value is other._value)
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._source, self._value))

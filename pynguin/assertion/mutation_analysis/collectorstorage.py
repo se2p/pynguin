@@ -6,17 +6,24 @@
 #
 """Storage for collected data, which was collected during a testcase execution."""
 import copy
+import enum
+import logging
 from types import ModuleType
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple
 
-import pynguin.utils.collection_utils as cu
+import pynguin.testcase.statements.statement as st
+import pynguin.testcase.variable.variablereference as vr
 
-KEY_TEST_ID = "__ID__"
-KEY_POSITION = "__POS__"
-KEY_RETURN_VALUE = "__RV__"
-KEY_GLOBALS = "__G__"
-KEY_CLASS_FIELD = "__CF__"
-KEY_OBJECT_ATTRIBUTE = "__OA__"
+
+class EntryTypes(enum.Enum):
+    """
+    Enum for all different entry types which can appear in the storage.
+    """
+
+    RETURN_VALUE = enum.auto()
+    CLASS_FIELD = enum.auto()
+    OBJECT_ATTRIBUTE = enum.auto()
+    GLOBAL_FIELD = enum.auto()
 
 
 class CollectorStorage:
@@ -25,151 +32,152 @@ class CollectorStorage:
     mutation analysis approach for assertion generation.
     """
 
+    _logger = logging.getLogger(__name__)
+
     def __init__(self):
         """Creates a new CollectorStorage."""
-        self._entries: List[List[Dict[str, Any]]] = [[]]
-        self._execution_index: int = 0
+        self._storage: List[Dict[Tuple[Any, ...], Any]] = []
 
-    def insert(self, entry: Dict[str, Any]) -> None:
-        """Inserts an entry to to all the class level entries.
-        If an entry with the same test id and position are already in the entries,
-        the other values will be merged.
-        Otherwise a new item will be appended to the list.
+    def collect_return_value(self, statement: st.Statement, return_value: Any) -> None:
+        """Collects a return value by adding it to the storage.
 
         Args:
-            entry: a dict for a new entry or an entry with more fields.
+            statement: the statement, for which the return_value should be stored
+            return_value: the value to be stored
         """
+        entry = self._get_current_exec()
+        try:
+            entry[(EntryTypes.RETURN_VALUE, statement)] = copy.deepcopy(return_value)
+        except TypeError:
+            self._logger.debug("Return value couldn't be deep-copied.")
 
-        def condition(item):
-            return (
-                item[KEY_TEST_ID] == entry[KEY_TEST_ID]
-                and item[KEY_POSITION] == entry[KEY_POSITION]
-            )
+    def collect_objects(
+        self, statement: st.Statement, objects: Dict[vr.VariableReference, Any]
+    ) -> None:
+        """Collects all object field values by adding those to the storage.
+        Here attribute values of the given objects and class fields of the
+        corresponding classes are collected and stored.
 
-        entry_list = self._entries[self._execution_index]
+        Args:
+            statement: the statement of where the states of the objects should be
+                       stored.
+            objects: dictionary with the variable reference of the object and
+                     the value of it as its value
+        """
+        for obj_vr, obj in objects.items():
 
-        index = next((i for i, d in enumerate(entry_list) if condition(d)), None)
+            # Collect object attributes
+            self._collect_object_attributes(obj, obj_vr, statement)
 
-        if index is not None:
-            new = {
-                **self._entries[self._execution_index][index],
-                **entry,
-            }
-            self._entries[self._execution_index][index] = new
-        else:
-            self._entries[self._execution_index].append(entry)
+            # Collect class fields
+            self._collect_class_fields(obj, statement)
+
+    def _collect_object_attributes(
+        self, obj: Any, obj_vr: vr.VariableReference, statement: st.Statement
+    ):
+        entry = self._get_current_exec()
+        for field, value in vars(obj).items():
+            try:
+                entry[
+                    (
+                        EntryTypes.OBJECT_ATTRIBUTE,
+                        statement,
+                        obj_vr,
+                        field,
+                    )
+                ] = copy.deepcopy(value)
+            except TypeError:
+                self._logger.debug("Object attribute couldn't be deep-copied.")
+
+    def _collect_class_fields(self, obj: Any, statement: st.Statement):
+        entry = self._get_current_exec()
+        for field, value in vars(obj.__class__).items():
+            if self._filter_condition((field, value)):
+                try:
+                    entry[
+                        (
+                            EntryTypes.CLASS_FIELD,
+                            statement,
+                            obj.__class__,
+                            field,
+                        )
+                    ] = copy.deepcopy(value)
+                except TypeError:
+                    self._logger.debug("Class field couldn't be deep-copied.")
+
+    def collect_globals(
+        self, statement: st.Statement, modules: Dict[str, ModuleType]
+    ) -> None:
+        """Collects global values by adding them to the storage.
+
+        Args:
+            statement: statement of which the globals should be stored.
+            modules: a dictionary of all modules, from where all module global variables
+                     should be collected and stored. The key of the dictionary is the
+                     module alias and the value of the dictionary is the module itself.
+        """
+        entry = self._get_current_exec()
+        for _, module in modules.items():
+            module_name = module.__name__
+            for (field_name, field_value) in vars(module).items():
+                if self._filter_condition((field_name, field_value)):
+                    try:
+                        entry[
+                            (
+                                EntryTypes.GLOBAL_FIELD,
+                                statement,
+                                module_name,
+                                field_name,
+                            )
+                        ] = field_value
+                    except TypeError:
+                        self._logger.debug("Global value couldn't be deep-copied.")
+
+    def _get_current_exec(self) -> Dict[Tuple[Any, ...], Any]:
+        return self._storage[len(self._storage) - 1]
 
     def append_execution(self) -> None:
-        """Creates a new entry for the next execution.
-        Here the index gets incremented and a new empty list is appended to the list of
-        entries.
         """
-        self._execution_index += 1
-        self._entries.append([])
+        Creates a new entry for an execution.
+        Here a new empty dict is appended to the list of stored entries.
+        """
+        self._storage.append({})
 
-    # pylint: disable=too-many-arguments
-    def collect_states(
-        self,
-        test_case_id: int = 0,
-        position: int = 0,
-        objects: Optional[List[Any]] = None,
-        modules: Optional[Dict[str, Any]] = None,
-        return_value=None,
-    ) -> None:
-        """Collects the states of all fields. These include fields at global level as
-        well as class level and attributes of the given object.
+    def get_execution_entry(self, index: int) -> Dict[Tuple[Any, ...], Any]:
+        """Gets the entry of execution at the given index.
 
         Args:
-            test_case_id: Integer value of the current test case id.
-            position: Integer value of the current position in the test case.
-            objects: List of objects for which the states should be collected.
-            modules: Dict of modules with their respective representation.
-            return_value: The return value of the preceding invoke.
+            index: integer value of the index of the execution, which should be fetched
+
+        Returns:
+            the dictionary containing all entries of the execution on the given index.
         """
-        if objects is None:
-            objects = []
+        if len(self._storage) <= index:
+            raise IndexError("Index out of range.")
+        return self._storage[index]
 
-        def condition(item) -> bool:
-            return (
-                not item[0].startswith("__")
-                and not item[0].endswith("__")
-                and not callable(item[1])
-                and not isinstance(item[1], ModuleType)
-            )
-
-        # Log testcase id, position in the test case and return value
-        states = {
-            KEY_TEST_ID: test_case_id,
-            KEY_POSITION: position,
-            KEY_RETURN_VALUE: copy.deepcopy(return_value),
-        }
-
-        # Log global fields
-        if modules and len(modules) > 0:
-            global_dict = {}
-            for _, module in modules.items():
-                module_name = module.__name__
-                global_dict[module_name] = {
-                    k: v for (k, v) in vars(module).items() if condition((k, v))
-                }
-            states[KEY_GLOBALS] = global_dict
-
-        for index, obj in enumerate(objects):
-            # Log all class variables and object attributes
-            objdict = {
-                KEY_CLASS_FIELD: {
-                    k: v for (k, v) in vars(obj.__class__).items() if condition((k, v))
-                },
-                KEY_OBJECT_ATTRIBUTE: vars(obj),
-            }
-
-            # Some objects will result in type errors when performing a deepcopy
-            try:
-                states[str(index)] = copy.deepcopy(objdict)
-            except TypeError:
-                pass
-
-        # Append the collected data to collector storage
-        self.insert(states)
-
-    def get_items(self, index: int) -> List[Dict[str, Any]]:
-        """Gets the collected states of the given execution index.
+    def get_mutations(self, key: Tuple[Any, ...]) -> List[Any]:
+        """Gets all values of the executions on mutated modules to a specific key.
 
         Args:
-            index: The index of execution which data should be returned
+            key: the key of the dicts for which should be searched for
 
-        Returns: A list of all states of the execution.
+        Returns:
+            A list of all values matching the key in the dictionaries collected during
+            the executions on the mutated modules
         """
-        return self._entries[index]
+        mutations = []
+        for item in self._storage[1:]:
+            val = item.get(key, None)
+            if val:
+                mutations.append(val)
+        return mutations
 
-    def get_data_of_mutations(self) -> List[List[Dict[str, Any]]]:
-        """Only get the data of the executions on the mutated version of the module.
-
-        Returns: A list of all the data collected during the execution on
-                 mutated modules.
-        """
-        # The first value in the _entries contains the data from the execution on
-        # the not mutated module. But here we just need the values from the execution
-        # on the mutated modules, so we omit the first value.
-        return self._entries[1:]
-
-    def get_dataframe_of_mutations(
-        self, test_case_id: int, position: int
-    ) -> List[Dict[str, Any]]:
-        """Gets the dataframes of all mutations for a given testcase id and position.
-
-        Args:
-            test_case_id: for the id of the testcase.
-            position: for the position.
-
-        Returns: A list of all dataframes with matching test case id and position,
-                 which where collected during executions on mutated modules.
-        """
-        dict_filter = {
-            KEY_TEST_ID: test_case_id,
-            KEY_POSITION: position,
-        }
-        dataframe: List[Dict[str, Any]] = []
-        for mutation in self.get_data_of_mutations():
-            dataframe.extend(cu.filter_dictlist_by_dict(dict_filter, mutation))
-        return dataframe
+    @staticmethod
+    def _filter_condition(item: Tuple[str, Any]) -> bool:
+        return (
+            not item[0].startswith("__")
+            and not item[0].endswith("__")
+            and not callable(item[1])
+            and not isinstance(item[1], ModuleType)
+        )
