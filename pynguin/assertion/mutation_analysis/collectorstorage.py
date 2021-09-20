@@ -70,10 +70,11 @@ class CollectorStorage:
             return_value: the value to be stored
         """
         entry = self._get_current_exec()
-        try:
-            entry[(EntryTypes.RETURN_VALUE, statement)] = copy.deepcopy(return_value)
-        except TypeError:
-            self._logger.debug("Return value couldn't be deep-copied.")
+        if self._filter_condition(('', return_value)):
+            try:
+                entry[(EntryTypes.RETURN_VALUE, statement)] = copy.deepcopy(return_value)
+            except TypeError:
+                self._logger.debug("Return value couldn't be deep-copied.")
 
     def _collect_objects(
         self, statement: st.Statement, objects: Dict[vr.VariableReference, Any]
@@ -101,17 +102,18 @@ class CollectorStorage:
     ):
         entry = self._get_current_exec()
         for field, value in vars(obj).items():
-            try:
-                entry[
-                    (
-                        EntryTypes.OBJECT_ATTRIBUTE,
-                        statement,
-                        obj_vr,
-                        field,
-                    )
-                ] = copy.deepcopy(value)
-            except TypeError:
-                self._logger.debug("Object attribute couldn't be deep-copied.")
+            if self._filter_condition((field, value)):
+                try:
+                    entry[
+                        (
+                            EntryTypes.OBJECT_ATTRIBUTE,
+                            statement,
+                            obj_vr,
+                            field,
+                        )
+                    ] = copy.deepcopy(value)
+                except TypeError:
+                    self._logger.debug("Object attribute couldn't be deep-copied.")
 
     def _collect_class_fields(self, obj: Any, statement: st.Statement):
         entry = self._get_current_exec()
