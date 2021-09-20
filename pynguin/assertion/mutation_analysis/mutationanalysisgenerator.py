@@ -118,9 +118,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             )
         else:
             assertion = ca.ComplexAssertion(statement.ret_val, ref_value)
-            if assertion not in self._assertions:
-                self._assertions.add(assertion)
-                statement.add_assertion(assertion)
+            self._add_assertion(statement, assertion)
 
     def _gen_global_field_assertion(
         self, key: Tuple[Any, ...], ref_value: Any, field: str = None
@@ -134,9 +132,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             )
         else:
             assertion = fa.FieldAssertion(None, ref_value, global_field, module_name)
-        if assertion not in self._assertions:
-            self._assertions.add(assertion)
-            statement.add_assertion(assertion)
+        self._add_assertion(statement, assertion)
 
     def _gen_object_attribute_assertion(
         self, key: Tuple[Any, ...], ref_value: Any, field: str = None
@@ -148,9 +144,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             assertion = fa.FieldAssertion(obj_vr, ref_value, field, None, [obj_field])
         else:
             assertion = fa.FieldAssertion(obj_vr, ref_value, obj_field)
-        if assertion not in self._assertions:
-            self._assertions.add(assertion)
-            statement.add_assertion(assertion)
+        self._add_assertion(statement, assertion)
 
     def _gen_class_variable_assertion(
         self, key: Tuple[Any, ...], ref_value: Any, field: str = None
@@ -172,6 +166,9 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             assertion = fa.FieldAssertion(
                 None, ref_value, clazz_field, clazz_module, [clazz_name]
             )
+        self._add_assertion(statement, assertion)
+
+    def _add_assertion(self, statement, assertion):
         if assertion not in self._assertions:
             self._assertions.add(assertion)
             statement.add_assertion(assertion)
