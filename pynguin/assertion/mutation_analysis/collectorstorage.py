@@ -70,9 +70,11 @@ class CollectorStorage:
             return_value: the value to be stored
         """
         entry = self._get_current_exec()
-        if self._filter_condition(('', return_value)):
+        if self._filter_condition(("", return_value)):
             try:
-                entry[(EntryTypes.RETURN_VALUE, statement)] = copy.deepcopy(return_value)
+                entry[(EntryTypes.RETURN_VALUE, statement)] = copy.deepcopy(
+                    return_value
+                )
             except TypeError:
                 self._logger.debug("Return value couldn't be deep-copied.")
 
