@@ -38,7 +38,31 @@ class CollectorStorage:
         """Creates a new CollectorStorage."""
         self._storage: List[Dict[Tuple[Any, ...], Any]] = []
 
-    def collect_return_value(self, statement: st.Statement, return_value: Any) -> None:
+    def collect(
+        self,
+        statement: st.Statement,
+        return_value: Any,
+        objects: Dict[vr.VariableReference, Any],
+        modules: Dict[str, ModuleType],
+    ) -> None:
+        """Collects the return value, objects fields and global fields by adding those
+        to the storage. When collecting object fields both attribute values as well as
+        class fields of the corresponding object classes are collected and stored.
+
+        Args:
+            statement: the statement, for which the return_value should be stored
+            return_value: the value to be stored
+            objects: dictionary with the variable reference of the object and
+                     the value of it as its value
+            modules: a dictionary of all modules, from where all module global variables
+                     should be collected and stored. The key of the dictionary is the
+                     module alias and the value of the dictionary is the module itself.
+        """
+        self._collect_return_value(statement, return_value)
+        self._collect_objects(statement, objects)
+        self._collect_globals(statement, modules)
+
+    def _collect_return_value(self, statement: st.Statement, return_value: Any) -> None:
         """Collects a return value by adding it to the storage.
 
         Args:
@@ -51,7 +75,7 @@ class CollectorStorage:
         except TypeError:
             self._logger.debug("Return value couldn't be deep-copied.")
 
-    def collect_objects(
+    def _collect_objects(
         self, statement: st.Statement, objects: Dict[vr.VariableReference, Any]
     ) -> None:
         """Collects all object field values by adding those to the storage.
@@ -105,7 +129,7 @@ class CollectorStorage:
                 except TypeError:
                     self._logger.debug("Class field couldn't be deep-copied.")
 
-    def collect_globals(
+    def _collect_globals(
         self, statement: st.Statement, modules: Dict[str, ModuleType]
     ) -> None:
         """Collects global values by adding them to the storage.

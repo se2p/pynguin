@@ -63,11 +63,9 @@ class StateCollectingObserver(eo.ExecutionObserver):
         ):
             # Get the return value of the statement
             return_value = exec_ctx.get_variable_value(statement.ret_val)
-            self._storage.collect_return_value(statement, return_value)
 
             # Get all loaded modules without the built in ones
             modules = cu.dict_without_keys(exec_ctx.global_namespace, {"__builtins__"})
-            self._storage.collect_globals(statement, modules)
 
-            # Get all fields of the objects
-            self._storage.collect_objects(statement, self._objects)
+            # Collect all states
+            self._storage.collect(statement, return_value, self._objects, modules)

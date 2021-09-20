@@ -38,38 +38,24 @@ def test_after_statement_execution(exec_ctx_mock):
     observer = FooObserver(MagicMock())
     exec_ctx = ExecutionContext()
     exec_ctx._local_namespace = {"foo": "bar"}
-    with mock.patch.object(observer._storage, "collect_return_value") as cs_mock_rv:
-        with mock.patch.object(observer._storage, "collect_objects") as cs_mock_obj:
-            with mock.patch.object(observer._storage, "collect_globals") as cs_mock_g:
-                observer.after_statement_execution(
-                    ps.ConstructorStatement(
-                        MagicMock(spec=dtc.DefaultTestCase), MagicMock()
-                    ),
-                    exec_ctx,
-                )
-                cs_mock_rv.assert_called_once()
-                cs_mock_obj.assert_called_once()
-                cs_mock_g.assert_called_once()
+    with mock.patch.object(observer._storage, "collect") as cs_mock:
+        observer.after_statement_execution(
+            ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
+            exec_ctx,
+        )
+        cs_mock.assert_called_once()
 
 
-@mock.patch.object(cs.CollectorStorage, "collect_return_value")
-@mock.patch.object(cs.CollectorStorage, "collect_objects")
-@mock.patch.object(cs.CollectorStorage, "collect_globals")
-def test_after_statement_execution_exception(cs_mock_rv, cs_mock_obj, cs_mock_g):
+@mock.patch.object(cs.CollectorStorage, "collect")
+def test_after_statement_execution_exception(cs_mock):
     observer = FooObserver(MagicMock())
     observer.after_statement_execution(MagicMock(), MagicMock(), TypeError(MagicMock()))
-    cs_mock_rv.assert_not_called()
-    cs_mock_obj.assert_not_called()
-    cs_mock_g.assert_not_called()
+    cs_mock.assert_not_called()
 
 
-@mock.patch.object(cs.CollectorStorage, "collect_return_value")
-@mock.patch.object(cs.CollectorStorage, "collect_objects")
-@mock.patch.object(cs.CollectorStorage, "collect_globals")
+@mock.patch.object(cs.CollectorStorage, "collect")
 @mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
-def test_after_statement_execution_ctor_statement(
-    cs_mock_rv, cs_mock_obj, cs_mock_g, exec_ctx_mock
-):
+def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
     observer = FooObserver(MagicMock())
     exec_ctx = ExecutionContext()
     exec_ctx._local_namespace = {"foo": "bar"}
