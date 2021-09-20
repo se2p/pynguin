@@ -153,7 +153,7 @@ class CollectorStorage:
                                 module_name,
                                 field_name,
                             )
-                        ] = field_value
+                        ] = copy.deepcopy(field_value)
                     except TypeError:
                         self._logger.debug("Global value couldn't be deep-copied.")
 
