@@ -111,14 +111,12 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     ):
         statement = key[1]
         if field:
-            # This case can be morphed to the object attribute case
-            self._switch_generation(
-                (cs.EntryTypes.OBJECT_ATTRIBUTE, key[1], statement.ret_val, field),
-                ref_value,
+            assertion: ass.Assertion = fa.FieldAssertion(
+                statement.ret_val, ref_value, field
             )
         else:
             assertion = ca.ComplexAssertion(statement.ret_val, ref_value)
-            self._add_assertion(statement, assertion)
+        self._add_assertion(statement, assertion)
 
     def _gen_global_field_assertion(
         self, key: Tuple[Any, ...], ref_value: Any, field: str = None
