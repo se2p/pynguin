@@ -7,32 +7,8 @@
 import pynguin.utils.collection_utils as cu
 
 
-def test_filter_dictlist_by_dict():
-    dict_filter = {"id": 0, "foo": "bar"}
-    list_to_filter = [
-        {"id": 0, "foo": "bar", "test": 123},
-        {"id": 0, "foo": "bar", "test2": 0},
-        {"id": 1, "foo": "bar", "test": 123},
-        {"id": 1, "foo": "foo", "test": 123},
-        {"id": 0, "foo": "foo", "test": 123},
-    ]
-    result = cu.filter_dictlist_by_dict(dict_filter, list_to_filter)
-    assert result == [
-        {"id": 0, "foo": "bar", "test": 123},
-        {"id": 0, "foo": "bar", "test2": 0},
-    ]
-
-
 def test_dict_without_keys():
     test_dict = {"foo": "bar", "bar": "foo", "test": 123}
     filter_keys = {"test", "bar"}
     result = cu.dict_without_keys(test_dict, filter_keys)
     assert result == {"foo": "bar"}
-
-
-def test_find_xth_element_of_type():
-    test_list = [1, 2, "three", 4, "five", 6]
-    assert "five" == cu.find_xth_element_of_type(test_list, str, 2)
-    assert 4 == cu.find_xth_element_of_type(test_list, int, 3)
-    assert not cu.find_xth_element_of_type(test_list, bool, 1)
-    assert not cu.find_xth_element_of_type(test_list, int, 0)
