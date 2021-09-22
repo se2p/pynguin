@@ -7,7 +7,7 @@
 """Provides an adapter for the MutPy mutation testing framework."""
 import logging
 from types import ModuleType
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import mutpy.controller as mc
 import mutpy.operators as mo
@@ -16,12 +16,20 @@ import mutpy.utils as mu
 import mutpy.views as mv
 
 import pynguin.configuration as config
+from pynguin.utils.exceptions import ConfigurationException
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class MutationAdapter:  # pylint: disable=too-few-public-methods
     """Adapter class for interactions with the MutPy mutation testing framework."""
+
+    _strategies: Dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {
+        config.MutationStrategy.FIRST_TO_LAST: mc.FirstToLastHOMStrategy,
+        config.MutationStrategy.BETWEEN_OPERATORS: mc.BetweenOperatorsHOMStrategy,
+        config.MutationStrategy.RANDOM: mc.RandomHOMStrategy,
+        config.MutationStrategy.EACH_CHOICE: mc.EachChoiceHOMStrategy,
+    }
 
     def __init__(self):
         self.target_loader: Optional[mu.ModulesLoader] = None
@@ -89,24 +97,14 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
         if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
             return mc.FirstOrderMutator(operators_set, percentage)
 
-        hom_strategy = self._choose_hom_strategy(mutation_strategy)
-        return mc.HighOrderMutator(operators_set, percentage, hom_strategy)
-
-    @staticmethod
-    def _choose_hom_strategy(
-        mutation_strategy: config.MutationStrategy,
-    ) -> mc.HOMStrategy:
         order = config.configuration.test_case_output.mutation_order
-        assert order > 0, "Mutation order should be > 0."
-        if mutation_strategy == config.MutationStrategy.FIRST_TO_LAST:
-            return mc.FirstToLastHOMStrategy(order=order)
-        if mutation_strategy == config.MutationStrategy.BETWEEN_OPERATORS:
-            return mc.BetweenOperatorsHOMStrategy(order=order)
-        if mutation_strategy == config.MutationStrategy.RANDOM:
-            return mc.RandomHOMStrategy(order=order)
-        if mutation_strategy == config.MutationStrategy.EACH_CHOICE:
-            return mc.EachChoiceHOMStrategy(order=order)
-        raise ValueError("Unsupported HOM strategy")
+        if order < 0:
+            raise ConfigurationException("Mutation order should be > 0.")
+
+        if mutation_strategy in self._strategies:
+            hom_strategy = self._strategies[mutation_strategy](order)
+            return mc.HighOrderMutator(operators_set, percentage, hom_strategy)
+        raise ConfigurationException("No suitable mutation strategy found.")
 
     @staticmethod
     def _get_views() -> List[mv.QuietTextView]:
