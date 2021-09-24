@@ -148,7 +148,9 @@ class CollectorStorage:
         for _, module in modules.items():
             module_name = module.__name__
             for (field_name, field_value) in vars(module).items():
-                if self._filter_condition((field_name, field_value)):
+                if self._filter_condition(
+                    (field_name, field_value)
+                ) and not field_name.startswith("_"):
                     try:
                         entry[
                             (
