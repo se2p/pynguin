@@ -16,6 +16,7 @@ import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as ce
 import pynguin.assertion.mutation_analysis.statecollectingobserver as sco
+import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.execution.testcaseexecutor as ex
@@ -78,7 +79,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
     def _compare(self, key: Tuple[Any, ...], ref_value: Any, mut_value: Any):
         if self._is_assertable_item(ref_value):
             # ref_value and mut_value can be compared straight away
-            if ref_value != mut_value:
+            if (
+                ref_value != mut_value
+                or config.configuration.test_case_output.generate_all_assertions
+            ):
                 self._switch_generation(key, ref_value)
         elif hasattr(ref_value, "__dict__"):
             # ref_value and mut_value need to be disassembled and partially compared
@@ -88,7 +92,10 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                 if (
                     ref_field == mut_field
                     and self._is_assertable_item(ref_field_value)
-                    and ref_field_value != mut_field_value
+                    and (
+                        ref_field_value != mut_field_value
+                        or config.configuration.test_case_output.generate_all_assertions
+                    )
                 ):
                     self._switch_generation(key, ref_field_value, ref_field)
 
