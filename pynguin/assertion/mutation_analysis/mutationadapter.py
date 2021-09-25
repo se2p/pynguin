@@ -98,7 +98,7 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
             return mc.FirstOrderMutator(operators_set, percentage)
 
         order = config.configuration.test_case_output.mutation_order
-        if order < 0:
+        if order <= 0:
             raise ConfigurationException("Mutation order should be > 0.")
 
         if mutation_strategy in self._strategies:
