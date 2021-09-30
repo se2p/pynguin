@@ -11,7 +11,7 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.9.7-slim-buster AS build
+FROM python:3.9.7-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
 ENV POETRY_VERSION "1.1.8"
 
@@ -26,7 +26,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.9.7-slim-buster AS execute
+FROM python:3.9.7-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
@@ -43,6 +43,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # Prevent Python from buffering output that is written to STDOUT/STDERR; this allows to
 # monitor the output in real time
 ENV PYTHONUNBUFFERED 1
+# Disable random hash seeding for reproducible runs
+ENV PYTHONHASHSEED 0
 
 WORKDIR /pynguin
 

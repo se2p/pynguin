@@ -235,7 +235,7 @@ def build_class_information(value) -> ClassInformation:
         return ClassInformation(name=value, class_object=type(None))
     if isinstance(value, type):
         return _retrieve_class_information(value)
-    raise ValueError("Cannot build ClassInformation for %s" % value)
+    raise ValueError(f"Cannot build ClassInformation for {value}")
 
 
 def _retrieve_class_information(class_object: type) -> ClassInformation:

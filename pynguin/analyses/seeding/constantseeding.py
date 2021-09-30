@@ -134,12 +134,12 @@ class _StaticConstantSeeding(_ConstantSeeding):
                 "*.test",
             ],
         ):
-            pkg_path = "{}/{}".format(project_path, package.replace(".", "/"))
+            package_name = package.replace(".", "/")
+            pkg_path = f"{project_path}/{package_name}"
             for info in iter_modules([pkg_path]):
                 if not info.ispkg:
                     name = info.name.replace(".", "/")
-                    package_path = package.replace(".", "/")
-                    modules.add(f"{package_path}/{name}.py")
+                    modules.add(f"{package_name}/{name}.py")
         return modules
 
     def collect_constants(
