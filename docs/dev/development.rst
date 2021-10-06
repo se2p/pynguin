@@ -99,3 +99,13 @@ class as follows:
         def __repr__(self) -> str:
             return f"Example(foo=\"{self._foo}\", bar={self._bar}, "
                    f"baz={repr(self._baz)})"
+
+Guarding imports for type checking
+----------------------------------
+
+Some imports in a module are only necessary for type checking but not at runtime.
+We guard these imports by ``if typing.TYPE_CHECKING`` blocks.
+The main reason for this is to prevent circular imports.
+During type checking, these imports do not harm the type checker as it uses much more
+sophisticated techniques to handle the circular imports (like a compiler does) in
+contrast to the simple handling of the interpreter.
