@@ -9,6 +9,7 @@ import sys
 from bytecode import Bytecode
 
 from pynguin.analyses.controlflow.cfg import CFG
+from tests.conftest import notpython310
 from tests.fixtures.programgraph.whileloop import Foo
 
 
@@ -145,6 +146,7 @@ def control_flow_labelling(foo):  # pragma: no cover
         print("foo")
 
 
+@notpython310
 def test_all_control_flow():
     graph = """strict digraph  {
 "ProgramGraphNode(0)
@@ -300,6 +302,7 @@ def test_integration_copy_cfg(conditional_jump_example_bytecode):
     assert copied_cfg.dot == cfg.dot
 
 
+@notpython310
 def test_integration_while_loop():
     while_loop_cfg = CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
     assert len(while_loop_cfg.nodes) == 3

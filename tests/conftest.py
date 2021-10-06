@@ -291,5 +291,8 @@ python38 = pytest.mark.skipif(
 python39plus = pytest.mark.skipif(
     sys.version_info < (3, 9), reason="Works only with CPython 3.9+"
 )
+notpython310 = pytest.mark.skipif(
+    sys.version_info >= (3, 10), reason="Does not work with CPython 3.10 currently"
+)
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
