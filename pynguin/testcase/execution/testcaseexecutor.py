@@ -93,7 +93,7 @@ class TestCaseExecutor:
     ) -> None:
         result = res.ExecutionResult()
         exec_ctx = ctx.ExecutionContext()
-        self.tracer.current_thread_ident = threading.currentThread().ident
+        self.tracer.current_thread_ident = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)

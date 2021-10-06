@@ -328,7 +328,7 @@ def test_exception_integrate():
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     func()
     assert {0} == tracer.get_trace().executed_code_objects
     assert {0: 1} == tracer.get_trace().executed_predicates
@@ -347,7 +347,7 @@ def test_exception_no_match_integrate():
 
     instr = BranchCoverageInstrumentation(tracer)
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with pytest.raises(RuntimeError):
         func()
     assert {0} == tracer.get_trace().executed_code_objects

@@ -130,7 +130,7 @@ def _setup_import_hook() -> ExecutionTracer:
 def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
-        tracer.current_thread_ident = threading.currentThread().ident
+        tracer.current_thread_ident = threading.current_thread().ident
         importlib.import_module(config.configuration.module_name)
     except ImportError as ex:
         # A module could not be imported because some dependencies
