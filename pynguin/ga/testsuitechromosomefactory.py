@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from ordered_set import OrderedSet
-from typing_extensions import TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
