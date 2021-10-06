@@ -5,10 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a converter to unify generation results."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
-import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
 
 
 class ChromosomeConverter(cv.ChromosomeVisitor):

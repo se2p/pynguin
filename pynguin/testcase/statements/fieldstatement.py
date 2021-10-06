@@ -7,19 +7,23 @@
 """
 Provides a statement that accesses public fields/properties.
 """
-from typing import Any, Dict, Optional, Set
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericField,
 )
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statementvisitor as sv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
 
 
 class FieldStatement(stmt.Statement):

@@ -9,15 +9,19 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 import networkx as nx
 
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+
+if TYPE_CHECKING:
+    from pynguin.analyses.controlflow.controldependencegraph import (
+        ControlDependenceGraph,
+    )
+    from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 @total_ordering

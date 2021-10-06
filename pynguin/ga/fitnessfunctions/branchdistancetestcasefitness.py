@@ -5,15 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides branch distance for test case chromosomes"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.fitnessfunctions.fitness_utilities import (
     analyze_results,
     compute_branch_coverage,
     compute_branch_distance_fitness,
 )
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class BranchDistanceTestCaseFitnessFunction(atcff.AbstractTestCaseFitnessFunction):

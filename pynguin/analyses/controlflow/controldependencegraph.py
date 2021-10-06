@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
 from ordered_set import OrderedSet
 
 import pynguin.analyses.controlflow.dominatortree as pdt
 import pynguin.analyses.controlflow.programgraph as pg
-from pynguin.analyses.controlflow import cfg
+
+if TYPE_CHECKING:
+    from pynguin.analyses.controlflow import cfg
 
 
 # pylint:disable=too-few-public-methods.

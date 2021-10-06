@@ -5,18 +5,17 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides factories for the generation algorithm."""
+from __future__ import annotations
+
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Dict, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Dict, Generic, TypeVar
 
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
@@ -26,14 +25,10 @@ import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
-from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
-from pynguin.ga.operators.ranking.rankingfunction import (
-    RankBasedPreferenceSorting,
-    RankingFunction,
-)
+from pynguin.ga.operators.ranking.rankingfunction import RankBasedPreferenceSorting
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.ga.operators.selection.tournamentselection import TournamentSelection
@@ -45,18 +40,29 @@ from pynguin.generation.algorithms.randomsearchstrategy import (
     RandomTestSuiteSearchStrategy,
 )
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
     MaxStatementExecutionsStoppingCondition,
     MaxTestExecutionsStoppingCondition,
     MaxTimeStoppingCondition,
-    StoppingCondition,
 )
 from pynguin.setup.testcluster import FilteredTestCluster, TestCluster
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
+
+if TYPE_CHECKING:
+    import pynguin.ga.chromosomefactory as cf
+    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+    import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
+    from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+    from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
+    from pynguin.generation.algorithms.testgenerationstrategy import (
+        TestGenerationStrategy,
+    )
+    from pynguin.generation.stoppingconditions.stoppingcondition import (
+        StoppingCondition,
+    )
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

@@ -7,12 +7,14 @@
 """Provides an output trace."""
 from __future__ import annotations
 
-from typing import Dict, Generic, Set, TypeVar, cast
+from typing import TYPE_CHECKING, Dict, Generic, Set, TypeVar, cast
 
-import pynguin.assertion.assertion as ass
 import pynguin.assertion.outputtraceentry as ote
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereference as vr
+
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.variable.variablereference as vr
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=ote.OutputTraceEntry)

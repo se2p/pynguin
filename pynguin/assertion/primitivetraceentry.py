@@ -7,12 +7,14 @@
 """Provides an entry for a primitive assertion."""
 from __future__ import annotations
 
-from typing import Any, Set
+from typing import TYPE_CHECKING, Any, Set
 
-import pynguin.assertion.assertion as ass
 import pynguin.assertion.outputtraceentry as ote
 import pynguin.assertion.primitiveassertion as pas
-import pynguin.testcase.variable.variablereference as vr
+
+if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
+    import pynguin.testcase.variable.variablereference as vr
 
 
 class PrimitiveTraceEntry(ote.OutputTraceEntry):

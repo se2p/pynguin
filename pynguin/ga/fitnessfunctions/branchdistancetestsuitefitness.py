@@ -5,17 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provide a fitness function based on branch distances."""
-from typing import Set
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Set
 
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
-import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.fitnessfunctions.fitness_utilities import (
     analyze_results,
     compute_branch_coverage,
     compute_branch_distance_fitness,
 )
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+
+if TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class BranchDistanceTestSuiteFitnessFunction(atsff.AbstractTestSuiteFitnessFunction):

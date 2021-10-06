@@ -5,10 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an observer to observe the search."""
+from __future__ import annotations
+
 import logging
 from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING
 
-import pynguin.ga.testsuitechromosome as tsc
+if TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 class SearchObserver(metaclass=ABCMeta):

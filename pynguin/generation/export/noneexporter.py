@@ -5,11 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a no op exporter."""
+from __future__ import annotations
+
 import os
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
-from pynguin.testcase import testcase as tc
+
+if TYPE_CHECKING:
+    from pynguin.testcase import testcase as tc
 
 
 # pylint: disable=too-few-public-methods

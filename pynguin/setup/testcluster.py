@@ -17,11 +17,9 @@ from ordered_set import OrderedSet
 from typing_inspect import get_args, is_union_type
 
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
-from pynguin.testcase.execution.executiontracer import KnownData
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericAccessibleObject,
     GenericCallableAccessibleObject,
 )
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
@@ -29,6 +27,8 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 if typing.TYPE_CHECKING:  # Break circular dependencies at runtime.
     import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
     import pynguin.generation.algorithms.archive as arch
+    from pynguin.testcase.execution.executiontracer import KnownData
+    from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class TestCluster(ABC):

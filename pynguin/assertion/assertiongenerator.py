@@ -5,18 +5,22 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an assertion generator"""
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import pynguin.assertion.noneassertionobserver as nao
 import pynguin.assertion.primitiveassertionobserver as pao
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.execution.testcaseexecutor as ex
-import pynguin.testcase.testcase as tc
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.ga.testsuitechromosome as tsc
+    import pynguin.testcase.execution.testcaseexecutor as ex
+    import pynguin.testcase.testcase as tc
 
 
 class AssertionGenerator(cv.ChromosomeVisitor):

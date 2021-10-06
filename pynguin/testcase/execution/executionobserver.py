@@ -5,13 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provide an execution observer"""
-from abc import abstractmethod
-from typing import Optional
+from __future__ import annotations
 
-import pynguin.testcase.execution.executionresult as res
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executioncontext import ExecutionContext
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    import pynguin.testcase.execution.executionresult as res
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcase as tc
+    from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
 class ExecutionObserver:

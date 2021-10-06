@@ -5,13 +5,19 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test suite chromosomes."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 
 
 class TestSuiteChromosomeFactory(

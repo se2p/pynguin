@@ -5,23 +5,27 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides classes for various bytecode instrumentations."""
+from __future__ import annotations
+
 import json
 import logging
 from abc import abstractmethod
 from types import CodeType
-from typing import List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, List, Optional, Set, Tuple
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
     ExecutionTracer,
     PredicateMetaData,
 )
+
+if TYPE_CHECKING:
+    from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
 
 CODE_OBJECT_ID_KEY = "code_object_id"
 

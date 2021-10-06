@@ -5,18 +5,22 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides classes for handling fitness functions for branch coverage."""
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.fitnessfunction as ff
 import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.execution.testcaseexecutor as tce
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.testcase.execution.testcaseexecutor as tce
+    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
 
 
 class AbstractBranchCoverageGoal:

@@ -8,10 +8,12 @@
 from __future__ import annotations
 
 import queue
-from typing import Dict, Set
+from typing import TYPE_CHECKING, Dict, Set
 
 import pynguin.analyses.controlflow.programgraph as pg
-from pynguin.analyses.controlflow import cfg
+
+if TYPE_CHECKING:
+    from pynguin.analyses.controlflow import cfg
 
 
 class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):

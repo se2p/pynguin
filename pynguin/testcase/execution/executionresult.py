@@ -5,10 +5,13 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides the result of an execution run."""
-from typing import Dict, Optional, Type
+from __future__ import annotations
 
-import pynguin.assertion.outputtrace as ot
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from typing import TYPE_CHECKING, Dict, Optional, Type
+
+if TYPE_CHECKING:
+    import pynguin.assertion.outputtrace as ot
+    from pynguin.testcase.execution.executiontrace import ExecutionTrace
 
 
 class ExecutionResult:

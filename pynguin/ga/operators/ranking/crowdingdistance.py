@@ -5,13 +5,17 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides various crowding-distance assignment implementations."""
+from __future__ import annotations
+
 import sys
-from typing import List, TypeVar
+from typing import TYPE_CHECKING, List, TypeVar
 
 from ordered_set import OrderedSet
 
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
+
+if TYPE_CHECKING:
+    import pynguin.ga.fitnessfunction as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
