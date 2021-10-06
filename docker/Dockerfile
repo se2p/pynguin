@@ -13,12 +13,18 @@
 # Build stage for Pynguin
 FROM python:3.9.7-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
-ENV POETRY_VERSION "1.1.8"
-
-COPY . /pynguin-build
+ENV POETRY_VERSION "1.1.11"
 
 WORKDIR /pynguin-build
 
+# Python shall not write the byte code to *.pyc files; they cannot be cached between
+# runs of the container anyway, hence we save the required time and resources for that
+ENV PYTHONDONTWRITEBYTECODE 1
+# Prevent Python from buffering output that is written to STDOUT/STDERR; this allows to
+# monitor the output in real time
+ENV PYTHONUNBUFFERED 1
+
+COPY . .
 
 RUN pip install poetry==$POETRY_VERSION \
     && poetry config virtualenvs.create false \
