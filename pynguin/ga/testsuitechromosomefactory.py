@@ -7,8 +7,9 @@
 """Provides a factory to create test suite chromosomes."""
 from __future__ import annotations
 
-from ordered_set import OrderedSet
 from typing import TYPE_CHECKING
+
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
