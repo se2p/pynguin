@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.9.3"
+version = "0.10.0"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -29,6 +29,7 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Education :: Testing",
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Unit",
@@ -44,28 +45,28 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^10.9"
+rich = "^10.12"
 pytest = "^6.2"
-Jinja2 = "^3.0.1"
+Jinja2 = "^3.0"
 Pygments = "^2.10.0"
 ordered-set = "^4.0.2"
 
 [tool.poetry.dev-dependencies]
-coverage = "^5.5"
+coverage = "^6.0"
 pytest = "^6.2"
 black = {version = "^21.9b0", allow-prereleases = true}
-pytest-cov = "^2.12"
-pylint = "^2.10"
+pytest-cov = "^3.0"
+pylint = "^2.11"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
-pytest-xdist = "^2.3"
-hypothesis = "^6.21"
+pytest-xdist = "^2.4"
+hypothesis = "^6.23"
 pytest-mock = "^3.6"
 mypy = "^0.910"
 isort = {extras = ["pyproject"], version = "^5.9"}
 pre-commit = "^2.15"
 darglint = "^1.8"
-pyupgrade = "^2.26"
+pyupgrade = "^2.29"
 bandit = "^1.7"
 safety = "^1.10"
 sphinx = "^4.2"
