@@ -206,11 +206,13 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> CFG:
         dummy_entry_node = pg.ProgramGraphNode(index=-1, is_artificial=True)
-        entry_node = cfg.entry_node
-        if not entry_node and len(cfg.nodes) == 1:
-            entry_node = cfg.nodes.pop()  # There is only one candidate to pop
-        elif not entry_node:
-            entry_node = [n for n in cfg.nodes if n.index == 0][0]
+        # Search node with index 0. This block contains the instruction where
+        # the execution of a code object begins.
+        node_zero = [n for n in cfg.nodes if n.index == 0]
+        assert (
+            len(node_zero) == 1
+        ), "Execution has to start at exactly one node that has index 0."
+        entry_node = node_zero[0]
         cfg.add_node(dummy_entry_node)
         cfg.add_edge(dummy_entry_node, entry_node)
         return cfg
@@ -219,8 +221,9 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
         dummy_exit_node = pg.ProgramGraphNode(index=sys.maxsize, is_artificial=True)
         exit_nodes = cfg.exit_nodes
-        if not exit_nodes and len(cfg.nodes) == 1:
-            exit_nodes = cfg.nodes
+        assert exit_nodes, (
+            "Control flow must have at least one exit node. Offending CFG: " + cfg.dot
+        )
         cfg.add_node(dummy_exit_node)
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, dummy_exit_node)
