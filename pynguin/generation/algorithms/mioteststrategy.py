@@ -62,9 +62,6 @@ class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self.before_first_search_iteration(
-            self.create_test_suite(self._archive.solutions)
-        )
         while (
             self.resources_left()
             and len(self._test_case_fitness_functions)
