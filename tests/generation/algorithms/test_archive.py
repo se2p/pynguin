@@ -4,15 +4,15 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List, Set
+from typing import List
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from ordered_set import OrderedSet
 
-import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+import pynguin.ga.testcasechromosome as tcc
 from pynguin.generation.algorithms.archive import (
     CoverageArchive,
     MIOArchive,
@@ -22,17 +22,17 @@ from pynguin.generation.algorithms.archive import (
 
 
 @pytest.fixture
-def zero_fitness_function() -> ff.FitnessFunction:
-    fitness_function = MagicMock(ff.FitnessFunction)
-    result = ff.FitnessValues(fitness=0.0, coverage=0.0)
+def zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
+    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
+    result = atcff.ff.FitnessValues(fitness=0.0, coverage=0.0)
     fitness_function.compute_fitness_values.return_value = result
     return fitness_function
 
 
 @pytest.fixture
-def non_zero_fitness_function() -> ff.FitnessFunction:
-    fitness_function = MagicMock(ff.FitnessFunction)
-    result = ff.FitnessValues(fitness=42.0, coverage=0.0)
+def non_zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
+    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
+    result = atcff.ff.FitnessValues(fitness=42.0, coverage=0.0)
     fitness_function.compute_fitness_values.return_value = result
     return fitness_function
 
@@ -40,28 +40,28 @@ def non_zero_fitness_function() -> ff.FitnessFunction:
 @pytest.fixture
 def objectives(
     zero_fitness_function, non_zero_fitness_function
-) -> Set[ff.FitnessFunction]:
-    return {zero_fitness_function, non_zero_fitness_function}
+) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    return OrderedSet([zero_fitness_function, non_zero_fitness_function])
 
 
 @pytest.fixture
-def short_chromosome() -> chrom.Chromosome:
-    chromosome = MagicMock(chrom.Chromosome)
+def short_chromosome() -> tcc.TestCaseChromosome:
+    chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 2
     chromosome.get_fitness_for.return_value = 0.0
     return chromosome
 
 
 @pytest.fixture
-def long_chromosome() -> chrom.Chromosome:
-    chromosome = MagicMock(chrom.Chromosome)
+def long_chromosome() -> tcc.TestCaseChromosome:
+    chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 42
     chromosome.get_fitness_for.return_value = 42.0
     return chromosome
 
 
 @pytest.fixture
-def chromosomes(short_chromosome, long_chromosome) -> List[chrom.Chromosome]:
+def chromosomes(short_chromosome, long_chromosome) -> List[tcc.TestCaseChromosome]:
     return [short_chromosome, long_chromosome]
 
 
@@ -339,14 +339,14 @@ def test_is_better_secondary_no_timeout_or_exception_swapped():
 
 def test_mio_archive_initial_empty():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     assert archive.num_covered_targets == 0
     assert archive.solutions == []
 
 
 def test_mio_archive_update_no_ex():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
@@ -359,7 +359,7 @@ def test_mio_archive_update_no_ex():
 
 def test_mio_archive_update_ex():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
@@ -376,13 +376,13 @@ def test_mio_archive_update_ex():
 
 def test_mio_archive_get_solution_none_covered():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     assert archive.get_solution() is None
 
 
 def test_mio_archive_get_solution_is_covered():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
@@ -395,7 +395,7 @@ def test_mio_archive_get_solution_is_covered():
 
 def test_mio_archive_get_solution_not_covered():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
@@ -408,7 +408,7 @@ def test_mio_archive_get_solution_not_covered():
 
 def test_mio_archive_get_solutions():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
@@ -419,7 +419,7 @@ def test_mio_archive_get_solutions():
 
 def test_mio_archive_num_covered_targets():
     fitness = MagicMock()
-    archive = MIOArchive([fitness], 3)
+    archive = MIOArchive(OrderedSet([fitness]), 3)
     solution = MagicMock()
     clone = MagicMock()
     solution.clone.return_value = clone
