@@ -9,6 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from ordered_set import OrderedSet
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.fitnessfunction as ff
@@ -74,14 +75,14 @@ def test_reset(objectives):
     archive.reset()
     assert archive.uncovered_goals == objectives
     assert archive.covered_goals == set()
-    assert archive.solutions == set()
+    assert archive.solutions == OrderedSet()
 
 
 def test_update_solution(objectives, chromosomes):
     archive = CoverageArchive(objectives)
     archive.update(chromosomes)
     solution = archive.solutions
-    assert solution == {chromosomes[0]}
+    assert solution == OrderedSet([chromosomes[0]])
 
 
 def test_population_pair():
