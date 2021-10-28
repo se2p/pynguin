@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from ordered_set import OrderedSet
 
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.generation.algorithms.archive import (
     CoverageArchive,
@@ -22,26 +22,13 @@ from pynguin.generation.algorithms.archive import (
 
 
 @pytest.fixture
-def zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
-    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
-    result = atcff.ff.FitnessValues(fitness=0.0, coverage=0.0)
-    fitness_function.compute_fitness_values.return_value = result
-    return fitness_function
+def objectives() -> OrderedSet[ff.TestCaseFitnessFunction]:
+    return OrderedSet(
+        [MagicMock(ff.TestCaseFitnessFunction), MagicMock(ff.TestCaseFitnessFunction)]
+    )
 
 
-@pytest.fixture
-def non_zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
-    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
-    result = atcff.ff.FitnessValues(fitness=42.0, coverage=0.0)
-    fitness_function.compute_fitness_values.return_value = result
-    return fitness_function
-
-
-@pytest.fixture
-def objectives(
-    zero_fitness_function, non_zero_fitness_function
-) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
-    return OrderedSet([zero_fitness_function, non_zero_fitness_function])
+# TODO add tests that use get_is_covered
 
 
 @pytest.fixture

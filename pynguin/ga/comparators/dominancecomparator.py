@@ -7,13 +7,12 @@
 """Provides a comparator for dominance comparisons."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, Optional, Set, TypeVar
+from typing import Generic, Optional, TypeVar
+
+from ordered_set import OrderedSet
 
 import pynguin.ga.chromosome as chrom
-from pynguin.ga.fitnessfunctions.fitness_utilities import compare
-
-if TYPE_CHECKING:
-    import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.computations as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
@@ -26,10 +25,10 @@ class DominanceComparator(Generic[C]):
         self,
         *,
         goal: Optional[ff.FitnessFunction] = None,
-        goals: Optional[Set[ff.FitnessFunction]] = None,
+        goals: Optional[OrderedSet[ff.FitnessFunction]] = None,
     ) -> None:
         if goals is not None:
-            self._objectives: Optional[Set[ff.FitnessFunction]] = goals
+            self._objectives: Optional[OrderedSet[ff.FitnessFunction]] = goals
         elif goal is not None:
             self._objectives = {goal}
         else:
@@ -59,7 +58,7 @@ class DominanceComparator(Generic[C]):
             self._objectives = set(chromosome_1.get_fitness_functions())
 
         for objective in self._objectives:
-            flag = compare(
+            flag = ff.compare(
                 chromosome_1.get_fitness_for(objective),
                 chromosome_2.get_fitness_for(objective),
             )

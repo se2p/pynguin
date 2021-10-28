@@ -47,6 +47,10 @@ class RandomTestStrategy(TestGenerationStrategy):
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
 
+        for coverage_function in self._test_suite_coverage_functions:
+            test_chromosome.add_coverage_function(coverage_function)
+            failing_test_chromosome.add_coverage_function(coverage_function)
+
         combined_chromosome = self._combine_current_individual(
             test_chromosome, failing_test_chromosome
         )
