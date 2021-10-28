@@ -4,8 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -75,7 +74,7 @@ def test_test_case_compute_fitness_values(known_data_mock, executor_mock, trace_
     executor_mock.tracer.return_value = tracer
     func = ff.BranchDistanceTestCaseFitnessFunction(executor_mock, 0)
     indiv = MagicMock()
-    with mock.patch.object(func, "_run_test_case_chromosome") as run_suite_mock:
+    with patch.object(func, "_run_test_case_chromosome") as run_suite_mock:
         result = ExecutionResult()
         result.execution_trace = trace_mock
         run_suite_mock.return_value = result
@@ -94,7 +93,7 @@ def test_test_suite_compute_fitness_values(known_data_mock, executor_mock, trace
     executor_mock.tracer.return_value = tracer
     func = ff.BranchDistanceTestSuiteFitnessFunction(executor_mock)
     indiv = MagicMock()
-    with mock.patch.object(func, "_run_test_suite_chromosome") as run_suite_mock:
+    with patch.object(func, "_run_test_suite_chromosome") as run_suite_mock:
         result = ExecutionResult()
         result.execution_trace = trace_mock
         run_suite_mock.return_value = [result]
