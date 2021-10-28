@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 import pynguin.ga.chromosome as chrom
 
 if TYPE_CHECKING:
-    import pynguin.ga.fitnessfunction as ff
+    import pynguin.ga.computations as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

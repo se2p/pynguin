@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, List, Set, cast
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
-import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
+import pynguin.ga.computations as ff
 import pynguin.generation.algorithms.archive as arch
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
@@ -136,11 +136,11 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
                     raise ValueError("Unknown coverage goal")
 
             for func in self.test_suite_fitness_functions:
-                assert isinstance(func, bdtsf.BranchDistanceTestSuiteFitnessFunction)
+                assert isinstance(func, ff.BranchDistanceTestSuiteFitnessFunction)
                 func.restrict(exclude_code, exclude_true, exclude_false)
             # Force re-computation of fitness.
             for chromosome in self._population:
-                chromosome.invalidate_fitness_values()
+                chromosome.invalidate_cache()
 
     def _sort_population(self) -> None:
         """Sort the population by fitness."""

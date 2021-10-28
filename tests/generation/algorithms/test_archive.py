@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from ordered_set import OrderedSet
 
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.generation.algorithms.archive import (
     CoverageArchive,
@@ -22,33 +22,17 @@ from pynguin.generation.algorithms.archive import (
 
 
 @pytest.fixture
-def zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
-    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
-    result = atcff.ff.FitnessValues(fitness=0.0, coverage=0.0)
-    fitness_function.compute_fitness_values.return_value = result
-    return fitness_function
-
-
-@pytest.fixture
-def non_zero_fitness_function() -> atcff.AbstractTestCaseFitnessFunction:
-    fitness_function = MagicMock(atcff.AbstractTestCaseFitnessFunction)
-    result = atcff.ff.FitnessValues(fitness=42.0, coverage=0.0)
-    fitness_function.compute_fitness_values.return_value = result
-    return fitness_function
-
-
-@pytest.fixture
-def objectives(
-    zero_fitness_function, non_zero_fitness_function
-) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
-    return OrderedSet([zero_fitness_function, non_zero_fitness_function])
+def objectives() -> OrderedSet[ff.TestCaseFitnessFunction]:
+    return OrderedSet(
+        [MagicMock(ff.TestCaseFitnessFunction), MagicMock(ff.TestCaseFitnessFunction)]
+    )
 
 
 @pytest.fixture
 def short_chromosome() -> tcc.TestCaseChromosome:
     chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 2
-    chromosome.get_fitness_for.return_value = 0.0
+    chromosome.get_is_covered.return_value = True
     return chromosome
 
 
@@ -56,13 +40,13 @@ def short_chromosome() -> tcc.TestCaseChromosome:
 def long_chromosome() -> tcc.TestCaseChromosome:
     chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 42
-    chromosome.get_fitness_for.return_value = 42.0
+    chromosome.get_is_covered.return_value = False
     return chromosome
 
 
 @pytest.fixture
 def chromosomes(short_chromosome, long_chromosome) -> List[tcc.TestCaseChromosome]:
-    return [short_chromosome, long_chromosome]
+    return [long_chromosome, short_chromosome]
 
 
 def test_uncovered_goals(objectives):
@@ -82,7 +66,13 @@ def test_update_solution(objectives, chromosomes):
     archive = CoverageArchive(objectives)
     archive.update(chromosomes)
     solution = archive.solutions
-    assert solution == OrderedSet([chromosomes[0]])
+    assert solution == OrderedSet([chromosomes[1]])
+    assert chromosomes[0].get_fitness_for.call_count == 0
+    assert chromosomes[1].get_fitness_for.call_count == 0
+    # Called in assertion in archive again.
+    assert chromosomes[0].get_is_covered.call_count == 2
+    # Called in assertion in archive again.
+    assert chromosomes[1].get_is_covered.call_count == 4
 
 
 def test_population_pair():

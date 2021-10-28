@@ -22,10 +22,7 @@ from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
 
 import pynguin.configuration as config
-from pynguin.ga.fitnessfunctions.fitness_utilities import (
-    analyze_results,
-    compute_branch_coverage,
-)
+import pynguin.ga.computations as ff
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
@@ -125,7 +122,7 @@ def get_coverage_report(
         result = test_case_chromosome.get_last_execution_result()
         assert result is not None
         results.append(result)
-    trace = analyze_results(results)
+    trace = ff.analyze_results(results)
     known_data = executor.tracer.get_known_data()
 
     line_to_branchless_code_object_coverage = (
@@ -135,7 +132,7 @@ def get_coverage_report(
     line_to_branch_coverage = _get_line_to_branch_coverage(known_data, trace)
 
     source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
-    branch_coverage = compute_branch_coverage(trace, known_data)
+    branch_coverage = ff.compute_branch_coverage(trace, known_data)
 
     branchless_code_objects = CoverageEntry()
     for cov in line_to_branchless_code_object_coverage.values():

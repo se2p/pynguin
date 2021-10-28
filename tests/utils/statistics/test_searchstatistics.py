@@ -10,7 +10,7 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.computations as ff
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -32,7 +32,10 @@ def chromosome():
     fitness_func = MagicMock(ff.FitnessFunction)
     fitness_func.is_maximisation_function.return_value = False
     chrom.add_fitness_function(fitness_func)
-    chrom._update_fitness_values(fitness_func, ff.FitnessValues(0, 0))
+    chrom._computation_cache._fitness_cache[fitness_func] = 0
+    coverage_func = MagicMock()
+    chrom.add_coverage_function(coverage_func)
+    chrom._computation_cache._coverage_cache[coverage_func] = 0
     chrom.set_changed(False)
     return chrom
 

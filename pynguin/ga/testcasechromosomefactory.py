@@ -17,7 +17,7 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
-    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+    import pynguin.ga.computations as ff
     import pynguin.ga.testcasefactory as tcf
     import pynguin.generation.algorithms.archive as arch
     import pynguin.testcase.testfactory as tf
@@ -33,7 +33,7 @@ class TestCaseChromosomeFactory(
         self,
         test_factory: tf.TestFactory,
         test_case_factory: tcf.TestCaseFactory,
-        fitness_functions: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
         """Instantiates a new factory to create test case chromosomes.
 

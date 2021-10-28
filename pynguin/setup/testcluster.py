@@ -25,7 +25,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 if typing.TYPE_CHECKING:  # Break circular dependencies at runtime.
-    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+    import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
     from pynguin.testcase.execution.executiontracer import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
@@ -267,7 +267,7 @@ class FilteredTestCluster(TestCluster):
         test_cluster: TestCluster,
         archive: arch.Archive,
         known_data: KnownData,
-        targets: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
+        targets: OrderedSet[ff.TestCaseFitnessFunction],
     ):
         self._delegate = test_cluster
         self._known_data = known_data
@@ -297,7 +297,7 @@ class FilteredTestCluster(TestCluster):
         archive.add_on_target_covered(self._on_target_covered)
 
     def _get_accessible_object_for_target(
-        self, target: atcff.AbstractTestCaseFitnessFunction
+        self, target: ff.TestCaseFitnessFunction
     ) -> Optional[GenericCallableAccessibleObject]:
         code_object_id: Optional[int] = target.code_object_id
         while code_object_id is not None:
@@ -312,7 +312,7 @@ class FilteredTestCluster(TestCluster):
             ].parent_code_object_id
         return None
 
-    def _on_target_covered(self, target: atcff.AbstractTestCaseFitnessFunction) -> None:
+    def _on_target_covered(self, target: ff.TestCaseFitnessFunction) -> None:
         acc = self._get_accessible_object_for_target(target)
         if acc is not None:
             targets_for_acc = self._accessible_to_targets.get(acc)

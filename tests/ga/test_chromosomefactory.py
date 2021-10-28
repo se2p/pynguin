@@ -17,7 +17,7 @@ import pynguin.ga.testsuitechromosomefactory as tscf
 def test_suite_factory_get_chromosome():
     test_case_chromosome_factory = MagicMock(tccf.TestCaseChromosomeFactory)
     factory = tscf.TestSuiteChromosomeFactory(
-        test_case_chromosome_factory, OrderedSet()
+        test_case_chromosome_factory, OrderedSet(), OrderedSet()
     )
     config.configuration.search_algorithm.min_initial_tests = 5
     config.configuration.search_algorithm.max_initial_tests = 5

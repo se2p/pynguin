@@ -19,8 +19,7 @@ import pynguin.generation.algorithms.archive as arch
 if TYPE_CHECKING:
     import pynguin.coverage.branchgoals as bg
     import pynguin.ga.chromosomefactory as cf
-    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-    import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
+    import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.generation.searchobserver as so
     import pynguin.testcase.testfactory as tf
@@ -52,10 +51,13 @@ class TestGenerationStrategy(
         self._crossover_function: CrossOverFunction
         self._ranking_function: RankingFunction
         self._test_case_fitness_functions: OrderedSet[
-            atcff.AbstractTestCaseFitnessFunction
+            ff.TestCaseFitnessFunction
         ] = OrderedSet()
         self._test_suite_fitness_functions: OrderedSet[
-            atsff.AbstractTestSuiteFitnessFunction
+            ff.TestSuiteFitnessFunction
+        ] = OrderedSet()
+        self._test_suite_coverage_functions: OrderedSet[
+            ff.TestSuiteCoverageFunction
         ] = OrderedSet()
         self._branch_goal_pool: bg.BranchGoalPool
         self._search_observers: List[so.SearchObserver] = []
@@ -187,7 +189,7 @@ class TestGenerationStrategy(
     @property
     def test_case_fitness_functions(
         self,
-    ) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    ) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Provides the list of test case fitness functions.
 
         Returns:
@@ -198,14 +200,14 @@ class TestGenerationStrategy(
     @test_case_fitness_functions.setter
     def test_case_fitness_functions(
         self,
-        test_case_fitness_functions: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
+        test_case_fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
         self._test_case_fitness_functions = test_case_fitness_functions
 
     @property
     def test_suite_fitness_functions(
         self,
-    ) -> OrderedSet[atsff.AbstractTestSuiteFitnessFunction]:
+    ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
         """Provides the list of test suite fitness functions.
 
         Returns:
@@ -216,18 +218,35 @@ class TestGenerationStrategy(
     @test_suite_fitness_functions.setter
     def test_suite_fitness_functions(
         self,
-        test_suite_fitness_functions: OrderedSet[
-            atsff.AbstractTestSuiteFitnessFunction
-        ],
+        test_suite_fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction],
     ) -> None:
         self._test_suite_fitness_functions = test_suite_fitness_functions
+
+    @property
+    def test_suite_coverage_functions(
+        self,
+    ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
+        """Provides the list of test suite coverage functions.
+
+        Returns:
+            The used test suite coverage functions
+        """
+        return self._test_suite_coverage_functions
+
+    @test_suite_coverage_functions.setter
+    def test_suite_coverage_functions(
+        self,
+        test_suite_coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction],
+    ) -> None:
+        self._test_suite_coverage_functions = test_suite_coverage_functions
 
     def create_test_suite(
         self, population: Iterable[tcc.TestCaseChromosome]
     ) -> tsc.TestSuiteChromosome:
         """Wraps a population of test-case chromosomes in a test-suite chromosome.
 
-        This will add the test suite fitness functions to the resulting chromosome.
+        This will add the test suite fitness functions and coverage functions to
+        the resulting chromosome.
 
         Args:
             population: A list of test-case chromosomes
@@ -239,6 +258,8 @@ class TestGenerationStrategy(
         suite.add_test_case_chromosomes(list(population))
         for suite_fitness in self._test_suite_fitness_functions:
             suite.add_fitness_function(suite_fitness)
+        for suite_coverage in self._test_suite_coverage_functions:
+            suite.add_coverage_function(suite_coverage)
         return suite
 
     @abstractmethod

@@ -16,7 +16,7 @@ from ordered_set import OrderedSet
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunctions.branchdistancetestsuitefitness as bdtsf
+import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
@@ -53,8 +53,6 @@ from pynguin.utils.exceptions import ConfigurationException
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
-    import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-    import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.generation.algorithms.testgenerationstrategy import (
@@ -169,7 +167,9 @@ class TestSuiteGenerationAlgorithmFactory(
         ):
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(
-            test_case_chromosome_factory, strategy.test_suite_fitness_functions
+            test_case_chromosome_factory,
+            strategy.test_suite_fitness_functions,
+            strategy.test_suite_coverage_functions,
         )
 
     def get_search_algorithm(self) -> TestGenerationStrategy:
@@ -186,6 +186,9 @@ class TestSuiteGenerationAlgorithmFactory(
             strategy
         )
         strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()
+        strategy.test_suite_coverage_functions = (
+            self._get_test_suite_coverage_functions()
+        )
         strategy.archive = self._get_archive(strategy)
 
         strategy.executor = self._executor
@@ -286,7 +289,7 @@ class TestSuiteGenerationAlgorithmFactory(
 
     def _get_test_case_fitness_functions(
         self, strategy: TestGenerationStrategy
-    ) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    ) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Creates the fitness functions for test cases.
 
         Args:
@@ -313,10 +316,13 @@ class TestSuiteGenerationAlgorithmFactory(
 
     def _get_test_suite_fitness_functions(
         self,
-    ) -> OrderedSet[atsff.AbstractTestSuiteFitnessFunction]:
-        return OrderedSet(
-            [bdtsf.BranchDistanceTestSuiteFitnessFunction(self._executor)]
-        )
+    ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
+        return OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
+
+    def _get_test_suite_coverage_functions(
+        self,
+    ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
+        return OrderedSet([ff.TestSuiteBranchCoverageFunction(self._executor)])
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):
         search_alg = config.configuration.search_algorithm

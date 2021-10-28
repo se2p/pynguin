@@ -23,7 +23,7 @@ from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestS
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.ga.fitnessfunction as ff
+    import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     from pynguin.generation.algorithms.archive import CoverageArchive
@@ -187,6 +187,7 @@ class _GoalsManager:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
             self._archive.add_goals(self._current_goals)
+        self._logger.debug("current goals after update: %s", self._current_goals)
 
 
 class _BranchFitnessGraph:

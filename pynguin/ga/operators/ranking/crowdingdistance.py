@@ -15,7 +15,7 @@ from ordered_set import OrderedSet
 import pynguin.ga.chromosome as chrom
 
 if TYPE_CHECKING:
-    import pynguin.ga.fitnessfunction as ff
+    import pynguin.ga.computations as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

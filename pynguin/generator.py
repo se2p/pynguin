@@ -33,12 +33,12 @@ import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
+import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.seeding.constantseeding import static_constant_seeding
-from pynguin.ga.fitnessfunctions.fitness_utilities import compute_branch_coverage
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -249,7 +249,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
     # TODO(fk) make this work for other criteria beyond branch coverage.
     stat.track_output_variable(
         RuntimeVariable.ImportBranchCoverage,
-        compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
+        ff.compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
     )
 
 

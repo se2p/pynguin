@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, List
 
 from ordered_set import OrderedSet
 
-import pynguin.ga.fitnessfunction as ff
+import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
