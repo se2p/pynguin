@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import math
 import statistics
 from abc import abstractmethod
@@ -16,21 +17,17 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 
 if TYPE_CHECKING:
+    import pynguin.testcase.execution.testcaseexecutor as tce
     from pynguin.testcase.execution.executionresult import ExecutionResult
     from pynguin.testcase.execution.executiontracer import KnownData
 
 
+@dataclasses.dataclass(eq=False)
 class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
     """An abstract computation on chromosomes."""
 
-    def __init__(self, executor):
-        """Create chromosome computation function.
-
-        Args:
-            executor: Executor that will be used by the function to execute
-                chromosomes.
-        """
-        self._executor = executor
+    _executor: tce.TestCaseExecutor
+    """Executor that will be used by the computation to execute chromosomes."""
 
 
 class TestCaseChromosomeComputation(
@@ -182,9 +179,9 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
     def __init__(self, executor):
         super().__init__(executor)
-        self._excluded_code_objects = set()
-        self._excluded_true_predicates = set()
-        self._excluded_false_predicates = set()
+        self._excluded_code_objects: Set[int] = set()
+        self._excluded_true_predicates: Set[int] = set()
+        self._excluded_false_predicates: Set[int] = set()
 
     def restrict(
         self, exclude_code: Set[int], exclude_true: Set[int], exclude_false: Set[int]
@@ -286,8 +283,8 @@ class ComputationCache:
     def __init__(
         self,
         chromosome,
-        fitness_functions: List[FitnessFunction] = None,
-        coverage_functions: List[CoverageFunction] = None,
+        fitness_functions: Optional[List[FitnessFunction]] = None,
+        coverage_functions: Optional[List[CoverageFunction]] = None,
         fitness_cache: Optional[Dict[FitnessFunction, float]] = None,
         is_covered_cache: Optional[Dict[FitnessFunction, bool]] = None,
         coverage_cache: Optional[Dict[CoverageFunction, float]] = None,
@@ -388,10 +385,6 @@ class ComputationCache:
             comp(only)
             # Mark individual as no longer changed.
             self._chromosome.set_changed(False)
-        elif only and only in cache:
-            # We are only interested in a single value which is in cache,
-            # so nothing to do.
-            return
         elif len(cache) != len(funcs):
             # The individual has not changed, but not all values are cached.
             # So we might have to compute the missing ones.
