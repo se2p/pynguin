@@ -27,25 +27,25 @@ class DummyTestSuiteChromosomeComputation(ff.TestSuiteChromosomeComputation):
 
 def test_run_test_case_chromosome_no_result():
     executor = MagicMock()
-    result0 = MagicMock()
-    executor.execute.return_value = result0
+    result = MagicMock()
+    executor.execute.return_value = result
     func = DummyTestCaseChromosomeComputation(executor)
-    test_case0 = tcc.TestCaseChromosome(MagicMock())
-    test_case0.set_changed(True)
-    assert func._run_test_case_chromosome(test_case0) == result0
-    assert test_case0.get_last_execution_result() == result0
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    test_case.set_changed(True)
+    assert func._run_test_case_chromosome(test_case) == result
+    assert test_case.get_last_execution_result() == result
 
 
 def test_run_test_case_chromosome_has_result():
     executor = MagicMock()
-    result0 = MagicMock()
-    executor.execute.return_value = result0
+    result = MagicMock()
+    executor.execute.return_value = result
     func = DummyTestCaseChromosomeComputation(executor)
-    test_case0 = tcc.TestCaseChromosome(MagicMock())
-    test_case0.set_changed(False)
-    test_case0.set_last_execution_result(result0)
-    assert func._run_test_case_chromosome(test_case0) == result0
-    assert test_case0.get_last_execution_result() == result0
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    test_case.set_changed(False)
+    test_case.set_last_execution_result(result)
+    assert func._run_test_case_chromosome(test_case) == result
+    assert test_case.get_last_execution_result() == result
 
 
 @pytest.fixture()
