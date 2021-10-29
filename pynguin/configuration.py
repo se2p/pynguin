@@ -58,7 +58,14 @@ class Algorithm(str, enum.Enum):
     WHOLE_SUITE = "WHOLE_SUITE"
     """A whole-suite test generation approach similar to the one proposed by EvoSuite
     (cf. Fraser and Arcuri. EvoSuite: Automatic Test Suite Generation for
-    Object-Oriented Software. Proc. ESEC/FSE 2011)."""
+    Object-Oriented Software. Proc. ESEC/FSE 2011).
+
+    This algorithm can be modified to use an archive (cf. Rojas, José Miguel, et al.
+    "A detailed investigation of the effectiveness of whole test suite generation."
+    Empirical Software Engineering 22.2 (2017): 852-893.), by using the
+    following options: --use-archive True, --seed_from_archive True and
+    --filter_covered_targets_from_test_cluster True.
+    """
 
 
 class StoppingCondition(str, enum.Enum):
