@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides archives to store found solutions."""
+from __future__ import annotations
+
 import logging
 import sys
 from abc import ABC, abstractmethod
@@ -13,9 +15,8 @@ from typing import Callable, Dict, Iterable, List, Optional
 
 from ordered_set import OrderedSet
 
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
+import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
-from pynguin.ga.fitnessfunctions.fitness_utilities import normalise
 from pynguin.utils import randomness
 
 
@@ -26,7 +27,7 @@ class Archive(ABC):
 
     def __init__(self):
         self._on_target_covered_callbacks: List[
-            Callable[[atcff.AbstractTestCaseFitnessFunction], None]
+            Callable[[ff.TestCaseFitnessFunction], None]
         ] = []
 
     @abstractmethod
@@ -59,7 +60,7 @@ class Archive(ABC):
         """
 
     def add_on_target_covered(
-        self, callback: Callable[[atcff.AbstractTestCaseFitnessFunction], None]
+        self, callback: Callable[[ff.TestCaseFitnessFunction], None]
     ) -> None:
         """Register a callback that is called once when a new target is covered for the
         first time.
@@ -69,7 +70,7 @@ class Archive(ABC):
         """
         self._on_target_covered_callbacks.append(callback)
 
-    def _on_target_covered(self, target: atcff.AbstractTestCaseFitnessFunction) -> None:
+    def _on_target_covered(self, target: ff.TestCaseFitnessFunction) -> None:
         self._logger.debug("Target covered: %s", target)
         for callback in self._on_target_covered_callbacks:
             callback(target)
@@ -95,13 +96,9 @@ class CoverageArchive(Archive):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self, objectives: OrderedSet[atcff.AbstractTestCaseFitnessFunction]
-    ) -> None:
+    def __init__(self, objectives: OrderedSet[ff.TestCaseFitnessFunction]) -> None:
         super().__init__()
-        self._covered: Dict[
-            atcff.AbstractTestCaseFitnessFunction, tcc.TestCaseChromosome
-        ] = {}
+        self._covered: Dict[ff.TestCaseFitnessFunction, tcc.TestCaseChromosome] = {}
         self._uncovered = OrderedSet(objectives)
         self._objectives = OrderedSet(objectives)
 
@@ -123,10 +120,10 @@ class CoverageArchive(Archive):
             best_size = sys.maxsize if best_solution is None else best_solution.size()
 
             for solution in solutions:
-                fitness = solution.get_fitness_for(objective)
+                covers = solution.get_is_covered(objective)
                 size = solution.size()
 
-                if fitness == 0.0 and size < best_size:
+                if covers and size < best_size:
                     updated = True
                     self._covered[objective] = solution
                     best_size = size
@@ -137,7 +134,7 @@ class CoverageArchive(Archive):
         return updated
 
     @property
-    def uncovered_goals(self) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    def uncovered_goals(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Provides the set of goals that are yet to cover.
 
         Returns:
@@ -146,7 +143,7 @@ class CoverageArchive(Archive):
         return self._uncovered
 
     @property
-    def covered_goals(self) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    def covered_goals(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Provides the set of goals that are already covered.
 
         Returns:
@@ -155,7 +152,7 @@ class CoverageArchive(Archive):
         return OrderedSet(self._covered.keys())
 
     @property
-    def objectives(self) -> OrderedSet[atcff.AbstractTestCaseFitnessFunction]:
+    def objectives(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Provides the set of all objectives.
 
         Returns:
@@ -163,9 +160,7 @@ class CoverageArchive(Archive):
         """
         return self._objectives
 
-    def add_goals(
-        self, new_goals: OrderedSet[atcff.AbstractTestCaseFitnessFunction]
-    ) -> None:
+    def add_goals(self, new_goals: OrderedSet[ff.TestCaseFitnessFunction]) -> None:
         """Add goals to the archive to consider."""
         for goal in new_goals:
             if goal not in self._objectives:
@@ -185,7 +180,7 @@ class CoverageArchive(Archive):
 
     def _all_covered(self) -> bool:
         return all(
-            chromosome.get_fitness_for(fitness_function) == 0.0
+            chromosome.get_is_covered(fitness_function)
             for fitness_function, chromosome in self._covered.items()
         )
 
@@ -354,11 +349,11 @@ class MIOArchive(Archive):
 
     def __init__(
         self,
-        targets: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
+        targets: OrderedSet[ff.TestCaseFitnessFunction],
         initial_size: int,
     ):
         super().__init__()
-        self._archive: Dict[atcff.AbstractTestCaseFitnessFunction, MIOPopulation] = {
+        self._archive: Dict[ff.TestCaseFitnessFunction, MIOPopulation] = {
             target: MIOPopulation(initial_size) for target in targets
         }
 
@@ -377,7 +372,7 @@ class MIOArchive(Archive):
                     solution.test_case.chop(chop_position)
                 covered_before = self._archive[target].is_covered
                 updated |= self._archive[target].add_solution(
-                    1.0 - normalise(fitness_value), solution
+                    1.0 - ff.normalise(fitness_value), solution
                 )
                 # The goal was covered with this solution
                 # TODO(fk) replace with goal.is_covered?

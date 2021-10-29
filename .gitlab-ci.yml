@@ -37,7 +37,6 @@ before_script:
   - python --version
   - pip install poetry
   - poetry config virtualenvs.in-project true
-  - poetry config experimental.new-installer false
   - poetry install
 
 .unit-tests: &unit-tests
@@ -53,18 +52,23 @@ before_script:
 unit-tests:python-3.8:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.8-buster'
+    PYTHON_VERSION: '3.8-bullseye'
 
 unit-tests:python-3.9:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.9-buster'
+    PYTHON_VERSION: '3.9-bullseye'
 
 unit-tests:python-3.10:
   <<: *unit-tests
+  variables:
+    PYTHON_VERSION: '3.10-bullseye'
+
+unit-tests:python-3.11:
+  <<: *unit-tests
   allow_failure: true
   variables:
-    PYTHON_VERSION: '3.10-rc-buster'
+    PYTHON_VERSION: '3.11-rc-bullseye'
 
 .nightly-tests:
   only:
@@ -84,22 +88,27 @@ unit-tests:python-3.10:
 nightly-tests:python-3.8:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.8-buster'
+    PYTHON_VERSION: '3.8-bullseye'
 
 nightly-tests:python-3.9:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.9-buster'
+    PYTHON_VERSION: '3.9-bullseye'
 
 nightly-tests:python-3.10:
   extends: .nightly-tests
+  variables:
+    PYTHON_VERSION: '3.10-bullseye'
+
+nightly-tests:python-3.11:
+  extends: .nightly-tests
   allow_failure: true
   variables:
-    PYTHON_VERSION: '3.10-rc-buster'
+    PYTHON_VERSION: '3.11-rc-bullseye'
 
 lint:
   stage: lint
-  image: python:3.9
+  image: python:3.9-bullseye
   script:
     - poetry run mypy pynguin
     - poetry run flake8 .
@@ -110,7 +119,7 @@ lint:
 
 build:
   stage: build
-  image: python:3.9
+  image: python:3.9-bullseye
   script:
     - poetry run isort **/*.py -c -v --profile black
     - poetry run black --check .
@@ -122,7 +131,7 @@ build:
 
 security:
   stage: security
-  image: python:3.9
+  image: python:3.9-bullseye
   script:
     - poetry run safety check --full-report
     - poetry run bandit -ll -r pynguin

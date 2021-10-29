@@ -5,12 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """A generic exporter that selects its export strategy based on configuration."""
-from typing import Callable, Dict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable, Dict
 
 import pynguin.configuration as config
-from pynguin.generation.export.abstractexporter import AbstractTestExporter
 from pynguin.generation.export.noneexporter import NoneExporter
 from pynguin.generation.export.pytestexporter import PyTestExporter
+
+if TYPE_CHECKING:
+    from pynguin.generation.export.abstractexporter import AbstractTestExporter
 
 
 # pylint: disable=too-few-public-methods

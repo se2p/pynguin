@@ -4,8 +4,10 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 """Provides the DynaMOSA test-generation strategy."""
+from __future__ import annotations
+
 import logging
-from typing import List, cast
+from typing import TYPE_CHECKING, List, cast
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
@@ -13,17 +15,19 @@ from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
-import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
-from pynguin.generation.algorithms.archive import CoverageArchive
-from pynguin.testcase.execution.executiontracer import KnownData
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    import pynguin.ga.computations as ff
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.ga.testsuitechromosome as tsc
+    from pynguin.generation.algorithms.archive import CoverageArchive
+    from pynguin.testcase.execution.executiontracer import KnownData
 
 
 class DynaMOSATestStrategy(AbstractMOSATestStrategy):
@@ -183,6 +187,7 @@ class _GoalsManager:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
             self._archive.add_goals(self._current_goals)
+        self._logger.debug("current goals after update: %s", self._current_goals)
 
 
 class _BranchFitnessGraph:

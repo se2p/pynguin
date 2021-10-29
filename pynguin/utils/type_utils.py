@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides utilities when working with types."""
+from __future__ import annotations
+
 import enum
 import inspect
 import numbers
@@ -16,7 +18,8 @@ from typing import Any, Callable, Optional, Type
 from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
 
-from pynguin.typeinference.strategy import InferredSignature
+if typing.TYPE_CHECKING:
+    from pynguin.typeinference.strategy import InferredSignature
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])

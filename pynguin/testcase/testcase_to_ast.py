@@ -5,14 +5,18 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a visitor that transforms test cases to asts."""
+from __future__ import annotations
+
 from ast import stmt
-from typing import List, Set
+from typing import TYPE_CHECKING, List, Set
 
 import pynguin.assertion.assertion_to_ast as ata
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 from pynguin.testcase.testcasevisitor import TestCaseVisitor
 from pynguin.utils.namingscope import NamingScope
+
+if TYPE_CHECKING:
+    import pynguin.testcase.defaulttestcase as dtc
 
 
 class TestCaseToAstVisitor(TestCaseVisitor):

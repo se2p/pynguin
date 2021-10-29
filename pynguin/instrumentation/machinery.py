@@ -8,22 +8,26 @@
 Provides classes for runtime instrumentation.
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py
 """
+from __future__ import annotations
+
 import logging
 import sys
 from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
 from types import CodeType
-from typing import List, cast
+from typing import TYPE_CHECKING, List, cast
 
 import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
-    Instrumentation,
 )
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+
+if TYPE_CHECKING:
+    from pynguin.instrumentation.instrumentation import Instrumentation
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):

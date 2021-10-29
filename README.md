@@ -61,7 +61,7 @@ your system.
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.8 or 3.9 (we have not yet tested with Python 3.10, there might
+- You have installed Python 3.8, 3.9 or 3.10 (we have not yet tested with Python 3.11, there might
   be some problems due to changed internals regarding the byte-code instrumentation).
 - You have a recent Linux/macOS/Windows machine.
 
@@ -75,9 +75,8 @@ Pynguin can be easily installed using the `pip` tool by typing:
 pip install pynguin
 ```
 
-Make sure that your version of `pip` is the same as the Python 3.8 interpreted or a
-virtual environment that uses Python 3.8 as its interpreter, as any older version is
-not supported by Pynguin!
+Make sure that your version of `pip` is that of a supported Python version, as any 
+older version is not supported by Pynguin!
 
 ## Using Pynguin
 

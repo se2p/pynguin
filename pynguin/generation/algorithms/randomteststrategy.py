@@ -5,8 +5,10 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a random test generation algorithm similar to Randoop."""
+from __future__ import annotations
+
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from ordered_set import OrderedSet
 
@@ -14,14 +16,16 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.testcase as tc
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
-from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
+    from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 class RandomTestStrategy(TestGenerationStrategy):
@@ -42,6 +46,10 @@ class RandomTestStrategy(TestGenerationStrategy):
         for fitness_function in self._test_suite_fitness_functions:
             test_chromosome.add_fitness_function(fitness_function)
             failing_test_chromosome.add_fitness_function(fitness_function)
+
+        for coverage_function in self._test_suite_coverage_functions:
+            test_chromosome.add_coverage_function(coverage_function)
+            failing_test_chromosome.add_coverage_function(coverage_function)
 
         combined_chromosome = self._combine_current_individual(
             test_chromosome, failing_test_chromosome

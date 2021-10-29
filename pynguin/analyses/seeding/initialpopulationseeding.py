@@ -10,18 +10,20 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testfactory as tf
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
-from pynguin.setup.testcluster import TestCluster
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.setup.testcluster import TestCluster
 
 
 class _InitialPopulationSeeding:

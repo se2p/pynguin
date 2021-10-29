@@ -5,10 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides some observers for statistics."""
-import pynguin.ga.testsuitechromosome as tsc
+from __future__ import annotations
+
+import typing
+
 import pynguin.generation.searchobserver as so
 import pynguin.utils.statistics.statistics as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if typing.TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 class IterationObserver(so.SearchObserver):

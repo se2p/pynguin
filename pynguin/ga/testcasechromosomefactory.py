@@ -5,16 +5,22 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test case chromosomes."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testcasefactory as tcf
-import pynguin.generation.algorithms.archive as arch
-import pynguin.testcase.testfactory as tf
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.computations as ff
+    import pynguin.ga.testcasefactory as tcf
+    import pynguin.generation.algorithms.archive as arch
+    import pynguin.testcase.testfactory as tf
 
 
 class TestCaseChromosomeFactory(
@@ -27,7 +33,7 @@ class TestCaseChromosomeFactory(
         self,
         test_factory: tf.TestFactory,
         test_case_factory: tcf.TestCaseFactory,
-        fitness_functions: OrderedSet[atcff.AbstractTestCaseFitnessFunction],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
         """Instantiates a new factory to create test case chromosomes.
 

@@ -16,6 +16,8 @@ framework.
 Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
+from __future__ import annotations
+
 import datetime
 import enum
 import importlib
@@ -24,7 +26,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
@@ -33,22 +35,26 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.chromosomevisitor as cv
+import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.seeding.constantseeding import static_constant_seeding
-from pynguin.ga.fitnessfunctions.fitness_utilities import compute_branch_coverage
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.setup.testcluster import TestCluster
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution.executiontracer import ExecutionTracer
 from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    from pynguin.generation.algorithms.testgenerationstrategy import (
+        TestGenerationStrategy,
+    )
+    from pynguin.setup.testcluster import TestCluster
 
 
 @enum.unique
@@ -132,7 +138,7 @@ def _setup_import_hook() -> ExecutionTracer:
 def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
-        tracer.current_thread_ident = threading.currentThread().ident
+        tracer.current_thread_ident = threading.current_thread().ident
         importlib.import_module(config.configuration.module_name)
     except ImportError as ex:
         # A module could not be imported because some dependencies
@@ -245,7 +251,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
     # TODO(fk) make this work for other criteria beyond branch coverage.
     stat.track_output_variable(
         RuntimeVariable.ImportBranchCoverage,
-        compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
+        ff.compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
     )
 
 

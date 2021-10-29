@@ -7,13 +7,17 @@
 """
 Provide a statement that performs assignments.
 """
-from typing import Any, Dict, Optional, Set
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
 
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statementvisitor as sv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class AssignmentStatement(stmt.Statement):

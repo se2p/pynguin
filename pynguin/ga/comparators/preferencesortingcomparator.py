@@ -5,10 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a comparator for preference sorting."""
-from typing import Generic, Optional, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
+
+if TYPE_CHECKING:
+    import pynguin.ga.computations as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

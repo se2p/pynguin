@@ -5,16 +5,20 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an observer and statement visitor to create primitive assertions."""
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 import pynguin.assertion.assertiontraceobserver as ato
-import pynguin.assertion.outputtrace as ot
 import pynguin.assertion.primitivetraceentry as pte
-import pynguin.testcase.statements.statement as st
 import pynguin.testcase.statements.statementvisitor as stmt_sv
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.testcase.execution.executioncontext import ExecutionContext
 from pynguin.utils.type_utils import is_primitive_type
+
+if TYPE_CHECKING:
+    import pynguin.assertion.outputtrace as ot
+    import pynguin.testcase.statements.statement as st
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
 class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]):

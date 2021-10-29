@@ -5,21 +5,25 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides implementations of a ranking function."""
+from __future__ import annotations
+
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, List, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Generic, List, Optional, TypeVar
 
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.fitnessfunction as ff
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.ga.comparators.preferencesortingcomparator import (
     PreferenceSortingComparator,
 )
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.computations as ff
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
@@ -89,7 +93,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     _logger = logging.getLogger(__name__)
 
     def compute_ranking_assignment(
-        self, solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
+        self, solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> RankedFronts:
         if not solutions:
             self._logger.debug("Solution is empty")
@@ -143,7 +147,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
 
     @staticmethod
     def _get_zero_front(
-        solutions: List[C], uncovered_goals: Set[ff.FitnessFunction]
+        solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> List[C]:
         zero_front: OrderedSet[C] = OrderedSet()
         for goal in uncovered_goals:

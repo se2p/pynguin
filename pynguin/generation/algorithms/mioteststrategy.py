@@ -5,17 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a MIO."""
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from math import ceil
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pynguin.configuration as config
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.algorithms.archive as arch
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.ga.testsuitechromosome as tsc
 
 
 # pylint: disable=invalid-name
@@ -58,9 +62,6 @@ class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()
-        self.before_first_search_iteration(
-            self.create_test_suite(self._archive.solutions)
-        )
         while (
             self.resources_left()
             and len(self._test_case_fitness_functions)

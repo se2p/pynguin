@@ -7,11 +7,13 @@
 """Provides a none assertion."""
 from __future__ import annotations
 
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 import pynguin.assertion.variableassertion as va
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.assertion import assertionvisitor as av
+
+if TYPE_CHECKING:
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.assertion import assertionvisitor as av
 
 
 class NoneAssertion(va.VariableAssertion):

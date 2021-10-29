@@ -5,20 +5,19 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides capabilities to track branch distances."""
+from __future__ import annotations
+
 import dataclasses
 import logging
 import threading
 from math import inf
 from types import CodeType
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
-import pynguin.analyses.controlflow.programgraph as pg
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.testcase.execution.executiontrace import ExecutionTrace
 from pynguin.utils.type_utils import (
     given_exception_matches,
@@ -26,6 +25,13 @@ from pynguin.utils.type_utils import (
     is_numeric,
     is_string,
 )
+
+if TYPE_CHECKING:
+    import pynguin.analyses.controlflow.programgraph as pg
+    from pynguin.analyses.controlflow.cfg import CFG
+    from pynguin.analyses.controlflow.controldependencegraph import (
+        ControlDependenceGraph,
+    )
 
 
 @dataclasses.dataclass
@@ -254,7 +260,7 @@ class ExecutionTracer:
         Args:
             code_object_id: the code object id to mark
         """
-        if threading.currentThread().ident != self._current_thread_ident:
+        if threading.current_thread().ident != self._current_thread_ident:
             return
 
         assert (
@@ -288,7 +294,7 @@ class ExecutionTracer:
             predicate: the predicate identifier
             cmp_op: the compare operation
         """
-        if threading.currentThread().ident != self._current_thread_ident:
+        if threading.current_thread().ident != self._current_thread_ident:
             return
 
         if self._is_disabled():
@@ -314,7 +320,7 @@ class ExecutionTracer:
             value: the value
             predicate: the predicate identifier
         """
-        if threading.currentThread().ident != self._current_thread_ident:
+        if threading.current_thread().ident != self._current_thread_ident:
             return
 
         if self._is_disabled():
@@ -344,7 +350,7 @@ class ExecutionTracer:
             exc: The matching condition
             predicate: the predicate identifier
         """
-        if threading.currentThread().ident != self._current_thread_ident:
+        if threading.current_thread().ident != self._current_thread_ident:
             return
 
         if self._is_disabled():

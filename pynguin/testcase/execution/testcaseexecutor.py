@@ -5,21 +5,25 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an executor that executes generated sequences."""
+from __future__ import annotations
+
 import contextlib
 import logging
 import multiprocessing
 import os
 import threading
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import astor
 
 import pynguin.testcase.execution.executioncontext as ctx
-import pynguin.testcase.execution.executionobserver as eo
 import pynguin.testcase.execution.executionresult as res
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+
+if TYPE_CHECKING:
+    import pynguin.testcase.execution.executionobserver as eo
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcase as tc
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class TestCaseExecutor:
@@ -93,7 +97,7 @@ class TestCaseExecutor:
     ) -> None:
         result = res.ExecutionResult()
         exec_ctx = ctx.ExecutionContext()
-        self.tracer.current_thread_ident = threading.currentThread().ident
+        self.tracer.current_thread_ident = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)

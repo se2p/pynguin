@@ -5,12 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """An exported implementation creating PyTest test cases from the statements."""
+from __future__ import annotations
+
 import ast
 import os
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
-import pynguin.testcase.testcase as tc
 from pynguin.generation.export.abstractexporter import AbstractTestExporter
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
 
 
 # pylint: disable=too-few-public-methods

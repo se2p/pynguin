@@ -5,11 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an access component to type inference strategies."""
+from __future__ import annotations
+
 import importlib
-from typing import Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
+
+if TYPE_CHECKING:
+    from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 
 
 # pylint: disable=too-few-public-methods

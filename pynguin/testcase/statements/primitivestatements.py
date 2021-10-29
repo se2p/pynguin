@@ -5,15 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides primitive statements."""
+from __future__ import annotations
+
 import math
 from abc import abstractmethod
-from typing import Dict, Generic, List, Optional, Set, Type, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Set, Type, TypeVar
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.constantseeding import (
     dynamic_constant_seeding,
@@ -24,6 +23,11 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericEnum,
 )
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statementvisitor as sv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
 
 # pylint:disable=invalid-name
 T = TypeVar("T")

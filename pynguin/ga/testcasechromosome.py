@@ -7,15 +7,17 @@
 """Provides a chromosome for a single test case."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.chromosomevisitor as cv
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.testfactory as tf
-from pynguin.testcase.execution.executionresult import ExecutionResult
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.chromosomevisitor as cv
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.testfactory as tf
+    from pynguin.testcase.execution.executionresult import ExecutionResult
 
 
 class TestCaseChromosome(chrom.Chromosome):
@@ -281,6 +283,14 @@ class TestCaseChromosome(chrom.Chromosome):
             return True
         if not isinstance(other, TestCaseChromosome):
             return False
+        # This condition is playing with fire, but it is required to not lose coverage
+        # information on flaky tests. For more information on this see #169.
+        # Be careful when comparing TestCaseChromosomes!
+        if (left := self._last_execution_result) is not None and (
+            right := other._last_execution_result
+        ) is not None:
+            if left.execution_trace != right.execution_trace:
+                return False
         return self._test_case == other._test_case
 
     def __hash__(self):

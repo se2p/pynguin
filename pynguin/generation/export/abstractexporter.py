@@ -5,17 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """An abstract test exporter"""
+from __future__ import annotations
+
 import ast
 import os
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
 
 import astor
 
-import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
-from pynguin.utils.namingscope import NamingScope
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
+    from pynguin.utils.namingscope import NamingScope
 
 
 # pylint: disable=too-few-public-methods

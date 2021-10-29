@@ -5,18 +5,22 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an interface for a stopping condition of the algorithm."""
+from __future__ import annotations
+
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pynguin.configuration as config
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.execution.executionobserver as eo
-import pynguin.testcase.execution.executionresult as res
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executioncontext import ExecutionContext
+
+if TYPE_CHECKING:
+    import pynguin.ga.testsuitechromosome as tsc
+    import pynguin.testcase.execution.executionresult as res
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcase as tc
+    from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
 class StoppingCondition(so.SearchObserver, eo.ExecutionObserver, metaclass=ABCMeta):

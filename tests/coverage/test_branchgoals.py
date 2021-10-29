@@ -142,16 +142,15 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
         result = ExecutionResult()
         result.execution_trace = trace_mock
         run_suite_mock.return_value = result
-        fitness_values = ff.compute_fitness_values(indiv)
-        assert fitness_values.coverage == 0
-        assert pytest.approx(1.666666, fitness_values.fitness)
+        fitness = ff.compute_fitness(indiv)
+        assert pytest.approx(1.666666, fitness)
         run_suite_mock.assert_called_with(indiv)
 
 
 def test_compute_fitness_values_no_branches():
     module_name = "tests.fixtures.branchcoverage.nobranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -181,7 +180,7 @@ def test_compute_fitness_values_no_branches():
 def test_compute_fitness_values_single_branches_if():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -199,7 +198,7 @@ def test_compute_fitness_values_single_branches_if():
 def test_compute_fitness_values_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -217,7 +216,7 @@ def test_compute_fitness_values_single_branches_else():
 def test_compute_fitness_values_two_method_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -235,7 +234,7 @@ def test_compute_fitness_values_two_method_single_branches_else():
 def test_compute_fitness_values_nested_branches():
     module_name = "tests.fixtures.branchcoverage.nestedbranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.currentThread().ident
+    tracer.current_thread_ident = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)

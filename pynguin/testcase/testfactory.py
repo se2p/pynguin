@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Type, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, cast
 
 from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin
@@ -18,15 +18,9 @@ import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.fieldstatement as f_stmt
 import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.setup.testcluster import TestCluster
-from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.type_utils import (
     is_assignable_to,
     is_collection_type,
@@ -34,6 +28,13 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     is_type_unknown,
 )
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.setup.testcluster import TestCluster
+    from pynguin.typeinference.strategy import InferredSignature
 
 
 # TODO(fk) find better name for this?
@@ -1153,7 +1154,7 @@ class TestFactory:
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        type_generators: OrderedSet[GenericAccessibleObject],
+        type_generators: OrderedSet[gao.GenericAccessibleObject],
     ) -> Optional[vr.VariableReference]:
         type_generator = randomness.choice(type_generators)
         return self.append_generic_accessible(

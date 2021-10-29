@@ -5,10 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Utility methods for AST manipulation."""
-import ast
+from __future__ import annotations
 
-import pynguin.testcase.variable.variablereference as vr
-from pynguin.utils.namingscope import NamingScope
+import ast
+import typing
+
+if typing.TYPE_CHECKING:
+    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.utils.namingscope import NamingScope
 
 
 def create_var_name(

@@ -5,15 +5,16 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a base implementation of a variable in a test case."""
-# pylint: disable=cyclic-import
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 
-import pynguin.testcase.testcase as tc
 from pynguin.utils import type_utils
 from pynguin.utils.type_utils import is_type_unknown
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
 
 
 class VariableReference(metaclass=ABCMeta):

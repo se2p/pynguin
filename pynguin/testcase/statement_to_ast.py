@@ -9,19 +9,21 @@ from __future__ import annotations
 
 import ast
 from inspect import Parameter
-from typing import Any, List, cast
+from typing import TYPE_CHECKING, Any, List, cast
 
-import pynguin.testcase.statements.assignmentstatement as assign_stmt
-import pynguin.testcase.statements.collectionsstatements as coll_stmt
-import pynguin.testcase.statements.fieldstatement as field_stmt
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.utils.ast_util as au
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.namingscope import NamingScope
+
+if TYPE_CHECKING:
+    import pynguin.testcase.statements.assignmentstatement as assign_stmt
+    import pynguin.testcase.statements.collectionsstatements as coll_stmt
+    import pynguin.testcase.statements.fieldstatement as field_stmt
+    import pynguin.testcase.statements.parametrizedstatements as param_stmt
+    import pynguin.testcase.statements.primitivestatements as prim_stmt
+    from pynguin.utils.namingscope import NamingScope
 
 
 class StatementToAstVisitor(sv.StatementVisitor):

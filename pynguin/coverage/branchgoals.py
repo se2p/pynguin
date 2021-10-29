@@ -5,18 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides classes for handling fitness functions for branch coverage."""
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
-import pynguin.ga.fitnessfunction as ff
-import pynguin.ga.fitnessfunctions.abstracttestcasefitnessfunction as atcff
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.execution.testcaseexecutor as tce
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
+import pynguin.ga.computations as ff
+
+if TYPE_CHECKING:
+    import pynguin.ga.testcasechromosome as tcc
+    import pynguin.testcase.execution.testcaseexecutor as tce
+    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
 
 
 class AbstractBranchCoverageGoal:
@@ -243,7 +246,7 @@ class BranchGoalPool:
         return goal_map
 
 
-class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
+class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
     def __init__(
@@ -252,19 +255,18 @@ class BranchCoverageTestFitness(atcff.AbstractTestCaseFitnessFunction):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
-    def compute_fitness_values(
-        self, individual: tcc.TestCaseChromosome
-    ) -> ff.FitnessValues:
+    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
 
-        return ff.FitnessValues(fitness=self._get_fitness(result), coverage=0.0)
+        distance = self._goal.get_distance(result, self._executor.tracer)
+        return distance.get_resulting_branch_fitness()
+
+    def compute_is_covered(self, individual: tcc.TestCaseChromosome) -> bool:
+        result = self._run_test_case_chromosome(individual)
+        return self._goal.is_covered(result)
 
     def is_maximisation_function(self) -> bool:
         return False
-
-    def _get_fitness(self, result: ExecutionResult) -> float:
-        distance = self._goal.get_distance(result, self._executor.tracer)
-        return distance.get_resulting_branch_fitness()
 
     def __str__(self) -> str:
         return f"BranchCoverageTestFitness for {self._goal}"

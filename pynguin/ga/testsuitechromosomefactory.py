@@ -5,13 +5,19 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a factory to create test suite chromosomes."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
-import pynguin.ga.fitnessfunctions.abstracttestsuitefitnessfunction as atsff
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.utils import randomness
+
+if TYPE_CHECKING:
+    import pynguin.ga.computations as ff
 
 
 class TestSuiteChromosomeFactory(
@@ -22,7 +28,8 @@ class TestSuiteChromosomeFactory(
     def __init__(
         self,
         test_case_chromosome_factory: cf.ChromosomeFactory,
-        fitness_functions: OrderedSet[atsff.AbstractTestSuiteFitnessFunction],
+        fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction],
+        coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction],
     ):
         """Instantiates a new factory
 
@@ -33,9 +40,12 @@ class TestSuiteChromosomeFactory(
                                           chromosome
             fitness_functions: The fitness functions that will be added to every
                                newly generated chromosome.
+            coverage_functions: The coverage functions that will be added to every
+                                newly generated chromosome.
         """
         self._test_case_chromosome_factory = test_case_chromosome_factory
         self._fitness_functions = fitness_functions
+        self._coverage_functions = coverage_functions
 
     def get_chromosome(self) -> tsc.TestSuiteChromosome:
         chromosome = tsc.TestSuiteChromosome(self._test_case_chromosome_factory)
@@ -50,4 +60,6 @@ class TestSuiteChromosomeFactory(
             )
         for func in self._fitness_functions:
             chromosome.add_fitness_function(func)
+        for func in self._coverage_functions:
+            chromosome.add_coverage_function(func)
         return chromosome
