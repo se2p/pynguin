@@ -265,6 +265,8 @@ def _run() -> ReturnCode:
     generation_result = algorithm.generate_tests()
     if algorithm.stopping_condition.is_fulfilled():
         _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
+    else:
+        _LOGGER.info("Algorithm stopped before using all resources.")
     _LOGGER.info("Stop generating test cases")
 
     # Track coverage of the generated test suites.
