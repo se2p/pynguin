@@ -117,10 +117,13 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
                 result.update(self._retrieve_control_dependencies(pred, handled))
         return result
 
-    def is_control_dependent_on_root(self, node: pg.ProgramGraphNode) -> True:
+    def is_control_dependent_on_root(self, node: pg.ProgramGraphNode) -> bool:
+        """Does this node directly depend on entering the code object?"""
         return self._is_control_dependent_on_root(node, set())
 
-    def _is_control_dependent_on_root(self, node: pg.ProgramGraphNode, visited: Set) -> True:
+    def _is_control_dependent_on_root(
+        self, node: pg.ProgramGraphNode, visited: Set[pg.ProgramGraphNode]
+    ) -> bool:
         if (self.entry_node, node) in self.graph.edges:
             return True
         for pred in self.graph.predecessors(node):
