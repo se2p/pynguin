@@ -60,7 +60,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
 
     def visit_primitive_assertion(self, assertion: pa.PrimitiveAssertion) -> None:
         """
-        Creates an assertion of form "assert var0 == value" or assert var0 is False,
+        Creates an assertion of form "assert var0 == value" or "assert var0 is False",
         if the value is a bool.
 
         Args:
