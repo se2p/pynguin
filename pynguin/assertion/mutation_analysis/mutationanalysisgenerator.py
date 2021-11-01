@@ -38,7 +38,6 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._storage = cs.CollectorStorage()
         # TODO(fk) permanently disable tracer
         self._executor = executor
-        # TODO(fk) what to do with existing observers?
         self._executor.add_observer(sco.StateCollectingObserver(self._storage))
 
         self._assertions: Set[ass.Assertion] = set()

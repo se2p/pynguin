@@ -66,3 +66,13 @@ def test_observers(short_test_case):
     assert observer.before_statement_execution.call_count == 2
     assert observer.after_statement_execution.call_count == 2
     assert observer.after_test_case_execution.call_count == 1
+
+
+def test_observers_clear(short_test_case):
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    observer = MagicMock()
+    executor.add_observer(observer)
+    assert executor._observers == [observer]
+    executor.clear_observers()
+    assert executor._observers == []

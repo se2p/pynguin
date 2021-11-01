@@ -269,6 +269,10 @@ def _run() -> ReturnCode:
         _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
     _LOGGER.info("Stop generating test cases")
 
+    # Executions that happen after this point should not influence the
+    # search statistics
+    executor.clear_observers()
+
     # Track coverage of the generated test suites.
     # This possibly re-executes the test suites.
     stat.track_output_variable(
