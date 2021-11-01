@@ -117,6 +117,24 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
                 result.update(self._retrieve_control_dependencies(pred, handled))
         return result
 
+    def is_control_dependent_on_root(self, node: pg.ProgramGraphNode) -> True:
+        return self._is_control_dependent_on_root(node, set())
+
+    def _is_control_dependent_on_root(self, node: pg.ProgramGraphNode, visited: Set) -> True:
+        if (self.entry_node, node) in self.graph.edges:
+            return True
+        for pred in self.graph.predecessors(node):
+            if pred in visited:
+                continue
+            visited.add(pred)
+            if pred.predicate_id is not None:
+                continue
+            if pred == node:
+                continue
+            if self._is_control_dependent_on_root(pred, visited):
+                return True
+        return False
+
     @staticmethod
     def _create_augmented_graph(graph: cfg.CFG) -> cfg.CFG:
         entry_node = graph.entry_node
