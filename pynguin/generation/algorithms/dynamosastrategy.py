@@ -180,9 +180,10 @@ class _GoalsManager:
                     children = self._graph.get_structural_children(
                         cast(bg.BranchCoverageTestFitness, old_goal)
                     )
-                    if len(children) > 0:
-                        new_goals.update(children)
-                        new_goals_added = True
+                    for child in children:
+                        if child not in self._current_goals and child not in covered:
+                            new_goals.add(child)
+                            new_goals_added = True
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
