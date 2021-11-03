@@ -11,7 +11,18 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.11.0
 
-- Add
+- Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph 
+  caused DynaMOSA to not consider certain targets because they were control 
+  dependent on goals that had not yet been covered due to the loop.
+- Improve documentation
+- Split and extend `FitnessValues` to avoid expensive re-computations.  This also 
+  extends the API of the `FitnessValues` and refactors large parts of the fitness 
+  handling.
+- Fix for bumpiness of flaky tests.  Whenever Pynguin generates a test that behaves 
+  flaky result could be that coverage over time looks like ventricular fibrillation 
+  especially for the MIO algorithm.  The fix prevents this by carefully revisiting 
+  the equality of chromosomes.
+- Improve handling of entry/exit nodes in the CFG; this fixes issues with Python 3.10
 
 ## Pynguin 0.10.0
 
