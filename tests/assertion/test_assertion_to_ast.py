@@ -4,11 +4,11 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from _ast import Module
 from unittest.mock import MagicMock
 
 import astor
 import pytest
-from _ast import Module
 
 import pynguin.assertion.assertion_to_ast as ata
 from pynguin.utils.namingscope import NamingScope

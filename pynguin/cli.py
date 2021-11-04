@@ -28,7 +28,7 @@ from pynguin.utils.console import console
 
 def _create_argument_parser() -> argparse.ArgumentParser:
     parser = simple_parsing.ArgumentParser(
-        add_option_string_dash_variants=True,
+        add_option_string_dash_variants=simple_parsing.DashVariant.UNDERSCORE_AND_DASH,
         description="Pynguin is an automatic unit test generation framework for Python",
         fromfile_prefix_chars="@",
     )
