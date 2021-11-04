@@ -19,20 +19,20 @@ import tests.fixtures.accessibles.accessible as module0
 
 
 def test_case_0():
-    var0 = 5
-    var1 = module0.SomeType(var0)
-    assert var1 == 5
-    var2 = 42.23
-    var3 = module0.simple_function(var2)
-    assert var3 == pytest.approx(42.23, abs=0.01, rel=0.01)
+    int0 = 5
+    someType0 = module0.SomeType(int0)
+    assert someType0 == 5
+    float0 = 42.23
+    float1 = module0.simple_function(float0)
+    assert float1 == pytest.approx(42.23, abs=0.01, rel=0.01)
 
 
 def test_case_1():
-    var0 = 5
-    var1 = module0.SomeType(var0)
-    assert var1 == 5
-    var2 = 42.23
-    var3 = module0.simple_function(var2)
-    assert var3 == pytest.approx(42.23, abs=0.01, rel=0.01)
+    int0 = 5
+    someType0 = module0.SomeType(int0)
+    assert someType0 == 5
+    float0 = 42.23
+    float1 = module0.simple_function(float0)
+    assert float1 == pytest.approx(42.23, abs=0.01, rel=0.01)
 """
     )

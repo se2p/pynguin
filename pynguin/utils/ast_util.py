@@ -12,11 +12,11 @@ import typing
 
 if typing.TYPE_CHECKING:
     import pynguin.testcase.variable.variablereference as vr
-    from pynguin.utils.namingscope import NamingScope
+    import pynguin.utils.namingscope as ns
 
 
 def create_var_name(
-    variable_names: NamingScope, var: vr.VariableReference, load: bool
+    variable_names: ns.AbstractNamingScope, var: vr.VariableReference, load: bool
 ) -> ast.Name:
     """Create a name node for the corresponding variable.
 

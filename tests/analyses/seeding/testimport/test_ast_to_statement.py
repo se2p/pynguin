@@ -13,23 +13,26 @@ from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 
 
+# TODO(fk) this is not correct, i.e. in the second example str3 should be dict0 and var0
+#  should be list0. However, this is a more complex problem in AST -> Statement
+#  conversion.
 @pytest.mark.parametrize(
     "testcase_seed",
     [
         (
-            """    var0 = 1.1
-    var1 = module0.positional_only(var0)
+            """    float0 = 1.1
+    var0 = module0.positional_only(float0)
 """
         ),
         (
-            """    var0 = 1.1
-    var1 = 42
-    var2 = []
-    var3 = 'test'
-    var4 = 'key'
-    var5 = 'value'
-    var6 = {var4: var5}
-    var7 = module0.all_params(var0, var1, *var2, param4=var3, **var6)
+            """    float0 = 1.1
+    int0 = 42
+    var0 = []
+    str0 = 'test'
+    str1 = 'key'
+    str2 = 'value'
+    str3 = {str1: str2}
+    var1 = module0.all_params(float0, int0, *var0, param4=str0, **str3)
 """
         ),
     ],
