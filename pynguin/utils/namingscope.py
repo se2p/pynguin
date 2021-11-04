@@ -64,7 +64,7 @@ class NamingScope(AbstractNamingScope):
         else:
             index = len(self._known_name_indices)
             self._known_name_indices[obj] = index
-        return self._prefix + str(index)
+        return self._prefix + "_" + str(index)
 
     def __len__(self):
         return len(self._known_name_indices)
@@ -99,7 +99,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
                 # Some type hint. Not sure if all have "_name"
                 tp_name = snake_case(name_)
 
-        name = f"{tp_name}{self._type_counter[tp_name]}"
+        name = f"{tp_name}_{self._type_counter[tp_name]}"
         self._type_counter[tp_name] += 1
         self._known_variable_names[obj] = name
         return name

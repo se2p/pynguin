@@ -35,7 +35,7 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
     )
 
 
@@ -45,11 +45,11 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
     )
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[1]))
-        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
     )
 
 
@@ -58,5 +58,5 @@ def test_test_case_to_ast_module_aliases(simple_test_case):
     simple_test_case.accept(visitor)
     simple_test_case.accept(visitor)
     assert dict(visitor.module_aliases) == {
-        "tests.fixtures.accessibles.accessible": "module0"
+        "tests.fixtures.accessibles.accessible": "module_0"
     }
