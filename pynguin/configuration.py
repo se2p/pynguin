@@ -505,7 +505,6 @@ class Configuration:
 
 # Singleton instance of the configuration.
 configuration = Configuration(
-    algorithm=Algorithm.RANDOM,
     project_path="",
     module_name="",
     test_case_output=TestCaseOutputConfiguration(output_path=""),
