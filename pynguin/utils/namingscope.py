@@ -27,7 +27,7 @@ class AbstractNamingScope:
         """
 
     @abstractmethod
-    def is_name_known(self, obj) -> bool:
+    def is_known_name(self, obj) -> bool:
         """Does the given object have an assigned name in this scope.
 
         Args:
@@ -73,7 +73,7 @@ class NamingScope(AbstractNamingScope):
         for obj in self._known_name_indices:
             yield obj, self.get_name(obj)
 
-    def is_name_known(self, obj) -> bool:
+    def is_known_name(self, obj) -> bool:
         return obj in self._known_name_indices
 
 
@@ -111,7 +111,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
         for obj, name in self._known_variable_names.items():
             yield obj, name
 
-    def is_name_known(self, obj) -> bool:
+    def is_known_name(self, obj) -> bool:
         return obj in self._known_variable_names
 
 

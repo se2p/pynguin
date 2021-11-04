@@ -48,7 +48,7 @@ def test_naming_scope_known_indices_not_empty(naming_scope):
 def test_naming_scope_known_indices_has_name(naming_scope):
     some_object = "something"
     naming_scope.get_name(some_object)
-    assert naming_scope.is_name_known(some_object)
+    assert naming_scope.is_known_name(some_object)
 
 
 @pytest.mark.parametrize(
@@ -98,7 +98,7 @@ def test_variable_type_not_empty(variable_type_naming_scope):
 def test_variable_type_has_name(variable_type_naming_scope):
     var = MagicMock(variable_type=int)
     variable_type_naming_scope.get_name(var)
-    assert variable_type_naming_scope.is_name_known(var)
+    assert variable_type_naming_scope.is_known_name(var)
 
 
 @pytest.mark.parametrize("before,after", [("FOOBAR", "fOOBAR"), ("abc", "abc")])

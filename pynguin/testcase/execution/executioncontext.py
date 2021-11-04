@@ -54,7 +54,7 @@ class ExecutionContext:
         Returns:
             the assigned value.
         """
-        if self._variable_names.is_name_known(variable):
+        if self._variable_names.is_known_name(variable):
             name = self._variable_names.get_name(variable)
             if name in self._local_namespace:
                 return self._local_namespace.get(name)
