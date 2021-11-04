@@ -62,6 +62,7 @@ def test_naming_scope_known_indices_has_name(naming_scope):
         (list, "list0"),
         (Union[int, str, bool], "var0"),  # For union we get var0
         (Iterable[int], "iterable0"),
+        (MagicMock, "magic_mock0"),
     ],
 )
 def test_variable_type_conversion(variable_type_naming_scope, tp, name):
@@ -101,11 +102,11 @@ def test_variable_type_has_name(variable_type_naming_scope):
     assert variable_type_naming_scope.is_known_name(var)
 
 
-@pytest.mark.parametrize("before,after", [("FOOBAR", "fOOBAR"), ("abc", "abc")])
-def test_cheap_camel_case(before, after):
-    assert ns.cheap_camel_case(before) == after
+@pytest.mark.parametrize("before,after", [("FooBar", "foo_bar"), ("abc", "abc")])
+def test_snake_case(before, after):
+    assert ns.snake_case(before) == after
 
 
-def test_cheap_camel_case_empty():
+def test_snake_case_empty():
     with pytest.raises(AssertionError):
-        ns.cheap_camel_case("")
+        ns.snake_case("")

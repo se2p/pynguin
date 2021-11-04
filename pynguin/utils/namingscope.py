@@ -94,10 +94,10 @@ class VariableTypeNamingScope(AbstractNamingScope):
         if type_ is not None:
             if isinstance(type_, type):
                 # Regular type
-                tp_name = cheap_camel_case(type_.__name__)
+                tp_name = snake_case(type_.__name__)
             elif (name_ := getattr(type_, "_name", None)) is not None:
                 # Some type hint. Not sure if all have "_name"
-                tp_name = cheap_camel_case(name_)
+                tp_name = snake_case(name_)
 
         name = f"{tp_name}{self._type_counter[tp_name]}"
         self._type_counter[tp_name] += 1
@@ -115,7 +115,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
         return obj in self._known_variable_names
 
 
-def cheap_camel_case(name: str) -> str:
+def snake_case(name: str) -> str:
     """We assume that we only have to lowercase the first char.
 
     Args:
@@ -124,5 +124,5 @@ def cheap_camel_case(name: str) -> str:
     Returns:
         The cheaply camel cased string.
     """
-    assert len(name) > 0, "Cannot camelCase empty string"
-    return name[0].lower() + name[1:]
+    assert len(name) > 0, "Cannot snake_case empty string"
+    return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")

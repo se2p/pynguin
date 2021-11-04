@@ -20,8 +20,8 @@ import tests.fixtures.accessibles.accessible as module0
 
 def test_case_0():
     int0 = 5
-    someType0 = module0.SomeType(int0)
-    assert someType0 == 5
+    some_type0 = module0.SomeType(int0)
+    assert some_type0 == 5
     float0 = 42.23
     float1 = module0.simple_function(float0)
     assert float1 == pytest.approx(42.23, abs=0.01, rel=0.01)
@@ -29,8 +29,8 @@ def test_case_0():
 
 def test_case_1():
     int0 = 5
-    someType0 = module0.SomeType(int0)
-    assert someType0 == 5
+    some_type0 = module0.SomeType(int0)
+    assert some_type0 == 5
     float0 = 42.23
     float1 = module0.simple_function(float0)
     assert float1 == pytest.approx(42.23, abs=0.01, rel=0.01)

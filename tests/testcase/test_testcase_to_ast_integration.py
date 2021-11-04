@@ -35,7 +35,7 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int0 = 5\nsomeType0 = module0.SomeType(int0)\nassert someType0 == 3\n"
+        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
     )
 
 
@@ -45,11 +45,11 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int0 = 5\nsomeType0 = module0.SomeType(int0)\nassert someType0 == 3\n"
+        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
     )
     assert (
         astor.to_source(Module(body=visitor.test_case_asts[1]))
-        == "int0 = 5\nsomeType0 = module0.SomeType(int0)\nassert someType0 == 3\n"
+        == "int0 = 5\nsome_type0 = module0.SomeType(int0)\nassert some_type0 == 3\n"
     )
 
 
