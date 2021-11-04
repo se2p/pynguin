@@ -15,7 +15,7 @@ test
 geNerator,
 is a tool that allows developers to generate unit tests automatically.
 
-Testing software is a tedious task.
+Testing software is often considered to be a tedious task.
 Thus, automated generation techniques have been proposed and mature tools exist—for
 statically typed languages, such as Java.
 There is, however, no fully-automated tool available that produces unit tests for
@@ -54,15 +54,16 @@ As a consequence, depending on what code is in that module,
 running Pynguin can cause serious harm to your computer,
 for example, wipe your entire hard disk!
 We recommend running Pynguin in an isolated environment;
-for example, a Docker container, to minimise the risk of damaging
+use, for example, a Docker container to minimize the risk of damaging
 your system.
 
 
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.8, 3.9 or 3.10 (we have not yet tested with Python 3.11, there might
-  be some problems due to changed internals regarding the byte-code instrumentation).
+- You have installed Python 3.8, 3.9, or 3.10 (we have not yet tested with Python
+  3.11, there might be some problems due to changed internals regarding the byte-code
+  instrumentation).
 - You have a recent Linux/macOS/Windows machine.
 
 Please consider reading the [online documentation](https://pynguin.readthedocs.io)
@@ -94,11 +95,12 @@ and we want to generate tests using a whole-suite approach for the module `foo.b
 (wrapped for better readability):
 ```bash
 pynguin \
-  --algorithm WHOLE_SUITE \
-  --project_path /tmp/foo \
-  --output_path /tmp/testgen \
-  --module_name foo.bar
+  --project-path /tmp/foo \
+  --output-path /tmp/testgen \
+  --module-name foo.bar
 ```
+Please find a more detailed example in the [quick start guide](https://pynguin.readthedocs.io/en/latest/user/quickstart.html).
+
 
 ## Contributing to Pynguin
 
