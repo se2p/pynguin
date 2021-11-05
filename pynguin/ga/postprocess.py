@@ -13,8 +13,8 @@ import logging
 from typing import TYPE_CHECKING, List
 
 import pynguin.ga.chromosomevisitor as cv
-import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcasevisitor as tcv
+from pynguin.testcase.statement import StatementVisitor
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -68,7 +68,7 @@ class UnusedStatementsTestCaseVisitor(tcv.TestCaseVisitor):
         )
 
 
-class UnusedPrimitiveOrCollectionStatementVisitor(sv.StatementVisitor):
+class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
     """Visits all statements and removes the unused primitives and collections.
     Has to visit the statements in reverse order."""
 

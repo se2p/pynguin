@@ -12,11 +12,8 @@ from unittest.mock import MagicMock
 import astor
 import pytest
 
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.statements.collectionsstatements as coll_stmt
-import pynguin.testcase.statements.fieldstatement as field_stmt
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.variablereference as vr
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -121,9 +118,7 @@ def test_statement_to_ast_assignment(variable_reference_mock, statement_to_ast_v
 def test_statement_to_ast_field(
     statement_to_ast_visitor, test_case_mock, field_mock, variable_reference_mock
 ):
-    f_stmt = field_stmt.FieldStatement(
-        test_case_mock, field_mock, variable_reference_mock
-    )
+    f_stmt = stmt.FieldStatement(test_case_mock, field_mock, variable_reference_mock)
     statement_to_ast_visitor.visit_field_statement(f_stmt)
 
 
@@ -212,9 +207,7 @@ def all_types_function():
 def test_statement_to_ast_constructor_args(
     statement_to_ast_visitor, test_case_mock, all_types_constructor, args, expected
 ):
-    constr_stmt = param_stmt.ConstructorStatement(
-        test_case_mock, all_types_constructor, args
-    )
+    constr_stmt = stmt.ConstructorStatement(test_case_mock, all_types_constructor, args)
     statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
     assert astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == expected
 
@@ -243,7 +236,7 @@ def test_statement_to_ast_constructor_args(
 def test_statement_to_ast_method_args(
     statement_to_ast_visitor, test_case_mock, all_types_method, args, expected
 ):
-    method_stmt = param_stmt.MethodStatement(
+    method_stmt = stmt.MethodStatement(
         test_case_mock, all_types_method, MagicMock(), args
     )
     statement_to_ast_visitor.visit_method_statement(method_stmt)
@@ -274,7 +267,7 @@ def test_statement_to_ast_method_args(
 def test_statement_to_ast_function_args(
     statement_to_ast_visitor, test_case_mock, all_types_function, args, expected
 ):
-    func_stmt = param_stmt.FunctionStatement(test_case_mock, all_types_function, args)
+    func_stmt = stmt.FunctionStatement(test_case_mock, all_types_function, args)
     statement_to_ast_visitor.visit_function_statement(func_stmt)
     assert astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == expected
 
@@ -297,7 +290,7 @@ def test_statement_to_ast_with_wrap():
 def test_statement_to_ast_list_single(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    list_stmt = coll_stmt.ListStatement(
+    list_stmt = stmt.ListStatement(
         test_case_mock,
         List[int],
         [MagicMock(vr.VariableReference)],
@@ -312,7 +305,7 @@ def test_statement_to_ast_list_single(
 def test_statement_to_ast_list_empty(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    list_stmt = coll_stmt.ListStatement(
+    list_stmt = stmt.ListStatement(
         test_case_mock,
         List[int],
         [],
@@ -327,10 +320,10 @@ def test_statement_to_ast_list_empty(
 def test_statement_to_ast_set_single(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    set_stmt = coll_stmt.SetStatement(
+    set_stmt = stmt.SetStatement(
         test_case_mock,
         Set[int],
-        {MagicMock(vr.VariableReference)},
+        [MagicMock(vr.VariableReference)],
     )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
@@ -342,11 +335,7 @@ def test_statement_to_ast_set_single(
 def test_statement_to_ast_set_empty(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    set_stmt = coll_stmt.SetStatement(
-        test_case_mock,
-        Set[int],
-        set(),
-    )
+    set_stmt = stmt.SetStatement(test_case_mock, Set[int], [])
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
@@ -357,7 +346,7 @@ def test_statement_to_ast_set_empty(
 def test_statement_to_ast_tuple_single(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    tuple_stmt = coll_stmt.TupleStatement(
+    tuple_stmt = stmt.TupleStatement(
         test_case_mock,
         Tuple[int],
         [MagicMock(vr.VariableReference)],
@@ -372,7 +361,7 @@ def test_statement_to_ast_tuple_single(
 def test_statement_to_ast_tuple_empty(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    tuple_stmt = coll_stmt.TupleStatement(
+    tuple_stmt = stmt.TupleStatement(
         test_case_mock,
         Tuple,
         [],
@@ -387,7 +376,7 @@ def test_statement_to_ast_tuple_empty(
 def test_statement_to_ast_dict_single(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    dict_stmt = coll_stmt.DictStatement(
+    dict_stmt = stmt.DictStatement(
         test_case_mock,
         Dict[int, int],
         [(MagicMock(vr.VariableReference), MagicMock(vr.VariableReference))],
@@ -402,7 +391,7 @@ def test_statement_to_ast_dict_single(
 def test_statement_to_ast_dict_empty(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    dict_stmt = coll_stmt.DictStatement(
+    dict_stmt = stmt.DictStatement(
         test_case_mock,
         Tuple,
         [],

@@ -13,7 +13,7 @@ import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster

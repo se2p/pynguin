@@ -11,7 +11,7 @@ import logging
 from types import ModuleType
 from typing import Any, Dict, List, Tuple
 
-import pynguin.testcase.statements.statement as st
+import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
 
 

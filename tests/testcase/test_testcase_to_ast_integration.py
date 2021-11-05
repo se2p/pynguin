@@ -11,16 +11,15 @@ import pytest
 
 import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 
 
 @pytest.fixture()
 def simple_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    constructor_stmt = param_stmt.ConstructorStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
+    constructor_stmt = stmt.ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     constructor_stmt.add_assertion(pas.PrimitiveAssertion(constructor_stmt.ret_val, 3))

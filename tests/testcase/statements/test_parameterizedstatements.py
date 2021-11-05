@@ -12,24 +12,23 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.statements.statementvisitor as sv
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 from pynguin.typeinference.strategy import InferredSignature
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 
 
 def test_constructor_statement_no_args(
     test_case_mock, variable_reference_mock, constructor_mock
 ):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert statement.args == {}
 
 
 def test_constructor_statement_args(
     test_case_mock, variable_reference_mock, constructor_mock
 ):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     references = {
         "a": MagicMock(vr.VariableReferenceImpl),
         "b": MagicMock(vr.VariableReferenceImpl),
@@ -41,20 +40,20 @@ def test_constructor_statement_args(
 def test_constructor_statement_accept(
     test_case_mock, variable_reference_mock, constructor_mock
 ):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
-    visitor = MagicMock(sv.StatementVisitor)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
+    visitor = MagicMock(stmt.StatementVisitor)
     statement.accept(visitor)
 
     visitor.visit_constructor_statement.assert_called_once_with(statement)
 
 
 def test_constructor_statement_hash(test_case_mock, constructor_mock):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert statement.structural_hash() != 0
 
 
 def test_constructor_statement_eq_same(test_case_mock, constructor_mock):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert statement.structural_eq(statement, {statement.ret_val: statement.ret_val})
 
 
@@ -62,7 +61,7 @@ def test_function_different_callables_different_hashes(test_case_mock, function_
     def other_function(z: float) -> float:
         return z  # pragma: no cover
 
-    other = ps.GenericFunction(
+    other = GenericFunction(
         function=other_function,
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
@@ -78,8 +77,8 @@ def test_function_different_callables_different_hashes(test_case_mock, function_
             parameters={"z": float},
         ),
     )
-    function_statement = ps.FunctionStatement(test_case_mock, function_mock, {})
-    other_statement = ps.FunctionStatement(test_case_mock, other, {})
+    function_statement = stmt.FunctionStatement(test_case_mock, function_mock, {})
+    other_statement = stmt.FunctionStatement(test_case_mock, other, {})
     assert not function_statement.structural_eq(
         other_statement, {function_statement.ret_val: function_statement.ret_val}
     )
@@ -92,15 +91,15 @@ def test_function_different_callables_different_hashes(test_case_mock, function_
 def test_constructor_statement_eq_other_type(
     test_case_mock, variable_reference_mock, constructor_mock
 ):
-    statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert not statement.structural_eq(variable_reference_mock, {})
 
 
 def test_constructor_replace_args(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    int0 = prim.IntPrimitiveStatement(test_case, 0)
-    new_value = prim.IntPrimitiveStatement(test_case, 0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": int0.ret_val})
+    int0 = stmt.IntPrimitiveStatement(test_case, 0)
+    new_value = stmt.IntPrimitiveStatement(test_case, 0)
+    const = stmt.ConstructorStatement(test_case, constructor_mock, {"a": int0.ret_val})
     test_case.add_statement(int0)
     test_case.add_statement(new_value)
     test_case.add_statement(const)
@@ -110,8 +109,8 @@ def test_constructor_replace_args(constructor_mock):
 
 def test_constructor_replace_return_value(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    new_value = prim.IntPrimitiveStatement(test_case, 0)
-    const = ps.ConstructorStatement(test_case, constructor_mock)
+    new_value = stmt.IntPrimitiveStatement(test_case, 0)
+    const = stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(new_value)
     test_case.add_statement(const)
     const.replace(const.ret_val, new_value.ret_val)
@@ -121,19 +120,19 @@ def test_constructor_replace_return_value(constructor_mock):
 def test_constructor_clone_args(constructor_mock, test_case_mock):
     ref = vr.VariableReferenceImpl(test_case_mock, float)
     clone = vr.VariableReferenceImpl(test_case_mock, float)
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock, {"a": ref})
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock, {"a": ref})
     assert const._clone_args({ref: clone}) == {"a": clone}
 
 
 def test_constructor_mutate_no_mutation(constructor_mock, test_case_mock):
     config.configuration.search_algorithm.change_parameter_probability = 0.0
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert not const.mutate()
 
 
 def test_constructor_mutate_nothing_to_mutate(constructor_mock, test_case_mock):
     config.configuration.search_algorithm.change_parameter_probability = 1.0
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert not const.mutate()
 
 
@@ -150,7 +149,7 @@ def test_constructor_mutate_simple(
     constructor_mock, test_case_mock, s_param, param, result
 ):
     config.configuration.search_algorithm.change_parameter_probability = 1.0
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     with mock.patch.object(const, "_mutable_argument_count") as arg_count:
         arg_count.return_value = 5
         with mock.patch.object(
@@ -166,7 +165,7 @@ def test_constructor_mutate_simple(
 
 
 def test_constructor_mutable_arg_count(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(
+    const = stmt.ConstructorStatement(
         test_case_mock,
         constructor_mock,
         {"test": MagicMock(vr.VariableReferenceImpl)},
@@ -175,14 +174,14 @@ def test_constructor_mutable_arg_count(test_case_mock, constructor_mock):
 
 
 def test_constructor_mutate_special_parameters(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert not const._mutate_special_parameters(1.0)
 
 
 def test_constructor_mutate_parameters_nothing(
     test_case_mock, constructor_mock, variable_reference_mock
 ):
-    const = ps.ConstructorStatement(
+    const = stmt.ConstructorStatement(
         test_case_mock,
         MagicMock(inferred_signature=MagicMock(parameters={"a": float, "b": int})),
         {"a": variable_reference_mock, "b": variable_reference_mock},
@@ -194,7 +193,7 @@ def test_constructor_mutate_parameters_args(
     test_case_mock, constructor_mock, variable_reference_mock
 ):
     signature = MagicMock(parameters={"a": float, "b": int})
-    const = ps.ConstructorStatement(
+    const = stmt.ConstructorStatement(
         test_case_mock,
         MagicMock(inferred_signature=signature),
         {"a": variable_reference_mock, "b": variable_reference_mock},
@@ -209,8 +208,10 @@ def test_constructor_mutate_parameters_args(
 
 def test_constructor_mutate_parameter_get_objects(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(const, "_test_case") as tc:
@@ -227,8 +228,10 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock):
 
 def test_constructor_mutate_parameter_not_included(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(test_case, "get_objects") as get_objs:
@@ -241,14 +244,16 @@ def test_constructor_mutate_parameter_not_included(constructor_mock):
             get_objs.assert_called_with(float0.ret_val.variable_type, 1)
             assert isinstance(
                 test_case.get_statement(const.args["a"].get_statement_position()),
-                prim.NoneStatement,
+                stmt.NoneStatement,
             )
 
 
 def test_constructor_mutate_parameter_add_copy(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch.object(const, "_param_count_of_type") as param_count_of_type:
@@ -266,8 +271,10 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock):
 
 def test_constructor_mutate_parameter_choose_none(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
     test_case.add_statement(float0)
     test_case.add_statement(const)
     with mock.patch(
@@ -277,15 +284,17 @@ def test_constructor_mutate_parameter_choose_none(constructor_mock):
         assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
         assert isinstance(
             test_case.get_statement(const.args["a"].get_statement_position()),
-            prim.NoneStatement,
+            stmt.NoneStatement,
         )
 
 
 def test_constructor_mutate_parameter_choose_existing(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float1 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     test_case.add_statement(const)
@@ -299,12 +308,12 @@ def test_constructor_mutate_parameter_choose_existing(constructor_mock):
 
 
 def test_constructor_param_count_of_type_none(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert const._param_count_of_type(None) == 0
 
 
 def test_constructor_param_count_of_type(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(
+    const = stmt.ConstructorStatement(
         test_case_mock,
         constructor_mock,
         {
@@ -316,12 +325,14 @@ def test_constructor_param_count_of_type(test_case_mock, constructor_mock):
 
 
 def test_constructor_get_accessible_object(test_case_mock, constructor_mock):
-    const = ps.ConstructorStatement(test_case_mock, constructor_mock)
+    const = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     assert const.accessible_object() == constructor_mock
 
 
 def test_method_statement_no_args(test_case_mock, variable_reference_mock, method_mock):
-    statement = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
+    statement = stmt.MethodStatement(
+        test_case_mock, method_mock, variable_reference_mock
+    )
     assert statement.args == {}
 
 
@@ -331,7 +342,9 @@ def test_method_statement_args(test_case_mock, variable_reference_mock, method_m
         "b": MagicMock(vr.VariableReferenceImpl),
     }
 
-    statement = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
+    statement = stmt.MethodStatement(
+        test_case_mock, method_mock, variable_reference_mock
+    )
     statement.args = references
     assert statement.args == references
 
@@ -344,8 +357,8 @@ def test_method_statement_not_eq(test_case_mock, method_mock):
         "a": var1,
     }
 
-    statement = ps.MethodStatement(test_case_mock, method_mock, var1, args)
-    statement2 = ps.MethodStatement(test_case_mock, method_mock, var2, args)
+    statement = stmt.MethodStatement(test_case_mock, method_mock, var1, args)
+    statement2 = stmt.MethodStatement(test_case_mock, method_mock, var2, args)
     assert not statement.structural_eq(
         statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
     )
@@ -359,8 +372,8 @@ def test_method_statement_eq(test_case_mock, method_mock):
         "a": var1,
     }
 
-    statement = ps.MethodStatement(test_case_mock, method_mock, var1, args)
-    statement2 = ps.MethodStatement(test_case_mock, method_mock, var1, args)
+    statement = stmt.MethodStatement(test_case_mock, method_mock, var1, args)
+    statement2 = stmt.MethodStatement(test_case_mock, method_mock, var1, args)
     assert statement.structural_eq(
         statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
     )
@@ -368,8 +381,10 @@ def test_method_statement_eq(test_case_mock, method_mock):
 
 
 def test_method_statement_accept(test_case_mock, variable_reference_mock, method_mock):
-    statement = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
-    visitor = MagicMock(sv.StatementVisitor)
+    statement = stmt.MethodStatement(
+        test_case_mock, method_mock, variable_reference_mock
+    )
+    visitor = MagicMock(stmt.StatementVisitor)
     statement.accept(visitor)
 
     visitor.visit_method_statement.assert_called_once_with(statement)
@@ -378,14 +393,14 @@ def test_method_statement_accept(test_case_mock, variable_reference_mock, method
 def test_method_get_accessible_object(
     test_case_mock, method_mock, variable_reference_mock
 ):
-    meth = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
+    meth = stmt.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
     assert meth.accessible_object() == method_mock
 
 
 def test_method_mutable_argument_count(
     test_case_mock, method_mock, variable_reference_mock
 ):
-    meth = ps.MethodStatement(
+    meth = stmt.MethodStatement(
         test_case_mock,
         method_mock,
         variable_reference_mock,
@@ -397,16 +412,18 @@ def test_method_mutable_argument_count(
 def test_method_mutate_special_parameters_no_mutation(
     test_case_mock, method_mock, variable_reference_mock
 ):
-    meth = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
+    meth = stmt.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
     assert not meth._mutate_special_parameters(0.0)
 
 
 def test_method_mutate_special_parameters_none_found(method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const0 = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
-    int0 = prim.IntPrimitiveStatement(test_case, 5)
-    meth = ps.MethodStatement(test_case, method_mock, const0.ret_val)
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const0 = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
+    int0 = stmt.IntPrimitiveStatement(test_case, 5)
+    meth = stmt.MethodStatement(test_case, method_mock, const0.ret_val)
     test_case.add_statement(float0)
     test_case.add_statement(const0)
     test_case.add_statement(int0)
@@ -421,11 +438,15 @@ def test_method_mutate_special_parameters_none_found(method_mock, constructor_mo
 
 def test_method_mutate_special_parameters_one_found(method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    const0 = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
-    const1 = ps.ConstructorStatement(test_case, constructor_mock, {"a": float0.ret_val})
-    int0 = prim.IntPrimitiveStatement(test_case, 5)
-    meth = ps.MethodStatement(test_case, method_mock, const0.ret_val)
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    const0 = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
+    const1 = stmt.ConstructorStatement(
+        test_case, constructor_mock, {"a": float0.ret_val}
+    )
+    int0 = stmt.IntPrimitiveStatement(test_case, 5)
+    meth = stmt.MethodStatement(test_case, method_mock, const0.ret_val)
     test_case.add_statement(float0)
     test_case.add_statement(const0)
     test_case.add_statement(const1)
@@ -442,9 +463,9 @@ def test_method_mutate_special_parameters_one_found(method_mock, constructor_moc
 
 def test_method_get_variable_references(method_mock):
     test_case = dtc.DefaultTestCase()
-    float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float2 = prim.FloatPrimitiveStatement(test_case, 10.0)
-    meth = ps.MethodStatement(
+    float1 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float2 = stmt.FloatPrimitiveStatement(test_case, 10.0)
+    meth = stmt.MethodStatement(
         test_case,
         method_mock,
         float2.ret_val,
@@ -462,10 +483,10 @@ def test_method_get_variable_references(method_mock):
 
 def test_method_get_variable_replace(method_mock):
     test_case = dtc.DefaultTestCase()
-    float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float2 = prim.FloatPrimitiveStatement(test_case, 10.0)
-    float3 = prim.FloatPrimitiveStatement(test_case, 10.0)
-    meth = ps.MethodStatement(
+    float1 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float2 = stmt.FloatPrimitiveStatement(test_case, 10.0)
+    float3 = stmt.FloatPrimitiveStatement(test_case, 10.0)
+    meth = stmt.MethodStatement(
         test_case,
         method_mock,
         float2.ret_val,
@@ -481,5 +502,5 @@ def test_method_get_variable_replace(method_mock):
 
 
 def test_function_accessible_object(test_case_mock, function_mock):
-    func = ps.FunctionStatement(test_case_mock, function_mock)
+    func = stmt.FunctionStatement(test_case_mock, function_mock)
     assert func.accessible_object() == function_mock

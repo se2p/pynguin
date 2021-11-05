@@ -12,7 +12,7 @@ import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as mae
 import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.testcase.execution as ex
-import pynguin.testcase.statements.parametrizedstatements as ps
+from pynguin.testcase.statement import ConstructorStatement
 
 
 class Foo:
@@ -50,7 +50,7 @@ def test_visit_test_suite_chromosome_step2(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_rv(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.RETURN_VALUE, statement): 42}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref
@@ -68,7 +68,7 @@ def test_visit_test_suite_chromosome_step3_rv(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_rv_not(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.RETURN_VALUE, statement): Foo(42)}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref
@@ -86,7 +86,7 @@ def test_visit_test_suite_chromosome_step3_rv_not(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_attr(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.OBJECT_ATTRIBUTE, statement, MagicMock(), "foo"): 1}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref
@@ -104,7 +104,7 @@ def test_visit_test_suite_chromosome_step3_attr(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_attr_not(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.OBJECT_ATTRIBUTE, statement, MagicMock(), "foo"): Foo(1)}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref
@@ -122,7 +122,7 @@ def test_visit_test_suite_chromosome_step3_attr_not(adapter_mock, execution_mock
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_cf(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {
         (cs.EntryTypes.CLASS_FIELD, statement, MagicMock(__name__="test"), "foo"): "bar"
     }
@@ -142,7 +142,7 @@ def test_visit_test_suite_chromosome_step3_cf(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_cf_not(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {
         (cs.EntryTypes.CLASS_FIELD, statement, MagicMock(__name__="test"), "foo"): Foo(
             "bar"
@@ -164,7 +164,7 @@ def test_visit_test_suite_chromosome_step3_cf_not(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_g(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.GLOBAL_FIELD, statement, "module", "field"): 1337}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref
@@ -182,7 +182,7 @@ def test_visit_test_suite_chromosome_step3_g(adapter_mock, execution_mock):
 @mock.patch.object(mae.MutationAnalysisExecution, "execute")
 def test_visit_test_suite_chromosome_step3_g_not(adapter_mock, execution_mock):
     gen = mag.MutationAnalysisGenerator(ex.TestCaseExecutor(MagicMock()))
-    statement = ps.ConstructorStatement(MagicMock(), MagicMock())
+    statement = ConstructorStatement(MagicMock(), MagicMock())
     ref = {(cs.EntryTypes.GLOBAL_FIELD, statement, "module", "field"): Foo(1337)}
     with mock.patch.object(
         gen._storage, "get_execution_entry", return_value=ref

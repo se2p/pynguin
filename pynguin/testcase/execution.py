@@ -39,7 +39,7 @@ from pynguin.utils.type_utils import (
 
 if TYPE_CHECKING:
     import pynguin.assertion.outputtrace as ot
-    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
 

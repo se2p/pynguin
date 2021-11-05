@@ -12,9 +12,7 @@ import pytest
 
 import pynguin.ga.postprocess as pp
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.collectionsstatements as coll_stmt
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
+import pynguin.testcase.statement as stmt
 
 
 def test_not_failing():
@@ -72,15 +70,15 @@ def test_unused_primitives_visitor():
 
 def test_remove_integration(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case))
-    test_case.add_statement(prim_stmt.FloatPrimitiveStatement(test_case))
-    int0 = prim_stmt.IntPrimitiveStatement(test_case)
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case))
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case))
+    int0 = stmt.IntPrimitiveStatement(test_case)
     test_case.add_statement(int0)
-    list0 = coll_stmt.ListStatement(test_case, List[int], [int0.ret_val])
+    list0 = stmt.ListStatement(test_case, List[int], [int0.ret_val])
     test_case.add_statement(list0)
-    float0 = prim_stmt.FloatPrimitiveStatement(test_case)
+    float0 = stmt.FloatPrimitiveStatement(test_case)
     test_case.add_statement(float0)
-    ctor0 = param_stmt.ConstructorStatement(
+    ctor0 = stmt.ConstructorStatement(
         test_case, constructor_mock, {"foo": float0.ret_val, "bar": list0.ret_val}
     )
     test_case.add_statement(ctor0)

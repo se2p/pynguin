@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 
 

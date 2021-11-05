@@ -17,7 +17,7 @@ import pynguin.testcase.testcase as tc
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
 

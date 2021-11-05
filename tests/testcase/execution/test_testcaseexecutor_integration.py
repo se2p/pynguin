@@ -10,10 +10,9 @@ from unittest.mock import MagicMock
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
 
 
 def test_simple_execution():
@@ -23,7 +22,7 @@ def test_simple_execution():
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         test_case = dtc.DefaultTestCase()
-        test_case.add_statement(prim_stmt.IntPrimitiveStatement(test_case, 5))
+        test_case.add_statement(IntPrimitiveStatement(test_case, 5))
         executor = TestCaseExecutor(tracer)
         assert not executor.execute(test_case).has_test_exceptions()
 
@@ -31,8 +30,8 @@ def test_simple_execution():
 def test_illegal_call(method_mock):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    method_stmt = param_stmt.MethodStatement(test_case, method_mock, int_stmt.ret_val)
+    int_stmt = IntPrimitiveStatement(test_case, 5)
+    method_stmt = MethodStatement(test_case, method_mock, int_stmt.ret_val)
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()

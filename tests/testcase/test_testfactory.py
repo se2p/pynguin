@@ -15,10 +15,7 @@ from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.fieldstatement as f_stmt
-import pynguin.testcase.statements.parametrizedstatements as par_stmt
-import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -60,11 +57,11 @@ def test_check_recursion_depth_guard(test_case_mock, method):
 @pytest.mark.parametrize(
     "statement",
     [
-        pytest.param(MagicMock(par_stmt.ConstructorStatement)),
-        pytest.param(MagicMock(par_stmt.MethodStatement)),
-        pytest.param(MagicMock(par_stmt.FunctionStatement)),
-        pytest.param(MagicMock(f_stmt.FieldStatement)),
-        pytest.param(MagicMock(prim.PrimitiveStatement)),
+        pytest.param(MagicMock(stmt.ConstructorStatement)),
+        pytest.param(MagicMock(stmt.MethodStatement)),
+        pytest.param(MagicMock(stmt.FunctionStatement)),
+        pytest.param(MagicMock(stmt.FieldStatement)),
+        pytest.param(MagicMock(stmt.PrimitiveStatement)),
     ],
 )
 def test_append_statement(test_case_mock, statement):
@@ -116,12 +113,12 @@ def test_append_illegal_generic_statement(test_case_mock):
     factory = tf.TestFactory(MagicMock(FullTestCluster))
     with pytest.raises(ConstructionFailedException):
         factory.append_generic_accessible(
-            test_case_mock, MagicMock(prim.PrimitiveStatement), position=42
+            test_case_mock, MagicMock(stmt.PrimitiveStatement), position=42
         )
 
 
 def test_add_primitive(test_case_mock):
-    statement = MagicMock(prim.PrimitiveStatement)
+    statement = MagicMock(stmt.PrimitiveStatement)
     statement.clone.return_value = statement
     factory = tf.TestFactory(MagicMock(FullTestCluster))
     factory.add_primitive(test_case_mock, statement)
@@ -306,12 +303,12 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock):
 
 def test__rollback_changes_mid():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 15))
 
     cloned = test_case.clone()
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 7.5), 1)
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 7.5), 1)
     assert cloned != test_case
 
     tf.TestFactory._rollback_changes(test_case, cloned.size(), 1)
@@ -320,12 +317,12 @@ def test__rollback_changes_mid():
 
 def test__rollback_changes_end():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 15))
 
     cloned = test_case.clone()
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 7.5), 3)
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 7.5), 3)
     assert cloned != test_case
 
     tf.TestFactory._rollback_changes(test_case, cloned.size(), 3)
@@ -334,9 +331,9 @@ def test__rollback_changes_end():
 
 def test__rollback_changes_nothing_to_rollback():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 10))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 15))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 10))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 15))
 
     cloned = test_case.clone()
 
@@ -396,12 +393,12 @@ def test__get_possible_calls_no_match(test_case_mock, function_mock):
 @pytest.fixture()
 def sample_test_case(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim.ret_val}
     )
-    float_function2 = par_stmt.FunctionStatement(
+    float_function2 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_function1.ret_val}
     )
     test_case.add_statement(float_prim)
@@ -460,7 +457,7 @@ def test_get_random_non_none_object_empty():
 
 def test_get_random_non_none_object_none_statement():
     test_case = dtc.DefaultTestCase()
-    none_statement = prim.NoneStatement(test_case, float)
+    none_statement = stmt.NoneStatement(test_case, float)
     test_case.add_statement(none_statement)
     with pytest.raises(ConstructionFailedException):
         tf.TestFactory._get_random_non_none_object(test_case, float, 0)
@@ -468,9 +465,9 @@ def test_get_random_non_none_object_none_statement():
 
 def test_get_random_non_none_object_success():
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 2.0)
-    float1 = prim.FloatPrimitiveStatement(test_case, 3.0)
-    float2 = prim.FloatPrimitiveStatement(test_case, 4.0)
+    float0 = stmt.FloatPrimitiveStatement(test_case, 2.0)
+    float1 = stmt.FloatPrimitiveStatement(test_case, 3.0)
+    float2 = stmt.FloatPrimitiveStatement(test_case, 4.0)
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     test_case.add_statement(float2)
@@ -482,8 +479,8 @@ def test_get_random_non_none_object_success():
 
 def test_get_reuse_parameters():
     test_case = dtc.DefaultTestCase()
-    float0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float1 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float1 = stmt.FloatPrimitiveStatement(test_case, 5.0)
     test_case.add_statement(float0)
     test_case.add_statement(float1)
     sign_mock = MagicMock(inspect.Signature)
@@ -534,9 +531,9 @@ def test_insert_random_statement_empty_on_object():
 
 def test_insert_random_statement_non_empty():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
     test_cluster = MagicMock(FullTestCluster)
     test_cluster.num_accessible_objects_under_test.return_value = 1
     test_factory = tf.TestFactory(test_cluster)
@@ -552,14 +549,14 @@ def test_insert_random_statement_non_empty():
 
 def test_insert_random_statement_non_empty_multi_insert():
     def side_effect(tc, pos):
-        tc.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-        tc.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+        tc.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+        tc.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
         return True
 
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
     test_cluster = MagicMock(FullTestCluster)
     test_cluster.num_accessible_objects_under_test.return_value = 1
     test_factory = tf.TestFactory(test_cluster)
@@ -575,7 +572,7 @@ def test_insert_random_statement_non_empty_multi_insert():
 
 def test_insert_random_statement_no_success():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 5))
     test_cluster = MagicMock(FullTestCluster)
     test_cluster.num_accessible_objects_under_test.return_value = 1
     test_factory = tf.TestFactory(test_cluster)
@@ -711,13 +708,13 @@ def test_add_call_for_method(method_mock, variable_reference_mock, test_case_moc
 
 def test_add_call_for_rollback(method_mock, variable_reference_mock):
     def side_effect(tc, f, p, callee=None):
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
         raise ConstructionFailedException()
 
     test_case = dtc.DefaultTestCase()
-    int0 = prim.IntPrimitiveStatement(test_case, 3)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
     test_case.add_statement(int0)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
@@ -741,11 +738,11 @@ def test_add_call_for_unknown(method_mock, variable_reference_mock, test_case_mo
 
 def test_select_random_variable_for_call_one(constructor_mock, function_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.NoneStatement(test_case, MagicMock))
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 5.0))
+    test_case.add_statement(stmt.NoneStatement(test_case, MagicMock))
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 5.0))
     function_mock.inferred_signature.update_return_type(None)
-    test_case.add_statement(par_stmt.FunctionStatement(test_case, function_mock))
-    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    test_case.add_statement(stmt.FunctionStatement(test_case, function_mock))
+    const = stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(const)
     assert (
         tf.TestFactory._select_random_variable_for_call(test_case, test_case.size())
@@ -755,10 +752,10 @@ def test_select_random_variable_for_call_one(constructor_mock, function_mock):
 
 def test_select_random_variable_for_call_none(constructor_mock, function_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.NoneStatement(test_case, MagicMock))
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 5.0))
+    test_case.add_statement(stmt.NoneStatement(test_case, MagicMock))
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 5.0))
     function_mock.inferred_signature.update_return_type(None)
-    test_case.add_statement(par_stmt.FunctionStatement(test_case, function_mock))
+    test_case.add_statement(stmt.FunctionStatement(test_case, function_mock))
     assert (
         tf.TestFactory._select_random_variable_for_call(test_case, test_case.size())
         is None
@@ -784,13 +781,13 @@ def test_insert_random_call_success(test_case_mock):
 
 def test_insert_random_call_rollback(test_case_mock):
     def side_effect(tc, f, p, callee=None):
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
         raise ConstructionFailedException()
 
     test_case = dtc.DefaultTestCase()
-    int0 = prim.IntPrimitiveStatement(test_case, 3)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
     test_case.add_statement(int0)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
@@ -804,9 +801,9 @@ def test_insert_random_call_rollback(test_case_mock):
 
 def test_delete_statement_gracefully_success(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim2.ret_val}
     )
     test_case.add_statement(float_prim)
@@ -819,8 +816,8 @@ def test_delete_statement_gracefully_success(function_mock):
 
 def test_delete_statement_gracefully_no_alternatives(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim.ret_val}
     )
     test_case.add_statement(float_prim)
@@ -831,9 +828,9 @@ def test_delete_statement_gracefully_no_alternatives(function_mock):
 
 def test_delete_statement_gracefully_no_dependencies(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim0 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_prim1 = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_prim2 = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim0 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim1 = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim2 = stmt.FloatPrimitiveStatement(test_case, 5.0)
     test_case.add_statement(float_prim0)
     test_case.add_statement(float_prim1)
     test_case.add_statement(float_prim2)
@@ -845,14 +842,14 @@ def test_change_random_call_unknown_type(test_case_mock):
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
     assert not test_factory.change_random_call(
-        test_case_mock, prim.NoneStatement(test_case_mock, None)
+        test_case_mock, stmt.NoneStatement(test_case_mock, None)
     )
 
 
 def test_change_random_call_no_calls(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim.ret_val}
     )
     test_case.add_statement(float_prim)
@@ -866,7 +863,7 @@ def test_change_random_call_no_calls(function_mock):
 
 def test_change_random_call_primitive(function_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
     test_case.add_statement(float_prim)
 
     test_cluster = MagicMock(FullTestCluster)
@@ -877,12 +874,12 @@ def test_change_random_call_primitive(function_mock):
 
 def test_change_random_call_success(function_mock, method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    int0 = prim.IntPrimitiveStatement(test_case, 2)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    int0 = stmt.IntPrimitiveStatement(test_case, 2)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim.ret_val}
     )
-    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    const = stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)
     test_case.add_statement(int0)
     test_case.add_statement(const)
@@ -898,12 +895,12 @@ def test_change_random_call_success(function_mock, method_mock, constructor_mock
 
 def test_change_random_call_failed(function_mock, method_mock, constructor_mock):
     test_case = dtc.DefaultTestCase()
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.0)
-    int0 = prim.IntPrimitiveStatement(test_case, 2)
-    float_function1 = par_stmt.FunctionStatement(
+    float_prim = stmt.FloatPrimitiveStatement(test_case, 5.0)
+    int0 = stmt.IntPrimitiveStatement(test_case, 2)
+    float_function1 = stmt.FunctionStatement(
         test_case, function_mock, {"z": float_prim.ret_val}
     )
-    const = par_stmt.ConstructorStatement(test_case, constructor_mock)
+    const = stmt.ConstructorStatement(test_case, constructor_mock)
     test_case.add_statement(float_prim)
     test_case.add_statement(int0)
     test_case.add_statement(const)
@@ -920,9 +917,9 @@ def test_change_random_call_failed(function_mock, method_mock, constructor_mock)
 
 def test_change_call_method(constructor_mock, method_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(par_stmt.ConstructorStatement(test_case, constructor_mock))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 3))
-    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(stmt.ConstructorStatement(test_case, constructor_mock))
+    test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 3))
+    to_replace = stmt.NoneStatement(test_case, float)
     test_case.add_statement(to_replace)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
@@ -933,8 +930,8 @@ def test_change_call_method(constructor_mock, method_mock):
 
 def test_change_call_constructor(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
-    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = stmt.NoneStatement(test_case, float)
     test_case.add_statement(to_replace)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
@@ -945,8 +942,8 @@ def test_change_call_constructor(constructor_mock):
 
 def test_change_call_function(function_mock):
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
-    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = stmt.NoneStatement(test_case, float)
     test_case.add_statement(to_replace)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
@@ -957,8 +954,8 @@ def test_change_call_function(function_mock):
 
 def test_change_call_unknown():
     test_case = dtc.DefaultTestCase()
-    test_case.add_statement(prim.FloatPrimitiveStatement(test_case, 3.5))
-    to_replace = prim.NoneStatement(test_case, float)
+    test_case.add_statement(stmt.FloatPrimitiveStatement(test_case, 3.5))
+    to_replace = stmt.NoneStatement(test_case, float)
     test_case.add_statement(to_replace)
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)

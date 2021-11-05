@@ -10,17 +10,16 @@ from typing import Dict, List, Optional, Set
 from unittest import mock
 
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.collectionsstatements as coll_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
-import pynguin.testcase.statements.statementvisitor as sv
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-from pynguin.testcase.statements.statement import Statement
 
 
-class DummyCollectionStatement(coll_stmt.CollectionStatement[vr.VariableReference]):
+class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     def structural_eq(
-        self, other: Statement, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self,
+        other: stmt.Statement,
+        memo: Dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
         return True  # pragma: no cover
 
@@ -40,7 +39,7 @@ class DummyCollectionStatement(coll_stmt.CollectionStatement[vr.VariableReferenc
     ) -> DummyCollectionStatement:
         pass  # pragma: no cover
 
-    def accept(self, visitor: sv.StatementVisitor) -> None:
+    def accept(self, visitor: stmt.StatementVisitor) -> None:
         pass  # pragma: no cover
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
@@ -52,7 +51,7 @@ class DummyCollectionStatement(coll_stmt.CollectionStatement[vr.VariableReferenc
 
 def test_elements():
     test_case = dtc.DefaultTestCase()
-    int0 = prim_stmt.IntPrimitiveStatement(test_case, 3)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
     dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val])
     test_case.add_statements([int0, dummy])
     assert dummy.elements == [int0.ret_val]
@@ -66,8 +65,8 @@ def test_accessible_element():
 
 def test_random_replacement():
     test_case = dtc.DefaultTestCase()
-    int0 = prim_stmt.IntPrimitiveStatement(test_case, 3)
-    int1 = prim_stmt.IntPrimitiveStatement(test_case, 5)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
+    int1 = stmt.IntPrimitiveStatement(test_case, 5)
     dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val, int1.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
@@ -78,8 +77,8 @@ def test_random_replacement():
 
 def test_random_insertion():
     test_case = dtc.DefaultTestCase()
-    int0 = prim_stmt.IntPrimitiveStatement(test_case, 3)
-    int1 = prim_stmt.IntPrimitiveStatement(test_case, 5)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
+    int1 = stmt.IntPrimitiveStatement(test_case, 5)
     dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
@@ -95,8 +94,8 @@ def test_random_insertion():
 
 def test_random_deletion():
     test_case = dtc.DefaultTestCase()
-    int0 = prim_stmt.IntPrimitiveStatement(test_case, 3)
-    int1 = prim_stmt.IntPrimitiveStatement(test_case, 5)
+    int0 = stmt.IntPrimitiveStatement(test_case, 3)
+    int1 = stmt.IntPrimitiveStatement(test_case, 5)
     dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val, int1.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:

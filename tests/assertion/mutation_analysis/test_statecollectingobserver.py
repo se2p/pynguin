@@ -10,15 +10,14 @@ from unittest.mock import MagicMock
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.statecollectingobserver as sco
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.statement import ConstructorStatement, Statement
 
 
 class FooObserver(sco.StateCollectingObserver):
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self, statement: Statement, exec_ctx: ExecutionContext
     ) -> None:
         pass  # pragma: no cover
 
@@ -40,7 +39,7 @@ def test_after_statement_execution(exec_ctx_mock):
     exec_ctx._local_namespace = {"foo": "bar"}
     with mock.patch.object(observer._storage, "collect") as cs_mock:
         observer.after_statement_execution(
-            ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
+            ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
             exec_ctx,
         )
         cs_mock.assert_called_once()
@@ -60,7 +59,7 @@ def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
     exec_ctx = ExecutionContext()
     exec_ctx._local_namespace = {"foo": "bar"}
     observer.after_statement_execution(
-        ps.ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
+        ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),
         exec_ctx,
     )
     assert len(observer._objects) == 1

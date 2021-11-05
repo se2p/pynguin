@@ -11,13 +11,12 @@ from typing import TYPE_CHECKING, Optional
 
 import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.assertion.primitivetraceentry as pte
-import pynguin.testcase.statements.statementvisitor as stmt_sv
+import pynguin.testcase.statement as st
 from pynguin.utils.type_utils import is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.assertion.outputtrace as ot
     import pynguin.testcase.execution as ex
-    import pynguin.testcase.statements.statement as st
     import pynguin.testcase.variablereference as vr
 
 
@@ -44,7 +43,7 @@ class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]
         statement.accept(visitor)
 
 
-class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
+class PrimitiveAssertionVisitor(st.StatementVisitor):
     """
     Simple visitor to create primitive assertions.
     Primitive statements are not visited, because something like

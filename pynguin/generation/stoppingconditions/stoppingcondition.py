@@ -17,7 +17,7 @@ from pynguin.testcase.execution import ExecutionObserver
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
-    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     from pynguin.testcase.execution import ExecutionContext, ExecutionResult
 

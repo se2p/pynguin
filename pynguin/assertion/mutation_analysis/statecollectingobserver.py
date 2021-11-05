@@ -9,11 +9,10 @@ from typing import Any, Dict, Optional
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.testcase.execution as ex
-import pynguin.testcase.statements.parametrizedstatements as ps
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.collection_utils as cu
-from pynguin.testcase.statements import statement as stmt
 
 
 class StateCollectingObserver(ex.ExecutionObserver):
@@ -50,14 +49,14 @@ class StateCollectingObserver(ex.ExecutionObserver):
             return
 
         # If the statement was a constructor call, collect the returned object
-        if isinstance(statement, ps.ConstructorStatement):
+        if isinstance(statement, stmt.ConstructorStatement):
             self._objects[statement.ret_val] = exec_ctx.get_variable_value(
                 statement.ret_val
             )
 
         if isinstance(
             statement,
-            (ps.ConstructorStatement, ps.MethodStatement, ps.FunctionStatement),
+            (stmt.ConstructorStatement, stmt.MethodStatement, stmt.FunctionStatement),
         ):
             # Get the return value of the statement
             return_value = exec_ctx.get_variable_value(statement.ret_val)

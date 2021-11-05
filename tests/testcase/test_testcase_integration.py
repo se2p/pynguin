@@ -9,17 +9,15 @@ import pytest
 
 import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.assignmentstatement as assign
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statement as st
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
 def test_method_statement_clone(method_mock):
     test_case = dtc.DefaultTestCase()
-    int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    str_prim = prim.StringPrimitiveStatement(test_case, "TestThis")
-    method_stmt = ps.MethodStatement(
+    int_prim = st.IntPrimitiveStatement(test_case, 5)
+    str_prim = st.StringPrimitiveStatement(test_case, "TestThis")
+    method_stmt = st.MethodStatement(
         test_case,
         method_mock,
         str_prim.ret_val,
@@ -30,14 +28,14 @@ def test_method_statement_clone(method_mock):
     test_case.add_statement(method_stmt)
 
     cloned = test_case.clone()
-    assert isinstance(cloned.statements[2], ps.MethodStatement)
+    assert isinstance(cloned.statements[2], st.MethodStatement)
     assert cloned.statements[2] is not method_stmt
 
 
 def test_constructor_statement_clone(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    method_stmt = ps.ConstructorStatement(
+    int_prim = st.IntPrimitiveStatement(test_case, 5)
+    method_stmt = st.ConstructorStatement(
         test_case,
         constructor_mock,
         {"y": int_prim.ret_val},
@@ -46,18 +44,18 @@ def test_constructor_statement_clone(constructor_mock):
     test_case.add_statement(method_stmt)
 
     cloned = test_case.clone()
-    assert isinstance(cloned.statements[1], ps.ConstructorStatement)
+    assert isinstance(cloned.statements[1], st.ConstructorStatement)
     assert cloned.statements[1] is not method_stmt
     assert cloned.statements[0].ret_val is not test_case.statements[0].ret_val
 
 
 def test_assignment_statement_clone():
     test_case = dtc.DefaultTestCase()
-    int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    int_prim2 = prim.IntPrimitiveStatement(test_case, 10)
+    int_prim = st.IntPrimitiveStatement(test_case, 5)
+    int_prim2 = st.IntPrimitiveStatement(test_case, 10)
     # TODO(fk) the assignment statement from EvoSuite might not be fitting for our case?
     # Because currently we can only overwrite existing values?
-    assignment_stmt = assign.AssignmentStatement(
+    assignment_stmt = st.AssignmentStatement(
         test_case, int_prim.ret_val, int_prim2.ret_val
     )
     test_case.add_statement(int_prim)
@@ -65,19 +63,19 @@ def test_assignment_statement_clone():
     test_case.add_statement(assignment_stmt)
 
     cloned = test_case.clone()
-    assert isinstance(cloned.statements[2], assign.AssignmentStatement)
+    assert isinstance(cloned.statements[2], st.AssignmentStatement)
     assert cloned.statements[2] is not assignment_stmt
 
 
 @pytest.fixture(scope="function")
 def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     test_case = dtc.DefaultTestCase()
-    int_prim = prim.IntPrimitiveStatement(test_case, 5)
-    int_prim2 = prim.IntPrimitiveStatement(test_case, 5)
-    float_prim = prim.FloatPrimitiveStatement(test_case, 5.5)
-    func = ps.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
+    int_prim = st.IntPrimitiveStatement(test_case, 5)
+    int_prim2 = st.IntPrimitiveStatement(test_case, 5)
+    float_prim = st.FloatPrimitiveStatement(test_case, 5.5)
+    func = st.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
     func.add_assertion(pas.PrimitiveAssertion(func.ret_val, 3.1415))
-    string_prim = prim.StringPrimitiveStatement(test_case, "Test")
+    string_prim = st.StringPrimitiveStatement(test_case, "Test")
     string_prim.ret_val.variable_type = type(None)
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
@@ -99,7 +97,7 @@ def test_test_case_equals_on_different_prim(
 
     # Original points to int at 0
     simple_test_case.add_statement(
-        ps.ConstructorStatement(
+        st.ConstructorStatement(
             simple_test_case,
             constructor_mock,
             {"y": simple_test_case.statements[0].ret_val},
@@ -107,7 +105,7 @@ def test_test_case_equals_on_different_prim(
     )
     # Clone points to int at 1
     cloned.add_statement(
-        ps.ConstructorStatement(
+        st.ConstructorStatement(
             cloned, constructor_mock, {"y": cloned.statements[1].ret_val}
         )
     )

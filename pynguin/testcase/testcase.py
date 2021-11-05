@@ -17,7 +17,7 @@ from pynguin.utils.type_utils import is_assignable_to, is_type_unknown
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
 

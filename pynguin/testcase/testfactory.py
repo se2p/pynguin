@@ -14,10 +14,7 @@ from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin
 
 import pynguin.configuration as config
-import pynguin.testcase.statements.collectionsstatements as coll_stmt
-import pynguin.testcase.statements.fieldstatement as f_stmt
-import pynguin.testcase.statements.parametrizedstatements as par_stmt
-import pynguin.testcase.statements.primitivestatements as prim
+import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -30,7 +27,6 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.testcase.statements.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
     from pynguin.setup.testcluster import TestCluster
@@ -38,7 +34,7 @@ if TYPE_CHECKING:
 
 
 # TODO(fk) find better name for this?
-# pylint: disable=too-many-lines  # TODO split this monster!
+# TODO split this monster!
 class TestFactory:
     """A factory for test-case generation.
     This factory does not generate test cases but provides all necessary means to
@@ -69,34 +65,34 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
-        if isinstance(statement, par_stmt.ConstructorStatement):
+        if isinstance(statement, stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
                 statement.accessible_object(),
                 position=new_position,
                 allow_none=allow_none,
             )
-        elif isinstance(statement, par_stmt.MethodStatement):
+        elif isinstance(statement, stmt.MethodStatement):
             self.add_method(
                 test_case,
                 statement.accessible_object(),
                 position=new_position,
                 allow_none=allow_none,
             )
-        elif isinstance(statement, par_stmt.FunctionStatement):
+        elif isinstance(statement, stmt.FunctionStatement):
             self.add_function(
                 test_case,
                 statement.accessible_object(),
                 position=new_position,
                 allow_none=allow_none,
             )
-        elif isinstance(statement, f_stmt.FieldStatement):
+        elif isinstance(statement, stmt.FieldStatement):
             self.add_field(
                 test_case,
                 statement.field,
                 position=new_position,
             )
-        elif isinstance(statement, prim.PrimitiveStatement):
+        elif isinstance(statement, stmt.PrimitiveStatement):
             self.add_primitive(test_case, statement, position=new_position)
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
@@ -217,7 +213,7 @@ class TestFactory:
             new_length = test_case.size()
             position = position + new_length - length
 
-            statement = par_stmt.ConstructorStatement(
+            statement = stmt.ConstructorStatement(
                 test_case=test_case,
                 generic_callable=constructor,
                 args=parameters,
@@ -285,7 +281,7 @@ class TestFactory:
         new_length = test_case.size()
         position = position + new_length - length
 
-        statement = par_stmt.MethodStatement(
+        statement = stmt.MethodStatement(
             test_case=test_case,
             generic_callable=method,
             callee=callee,
@@ -336,7 +332,7 @@ class TestFactory:
             )
         assert callee, "The callee must not be None"
         position = position + test_case.size() - length
-        statement = f_stmt.FieldStatement(test_case, field, callee)
+        statement = stmt.FieldStatement(test_case, field, callee)
         return test_case.add_statement(statement, position)
 
     def add_enum(
@@ -373,7 +369,7 @@ class TestFactory:
         if position < 0:
             position = test_case.size()
 
-        statement = prim.EnumPrimitiveStatement(test_case, enum_)
+        statement = stmt.EnumPrimitiveStatement(test_case, enum_)
         return test_case.add_statement(statement, position)
 
     # pylint: disable=too-many-arguments
@@ -425,7 +421,7 @@ class TestFactory:
         new_length = test_case.size()
         position = position + new_length - length
 
-        statement = par_stmt.FunctionStatement(
+        statement = stmt.FunctionStatement(
             test_case=test_case,
             generic_callable=function,
             args=parameters,
@@ -435,7 +431,7 @@ class TestFactory:
     def add_primitive(
         self,
         test_case: tc.TestCase,
-        primitive: prim.PrimitiveStatement,
+        primitive: stmt.PrimitiveStatement,
         position: int = -1,
     ) -> vr.VariableReference:
         """Adds a primitive statement to the given test case at the given position.
@@ -592,7 +588,7 @@ class TestFactory:
             and not var.is_type_unknown()
             and not isinstance(
                 test_case.get_statement(var.get_statement_position()),
-                prim.NoneStatement,
+                stmt.NoneStatement,
             )
         ]
 
@@ -772,23 +768,19 @@ class TestFactory:
             parameters = self._get_reuse_parameters(
                 test_case, method.inferred_signature, position
             )
-            replacement = par_stmt.MethodStatement(
-                test_case, method, callee, parameters
-            )
+            replacement = stmt.MethodStatement(test_case, method, callee, parameters)
         elif call.is_constructor():
             constructor = cast(gao.GenericConstructor, call)
             parameters = self._get_reuse_parameters(
                 test_case, constructor.inferred_signature, position
             )
-            replacement = par_stmt.ConstructorStatement(
-                test_case, constructor, parameters
-            )
+            replacement = stmt.ConstructorStatement(test_case, constructor, parameters)
         elif call.is_function():
             funktion = cast(gao.GenericFunction, call)
             parameters = self._get_reuse_parameters(
                 test_case, funktion.inferred_signature, position
             )
-            replacement = par_stmt.FunctionStatement(test_case, funktion, parameters)
+            replacement = stmt.FunctionStatement(test_case, funktion, parameters)
 
         if replacement is None:
             assert False, f"Unhandled call type {call}"
@@ -833,7 +825,7 @@ class TestFactory:
             for var in variables
             if not isinstance(
                 test_case.get_statement(var.get_statement_position()),
-                prim.NoneStatement,
+                stmt.NoneStatement,
             )
         ]
         if len(variables) == 0:
@@ -1189,7 +1181,7 @@ class TestFactory:
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        statement = prim.NoneStatement(test_case, parameter_type)
+        statement = stmt.NoneStatement(test_case, parameter_type)
         test_case.add_statement(statement, position)
         ret = test_case.get_statement(position).ret_val
         ret.distance = recursion_depth
@@ -1203,15 +1195,15 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         if parameter_type == int:
-            statement: prim.PrimitiveStatement = prim.IntPrimitiveStatement(test_case)
+            statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(test_case)
         elif parameter_type == float:
-            statement = prim.FloatPrimitiveStatement(test_case)
+            statement = stmt.FloatPrimitiveStatement(test_case)
         elif parameter_type == bool:
-            statement = prim.BooleanPrimitiveStatement(test_case)
+            statement = stmt.BooleanPrimitiveStatement(test_case)
         elif parameter_type == bytes:
-            statement = prim.BytesPrimitiveStatement(test_case)
+            statement = stmt.BytesPrimitiveStatement(test_case)
         else:
-            statement = prim.StringPrimitiveStatement(test_case)
+            statement = stmt.StringPrimitiveStatement(test_case)
         ret = test_case.add_statement(statement, position)
         ret.distance = recursion_depth
         return ret
@@ -1264,9 +1256,9 @@ class TestFactory:
                 elements.append(var)
             position += test_case.size() - previous_length
         collection_stmt = (
-            coll_stmt.ListStatement(test_case, parameter_type, elements)
+            stmt.ListStatement(test_case, parameter_type, elements)
             if parameter_type == list or get_origin(parameter_type) == list
-            else coll_stmt.SetStatement(test_case, parameter_type, elements)
+            else stmt.SetStatement(test_case, parameter_type, elements)
         )
         ret = test_case.add_statement(collection_stmt, position)
         ret.distance = recursion_depth
@@ -1299,7 +1291,7 @@ class TestFactory:
                 elements.append(var)
             position += test_case.size() - previous_length
         ret = test_case.add_statement(
-            coll_stmt.TupleStatement(test_case, parameter_type, elements), position
+            stmt.TupleStatement(test_case, parameter_type, elements), position
         )
         ret.distance = recursion_depth
         return ret
@@ -1337,7 +1329,7 @@ class TestFactory:
                 elements.append((key, value))
 
         ret = test_case.add_statement(
-            coll_stmt.DictStatement(test_case, parameter_type, elements), position
+            stmt.DictStatement(test_case, parameter_type, elements), position
         )
         ret.distance = recursion_depth
         return ret
