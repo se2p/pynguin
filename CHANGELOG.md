@@ -11,6 +11,23 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.13.0
 
+- Add an assertion-generation strategy based on mutation (thanks to @f-str).
+
+  The new strategy is enabled by default (can be configured using the 
+  `--assertion-generation` parameter).  It uses a custom
+  [fork](https://github.com/se2p/mutpy-pynguin) of the mutation-testing framework
+  [MutPy](https://github.com/mutpy/mutpy), which mutates the subject under test and for
+  each mutant traces the values of fields and returned by method calls.  If these values
+  differ between mutant and original code, an assertion is generated based on the result
+  on the original subject under test.  One can also control whether the strategy shall
+  also generate assertions for unchanged values by the `--generate-all-assertions` flag.
+
+  The release also updates the documentation accordingly.
+
+  *Note:* This feature is an early prototype of such an assertion generation, which 
+  might cause unexpected behaviour.  You can switch back to the previous strategy for
+  assertion generation by setting `--assertion-generation SIMPLE`.
+
 ## Pynguin 0.12.0
 
 - Generate more reasonable variable names in tests.
