@@ -68,17 +68,17 @@ it generate test cases (we use ``\`` and the line breaks for better readability 
 you can just omit them and type everything in one line)::
 
    $ pynguin \
-       --project_path ./docs/source/_static \
-       --output_path /tmp/pynguin-results \
-       --module_name example
+       --project-path ./docs/source/_static \
+       --output-path /tmp/pynguin-results \
+       --module-name example
 
 This runs for a moment without showing any output.  Thus, to have some more verbose
 output we add the ``-v`` parameter::
 
    $ pynguin \
-       --project_path ./docs/source/_static \
-       --output_path /tmp/pynguin-results \
-       --module_name example \
+       --project-path ./docs/source/_static \
+       --output-path /tmp/pynguin-results \
+       --module-name example \
        -v
 
 The output on the command line might be something like the following:
@@ -92,7 +92,7 @@ We can also see that it ran zero iterations of that algorithm, i.e.,
 the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
 The output then concludes with its results:
-Four test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -139,8 +139,9 @@ The command yields the following output:
 
 .. literalinclude:: ../source/_static/queue-example-stdout.txt
 
-We can see that the *DYNAMOSA* algorithm had to perform six iterations to fully cover the ``Queue`` example with the given seed.
-We can also see that Pynguin generated four successful testcases:
+We can see that the *DYNAMOSA* algorithm had to perform nine iterations to fully cover
+the ``Queue`` example with the given seed.
+We can also see that Pynguin generated three successful testcases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:
@@ -148,12 +149,12 @@ We can also see that Pynguin generated four successful testcases:
     :lines: 8-
 
 
-And that it also generated four failing test cases. One of which looks this:
+And that it also generated four failing test cases, one of which looks this:
 
 .. literalinclude:: ../source/_static/test_queue_example_failing.py
     :linenos:
     :language: python
-    :lines: 33-62
+    :lines: 20-30
 
 Failing test cases hereby are test cases that raised an exception during their execution.
 For now, Pynguin cannot know if an exception is expected program behavior,

@@ -1,16 +1,18 @@
-[15:00:10] INFO     Start Pynguin Test Generation…                                                                          generator.py:88
-           INFO     No seed given. Using 1629378010350927286                                                               generator.py:145
-           INFO     Collecting constants from SUT.                                                                         generator.py:154
-           INFO     Use strategy: Algorithm.DYNAMOSA                                                      generationalgorithmfactory.py:206
-           INFO     Instantiated 11 fitness functions                                                     generationalgorithmfactory.py:259
-           INFO     Use selection function: Selection.TOURNAMENT_SELECTION                                generationalgorithmfactory.py:225
-           INFO     Use stopping condition: StoppingCondition.MAX_TIME                                     generationalgorithmfactory.py:83
-           INFO     Use crossover function: SinglePointRelativeCrossOver                                  generationalgorithmfactory.py:238
-           INFO     Use ranking function: RankBasedPreferenceSorting                                      generationalgorithmfactory.py:242
-           INFO     Start generating test cases                                                                            generator.py:236
-[15:00:11] INFO     Iteration:     0, Coverage: 1.000000                                                               searchobserver.py:62
-           INFO     Stop generating test cases                                                                             generator.py:240
-           INFO     Export 4 successful test cases to /tmp/pynguin-results/test_example.py                                 generator.py:264
-           INFO     Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py                            generator.py:274
-           INFO     Writing statistics                                                                                    statistics.py:350
-           INFO     Stop Pynguin Test Generation…                                                                           generator.py:91
+[08:31:28] INFO     Start Pynguin Test Generation…                                                                                                         generator.py:96
+           INFO     No seed given. Using 1636097487688699000                                                                                              generator.py:172
+           INFO     Collecting constants from SUT.                                                                                                        generator.py:181
+           INFO     Using strategy: Algorithm.DYNAMOSA                                                                                   generationalgorithmfactory.py:235
+           INFO     Instantiated 11 fitness functions                                                                                    generationalgorithmfactory.py:311
+           INFO     Using CoverageArchive                                                                                                generationalgorithmfactory.py:279
+           INFO     Using selection function: Selection.TOURNAMENT_SELECTION                                                             generationalgorithmfactory.py:254
+           INFO     Using stopping condition: StoppingCondition.MAX_TIME                                                                  generationalgorithmfactory.py:90
+           INFO     Using crossover function: SinglePointRelativeCrossOver                                                               generationalgorithmfactory.py:267
+           INFO     Using ranking function: RankBasedPreferenceSorting                                                                   generationalgorithmfactory.py:287
+           INFO     Start generating test cases                                                                                                           generator.py:264
+           INFO     Iteration:     0, Coverage: 1.000000                                                                                              searchobserver.py:66
+           INFO     Algorithm stopped before using all resources.                                                                                         generator.py:269
+           INFO     Stop generating test cases                                                                                                            generator.py:270
+           INFO     Export 5 successful test cases to /tmp/pynguin-results/test_example.py                                                                generator.py:300
+           INFO     Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py                                                           generator.py:310
+           INFO     Writing statistics                                                                                                                   statistics.py:350
+           INFO     Stop Pynguin Test Generation…                                                                                                          generator.py:99
