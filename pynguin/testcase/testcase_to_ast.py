@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, List, Set
 
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.utils.namingscope as ns
 from pynguin.testcase.testcasevisitor import TestCaseVisitor
-from pynguin.utils.namingscope import NamingScope
 
 if TYPE_CHECKING:
     import pynguin.testcase.defaulttestcase as dtc
@@ -32,14 +32,14 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         Args:
             wrap_code: Whether or not exported code shall be wrapped
         """
-        self._module_aliases = NamingScope("module")
+        self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
         self._common_modules: Set[str] = set()
         self._test_case_asts: List[List[stmt]] = []
         self._wrap_code = wrap_code
 
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
-        variables = NamingScope()
+        variables = ns.VariableTypeNamingScope()
         statement_visitor = stmt_to_ast.StatementToAstVisitor(
             self._module_aliases, variables, self._wrap_code
         )
@@ -64,7 +64,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         return self._test_case_asts
 
     @property
-    def module_aliases(self) -> NamingScope:
+    def module_aliases(self) -> ns.NamingScope:
         """Provides the module aliases that were used when transforming all test cases.
 
         Returns:

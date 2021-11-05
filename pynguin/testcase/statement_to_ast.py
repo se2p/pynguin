@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.statements.fieldstatement as field_stmt
     import pynguin.testcase.statements.parametrizedstatements as param_stmt
     import pynguin.testcase.statements.primitivestatements as prim_stmt
-    from pynguin.utils.namingscope import NamingScope
+    import pynguin.utils.namingscope as ns
 
 
 class StatementToAstVisitor(sv.StatementVisitor):
@@ -31,8 +31,8 @@ class StatementToAstVisitor(sv.StatementVisitor):
 
     def __init__(
         self,
-        module_aliases: NamingScope,
-        variable_names: NamingScope,
+        module_aliases: ns.AbstractNamingScope,
+        variable_names: ns.AbstractNamingScope,
         wrap_nodes: bool = False,
     ) -> None:
         """Creates a new transformation visitor that transforms our internal

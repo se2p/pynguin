@@ -18,20 +18,14 @@ import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.ast_util as au
 import pynguin.utils.type_utils as tu
-from pynguin.utils.namingscope import NamingScope
+import pynguin.utils.namingscope as ns
 
 
 class AssertionToAstVisitor(av.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes."""
 
-    COMPARISON_OBJECT_IDENTIFIER: str = "obj"
-    _obj_index: int = 0
-
     def __init__(
-        self,
-        common_modules: Set[str],
-        module_aliases: NamingScope,
-        variable_names: NamingScope,
+        self, common_modules: Set[str], variable_names: ns.AbstractNamingScope
     ):
         """Create a new assertion visitor.
 
@@ -60,7 +54,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
 
     def visit_primitive_assertion(self, assertion: pa.PrimitiveAssertion) -> None:
         """
-        Creates an assertion of form "assert var0 == value" or "assert var0 is False",
+        Creates an assertion of form "assert var0 == value" or assert var0 is False,
         if the value is a bool.
 
         Args:

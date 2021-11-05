@@ -9,9 +9,35 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.13.0
+
+## Pynguin 0.12.0
+
+- Generate more reasonable variable names in tests.
+  Before this release, Pynguin only generated variables named `var0`, `var1`, etc.
+  A simple heuristics now attempts to generate more reasonable names depending on the
+  type of the variable, such as `int_0`, `bool_1`, or `str_2`.
+  We also adjusted the documentation to match this change.
+- We updated all provided PyCharm run configurations the use the more sophisticated
+  queue example instead of the simple example module to see an improved output.
+- Prevent a potential regression when updating the dependencies to version 0.0.17 of the
+  [simple-parsing](https://pypi.org/project/simple-parsing) library for CLI argument
+  parsing, which changed its API.
+
 ## Pynguin 0.11.0
 
-- Add
+- Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph 
+  caused DynaMOSA to not consider certain targets because they were control 
+  dependent on goals that had not yet been covered due to the loop.
+- Improve documentation
+- Split and extend `FitnessValues` to avoid expensive re-computations.  This also 
+  extends the API of the `FitnessValues` and refactors large parts of the fitness 
+  handling.
+- Fix for bumpiness of flaky tests.  Whenever Pynguin generates a test that behaves 
+  flaky result could be that coverage over time looks like ventricular fibrillation 
+  especially for the MIO algorithm.  The fix prevents this by carefully revisiting 
+  the equality of chromosomes.
+- Improve handling of entry/exit nodes in the CFG; this fixes issues with Python 3.10
 
 ## Pynguin 0.10.0
 

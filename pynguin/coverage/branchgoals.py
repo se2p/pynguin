@@ -108,7 +108,7 @@ class BranchlessCodeObjectGoal(AbstractBranchCoverageGoal):
         return self._code_object_id in result.execution_trace.executed_code_objects
 
     def __str__(self) -> str:
-        return f"Branch-less Code-Object: {self._code_object_id}"
+        return f"Branch-less Code-Object {self._code_object_id}"
 
     def __repr__(self) -> str:
         return f"BranchlessCodeObjectGoal({self._code_object_id})"

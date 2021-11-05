@@ -88,7 +88,8 @@ class ProgramGraphNode:
 
     def __str__(self) -> str:
         result = f"ProgramGraphNode({self._index})"
-
+        if self._predicate_id is not None:
+            result += f"\npredicate_id {self._predicate_id}"
         if self._basic_block is not None:
             instructions = []
             for instr in self._basic_block:

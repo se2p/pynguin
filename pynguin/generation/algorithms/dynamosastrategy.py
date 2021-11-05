@@ -180,9 +180,10 @@ class _GoalsManager:
                     children = self._graph.get_structural_children(
                         cast(bg.BranchCoverageTestFitness, old_goal)
                     )
-                    if len(children) > 0:
-                        new_goals.update(children)
-                        new_goals_added = True
+                    for child in children:
+                        if child not in self._current_goals and child not in covered:
+                            new_goals.add(child)
+                            new_goals_added = True
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
@@ -230,29 +231,22 @@ class _BranchFitnessGraph:
             code_object_meta_data = known_data.existing_code_objects[
                 predicate_meta_data.code_object_id
             ]
+            if code_object_meta_data.cdg.is_control_dependent_on_root(
+                predicate_meta_data.node
+            ):
+                self._root_branches.add(fitness)
+
             dependencies = code_object_meta_data.cdg.get_control_dependencies(
                 predicate_meta_data.node
             )
-            # CHECKME(fk) this breaks up self-dependencies. Correct?
-            # Otherwise loop headers are not seen as potential root branches,
-            # because they dependent on themselves.
-            filtered_dependencies = [
-                d for d in dependencies if d.predicate_id != branch_goal.predicate_id
-            ]
-            if len(filtered_dependencies) == 0:
-                # Only depends on itself or nothing.
-                self._root_branches.add(fitness)
-            else:
-                for dependency in filtered_dependencies:
-                    goal = bg.BranchGoal(
-                        predicate_meta_data.code_object_id,
-                        dependency.predicate_id,
-                        dependency.branch_value,
-                    )
-                    dependent_ff = self._goal_to_fitness_function(
-                        fitness_functions, goal
-                    )
-                    self._graph.add_edge(dependent_ff, fitness)
+            for dependency in dependencies:
+                goal = bg.BranchGoal(
+                    predicate_meta_data.code_object_id,
+                    dependency.predicate_id,
+                    dependency.branch_value,
+                )
+                dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)
+                self._graph.add_edge(dependent_ff, fitness)
 
         # Sanity check
         assert {n for n in self._graph.nodes if self._graph.in_degree(n) == 0}.issubset(

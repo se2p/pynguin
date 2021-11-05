@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.11.0.dev"
+version = "0.13.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -39,7 +39,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8"
 astor = "^0.8.1"
-simple-parsing = "^0.0.16.post2"
+simple-parsing = "^0.0.17"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
@@ -48,23 +48,22 @@ pydot = "^1.4"
 rich = "^10.12"
 pytest = "^6.2"
 Jinja2 = "^3.0"
-Pygments = "^2.10.0"
-ordered-set = "^4.0.2"
-MutPy-Pynguin = "^0.7.1"
+Pygments = "^2.10"
+ordered-set = "^4.0"
 
 [tool.poetry.dev-dependencies]
-coverage = "^6.0"
+coverage = "^6.1"
 pytest = "^6.2"
-black = {version = "^21.9b0", allow-prereleases = true}
+black = {version = "^21.10b0", allow-prereleases = true}
 pytest-cov = "^3.0"
 pylint = "^2.11"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.4"
-hypothesis = "^6.23"
+hypothesis = "^6.24"
 pytest-mock = "^3.6"
 mypy = "^0.910"
-isort = {extras = ["pyproject"], version = "^5.9"}
+isort = {extras = ["pyproject"], version = "^5.10"}
 pre-commit = "^2.15"
 darglint = "^1.8"
 pyupgrade = "^2.29"

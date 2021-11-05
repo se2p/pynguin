@@ -7,7 +7,7 @@
   -->
 
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="pynguin: RANDOM_SEARCH, 60s" type="PythonConfigurationType" factoryName="Python" folderName="example">
+  <configuration default="false" name="pynguin: DYNAMOSA, 60s" type="PythonConfigurationType" factoryName="Python" folderName="example">
     <module name="pynguin" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -23,7 +23,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pynguin/__main__.py" />
-    <option name="PARAMETERS" value="--algorithm RANDOM_SEARCH --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --budget 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v" />
+    <option name="PARAMETERS" value="--algorithm DYNAMOSA --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --budget 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

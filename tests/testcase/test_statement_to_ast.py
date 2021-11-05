@@ -39,7 +39,8 @@ def test_statement_to_ast_int(statement_to_ast_visitor):
     int_stmt.value = 5
     statement_to_ast_visitor.visit_int_primitive_statement(int_stmt)
     assert (
-        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes)) == "var0 = 5\n"
+        astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
+        == "var_0 = 5\n"
     )
 
 
@@ -49,7 +50,7 @@ def test_statement_to_ast_float(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_float_primitive_statement(float_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = 5.5\n"
+        == "var_0 = 5.5\n"
     )
 
 
@@ -59,7 +60,7 @@ def test_statement_to_ast_str(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_string_primitive_statement(str_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = 'TestMe'\n"
+        == "var_0 = 'TestMe'\n"
     )
 
 
@@ -69,7 +70,7 @@ def test_statement_to_ast_bytes(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_bytes_primitive_statement(str_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = b'TestMe'\n"
+        == "var_0 = b'TestMe'\n"
     )
 
 
@@ -79,7 +80,7 @@ def test_statement_to_ast_bool(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_boolean_primitive_statement(bool_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = True\n"
+        == "var_0 = True\n"
     )
 
 
@@ -89,7 +90,7 @@ def test_statement_to_ast_none(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_none_statement(none_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = None\n"
+        == "var_0 = None\n"
     )
 
 
@@ -102,7 +103,7 @@ def test_statement_to_ast_enum(statement_to_ast_visitor):
     statement_to_ast_visitor.visit_enum_statement(enum_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = module0.Foo.BAR\n"
+        == "var_0 = module_0.Foo.BAR\n"
     )
 
 
@@ -113,7 +114,7 @@ def test_statement_to_ast_assignment(variable_reference_mock, statement_to_ast_v
     statement_to_ast_visitor.visit_assignment_statement(assign_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = var0\n"
+        == "var_0 = var_0\n"
     )
 
 
@@ -190,12 +191,12 @@ def all_types_function():
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ({}, "var0 = module0.Constructor()\n"),
-        ({"a": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
-        ({"b": MagicMock()}, "var0 = module0.Constructor(var1)\n"),
-        ({"c": MagicMock()}, "var0 = module0.Constructor(*var1)\n"),
-        ({"d": MagicMock()}, "var0 = module0.Constructor(d=var1)\n"),
-        ({"e": MagicMock()}, "var0 = module0.Constructor(**var1)\n"),
+        ({}, "var_0 = module_0.Constructor()\n"),
+        ({"a": MagicMock()}, "var_0 = module_0.Constructor(var_1)\n"),
+        ({"b": MagicMock()}, "var_0 = module_0.Constructor(var_1)\n"),
+        ({"c": MagicMock()}, "var_0 = module_0.Constructor(*var_1)\n"),
+        ({"d": MagicMock()}, "var_0 = module_0.Constructor(d=var_1)\n"),
+        ({"e": MagicMock()}, "var_0 = module_0.Constructor(**var_1)\n"),
         (
             {
                 "a": MagicMock(),
@@ -204,7 +205,7 @@ def all_types_function():
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var0 = module0.Constructor(var1, var2, *var3, d=var4, **var5)\n",
+            "var_0 = module_0.Constructor(var_1, var_2, *var_3, d=var_4, **var_5)\n",
         ),
     ],
 )
@@ -221,12 +222,12 @@ def test_statement_to_ast_constructor_args(
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ({}, "var1 = var0.method()\n"),
-        ({"a": MagicMock()}, "var2 = var0.method(var1)\n"),
-        ({"b": MagicMock()}, "var2 = var0.method(var1)\n"),
-        ({"c": MagicMock()}, "var2 = var0.method(*var1)\n"),
-        ({"d": MagicMock()}, "var2 = var0.method(d=var1)\n"),
-        ({"e": MagicMock()}, "var2 = var0.method(**var1)\n"),
+        ({}, "var_1 = var_0.method()\n"),
+        ({"a": MagicMock()}, "var_2 = var_0.method(var_1)\n"),
+        ({"b": MagicMock()}, "var_2 = var_0.method(var_1)\n"),
+        ({"c": MagicMock()}, "var_2 = var_0.method(*var_1)\n"),
+        ({"d": MagicMock()}, "var_2 = var_0.method(d=var_1)\n"),
+        ({"e": MagicMock()}, "var_2 = var_0.method(**var_1)\n"),
         (
             {
                 "a": MagicMock(),
@@ -235,7 +236,7 @@ def test_statement_to_ast_constructor_args(
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var6 = var0.method(var1, var2, *var3, d=var4, **var5)\n",
+            "var_6 = var_0.method(var_1, var_2, *var_3, d=var_4, **var_5)\n",
         ),
     ],
 )
@@ -252,12 +253,12 @@ def test_statement_to_ast_method_args(
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ({}, "var0 = module0.function()\n"),
-        ({"a": MagicMock()}, "var1 = module0.function(var0)\n"),
-        ({"b": MagicMock()}, "var1 = module0.function(var0)\n"),
-        ({"c": MagicMock()}, "var1 = module0.function(*var0)\n"),
-        ({"d": MagicMock()}, "var1 = module0.function(d=var0)\n"),
-        ({"e": MagicMock()}, "var1 = module0.function(**var0)\n"),
+        ({}, "var_0 = module_0.function()\n"),
+        ({"a": MagicMock()}, "var_1 = module_0.function(var_0)\n"),
+        ({"b": MagicMock()}, "var_1 = module_0.function(var_0)\n"),
+        ({"c": MagicMock()}, "var_1 = module_0.function(*var_0)\n"),
+        ({"d": MagicMock()}, "var_1 = module_0.function(d=var_0)\n"),
+        ({"e": MagicMock()}, "var_1 = module_0.function(**var_0)\n"),
         (
             {
                 "a": MagicMock(),
@@ -266,7 +267,7 @@ def test_statement_to_ast_method_args(
                 "d": MagicMock(),
                 "e": MagicMock(),
             },
-            "var5 = module0.function(var0, var1, *var2, d=var3, **var4)\n",
+            "var_5 = module_0.function(var_0, var_1, *var_2, d=var_3, **var_4)\n",
         ),
     ],
 )
@@ -289,7 +290,7 @@ def test_statement_to_ast_with_wrap():
     statement_to_ast_visitor.visit_int_primitive_statement(int_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "try:\n    var0 = 5\nexcept BaseException:\n    pass\n"
+        == "try:\n    var_0 = 5\nexcept BaseException:\n    pass\n"
     )
 
 
@@ -304,7 +305,7 @@ def test_statement_to_ast_list_single(
     statement_to_ast_visitor.visit_list_statement(list_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = [var1]\n"
+        == "var_0 = [var_1]\n"
     )
 
 
@@ -319,7 +320,7 @@ def test_statement_to_ast_list_empty(
     statement_to_ast_visitor.visit_list_statement(list_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = []\n"
+        == "var_0 = []\n"
     )
 
 
@@ -334,7 +335,7 @@ def test_statement_to_ast_set_single(
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var1 = {var0}\n"
+        == "var_1 = {var_0}\n"
     )
 
 
@@ -349,7 +350,7 @@ def test_statement_to_ast_set_empty(
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = set()\n"
+        == "var_0 = set()\n"
     )
 
 
@@ -364,7 +365,7 @@ def test_statement_to_ast_tuple_single(
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = var1,\n"
+        == "var_0 = var_1,\n"
     )
 
 
@@ -379,7 +380,7 @@ def test_statement_to_ast_tuple_empty(
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = ()\n"
+        == "var_0 = ()\n"
     )
 
 
@@ -394,7 +395,7 @@ def test_statement_to_ast_dict_single(
     statement_to_ast_visitor.visit_dict_statement(dict_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = {var1: var2}\n"
+        == "var_0 = {var_1: var_2}\n"
     )
 
 
@@ -409,5 +410,5 @@ def test_statement_to_ast_dict_empty(
     statement_to_ast_visitor.visit_dict_statement(dict_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
-        == "var0 = {}\n"
+        == "var_0 = {}\n"
     )
