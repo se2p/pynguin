@@ -14,13 +14,15 @@ import pynguin.assertion.primitiveassertion as pa
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.ast_util as au
-from pynguin.utils.namingscope import NamingScope
+import pynguin.utils.namingscope as ns
 
 
 class AssertionToAstVisitor(av.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes."""
 
-    def __init__(self, common_modules: Set[str], variable_names: NamingScope):
+    def __init__(
+        self, common_modules: Set[str], variable_names: ns.AbstractNamingScope
+    ):
         """Create a new assertion visitor.
 
         Args:

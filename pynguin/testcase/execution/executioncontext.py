@@ -13,7 +13,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-from pynguin.utils.namingscope import NamingScope
+import pynguin.utils.namingscope as ns
 
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statement as stmt
@@ -28,8 +28,8 @@ class ExecutionContext:
     def __init__(self) -> None:
         """Create new execution context."""
         self._local_namespace: Dict[str, Any] = {}
-        self._variable_names = NamingScope()
-        self._modules_aliases = NamingScope(prefix="module")
+        self._variable_names = ns.NamingScope()
+        self._modules_aliases = ns.NamingScope(prefix="module")
         self._global_namespace: Dict[str, ModuleType] = {}
 
     @property
@@ -54,7 +54,7 @@ class ExecutionContext:
         Returns:
             the assigned value.
         """
-        if variable in self._variable_names.known_name_indices:
+        if self._variable_names.is_known_name(variable):
             name = self._variable_names.get_name(variable)
             if name in self._local_namespace:
                 return self._local_namespace.get(name)
@@ -81,12 +81,12 @@ class ExecutionContext:
         Returns:
             An executable ast node.
         """
-        modules_before = len(self._modules_aliases.known_name_indices)
+        modules_before = len(self._modules_aliases)
         visitor = stmt_to_ast.StatementToAstVisitor(
             self._modules_aliases, self._variable_names
         )
         statement.accept(visitor)
-        if modules_before != len(self._modules_aliases.known_name_indices):
+        if modules_before != len(self._modules_aliases):
             # new module added
             # TODO(fk) cleaner solution?
             self._global_namespace = ExecutionContext._create_global_namespace(
@@ -112,7 +112,7 @@ class ExecutionContext:
 
     @staticmethod
     def _create_global_namespace(
-        modules_aliases: NamingScope,
+        modules_aliases: ns.NamingScope,
     ) -> Dict[str, ModuleType]:
         """Provides the required modules under the given aliases.
 
@@ -123,8 +123,6 @@ class ExecutionContext:
             A dictionary of module aliases and the corresponding module
         """
         global_namespace: Dict[str, ModuleType] = {}
-        for required_module in modules_aliases.known_name_indices:
-            global_namespace[modules_aliases.get_name(required_module)] = sys.modules[
-                required_module
-            ]
+        for required_module, alias in modules_aliases:
+            global_namespace[alias] = sys.modules[required_module]
         return global_namespace

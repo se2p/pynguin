@@ -24,7 +24,7 @@ def test_none(assertion_to_ast):
     assertion = MagicMock(value=True)
     assertion_to_ast.visit_none_assertion(assertion)
     assert (
-        astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var0 is None\n"
+        astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 is None\n"
     )
 
 
@@ -33,7 +33,7 @@ def test_not_none(assertion_to_ast):
     assertion_to_ast.visit_none_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes))
-        == "assert var0 is not None\n"
+        == "assert var_0 is not None\n"
     )
 
 
@@ -41,7 +41,7 @@ def test_primitive_bool(assertion_to_ast):
     assertion = MagicMock(value=True)
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
-        astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var0 is True\n"
+        astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 is True\n"
     )
 
 
@@ -50,11 +50,13 @@ def test_primitive_float(assertion_to_ast):
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes))
-        == "assert var0 == pytest.approx(1.5, abs=0.01, rel=0.01)\n"
+        == "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)\n"
     )
 
 
 def test_primitive_non_bool(assertion_to_ast):
     assertion = MagicMock(value=42)
     assertion_to_ast.visit_primitive_assertion(assertion)
-    assert astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var0 == 42\n"
+    assert (
+        astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 == 42\n"
+    )
