@@ -30,9 +30,11 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
+import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generation.generationalgorithmfactory as gaf
@@ -269,6 +271,10 @@ def _run() -> ReturnCode:
         _LOGGER.info("Algorithm stopped before using all resources.")
     _LOGGER.info("Stop generating test cases")
 
+    # Executions that happen after this point should not influence the
+    # search statistics
+    executor.clear_observers()
+
     # Track coverage of the generated test suites.
     # This possibly re-executes the test suites.
     stat.track_output_variable(
@@ -285,8 +291,12 @@ def _run() -> ReturnCode:
         generation_result.accept(unused_primitives_removal)
         # TODO(fk) add more postprocessing stuff.
 
-    if config.configuration.test_case_output.generate_assertions:
-        generator = ag.AssertionGenerator(executor)
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if ass_gen != config.AssertionGenerator.NONE:
+        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+            generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(executor)
+        else:
+            generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)
 
     # Export the generated test suites

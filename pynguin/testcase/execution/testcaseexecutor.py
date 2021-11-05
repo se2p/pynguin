@@ -48,6 +48,10 @@ class TestCaseExecutor:
         """
         self._observers.append(observer)
 
+    def clear_observers(self) -> None:
+        """Remove all existing observers."""
+        self._observers.clear()
+
     @property
     def tracer(self) -> ExecutionTracer:
         """Provide access to the execution tracer.

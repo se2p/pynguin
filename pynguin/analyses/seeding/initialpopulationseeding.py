@@ -177,7 +177,8 @@ class _TestTransformer(ast.NodeVisitor):
     def visit_Assert(self, node: ast.Assert) -> Any:
         if (
             self._current_parsable
-            and config.configuration.test_case_output.generate_assertions
+            and config.configuration.test_case_output.assertion_generation
+            != config.AssertionGenerator.NONE
         ):
             if (result := ats.create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result

@@ -68,6 +68,47 @@ class Algorithm(str, enum.Enum):
     """
 
 
+class AssertionGenerator(str, enum.Enum):
+    """Different approaches for assertion generation supported by Pynguin."""
+
+    MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
+    """Use the mutation analysis approach for assertion generation."""
+
+    SIMPLE = "SIMPLE"
+    """Use the simple approach for primitive and none assertion generation."""
+
+    NONE = "NONE"
+    """Do not create any assertions."""
+
+
+class MutationStrategy(str, enum.Enum):
+    """Different strategies for creating mutants when using the MUTATION_ANALYSIS
+    approach for assertion generation."""
+
+    FIRST_ORDER_MUTANTS = "FIRST_ORDER_MUTANTS"
+    """Generate first order mutants."""
+
+    FIRST_TO_LAST = "FIRST_TO_LAST"
+    """Higher order mutation strategy FirstToLast.
+    (cf. Mateo et al. Validating Second-Order Mutation at System Level. Article.
+    IEEE Transactions on SE 39.4 2013)"""
+
+    BETWEEN_OPERATORS = "BETWEEN_OPERATORS"
+    """Higher order mutation strategy BetweenOperators.
+    (cf. Mateo et al. Validating Second-Order Mutation at System Level. Article.
+    IEEE Transactions on SE 39.4 2013)"""
+
+    RANDOM = "RANDOM"
+    """Higher order mutation strategy Random.
+    (cf. Mateo et al. Validating Second-Order Mutation at System Level. Article.
+    IEEE Transactions on SE 39.4 2013)"""
+
+    EACH_CHOICE = "EACH_CHOICE"
+    """Higher order mutation strategy EachChoice.
+    (cf. Mateo et al. Validating Second-Order Mutation at System Level. Article.
+    IEEE Transactions on SE 39.4 2013)"""
+
+
 class StoppingCondition(str, enum.Enum):
     """The different stopping conditions for the algorithms."""
 
@@ -178,8 +219,21 @@ class TestCaseOutputConfiguration:
     """The maximum number of statement in as test case (normal + assertion
     statements)"""
 
-    generate_assertions: bool = True
-    """Should assertions be generated?"""
+    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
+    """The generator that shall be used for assertion generation."""
+
+    mutation_strategy: MutationStrategy = MutationStrategy.FIRST_ORDER_MUTANTS
+    """The strategy that shall be used for creating mutants in the mutation analysis
+    assertion generation method."""
+
+    mutation_order: int = 1
+    """The order of the generated higher order mutants in the mutation analysis
+    assertion generation method."""
+
+    generate_all_assertions: bool = True
+    """Should the mutation analysis approach to assertion generation also generate
+    assertions in cases where the states between non-mutated and mutated modules do
+    not differ?"""
 
     post_process: bool = True
     """Should the results be post processed? For example, truncate test cases after
@@ -464,7 +518,7 @@ class Configuration:
     """Configuration for how test cases should be output."""
 
     algorithm: Algorithm = Algorithm.DYNAMOSA
-    """The algorithm that shall be used for generation"""
+    """The algorithm that shall be used for generation."""
 
     statistics_output: StatisticsOutputConfiguration = dataclasses.field(
         default_factory=StatisticsOutputConfiguration

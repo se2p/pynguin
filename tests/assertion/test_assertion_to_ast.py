@@ -17,7 +17,14 @@ from pynguin.utils.namingscope import NamingScope
 @pytest.fixture
 def assertion_to_ast() -> ata.AssertionToAstVisitor:
     scope = NamingScope()
-    return ata.AssertionToAstVisitor(set(), scope)
+    module_aliases = NamingScope()
+    return ata.AssertionToAstVisitor(scope, module_aliases, set())
+
+
+@pytest.fixture(autouse=True)
+def run_before_and_after_tests():
+    yield
+    ata.AssertionToAstVisitor._obj_index = 0
 
 
 def test_none(assertion_to_ast):

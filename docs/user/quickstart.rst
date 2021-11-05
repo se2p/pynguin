@@ -108,6 +108,10 @@ and that there are assertions that check for the correct return value.
   types (``int``, ``float``, ``str``, ``bytes`` and ``bool``), as well as checks for ``None``
   return values.
 
+.. note::
+  As of version 0.13.0, Pynguin also provides a better assertion generation based on
+  mutation.  This allows to generate assertions also for more complex data types.
+
 
 A more complex example
 ----------------------
@@ -154,7 +158,7 @@ And that it also generated four failing test cases, one of which looks this:
 .. literalinclude:: ../source/_static/test_queue_example_failing.py
     :linenos:
     :language: python
-    :lines: 20-30
+    :lines: 20-32
 
 Failing test cases hereby are test cases that raised an exception during their execution.
 For now, Pynguin cannot know if an exception is expected program behavior,
@@ -165,4 +169,7 @@ Thus, these test cases are wrapped in ``try-except`` blocks and should be manual
   Generated test cases may contain a lot of superfluous statements.
   Future versions of Pynguin will try minimize test cases as much as possible
   while retaining their coverage.
+
+  Also many generated assertions might be redundant.  Minimising these is open for a
+  future release of Pynguin, too.
 

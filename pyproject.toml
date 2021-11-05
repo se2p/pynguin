@@ -50,6 +50,7 @@ pytest = "^6.2"
 Jinja2 = "^3.0"
 Pygments = "^2.10"
 ordered-set = "^4.0"
+MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^6.1"
@@ -71,7 +72,7 @@ bandit = "^1.7"
 safety = "^1.10"
 sphinx = "^4.2"
 sphinx-autodoc-typehints = "^1.12"
-flake8 = "^4.0"
+flake8 = "^3.9"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
@@ -89,6 +90,7 @@ exclude = '''
     | \.pytest_cache
     | \.mypy_cache
     | \.venv
+    | venv
     | _build
     | build
     | dist
