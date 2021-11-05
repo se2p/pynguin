@@ -9,6 +9,8 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.14.0
+
 ## Pynguin 0.13.1
 
 - Fix documentation generation by adding our MutPy fork as a dependency
