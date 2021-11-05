@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     import pynguin.ga.chromosomevisitor as cv
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
-    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution import ExecutionResult
 
 
 class TestCaseChromosome(chrom.Chromosome):

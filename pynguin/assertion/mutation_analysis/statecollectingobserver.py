@@ -8,17 +8,15 @@
 from typing import Any, Dict, Optional
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
-import pynguin.testcase.execution.executionobserver as eo
+import pynguin.testcase.execution as ex
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.collection_utils as cu
-from pynguin.testcase.execution import executionresult as res
-from pynguin.testcase.execution.executioncontext import ExecutionContext
 from pynguin.testcase.statements import statement as stmt
 
 
-class StateCollectingObserver(eo.ExecutionObserver):
+class StateCollectingObserver(ex.ExecutionObserver):
     """Observer that collects the states of different fields during execution."""
 
     def __init__(self, storage: cs.CollectorStorage):
@@ -30,19 +28,19 @@ class StateCollectingObserver(eo.ExecutionObserver):
         pass  # nothing to do here
 
     def after_test_case_execution(
-        self, test_case: tc.TestCase, result: res.ExecutionResult
+        self, test_case: tc.TestCase, result: ex.ExecutionResult
     ) -> None:
         self._objects = {}
 
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self, statement: stmt.Statement, exec_ctx: ex.ExecutionContext
     ) -> None:
         pass  # nothing to do here
 
     def after_statement_execution(
         self,
         statement: stmt.Statement,
-        exec_ctx: ExecutionContext,
+        exec_ctx: ex.ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
         # When an exception was raised do not do anything.

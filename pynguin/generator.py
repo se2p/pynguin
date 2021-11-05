@@ -44,8 +44,7 @@ from pynguin.analyses.seeding.constantseeding import static_constant_seeding
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -138,7 +137,7 @@ def _setup_import_hook() -> ExecutionTracer:
 def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
-        tracer.current_thread_ident = threading.current_thread().ident
+        tracer.current_thread_identifier = threading.current_thread().ident
         importlib.import_module(config.configuration.module_name)
     except ImportError as ex:
         # A module could not be imported because some dependencies

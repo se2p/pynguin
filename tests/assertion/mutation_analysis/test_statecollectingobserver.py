@@ -13,7 +13,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution.executioncontext import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext
 
 
 class FooObserver(sco.StateCollectingObserver):

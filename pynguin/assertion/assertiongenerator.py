@@ -19,7 +19,7 @@ from pynguin.utils import randomness
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
-    import pynguin.testcase.execution.testcaseexecutor as ex
+    import pynguin.testcase.execution as ex
     import pynguin.testcase.testcase as tc
 
 

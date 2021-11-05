@@ -11,15 +11,14 @@ from typing import Generic, TypeVar
 
 import pynguin.assertion.outputtrace as ot
 import pynguin.assertion.outputtraceentry as ote
-import pynguin.testcase.execution.executionobserver as eo
-import pynguin.testcase.execution.executionresult as res
+import pynguin.testcase.execution as ex
 import pynguin.testcase.testcase as tc
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=ote.OutputTraceEntry)
 
 
-class AssertionTraceObserver(Generic[T], eo.ExecutionObserver, ABC):
+class AssertionTraceObserver(Generic[T], ex.ExecutionObserver, ABC):
     """Abstract base class for assertion observers.
     Observes the execution of a test case and generates assertions from it."""
 
@@ -43,6 +42,6 @@ class AssertionTraceObserver(Generic[T], eo.ExecutionObserver, ABC):
         self.clear()
 
     def after_test_case_execution(
-        self, test_case: tc.TestCase, result: res.ExecutionResult
+        self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         result.add_output_trace(type(self), self.get_trace())

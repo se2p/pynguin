@@ -11,7 +11,7 @@ import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.assertion.mutation_analysis.mutationanalysisexecution as mae
 import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
-import pynguin.testcase.execution.testcaseexecutor as ex
+import pynguin.testcase.execution as ex
 import pynguin.testcase.statements.parametrizedstatements as ps
 
 

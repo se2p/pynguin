@@ -15,7 +15,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testfactory as tf
-from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution import ExecutionResult
 
 
 @pytest.fixture

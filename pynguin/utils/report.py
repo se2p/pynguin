@@ -26,7 +26,7 @@ import pynguin.ga.computations as ff
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
-    from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+    from pynguin.testcase.execution import TestCaseExecutor
 
 
 @dataclasses.dataclass(frozen=True)

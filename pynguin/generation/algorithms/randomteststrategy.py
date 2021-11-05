@@ -25,7 +25,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution import ExecutionResult
 
 
 class RandomTestStrategy(TestGenerationStrategy):

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     from pynguin.generation.algorithms.archive import CoverageArchive
-    from pynguin.testcase.execution.executiontracer import KnownData
+    from pynguin.testcase.execution import KnownData
 
 
 class DynaMOSATestStrategy(AbstractMOSATestStrategy):

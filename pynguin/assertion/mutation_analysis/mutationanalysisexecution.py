@@ -10,7 +10,7 @@ from typing import List
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.configuration as config
-import pynguin.testcase.execution.testcaseexecutor as ex
+import pynguin.testcase.execution as ex
 import pynguin.testcase.testcase as tc
 import pynguin.utils.moduleloader as ml
 

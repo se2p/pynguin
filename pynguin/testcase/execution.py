@@ -1,0 +1,984 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+"""Contains all code related to test-case execution."""
+from __future__ import annotations
+
+import ast
+import contextlib
+import logging
+import multiprocessing
+import os
+import sys
+import threading
+from abc import abstractmethod
+from dataclasses import dataclass, field
+from math import inf
+from types import CodeType, ModuleType
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
+
+import astor
+from bytecode import Compare
+from jellyfish import levenshtein_distance
+from ordered_set import OrderedSet
+
+import pynguin.analyses.controlflow.programgraph as pg
+import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.utils.namingscope as ns
+from pynguin.analyses.controlflow.cfg import CFG
+from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.utils.type_utils import (
+    given_exception_matches,
+    is_bytes,
+    is_numeric,
+    is_string,
+)
+
+if TYPE_CHECKING:
+    import pynguin.assertion.outputtrace as ot
+    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variable.variablereference as vr
+
+
+class ExecutionContext:
+    """Contains information required in the context of an execution.
+    e.g. the used variables, modules and
+    the AST representation of the statements that should be executed."""
+
+    def __init__(self) -> None:
+        """Create new execution context."""
+        self._local_namespace: Dict[str, Any] = {}
+        self._variable_names = ns.NamingScope()
+        self._modules_aliases = ns.NamingScope(prefix="module")
+        self._global_namespace: Dict[str, ModuleType] = {}
+
+    @property
+    def local_namespace(self) -> Dict[str, Any]:
+        """The local namespace.
+
+        Returns:
+            The local namespace
+        """
+        return self._local_namespace
+
+    def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
+        """Returns the value that is assigned to the given variable in the local
+        namespace.
+
+        Args:
+            variable: the variable whose value we want
+
+        Returns:
+            the assigned value.
+
+        Raises:
+            ValueError: if the requested variable has no assigned value in this context.
+        """
+        if self._variable_names.is_known_name(variable):
+            name = self._variable_names.get_name(variable)
+            if name in self._local_namespace:
+                return self._local_namespace.get(name)
+        raise ValueError("Variable is not defined in this context")
+
+    @property
+    def global_namespace(self) -> Dict[str, ModuleType]:
+        """The global namespace.
+
+        Returns:
+            The global namespace
+        """
+        return self._global_namespace
+
+    def executable_node_for(
+        self,
+        statement: stmt.Statement,
+    ) -> ast.Module:
+        """Transforms the given statement in an executable ast node.
+
+        Args:
+            statement: The statement that should be converted.
+
+        Returns:
+            An executable ast node.
+        """
+        modules_before = len(self._modules_aliases)
+        visitor = stmt_to_ast.StatementToAstVisitor(
+            self._modules_aliases, self._variable_names
+        )
+        statement.accept(visitor)
+        if modules_before != len(self._modules_aliases):
+            # new module added
+            # TODO(fk) cleaner solution?
+            self._global_namespace = ExecutionContext._create_global_namespace(
+                self._modules_aliases
+            )
+        assert (
+            len(visitor.ast_nodes) == 1
+        ), "Expected statement to produce exactly one ast node"
+        return ExecutionContext._wrap_node_in_module(visitor.ast_nodes[0])
+
+    @staticmethod
+    def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
+        """Wraps the given node in a module, such that it can be executed.
+
+        Args:
+            node: The node to wrap
+
+        Returns:
+            The module wrapping the node
+        """
+        ast.fix_missing_locations(node)
+        return ast.Module(body=[node], type_ignores=[])
+
+    @staticmethod
+    def _create_global_namespace(
+        modules_aliases: ns.NamingScope,
+    ) -> Dict[str, ModuleType]:
+        """Provides the required modules under the given aliases.
+
+        Args:
+            modules_aliases: The module aliases
+
+        Returns:
+            A dictionary of module aliases and the corresponding module
+        """
+        global_namespace: Dict[str, ModuleType] = {}
+        for required_module, alias in modules_aliases:
+            global_namespace[alias] = sys.modules[required_module]
+        return global_namespace
+
+
+class ExecutionObserver:
+    """An Observer that can be used to observe statement execution"""
+
+    @abstractmethod
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        """Called before test case execution.
+
+        Args:
+            test_case: The test cases that will be executed.
+        """
+
+    @abstractmethod
+    def after_test_case_execution(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ):
+        """Called after test case execution.
+
+        Args:
+            test_case: The test cases that will be executed
+            result: The execution result
+        """
+
+    @abstractmethod
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ):
+        """Called before a statement is executed.
+
+        Args:
+            statement: the statement about to be executed.
+            exec_ctx: the current execution context.
+        """
+
+    @abstractmethod
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        """
+        Called after a statement was executed.
+
+        Args:
+            statement: the statement that was executed.
+            exec_ctx: the current execution context.
+            exception: the exception that was thrown, if any.
+        """
+
+
+class ExecutionResult:
+    """Result of an execution."""
+
+    def __init__(self, timeout: bool = False) -> None:
+        self._exceptions: Dict[int, Exception] = {}
+        self._output_traces: Dict[Type, ot.OutputTrace] = {}
+        self._execution_trace: Optional[ExecutionTrace] = None
+        self._timeout = timeout
+
+    @property
+    def timeout(self) -> bool:
+        """Did a timeout occur during the execution?
+
+        Returns:
+            True, if a timeout occurred.
+        """
+        return self._timeout
+
+    @property
+    def exceptions(self) -> Dict[int, Exception]:
+        """Provide a map of statements indices that threw an exception.
+
+        Returns:
+             A map of statement indices to their raised exception
+        """
+        return self._exceptions
+
+    @property
+    def output_traces(self) -> Dict[Type, ot.OutputTrace]:
+        """Provides the gathered output traces.
+
+        Returns:
+            the gathered output traces.
+
+        """
+        return self._output_traces
+
+    @property
+    def execution_trace(self) -> ExecutionTrace:
+        """The trace for this execution.
+
+        Returns:
+            The execution race
+        """
+        assert self._execution_trace, "No trace provided"
+        return self._execution_trace
+
+    @execution_trace.setter
+    def execution_trace(self, trace: ExecutionTrace) -> None:
+        """Set new trace.
+
+        Args:
+            trace: The new execution trace
+        """
+        self._execution_trace = trace
+
+    def add_output_trace(self, trace_type: Type, trace: ot.OutputTrace) -> None:
+        """Add the given trace to the recorded output traces.
+
+        Args:
+            trace_type: the type of trace.
+            trace: the trace to store.
+
+        """
+        self._output_traces[trace_type] = trace
+
+    def has_test_exceptions(self) -> bool:
+        """Returns true if any exceptions were thrown during the execution.
+
+        Returns:
+            Whether or not the test has exceptions
+        """
+        return bool(self._exceptions)
+
+    def report_new_thrown_exception(self, stmt_idx: int, ex: Exception) -> None:
+        """Report an exception that was thrown during execution.
+
+        Args:
+            stmt_idx: the index of the statement, that caused the exception
+            ex: the exception
+        """
+        self._exceptions[stmt_idx] = ex
+
+    def get_first_position_of_thrown_exception(self) -> Optional[int]:
+        """Provide the index of the first thrown exception or None.
+
+        Returns:
+            The index of the first thrown exception, if any
+        """
+        if self.has_test_exceptions():
+            return min(self._exceptions.keys())
+        return None
+
+    def __str__(self) -> str:
+        return (
+            f"ExecutionResult(exceptions: {self._exceptions}, "
+            + f"trace: {self._execution_trace})"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+@dataclass
+class ExecutionTrace:
+    """Stores trace information about the execution."""
+
+    executed_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
+    executed_predicates: Dict[int, int] = field(default_factory=dict)
+    true_distances: Dict[int, float] = field(default_factory=dict)
+    false_distances: Dict[int, float] = field(default_factory=dict)
+
+    def merge(self, other: ExecutionTrace) -> None:
+        """Merge the values from the other trace.
+
+        Args:
+            other: Merges the other traces into this trace
+        """
+        self.executed_code_objects.update(other.executed_code_objects)
+        for key, value in other.executed_predicates.items():
+            self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
+        self._merge_min(self.true_distances, other.true_distances)
+        self._merge_min(self.false_distances, other.false_distances)
+
+    @staticmethod
+    def _merge_min(target: Dict[int, float], source: Dict[int, float]) -> None:
+        """Merge source into target. Minimum value wins.
+
+        Args:
+            target: the target to merge the values in
+            source: the source of the merge
+        """
+        for key, value in source.items():
+            target[key] = min(target.get(key, inf), value)
+
+
+@dataclass
+class CodeObjectMetaData:
+    """Stores meta data of a code object."""
+
+    # The raw code object.
+    code_object: CodeType
+
+    # Id of the parent code object, if any
+    parent_code_object_id: Optional[int]
+
+    # CFG of this Code Object
+    cfg: CFG
+
+    # CDG of this Code Object
+    cdg: ControlDependenceGraph
+
+
+@dataclass
+class PredicateMetaData:
+    """Stores meta data of a predicate."""
+
+    # Line number where the predicate is defined.
+    line_no: int
+
+    # Id of the code object where the predicate was defined.
+    code_object_id: int
+
+    # The node in the program graph, that defines this predicate.
+    node: pg.ProgramGraphNode
+
+
+@dataclass
+class KnownData:
+    """Contains known code objects and predicates.
+    FIXME(fk) better class name...
+    """
+
+    # Maps all known ids of Code Objects to meta information
+    existing_code_objects: Dict[int, CodeObjectMetaData] = field(default_factory=dict)
+
+    # Stores which of the existing code objects do not contain a branch, i.e.,
+    # they do not contain a predicate. Every code object is initially seen as
+    # branch-less until a predicate is registered for it.
+    branch_less_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
+
+    # Maps all known ids of predicates to meta information
+    existing_predicates: Dict[int, PredicateMetaData] = field(default_factory=dict)
+
+
+class ExecutionTracer:
+    """Tracks branch distances during execution.
+    The results are stored in an execution trace."""
+
+    _logger = logging.getLogger(__name__)
+
+    # Contains static information about how branch distances
+    # for certain op codes should be computed.
+    # The returned tuple for each computation is (true distance, false distance).
+    # pylint: disable=arguments-out-of-order
+    _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
+        Compare.EQ: lambda val1, val2: (
+            _eq(val1, val2),
+            _neq(val1, val2),
+        ),
+        Compare.NE: lambda val1, val2: (
+            _neq(val1, val2),
+            _eq(val1, val2),
+        ),
+        Compare.LT: lambda val1, val2: (
+            _lt(val1, val2),
+            _le(val2, val1),
+        ),
+        Compare.LE: lambda val1, val2: (
+            _le(val1, val2),
+            _lt(val2, val1),
+        ),
+        Compare.GT: lambda val1, val2: (
+            _lt(val2, val1),
+            _le(val1, val2),
+        ),
+        Compare.GE: lambda val1, val2: (
+            _le(val2, val1),
+            _lt(val1, val2),
+        ),
+        Compare.IN: lambda val1, val2: (
+            _in(val1, val2),
+            _nin(val1, val2),
+        ),
+        Compare.NOT_IN: lambda val1, val2: (
+            _nin(val1, val2),
+            _in(val1, val2),
+        ),
+        Compare.IS: lambda val1, val2: (
+            _is(val1, val2),
+            _isn(val1, val2),
+        ),
+        Compare.IS_NOT: lambda val1, val2: (
+            _isn(val1, val2),
+            _is(val1, val2),
+        ),
+    }
+
+    def __init__(self) -> None:
+        self._known_data = KnownData()
+        # Contains the trace information that is generated when a module is imported
+        self._import_trace = ExecutionTrace()
+        self._init_trace()
+        self._enabled = True
+        self._current_thread_identifier: Optional[int] = None
+
+    @property
+    def current_thread_identifier(self) -> Optional[int]:
+        """Get the current thread identifier.
+
+        Returns:
+            The current thread identifier
+        """
+        return self._current_thread_identifier
+
+    @current_thread_identifier.setter
+    def current_thread_identifier(self, current: int) -> None:
+        """Set the current thread identifier. Tracing calls from any other thread
+        are ignored.
+
+        Args:
+            current: the current thread
+        """
+        self._current_thread_identifier = current
+
+    @property
+    def import_trace(self) -> ExecutionTrace:
+        """The trace that was generated when the SUT was imported.
+
+        Returns:
+            The execution trace after executing the import statements
+        """
+        copied = ExecutionTrace()
+        copied.merge(self._import_trace)
+        return copied
+
+    def get_known_data(self) -> KnownData:
+        """Provide known data.
+
+        Returns:
+            The known data about the execution
+        """
+        return self._known_data
+
+    def reset(self) -> None:
+        """Resets everything.
+
+        Should be called before instrumentation. Clears all data, so we can handle a
+        reload of the SUT.
+        """
+        self._known_data = KnownData()
+        self._import_trace = ExecutionTrace()
+        self._init_trace()
+
+    def store_import_trace(self) -> None:
+        """Stores the current trace as the import trace.
+
+        Should only be done once, after a module was loaded. The import trace will be
+        merged into every subsequently recorded trace.
+        """
+        self._import_trace = self._trace
+        self._init_trace()
+
+    def _init_trace(self) -> None:
+        """Create a new trace that only contains the trace data from the import."""
+        new_trace = ExecutionTrace()
+        new_trace.merge(self._import_trace)
+        self._trace = new_trace
+
+    def _is_disabled(self) -> bool:
+        """Should we track anything?
+
+        We might have to disable tracing, e.g. when calling __eq__ ourselves.
+        Otherwise we create an endless recursion.
+
+        Returns:
+            Whether or not we should track anything
+        """
+        return not self._enabled
+
+    def enable(self) -> None:
+        """Enable tracing."""
+        self._enabled = True
+
+    def disable(self) -> None:
+        """Disable tracing."""
+        self._enabled = False
+
+    def get_trace(self) -> ExecutionTrace:
+        """Get the trace with the current information.
+
+        Returns:
+            The current execution trace
+        """
+        return self._trace
+
+    def clear_trace(self) -> None:
+        """Clear trace."""
+        self._init_trace()
+
+    def register_code_object(self, meta: CodeObjectMetaData) -> int:
+        """Declare that a code object exists.
+
+        Args:
+            meta: the code objects existing
+
+        Returns:
+            the id of the code object, which can be used to identify the object
+            during instrumentation.
+        """
+        code_object_id = len(self._known_data.existing_code_objects)
+        self._known_data.existing_code_objects[code_object_id] = meta
+        self._known_data.branch_less_code_objects.add(code_object_id)
+        return code_object_id
+
+    def executed_code_object(self, code_object_id: int) -> None:
+        """Mark a code object as executed.
+
+        This means, that the routine which refers to this code object was at least
+        called once.
+
+        Args:
+            code_object_id: the code object id to mark
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        assert (
+            code_object_id in self._known_data.existing_code_objects
+        ), "Cannot trace unknown code object"
+        self._trace.executed_code_objects.add(code_object_id)
+
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        """Declare that a predicate exists.
+
+        Args:
+            meta: Meta data about the predicates
+
+        Returns:
+            the id of the predicate, which can be used to identify the predicate
+            during instrumentation.
+        """
+        predicate_id = len(self._known_data.existing_predicates)
+        self._known_data.existing_predicates[predicate_id] = meta
+        self._known_data.branch_less_code_objects.discard(meta.code_object_id)
+        return predicate_id
+
+    def executed_compare_predicate(
+        self, value1, value2, predicate: int, cmp_op: Compare
+    ) -> None:
+        """A predicate that is based on a comparison was executed.
+
+        Args:
+            value1: the first value
+            value2: the second value
+            predicate: the predicate identifier
+            cmp_op: the compare operation
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        if self._is_disabled():
+            return
+
+        try:
+            self.disable()
+            assert (
+                predicate in self._known_data.existing_predicates
+            ), "Cannot trace unknown predicate"
+            distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
+                cmp_op
+            ](value1, value2)
+
+            self._update_metrics(distance_false, distance_true, predicate)
+        finally:
+            self.enable()
+
+    def executed_bool_predicate(self, value, predicate: int):
+        """A predicate that is based on a boolean value was executed.
+
+        Args:
+            value: the value
+            predicate: the predicate identifier
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        if self._is_disabled():
+            return
+
+        try:
+            self.disable()
+            assert (
+                predicate in self._known_data.existing_predicates
+            ), "Cannot trace unknown predicate"
+            distance_true = 0.0
+            distance_false = 0.0
+            if value:
+                distance_false = 1.0
+            else:
+                distance_true = 1.0
+
+            self._update_metrics(distance_false, distance_true, predicate)
+        finally:
+            self.enable()
+
+    def executed_exception_match(self, err, exc, predicate: int):
+        """A predicate that is based on exception matching was executed.
+
+        Args:
+            err: The raised exception
+            exc: The matching condition
+            predicate: the predicate identifier
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        if self._is_disabled():
+            return
+
+        try:
+            self.disable()
+            assert (
+                predicate in self._known_data.existing_predicates
+            ), "Cannot trace unknown predicate"
+            distance_true = 0.0
+            distance_false = 0.0
+            if given_exception_matches(err, exc):
+                distance_false = 1.0
+            else:
+                distance_true = 1.0
+
+            self._update_metrics(distance_false, distance_true, predicate)
+        finally:
+            self.enable()
+
+    def _update_metrics(
+        self, distance_false: float, distance_true: float, predicate: int
+    ):
+        assert (
+            predicate in self._known_data.existing_predicates
+        ), "Cannot update unknown predicate"
+        assert distance_true >= 0.0, "True distance cannot be negative"
+        assert distance_false >= 0.0, "False distance cannot be negative"
+        assert (distance_true == 0.0) ^ (
+            distance_false == 0.0
+        ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
+        self._trace.executed_predicates[predicate] = (
+            self._trace.executed_predicates.get(predicate, 0) + 1
+        )
+        self._trace.true_distances[predicate] = min(
+            self._trace.true_distances.get(predicate, inf), distance_true
+        )
+        self._trace.false_distances[predicate] = min(
+            self._trace.false_distances.get(predicate, inf), distance_false
+        )
+
+    def __repr__(self) -> str:
+        return "ExecutionTracer"
+
+
+def _eq(val1, val2) -> float:
+    """Distance computation for '=='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 == val2:
+        return 0.0
+    if is_numeric(val1) and is_numeric(val2):
+        return abs(val1 - val2)
+    if is_string(val1) and is_string(val2):
+        return levenshtein_distance(val1, val2)
+    if is_bytes(val1) and is_bytes(val2):
+        return levenshtein_distance(
+            val1.decode("iso-8859-1"), val2.decode("iso-8859-1")
+        )
+    return inf
+
+
+def _neq(val1, val2) -> float:
+    """Distance computation for '!='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 != val2:
+        return 0.0
+    return 1.0
+
+
+def _lt(val1, val2) -> float:
+    """Distance computation for '<'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 < val2:
+        return 0.0
+    if is_numeric(val1) and is_numeric(val2):
+        return (val1 - val2) + 1.0
+    return inf
+
+
+def _le(val1, val2) -> float:
+    """Distance computation for '<='
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 <= val2:
+        return 0.0
+    if is_numeric(val1) and is_numeric(val2):
+        return (val1 - val2) + 1.0
+    return inf
+
+
+def _in(val1, val2) -> float:
+    """Distance computation for 'in'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 in val2:
+        return 0.0
+    # TODO(fk) maybe limit this to certain collections?
+    # Check only if collection size is within some range,
+    # otherwise the check might take very long.
+
+    # Use smallest distance to any element.
+    return min([_eq(val1, v) for v in val2] + [inf])
+
+
+def _nin(val1, val2) -> float:
+    """Distance computation for 'not in'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 not in val2:
+        return 0.0
+    return 1.0
+
+
+def _is(val1, val2) -> float:
+    """Distance computation for 'is'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 is val2:
+        return 0.0
+    return 1.0
+
+
+def _isn(val1, val2) -> float:
+    """Distance computation for 'is not'
+
+    Args:
+        val1: the first value
+        val2: the second value
+
+    Returns:
+        the distance
+    """
+    if val1 is not val2:
+        return 0.0
+    return 1.0
+
+
+class TestCaseExecutor:
+    """An executor that executes the generated test cases."""
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, tracer: ExecutionTracer) -> None:
+        """Create new test case executor.
+
+        Args:
+            tracer: the execution tracer
+        """
+        self._tracer = tracer
+        self._observers: List[ExecutionObserver] = []
+
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        """Add an execution observer.
+
+        Args:
+            observer: the observer to be added.
+        """
+        self._observers.append(observer)
+
+    def clear_observers(self) -> None:
+        """Remove all existing observers."""
+        self._observers.clear()
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+        return self._tracer
+
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+        """Executes all statements of the given test case.
+
+        Args:
+            test_case: the test case that should be executed.
+
+        Returns:
+            Result of the execution
+        """
+        # pylint:disable=unspecified-encoding
+        with open(os.devnull, mode="w") as null_file:
+            with contextlib.redirect_stdout(null_file):
+                self._before_test_case_execution(test_case)
+                return_queue: multiprocessing.Queue = multiprocessing.Queue()
+                thread = threading.Thread(
+                    target=self._execute_test_case, args=(test_case, return_queue)
+                )
+                thread.start()
+                thread.join(timeout=len(test_case.statements))
+                if not thread.is_alive():
+                    result = return_queue.get()
+                else:
+                    result = ExecutionResult(timeout=True)
+                    self._logger.warning("Experienced timeout from test-case execution")
+                return_queue.close()
+                self._after_test_case_execution(test_case, result)
+        return result
+
+    def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
+        self._tracer.clear_trace()
+        for observer in self._observers:
+            observer.before_test_case_execution(test_case)
+
+    def _execute_test_case(
+        self,
+        test_case: tc.TestCase,
+        result_queue: multiprocessing.Queue,
+    ) -> None:
+        result = ExecutionResult()
+        exec_ctx = ExecutionContext()
+        self.tracer.current_thread_identifier = threading.current_thread().ident
+        for idx, statement in enumerate(test_case.statements):
+            self._before_statement_execution(statement, exec_ctx)
+            exception = self._execute_statement(statement, exec_ctx)
+            self._after_statement_execution(statement, exec_ctx, exception)
+            if exception is not None:
+                result.report_new_thrown_exception(idx, exception)
+                break
+        result_queue.put(result)
+
+    def _after_test_case_execution(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        """Collect the execution trace after each executed test case.
+
+        Args:
+            test_case: The executed test case
+            result: The execution result
+        """
+        result.execution_trace = self._tracer.get_trace()
+        for observer in self._observers:
+            observer.after_test_case_execution(test_case, result)
+
+    def _before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ) -> None:
+        # We need to disable the tracer, because an observer might interact with an
+        # object of the SUT via the ExecutionContext and trigger code execution, which
+        # is not caused by the test case and should therefore not be in the trace.
+        self._tracer.disable()
+        try:
+            for observer in self._observers:
+                observer.before_statement_execution(statement, exec_ctx)
+        finally:
+            self._tracer.enable()
+
+    def _execute_statement(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ) -> Optional[Exception]:
+        ast_node = exec_ctx.executable_node_for(statement)
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug("Executing %s", astor.to_source(ast_node))
+        code = compile(ast_node, "<ast>", "exec")
+        try:
+            # pylint: disable=exec-used
+            exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
+        except Exception as err:  # pylint: disable=broad-except
+            failed_stmt = astor.to_source(ast_node)
+            TestCaseExecutor._logger.debug(
+                "Failed to execute statement:\n%s%s", failed_stmt, err.args
+            )
+            return err
+        return None
+
+    def _after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Optional[Exception],
+    ):
+        # See _before_statement_execution
+        self._tracer.disable()
+        try:
+            for observer in self._observers:
+                observer.after_statement_execution(statement, exec_ctx, exception)
+        finally:
+            self._tracer.enable()

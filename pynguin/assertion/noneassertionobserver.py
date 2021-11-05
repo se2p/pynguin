@@ -16,23 +16,23 @@ from pynguin.utils.type_utils import is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.assertion.outputtrace as ot
+    import pynguin.testcase.execution as ex
     import pynguin.testcase.statements.statement as st
     import pynguin.testcase.variable.variablereference as vr
-    from pynguin.testcase.execution.executioncontext import ExecutionContext
 
 
 class NoneTraceObserver(ato.AssertionTraceObserver[nte.NoneTraceEntry]):
     """An observer that trace the none-ness of variables."""
 
     def before_statement_execution(
-        self, statement: st.Statement, exec_ctx: ExecutionContext
+        self, statement: st.Statement, exec_ctx: ex.ExecutionContext
     ):
         pass
 
     def after_statement_execution(
         self,
         statement: st.Statement,
-        exec_ctx: ExecutionContext,
+        exec_ctx: ex.ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
         if exception is not None:
@@ -49,7 +49,7 @@ class NoneAssertionVisitor(stmt_sv.StatementVisitor):
 
     def __init__(
         self,
-        exec_ctx: ExecutionContext,
+        exec_ctx: ex.ExecutionContext,
         variable: vr.VariableReference,
         trace: ot.OutputTrace[nte.NoneTraceEntry],
     ):

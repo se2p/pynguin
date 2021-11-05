@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from pynguin.testcase.execution import ExecutionTrace
 
 
 def test_merge():

@@ -9,7 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.assertion.assertiontraceobserver as ato
-from pynguin.testcase.execution.executioncontext import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext
 from pynguin.testcase.statements import statement as stmt
 
 

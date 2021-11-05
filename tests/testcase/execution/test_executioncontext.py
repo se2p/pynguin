@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.testcase.execution.executioncontext import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext
 
 
 def test_get_variable_value_variable_not_known():

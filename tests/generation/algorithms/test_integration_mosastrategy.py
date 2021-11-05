@@ -15,8 +15,7 @@ import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 
 
 @pytest.mark.parametrize(

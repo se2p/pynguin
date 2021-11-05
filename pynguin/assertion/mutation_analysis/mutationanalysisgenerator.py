@@ -19,7 +19,7 @@ import pynguin.assertion.mutation_analysis.statecollectingobserver as sco
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.execution.testcaseexecutor as ex
+import pynguin.testcase.execution as ex
 import pynguin.utils.type_utils as tu
 
 

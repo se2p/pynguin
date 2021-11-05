@@ -27,7 +27,7 @@ from pynguin.instrumentation.instrumentation import (
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import Instrumentation
-    from pynguin.testcase.execution.executiontracer import ExecutionTracer
+    from pynguin.testcase.execution import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):

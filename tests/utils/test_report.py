@@ -14,8 +14,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
 from pynguin.utils.report import (
     CoverageEntry,
     CoverageReport,

@@ -13,8 +13,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 
 
 def test_simple_execution():

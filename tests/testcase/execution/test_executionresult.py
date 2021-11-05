@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.assertion.outputtrace as ot
-from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution import ExecutionResult
 
 
 @pytest.fixture

@@ -20,10 +20,13 @@ import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import (
+    ExecutionResult,
+    ExecutionTrace,
+    ExecutionTracer,
+    KnownData,
+    TestCaseExecutor,
+)
 from pynguin.typeinference.strategy import InferredSignature
 
 
@@ -150,7 +153,7 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
 def test_compute_fitness_values_no_branches():
     module_name = "tests.fixtures.branchcoverage.nobranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -180,7 +183,7 @@ def test_compute_fitness_values_no_branches():
 def test_compute_fitness_values_single_branches_if():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -198,7 +201,7 @@ def test_compute_fitness_values_single_branches_if():
 def test_compute_fitness_values_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -216,7 +219,7 @@ def test_compute_fitness_values_single_branches_else():
 def test_compute_fitness_values_two_method_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -234,7 +237,7 @@ def test_compute_fitness_values_two_method_single_branches_else():
 def test_compute_fitness_values_nested_branches():
     module_name = "tests.fixtures.branchcoverage.nestedbranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)

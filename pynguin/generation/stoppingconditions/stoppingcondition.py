@@ -13,17 +13,16 @@ from typing import TYPE_CHECKING, Optional
 
 import pynguin.configuration as config
 import pynguin.generation.searchobserver as so
-import pynguin.testcase.execution.executionobserver as eo
+from pynguin.testcase.execution import ExecutionObserver
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
-    import pynguin.testcase.execution.executionresult as res
     import pynguin.testcase.statements.statement as stmt
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution.executioncontext import ExecutionContext
+    from pynguin.testcase.execution import ExecutionContext, ExecutionResult
 
 
-class StoppingCondition(so.SearchObserver, eo.ExecutionObserver, metaclass=ABCMeta):
+class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
     """Provides an interface for a stopping condition of the algorithm."""
 
     def __init__(self, observes_execution: bool = False):
@@ -77,7 +76,7 @@ class StoppingCondition(so.SearchObserver, eo.ExecutionObserver, metaclass=ABCMe
         pass
 
     def after_test_case_execution(
-        self, test_case: tc.TestCase, result: res.ExecutionResult
+        self, test_case: tc.TestCase, result: ExecutionResult
     ):
         pass
 
@@ -166,7 +165,7 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
         self._num_executed_tests = 0
 
     def after_test_case_execution(
-        self, test_case: tc.TestCase, result: res.ExecutionResult
+        self, test_case: tc.TestCase, result: ExecutionResult
     ):
         self._num_executed_tests += 1
 
