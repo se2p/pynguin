@@ -14,7 +14,7 @@ import pynguin.testcase.statements.collectionsstatements as coll_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.statements.statementvisitor as sv
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 from pynguin.testcase.statements.statement import Statement
 
 

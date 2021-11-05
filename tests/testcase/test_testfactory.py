@@ -20,7 +20,7 @@ import pynguin.testcase.statements.parametrizedstatements as par_stmt
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
 import pynguin.testcase.testfactory as tf
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.setup.testcluster import FullTestCluster
 from pynguin.typeinference.strategy import InferredSignature
@@ -354,16 +354,16 @@ def test__dependencies_satisfied_no_objects():
 
 def test__dependencies_satisfied_not_satisfied(test_case_mock):
     objects = [
-        vri.VariableReferenceImpl(test_case_mock, int),
-        vri.VariableReferenceImpl(test_case_mock, bool),
+        vr.VariableReferenceImpl(test_case_mock, int),
+        vr.VariableReferenceImpl(test_case_mock, bool),
     ]
     assert not tf.TestFactory._dependencies_satisfied({int, float}, objects)
 
 
 def test__dependencies_satisfied_satisfied(test_case_mock):
     objects = [
-        vri.VariableReferenceImpl(test_case_mock, int),
-        vri.VariableReferenceImpl(test_case_mock, bool),
+        vr.VariableReferenceImpl(test_case_mock, int),
+        vr.VariableReferenceImpl(test_case_mock, bool),
     ]
     assert tf.TestFactory._dependencies_satisfied({int, bool}, objects)
 
@@ -378,7 +378,7 @@ def test__get_possible_calls_single_call(test_case_mock, function_mock):
     cluster = MagicMock(FullTestCluster)
     cluster.get_generators_for.return_value = {function_mock}
     assert tf.TestFactory(cluster)._get_possible_calls(
-        float, [vri.VariableReferenceImpl(test_case_mock, float)]
+        float, [vr.VariableReferenceImpl(test_case_mock, float)]
     ) == [function_mock]
 
 
@@ -387,7 +387,7 @@ def test__get_possible_calls_no_match(test_case_mock, function_mock):
     cluster.get_generators_for.return_value = {function_mock}
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
-            float, [vri.VariableReferenceImpl(test_case_mock, int)]
+            float, [vr.VariableReferenceImpl(test_case_mock, int)]
         )
         == []
     )

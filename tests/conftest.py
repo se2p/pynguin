@@ -18,7 +18,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as param_stmt
 import pynguin.testcase.statements.primitivestatements as prim_stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
@@ -52,7 +52,7 @@ def test_case_mock():
 
 @pytest.fixture(scope="function")
 def variable_reference_mock():
-    return MagicMock(vri.VariableReferenceImpl)
+    return MagicMock(vr.VariableReferenceImpl)
 
 
 @pytest.fixture(scope="session")

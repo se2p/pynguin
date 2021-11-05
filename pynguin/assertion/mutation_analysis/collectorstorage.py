@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import Any, Dict, List, Tuple
 
 import pynguin.testcase.statements.statement as st
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 
 
 class EntryTypes(enum.Enum):

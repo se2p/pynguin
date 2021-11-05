@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.outputtrace as ot
     import pynguin.testcase.execution as ex
     import pynguin.testcase.statements.statement as st
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]):

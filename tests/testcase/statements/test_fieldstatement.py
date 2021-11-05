@@ -12,8 +12,7 @@ import pynguin.testcase.statements.fieldstatement as fstmt
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
@@ -67,7 +66,7 @@ def test_primitive_statement_replace(field_mock):
     test_case.add_statement(ref)
     statement = fstmt.FieldStatement(test_case, field_mock, ref.ret_val)
     test_case.add_statement(statement)
-    new = vri.VariableReferenceImpl(test_case, int)
+    new = vr.VariableReferenceImpl(test_case, int)
 
     statement.replace(ref.ret_val, new)
     assert statement.source == new
@@ -93,7 +92,7 @@ def test_field_statement_eq_other_type(
 
 
 def test_field_statement_eq_clone(test_case_mock, field_mock):
-    ref = vri.VariableReferenceImpl(test_case_mock, float)
+    ref = vr.VariableReferenceImpl(test_case_mock, float)
     statement = fstmt.FieldStatement(test_case_mock, field_mock, ref)
     memo = {ref: ref}
     clone = statement.clone(test_case_mock, memo)

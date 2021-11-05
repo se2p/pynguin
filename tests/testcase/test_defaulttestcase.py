@@ -13,8 +13,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as st
-import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 
 
 @pytest.fixture
@@ -227,13 +226,13 @@ def test_append_test_case(default_test_case):
 
 def test_get_objects(default_test_case):
     stmt_1 = MagicMock(st.Statement)
-    vri_1 = vri.VariableReferenceImpl(default_test_case, int)
+    vri_1 = vr.VariableReferenceImpl(default_test_case, int)
     stmt_1.ret_val = vri_1
     stmt_2 = MagicMock(st.Statement)
-    vri_2 = vri.VariableReferenceImpl(default_test_case, float)
+    vri_2 = vr.VariableReferenceImpl(default_test_case, float)
     stmt_2.ret_val = vri_2
     stmt_3 = MagicMock(st.Statement)
-    vri_3 = vri.VariableReferenceImpl(default_test_case, int)
+    vri_3 = vr.VariableReferenceImpl(default_test_case, int)
     stmt_3.ret_val = vri_3
     default_test_case._statements = [stmt_1, stmt_2, stmt_3]
     result = default_test_case.get_objects(int, 2)

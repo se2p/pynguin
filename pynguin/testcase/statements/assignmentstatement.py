@@ -16,7 +16,7 @@ import pynguin.testcase.statements.statement as stmt
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statementvisitor as sv
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.testcase.variablereference import VariableReference
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
@@ -26,14 +26,14 @@ class AssignmentStatement(stmt.Statement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        lhs: vr.VariableReference,
-        rhs: vr.VariableReference,
+        lhs: VariableReference,
+        rhs: VariableReference,
     ):
         super().__init__(test_case, lhs)
         self._rhs = rhs
 
     @property
-    def rhs(self) -> vr.VariableReference:
+    def rhs(self) -> VariableReference:
         """The variable that is used as the right hand side.
 
         Returns:
@@ -44,7 +44,7 @@ class AssignmentStatement(stmt.Statement):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return AssignmentStatement(
             test_case,
@@ -61,10 +61,10 @@ class AssignmentStatement(stmt.Statement):
     def mutate(self) -> bool:
         raise Exception("Implement me")
 
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> Set[VariableReference]:
         return {self.ret_val, self._rhs}
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+    def replace(self, old: VariableReference, new: VariableReference) -> None:
         if self.ret_val == old:
             self.ret_val = new
         if self._rhs == old:
@@ -76,7 +76,7 @@ class AssignmentStatement(stmt.Statement):
         )
 
     def structural_eq(
-        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, other: Any, memo: Dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, AssignmentStatement):
             return False

@@ -13,7 +13,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 
 
 @pytest.mark.parametrize(
@@ -454,7 +454,7 @@ def test_primitive_statement_references(test_case_mock):
 
 def test_primitive_statement_replace(test_case_mock):
     statement = prim.IntPrimitiveStatement(test_case_mock, 0)
-    new = vri.VariableReferenceImpl(test_case_mock, int)
+    new = vr.VariableReferenceImpl(test_case_mock, int)
     statement.replace(statement.ret_val, new)
     assert statement.ret_val == new
 

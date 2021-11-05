@@ -31,7 +31,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     from pynguin.assertion.assertion import Assertion
     from pynguin.setup.testcluster import TestCluster
     from pynguin.testcase.statements.collectionsstatements import CollectionStatement

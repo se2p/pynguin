@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statements.statementvisitor as sv
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.testcase.variablereference import VariableReference
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
@@ -25,13 +25,13 @@ class Statement(metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference) -> None:
+    def __init__(self, test_case: tc.TestCase, ret_val: VariableReference) -> None:
         self._test_case = test_case
         self._ret_val = ret_val
         self._assertions: Set[ass.Assertion] = set()
 
     @property
-    def ret_val(self) -> vr.VariableReference:
+    def ret_val(self) -> VariableReference:
         """Provides the return value of this statement.
         This is intentionally not named 'return_value' because that name is reserved by
         the mocking framework which is used in our tests.
@@ -42,7 +42,7 @@ class Statement(metaclass=ABCMeta):
         return self._ret_val
 
     @ret_val.setter
-    def ret_val(self, reference: vr.VariableReference) -> None:
+    def ret_val(self, reference: VariableReference) -> None:
         """Updates the return value of this statement.
 
         Args:
@@ -63,7 +63,7 @@ class Statement(metaclass=ABCMeta):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> Statement:
         """Provides a deep clone of this statement.
 
@@ -100,7 +100,7 @@ class Statement(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> Set[VariableReference]:
         """Get all references that are used in this statement.
 
         Including return values.
@@ -109,7 +109,7 @@ class Statement(metaclass=ABCMeta):
             A set of references that are used in this statements  # noqa: DAR202
         """
 
-    def references(self, var: vr.VariableReference) -> bool:
+    def references(self, var: VariableReference) -> bool:
         """Check if this statement makes use of the given variable.
 
         Args:
@@ -121,7 +121,7 @@ class Statement(metaclass=ABCMeta):
         return var in self.get_variable_references()
 
     @abstractmethod
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+    def replace(self, old: VariableReference, new: VariableReference) -> None:
         """Replace the old variable with the new variable.
 
         Args:
@@ -142,7 +142,7 @@ class Statement(metaclass=ABCMeta):
         self._assertions.add(assertion)
 
     def copy_assertions(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: Dict[VariableReference, VariableReference]
     ) -> Set[ass.Assertion]:
         """Returns a copy of the assertions of this statement."""
         copy = set()
@@ -162,7 +162,7 @@ class Statement(metaclass=ABCMeta):
 
     @abstractmethod
     def structural_eq(
-        self, other: Statement, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, other: Statement, memo: Dict[VariableReference, VariableReference]
     ) -> bool:
         """Comparing a statement with another statement only makes sense in the context
         of a test case. This context is added by the memo, which maps variable used in

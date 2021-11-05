@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 

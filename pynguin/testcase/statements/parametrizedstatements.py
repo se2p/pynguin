@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Type, Union, cast
 import pynguin.configuration as config
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
+from pynguin.testcase.variablereference import VariableReferenceImpl
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -26,7 +26,7 @@ from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statementvisitor as sv
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.testcase.variablereference import VariableReference
     from pynguin.typeinference.strategy import InferredSignature
 
 
@@ -41,7 +41,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         self,
         test_case: tc.TestCase,
         generic_callable: GenericCallableAccessibleObject,
-        args: Optional[Dict[str, vr.VariableReference]] = None,
+        args: Optional[Dict[str, VariableReference]] = None,
     ):
         """
         Create a new statement with parameters.
@@ -53,13 +53,13 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         """
         super().__init__(
             test_case,
-            vri.VariableReferenceImpl(test_case, generic_callable.generated_type()),
+            VariableReferenceImpl(test_case, generic_callable.generated_type()),
         )
         self._generic_callable = generic_callable
         self._args = args if args else {}
 
     @property
-    def args(self) -> Dict[str, vr.VariableReference]:
+    def args(self) -> Dict[str, VariableReference]:
         """The dictionary mapping parameter names to the used values.
 
         Returns:
@@ -68,16 +68,16 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         return self._args
 
     @args.setter
-    def args(self, args: Dict[str, vr.VariableReference]):
+    def args(self, args: Dict[str, VariableReference]):
         self._args = args
 
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> Set[VariableReference]:
         references = set()
         references.add(self.ret_val)
         references.update(self.args.values())
         return references
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+    def replace(self, old: VariableReference, new: VariableReference) -> None:
         if self.ret_val == old:
             self.ret_val = new
         for key, value in self._args.items():
@@ -85,8 +85,8 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
                 self._args[key] = new
 
     def _clone_args(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
-    ) -> Dict[str, vr.VariableReference]:
+        self, memo: Dict[VariableReference, VariableReference]
+    ) -> Dict[str, VariableReference]:
         """Small helper method, to clone the args into a new test case.
 
         Args:
@@ -261,7 +261,7 @@ class ParametrizedStatement(stmt.Statement, metaclass=ABCMeta):  # pylint: disab
         )
 
     def structural_eq(
-        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, other: Any, memo: Dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, self.__class__):
             return False
@@ -281,7 +281,7 @@ class ConstructorStatement(ParametrizedStatement):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return ConstructorStatement(
             test_case, self.accessible_object(), self._clone_args(memo)
@@ -316,8 +316,8 @@ class MethodStatement(ParametrizedStatement):
         self,
         test_case: tc.TestCase,
         generic_callable: GenericMethod,
-        callee: vr.VariableReference,
-        args: Optional[Dict[str, vr.VariableReference]] = None,
+        callee: VariableReference,
+        args: Optional[Dict[str, VariableReference]] = None,
     ):
         """Create new method statement.
 
@@ -356,18 +356,18 @@ class MethodStatement(ParametrizedStatement):
                 return True
         return False
 
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> Set[VariableReference]:
         references = super().get_variable_references()
         references.add(self._callee)
         return references
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+    def replace(self, old: VariableReference, new: VariableReference) -> None:
         super().replace(old, new)
         if self._callee == old:
             self._callee = new
 
     @property
-    def callee(self) -> vr.VariableReference:
+    def callee(self) -> VariableReference:
         """Provides the variable on which the method is invoked.
 
         Returns:
@@ -376,7 +376,7 @@ class MethodStatement(ParametrizedStatement):
         return self._callee
 
     @callee.setter
-    def callee(self, new_callee: vr.VariableReference) -> None:
+    def callee(self, new_callee: VariableReference) -> None:
         """Set new callee on which the method is invoked.
 
         Args:
@@ -387,7 +387,7 @@ class MethodStatement(ParametrizedStatement):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return MethodStatement(
             test_case,
@@ -403,7 +403,7 @@ class MethodStatement(ParametrizedStatement):
         return hash((super().structural_hash(), self._callee.structural_hash()))
 
     def structural_eq(
-        self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, other: Any, memo: Dict[VariableReference, VariableReference]
     ) -> bool:
         return super().structural_eq(other, memo) and self._callee.structural_eq(
             other._callee, memo
@@ -437,7 +437,7 @@ class FunctionStatement(ParametrizedStatement):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return FunctionStatement(
             test_case, self.accessible_object(), self._clone_args(memo)

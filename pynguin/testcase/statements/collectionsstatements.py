@@ -26,8 +26,7 @@ from typing_inspect import get_args
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 
@@ -50,7 +49,7 @@ class CollectionStatement(Generic[T], stmt.Statement):
     ):
         super().__init__(
             test_case,
-            vri.VariableReferenceImpl(test_case, type_),
+            vr.VariableReferenceImpl(test_case, type_),
         )
         self._elements = elements
 

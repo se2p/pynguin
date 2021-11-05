@@ -11,7 +11,7 @@ from abc import abstractmethod
 from typing import Any, Dict, Optional
 
 import pynguin.assertion.assertionvisitor as av
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 
 
 class Assertion:

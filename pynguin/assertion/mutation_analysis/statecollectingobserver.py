@@ -11,7 +11,7 @@ import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.collection_utils as cu
 from pynguin.testcase.statements import statement as stmt
 

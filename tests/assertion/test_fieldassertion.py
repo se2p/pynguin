@@ -8,7 +8,7 @@ from typing import Dict
 from unittest.mock import MagicMock
 
 import pynguin.assertion.fieldassertion as fa
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 from pynguin.assertion import assertionvisitor as av
 
 

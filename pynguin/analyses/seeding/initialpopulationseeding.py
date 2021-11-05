@@ -22,7 +22,7 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     from pynguin.setup.testcluster import TestCluster
 
 

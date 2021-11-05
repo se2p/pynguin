@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.outputtrace as ot
     import pynguin.testcase.statements.statement as stmt
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 class ExecutionContext:

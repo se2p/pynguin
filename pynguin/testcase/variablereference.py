@@ -153,3 +153,20 @@ class VariableReference(metaclass=ABCMeta):
             A hash value.
         """
         return 31 * 17 + hash(self._variable_type)
+
+
+class VariableReferenceImpl(VariableReference):
+    """Basic implementation of a variable reference."""
+
+    def clone(
+        self, memo: Dict[VariableReference, VariableReference]
+    ) -> VariableReference:
+        return memo[self]
+
+    def get_statement_position(self) -> int:
+        for idx, stmt in enumerate(self._test_case.statements):
+            if stmt.ret_val == self:
+                return idx
+        raise Exception(
+            "Variable reference is not declared in the test case in which it is used"
+        )

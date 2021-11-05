@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Set
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -23,7 +23,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statementvisitor as sv
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
 
 
 class FieldStatement(stmt.Statement):
@@ -36,7 +35,7 @@ class FieldStatement(stmt.Statement):
         source: vr.VariableReference,
     ):
         super().__init__(
-            test_case, vri.VariableReferenceImpl(test_case, field.generated_type())
+            test_case, vr.VariableReferenceImpl(test_case, field.generated_type())
         )
         self._field = field
         self._source = source

@@ -9,7 +9,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Dict
 
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 
 
 class AbstractNamingScope:

@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Set, Type, Type
 
 import pynguin.configuration as config
 import pynguin.testcase.statements.statement as stmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
 from pynguin.analyses.seeding.constantseeding import (
     dynamic_constant_seeding,
     static_constant_seeding,
 )
+from pynguin.testcase.variablereference import VariableReferenceImpl
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -27,7 +27,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statementvisitor as sv
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    from pynguin.testcase.variablereference import VariableReference
 
 # pylint:disable=invalid-name
 T = TypeVar("T")
@@ -42,7 +42,7 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
         variable_type: Optional[Type],
         value: Optional[T] = None,
     ) -> None:
-        super().__init__(test_case, vri.VariableReferenceImpl(test_case, variable_type))
+        super().__init__(test_case, VariableReferenceImpl(test_case, variable_type))
         self._value = value
         if value is None:
             self.randomize_value()
@@ -75,10 +75,10 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
                 self.delta()
         return True
 
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> Set[VariableReference]:
         return {self.ret_val}
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+    def replace(self, old: VariableReference, new: VariableReference) -> None:
         if self.ret_val == old:
             self.ret_val = new
 
@@ -102,7 +102,7 @@ class PrimitiveStatement(Generic[T], stmt.Statement):
     def structural_eq(
         self,
         other: stmt.Statement,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> bool:
         if not isinstance(other, self.__class__):
             return False
@@ -156,7 +156,7 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return IntPrimitiveStatement(test_case, self._value)
 
@@ -219,7 +219,7 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return FloatPrimitiveStatement(test_case, self._value)
 
@@ -311,7 +311,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return StringPrimitiveStatement(test_case, self._value)
 
@@ -383,7 +383,7 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return BytesPrimitiveStatement(test_case, self._value)
 
@@ -413,7 +413,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return BooleanPrimitiveStatement(test_case, self._value)
 
@@ -466,7 +466,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return EnumPrimitiveStatement(test_case, self._generic_enum, value=self.value)
 
@@ -479,7 +479,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
     def structural_eq(
         self,
         other: stmt.Statement,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> bool:
         return (
             super().structural_eq(other, memo)
@@ -500,7 +500,7 @@ class NoneStatement(PrimitiveStatement):
     def clone(
         self,
         test_case: tc.TestCase,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: Dict[VariableReference, VariableReference],
     ) -> stmt.Statement:
         return NoneStatement(test_case, self.ret_val.variable_type)
 

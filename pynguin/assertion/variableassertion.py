@@ -9,7 +9,7 @@ import abc
 from typing import Any
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 
 
 class VariableAssertion(ass.Assertion, metaclass=abc.ABCMeta):

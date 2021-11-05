@@ -15,7 +15,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statements.parametrizedstatements as ps
 import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.statements.statementvisitor as sv
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 from pynguin.typeinference.strategy import InferredSignature
 
 
@@ -31,8 +31,8 @@ def test_constructor_statement_args(
 ):
     statement = ps.ConstructorStatement(test_case_mock, constructor_mock)
     references = {
-        "a": MagicMock(vri.VariableReferenceImpl),
-        "b": MagicMock(vri.VariableReferenceImpl),
+        "a": MagicMock(vr.VariableReferenceImpl),
+        "b": MagicMock(vr.VariableReferenceImpl),
     }
     statement.args = references
     assert statement.args == references
@@ -119,8 +119,8 @@ def test_constructor_replace_return_value(constructor_mock):
 
 
 def test_constructor_clone_args(constructor_mock, test_case_mock):
-    ref = vri.VariableReferenceImpl(test_case_mock, float)
-    clone = vri.VariableReferenceImpl(test_case_mock, float)
+    ref = vr.VariableReferenceImpl(test_case_mock, float)
+    clone = vr.VariableReferenceImpl(test_case_mock, float)
     const = ps.ConstructorStatement(test_case_mock, constructor_mock, {"a": ref})
     assert const._clone_args({ref: clone}) == {"a": clone}
 
@@ -169,7 +169,7 @@ def test_constructor_mutable_arg_count(test_case_mock, constructor_mock):
     const = ps.ConstructorStatement(
         test_case_mock,
         constructor_mock,
-        {"test": MagicMock(vri.VariableReferenceImpl)},
+        {"test": MagicMock(vr.VariableReferenceImpl)},
     )
     assert const._mutable_argument_count() == 1
 
@@ -308,8 +308,8 @@ def test_constructor_param_count_of_type(test_case_mock, constructor_mock):
         test_case_mock,
         constructor_mock,
         {
-            "test0": vri.VariableReferenceImpl(test_case_mock, float),
-            "test1": vri.VariableReferenceImpl(test_case_mock, int),
+            "test0": vr.VariableReferenceImpl(test_case_mock, float),
+            "test1": vr.VariableReferenceImpl(test_case_mock, int),
         },
     )
     assert const._param_count_of_type(float) == 1
@@ -327,8 +327,8 @@ def test_method_statement_no_args(test_case_mock, variable_reference_mock, metho
 
 def test_method_statement_args(test_case_mock, variable_reference_mock, method_mock):
     references = {
-        "a": MagicMock(vri.VariableReferenceImpl),
-        "b": MagicMock(vri.VariableReferenceImpl),
+        "a": MagicMock(vr.VariableReferenceImpl),
+        "b": MagicMock(vr.VariableReferenceImpl),
     }
 
     statement = ps.MethodStatement(test_case_mock, method_mock, variable_reference_mock)
@@ -337,8 +337,8 @@ def test_method_statement_args(test_case_mock, variable_reference_mock, method_m
 
 
 def test_method_statement_not_eq(test_case_mock, method_mock):
-    var1 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
-    var2 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+    var1 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
+    var2 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
 
     args = {
         "a": var1,
@@ -352,8 +352,8 @@ def test_method_statement_not_eq(test_case_mock, method_mock):
 
 
 def test_method_statement_eq(test_case_mock, method_mock):
-    var1 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
-    var2 = vri.VariableReferenceImpl(test_case_mock, MagicMock)
+    var1 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
+    var2 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
 
     args = {
         "a": var1,

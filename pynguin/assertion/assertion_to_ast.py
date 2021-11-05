@@ -14,7 +14,7 @@ import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
 import pynguin.assertion.primitiveassertion as pa
 import pynguin.configuration as config
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.ast_util as au
 import pynguin.utils.namingscope as ns
 import pynguin.utils.type_utils as tu

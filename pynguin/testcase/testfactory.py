@@ -32,7 +32,7 @@ from pynguin.utils.type_utils import (
 if TYPE_CHECKING:
     import pynguin.testcase.statements.statement as stmt
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     from pynguin.setup.testcluster import TestCluster
     from pynguin.typeinference.strategy import InferredSignature
 

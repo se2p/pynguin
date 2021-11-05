@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.testcase.statements.assignmentstatement as astmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vri
 
 
 @pytest.fixture

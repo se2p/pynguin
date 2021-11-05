@@ -14,7 +14,7 @@ import pynguin.assertion.outputtraceentry as ote
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statements.statement as stmt
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=ote.OutputTraceEntry)

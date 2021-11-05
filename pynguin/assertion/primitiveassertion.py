@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Dict
 import pynguin.assertion.variableassertion as va
 
 if TYPE_CHECKING:
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     from pynguin.assertion import assertionvisitor as av
 
 

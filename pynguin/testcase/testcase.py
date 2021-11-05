@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statements.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 # pylint: disable=too-many-public-methods

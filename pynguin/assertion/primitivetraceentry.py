@@ -14,7 +14,7 @@ import pynguin.assertion.primitiveassertion as pas
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 class PrimitiveTraceEntry(ote.OutputTraceEntry):

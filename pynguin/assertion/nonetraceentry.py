@@ -14,7 +14,7 @@ import pynguin.assertion.outputtraceentry as ote
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 class NoneTraceEntry(ote.OutputTraceEntry):

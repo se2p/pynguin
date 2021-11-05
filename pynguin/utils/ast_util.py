@@ -11,7 +11,7 @@ import ast
 import typing
 
 if typing.TYPE_CHECKING:
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     import pynguin.utils.namingscope as ns
 
 
