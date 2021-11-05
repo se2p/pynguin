@@ -11,6 +11,17 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.12.0
 
+- Generate more reasonable variable names in tests.
+  Before this release, Pynguin only generated variables named `var0`, `var1`, etc.
+  A simple heuristics now attempts to generate more reasonable names depending on the
+  type of the variable, such as `int_0`, `bool_1`, or `str_2`.
+  We also adjusted the documentation to match this change.
+- We updated all provided PyCharm run configurations the use the more sophisticated
+  queue example instead of the simple example module to see an improved output.
+- Prevent a potential regression when updating the dependencies to version 0.0.17 of the
+  [simple-parsing](https://pypi.org/project/simple-parsing) library for CLI argument
+  parsing, which changed its API.
+
 ## Pynguin 0.11.0
 
 - Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph 
