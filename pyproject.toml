@@ -50,6 +50,7 @@ pytest = "^6.2"
 Jinja2 = "^3.0"
 Pygments = "^2.10"
 ordered-set = "^4.0"
+MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^6.1"
