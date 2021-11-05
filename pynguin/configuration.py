@@ -230,7 +230,7 @@ class TestCaseOutputConfiguration:
     """The order of the generated higher order mutants in the mutation analysis
     assertion generation method."""
 
-    generate_all_assertions: bool = False
+    generate_all_assertions: bool = True
     """Should the mutation analysis approach to assertion generation also generate
     assertions in cases where the states between non-mutated and mutated modules do
     not differ?"""

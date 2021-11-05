@@ -7,9 +7,8 @@
 """Provides an assertion visitor to transform assertions to AST."""
 import array
 import ast
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
-
 from _ast import Attribute, Constant, Name
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.assertion.noneassertion as na
@@ -17,15 +16,21 @@ import pynguin.assertion.primitiveassertion as pa
 import pynguin.configuration as config
 import pynguin.testcase.variable.variablereference as vr
 import pynguin.utils.ast_util as au
-import pynguin.utils.type_utils as tu
 import pynguin.utils.namingscope as ns
+import pynguin.utils.type_utils as tu
 
 
 class AssertionToAstVisitor(av.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes."""
 
+    COMPARISON_OBJECT_IDENTIFIER: str = "obj"
+    _obj_index: int = 0
+
     def __init__(
-        self, common_modules: Set[str], variable_names: ns.AbstractNamingScope
+        self,
+        variable_names: ns.AbstractNamingScope,
+        module_aliases: ns.AbstractNamingScope,
+        common_modules: Set[str],
     ):
         """Create a new assertion visitor.
 

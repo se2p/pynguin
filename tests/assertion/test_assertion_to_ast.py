@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import astor
 import pytest
-from _ast import Module
 
 import pynguin.assertion.assertion_to_ast as ata
 from pynguin.utils.namingscope import NamingScope
@@ -19,7 +18,7 @@ from pynguin.utils.namingscope import NamingScope
 def assertion_to_ast() -> ata.AssertionToAstVisitor:
     scope = NamingScope()
     module_aliases = NamingScope()
-    return ata.AssertionToAstVisitor(set(), module_aliases, scope)
+    return ata.AssertionToAstVisitor(scope, module_aliases, set())
 
 
 @pytest.fixture(autouse=True)

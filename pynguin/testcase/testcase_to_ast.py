@@ -47,7 +47,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             statement.accept(statement_visitor)
             # TODO(fk) better way. Nest visitors?
             assertion_visitor = ata.AssertionToAstVisitor(
-                self._common_modules, self._module_aliases, variables
+                variables, self._module_aliases, self._common_modules
             )
             for assertion in statement.assertions:
                 assertion.accept(assertion_visitor)
