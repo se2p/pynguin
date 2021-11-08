@@ -19,7 +19,8 @@ Eager to start?  Make sure that Pynguin is :ref:`installed <install>` properly.
   To help prevent harming the system that runs Pynguin, its CLI will immediately abort
   unless the environment variable ``PYNGUIN_DANGER_AWARE`` is set. In setting this
   variable, you acknowledge that you are aware of the possible dangers of executing code
-  with random inputs.
+  with random inputs.  The assigned value can be arbitrary; Pynguin solely checks
+  whether the variable is defined.
 
   We do not provide any support and are not responsible if you break your computer by
   executing Pynguin on some random code from the internet!
