@@ -9,7 +9,11 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
-## Pynguin 0.14.0
+## Pynguin 0.13.2
+
+- Add the reference to the preprint of our EMSE journal submission to documentation.
+- Clarify on the value of the `PYNGUIN_DANGER_AWARE` environment variable.  One can 
+  set an arbitrary value for the variable, Pynguin only checks whether its defined.
 
 ## Pynguin 0.13.1
 
