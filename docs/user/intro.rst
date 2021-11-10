@@ -22,12 +22,31 @@ All contributions to Pynguin should keep these important rules in mind.
 Publications on Pynguin
 -----------------------
 
+* S. Lukasczyk, F. Kroiß, and G. Fraser.
+  **An Empirical Study of Automated Unit Test Generation for Python**.
+  Submitted to the EMSE Special Edition on “Advances in Search-Based Software
+  Engineering”.  `arXiv:2111.05003 <https://arxiv.org/abs/2111.05003>`_
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+      @Article{journals/corr/abs-2111-05003,
+        author    = {Stephan Lukasczyk and Florian Kroi{\ss} and Gordon Fraser},
+        title     = {An Empirical Study of Automated Unit Test Generation for Python},
+        journal   = {CoRR},
+        volume    = {abs/2111.05003},
+        year      = {2021},
+        eprinttype = {arXiv},
+        eprint    = {2111.05003},
+      }
+
 * S. Lukasczyk, F. Kroiß, and G. Fraser. **Automated Unit Test Generation for Python.**
   In *Proceedings of the 12th Symposium on Search-based Software Engineering.*
   Lecture Notes in Computer Science, vol. 12420, pp. 9–24.
   Springer, 2020.
   DOI: `10.1007/978-3-030-59762-7_2 <https://doi.org/10.1007/978-3-030-59762-7_2>`_.
-  `Preprint <https://arxiv.org/abs/2007.14049>`_
+  `arXiv:2007.14049 <https://arxiv.org/abs/2007.14049>`_
 
   BibTeX entry:
 
