@@ -199,7 +199,8 @@ class CollectorStorage:
         mutations = []
         for item in self._storage[1:]:
             val = item.get(key, None)
-            if val:
+            # TODO(fk) isn't None a valid value here?
+            if val is not None:
                 mutations.append(val)
         return mutations
 
