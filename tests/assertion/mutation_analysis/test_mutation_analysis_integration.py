@@ -36,6 +36,7 @@ def test_generate_assertions():
         queue_0 = test_case.add_statement(
             stmt.ConstructorStatement(
                 test_case,
+                # Queue constructor
                 list(list(cluster.generators.values())[0])[0],
                 {"size_max": int_0},
             )
@@ -43,6 +44,7 @@ def test_generate_assertions():
         test_case.add_statement(
             stmt.MethodStatement(
                 test_case,
+                # Enqueue method
                 list(list(cluster.modifiers.values())[0])[2],
                 queue_0,
                 {"x": int_0},
