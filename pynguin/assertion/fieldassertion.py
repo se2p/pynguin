@@ -91,10 +91,7 @@ class FieldAssertion(ass.Assertion):
         return (
             isinstance(other, FieldAssertion)
             and self._source == other._source
-            and (
-                self._value == other._value
-                or isinstance(self._value, type(other.value))
-            )
+            and self._value == other._value
             and self._field == other._field
             and self._module == other._module
             and self._owners == other._owners
