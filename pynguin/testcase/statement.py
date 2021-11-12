@@ -26,6 +26,8 @@ from typing import (
     get_args,
 )
 
+from ordered_set import OrderedSet
+
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -53,7 +55,7 @@ class Statement(metaclass=ABCMeta):
     def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference) -> None:
         self._test_case = test_case
         self._ret_val = ret_val
-        self._assertions: Set[ass.Assertion] = set()
+        self._assertions: OrderedSet[ass.Assertion] = OrderedSet()
 
     @property
     def ret_val(self) -> vr.VariableReference:
@@ -172,7 +174,7 @@ class Statement(metaclass=ABCMeta):
 
     def copy_assertions(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
-    ) -> Set[ass.Assertion]:
+    ) -> OrderedSet[ass.Assertion]:
         """Returns a copy of the assertions of this statement.
 
         Args:
@@ -181,13 +183,13 @@ class Statement(metaclass=ABCMeta):
         Returns:
             A set of assertions
         """
-        copy = set()
+        copy = OrderedSet()
         for assertion in self._assertions:
             copy.add(assertion.clone(memo))
         return copy
 
     @property
-    def assertions(self) -> Set[ass.Assertion]:
+    def assertions(self) -> OrderedSet[ass.Assertion]:
         """Provides the assertions of this statement, which are expected
         to hold after the execution of this statement.
 
@@ -197,7 +199,7 @@ class Statement(metaclass=ABCMeta):
         return self._assertions
 
     @assertions.setter
-    def assertions(self, assertions: Set[ass.Assertion]) -> None:
+    def assertions(self, assertions: OrderedSet[ass.Assertion]) -> None:
         self._assertions = assertions
 
     @abstractmethod
