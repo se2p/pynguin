@@ -65,7 +65,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         return adapter.mutate_module()
 
     def _generate_assertions(self) -> None:
-        # Get the reference data from teh execution on the not mutated module
+        # Get the reference data from the execution on the not mutated module
         reference = self._storage.get_execution_entry(0)
 
         # Iterate over all entries of the reference
