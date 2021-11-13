@@ -4,14 +4,14 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 import importlib
 
+import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statement as stmt
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
@@ -29,27 +29,17 @@ def test_generate_assertions():
 
         executor = TestCaseExecutor(tracer)
         cluster = TestClusterGenerator(module_name).generate_cluster()
-        # TODO(fk) don't build this by hand, implement convenient way
-        #  to use ast-to-statement conversion to create test cases from text.
-        test_case = dtc.DefaultTestCase()
-        int_0 = test_case.add_statement(stmt.IntPrimitiveStatement(test_case, 42))
-        queue_0 = test_case.add_statement(
-            stmt.ConstructorStatement(
-                test_case,
-                # Queue constructor
-                list(list(cluster.generators.values())[0])[0],
-                {"size_max": int_0},
+        transformer = ats.AstToTestCaseTransformer(cluster, False)
+        transformer.visit(
+            ast.parse(
+                """def test_case():
+    int_0 = 42
+    queue_0 = module_0.Queue(int_0)
+    bool_0 = queue_0.enqueue(int_0)
+"""
             )
         )
-        test_case.add_statement(
-            stmt.MethodStatement(
-                test_case,
-                # Enqueue method
-                list(list(cluster.modifiers.values())[0])[2],
-                queue_0,
-                {"x": int_0},
-            )
-        )
+        test_case = transformer.testcases[0]
 
         chromosome = tcc.TestCaseChromosome(test_case)
         suite = tsc.TestSuiteChromosome()
