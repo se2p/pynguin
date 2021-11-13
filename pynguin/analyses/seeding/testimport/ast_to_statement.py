@@ -12,6 +12,7 @@ import inspect
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union, cast
 
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 from pynguin.assertion.noneassertion import NoneAssertion
 from pynguin.assertion.primitiveassertion import PrimitiveAssertion
@@ -618,3 +619,59 @@ def try_generating_specific_function(
             dict_node, testcase, objs_under_test, ref_dict
         )
     return None
+
+
+# pylint: disable=invalid-name, missing-function-docstring
+class AstToTestCaseTransformer(ast.NodeVisitor):
+    """A AST NodeVisitor that tries to convert an AST into our internal
+    test case representation."""
+
+    def __init__(self, test_cluster: TestCluster, create_assertions: bool):
+        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
+        self._current_parsable: bool = True
+        self._var_refs: Dict[str, vr.VariableReference] = {}
+        self._testcases: List[dtc.DefaultTestCase] = []
+        self._number_found_testcases: int = 0
+        self._test_cluster = test_cluster
+        self._create_assertions = create_assertions
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._number_found_testcases += 1
+        self._current_testcase = dtc.DefaultTestCase()
+        self._current_parsable = True
+        self._var_refs.clear()
+        self.generic_visit(node)
+        if self._current_parsable:
+            self._testcases.append(self._current_testcase)
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        if self._current_parsable:
+            if (
+                result := create_assign_stmt(
+                    node, self._current_testcase, self._var_refs, self._test_cluster
+                )
+            ) is None:
+                self._current_parsable = False
+            else:
+                ref_id, stm = result
+                var_ref = self._current_testcase.add_statement(stm)
+                self._var_refs[ref_id] = var_ref
+
+    def visit_Assert(self, node: ast.Assert) -> Any:
+        if self._current_parsable and self._create_assertions:
+            if (result := create_assert_stmt(self._var_refs, node)) is not None:
+                assertion, var_ref = result
+                self._current_testcase.get_statement(
+                    var_ref.get_statement_position()
+                ).add_assertion(assertion)
+
+    @property
+    def testcases(self) -> List[dtc.DefaultTestCase]:
+        """Provides the testcases that could be generated from the given AST.
+        It is possible that not every aspect of the AST could be transformed
+        to our internal representation.
+
+        Returns:
+            The generated testcases.
+        """
+        return self._testcases

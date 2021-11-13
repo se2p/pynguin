@@ -8,7 +8,7 @@ import ast
 
 import pytest
 
-from pynguin.analyses.seeding.initialpopulationseeding import _TestTransformer
+import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.setup.testclustergenerator import TestClusterGenerator
 
@@ -50,7 +50,7 @@ def test_case_0():
     test_cluster = TestClusterGenerator(
         "tests.fixtures.grammar.parameters"
     ).generate_cluster()
-    transformer = _TestTransformer(test_cluster)
+    transformer = ats.AstToTestCaseTransformer(test_cluster, False)
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
     ExportProvider.get_exporter().export_sequences(export_path, transformer.testcases)
