@@ -11,6 +11,8 @@ authors:
     given-names: Florian
   - family-names: Steffens
     given-names: Lukas
+  - family-names: Straubinger
+    given-names: Florian
 doi: "10.5281/zenodo.3989840"
 identifiers:
   - type: doi
