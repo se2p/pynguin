@@ -146,9 +146,16 @@ def create_variable_references_from_call_args(
 
     """
     var_refs: Dict[str, vr.VariableReference] = {}
+    # We have to ignore the first parameter (usually 'self') for regular methods and
+    # constructors because it is filled by the runtime.
+    # TODO(fk) also consider @classmethod, because their first argument is the class,
+    #  which is also filled by the runtime.
+    shift_by = 1 if gen_callable.is_method() or gen_callable.is_constructor() else 0
+
     # Handle positional arguments.
     for (name, param), call_arg in zip(
-        gen_callable.inferred_signature.signature.parameters.items(), call_args
+        list(gen_callable.inferred_signature.signature.parameters.items())[shift_by:],
+        call_args,
     ):
         if (
             param.kind
