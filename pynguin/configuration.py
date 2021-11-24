@@ -140,6 +140,9 @@ class StatisticsOutputConfiguration:
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
+    statement_coverage: bool = False
+    """Trace statement coverage additional to branch coverage."""
+
     output_variables: List[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             RuntimeVariable.TargetModule,

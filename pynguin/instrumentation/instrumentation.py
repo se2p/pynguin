@@ -20,6 +20,8 @@ from pynguin.analyses.controlflow.controldependencegraph import ControlDependenc
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
+    BranchExecutionTracer,
+    StatementExecutionTracer,
     ExecutionTracer,
     PredicateMetaData,
 )
@@ -262,12 +264,12 @@ class BranchCoverageInstrumentation(Instrumentation):
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
             and (
-                (
-                    maybe_compare.name == "COMPARE_OP"
-                    and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
-                )
-                or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
+            (
+                maybe_compare.name == "COMPARE_OP"
+                and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
             )
+            or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
+        )
         ):
             return self._instrument_compare_based_conditional_jump(
                 block, code_object_id, node
@@ -304,12 +306,12 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
         # it to the tracer.
-        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
+        block[self._JUMP_OP_POS: self._JUMP_OP_POS] = [
             Instr("DUP_TOP", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_bool_predicate.__name__,
+                BranchExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -358,12 +360,12 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_compare_predicate.__name__,
+                BranchExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -398,12 +400,12 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
+        block[self._JUMP_OP_POS: self._JUMP_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_exception_match.__name__,
+                BranchExecutionTracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -502,7 +504,7 @@ class BranchCoverageInstrumentation(Instrumentation):
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.executed_bool_predicate.__name__,
+                    BranchExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", True, lineno=lineno),
@@ -518,7 +520,7 @@ class BranchCoverageInstrumentation(Instrumentation):
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    ExecutionTracer.executed_bool_predicate.__name__,
+                    BranchExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", False, lineno=lineno),
@@ -530,6 +532,119 @@ class BranchCoverageInstrumentation(Instrumentation):
         )
 
         return predicate_id
+
+
+# pylint:disable=too-few-public-methods
+class StatementCoverageInstrumentation(Instrumentation):
+    """Instruments code objects to enable tracking of executed statements and thus
+    statement coverage."""
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, tracer: StatementExecutionTracer) -> None:
+        self._tracer = tracer
+
+    def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
+        """Apply the instrumentation to all statements of the given code object.
+
+        Args:
+            code: the Code Object that should be instrumented.
+
+        Returns:
+            the code object whose constants were instrumented.
+        """
+        new_consts = []
+        for const in code.co_consts:
+            if isinstance(const, CodeType):
+                # The const is an inner code object
+                new_consts.append(self._instrument_code_recursive(const))
+            else:
+                new_consts.append(const)
+        return code.replace(co_consts=tuple(new_consts))
+
+    def _instrument_code_recursive(
+        self,
+        code: CodeType,
+    ) -> CodeType:
+        """Instrument the given Code Object recursively.
+
+        Args:
+            code: The code object that should be instrumented
+
+        Returns:
+            The instrumented code object
+        """
+        self._logger.debug(
+            "Instrumenting Code Object for statement coverage for %s", code.co_name
+        )
+        cfg = CFG.from_bytecode(Bytecode.from_code(code))
+
+        assert cfg.entry_node is not None, "Entry node cannot be None."
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+
+        self._instrument_cfg(cfg)
+        return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
+
+    def _instrument_cfg(self, cfg: CFG) -> None:
+        """Instrument the bytecode cfg associated with the given CFG.
+
+        Args:
+            cfg: The CFG that overlays the bytecode cfg.
+        """
+        # Attributes which store the predicate ids assigned to instrumented nodes.
+        for node in cfg.nodes:
+            self._instrument_node(node)
+
+    def _instrument_node(
+        self,
+        node: ProgramGraphNode,
+    ) -> None:
+        """Instrument a single node in the CFG.
+
+        If the node is a statement node, instrument that the statement was executed
+        during the test execution.
+
+        Args:
+            node: The node that should be instrumented.
+        """
+        if node.basic_block and not node.is_artificial:
+            # TODO determine a unique id of the basic block by registering the
+            #  current code object globally, file_name needs to be given as
+            #  argument from the outside (not sure if needed)
+            block: BasicBlock = node.basic_block
+            # in this case the node holds instructions
+            # Use line number of first instruction
+            lineno = block[0].lineno
+            file_name = ""  # filename info not available here
+
+            self.instrument_statement(block, file_name, lineno)
+
+    def instrument_statement(self, block, file_name, lineno):
+
+        # track that a statement exists
+        # TODO call when line change detected
+        #  idea: iterate over statements in BB, always trace new line when
+        #  lineno attribute changes
+        self._tracer.track_statement(lineno, file_name)
+
+        # TODO check if it is a false modification and brakes the instructions
+        # Insert instructions at the beginning.
+        block[0:0] = [
+            Instr("LOAD_CONST", self._tracer, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                StatementExecutionTracer.track_statement_visit.__name__,
+                lineno=lineno,
+            ),
+            Instr("LOAD_CONST", lineno, lineno=lineno),
+            Instr("LOAD_CONST", file_name, lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
+
+    def instrument_module(self, module_code: CodeType) -> CodeType:
+        return self._instrument_code_recursive(module_code)
 
 
 # pylint:disable=too-few-public-methods
@@ -687,7 +802,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             block: The containing basic block.
         """
         lineno = block[self._COMPARE_OP_POS].lineno
-        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(

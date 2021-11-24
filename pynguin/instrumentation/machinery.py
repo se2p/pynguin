@@ -23,11 +23,15 @@ from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
+    StatementCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import Instrumentation
-    from pynguin.testcase.execution.executiontracer import ExecutionTracer
+    from pynguin.testcase.execution.executiontracer import (
+        ExecutionTracer,
+        StatementExecutionTracer
+    )
 
 
 class InstrumentationLoader(SourceFileLoader):
@@ -60,6 +64,12 @@ class InstrumentationLoader(SourceFileLoader):
         if config.configuration.seeding.dynamic_constant_seeding:
             instrumentations.append(
                 DynamicSeedingInstrumentation(dynamic_constant_seeding)
+            )
+
+        if config.configuration.statistics_output.statement_coverage:
+            instrumentations.append(
+                # TODO how to handle  initialisation of StatementExecutionTracer
+                StatementCoverageInstrumentation(StatementExecutionTracer())
             )
 
         for instrumentation in instrumentations:
