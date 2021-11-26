@@ -49,6 +49,15 @@ class DefaultTestCase(tc.TestCase):
 
     def add_statement(
         self, statement: stmt.Statement, position: int = -1
+    ) -> Optional[vr.VariableReference]:
+        if position == -1:
+            self._statements.append(statement)
+        else:
+            self._statements.insert(position, statement)
+        return statement.ret_val
+
+    def add_variable_creating_statement(
+        self, statement: stmt.VariableCreatingStatement, position: int = -1
     ) -> vr.VariableReference:
         if position == -1:
             self._statements.append(statement)
@@ -63,7 +72,10 @@ class DefaultTestCase(tc.TestCase):
         memo: Dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in test_case.statements:
             clone = statement.clone(self, memo)
-            memo[statement.ret_val] = clone.ret_val
+            if statement.ret_val is not None:
+                # If the original statement created a variable, then so does the clone
+                # Thus we know that clone.ret_val is not None
+                memo[statement.ret_val] = clone.ret_val  # type: ignore
             self._statements.append(clone)
 
     def remove(self, position: int) -> None:
@@ -89,7 +101,7 @@ class DefaultTestCase(tc.TestCase):
 
     def set_statement(
         self, statement: stmt.Statement, position: int
-    ) -> vr.VariableReference:
+    ) -> Optional[vr.VariableReference]:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
         return statement.ret_val
@@ -102,7 +114,10 @@ class DefaultTestCase(tc.TestCase):
         memo: Dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in islice(self._statements, limit):
             copy = statement.clone(test_case, memo)
-            memo[statement.ret_val] = copy.ret_val
+            if statement.ret_val is not None:
+                # If the original statement created a variable, then so does the clone
+                # Thus we know that clone.ret_val is not None
+                memo[statement.ret_val] = copy.ret_val  # type: ignore
             test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
         test_case._id = self._id_generator.inc()
@@ -118,9 +133,11 @@ class DefaultTestCase(tc.TestCase):
         for idx in range(var.get_statement_position(), -1, -1):
             new_stmts = OrderedSet()
             for statement in dependent_stmts:
-                if statement.references(self.get_statement(idx).ret_val):
+                if (
+                    ret_val := self.get_statement(idx).ret_val
+                ) is not None and statement.references(ret_val):
                     new_stmts.add(self.get_statement(idx))
-                    dependencies.add(self.get_statement(idx).ret_val)
+                    dependencies.add(ret_val)
                     break
             dependent_stmts.update(new_stmts)
 
@@ -142,8 +159,6 @@ class DefaultTestCase(tc.TestCase):
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
-        if not other:
-            return False
         if not isinstance(other, DefaultTestCase):
             return False
 
@@ -153,9 +168,16 @@ class DefaultTestCase(tc.TestCase):
         else:
             if len(self._statements) != len(other._statements):
                 return False
-            memo = {}
+            memo: Dict[vr.VariableReference, vr.VariableReference] = {}
             for left, right in zip(self._statements, other._statements):
-                memo[left.ret_val] = right.ret_val
+                if ((lret := left.ret_val) is None) ^ ((rret := right.ret_val) is None):
+                    # One is None but the other isn't, i.e., one creates a variable
+                    # but the other doesn't -> they are different.
+                    return False
+                if lret is not None:
+                    # lret is not None, so rret is also not None, otherwise we would be
+                    # in the above case.
+                    memo[lret] = rret  # type:ignore
                 if not left.structural_eq(right, memo):
                     return False
         return True

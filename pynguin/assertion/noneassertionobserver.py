@@ -34,6 +34,8 @@ class NoneTraceObserver(ato.AssertionTraceObserver[nte.NoneTraceEntry]):
         exec_ctx: ex.ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
+        if statement.ret_val is None:
+            return
         if exception is not None:
             return
         if statement.ret_val.is_none_type():
@@ -104,7 +106,7 @@ class NoneAssertionVisitor(st.StatementVisitor):
     def visit_assignment_statement(self, stmt) -> None:
         raise NotImplementedError("Assignments are not supported yet")
 
-    def handle(self, statement: st.Statement) -> None:
+    def handle(self, statement: st.VariableCreatingStatement) -> None:
         """Actually handle the given statement.
 
         Args:

@@ -7,6 +7,7 @@
 """Provides a base implementation of a statement representation."""
 from __future__ import annotations
 
+import abc
 import logging
 import math
 from abc import ABCMeta, abstractmethod
@@ -25,6 +26,8 @@ from typing import (
     cast,
     get_args,
 )
+
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
@@ -50,30 +53,33 @@ class Statement(metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference) -> None:
+    def __init__(self, test_case: tc.TestCase) -> None:
         self._test_case = test_case
-        self._ret_val = ret_val
-        self._assertions: Set[ass.Assertion] = set()
+        self._assertions: OrderedSet[ass.Assertion] = OrderedSet()
 
     @property
-    def ret_val(self) -> vr.VariableReference:
-        """Provides the return value of this statement.
+    def ret_val(self) -> Optional[vr.VariableReference]:
+        """Provides the variable defined by this statement, if any.
         This is intentionally not named 'return_value' because that name is reserved by
         the mocking framework which is used in our tests.
 
         Returns:
-            The return value of the statement execution
+            The variable defined by this statement, if any.
         """
-        return self._ret_val
+        return None
 
+    # pylint:disable = no-self-use
     @ret_val.setter
-    def ret_val(self, reference: vr.VariableReference) -> None:
+    def ret_val(
+        self,
+        reference: vr.VariableReference,  # pylint:disable=unused-argument,
+    ) -> None:
         """Updates the return value of this statement.
 
         Args:
             reference: The new return value
         """
-        self._ret_val = reference
+        return
 
     @property
     def test_case(self) -> tc.TestCase:
@@ -157,10 +163,17 @@ class Statement(metaclass=ABCMeta):
     def get_position(self) -> int:
         """Provides the position of this statement in the test case.
 
+        Raises:
+            Exception: if the statement is not found in the test case
+
         Returns:
             The position of this statement
+
         """
-        return self._ret_val.get_statement_position()
+        for idx, stmt in enumerate(self._test_case.statements):
+            if stmt == self:
+                return idx
+        raise Exception("Statement is not part of it's test case")
 
     def add_assertion(self, assertion: ass.Assertion) -> None:
         """Add the given assertion to this statement.
@@ -172,7 +185,7 @@ class Statement(metaclass=ABCMeta):
 
     def copy_assertions(
         self, memo: Dict[vr.VariableReference, vr.VariableReference]
-    ) -> Set[ass.Assertion]:
+    ) -> OrderedSet[ass.Assertion]:
         """Returns a copy of the assertions of this statement.
 
         Args:
@@ -181,13 +194,13 @@ class Statement(metaclass=ABCMeta):
         Returns:
             A set of assertions
         """
-        copy = set()
+        copy = OrderedSet()
         for assertion in self._assertions:
             copy.add(assertion.clone(memo))
         return copy
 
     @property
-    def assertions(self) -> Set[ass.Assertion]:
+    def assertions(self) -> OrderedSet[ass.Assertion]:
         """Provides the assertions of this statement, which are expected
         to hold after the execution of this statement.
 
@@ -225,6 +238,22 @@ class Statement(metaclass=ABCMeta):
         Returns:
             A hash.
         """
+
+
+class VariableCreatingStatement(Statement, metaclass=abc.ABCMeta):
+    """Abstract superclass for statements that create new variables."""
+
+    def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference):
+        super().__init__(test_case)
+        self._ret_val = ret_val
+
+    @property
+    def ret_val(self) -> vr.VariableReference:
+        return self._ret_val
+
+    @ret_val.setter
+    def ret_val(self, ret_val: vr.VariableReference) -> None:
+        self._ret_val = ret_val
 
 
 class StatementVisitor(metaclass=ABCMeta):
@@ -360,16 +389,41 @@ class StatementVisitor(metaclass=ABCMeta):
 
 
 class AssignmentStatement(Statement):
-    """A statement that assigns one variable to another."""
+    """A statement that assigns the value of a variable to a reference.
+    This statement does not create new variables, it only assigns values to
+    possibly nested fields.
+
+    For example:
+        foo_0.baz = int_0"""
 
     def __init__(
         self,
         test_case: tc.TestCase,
-        lhs: vr.VariableReference,
+        lhs: vr.Reference,
         rhs: vr.VariableReference,
     ):
-        super().__init__(test_case, lhs)
+        super().__init__(test_case)
+        self._lhs = lhs
         self._rhs = rhs
+
+    @property
+    def ret_val(self) -> Optional[vr.VariableReference]:
+        return None
+
+    @ret_val.setter
+    def ret_val(
+        self, ret_val: Optional[vr.VariableReference]  # pylint:disable=unused-argument
+    ) -> None:
+        return
+
+    @property
+    def lhs(self) -> vr.Reference:
+        """The reference that is used on the left hand side.
+
+        Returns:
+            The reference that is used on the left hand side
+        """
+        return self._lhs
 
     @property
     def rhs(self) -> vr.VariableReference:
@@ -387,7 +441,7 @@ class AssignmentStatement(Statement):
     ) -> Statement:
         return AssignmentStatement(
             test_case,
-            self.ret_val.clone(memo),
+            self._lhs.clone(memo),
             self._rhs.clone(memo),
         )
 
@@ -401,30 +455,33 @@ class AssignmentStatement(Statement):
         raise Exception("Implement me")
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
-        return {self.ret_val, self._rhs}
+        refs = {self._rhs}
+        if (l_var := self._lhs.get_variable_reference()) is not None:
+            refs.add(l_var)
+        return refs
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.ret_val == old:
-            self.ret_val = new
+        if self._lhs == old:
+            self._lhs = new
+        else:
+            self._lhs.replace_variable_reference(old, new)
         if self._rhs == old:
             self._rhs = new
 
     def structural_hash(self) -> int:
-        return (
-            31 + 17 * self._ret_val.structural_hash() + 17 * self._rhs.structural_hash()
-        )
+        return 31 + 17 * self._lhs.structural_hash() + 17 * self._rhs.structural_hash()
 
     def structural_eq(
         self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> bool:
         if not isinstance(other, AssignmentStatement):
             return False
-        return self._ret_val.structural_eq(
-            other._ret_val, memo
-        ) and self._rhs.structural_eq(other._rhs, memo)
+        return self._lhs.structural_eq(other._lhs, memo) and self._rhs.structural_eq(
+            other._rhs, memo
+        )
 
 
-class CollectionStatement(Generic[T], Statement):
+class CollectionStatement(Generic[T], VariableCreatingStatement):
     """Abstract base class for collection statements."""
 
     def __init__(
@@ -435,7 +492,7 @@ class CollectionStatement(Generic[T], Statement):
     ):
         super().__init__(
             test_case,
-            vr.VariableReferenceImpl(test_case, type_),
+            vr.VariableReference(test_case, type_),
         )
         self._elements = elements
 
@@ -535,9 +592,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
 
     def _insertion_supplier(self) -> Optional[vr.VariableReference]:
         arg_type = (
-            get_args(self.ret_val.variable_type)[0]
-            if get_args(self.ret_val.variable_type)
-            else None
+            get_args(self.ret_val.type)[0] if get_args(self.ret_val.type) else None
         )
         # TODO(fk) what if the current type is not correct?
         possible_insertions = self.test_case.get_objects(arg_type, self.get_position())
@@ -550,8 +605,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
     ) -> vr.VariableReference:
         # TODO(fk) what if the current type is not correct?
         return randomness.choice(
-            self.test_case.get_objects(element.variable_type, self.get_position())
-            + [element]
+            self.test_case.get_objects(element.type, self.get_position()) + [element]
         )
 
     def structural_hash(self) -> int:
@@ -599,7 +653,7 @@ class ListStatement(NonDictCollection):
     ) -> ListStatement:
         return ListStatement(
             test_case,
-            self.ret_val.variable_type,
+            self.ret_val.type,
             [var.clone(memo) for var in self._elements],
         )
 
@@ -628,7 +682,7 @@ class SetStatement(NonDictCollection):
     ) -> SetStatement:
         return SetStatement(
             test_case,
-            self.ret_val.variable_type,
+            self.ret_val.type,
             [var.clone(memo) for var in self._elements],
         )
 
@@ -657,7 +711,7 @@ class TupleStatement(NonDictCollection):
     ) -> TupleStatement:
         return TupleStatement(
             test_case,
-            self.ret_val.variable_type,
+            self.ret_val.type,
             [var.clone(memo) for var in self._elements],
         )
 
@@ -701,9 +755,7 @@ class DictStatement(
         new = list(element)
         # TODO(fk) what if the current type is not correct?
         new[change_idx] = randomness.choice(
-            self.test_case.get_objects(
-                element[change_idx].variable_type, self.get_position()
-            )
+            self.test_case.get_objects(element[change_idx].type, self.get_position())
             + [element[change_idx]]
         )
         assert len(new) == 2, "Tuple must consist of key and value"
@@ -714,14 +766,10 @@ class DictStatement(
     ) -> Optional[Tuple[vr.VariableReference, vr.VariableReference]]:
         # TODO(fk) what if the current type is not correct?
         key_type = (
-            get_args(self.ret_val.variable_type)[0]
-            if get_args(self.ret_val.variable_type)
-            else None
+            get_args(self.ret_val.type)[0] if get_args(self.ret_val.type) else None
         )
         val_type = (
-            get_args(self.ret_val.variable_type)[1]
-            if get_args(self.ret_val.variable_type)
-            else None
+            get_args(self.ret_val.type)[1] if get_args(self.ret_val.type) else None
         )
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
@@ -739,7 +787,7 @@ class DictStatement(
     ) -> DictStatement:
         return DictStatement(
             test_case,
-            self.ret_val.variable_type,
+            self.ret_val.type,
             [(var[0].clone(memo), var[1].clone(memo)) for var in self._elements],
         )
 
@@ -776,32 +824,38 @@ class DictStatement(
         )
 
 
-class FieldStatement(Statement):
-    """A statement which accesses a public field or a property of an object."""
+class FieldStatement(VariableCreatingStatement):
+    """A statement which reads a public field or a property of an object.
+
+    For example:
+        int_0 = foo_0.baz
+    """
+
+    # TODO(fk) add subclasses for staticfield and modulestaticfield?
 
     def __init__(
         self,
         test_case: tc.TestCase,
         field: gao.GenericField,
-        source: vr.VariableReference,
+        source: vr.Reference,
     ):
         super().__init__(
-            test_case, vr.VariableReferenceImpl(test_case, field.generated_type())
+            test_case, vr.VariableReference(test_case, field.generated_type())
         )
         self._field = field
         self._source = source
 
     @property
-    def source(self) -> vr.VariableReference:
-        """Provides the variable that is accessed.
+    def source(self) -> vr.Reference:
+        """Provides the reference whose field is accessed.
 
         Returns:
-            The variable that is accessed
+            The reference whose field is accessed
         """
         return self._source
 
     @source.setter
-    def source(self, new_source: vr.VariableReference) -> None:
+    def source(self, new_source: vr.Reference) -> None:
         """Set new source.
 
         Args:
@@ -819,10 +873,9 @@ class FieldStatement(Statement):
         ):
             return False
 
-        objects = self.test_case.get_objects(
-            self.source.variable_type, self.get_position()
-        )
-        objects.remove(self.source)
+        objects = self.test_case.get_objects(self.source.type, self.get_position())
+        if (old_var := self._source.get_variable_reference()) is not None:
+            objects.remove(old_var)
         if len(objects) > 0:
             self.source = randomness.choice(objects)
             return True
@@ -848,26 +901,37 @@ class FieldStatement(Statement):
         visitor.visit_field_statement(self)
 
     def get_variable_references(self) -> Set[vr.VariableReference]:
-        return {self.source}
+        refs = {self.ret_val}
+        if (var := self._source.get_variable_reference()) is not None:
+            refs.add(var)
+        return refs
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        if self.source == old:
-            self.source = new
+        if self._source == old:
+            self._source = new
+        else:
+            self._source.replace_variable_reference(old, new)
+        if self._ret_val == old:
+            self._ret_val = new
 
     def structural_eq(
         self, other: Any, memo: Dict[vr.VariableReference, vr.VariableReference]
     ) -> bool:
         if not isinstance(other, FieldStatement):
             return False
-        return self._field == other._field and self._ret_val.structural_eq(
-            other._ret_val, memo
+        return (
+            self._field == other._field
+            and self._ret_val.structural_eq(other._ret_val, memo)
+            and self._source.structural_eq(other._source, memo)
         )
 
     def structural_hash(self) -> int:
         return 31 + 17 * hash(self._field) + 17 * self._ret_val.structural_hash()
 
 
-class ParametrizedStatement(Statement, metaclass=ABCMeta):  # pylint: disable=W0223
+class ParametrizedStatement(
+    VariableCreatingStatement, metaclass=ABCMeta
+):  # pylint: disable=W0223
     """An abstract statement that has parameters.
 
     Superclass for e.g., method or constructor statement.
@@ -890,7 +954,7 @@ class ParametrizedStatement(Statement, metaclass=ABCMeta):  # pylint: disable=W0
         """
         super().__init__(
             test_case,
-            vr.VariableReferenceImpl(test_case, generic_callable.generated_type()),
+            vr.VariableReference(test_case, generic_callable.generated_type()),
         )
         self._generic_callable = generic_callable
         self._args = args if args else {}
@@ -1038,9 +1102,16 @@ class ParametrizedStatement(Statement, metaclass=ABCMeta):  # pylint: disable=W0
             original_param_source = self.test_case.get_statement(
                 current.get_statement_position()
             )
-            copy = original_param_source.clone(
-                self.test_case,
-                {s.ret_val: s.ret_val for s in self.test_case.statements},
+            copy = cast(
+                VariableCreatingStatement,
+                original_param_source.clone(
+                    self.test_case,
+                    {
+                        s.ret_val: s.ret_val
+                        for s in self.test_case.statements
+                        if s.ret_val is not None
+                    },
+                ),
             )
             copy.mutate()
             possible_replacements.append(copy.ret_val)
@@ -1049,7 +1120,7 @@ class ParametrizedStatement(Statement, metaclass=ABCMeta):  # pylint: disable=W0
         # to make the selection broader, but this requires access to
         # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
-        none_statement = NoneStatement(self.test_case, current.variable_type)
+        none_statement = NoneStatement(self.test_case, current.type)
         possible_replacements.append(none_statement.ret_val)
 
         replacement = randomness.choice(possible_replacements)
@@ -1078,7 +1149,7 @@ class ParametrizedStatement(Statement, metaclass=ABCMeta):  # pylint: disable=W0
         if not type_:
             return 0
         for var_ref in self.args.values():
-            if is_assignable_to(var_ref.variable_type, type_):
+            if is_assignable_to(var_ref.type, type_):
                 count += 1
         return count
 
@@ -1184,9 +1255,7 @@ class MethodStatement(ParametrizedStatement):
         # We mutate the callee here, as the special parameter.
         if randomness.next_float() < p_per_param:
             callee = self.callee
-            objects = self.test_case.get_objects(
-                callee.variable_type, self.get_position()
-            )
+            objects = self.test_case.get_objects(callee.type, self.get_position())
             objects.remove(callee)
 
             if len(objects) > 0:
@@ -1250,7 +1319,7 @@ class MethodStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"MethodStatement({self._test_case}, "
-            f"{self._generic_callable}, {self._callee.variable_type}, "
+            f"{self._generic_callable}, {self._callee.type}, "
             f"args={self._args})"
         )
 
@@ -1287,18 +1356,17 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._generic_callable}, {self._ret_val.variable_type}, "
+            f"{self._generic_callable}, {self._ret_val.type}, "
             f"args={self._args})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}) -> "
-            + f"{self._ret_val.variable_type}"
+            f"{self._generic_callable}(args={self._args}) -> " + f"{self._ret_val.type}"
         )
 
 
-class PrimitiveStatement(Generic[T], Statement):
+class PrimitiveStatement(Generic[T], VariableCreatingStatement):
     """Abstract primitive statement which holds a value."""
 
     def __init__(
@@ -1307,7 +1375,7 @@ class PrimitiveStatement(Generic[T], Statement):
         variable_type: Optional[Type],
         value: Optional[T] = None,
     ) -> None:
-        super().__init__(test_case, vr.VariableReferenceImpl(test_case, variable_type))
+        super().__init__(test_case, vr.VariableReference(test_case, variable_type))
         self._value = value
         if value is None:
             self.randomize_value()
@@ -1422,7 +1490,7 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> IntPrimitiveStatement:
         return IntPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -1485,7 +1553,7 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> FloatPrimitiveStatement:
         return FloatPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -1577,7 +1645,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> StringPrimitiveStatement:
         return StringPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -1649,7 +1717,7 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> BytesPrimitiveStatement:
         return BytesPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -1679,7 +1747,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> BooleanPrimitiveStatement:
         return BooleanPrimitiveStatement(test_case, self._value)
 
     def __repr__(self) -> str:
@@ -1732,7 +1800,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
+    ) -> EnumPrimitiveStatement:
         return EnumPrimitiveStatement(test_case, self._generic_enum, value=self.value)
 
     def __repr__(self) -> str:
@@ -1766,8 +1834,8 @@ class NoneStatement(PrimitiveStatement):
         self,
         test_case: tc.TestCase,
         memo: Dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
-        return NoneStatement(test_case, self.ret_val.variable_type)
+    ) -> NoneStatement:
+        return NoneStatement(test_case, self.ret_val.type)
 
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_none_statement(self)

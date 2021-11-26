@@ -88,8 +88,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
     def get_name(self, obj: vr.VariableReference) -> str:
         if (name := self._known_variable_names.get(obj)) is not None:
             return name
-        type_ = obj.variable_type
-        # Use default
+        type_ = obj.type
         tp_name = self._prefix
         if type_ is not None:
             if isinstance(type_, type):

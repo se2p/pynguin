@@ -88,6 +88,15 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         return False
 
     # pylint: disable=no-self-use
+    def is_static(self) -> bool:
+        """Is this static?
+
+        Returns:
+            Whether or not this is static
+        """
+        return False
+
+    # pylint: disable=no-self-use
     def get_num_parameters(self) -> int:
         """Number of parameters.
 
@@ -307,20 +316,18 @@ class GenericFunction(GenericCallableAccessibleObject):
         )
 
 
-class GenericField(GenericAccessibleObject):
-    """A field."""
+class GenericAbstractField(GenericAccessibleObject, metaclass=abc.ABCMeta):
+    """Abstract superclass for fields."""
 
-    def __init__(self, owner: Type, field: str, field_type: Optional[Type]) -> None:
+    def __init__(
+        self, owner: Optional[Type], field: str, field_type: Optional[Type]
+    ) -> None:
         super().__init__(owner)
         self._field = field
         self._field_type = field_type
 
     def is_field(self) -> bool:
         return True
-
-    def get_dependencies(self) -> Set[Type]:
-        assert self.owner, "Field must have an owner"
-        return {self.owner}
 
     def generated_type(self) -> Optional[Type]:
         return self._field_type
@@ -334,12 +341,24 @@ class GenericField(GenericAccessibleObject):
         """
         return self._field
 
+
+class GenericField(GenericAbstractField):
+    """A field of an object."""
+
+    def __init__(self, owner: Type, field: str, field_type: Optional[Type]):
+        super().__init__(owner, field, field_type)
+        assert owner, "Field must have an owner"
+
+    def get_dependencies(self) -> Set[Type]:
+        assert self._owner, "Field must have an owner"
+        return {self._owner}
+
     def __eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, GenericField):
             return False
-        return self._owner == other._owner and self._field == self._field
+        return self._owner == other._owner and self._field == other._field
 
     def __hash__(self):
         return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
@@ -347,5 +366,76 @@ class GenericField(GenericAccessibleObject):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}({self.owner}, {self._field},"
+            + f" {self._field_type})"
+        )
+
+
+class GenericStaticField(GenericAbstractField):
+    """Static field of a class."""
+
+    def __init__(self, owner: Type, field: str, field_type: Optional[Type]):
+        super().__init__(owner, field, field_type)
+        assert owner, "Field must have an owner"
+
+    def is_static(self) -> bool:
+        return True
+
+    def get_dependencies(self) -> Set[Type]:
+        return set()
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericStaticField):
+            return False
+        return self._owner == other._owner and self._field == other._field
+
+    def __hash__(self):
+        return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.owner}, {self._field},"
+            + f" {self._field_type})"
+        )
+
+
+class GenericStaticModuleField(GenericAbstractField):
+    """Static fields defined in a module."""
+
+    # TODO(fk) combine with regular static field?
+
+    def __init__(self, module: str, field: str, field_type: Optional[Type]):
+        super().__init__(None, field, field_type)
+        self._module = module
+
+    def is_static(self) -> bool:
+        return True
+
+    def get_dependencies(self) -> Set[Type]:
+        return set()
+
+    @property
+    def module(self) -> str:
+        """Provides the name of the module where the field is defined.
+
+        Returns:
+            The name of the module where the field is defined.
+        """
+        return self._module
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, GenericStaticModuleField):
+            return False
+        return self._module == other._module and self._field == other._field
+
+    def __hash__(self):
+        return 31 + 17 * hash(self._module) + 17 * hash(self._field)
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self._module}, {self._field},"
             + f" {self._field_type})"
         )

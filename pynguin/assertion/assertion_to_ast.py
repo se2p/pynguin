@@ -158,16 +158,18 @@ class AssertionToAstVisitor(av.AssertionVisitor):
             )
 
     def _create_constant_assert(
-        self, var: vr.VariableReference, operator: ast.cmpop, value: Any
+        self, var: vr.Reference, operator: ast.cmpop, value: Any
     ) -> ast.Assert:
-        left = au.create_var_name(self._variable_names, var, load=True)
+        left = au.create_full_name(
+            self._variable_names, self._module_aliases, var, load=True
+        )
         comp = au.create_ast_constant(value)
         return au.create_ast_assert(au.create_ast_compare(left, operator, comp))
 
-    def _create_float_delta_assert(
-        self, var: vr.VariableReference, value: Any
-    ) -> ast.Assert:
-        left = au.create_var_name(self._variable_names, var, load=True)
+    def _create_float_delta_assert(self, var: vr.Reference, value: Any) -> ast.Assert:
+        left = au.create_full_name(
+            self._variable_names, self._module_aliases, var, load=True
+        )
         comp = self._construct_float_comparator(au.create_ast_constant(value))
         return au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
 
@@ -186,8 +188,10 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         test = au.create_ast_compare(left, operator, comp)
         self._nodes.append(au.create_ast_assert(test))
 
-    def _create_object_assertion(self, var: vr.VariableReference) -> None:
-        left = au.create_var_name(self._variable_names, var, load=True)
+    def _create_object_assertion(self, var: vr.Reference) -> None:
+        left = au.create_full_name(
+            self._variable_names, self._module_aliases, var, load=True
+        )
         comp = au.create_ast_name(self._get_current_comparison_object())
         self._create_assertion(left, ast.Eq(), comp)
         self._pop_current_comparison_object()
@@ -201,6 +205,7 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         module: str,
         owners: List[str],
     ) -> None:
+        # TODO(fk) use new reference methods to describe field.
         left = self._construct_field_attribute(var, field, module, owners)
         comp = au.create_ast_constant(value)
         if isinstance(value, float):
@@ -222,10 +227,12 @@ class AssertionToAstVisitor(av.AssertionVisitor):
         comp_float = au.create_ast_call(func, [comp], keywords)
         return comp_float
 
-    def _create_enum_assertion(self, var: vr.VariableReference, value: Any) -> None:
+    def _create_enum_assertion(self, var: vr.Reference, value: Any) -> None:
         enum_attr = self._construct_enum_attr(value)
         comp = au.create_ast_attribute(value.name, enum_attr)
-        left = au.create_var_name(self._variable_names, var, load=True)
+        left = au.create_full_name(
+            self._variable_names, self._module_aliases, var, load=True
+        )
         self._nodes.append(
             au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
         )
@@ -271,7 +278,9 @@ class AssertionToAstVisitor(av.AssertionVisitor):
     ) -> ast.Attribute:
         if var is not None and module is None:
             # Attribute
-            attr = au.create_var_name(self._variable_names, var, load=True)
+            attr = au.create_full_name(
+                self._variable_names, self._module_aliases, var, load=True
+            )
         else:
             # Class variable or global field
             attr = au.create_ast_name(self._get_module(module))

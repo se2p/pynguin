@@ -76,7 +76,7 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     func = st.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
     func.add_assertion(pas.PrimitiveAssertion(func.ret_val, 3.1415))
     string_prim = st.StringPrimitiveStatement(test_case, "Test")
-    string_prim.ret_val.variable_type = type(None)
+    string_prim.ret_val._type = type(None)
     test_case.add_statement(int_prim)
     test_case.add_statement(int_prim2)
     test_case.add_statement(float_prim)
