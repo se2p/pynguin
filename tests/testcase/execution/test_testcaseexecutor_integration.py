@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer, ModuleProvider, TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
 
 
@@ -74,3 +74,10 @@ def test_observers_clear(short_test_case):
     assert executor._observers == [observer]
     executor.clear_observers()
     assert executor._observers == []
+
+
+def test_module_provider():
+    tracer = ExecutionTracer()
+    prov = ModuleProvider()
+    executor = TestCaseExecutor(tracer, prov)
+    assert executor.module_provider == prov

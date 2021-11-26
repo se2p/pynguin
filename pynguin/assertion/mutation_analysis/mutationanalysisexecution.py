@@ -12,7 +12,6 @@ import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 import pynguin.testcase.testcase as tc
-import pynguin.utils.moduleloader as ml
 
 
 class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
@@ -50,7 +49,9 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         self._storage.append_execution()
         for test_case in test_cases:
             # Reload the module under test
-            ml.ModuleLoader.reload_module(config.configuration.module_name)
+            self._executor.module_provider.reload_module(
+                config.configuration.module_name
+            )
             # Execute
             self._executor.execute(test_case)
 
@@ -59,7 +60,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
     ) -> None:
         # Hand the mutated module over to the mutation module observer
         # which injects it to the execution context
-        ml.ModuleLoader.add_mutated_version(
+        self._executor.module_provider.add_mutated_version(
             module_name=config.configuration.module_name, mutated_module=mutated_module
         )
 
