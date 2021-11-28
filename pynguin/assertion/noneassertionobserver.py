@@ -113,7 +113,7 @@ class NoneAssertionVisitor(st.StatementVisitor):
             statement: the statement that is visited.
 
         """
-        value = self._exec_ctx.get_variable_value(self._variable)
+        value = self._exec_ctx.get_reference_value(self._variable)
         if is_primitive_type(type(value)):
             return
 

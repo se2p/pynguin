@@ -80,7 +80,8 @@ class Reference(metaclass=ABCMeta):
 
         Returns:
             A list of the elements in the reference names, i.e.,
-            module_0.Foo.bar -> ["module_0", "Foo", "bar"]
+            resolving a reference that represents "module_0.Foo.bar" gives
+            ["module_0", "Foo", "bar"]
         """
 
     @abstractmethod

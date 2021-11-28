@@ -50,7 +50,7 @@ class StateCollectingObserver(ex.ExecutionObserver):
 
         # If the statement was a constructor call, collect the returned object
         if isinstance(statement, stmt.ConstructorStatement):
-            self._objects[statement.ret_val] = exec_ctx.get_variable_value(
+            self._objects[statement.ret_val] = exec_ctx.get_reference_value(
                 statement.ret_val
             )
 
@@ -59,7 +59,7 @@ class StateCollectingObserver(ex.ExecutionObserver):
             (stmt.ConstructorStatement, stmt.MethodStatement, stmt.FunctionStatement),
         ):
             # Get the return value of the statement
-            return_value = exec_ctx.get_variable_value(statement.ret_val)
+            return_value = exec_ctx.get_reference_value(statement.ret_val)
 
             # Get all loaded modules without the built in ones
             modules = cu.dict_without_keys(exec_ctx.global_namespace, {"__builtins__"})

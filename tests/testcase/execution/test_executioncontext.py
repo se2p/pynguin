@@ -8,27 +8,38 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.testcase.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.testcase.execution import ExecutionContext
 
 
-def test_get_variable_value_variable_not_known():
-    test_var = MagicMock()
+def test_get_reference_value():
     ctx = ExecutionContext()
+    ref = vr.StaticModuleFieldReference(
+        gao.GenericStaticModuleField("sys", "modules", dict)
+    )
     with pytest.raises(ValueError):
-        ctx.get_variable_value(test_var)
+        ctx.get_reference_value(ref)
 
 
-def test_get_variable_value_variable_has_no_value():
-    test_var = MagicMock()
+def test_get_reference_value_2():
     ctx = ExecutionContext()
-    ctx._variable_names.get_name(test_var)
-    with pytest.raises(ValueError):
-        ctx.get_variable_value(test_var)
+    module_mock = MagicMock(foo=MagicMock(bar=5))
+    ref = vr.FieldReference(
+        vr.StaticModuleFieldReference(gao.GenericStaticModuleField("sys", "foo", int)),
+        gao.GenericField(MagicMock, "bar", int),
+    )
+    ctx._global_namespace = {ctx._modules_aliases.get_name("sys"): module_mock}
+    assert ctx.get_reference_value(ref) == 5
 
 
-def test_get_variable_value_success():
-    test_var = MagicMock()
+def test_get_reference_value_3(test_case_mock):
     ctx = ExecutionContext()
-    name = ctx._variable_names.get_name(test_var)
-    ctx._local_namespace[name] = "foo"
-    assert ctx.get_variable_value(test_var) == "foo"
+    var_mock = MagicMock(foo=MagicMock(bar=5))
+    var = vr.VariableReference(test_case_mock, int)
+    ref = vr.FieldReference(
+        vr.FieldReference(var, gao.GenericField(MagicMock, "foo", int)),
+        gao.GenericField(MagicMock, "bar", int),
+    )
+    ctx._local_namespace = {ctx._variable_names.get_name(var): var_mock}
+    assert ctx.get_reference_value(ref) == 5
