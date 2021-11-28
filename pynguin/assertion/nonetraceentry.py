@@ -10,14 +10,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Set
 
 import pynguin.assertion.noneassertion as nas
-import pynguin.assertion.outputtraceentry as ote
+import pynguin.assertion.statetraceentry as ote
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.variablereference as vr
 
 
-class NoneTraceEntry(ote.OutputTraceEntry):
+class NoneTraceEntry(ote.StateTraceEntry):
     """An Entry for none assertions"""
 
     def __init__(self, variable: vr.VariableReference, is_none: bool) -> None:

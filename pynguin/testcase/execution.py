@@ -38,7 +38,7 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.assertion.outputtrace as ot
+    import pynguin.assertion.statetrace as ot
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -207,7 +207,7 @@ class ExecutionResult:
 
     def __init__(self, timeout: bool = False) -> None:
         self._exceptions: Dict[int, Exception] = {}
-        self._output_traces: Dict[Type, ot.OutputTrace] = {}
+        self._output_traces: Dict[Type, ot.StateTrace] = {}
         self._execution_trace: Optional[ExecutionTrace] = None
         self._timeout = timeout
 
@@ -230,8 +230,8 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def output_traces(self) -> Dict[Type, ot.OutputTrace]:
-        """Provides the gathered output traces.
+    def output_traces(self) -> Dict[Type, ot.StateTrace]:
+        """Provides the gathered state traces.
 
         Returns:
             the gathered output traces.
@@ -258,7 +258,7 @@ class ExecutionResult:
         """
         self._execution_trace = trace
 
-    def add_output_trace(self, trace_type: Type, trace: ot.OutputTrace) -> None:
+    def add_output_trace(self, trace_type: Type, trace: ot.StateTrace) -> None:
         """Add the given trace to the recorded output traces.
 
         Args:

@@ -22,6 +22,10 @@ import pynguin.assertion.nonetraceentry as nte
         ("visit_bytes_primitive_statement", 0),
         ("visit_boolean_primitive_statement", 0),
         ("visit_none_statement", 0),
+        ("visit_set_statement", 0),
+        ("visit_list_statement", 0),
+        ("visit_dict_statement", 0),
+        ("visit_tuple_statement", 0),
         ("visit_constructor_statement", 1),
         ("visit_method_statement", 1),
         ("visit_function_statement", 1),
@@ -78,9 +82,7 @@ def test_handle_not_primitive():
     statement = MagicMock()
     statement.get_position.return_value = 42
     visitor.handle(statement)
-    trace.add_entry.assert_called_with(
-        42, variable, nte.NoneTraceEntry(variable, False)
-    )
+    trace.add_entry.assert_called_with(42, nte.NoneTraceEntry(variable, False))
 
 
 def test_handle_not_primitive_none():
@@ -92,4 +94,4 @@ def test_handle_not_primitive_none():
     statement = MagicMock()
     statement.get_position.return_value = 42
     visitor.handle(statement)
-    trace.add_entry.assert_called_with(42, variable, nte.NoneTraceEntry(variable, True))
+    trace.add_entry.assert_called_with(42, nte.NoneTraceEntry(variable, True))
