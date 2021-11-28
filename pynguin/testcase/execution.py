@@ -12,7 +12,6 @@ import contextlib
 import logging
 import multiprocessing
 import os
-import sys
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass, field
@@ -30,6 +29,7 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.utils.moduleloader import ModuleLoader
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -154,8 +154,8 @@ class ExecutionContext:
             A dictionary of module aliases and the corresponding module
         """
         global_namespace: Dict[str, ModuleType] = {}
-        for required_module, alias in modules_aliases:
-            global_namespace[alias] = sys.modules[required_module]
+        for required_module, module_name in modules_aliases:
+            global_namespace[module_name] = ModuleLoader.load_module(required_module)
         return global_namespace
 
 
