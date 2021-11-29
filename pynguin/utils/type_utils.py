@@ -214,6 +214,34 @@ def is_enum(value: Any) -> bool:
     return issubclass(value, enum.Enum)
 
 
+def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
+    """Check if we can generate an assertion with the given object as comparison value.
+
+    Args:
+        obj: The object to check for assertability.
+        recursion_depth: Avoid endless recursion for nested structures.
+
+    Returns:
+        True, if we can assert on the given value.
+    """
+    if recursion_depth > 4:
+        # Object is possibly nested to deep to make a sensible assertion on.
+        return False
+
+    tp_ = type(obj)
+    if is_enum(tp_) or is_primitive_type(tp_):
+        return True
+    if is_set(obj) or is_list(obj) or is_tuple(obj):
+        return all(is_assertable(elem, recursion_depth + 1) for elem in obj)
+    if is_dict(obj):
+        return all(
+            is_assertable(key, recursion_depth + 1)
+            and is_assertable(value, recursion_depth + 1)
+            for key, value in obj.items()
+        )
+    return False
+
+
 def get_class_that_defined_method(method: object) -> Optional[object]:
     """Retrieves the class that defines a method.
 
