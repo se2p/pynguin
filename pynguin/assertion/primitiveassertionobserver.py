@@ -15,12 +15,12 @@ import pynguin.testcase.statement as st
 from pynguin.utils.type_utils import is_primitive_type
 
 if TYPE_CHECKING:
-    import pynguin.assertion.outputtrace as ot
+    import pynguin.assertion.statetrace as ot
     import pynguin.testcase.execution as ex
     import pynguin.testcase.variablereference as vr
 
 
-class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]):
+class PrimitiveTraceObserver(ato.AssertionTraceObserver):
     """An observer that creates assertions on primitive values."""
 
     def before_statement_execution(
@@ -58,7 +58,7 @@ class PrimitiveAssertionVisitor(st.StatementVisitor):
         self,
         exec_ctx: ex.ExecutionContext,
         variable: vr.VariableReference,
-        trace: ot.OutputTrace[pte.PrimitiveTraceEntry],
+        trace: ot.StateTrace,
     ):
         self._exec_ctx = exec_ctx
         self._variable = variable
@@ -125,6 +125,5 @@ class PrimitiveAssertionVisitor(st.StatementVisitor):
         if is_primitive_type(type(value)):
             self._trace.add_entry(
                 statement.get_position(),
-                self._variable,
                 pte.PrimitiveTraceEntry(self._variable, value),
             )

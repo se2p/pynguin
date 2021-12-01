@@ -7,29 +7,29 @@
 """Provides an abstract observer that can be used to generate assertions."""
 
 from abc import ABC
-from typing import Generic, TypeVar
+from typing import TypeVar
 
-import pynguin.assertion.outputtrace as ot
-import pynguin.assertion.outputtraceentry as ote
+import pynguin.assertion.statetrace as ot
+import pynguin.assertion.statetraceentry as ote
 import pynguin.testcase.execution as ex
 import pynguin.testcase.testcase as tc
 
 # pylint:disable=invalid-name
-T = TypeVar("T", bound=ote.OutputTraceEntry)
+T = TypeVar("T", bound=ote.StateTraceEntry)
 
 
-class AssertionTraceObserver(Generic[T], ex.ExecutionObserver, ABC):
+class AssertionTraceObserver(ex.ExecutionObserver, ABC):
     """Abstract base class for assertion observers.
     Observes the execution of a test case and generates assertions from it."""
 
     def __init__(self) -> None:
-        self._trace: ot.OutputTrace[T] = ot.OutputTrace()
+        self._trace: ot.StateTrace = ot.StateTrace()
 
     def clear(self) -> None:
         """Clear the existing gathered trace."""
         self._trace.clear()
 
-    def get_trace(self) -> ot.OutputTrace[T]:
+    def get_trace(self) -> ot.StateTrace:
         """Get a copy of the gathered trace.
 
         Returns:
