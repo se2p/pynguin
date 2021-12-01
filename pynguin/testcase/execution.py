@@ -12,9 +12,11 @@ import contextlib
 import logging
 import multiprocessing
 import os
+import sys
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from importlib import reload
 from math import inf
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
@@ -29,7 +31,6 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.utils.moduleloader import ModuleLoader
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -49,8 +50,13 @@ class ExecutionContext:
     e.g. the used variables, modules and
     the AST representation of the statements that should be executed."""
 
-    def __init__(self) -> None:
-        """Create new execution context."""
+    def __init__(self, module_provider: ModuleProvider) -> None:
+        """Create a new execution context.
+
+        Args:
+            module_provider: The used module provider
+        """
+        self._module_provider = module_provider
         self._local_namespace: Dict[str, Any] = {}
         self._variable_names = ns.NamingScope()
         self._modules_aliases = ns.NamingScope(prefix="module")
@@ -113,7 +119,7 @@ class ExecutionContext:
         if modules_before != len(self._modules_aliases):
             # new module added
             # TODO(fk) cleaner solution?
-            self._global_namespace = ExecutionContext._create_global_namespace(
+            self._global_namespace = self._create_global_namespace(
                 self._modules_aliases
             )
         assert (
@@ -134,8 +140,8 @@ class ExecutionContext:
         ast.fix_missing_locations(node)
         return ast.Module(body=[node], type_ignores=[])
 
-    @staticmethod
     def _create_global_namespace(
+        self,
         modules_aliases: ns.NamingScope,
     ) -> Dict[str, ModuleType]:
         """Provides the required modules under the given aliases.
@@ -148,7 +154,9 @@ class ExecutionContext:
         """
         global_namespace: Dict[str, ModuleType] = {}
         for required_module, module_name in modules_aliases:
-            global_namespace[module_name] = ModuleLoader.load_module(required_module)
+            global_namespace[module_name] = self._module_provider.get_module(
+                required_module
+            )
         return global_namespace
 
 
@@ -840,19 +848,83 @@ def _isn(val1, val2) -> float:
     return 1.0
 
 
+class ModuleProvider:
+    """Class for providing modules."""
+
+    def __init__(self):
+        self._mutated_module_aliases: Dict[str, ModuleType] = {}
+
+    def get_module(self, module_name: str) -> ModuleType:
+        """
+        Provides a module either from sys.modules or if a mutated version for the given
+        module name exists than the mutated version of the module will be returned.
+
+        Args:
+            module_name: string for the module alias, which should be loaded
+
+        Returns:
+            the module which should be loaded.
+        """
+        if (
+            mutated_module := self._mutated_module_aliases.get(module_name, None)
+        ) is not None:
+            return mutated_module
+        return sys.modules[module_name]
+
+    def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
+        """
+        Adds a mutated version of a module to the collection of mutated alias of
+        normal modules.
+
+        Args:
+            module_name: for the module name of the module, which should be mutated.
+            mutated_module: the custom module, which should be used.
+        """
+        self._mutated_module_aliases[module_name] = mutated_module
+
+    def clear_mutated_modules(self):
+        """Clear the existing aliases."""
+        self._mutated_module_aliases.clear()
+
+    @staticmethod
+    def reload_module(module_name: str) -> None:
+        """
+        Reloads the given module.
+
+        Args:
+            module_name: the module to reload.
+        """
+        reload(sys.modules[module_name])
+
+
 class TestCaseExecutor:
     """An executor that executes the generated test cases."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(
+        self, tracer: ExecutionTracer, module_provider: Optional[ModuleProvider] = None
+    ) -> None:
         """Create new test case executor.
 
         Args:
             tracer: the execution tracer
+            module_provider: The used module provider
         """
+        self._module_provider = (
+            module_provider if module_provider is not None else ModuleProvider()
+        )
         self._tracer = tracer
         self._observers: List[ExecutionObserver] = []
+
+    @property
+    def module_provider(self) -> ModuleProvider:
+        """The module provider used by this executor.
+
+        Returns:
+            The used module provider
+        """
+        return self._module_provider
 
     def add_observer(self, observer: ExecutionObserver) -> None:
         """Add an execution observer.
@@ -914,7 +986,7 @@ class TestCaseExecutor:
         result_queue: multiprocessing.Queue,
     ) -> None:
         result = ExecutionResult()
-        exec_ctx = ExecutionContext()
+        exec_ctx = ExecutionContext(self._module_provider)
         self.tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
