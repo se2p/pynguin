@@ -112,7 +112,7 @@ class BranchCoverageInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(self, tracer: BranchExecutionTracer) -> None:
         self._tracer = tracer
 
     def _instrument_inner_code_objects(
@@ -442,9 +442,9 @@ class BranchCoverageInstrumentation(Instrumentation):
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         for const in module_code.co_consts:
-            if isinstance(const, ExecutionTracer):
+            if isinstance(const, BranchExecutionTracer):
                 # Abort instrumentation, since we have already
-                # instrumented this code object.
+                # instrumented this code object for branch coverage.
                 assert False, "Tried to instrument already instrumented module."
         return self._instrument_code_recursive(module_code)
 
@@ -565,11 +565,13 @@ class StatementCoverageInstrumentation(Instrumentation):
     def _instrument_code_recursive(
         self,
         code: CodeType,
+        parent_code_object_id: Optional[int] = None,
     ) -> CodeType:
         """Instrument the given Code Object recursively.
 
         Args:
             code: The code object that should be instrumented
+            parent_code_object_id: The ID of the optional parent code object
 
         Returns:
             The instrumented code object
@@ -578,27 +580,46 @@ class StatementCoverageInstrumentation(Instrumentation):
             "Instrumenting Code Object for statement coverage for %s", code.co_name
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
+        cdg = ControlDependenceGraph.compute(cfg)
 
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
-        self._instrument_cfg(cfg)
+        code_object_id = self._tracer.register_code_object(
+            CodeObjectMetaData(
+                code_object=code,
+                parent_code_object_id=parent_code_object_id,
+                cfg=cfg,
+                cdg=cdg,
+            )
+        )
+
+        self._instrument_cfg(cfg, code_object_id, code.co_filename)
         return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
 
-    def _instrument_cfg(self, cfg: CFG) -> None:
+    def _instrument_cfg(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        file_name: str
+    ) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:
             cfg: The CFG that overlays the bytecode cfg.
+            code_object_id: The id of the code object which contains this CFG.
+            file_name: The file that produced the code object of this CFG.
         """
         # Attributes which store the predicate ids assigned to instrumented nodes.
         for node in cfg.nodes:
-            self._instrument_node(node)
+            self._instrument_node(node, code_object_id, file_name)
 
     def _instrument_node(
         self,
         node: ProgramGraphNode,
+        code_object_id: int,
+        file_name: str
     ) -> None:
         """Instrument a single node in the CFG.
 
@@ -607,43 +628,70 @@ class StatementCoverageInstrumentation(Instrumentation):
 
         Args:
             node: The node that should be instrumented.
+            code_object_id: The id of the code object which contains this node.
+            file_name: The file that produced the code object of this node.
         """
         if node.basic_block and not node.is_artificial:
-            # TODO determine a unique id of the basic block by registering the
-            #  current code object globally, file_name needs to be given as
-            #  argument from the outside (not sure if needed)
-            block: BasicBlock = node.basic_block
             # in this case the node holds instructions
-            # Use line number of first instruction
-            lineno = block[0].lineno
-            file_name = ""  # filename info not available here
+            block: BasicBlock = node.basic_block
 
-            self.instrument_statement(block, file_name, lineno)
+            # always trace first line with code
+            lineno = -1
 
-    def instrument_statement(self, block, file_name, lineno):
+            instr_index = 0
+            while instr_index < len(block):
+                #  iterate over statements after the fist one in BB,
+                #  always trace new line when lineno attribute changes
+                #  by putting a new instruction in the block
+                if block[instr_index].lineno != lineno:
+                    lineno = block[instr_index].lineno
+                    self.instrument_statement(block, code_object_id, instr_index, file_name, lineno)
+                    instr_index += 1
+                instr_index += 1
+
+    def instrument_statement(
+        self,
+        block: BasicBlock,
+        code_object_id: int,  # TODO track the code_object_id, in case file name is not unique/absolute?
+        instr_index: int,
+        file_name: str,
+        lineno: int
+    ) -> None:
+        """ Instrument instructions of a new line.
+
+        We add a call to the tracer which reports a line was executed.
+
+        Args:
+            block: The basic block containing the instrumented statement.
+            code_object_id: The id of the code object which contains this block.
+            instr_index: the index of the instr
+            file_name: The file that produced the code object of this block.
+            lineno: The line number of the instrumented statement.
+        """
 
         # track that a statement exists
-        # TODO call when line change detected
-        #  idea: iterate over statements in BB, always trace new line when
-        #  lineno attribute changes
         self._tracer.track_statement(lineno, file_name)
 
-        # TODO check if it is a false modification and brakes the instructions
         # Insert instructions at the beginning.
-        block[0:0] = [
+        block[instr_index:instr_index] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                StatementExecutionTracer.track_statement_visit.__name__,
+                self._tracer.track_statement_visit.__name__,
                 lineno=lineno,
             ),
             Instr("LOAD_CONST", lineno, lineno=lineno),
             Instr("LOAD_CONST", file_name, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
+        for const in module_code.co_consts:
+            if isinstance(const, StatementExecutionTracer):
+                # Abort instrumentation, since we have already
+                # instrumented this code object for statement coverage.
+                assert False, "Tried to instrument already instrumented module."
         return self._instrument_code_recursive(module_code)
 
 

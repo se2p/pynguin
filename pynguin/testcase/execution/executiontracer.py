@@ -89,6 +89,44 @@ class KnownData:
     )
 
 
+@dataclasses.dataclass
+class FileStatementData:
+    """Tracks information about statements inside one file."""
+
+    # name of the file of the module that is being tracked
+    file_name: str
+
+    # the visited statements and the number of times they were visited
+    visited_statements: Dict[int, int] = dataclasses.field(
+        default_factory=dict
+    )
+
+    # overall available statements of a file
+    statements: OrderedSet[int] = dataclasses.field(
+        default_factory=OrderedSet
+    )
+
+    def visit_statement(self, line_number: int) -> None:
+        """Increment the visits of an already visited statement or add a number to the visited
+        statements with its first visit already being counted.
+
+        Args:
+            line_number: The line number of the visited statement.
+        """
+        if line_number in self.visited_statements:
+            self.visited_statements[line_number] += 1
+        else:
+            self.visited_statements[line_number] = 1
+
+    def track_statement(self, line_number: int) -> None:
+        """Add a statement in a line number to the tracked lines
+
+        Args:
+            line_number: The tracked line number of an executed statement.
+        """
+        self.statements.add(line_number)
+
+
 class ExecutionTracer:
     def __init__(self) -> None:
         self._known_data = KnownData()
@@ -216,60 +254,6 @@ class ExecutionTracer:
         ), "Cannot trace unknown code object"
         self._trace.executed_code_objects.add(code_object_id)
 
-    def register_predicate(self, meta: PredicateMetaData) -> int:
-        """Declare that a predicate exists.
-
-        Args:
-            meta: Meta data about the predicates
-
-        Returns:
-            the id of the predicate, which can be used to identify the predicate
-            during instrumentation.
-        """
-        predicate_id = len(self._known_data.existing_predicates)
-        self._known_data.existing_predicates[predicate_id] = meta
-        self._known_data.branch_less_code_objects.discard(meta.code_object_id)
-        return predicate_id
-
-
-class FileTracker:
-    """Tracks information about statements inside one file."""
-
-    def __init__(self, file_name: str) -> None:
-        self._file_name = file_name
-        self._visited_statements = dict()
-        self._statements = set()
-
-    @property
-    def get_visited_statements(self) -> dict:
-        """Get the visited statements and the number of times they were visited."""
-        return self._visited_statements
-
-    @property
-    def get_statements(self) -> set:
-        """Get the statements of a file."""
-        return self._statements
-
-    def visit_statement(self, line_number: int) -> None:
-        """Increment the visits of an already visited statement or add a number to the visited
-        statements with its first visit already being counted.
-
-        Args:
-            line_number: The line number of the visited statement.
-        """
-        if line_number in self._visited_statements:
-            self._visited_statements[line_number] += 1
-        else:
-            self._visited_statements[line_number] = 1
-
-    def track_statement(self, line_number: int) -> None:
-        """Add a statement in a line number to the tracked lines
-
-        Args:
-            line_number: The tracked line number of an executed statement.
-        """
-        self._statements.add(line_number)
-
 
 class StatementExecutionTracer(ExecutionTracer):
     """Tracks executed statements during execution.
@@ -289,7 +273,7 @@ class StatementExecutionTracer(ExecutionTracer):
             file_name: The file in which the statement is
         """
         if file_name not in self._file_trackers:
-            self._file_trackers[file_name] = FileTracker(file_name)
+            self._file_trackers[file_name] = FileStatementData(file_name)
         self._file_trackers[file_name].visit_statement(line_number)
 
     def track_statement(self, line_number: int, file_name: str) -> None:
@@ -300,7 +284,7 @@ class StatementExecutionTracer(ExecutionTracer):
             file_name: The file in which the statement is
         """
         if file_name not in self._file_trackers:
-            self._file_trackers[file_name] = FileTracker(file_name)
+            self._file_trackers[file_name] = FileStatementData(file_name)
         self._file_trackers[file_name].track_statement(line_number)
 
     def __repr__(self) -> str:
@@ -359,6 +343,21 @@ class BranchExecutionTracer(ExecutionTracer):
             _is(val1, val2),
         ),
     }
+
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        """Declare that a predicate exists.
+
+        Args:
+            meta: Meta data about the predicates
+
+        Returns:
+            the id of the predicate, which can be used to identify the predicate
+            during instrumentation.
+        """
+        predicate_id = len(self._known_data.existing_predicates)
+        self._known_data.existing_predicates[predicate_id] = meta
+        self._known_data.branch_less_code_objects.discard(meta.code_object_id)
+        return predicate_id
 
     def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: Compare
@@ -609,3 +608,7 @@ def _isn(val1, val2) -> float:
     if val1 is not val2:
         return 0.0
     return 1.0
+
+
+# TODO really only initialise one tracer globally here?
+statement_execution_tracer = StatementExecutionTracer()

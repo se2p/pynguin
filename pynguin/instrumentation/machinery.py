@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, List, cast
 
 import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
+from pynguin.testcase.execution.executiontracer import statement_execution_tracer
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -28,16 +29,13 @@ from pynguin.instrumentation.instrumentation import (
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import Instrumentation
-    from pynguin.testcase.execution.executiontracer import (
-        ExecutionTracer,
-        StatementExecutionTracer
-    )
+    from pynguin.testcase.execution.executiontracer import BranchExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
-    def __init__(self, fullname, path, tracer: ExecutionTracer):
+    def __init__(self, fullname, path, tracer: BranchExecutionTracer):
         super().__init__(fullname, path)
         self._tracer = tracer
 
@@ -68,8 +66,7 @@ class InstrumentationLoader(SourceFileLoader):
 
         if config.configuration.statistics_output.statement_coverage:
             instrumentations.append(
-                # TODO how to handle  initialisation of StatementExecutionTracer
-                StatementCoverageInstrumentation(StatementExecutionTracer())
+                StatementCoverageInstrumentation(statement_execution_tracer)
             )
 
         for instrumentation in instrumentations:
@@ -87,7 +84,7 @@ class InstrumentationFinder(MetaPathFinder):
     _logger = logging.getLogger(__name__)
 
     def __init__(
-        self, original_pathfinder, module_to_instrument: str, tracer: ExecutionTracer
+        self, original_pathfinder, module_to_instrument: str, tracer: BranchExecutionTracer
     ) -> None:
         """Wraps the given path finder.
 
@@ -156,7 +153,7 @@ class ImportHookContextManager:
 
 
 def install_import_hook(
-    module_to_instrument: str, tracer: ExecutionTracer
+    module_to_instrument: str, tracer: BranchExecutionTracer
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
 
