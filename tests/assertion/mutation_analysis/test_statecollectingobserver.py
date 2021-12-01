@@ -11,7 +11,7 @@ import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.assertion.mutation_analysis.statecollectingobserver as sco
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
-from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext, ModuleProvider
 from pynguin.testcase.statement import ConstructorStatement, Statement
 
 
@@ -35,7 +35,7 @@ def test_after_test_case_execution():
 @mock.patch.object(ExecutionContext, "get_reference_value", return_value=MagicMock())
 def test_after_statement_execution(exec_ctx_mock):
     observer = FooObserver(MagicMock())
-    exec_ctx = ExecutionContext()
+    exec_ctx = ExecutionContext(ModuleProvider())
     exec_ctx._local_namespace = {"foo": "bar"}
     with mock.patch.object(observer._storage, "collect") as cs_mock:
         observer.after_statement_execution(
@@ -56,7 +56,7 @@ def test_after_statement_execution_exception(cs_mock):
 @mock.patch.object(ExecutionContext, "get_reference_value", return_value=MagicMock())
 def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
     observer = FooObserver(MagicMock())
-    exec_ctx = ExecutionContext()
+    exec_ctx = ExecutionContext(ModuleProvider())
     exec_ctx._local_namespace = {"foo": "bar"}
     observer.after_statement_execution(
         ConstructorStatement(MagicMock(spec=dtc.DefaultTestCase), MagicMock()),

@@ -10,11 +10,11 @@ import pytest
 
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext, ModuleProvider
 
 
 def test_get_reference_value():
-    ctx = ExecutionContext()
+    ctx = ExecutionContext(ModuleProvider())
     ref = vr.StaticModuleFieldReference(
         gao.GenericStaticModuleField("sys", "modules", dict)
     )
@@ -23,7 +23,7 @@ def test_get_reference_value():
 
 
 def test_get_reference_value_2():
-    ctx = ExecutionContext()
+    ctx = ExecutionContext(ModuleProvider())
     module_mock = MagicMock(foo=MagicMock(bar=5))
     ref = vr.FieldReference(
         vr.StaticModuleFieldReference(gao.GenericStaticModuleField("sys", "foo", int)),
@@ -34,7 +34,7 @@ def test_get_reference_value_2():
 
 
 def test_get_reference_value_3(test_case_mock):
-    ctx = ExecutionContext()
+    ctx = ExecutionContext(ModuleProvider())
     var_mock = MagicMock(foo=MagicMock(bar=5))
     var = vr.VariableReference(test_case_mock, int)
     ref = vr.FieldReference(
