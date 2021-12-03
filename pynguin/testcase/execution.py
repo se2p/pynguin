@@ -12,12 +12,14 @@ import contextlib
 import logging
 import multiprocessing
 import os
+import queue
 import sys
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
+from queue import Empty
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
@@ -953,6 +955,9 @@ class TestCaseExecutor:
         Args:
             test_case: the test case that should be executed.
 
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
         Returns:
             Result of the execution
         """
@@ -960,18 +965,21 @@ class TestCaseExecutor:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
-                return_queue: multiprocessing.Queue = multiprocessing.Queue()
+                return_queue: queue.Queue = queue.Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case, args=(test_case, return_queue)
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))
-                if not thread.is_alive():
-                    result = return_queue.get()
-                else:
+                if thread.is_alive():
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
-                return_queue.close()
+                else:
+                    try:
+                        result = return_queue.get(block=False)
+                    except Empty as ex:
+                        self._logger.error("Finished thread did not return a result.")
+                        raise RuntimeError("Bug in Pynguin!") from ex
                 self._after_test_case_execution(test_case, result)
         return result
 
