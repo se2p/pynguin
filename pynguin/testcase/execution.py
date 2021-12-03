@@ -1021,6 +1021,12 @@ class TestCaseExecutor:
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ) -> None:
+        # Check if the current thread is still the one that should be executing
+        # Otherwise raise an exception to kill it.
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
@@ -1055,7 +1061,11 @@ class TestCaseExecutor:
         exec_ctx: ExecutionContext,
         exception: Optional[Exception],
     ):
-        # See _before_statement_execution
+        # See comments in _before_statement_execution
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         self._tracer.disable()
         try:
             for observer in self._observers:
