@@ -10,16 +10,14 @@ from __future__ import annotations
 import ast
 import contextlib
 import logging
-import multiprocessing
 import os
-import queue
 import sys
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
-from queue import Empty
+from queue import Empty, Queue
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
@@ -965,7 +963,7 @@ class TestCaseExecutor:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
-                return_queue: queue.Queue = queue.Queue()
+                return_queue: Queue = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case, args=(test_case, return_queue)
                 )
@@ -991,7 +989,7 @@ class TestCaseExecutor:
     def _execute_test_case(
         self,
         test_case: tc.TestCase,
-        result_queue: multiprocessing.Queue,
+        result_queue: Queue,
     ) -> None:
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
