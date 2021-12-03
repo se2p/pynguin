@@ -10,7 +10,6 @@ from __future__ import annotations
 import ast
 import contextlib
 import logging
-import multiprocessing
 import os
 import sys
 import threading
@@ -18,6 +17,7 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
+from queue import Empty, Queue
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
@@ -953,6 +953,9 @@ class TestCaseExecutor:
         Args:
             test_case: the test case that should be executed.
 
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
         Returns:
             Result of the execution
         """
@@ -960,18 +963,21 @@ class TestCaseExecutor:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
-                return_queue: multiprocessing.Queue = multiprocessing.Queue()
+                return_queue: Queue = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case, args=(test_case, return_queue)
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))
-                if not thread.is_alive():
-                    result = return_queue.get()
-                else:
+                if thread.is_alive():
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
-                return_queue.close()
+                else:
+                    try:
+                        result = return_queue.get(block=False)
+                    except Empty as ex:
+                        self._logger.error("Finished thread did not return a result.")
+                        raise RuntimeError("Bug in Pynguin!") from ex
                 self._after_test_case_execution(test_case, result)
         return result
 
@@ -983,7 +989,7 @@ class TestCaseExecutor:
     def _execute_test_case(
         self,
         test_case: tc.TestCase,
-        result_queue: multiprocessing.Queue,
+        result_queue: Queue,
     ) -> None:
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
@@ -1013,6 +1019,12 @@ class TestCaseExecutor:
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ) -> None:
+        # Check if the current thread is still the one that should be executing
+        # Otherwise raise an exception to kill it.
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
@@ -1047,7 +1059,11 @@ class TestCaseExecutor:
         exec_ctx: ExecutionContext,
         exception: Optional[Exception],
     ):
-        # See _before_statement_execution
+        # See comments in _before_statement_execution
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         self._tracer.disable()
         try:
             for observer in self._observers:
