@@ -215,7 +215,12 @@ def is_enum(value: Any) -> bool:
 
 
 def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
-    """Check if we can generate an assertion with the given object as comparison value.
+    """Check if we can generate an assertion with the given object as an
+    exact comparison value.
+
+    Primitives (except float) are assertable.
+    List, sets, dicts and tuples comprised only of assertable objects are also
+    assertable.
 
     Args:
         obj: The object to check for assertability.
@@ -226,6 +231,9 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
     """
     if recursion_depth > 4:
         # Object is possibly nested to deep to make a sensible assertion on.
+        return False
+    if isinstance(obj, float):
+        # Creating exact assertions on float values is usually not desirable.
         return False
 
     tp_ = type(obj)

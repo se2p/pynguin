@@ -271,6 +271,8 @@ def test_given_exception_matches(exception, ex_match, result):
         ([], True),
         ("foobar", True),
         (["a", "b", ["a", "b", MagicMock()]], False),
+        (1.5, False),
+        ([1, 1.5], False),
     ],
 )
 def test_is_assertable(value, result):
