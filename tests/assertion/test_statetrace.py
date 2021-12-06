@@ -6,70 +6,62 @@
 #
 from unittest.mock import MagicMock
 
-import pynguin.assertion.outputtrace as ot
+import pynguin.assertion.statetrace as ot
 
 
 def test_empty():
-    trace = ot.OutputTrace()
+    trace = ot.StateTrace()
     assert trace._trace == {}
 
 
 def test_add_entry():
-    trace = ot.OutputTrace()
+    trace = ot.StateTrace()
     variable = MagicMock()
     variable.get_statement_position.return_value = 42
     entry = MagicMock()
-    trace.add_entry(1337, variable, entry)
-    assert trace._trace == {1337: {42: entry}}
+    trace.add_entry(1337, entry)
+    assert trace._trace == {1337: {entry}}
 
 
 def test_add_entry_same_position():
-    trace = ot.OutputTrace()
-    variable = MagicMock()
-    variable.get_statement_position.return_value = 42
+    trace = ot.StateTrace()
     entry = MagicMock()
-    trace.add_entry(1337, variable, entry)
-    trace.add_entry(1337, variable, entry)
-    assert trace._trace == {1337: {42: entry}}
+    trace.add_entry(1337, entry)
+    trace.add_entry(1337, entry)
+    assert trace._trace == {1337: {entry}}
 
 
 def test_clear():
-    trace = ot.OutputTrace()
-    variable = MagicMock()
-    variable.get_statement_position.return_value = 42
+    trace = ot.StateTrace()
     entry = MagicMock()
-    trace.add_entry(1337, variable, entry)
+    trace.add_entry(1337, entry)
     trace.clear()
     assert trace._trace == {}
 
 
 def test_clone():
-    trace = ot.OutputTrace()
-    variable = MagicMock()
-    variable.get_statement_position.return_value = 42
+    trace = ot.StateTrace()
     entry = MagicMock()
     cloned_entry = MagicMock()
     entry.clone.return_value = cloned_entry
-    trace.add_entry(1337, variable, entry)
+    trace.add_entry(1337, entry)
     clone = trace.clone()
-    assert clone._trace == {1337: {42: cloned_entry}}
+    assert clone._trace == {1337: {cloned_entry}}
 
 
 def test_get_assertions_empty():
     statement = MagicMock()
     statement.get_position.return_value = 3
-    trace = ot.OutputTrace()
+    trace = ot.StateTrace()
     assert trace.get_assertions(statement) == set()
 
 
 def test_get_assertions():
-    trace = ot.OutputTrace()
-    variable = MagicMock()
-    variable.get_statement_position.return_value = 42
+    trace = ot.StateTrace()
     entry = MagicMock()
     assertion = MagicMock()
     entry.get_assertions.return_value = {assertion}
-    trace.add_entry(3, variable, entry)
+    trace.add_entry(3, entry)
     statement = MagicMock()
     statement.get_position.return_value = 3
     assert trace.get_assertions(statement) == {assertion}

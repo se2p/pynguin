@@ -10,12 +10,14 @@ from __future__ import annotations
 import ast
 import contextlib
 import logging
-import multiprocessing
 import os
+import sys
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from importlib import reload
 from math import inf
+from queue import Empty, Queue
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
@@ -29,7 +31,6 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.utils.moduleloader import ModuleLoader
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -38,7 +39,7 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.assertion.outputtrace as ot
+    import pynguin.assertion.statetrace as ot
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -49,8 +50,13 @@ class ExecutionContext:
     e.g. the used variables, modules and
     the AST representation of the statements that should be executed."""
 
-    def __init__(self) -> None:
-        """Create new execution context."""
+    def __init__(self, module_provider: ModuleProvider) -> None:
+        """Create a new execution context.
+
+        Args:
+            module_provider: The used module provider
+        """
+        self._module_provider = module_provider
         self._local_namespace: Dict[str, Any] = {}
         self._variable_names = ns.NamingScope()
         self._modules_aliases = ns.NamingScope(prefix="module")
@@ -65,24 +71,31 @@ class ExecutionContext:
         """
         return self._local_namespace
 
-    def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
-        """Returns the value that is assigned to the given variable in the local
-        namespace.
+    def get_reference_value(self, reference: vr.Reference) -> Any:
+        """Resolve the given reference in this execution context.
 
         Args:
-            variable: the variable whose value we want
-
-        Returns:
-            the assigned value.
+            reference: The reference to resolve.
 
         Raises:
-            ValueError: if the requested variable has no assigned value in this context.
+            ValueError: If the root of the reference can not be resolved.
+
+        Returns:
+            The value that is resolved.
         """
-        if self._variable_names.is_known_name(variable):
-            name = self._variable_names.get_name(variable)
-            if name in self._local_namespace:
-                return self._local_namespace.get(name)
-        raise ValueError("Variable is not defined in this context")
+        root, *attrs = reference.get_names(self._variable_names, self._modules_aliases)
+        if root in self._local_namespace:
+            # Check local namespace first
+            res = self._local_namespace[root]
+        elif root in self._global_namespace:
+            # Check global namespace after
+            res = self._global_namespace[root]
+        else:
+            # Root name is not defined?
+            raise ValueError("Root not found in this context")
+        for attr in attrs:
+            res = getattr(res, attr)
+        return res
 
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:
@@ -113,7 +126,7 @@ class ExecutionContext:
         if modules_before != len(self._modules_aliases):
             # new module added
             # TODO(fk) cleaner solution?
-            self._global_namespace = ExecutionContext._create_global_namespace(
+            self._global_namespace = self._create_global_namespace(
                 self._modules_aliases
             )
         assert (
@@ -134,8 +147,8 @@ class ExecutionContext:
         ast.fix_missing_locations(node)
         return ast.Module(body=[node], type_ignores=[])
 
-    @staticmethod
     def _create_global_namespace(
+        self,
         modules_aliases: ns.NamingScope,
     ) -> Dict[str, ModuleType]:
         """Provides the required modules under the given aliases.
@@ -148,7 +161,9 @@ class ExecutionContext:
         """
         global_namespace: Dict[str, ModuleType] = {}
         for required_module, module_name in modules_aliases:
-            global_namespace[module_name] = ModuleLoader.load_module(required_module)
+            global_namespace[module_name] = self._module_provider.get_module(
+                required_module
+            )
         return global_namespace
 
 
@@ -207,7 +222,7 @@ class ExecutionResult:
 
     def __init__(self, timeout: bool = False) -> None:
         self._exceptions: Dict[int, Exception] = {}
-        self._output_traces: Dict[Type, ot.OutputTrace] = {}
+        self._output_traces: Dict[Type, ot.StateTrace] = {}
         self._execution_trace: Optional[ExecutionTrace] = None
         self._timeout = timeout
 
@@ -230,8 +245,8 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def output_traces(self) -> Dict[Type, ot.OutputTrace]:
-        """Provides the gathered output traces.
+    def output_traces(self) -> Dict[Type, ot.StateTrace]:
+        """Provides the gathered state traces.
 
         Returns:
             the gathered output traces.
@@ -258,7 +273,7 @@ class ExecutionResult:
         """
         self._execution_trace = trace
 
-    def add_output_trace(self, trace_type: Type, trace: ot.OutputTrace) -> None:
+    def add_output_trace(self, trace_type: Type, trace: ot.StateTrace) -> None:
         """Add the given trace to the recorded output traces.
 
         Args:
@@ -788,8 +803,8 @@ def _in(val1, val2) -> float:
     if val1 in val2:
         return 0.0
     # TODO(fk) maybe limit this to certain collections?
-    # Check only if collection size is within some range,
-    # otherwise the check might take very long.
+    #  Check only if collection size is within some range,
+    #  otherwise the check might take very long.
 
     # Use smallest distance to any element.
     return min([_eq(val1, v) for v in val2] + [inf])
@@ -840,19 +855,83 @@ def _isn(val1, val2) -> float:
     return 1.0
 
 
+class ModuleProvider:
+    """Class for providing modules."""
+
+    def __init__(self):
+        self._mutated_module_aliases: Dict[str, ModuleType] = {}
+
+    def get_module(self, module_name: str) -> ModuleType:
+        """
+        Provides a module either from sys.modules or if a mutated version for the given
+        module name exists than the mutated version of the module will be returned.
+
+        Args:
+            module_name: string for the module alias, which should be loaded
+
+        Returns:
+            the module which should be loaded.
+        """
+        if (
+            mutated_module := self._mutated_module_aliases.get(module_name, None)
+        ) is not None:
+            return mutated_module
+        return sys.modules[module_name]
+
+    def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
+        """
+        Adds a mutated version of a module to the collection of mutated alias of
+        normal modules.
+
+        Args:
+            module_name: for the module name of the module, which should be mutated.
+            mutated_module: the custom module, which should be used.
+        """
+        self._mutated_module_aliases[module_name] = mutated_module
+
+    def clear_mutated_modules(self):
+        """Clear the existing aliases."""
+        self._mutated_module_aliases.clear()
+
+    @staticmethod
+    def reload_module(module_name: str) -> None:
+        """
+        Reloads the given module.
+
+        Args:
+            module_name: the module to reload.
+        """
+        reload(sys.modules[module_name])
+
+
 class TestCaseExecutor:
     """An executor that executes the generated test cases."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(
+        self, tracer: ExecutionTracer, module_provider: Optional[ModuleProvider] = None
+    ) -> None:
         """Create new test case executor.
 
         Args:
             tracer: the execution tracer
+            module_provider: The used module provider
         """
+        self._module_provider = (
+            module_provider if module_provider is not None else ModuleProvider()
+        )
         self._tracer = tracer
         self._observers: List[ExecutionObserver] = []
+
+    @property
+    def module_provider(self) -> ModuleProvider:
+        """The module provider used by this executor.
+
+        Returns:
+            The used module provider
+        """
+        return self._module_provider
 
     def add_observer(self, observer: ExecutionObserver) -> None:
         """Add an execution observer.
@@ -881,6 +960,9 @@ class TestCaseExecutor:
         Args:
             test_case: the test case that should be executed.
 
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
         Returns:
             Result of the execution
         """
@@ -888,18 +970,21 @@ class TestCaseExecutor:
         with open(os.devnull, mode="w") as null_file:
             with contextlib.redirect_stdout(null_file):
                 self._before_test_case_execution(test_case)
-                return_queue: multiprocessing.Queue = multiprocessing.Queue()
+                return_queue: Queue = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case, args=(test_case, return_queue)
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))
-                if not thread.is_alive():
-                    result = return_queue.get()
-                else:
+                if thread.is_alive():
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
-                return_queue.close()
+                else:
+                    try:
+                        result = return_queue.get(block=False)
+                    except Empty as ex:
+                        self._logger.error("Finished thread did not return a result.")
+                        raise RuntimeError("Bug in Pynguin!") from ex
                 self._after_test_case_execution(test_case, result)
         return result
 
@@ -911,10 +996,10 @@ class TestCaseExecutor:
     def _execute_test_case(
         self,
         test_case: tc.TestCase,
-        result_queue: multiprocessing.Queue,
+        result_queue: Queue,
     ) -> None:
         result = ExecutionResult()
-        exec_ctx = ExecutionContext()
+        exec_ctx = ExecutionContext(self._module_provider)
         self.tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
@@ -941,6 +1026,12 @@ class TestCaseExecutor:
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
     ) -> None:
+        # Check if the current thread is still the one that should be executing
+        # Otherwise raise an exception to kill it.
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
@@ -975,7 +1066,11 @@ class TestCaseExecutor:
         exec_ctx: ExecutionContext,
         exception: Optional[Exception],
     ):
-        # See _before_statement_execution
+        # See comments in _before_statement_execution
+        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+            # Kill this thread
+            raise RuntimeError()
+
         self._tracer.disable()
         try:
             for observer in self._observers:

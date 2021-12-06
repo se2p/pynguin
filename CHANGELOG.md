@@ -11,6 +11,12 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.14.0
 
+- Refactor the state-trace implementation
+- Remove the module-loader singleton
+- Fix loading of mutated module for assertion generation.  Caused that no assertion 
+  was generated because the mutants were not loaded properly.  This is a regression 
+  from merging the assertion-generation strategy in Pynguin 0.13.0.
+
 ## Pynguin 0.13.2
 
 - Add the reference to the preprint of our EMSE journal submission to documentation.

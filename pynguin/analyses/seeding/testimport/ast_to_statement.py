@@ -24,6 +24,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 if TYPE_CHECKING:
+    import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
     from pynguin.assertion.assertion import Assertion
@@ -37,7 +38,7 @@ def create_assign_stmt(
     testcase: tc.TestCase,
     ref_dict: Dict[str, vr.VariableReference],
     test_cluster: TestCluster,
-) -> Optional[Tuple[str, stmt.Statement]]:
+) -> Optional[Tuple[str, stmt.VariableCreatingStatement]]:
     """Creates the corresponding statement from an ast.Assign node.
 
     Args:
@@ -50,7 +51,7 @@ def create_assign_stmt(
     Returns:
         The corresponding statement or None if no statement type matches.
     """
-    new_stmt: Optional[stmt.Statement]
+    new_stmt: Optional[stmt.VariableCreatingStatement]
     value = assign.value
     objs_under_test = test_cluster.accessible_objects_under_test
     callable_objects_under_test: Set[GenericCallableAccessibleObject] = {
@@ -202,7 +203,7 @@ def create_variable_references_from_call_args(
 # pylint: disable=too-many-return-statements
 def create_stmt_from_constant(
     constant: ast.Constant, testcase: tc.TestCase
-) -> Optional[stmt.PrimitiveStatement]:
+) -> Optional[stmt.VariableCreatingStatement]:
     """Creates a statement from an ast.constant node.
 
     Args:
@@ -232,7 +233,7 @@ def create_stmt_from_constant(
 
 def create_stmt_from_unaryop(
     unaryop: ast.UnaryOp, testcase: tc.TestCase
-) -> Optional[stmt.PrimitiveStatement]:
+) -> Optional[stmt.VariableCreatingStatement]:
     """Creates a statement from an ast.unaryop node.
 
     Args:
@@ -260,7 +261,7 @@ def create_stmt_from_call(
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[Union[stmt.CollectionStatement, stmt.ParametrizedStatement]]:
+) -> Optional[stmt.VariableCreatingStatement]:
     """Creates the corresponding statement from an ast.call node. Depending on the call,
     this can be a GenericConstructor, GenericMethod or GenericFunction statement.
 
@@ -332,7 +333,7 @@ def find_gen_callable(
             call_id = call.func.value.id  # type: ignore
             if call_name == obj.method_name and call_id in ref_dict:
                 obj_from_ast = str(call.func.value.id)  # type: ignore
-                var_type = ref_dict[obj_from_ast].variable_type
+                var_type = ref_dict[obj_from_ast].type
                 if var_type == obj.owner:
                     return obj
         elif isinstance(obj, GenericFunction):
@@ -394,11 +395,7 @@ def create_stmt_from_collection(
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[
-    Union[
-        stmt.ListStatement, stmt.SetStatement, stmt.DictStatement, stmt.TupleStatement
-    ]
-]:
+) -> Optional[stmt.VariableCreatingStatement]:
     """Creates the corresponding statement from an ast.List node. Lists contain other
     statements.
 
@@ -461,35 +458,29 @@ def create_elements(
     """
     coll_elems: List[vr.VariableReference] = []
     for elem in elements:
-        statement: Optional[
-            Union[
-                stmt.PrimitiveStatement,
-                stmt.CollectionStatement,
-                stmt.ParametrizedStatement,
-            ]
-        ]
+        statement: Optional[stmt.VariableCreatingStatement]
         if isinstance(elem, ast.Constant):
             statement = create_stmt_from_constant(elem, testcase)
             if not statement:
                 return None
-            coll_elems.append(testcase.add_statement(statement))
+            coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, ast.UnaryOp):
             statement = create_stmt_from_unaryop(elem, testcase)
             if not statement:
                 return None
-            coll_elems.append(testcase.add_statement(statement))
+            coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, ast.Call):
             statement = create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)
             if not statement:
                 return None
-            coll_elems.append(testcase.add_statement(statement))
+            coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
             statement = create_stmt_from_collection(
                 elem, testcase, objs_under_test, ref_dict
             )
             if not statement:
                 return None
-            coll_elems.append(testcase.add_statement(statement))
+            coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, ast.Name):
             try:
                 coll_elems.append(ref_dict[elem.id])
@@ -512,9 +503,9 @@ def get_collection_type(coll_elems: List[vr.VariableReference]) -> Any:
     """
     if len(coll_elems) == 0:
         return None
-    coll_type = coll_elems[0].variable_type
+    coll_type = coll_elems[0].type
     for elem in coll_elems:
-        if not elem.variable_type == coll_type:
+        if not elem.type == coll_type:
             coll_type = None
             break
     return coll_type
@@ -558,7 +549,7 @@ def try_generating_specific_function(
     testcase: tc.TestCase,
     objs_under_test: Set[GenericCallableAccessibleObject],
     ref_dict: Dict[str, vr.VariableReference],
-) -> Optional[stmt.CollectionStatement]:
+) -> Optional[stmt.VariableCreatingStatement]:
     """Calls to creating a collection (list, set, tuple, dict) via their keywords and
     not via literal syntax are considered as ast.Call statements. But for these calls,
     no accessible object under test is in the test_cluster. To parse them anyway, these
@@ -661,7 +652,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
                 self._current_parsable = False
             else:
                 ref_id, stm = result
-                var_ref = self._current_testcase.add_statement(stm)
+                var_ref = self._current_testcase.add_variable_creating_statement(stm)
                 self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:

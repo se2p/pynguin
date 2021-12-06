@@ -108,7 +108,7 @@ nightly-tests:python-3.11:
 
 lint:
   stage: lint
-  image: python:3.9-bullseye
+  image: python:3.10-bullseye
   script:
     - poetry run mypy pynguin
     - poetry run flake8 .
@@ -119,7 +119,7 @@ lint:
 
 build:
   stage: build
-  image: python:3.9-bullseye
+  image: python:3.10-bullseye
   script:
     - poetry run isort **/*.py -c -v --profile black
     - poetry run black --check .
@@ -131,7 +131,7 @@ build:
 
 security:
   stage: security
-  image: python:3.9-bullseye
+  image: python:3.10-bullseye
   script:
     - poetry run safety check --full-report
     - poetry run bandit -ll -r pynguin
@@ -149,22 +149,3 @@ reuse:
   script:
     - reuse lint
   needs: []
-
-publish-pypi:
-  stage: deploy
-  needs:
-    - unit-tests:python-3.9
-    - build
-  variables:
-    PYTHON_VERSION: '3.9'
-    POETRY_PYPI_TOKEN_PYPI: $POETRY_PYPI_TOKEN_PYPI
-    POETRY_HTTP_BASIC_PYPI_USERNAME: $POETRY_HTTP_BASIC_PYPI_USERNAME
-    POETRY_HTTP_BASIC_PYPI_PASSWORD: $POETRY_HTTP_BASIC_PYPI_PASSWORD
-  dependencies:
-    - build
-    - unit-tests:python-3.9
-  script:
-    - poetry build
-    - poetry publish
-  only:
-    - tags

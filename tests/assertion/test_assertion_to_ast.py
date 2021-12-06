@@ -11,6 +11,9 @@ import astor
 import pytest
 
 import pynguin.assertion.assertion_to_ast as ata
+import pynguin.assertion.noneassertion as nas
+import pynguin.assertion.primitiveassertion as pas
+import pynguin.testcase.variablereference as vr
 from pynguin.utils.namingscope import NamingScope
 
 
@@ -28,7 +31,9 @@ def run_before_and_after_tests():
 
 
 def test_none(assertion_to_ast):
-    assertion = MagicMock(value=True)
+    assertion = nas.NoneAssertion(
+        source=vr.VariableReference(MagicMock(), None), value=True
+    )
     assertion_to_ast.visit_none_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 is None\n"
@@ -36,7 +41,9 @@ def test_none(assertion_to_ast):
 
 
 def test_not_none(assertion_to_ast):
-    assertion = MagicMock(value=False)
+    assertion = nas.NoneAssertion(
+        source=vr.VariableReference(MagicMock(), None), value=False
+    )
     assertion_to_ast.visit_none_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes))
@@ -45,7 +52,9 @@ def test_not_none(assertion_to_ast):
 
 
 def test_primitive_bool(assertion_to_ast):
-    assertion = MagicMock(value=True)
+    assertion = pas.PrimitiveAssertion(
+        source=vr.VariableReference(MagicMock(), None), value=True
+    )
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 is True\n"
@@ -53,7 +62,9 @@ def test_primitive_bool(assertion_to_ast):
 
 
 def test_primitive_float(assertion_to_ast):
-    assertion = MagicMock(value=1.5)
+    assertion = pas.PrimitiveAssertion(
+        source=vr.VariableReference(MagicMock(), None), value=1.5
+    )
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes))
@@ -62,7 +73,9 @@ def test_primitive_float(assertion_to_ast):
 
 
 def test_primitive_non_bool(assertion_to_ast):
-    assertion = MagicMock(value=42)
+    assertion = pas.PrimitiveAssertion(
+        source=vr.VariableReference(MagicMock(), None), value=42
+    )
     assertion_to_ast.visit_primitive_assertion(assertion)
     assert (
         astor.to_source(Module(body=assertion_to_ast.nodes)) == "assert var_0 == 42\n"

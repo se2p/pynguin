@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.namingscope as ns
 
 
@@ -66,7 +67,7 @@ def test_naming_scope_known_indices_has_name(naming_scope):
     ],
 )
 def test_variable_type_conversion(variable_type_naming_scope, tp, name):
-    var = MagicMock(variable_type=tp)
+    var = vr.VariableReference(MagicMock(), tp)
     assert variable_type_naming_scope.get_name(var) == name
 
 
@@ -80,9 +81,9 @@ def test_variable_type_conversion(variable_type_naming_scope, tp, name):
     ],
 )
 def test_variable_type_counter(variable_type_naming_scope, tp, name0, name1):
-    var = MagicMock(variable_type=tp)
+    var = vr.VariableReference(MagicMock(), tp)
     assert variable_type_naming_scope.get_name(var) == name0
-    var = MagicMock(variable_type=tp)
+    var = vr.VariableReference(MagicMock(), tp)
     assert variable_type_naming_scope.get_name(var) == name1
 
 
@@ -91,13 +92,13 @@ def test_variable_type_empty(variable_type_naming_scope):
 
 
 def test_variable_type_not_empty(variable_type_naming_scope):
-    var = MagicMock(variable_type=int)
+    var = vr.VariableReference(MagicMock(), int)
     variable_type_naming_scope.get_name(var)
     assert dict(variable_type_naming_scope) == {var: "int_0"}
 
 
 def test_variable_type_has_name(variable_type_naming_scope):
-    var = MagicMock(variable_type=int)
+    var = vr.VariableReference(MagicMock(), int)
     variable_type_naming_scope.get_name(var)
     assert variable_type_naming_scope.is_known_name(var)
 

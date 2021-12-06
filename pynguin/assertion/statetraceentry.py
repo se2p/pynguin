@@ -14,11 +14,11 @@ if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
 
 
-class OutputTraceEntry:
+class StateTraceEntry:
     """An entry in the output trace."""
 
     @abstractmethod
-    def clone(self) -> OutputTraceEntry:
+    def clone(self) -> StateTraceEntry:
         """Clone this entry."""
 
     @abstractmethod

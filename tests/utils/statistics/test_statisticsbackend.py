@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pynguin.configuration as config
@@ -23,7 +24,9 @@ def test_output_variable():
 
 
 def test_write_data_csv_backend(tmpdir):
-    config.configuration.statistics_output.report_dir = tmpdir / "statistics"
+    statistics_dir = tmpdir / "statistics"
+    Path(statistics_dir).mkdir(parents=True, exist_ok=True)
+    config.configuration.statistics_output.report_dir = statistics_dir
     data_1 = {
         "module": OutputVariable("module", "foo"),
         "value": OutputVariable("value", "bar"),

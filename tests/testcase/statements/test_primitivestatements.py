@@ -103,7 +103,7 @@ def test_primitive_statement_clone(statement_type, test_case, new_test_case, val
     statement = statement_type(test_case, value)
     new_statement = statement.clone(new_test_case, {})
     assert new_statement.test_case == new_test_case
-    assert new_statement.ret_val.variable_type == statement.ret_val.variable_type
+    assert new_statement.ret_val.type == statement.ret_val.type
     assert new_statement.value == statement.value
 
 
@@ -454,7 +454,7 @@ def test_primitive_statement_references(test_case_mock):
 
 def test_primitive_statement_replace(test_case_mock):
     statement = stmt.IntPrimitiveStatement(test_case_mock, 0)
-    new = vr.VariableReferenceImpl(test_case_mock, int)
+    new = vr.VariableReference(test_case_mock, int)
     statement.replace(statement.ret_val, new)
     assert statement.ret_val == new
 

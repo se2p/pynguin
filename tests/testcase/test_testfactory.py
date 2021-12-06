@@ -123,7 +123,7 @@ def test_add_primitive(test_case_mock):
     factory = tf.TestFactory(MagicMock(FullTestCluster))
     factory.add_primitive(test_case_mock, statement)
     statement.clone.assert_called_once()
-    test_case_mock.add_statement.assert_called_once()
+    test_case_mock.add_variable_creating_statement.assert_called_once()
 
 
 def test_add_constructor(provide_callables_from_fixtures_modules):
@@ -146,7 +146,7 @@ def test_add_constructor(provide_callables_from_fixtures_modules):
     cluster.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(cluster)
     result = factory.add_constructor(test_case, generic_constructor, position=0)
-    assert result.variable_type == provide_callables_from_fixtures_modules["Basket"]
+    assert result.type == provide_callables_from_fixtures_modules["Basket"]
     assert test_case.size() == 2
 
 
@@ -177,7 +177,7 @@ def test_add_method(provide_callables_from_fixtures_modules, test_cluster_mock):
     result = factory.add_method(
         test_case, generic_method, position=0, callee=MagicMock()
     )
-    assert result.variable_type == provide_callables_from_fixtures_modules["Monkey"]
+    assert result.type == provide_callables_from_fixtures_modules["Monkey"]
     assert test_case.size() == 2
 
 
@@ -208,7 +208,7 @@ def test_add_function(provide_callables_from_fixtures_modules):
     cluster.select_concrete_type.side_effect = lambda x: x
     factory = tf.TestFactory(cluster)
     result = factory.add_function(test_case, generic_function, position=0)
-    assert isinstance(result.variable_type, type(None))
+    assert isinstance(result.type, type(None))
     assert test_case.size() <= 4
 
 
@@ -220,7 +220,7 @@ def test_add_enum():
     factory = tf.TestFactory(cluster)
     result = factory.add_enum(test_case, generic_enum)
     assert test_case.statements[0].value_name == "BAR"
-    assert result.variable_type == enum_
+    assert result.type == enum_
     assert test_case.size() == 1
 
 
@@ -241,7 +241,7 @@ def test_create_primitive(type_, statement_type):
         position=0,
         recursion_depth=0,
     )
-    assert result.variable_type == statement_type
+    assert result.type == statement_type
 
 
 def test_attempt_generation_for_type(test_case_mock):
@@ -351,16 +351,16 @@ def test__dependencies_satisfied_no_objects():
 
 def test__dependencies_satisfied_not_satisfied(test_case_mock):
     objects = [
-        vr.VariableReferenceImpl(test_case_mock, int),
-        vr.VariableReferenceImpl(test_case_mock, bool),
+        vr.VariableReference(test_case_mock, int),
+        vr.VariableReference(test_case_mock, bool),
     ]
     assert not tf.TestFactory._dependencies_satisfied({int, float}, objects)
 
 
 def test__dependencies_satisfied_satisfied(test_case_mock):
     objects = [
-        vr.VariableReferenceImpl(test_case_mock, int),
-        vr.VariableReferenceImpl(test_case_mock, bool),
+        vr.VariableReference(test_case_mock, int),
+        vr.VariableReference(test_case_mock, bool),
     ]
     assert tf.TestFactory._dependencies_satisfied({int, bool}, objects)
 
@@ -375,7 +375,7 @@ def test__get_possible_calls_single_call(test_case_mock, function_mock):
     cluster = MagicMock(FullTestCluster)
     cluster.get_generators_for.return_value = {function_mock}
     assert tf.TestFactory(cluster)._get_possible_calls(
-        float, [vr.VariableReferenceImpl(test_case_mock, float)]
+        float, [vr.VariableReference(test_case_mock, float)]
     ) == [function_mock]
 
 
@@ -384,7 +384,7 @@ def test__get_possible_calls_no_match(test_case_mock, function_mock):
     cluster.get_generators_for.return_value = {function_mock}
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
-            float, [vr.VariableReferenceImpl(test_case_mock, int)]
+            float, [vr.VariableReference(test_case_mock, int)]
         )
         == []
     )
@@ -647,7 +647,7 @@ def test_insert_random_call_on_object_at_no_accessible(
     test_cluster = MagicMock(FullTestCluster)
     test_cluster.get_random_call_for.side_effect = ConstructionFailedException()
     test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.variable_type = float
+    variable_reference_mock.type = float
     assert not test_factory.insert_random_call_on_object_at(
         test_case_mock, variable_reference_mock, 0
     )
@@ -658,7 +658,7 @@ def test_insert_random_call_on_object_at_assertion(
 ):
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.variable_type = None
+    variable_reference_mock.type = None
     with pytest.raises(AssertionError):
         test_factory.insert_random_call_on_object_at(
             test_case_mock, variable_reference_mock, 0
@@ -671,7 +671,7 @@ def test_insert_random_call_on_object_at_success(
 ):
     test_cluster = MagicMock(FullTestCluster)
     test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.variable_type = float
+    variable_reference_mock.type = float
     with mock.patch.object(test_factory, "add_call_for") as call_mock:
         call_mock.return_value = result
         assert (

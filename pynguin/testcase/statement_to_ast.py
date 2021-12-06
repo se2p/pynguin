@@ -128,7 +128,11 @@ class StatementToAstVisitor(StatementVisitor):
         assert owner
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=ast.Attribute(
                     value=ast.Attribute(
                         value=self._create_module_alias(owner.__module__),
@@ -149,7 +153,11 @@ class StatementToAstVisitor(StatementVisitor):
         assert owner
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=ast.Call(
                     func=ast.Attribute(
                         attr=owner.__name__,
@@ -167,7 +175,9 @@ class StatementToAstVisitor(StatementVisitor):
             func=ast.Attribute(
                 attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
-                value=au.create_var_name(self._variable_names, stmt.callee, True),
+                value=au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.callee, True
+                ),
             ),
             args=self._create_args(stmt),
             keywords=self._create_kw_args(stmt),
@@ -176,7 +186,11 @@ class StatementToAstVisitor(StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -197,7 +211,11 @@ class StatementToAstVisitor(StatementVisitor):
             node: ast.stmt = ast.Expr(value=call)
         else:
             node = ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=call,
             )
         self._ast_nodes.append(node)
@@ -212,9 +230,11 @@ class StatementToAstVisitor(StatementVisitor):
                     )
                 ],
                 value=ast.Attribute(
-                    attr=stmt.field,
+                    attr=stmt.field.field,
                     ctx=ast.Load(),
-                    value=au.create_var_name(self._variable_names, stmt.source, True),
+                    value=au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.source, True
+                    ),
                 ),
             )
         )
@@ -222,18 +242,30 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_assignment_statement(self, stmt: AssignmentStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
-                value=au.create_var_name(self._variable_names, stmt.rhs, True),
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.lhs, False
+                    )
+                ],
+                value=au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.rhs, True
+                ),
             )
         )
 
     def visit_list_statement(self, stmt: ListStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=ast.List(
                     elts=[
-                        au.create_var_name(self._variable_names, x, True)
+                        au.create_full_name(
+                            self._variable_names, self._module_aliases, x, True
+                        )
                         for x in stmt.elements
                     ],
                     ctx=ast.Load(),
@@ -251,7 +283,9 @@ class StatementToAstVisitor(StatementVisitor):
         else:
             inner = ast.Set(
                 elts=[
-                    au.create_var_name(self._variable_names, x, True)
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, x, True
+                    )
                     for x in stmt.elements
                 ],
                 ctx=ast.Load(),
@@ -259,7 +293,11 @@ class StatementToAstVisitor(StatementVisitor):
 
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=inner,
             )
         )
@@ -267,10 +305,16 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_tuple_statement(self, stmt: TupleStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=ast.Tuple(
                     elts=[
-                        au.create_var_name(self._variable_names, x, True)
+                        au.create_full_name(
+                            self._variable_names, self._module_aliases, x, True
+                        )
                         for x in stmt.elements
                     ],
                     ctx=ast.Load(),
@@ -281,14 +325,22 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_dict_statement(self, stmt: DictStatement) -> None:
         self._ast_nodes.append(
             ast.Assign(
-                targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+                targets=[
+                    au.create_full_name(
+                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                    )
+                ],
                 value=ast.Dict(
                     keys=[
-                        au.create_var_name(self._variable_names, x[0], True)
+                        au.create_full_name(
+                            self._variable_names, self._module_aliases, x[0], True
+                        )
                         for x in stmt.elements
                     ],
                     values=[
-                        au.create_var_name(self._variable_names, x[1], True)
+                        au.create_full_name(
+                            self._variable_names, self._module_aliases, x[1], True
+                        )
                         for x in stmt.elements
                     ],
                 ),
@@ -305,7 +357,11 @@ class StatementToAstVisitor(StatementVisitor):
             The matching AST statement
         """
         return ast.Assign(
-            targets=[au.create_var_name(self._variable_names, stmt.ret_val, False)],
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                )
+            ],
             value=ast.Constant(value=stmt.value),
         )
 
@@ -333,16 +389,22 @@ class StatementToAstVisitor(StatementVisitor):
                     Parameter.POSITIONAL_OR_KEYWORD,
                 ):
                     args.append(
-                        au.create_var_name(
-                            self._variable_names, stmt.args[param_name], True
+                        au.create_full_name(
+                            self._variable_names,
+                            self._module_aliases,
+                            stmt.args[param_name],
+                            True,
                         )
                     )
                 elif param_kind == Parameter.VAR_POSITIONAL:
                     # Append *args, if necessary.
                     args.append(
                         ast.Starred(
-                            value=au.create_var_name(
-                                self._variable_names, stmt.args[param_name], True
+                            value=au.create_full_name(
+                                self._variable_names,
+                                self._module_aliases,
+                                stmt.args[param_name],
+                                True,
                             ),
                             ctx=ast.Load(),
                         )
@@ -371,8 +433,11 @@ class StatementToAstVisitor(StatementVisitor):
                     kwargs.append(
                         ast.keyword(
                             arg=param_name,
-                            value=au.create_var_name(
-                                self._variable_names, stmt.args[param_name], True
+                            value=au.create_full_name(
+                                self._variable_names,
+                                self._module_aliases,
+                                stmt.args[param_name],
+                                True,
                             ),
                         )
                     )
@@ -381,8 +446,11 @@ class StatementToAstVisitor(StatementVisitor):
                     kwargs.append(
                         ast.keyword(
                             arg=None,
-                            value=au.create_var_name(
-                                self._variable_names, stmt.args[param_name], True
+                            value=au.create_full_name(
+                                self._variable_names,
+                                self._module_aliases,
+                                stmt.args[param_name],
+                                True,
                             ),
                         )
                     )

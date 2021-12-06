@@ -8,6 +8,7 @@ import os
 from typing import Dict, List, Set, Type, cast
 
 import pytest
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -23,7 +24,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 
-def convert_to_str_count_dict(dic: Dict[Type, Set]) -> Dict[str, int]:
+def convert_to_str_count_dict(dic: Dict[Type, OrderedSet]) -> Dict[str, int]:
     return {k.__name__: len(v) for k, v in dic.items()}
 
 
@@ -149,7 +150,9 @@ def test_overridden_inherited_methods():
     assert methods == expected
 
 
-def _extract_method_names(accessible_objects: Set[GenericAccessibleObject]) -> Set[str]:
+def _extract_method_names(
+    accessible_objects: OrderedSet[GenericAccessibleObject],
+) -> Set[str]:
     return {
         f"{elem.owner.__name__}.{elem.callable.__name__}"
         if isinstance(elem, GenericMethod)
