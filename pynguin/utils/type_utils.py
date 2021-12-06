@@ -219,6 +219,7 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
     exact comparison value.
 
     Primitives (except float) are assertable.
+    Enum values are assertable.
     List, sets, dicts and tuples comprised only of assertable objects are also
     assertable.
 
