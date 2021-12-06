@@ -796,8 +796,8 @@ def _in(val1, val2) -> float:
     if val1 in val2:
         return 0.0
     # TODO(fk) maybe limit this to certain collections?
-    # Check only if collection size is within some range,
-    # otherwise the check might take very long.
+    #  Check only if collection size is within some range,
+    #  otherwise the check might take very long.
 
     # Use smallest distance to any element.
     return min([_eq(val1, v) for v in val2] + [inf])
