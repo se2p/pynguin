@@ -51,15 +51,6 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to store the log file.",
     )
-    parser.add_argument(
-        "-q",
-        "--quiet",
-        action="store_const",
-        const=-1,
-        default=0,
-        dest="verbosity",
-        help="quiet output",
-    )
     parser.add_arguments(config.Configuration, dest="config")
 
     return parser
@@ -105,35 +96,32 @@ def _setup_logging(
     verbosity: int,
     log_file: Optional[str] = None,
 ):
-    default_log_format = (
-        "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
-    )
-    logger = logging.getLogger("")  # get root logger
-    logger.setLevel(logging.DEBUG)
-    default_formatter = logging.Formatter(fmt=default_log_format, datefmt="%X")
+    level = logging.WARNING
+    if verbosity == 1:
+        level = logging.INFO
+    if verbosity >= 2:
+        level = logging.DEBUG
+
+    handlers: List[logging.Handler] = []
     if log_file:
         log_file_path = Path(log_file).resolve()
         if not log_file_path.parent.exists():
             log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(default_formatter)
-        logger.addHandler(file_handler)
+        handlers.append(logging.FileHandler(log_file))
 
-    if verbosity < 0:
-        logger.addHandler(logging.NullHandler())
-    else:
-        level = logging.WARNING
-        if verbosity == 1:
-            level = logging.INFO
-        if verbosity >= 2:
-            level = logging.DEBUG
+    console_handler = RichHandler(
+        rich_tracebacks=True, log_time_format="[%X]", console=console
+    )
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    handlers.append(console_handler)
 
-        console_handler = RichHandler(
-            rich_tracebacks=True, log_time_format="[%X]", console=console
-        )
-        console_handler.setLevel(level)
-        console_handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(console_handler)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s]"
+        "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
+        datefmt="[%X]",
+        handlers=handlers,
+    )
 
 
 _DANGER_ENV = "PYNGUIN_DANGER_AWARE"
