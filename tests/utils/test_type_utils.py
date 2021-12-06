@@ -16,6 +16,7 @@ from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
     given_exception_matches,
+    is_assertable,
     is_assignable_to,
     is_bytes,
     is_collection_type,
@@ -247,3 +248,32 @@ def test_is_collection_type(type_, result):
 )
 def test_given_exception_matches(exception, ex_match, result):
     assert given_exception_matches(exception, ex_match) == result
+
+
+@pytest.mark.parametrize(
+    "value,result",
+    [
+        (1, True),
+        (MagicMock(), False),
+        (enum.Enum("Dummy", "a").a, True),
+        ({1, 2}, True),
+        ({1, MagicMock()}, False),
+        ([1, 2], True),
+        ([1, MagicMock()], False),
+        ((1, 2), True),
+        ((1, MagicMock()), False),
+        ({1: 2}, True),
+        ({1: MagicMock()}, False),
+        ([[[[[[[[]]]]]]]], False),
+        ((), True),
+        (set(), True),
+        ({}, True),
+        ([], True),
+        ("foobar", True),
+        (["a", "b", ["a", "b", MagicMock()]], False),
+        (1.5, False),
+        ([1, 1.5], False),
+    ],
+)
+def test_is_assertable(value, result):
+    assert is_assertable(value) == result
