@@ -24,7 +24,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
     from pynguin.assertion.assertion import Assertion
