@@ -10,6 +10,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
@@ -46,21 +47,38 @@ def test_constructor_statement_accept(
     visitor.visit_field_statement.assert_called_once_with(statement)
 
 
-def test_get_var_references(test_case_mock, variable_reference_mock, field_mock):
-    statement = stmt.FieldStatement(test_case_mock, field_mock, variable_reference_mock)
-    assert statement.get_variable_references() == {variable_reference_mock}
+def test_get_var_references(test_case_mock, field_mock):
+    var = vr.VariableReference(test_case_mock, int)
+    statement = stmt.FieldStatement(test_case_mock, field_mock, var)
+    assert statement.get_variable_references() == {var, statement.ret_val}
 
 
-def test_primitive_statement_replace(field_mock):
-    test_case = dtc.DefaultTestCase()
-    ref = stmt.IntPrimitiveStatement(test_case, 5)
-    test_case.add_statement(ref)
-    statement = stmt.FieldStatement(test_case, field_mock, ref.ret_val)
-    test_case.add_statement(statement)
-    new = vr.VariableReferenceImpl(test_case, int)
+def test_statement_replace(field_mock, test_case_mock):
+    ref = vr.VariableReference(test_case_mock, int)
+    statement = stmt.FieldStatement(test_case_mock, field_mock, ref)
+    new = vr.VariableReference(test_case_mock, int)
 
-    statement.replace(ref.ret_val, new)
+    statement.replace(ref, new)
     assert statement.source == new
+
+
+def test_statement_replace_2(field_mock, test_case_mock):
+    ref = vr.VariableReference(test_case_mock, int)
+    statement = stmt.FieldStatement(test_case_mock, field_mock, ref)
+    new = vr.VariableReference(test_case_mock, int)
+
+    statement.replace(statement.ret_val, new)
+    assert statement.ret_val == new
+
+
+def test_statement_replace_3(field_mock, test_case_mock):
+    ref = vr.VariableReference(test_case_mock, int)
+    ref_2 = vr.FieldReference(ref, gao.GenericField(MagicMock, "foo", int))
+    statement = stmt.FieldStatement(test_case_mock, field_mock, ref_2)
+    new = vr.VariableReference(test_case_mock, int)
+
+    statement.replace(ref, new)
+    assert statement.source.get_variable_reference() == new
 
 
 def test_primitive_statement_replace_ignore(field_mock):
@@ -81,7 +99,7 @@ def test_field_statement_eq_other_type(
 
 
 def test_field_statement_eq_clone(test_case_mock, field_mock):
-    ref = vr.VariableReferenceImpl(test_case_mock, float)
+    ref = vr.VariableReference(test_case_mock, float)
     statement = stmt.FieldStatement(test_case_mock, field_mock, ref)
     memo = {ref: ref}
     clone = statement.clone(test_case_mock, memo)

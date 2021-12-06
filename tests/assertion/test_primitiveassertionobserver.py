@@ -33,7 +33,7 @@ import pynguin.assertion.primitivetraceentry as pte
 )
 def test_visits(method, call_count):
     exec_ctx = MagicMock()
-    exec_ctx.get_variable_value.return_value = 5
+    exec_ctx.get_reference_value.return_value = 5
     variable = MagicMock()
     trace = MagicMock()
     visitor = pao.PrimitiveAssertionVisitor(exec_ctx, variable, trace)
@@ -52,7 +52,7 @@ def test_visits(method, call_count):
 )
 def test_visits_unimplemented(method):
     exec_ctx = MagicMock()
-    exec_ctx.get_variable_value.return_value = 5
+    exec_ctx.get_reference_value.return_value = 5
     variable = MagicMock()
     trace = MagicMock()
     visitor = pao.PrimitiveAssertionVisitor(exec_ctx, variable, trace)
@@ -64,7 +64,7 @@ def test_visits_unimplemented(method):
 
 def test_handle_primitive():
     exec_ctx = MagicMock()
-    exec_ctx.get_variable_value.return_value = 5
+    exec_ctx.get_reference_value.return_value = 5
     variable = MagicMock()
     trace = MagicMock()
     visitor = pao.PrimitiveAssertionVisitor(exec_ctx, variable, trace)
@@ -76,7 +76,7 @@ def test_handle_primitive():
 
 def test_handle_not_primitive():
     exec_ctx = MagicMock()
-    exec_ctx.get_variable_value.return_value = MagicMock()
+    exec_ctx.get_reference_value.return_value = MagicMock()
     variable = MagicMock()
     trace = MagicMock()
     visitor = pao.PrimitiveAssertionVisitor(exec_ctx, variable, trace)
@@ -87,7 +87,7 @@ def test_handle_not_primitive():
 
 def test_handle_none():
     exec_ctx = MagicMock()
-    exec_ctx.get_variable_value.return_value = None
+    exec_ctx.get_reference_value.return_value = None
     variable = MagicMock()
     trace = MagicMock()
     visitor = pao.PrimitiveAssertionVisitor(exec_ctx, variable, trace)

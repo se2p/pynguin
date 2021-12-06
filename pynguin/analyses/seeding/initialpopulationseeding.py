@@ -171,7 +171,8 @@ class _TestTransformer(ast.NodeVisitor):
                 self._current_parsable = False
             else:
                 ref_id, stmt = result
-                var_ref = self._current_testcase.add_statement(stmt)
+                # TODO(fk) not every statement creates a variable.
+                var_ref = self._current_testcase.add_variable_creating_statement(stmt)
                 self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:

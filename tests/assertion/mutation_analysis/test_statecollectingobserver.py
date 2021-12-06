@@ -32,7 +32,7 @@ def test_after_test_case_execution():
     assert observer._objects == {}
 
 
-@mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
+@mock.patch.object(ExecutionContext, "get_reference_value", return_value=MagicMock())
 def test_after_statement_execution(exec_ctx_mock):
     observer = FooObserver(MagicMock())
     exec_ctx = ExecutionContext(ModuleProvider())
@@ -53,7 +53,7 @@ def test_after_statement_execution_exception(cs_mock):
 
 
 @mock.patch.object(cs.CollectorStorage, "collect")
-@mock.patch.object(ExecutionContext, "get_variable_value", return_value=MagicMock())
+@mock.patch.object(ExecutionContext, "get_reference_value", return_value=MagicMock())
 def test_after_statement_execution_ctor_statement(cs_mock, exec_ctx_mock):
     observer = FooObserver(MagicMock())
     exec_ctx = ExecutionContext(ModuleProvider())

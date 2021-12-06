@@ -51,7 +51,7 @@ def test_case_mock():
 
 @pytest.fixture(scope="function")
 def variable_reference_mock():
-    return MagicMock(vr.VariableReferenceImpl)
+    return MagicMock(vr.Reference)
 
 
 @pytest.fixture(scope="session")

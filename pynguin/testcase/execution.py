@@ -71,24 +71,31 @@ class ExecutionContext:
         """
         return self._local_namespace
 
-    def get_variable_value(self, variable: vr.VariableReference) -> Optional[Any]:
-        """Returns the value that is assigned to the given variable in the local
-        namespace.
+    def get_reference_value(self, reference: vr.Reference) -> Any:
+        """Resolve the given reference in this execution context.
 
         Args:
-            variable: the variable whose value we want
-
-        Returns:
-            the assigned value.
+            reference: The reference to resolve.
 
         Raises:
-            ValueError: if the requested variable has no assigned value in this context.
+            ValueError: If the root of the reference can not be resolved.
+
+        Returns:
+            The value that is resolved.
         """
-        if self._variable_names.is_known_name(variable):
-            name = self._variable_names.get_name(variable)
-            if name in self._local_namespace:
-                return self._local_namespace.get(name)
-        raise ValueError("Variable is not defined in this context")
+        root, *attrs = reference.get_names(self._variable_names, self._modules_aliases)
+        if root in self._local_namespace:
+            # Check local namespace first
+            res = self._local_namespace[root]
+        elif root in self._global_namespace:
+            # Check global namespace after
+            res = self._global_namespace[root]
+        else:
+            # Root name is not defined?
+            raise ValueError("Root not found in this context")
+        for attr in attrs:
+            res = getattr(res, attr)
+        return res
 
     @property
     def global_namespace(self) -> Dict[str, ModuleType]:

@@ -30,8 +30,8 @@ def test_constructor_statement_args(
 ):
     statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     references = {
-        "a": MagicMock(vr.VariableReferenceImpl),
-        "b": MagicMock(vr.VariableReferenceImpl),
+        "a": MagicMock(vr.VariableReference),
+        "b": MagicMock(vr.VariableReference),
     }
     statement.args = references
     assert statement.args == references
@@ -118,8 +118,8 @@ def test_constructor_replace_return_value(constructor_mock):
 
 
 def test_constructor_clone_args(constructor_mock, test_case_mock):
-    ref = vr.VariableReferenceImpl(test_case_mock, float)
-    clone = vr.VariableReferenceImpl(test_case_mock, float)
+    ref = vr.VariableReference(test_case_mock, float)
+    clone = vr.VariableReference(test_case_mock, float)
     const = stmt.ConstructorStatement(test_case_mock, constructor_mock, {"a": ref})
     assert const._clone_args({ref: clone}) == {"a": clone}
 
@@ -168,7 +168,7 @@ def test_constructor_mutable_arg_count(test_case_mock, constructor_mock):
     const = stmt.ConstructorStatement(
         test_case_mock,
         constructor_mock,
-        {"test": MagicMock(vr.VariableReferenceImpl)},
+        {"test": MagicMock(vr.VariableReference)},
     )
     assert const._mutable_argument_count() == 1
 
@@ -216,14 +216,13 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock):
     test_case.add_statement(const)
     with mock.patch.object(const, "_test_case") as tc:
         tc.get_objects.return_value = [float0.ret_val]
+        tc.statements = [float0, const]
         with mock.patch(
             "pynguin.testcase.testfactory.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
-            tc.get_objects.assert_called_with(
-                float0.ret_val.variable_type, const.get_position()
-            )
+            tc.get_objects.assert_called_with(float0.ret_val.type, const.get_position())
 
 
 def test_constructor_mutate_parameter_not_included(constructor_mock):
@@ -241,7 +240,7 @@ def test_constructor_mutate_parameter_not_included(constructor_mock):
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
-            get_objs.assert_called_with(float0.ret_val.variable_type, 1)
+            get_objs.assert_called_with(float0.ret_val.type, 1)
             assert isinstance(
                 test_case.get_statement(const.args["a"].get_statement_position()),
                 stmt.NoneStatement,
@@ -265,7 +264,7 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock):
             ) as optional_mock:
                 optional_mock.return_value = False
                 assert const._mutate_parameter("a", MagicMock(parameters={"a": float}))
-                param_count_of_type.assert_called_with(float0.ret_val.variable_type)
+                param_count_of_type.assert_called_with(float0.ret_val.type)
                 assert const.args["a"] != float0.ret_val
 
 
@@ -317,8 +316,8 @@ def test_constructor_param_count_of_type(test_case_mock, constructor_mock):
         test_case_mock,
         constructor_mock,
         {
-            "test0": vr.VariableReferenceImpl(test_case_mock, float),
-            "test1": vr.VariableReferenceImpl(test_case_mock, int),
+            "test0": vr.VariableReference(test_case_mock, float),
+            "test1": vr.VariableReference(test_case_mock, int),
         },
     )
     assert const._param_count_of_type(float) == 1
@@ -338,8 +337,8 @@ def test_method_statement_no_args(test_case_mock, variable_reference_mock, metho
 
 def test_method_statement_args(test_case_mock, variable_reference_mock, method_mock):
     references = {
-        "a": MagicMock(vr.VariableReferenceImpl),
-        "b": MagicMock(vr.VariableReferenceImpl),
+        "a": MagicMock(vr.VariableReference),
+        "b": MagicMock(vr.VariableReference),
     }
 
     statement = stmt.MethodStatement(
@@ -350,8 +349,8 @@ def test_method_statement_args(test_case_mock, variable_reference_mock, method_m
 
 
 def test_method_statement_not_eq(test_case_mock, method_mock):
-    var1 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
-    var2 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
+    var1 = vr.VariableReference(test_case_mock, MagicMock)
+    var2 = vr.VariableReference(test_case_mock, MagicMock)
 
     args = {
         "a": var1,
@@ -365,8 +364,8 @@ def test_method_statement_not_eq(test_case_mock, method_mock):
 
 
 def test_method_statement_eq(test_case_mock, method_mock):
-    var1 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
-    var2 = vr.VariableReferenceImpl(test_case_mock, MagicMock)
+    var1 = vr.VariableReference(test_case_mock, MagicMock)
+    var2 = vr.VariableReference(test_case_mock, MagicMock)
 
     args = {
         "a": var1,
@@ -430,10 +429,9 @@ def test_method_mutate_special_parameters_none_found(method_mock, constructor_mo
     test_case.add_statement(meth)
     with mock.patch.object(meth, "_test_case") as tc:
         tc.get_objects.return_value = [const0.ret_val]
+        tc.statements = [float0, const0, int0, meth]
         assert not meth._mutate_special_parameters(1.0)
-        tc.get_objects.assert_called_with(
-            const0.ret_val.variable_type, meth.get_position()
-        )
+        tc.get_objects.assert_called_with(const0.ret_val.type, meth.get_position())
 
 
 def test_method_mutate_special_parameters_one_found(method_mock, constructor_mock):
@@ -454,10 +452,9 @@ def test_method_mutate_special_parameters_one_found(method_mock, constructor_moc
     test_case.add_statement(meth)
     with mock.patch.object(meth, "_test_case") as tc:
         tc.get_objects.return_value = [const0.ret_val, const1.ret_val]
+        tc.statements = [float0, const0, const1, int0, meth]
         assert meth._mutate_special_parameters(1.0)
-        tc.get_objects.assert_called_with(
-            const0.ret_val.variable_type, meth.get_position()
-        )
+        tc.get_objects.assert_called_with(const0.ret_val.type, meth.get_position())
         assert meth.callee == const1.ret_val
 
 

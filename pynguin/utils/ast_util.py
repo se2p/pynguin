@@ -15,20 +15,32 @@ if typing.TYPE_CHECKING:
     import pynguin.utils.namingscope as ns
 
 
-def create_var_name(
-    variable_names: ns.AbstractNamingScope, var: vr.VariableReference, load: bool
-) -> ast.Name:
+def create_full_name(
+    variable_names: ns.AbstractNamingScope,
+    module_names: ns.AbstractNamingScope,
+    var: vr.Reference,
+    load: bool,
+) -> typing.Union[ast.Name, ast.Attribute]:
     """Create a name node for the corresponding variable.
 
     Args:
         variable_names: the naming scope for the variables
+        module_names: the naming scope for the modules
         var: the variable reference
         load: load or store?
 
     Returns:
         the name node
     """
-    return create_ast_name(variable_names.get_name(var), not load)
+    names = var.get_names(variable_names, module_names)
+    loads = [True for _ in names[:-1]]
+    loads.append(load)
+    # First has to be ast.Name
+    res: typing.Union[ast.Name, ast.Attribute] = create_ast_name(names[0], not loads[0])
+    # Remaining are ast.Attribute
+    for name, loa in zip(names[1:], loads[1:]):
+        res = create_ast_attribute(name, res, not loa)
+    return res
 
 
 def create_ast_name(name_id: str, store: bool = False) -> ast.Name:
