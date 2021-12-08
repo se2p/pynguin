@@ -313,6 +313,38 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
         return self._goal
 
 
+class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
+    """A branch coverage fitness implementation for test cases."""
+
+    def __init__(
+        self, executor: tce.TestCaseExecutor, file_name: str, code_object_id: int
+    ):
+        super().__init__(executor, code_object_id)
+        self._file_name = file_name
+
+    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+        result = self._run_test_case_chromosome(individual)
+        coverage = ff.compute_statement_coverage(result.execution_trace)
+        return coverage
+
+    def compute_is_covered(self, individual) -> bool:
+        result = self._run_test_case_chromosome(individual)
+        coverage = ff.compute_statement_coverage(result.execution_trace)
+        return coverage == 1
+
+    def is_maximisation_function(self) -> bool:
+        return True
+
+    def __str__(self) -> str:
+        return f"StatementCoverageTestFitness for {self._file_name}"
+
+    def __repr__(self) -> str:
+        return (
+            f"StatementCoverageTestFitness(executor={self._executor}, "
+            f"file={self._file_name})"
+        )
+
+
 def create_branch_coverage_fitness_functions(
     executor: tce.TestCaseExecutor, branch_goal_pool: BranchGoalPool
 ) -> OrderedSet[BranchCoverageTestFitness]:
