@@ -21,21 +21,13 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution.executionresult import ExecutionResult
     from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
 
-
-class AbstractBranchCoverageGoal:
-    """Abstract base class for branch coverage goals."""
+class AbstractCoverageGoal:
+    """Abstract base class for coverage goals."""
 
     def __init__(
         self,
         code_object_id: int,
-        is_branchless_code_object: bool = False,
-        is_branch: bool = False,
     ):
-        assert (
-            is_branchless_code_object ^ is_branch
-        ), "Must be either branch-less code object or branch."
-        self._is_branchless_code_object = is_branchless_code_object
-        self._is_branch = is_branch
         self._code_object_id = code_object_id
 
     @property
@@ -46,6 +38,53 @@ class AbstractBranchCoverageGoal:
             The id of the targeted code object.
         """
         return self._code_object_id
+
+    @abstractmethod
+    def is_covered(self, result: ExecutionResult) -> bool:
+        """Determine if this coverage goal was covered.
+
+        Args:
+            result: The execution result to check.
+
+        Returns:
+            True, if this goal is covered in the execution result
+        """
+
+
+class StatementCoverageGoal(AbstractCoverageGoal):
+    """Line to be covered by the search as goal."""
+
+    def __init__(
+        self,
+        code_object_id: int,
+        line_number: int,
+        file_name: str,
+    ):
+        super().__init__(code_object_id)
+        self._line_number = line_number
+        self._file_name = file_name
+
+    def is_covered(self, result: ExecutionResult) -> bool:
+        return (
+            result.execution_trace.file_trackers[self._file_name] and
+            self._line_number in result.execution_trace.file_trackers[self._file_name].visited_statements
+        )
+
+class AbstractBranchCoverageGoal(AbstractCoverageGoal):
+    """Abstract base class for branch coverage goals."""
+
+    def __init__(
+        self,
+        code_object_id: int,
+        is_branchless_code_object: bool = False,
+        is_branch: bool = False,
+    ):
+        super().__init__(code_object_id)
+        assert (
+            is_branchless_code_object ^ is_branch
+        ), "Must be either branch-less code object or branch."
+        self._is_branchless_code_object = is_branchless_code_object
+        self._is_branch = is_branch
 
     @abstractmethod
     def get_distance(
@@ -59,19 +98,6 @@ class AbstractBranchCoverageGoal:
 
         Returns:
             The control-flow distance
-        """
-
-    @abstractmethod
-    def is_covered(self, result: ExecutionResult) -> bool:
-        """Determine if this branch coverage goal was covered.
-        Faster to compute than get_distance but
-        doesn't give any guidance as it returns only a bool.
-
-        Args:
-            result: The execution result to check.
-
-        Returns:
-            True, if this goal is covered in the execution result
         """
 
     @property
