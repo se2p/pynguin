@@ -114,7 +114,7 @@ class FitnessFunction:
             individual: the chromosome to check coverage on.
 
         Returns:
-            True, iff the goal of this fitness function is covered.
+            True, if the goal of this fitness function is covered.
         """
 
     @abstractmethod

@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, List, cast
 
 import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
-from pynguin.testcase.execution.executiontracer import statement_execution_tracer
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -29,13 +28,13 @@ from pynguin.instrumentation.instrumentation import (
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import Instrumentation
-    from pynguin.testcase.execution.executiontracer import BranchExecutionTracer
+    from pynguin.testcase.execution.executiontracer import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
-    def __init__(self, fullname, path, tracer: BranchExecutionTracer):
+    def __init__(self, fullname, path, tracer: ExecutionTracer):
         super().__init__(fullname, path)
         self._tracer = tracer
 
@@ -56,17 +55,19 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        instrumentations: List[Instrumentation] = [
-            BranchCoverageInstrumentation(self._tracer)
-        ]
+        instrumentations: List[Instrumentation] = []
+        if config.configuration.statistics_output.statement_coverage:
+            instrumentations.append(
+                StatementCoverageInstrumentation(self._tracer)
+            )
+        else:
+            instrumentations.append(
+                BranchCoverageInstrumentation(self._tracer)
+            )
+
         if config.configuration.seeding.dynamic_constant_seeding:
             instrumentations.append(
                 DynamicSeedingInstrumentation(dynamic_constant_seeding)
-            )
-
-        if config.configuration.statistics_output.statement_coverage:
-            instrumentations.append(
-                StatementCoverageInstrumentation(statement_execution_tracer)
             )
 
         for instrumentation in instrumentations:
@@ -84,7 +85,7 @@ class InstrumentationFinder(MetaPathFinder):
     _logger = logging.getLogger(__name__)
 
     def __init__(
-        self, original_pathfinder, module_to_instrument: str, tracer: BranchExecutionTracer
+        self, original_pathfinder, module_to_instrument: str, tracer: ExecutionTracer
     ) -> None:
         """Wraps the given path finder.
 
