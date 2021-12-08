@@ -192,7 +192,7 @@ class _SearchStatistics:
             RuntimeVariable.Size.name
         ] = self._ChromosomeSizeOutputVariableFactory()
         self._variable_factories[
-            RuntimeVariable.Coverage.name
+            RuntimeVariable.BranchCoverage.name
         ] = self._ChromosomeCoverageOutputVariableFactory()
         self._variable_factories[
             RuntimeVariable.Fitness.name
@@ -310,6 +310,9 @@ class _SearchStatistics:
         output_variables_map: Dict[str, sb.OutputVariable] = {}
 
         for variable in config.configuration.statistics_output.output_variables:
+            if variable == RuntimeVariable.StatementCoverage \
+                    and not config.configuration.statistics_output.statement_coverage:
+                continue  # TODO handle it more gracefully to not print statement coverage if not needed
             variable_name = variable.name
             if variable_name in self._output_variables:
                 # Values directly sent
@@ -387,7 +390,7 @@ class _SearchStatistics:
 
     class _ChromosomeCoverageOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
-            super().__init__(RuntimeVariable.Coverage)
+            super().__init__(RuntimeVariable.BranchCoverage)
 
         def get_data(self, individual: chrom.Chromosome) -> float:
             return individual.get_coverage()

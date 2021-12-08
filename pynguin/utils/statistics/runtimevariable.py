@@ -40,8 +40,11 @@ class RuntimeVariable(str, enum.Enum):
     # Execution results
     ExecutionResults = "ExecutionResults"
 
-    # Obtained coverage of the chosen testing criterion
-    Coverage = "Coverage"
+    # Obtained branch coverage of the chosen testing criterion
+    BranchCoverage = "BranchCoverage"
+
+    # Obtained statement coverage of the chosen testing criterion
+    StatementCoverage = "StatementCoverage"
 
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning
