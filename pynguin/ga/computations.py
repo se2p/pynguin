@@ -277,6 +277,24 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         return compute_branch_coverage(merged_trace, tracer.get_known_data())
 
 
+class TestSuiteStatementCoverageFunction(TestSuiteCoverageFunction):
+    """Computes statement coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        return compute_statement_coverage(merged_trace)
+
+
+class TestCaseStatementCoverageFunction(TestCaseCoverageFunction):
+    """Computes branch coverage on test cases."""
+
+    def compute_coverage(self, individual) -> float:
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+        return compute_statement_coverage(merged_trace)
+
+
 class ComputationCache:
     """Caches computation results and computes values on demand."""
 
@@ -683,6 +701,32 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
     # Must consider both branches created by a predicate, i.e. true and false.
     covered += len([v for v in trace.true_distances.values() if v == 0.0])
     covered += len([v for v in trace.false_distances.values() if v == 0.0])
+
+    if existing == 0:
+        # Nothing to cover => everything is covered.
+        coverage = 1.0
+    else:
+        coverage = covered / existing
+    assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+    return coverage
+
+
+def compute_statement_coverage(trace: ExecutionTrace) -> float:
+    """Computes statement coverage on bytecode instructions which should equal
+    decision coverage on source.
+
+    Args:
+        trace: The execution trace
+
+    Returns:
+        The computed coverage value
+    """
+
+    covered = 0
+    existing = 0
+    for file_tracker in trace.file_trackers.values():
+        covered += len(file_tracker.visited_statements)
+        existing += len(file_tracker.statements)
 
     if existing == 0:
         # Nothing to cover => everything is covered.

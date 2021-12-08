@@ -89,44 +89,6 @@ class KnownData:
     )
 
 
-@dataclasses.dataclass
-class FileStatementData:
-    """Tracks information about statements inside one file."""
-
-    # name of the file of the module that is being tracked
-    file_name: str
-
-    # the visited statements and the number of times they were visited
-    visited_statements: Dict[int, int] = dataclasses.field(
-        default_factory=dict
-    )
-
-    # overall available statements of a file
-    statements: OrderedSet[int] = dataclasses.field(
-        default_factory=OrderedSet
-    )
-
-    def visit_statement(self, line_number: int) -> None:
-        """Increment the visits of an already visited statement or add a number to the visited
-        statements with its first visit already being counted.
-
-        Args:
-            line_number: The line number of the visited statement.
-        """
-        if line_number in self.visited_statements:
-            self.visited_statements[line_number] += 1
-        else:
-            self.visited_statements[line_number] = 1
-
-    def track_statement(self, line_number: int) -> None:
-        """Add a statement in a line number to the tracked lines
-
-        Args:
-            line_number: The tracked line number of an executed statement.
-        """
-        self.statements.add(line_number)
-
-
 class ExecutionTracer:
     """Tracks branch distances and statement coverage during
     execution. The results are stored in an execution trace."""
