@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 name: CI
 on: [push, pull_request]
 
