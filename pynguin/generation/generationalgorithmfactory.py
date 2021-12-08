@@ -305,9 +305,15 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
         ):
-            fitness_functions = bg.create_branch_coverage_fitness_functions(
-                self._executor, strategy.branch_goal_pool
-            )
+            fitness_functions = []
+            if config.configuration.statistics_output.statement_coverage:
+                fitness_functions = bg.create_statement_coverage_fitness_functions(
+                    self._executor
+                )
+            else:
+                fitness_functions = bg.create_branch_coverage_fitness_functions(
+                    self._executor, strategy.branch_goal_pool
+                )
             self._logger.info(
                 "Instantiated %d fitness functions", len(fitness_functions)
             )
@@ -317,11 +323,13 @@ class TestSuiteGenerationAlgorithmFactory(
     def _get_test_suite_fitness_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
+        # TODO alternatively return StatementCoverage FFs
         return OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
 
     def _get_test_suite_coverage_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
+        # TODO alternatively return StatementCoverage FFs
         return OrderedSet([ff.TestSuiteBranchCoverageFunction(self._executor)])
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):

@@ -70,6 +70,22 @@ class StatementCoverageGoal(AbstractCoverageGoal):
             self._line_number in result.execution_trace.file_trackers[self._file_name].visited_statements
         )
 
+    def __str__(self) -> str:
+        return f"Line Goal{self._file_name}:{self._line_number}"
+
+    def __repr__(self) -> str:
+        return f"LineGoal({self._file_name}:{self._line_number})"
+
+    def __hash__(self) -> int:
+        return 31 + self._code_object_id
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, StatementCoverageGoal):
+            return False
+        return self._file_name == other._file_name and self._line_number == other._line_number
+
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
     """Abstract base class for branch coverage goals."""
 
@@ -317,31 +333,31 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
     def __init__(
-        self, executor: tce.TestCaseExecutor, file_name: str, code_object_id: int
+        self, executor: tce.TestCaseExecutor, goal: StatementCoverageGoal
     ):
-        super().__init__(executor, code_object_id)
-        self._file_name = file_name
+        super().__init__(executor, goal._code_object_id)
+        self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
-        coverage = ff.compute_statement_coverage(result.execution_trace)
-        return coverage
+
+        distance = self._goal.get_distance(result, self._executor.tracer)
+        return distance.get_resulting_branch_fitness()
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)
-        coverage = ff.compute_statement_coverage(result.execution_trace)
-        return coverage == 1
+        return self._goal.is_covered(result)
 
     def is_maximisation_function(self) -> bool:
         return True
 
     def __str__(self) -> str:
-        return f"StatementCoverageTestFitness for {self._file_name}"
+        return f"StatementCoverageTestFitness for {self._goal}"
 
     def __repr__(self) -> str:
         return (
             f"StatementCoverageTestFitness(executor={self._executor}, "
-            f"file={self._file_name})"
+            f"goal={self._goal})"
         )
 
 
@@ -352,7 +368,6 @@ def create_branch_coverage_fitness_functions(
 
     Args:
         executor: The test case executor for the fitness functions to use.
-        branch_goal_pool: The pool that holds all branch goals.
 
     Returns:
         All branch coverage related fitness functions.
@@ -363,3 +378,26 @@ def create_branch_coverage_fitness_functions(
             for goal in branch_goal_pool.branch_coverage_goals
         ]
     )
+
+
+def create_statement_coverage_fitness_functions(
+    executor: tce.TestCaseExecutor
+) -> OrderedSet[StatementCoverageTestFitness]:
+    """Create fitness functions for each branch coverage goal.
+
+    Args:
+        executor: The test case executor for the fitness functions to use.
+        branch_goal_pool: The pool that holds all branch goals.
+
+    Returns:
+        All branch coverage related fitness functions.
+    """
+    statement_coverage_goals = OrderedSet()
+    tracer: ExecutionTracer = executor.tracer
+
+    for (file_name, file_data) in tracer.get_file_trackers().items():
+        for line in file_data.statements:
+            # TODO how to get code_object_id here, when multiple code objects can call a line
+            line_goal = StatementCoverageGoal(42, line, file_name)
+            statement_coverage_goals.append(StatementCoverageTestFitness(executor, line_goal))
+    return statement_coverage_goals
