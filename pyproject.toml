@@ -144,7 +144,6 @@ testpaths = [
 # A lot of our own classes start with Test so pytest will pick them up during test collection.
 # But they don't actually contains tests, so we set an empty matcher for the class name.
 python_classes = ''
-bdd_features_base_dir = "tests/features/"
 
 [build-system]
 requires = ["poetry-core"]
