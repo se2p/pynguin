@@ -18,7 +18,7 @@ from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from pynguin.testcase.execution.executiontrace import ExecutionTrace, FileStatementData
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -128,6 +128,58 @@ class FileStatementData:
 
 
 class ExecutionTracer:
+    """Tracks branch distances and statement coverage during
+    execution. The results are stored in an execution trace."""
+
+    _logger = logging.getLogger(__name__)
+
+    # Contains static information about how branch distances
+    # for certain op codes should be computed.
+    # The returned tuple for each computation is (true distance, false distance).
+    # pylint: disable=arguments-out-of-order
+    _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
+        Compare.EQ: lambda val1, val2: (
+            _eq(val1, val2),
+            _neq(val1, val2),
+        ),
+        Compare.NE: lambda val1, val2: (
+            _neq(val1, val2),
+            _eq(val1, val2),
+        ),
+        Compare.LT: lambda val1, val2: (
+            _lt(val1, val2),
+            _le(val2, val1),
+        ),
+        Compare.LE: lambda val1, val2: (
+            _le(val1, val2),
+            _lt(val2, val1),
+        ),
+        Compare.GT: lambda val1, val2: (
+            _lt(val2, val1),
+            _le(val1, val2),
+        ),
+        Compare.GE: lambda val1, val2: (
+            _le(val2, val1),
+            _lt(val1, val2),
+        ),
+        Compare.IN: lambda val1, val2: (
+            _in(val1, val2),
+            _nin(val1, val2),
+        ),
+        Compare.NOT_IN: lambda val1, val2: (
+            _nin(val1, val2),
+            _in(val1, val2),
+        ),
+        Compare.IS: lambda val1, val2: (
+            _is(val1, val2),
+            _isn(val1, val2),
+        ),
+        Compare.IS_NOT: lambda val1, val2: (
+            _isn(val1, val2),
+            _is(val1, val2),
+        ),
+    }
+
     def __init__(self) -> None:
         self._known_data = KnownData()
         # Contains the trace information that is generated when a module is imported
@@ -254,95 +306,31 @@ class ExecutionTracer:
         ), "Cannot trace unknown code object"
         self._trace.executed_code_objects.add(code_object_id)
 
+    def get_file_trackers(self) -> Dict[str, FileStatementData]:
+        return self._trace.file_trackers
 
-class StatementExecutionTracer(ExecutionTracer):
-    """Tracks executed statements during execution.
-    The results are stored in an execution trace."""
-
-    _logger = logging.getLogger(__name__)
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._file_trackers = dict()
-
-    def track_statement_visit(self, line_number: int, file_name: str) -> None:
+    def track_statement_visit(self, file_name: str, line_number: int, code_object_id: int) -> None:
         """Tracks the visit of a statement.
 
         Args:
-            line_number: The line of the statement that was tracked
             file_name: The file in which the statement is
+            line_number: The line of the statement that was tracked
+            code_object_id: the id of the code object which while executed covered the line
         """
-        if file_name not in self._file_trackers:
-            self._file_trackers[file_name] = FileStatementData(file_name)
-        self._file_trackers[file_name].visit_statement(line_number)
+        if file_name not in self._trace.file_trackers:
+            self._trace.file_trackers[file_name] = FileStatementData(file_name)
+        self._trace.file_trackers[file_name].visit_statement(line_number, code_object_id)
 
-    def track_statement(self, line_number: int, file_name: str) -> None:
+    def track_statement(self, file_name: str, line_number: int) -> None:
         """Tracks the existence of a statement.
 
         Args:
-            line_number: The line of the statement to track
             file_name: The file in which the statement is
+            line_number: The line of the statement to track
         """
-        if file_name not in self._file_trackers:
-            self._file_trackers[file_name] = FileStatementData(file_name)
-        self._file_trackers[file_name].track_statement(line_number)
-
-    def __repr__(self) -> str:
-        return "StatementExecutionTracer"
-
-
-class BranchExecutionTracer(ExecutionTracer):
-    """Tracks branch distances during execution.
-    The results are stored in an execution trace."""
-
-    _logger = logging.getLogger(__name__)
-
-    # Contains static information about how branch distances
-    # for certain op codes should be computed.
-    # The returned tuple for each computation is (true distance, false distance).
-    # pylint: disable=arguments-out-of-order
-    _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
-        Compare.EQ: lambda val1, val2: (
-            _eq(val1, val2),
-            _neq(val1, val2),
-        ),
-        Compare.NE: lambda val1, val2: (
-            _neq(val1, val2),
-            _eq(val1, val2),
-        ),
-        Compare.LT: lambda val1, val2: (
-            _lt(val1, val2),
-            _le(val2, val1),
-        ),
-        Compare.LE: lambda val1, val2: (
-            _le(val1, val2),
-            _lt(val2, val1),
-        ),
-        Compare.GT: lambda val1, val2: (
-            _lt(val2, val1),
-            _le(val1, val2),
-        ),
-        Compare.GE: lambda val1, val2: (
-            _le(val2, val1),
-            _lt(val1, val2),
-        ),
-        Compare.IN: lambda val1, val2: (
-            _in(val1, val2),
-            _nin(val1, val2),
-        ),
-        Compare.NOT_IN: lambda val1, val2: (
-            _nin(val1, val2),
-            _in(val1, val2),
-        ),
-        Compare.IS: lambda val1, val2: (
-            _is(val1, val2),
-            _isn(val1, val2),
-        ),
-        Compare.IS_NOT: lambda val1, val2: (
-            _isn(val1, val2),
-            _is(val1, val2),
-        ),
-    }
+        if file_name not in self._trace.file_trackers:
+            self._trace.file_trackers[file_name] = FileStatementData(file_name)
+        self._trace.file_trackers[file_name].track_statement(line_number)
 
     def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
@@ -381,7 +369,7 @@ class BranchExecutionTracer(ExecutionTracer):
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
-            distance_true, distance_false = BranchExecutionTracer._DISTANCE_COMPUTATIONS[
+            distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
                 cmp_op
             ](value1, value2)
 
@@ -608,7 +596,3 @@ def _isn(val1, val2) -> float:
     if val1 is not val2:
         return 0.0
     return 1.0
-
-
-# TODO really only initialise one tracer globally here?
-statement_execution_tracer = StatementExecutionTracer()

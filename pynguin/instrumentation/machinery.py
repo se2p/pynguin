@@ -153,7 +153,7 @@ class ImportHookContextManager:
 
 
 def install_import_hook(
-    module_to_instrument: str, tracer: BranchExecutionTracer
+    module_to_instrument: str, tracer: ExecutionTracer
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
 

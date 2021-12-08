@@ -20,8 +20,6 @@ from pynguin.analyses.controlflow.controldependencegraph import ControlDependenc
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution.executiontracer import (
     CodeObjectMetaData,
-    BranchExecutionTracer,
-    StatementExecutionTracer,
     ExecutionTracer,
     PredicateMetaData,
 )
@@ -112,7 +110,7 @@ class BranchCoverageInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: BranchExecutionTracer) -> None:
+    def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
     def _instrument_inner_code_objects(
@@ -311,7 +309,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                BranchExecutionTracer.executed_bool_predicate.__name__,
+                ExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_THREE", lineno=lineno),
@@ -365,7 +363,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                BranchExecutionTracer.executed_compare_predicate.__name__,
+                ExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -405,7 +403,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                BranchExecutionTracer.executed_exception_match.__name__,
+                ExecutionTracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
             Instr("ROT_FOUR", lineno=lineno),
@@ -442,7 +440,7 @@ class BranchCoverageInstrumentation(Instrumentation):
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         for const in module_code.co_consts:
-            if isinstance(const, BranchExecutionTracer):
+            if isinstance(const, ExecutionTracer):
                 # Abort instrumentation, since we have already
                 # instrumented this code object for branch coverage.
                 assert False, "Tried to instrument already instrumented module."
@@ -504,7 +502,7 @@ class BranchCoverageInstrumentation(Instrumentation):
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    BranchExecutionTracer.executed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", True, lineno=lineno),
@@ -520,7 +518,7 @@ class BranchCoverageInstrumentation(Instrumentation):
                 Instr("LOAD_CONST", self._tracer, lineno=lineno),
                 Instr(
                     "LOAD_METHOD",
-                    BranchExecutionTracer.executed_bool_predicate.__name__,
+                    ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
                 Instr("LOAD_CONST", False, lineno=lineno),
@@ -541,7 +539,7 @@ class StatementCoverageInstrumentation(Instrumentation):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: StatementExecutionTracer) -> None:
+    def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
     def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
@@ -652,7 +650,7 @@ class StatementCoverageInstrumentation(Instrumentation):
     def instrument_statement(
         self,
         block: BasicBlock,
-        code_object_id: int,  # TODO track the code_object_id, in case file name is not unique/absolute?
+        code_object_id: int,
         instr_index: int,
         file_name: str,
         lineno: int
@@ -670,7 +668,7 @@ class StatementCoverageInstrumentation(Instrumentation):
         """
 
         # track that a statement exists
-        self._tracer.track_statement(lineno, file_name)
+        self._tracer.track_statement(file_name, lineno)
 
         # Insert instructions at the beginning.
         block[instr_index:instr_index] = [
@@ -680,18 +678,14 @@ class StatementCoverageInstrumentation(Instrumentation):
                 self._tracer.track_statement_visit.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", lineno, lineno=lineno),
             Instr("LOAD_CONST", file_name, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
+            Instr("LOAD_CONST", lineno, lineno=lineno),
+            Instr("LOAD_CONST", code_object_id, lineno=lineno),
+            Instr("CALL_METHOD", 3, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
-        for const in module_code.co_consts:
-            if isinstance(const, StatementExecutionTracer):
-                # Abort instrumentation, since we have already
-                # instrumented this code object for statement coverage.
-                assert False, "Tried to instrument already instrumented module."
         return self._instrument_code_recursive(module_code)
 
 
