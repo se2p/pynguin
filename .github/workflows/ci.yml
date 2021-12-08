@@ -1,0 +1,49 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.8, 3.9, '3.10']
+        poetry-version: [1.1.12]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Check imports with isort
+        run: poetry run isort --check-only . --profile black
+
+      - name: Check formatting with black
+        run: poetry run black --diff --check .
+
+      - name: Check typing with mypy
+        run: poetry run mypy pynguin
+
+      - name: Linting with flake8
+        run: poetry run flake8 .
+
+      - name: Linting with pylint
+        run: poetry run pylint pynguin
+
+      - name: Check docstrings with darglint
+        run: poetry run darglint -v 2 pynguin/**/*.py
+
+      - name: Run tests
+        run: poetry run pytest --cov=pynguin --cov=tests --cov-branch --cov-report=term-missing tests/
