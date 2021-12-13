@@ -9,6 +9,8 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.16.0
+
 ## Pynguin 0.15.0
 
 - Fix a bug for mutating a statement that is not in the current test case (see #17).

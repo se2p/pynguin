@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.15.0"
+version = "0.16.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -45,7 +45,7 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^10.15"
+rich = "^10.16"
 pytest = "^6.2"
 Jinja2 = "^3.0"
 Pygments = "^2.10"
@@ -60,8 +60,8 @@ pytest-cov = "^3.0"
 pylint = "^2.12"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
-pytest-xdist = "^2.4"
-hypothesis = "^6.30"
+pytest-xdist = "^2.5"
+hypothesis = "^6.31"
 pytest-mock = "^3.6"
 mypy = "^0.910"
 isort = {extras = ["pyproject"], version = "^5.10"}

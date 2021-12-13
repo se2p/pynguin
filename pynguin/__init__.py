@@ -17,7 +17,7 @@ StatisticsBackend = config.StatisticsBackend
 StoppingCondition = config.StoppingCondition
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
-__version__ = "0.15.0"
+__version__ = "0.16.0.dev"
 __all__ = [
     "set_configuration",
     "run_pynguin",
