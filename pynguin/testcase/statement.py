@@ -595,7 +595,9 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
             get_args(self.ret_val.type)[0] if get_args(self.ret_val.type) else None
         )
         # TODO(fk) what if the current type is not correct?
-        possible_insertions = self.test_case.get_objects(arg_type, self.get_position())
+        possible_insertions = self.test_case.get_objects(
+            arg_type, self.ret_val.get_statement_position()
+        )
         if len(possible_insertions) == 0:
             return None
         return randomness.choice(possible_insertions)
@@ -605,7 +607,10 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
     ) -> vr.VariableReference:
         # TODO(fk) what if the current type is not correct?
         return randomness.choice(
-            self.test_case.get_objects(element.type, self.get_position()) + [element]
+            self.test_case.get_objects(
+                element.type, self.ret_val.get_statement_position()
+            )
+            + [element]
         )
 
     def structural_hash(self) -> int:
@@ -755,7 +760,9 @@ class DictStatement(
         new = list(element)
         # TODO(fk) what if the current type is not correct?
         new[change_idx] = randomness.choice(
-            self.test_case.get_objects(element[change_idx].type, self.get_position())
+            self.test_case.get_objects(
+                element[change_idx].type, self.ret_val.get_statement_position()
+            )
             + [element[change_idx]]
         )
         assert len(new) == 2, "Tuple must consist of key and value"
@@ -771,8 +778,12 @@ class DictStatement(
         val_type = (
             get_args(self.ret_val.type)[1] if get_args(self.ret_val.type) else None
         )
-        possibles_keys = self.test_case.get_objects(key_type, self.get_position())
-        possibles_values = self.test_case.get_objects(val_type, self.get_position())
+        possibles_keys = self.test_case.get_objects(
+            key_type, self.ret_val.get_statement_position()
+        )
+        possibles_values = self.test_case.get_objects(
+            val_type, self.ret_val.get_statement_position()
+        )
         if len(possibles_keys) == 0 or len(possibles_values) == 0:
             return None
         return (
@@ -873,7 +884,9 @@ class FieldStatement(VariableCreatingStatement):
         ):
             return False
 
-        objects = self.test_case.get_objects(self.source.type, self.get_position())
+        objects = self.test_case.get_objects(
+            self.source.type, self.ret_val.get_statement_position()
+        )
         if (old_var := self._source.get_variable_reference()) is not None:
             objects.remove(old_var)
         if len(objects) > 0:
@@ -1069,7 +1082,7 @@ class ParametrizedStatement(
         current = self._args.get(param_name, None)
         param_type = inf_sig.parameters[param_name]
         possible_replacements = self.test_case.get_objects(
-            param_type, self.get_position()
+            param_type, self.ret_val.get_statement_position()
         )
 
         # Param has to be optional, otherwise it would be set.
@@ -1097,10 +1110,11 @@ class ParametrizedStatement(
             possible_replacements.remove(current)
 
         # Consider duplicating an existing statement/variable.
-        copy: Optional[Statement] = None
+        copy: Optional[VariableCreatingStatement] = None
         if self._param_count_of_type(param_type) > len(possible_replacements) + 1:
-            original_param_source = self.test_case.get_statement(
-                current.get_statement_position()
+            original_param_source = cast(
+                VariableCreatingStatement,
+                self.test_case.get_statement(current.get_statement_position()),
             )
             copy = cast(
                 VariableCreatingStatement,
@@ -1113,7 +1127,15 @@ class ParametrizedStatement(
                     },
                 ),
             )
+            # TODO(fk) This is a workaround, to let this temporary statement be
+            #  able to find its location, by setting the ret_val of the original
+            #  statement. Better way?
+            tmp = copy.ret_val
+            copy.ret_val = original_param_source.ret_val
             copy.mutate()
+            # TODO(fk) We restore it afterwards.
+            copy.ret_val = tmp
+
             possible_replacements.append(copy.ret_val)
 
         # TODO(fk) Use param_type instead of to_mutate.variable_type,
@@ -1127,11 +1149,13 @@ class ParametrizedStatement(
 
         if copy and replacement == copy.ret_val:
             # The chosen replacement is a copy, so we have to add it to the test case.
-            self.test_case.add_statement(copy, self.get_position())
+            self.test_case.add_statement(copy, self.ret_val.get_statement_position())
         elif replacement is none_statement.ret_val:
             # The chosen replacement is a none statement, so we have to add it to the
             # test case.
-            self.test_case.add_statement(none_statement, self.get_position())
+            self.test_case.add_statement(
+                none_statement, self.ret_val.get_statement_position()
+            )
 
         self._args[param_name] = replacement
         return True
@@ -1255,7 +1279,9 @@ class MethodStatement(ParametrizedStatement):
         # We mutate the callee here, as the special parameter.
         if randomness.next_float() < p_per_param:
             callee = self.callee
-            objects = self.test_case.get_objects(callee.type, self.get_position())
+            objects = self.test_case.get_objects(
+                callee.type, self.ret_val.get_statement_position()
+            )
             objects.remove(callee)
 
             if len(objects) > 0:

@@ -730,7 +730,7 @@ class TestFactory:
         if statement.ret_val.is_type_unknown():
             return False
 
-        objects = test_case.get_all_objects(statement.get_position())
+        objects = test_case.get_all_objects(statement.ret_val.get_statement_position())
         type_ = statement.ret_val.type
         assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
