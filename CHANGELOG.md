@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.15.0
 
+- Fix a bug for mutating a statement that is not in the current test case (see #17).
+- Set default assertion generation to `SIMPLE` due to issues with the experimental 
+  new generation strategy.
+- Add GitHub Actions that also runs our CI chain on GitHub.
+
 ## Pynguin 0.14.0
 
 - *Breaking:* Simplify the logging such that Pynguin uses different log levels also 
