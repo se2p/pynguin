@@ -16,14 +16,16 @@ import pynguin.coverage.branchgoals as bg
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
+import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import (
+    ExecutionResult,
+    ExecutionTrace,
+    ExecutionTracer,
+    KnownData,
+    TestCaseExecutor,
+)
 from pynguin.typeinference.strategy import InferredSignature
 
 
@@ -150,7 +152,7 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
 def test_compute_fitness_values_no_branches():
     module_name = "tests.fixtures.branchcoverage.nobranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -180,7 +182,7 @@ def test_compute_fitness_values_no_branches():
 def test_compute_fitness_values_single_branches_if():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -198,7 +200,7 @@ def test_compute_fitness_values_single_branches_if():
 def test_compute_fitness_values_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.singlebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -216,7 +218,7 @@ def test_compute_fitness_values_single_branches_else():
 def test_compute_fitness_values_two_method_single_branches_else():
     module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -234,7 +236,7 @@ def test_compute_fitness_values_two_method_single_branches_else():
 def test_compute_fitness_values_nested_branches():
     module_name = "tests.fixtures.branchcoverage.nestedbranches"
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
@@ -251,8 +253,8 @@ def test_compute_fitness_values_nested_branches():
 
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    function_call = param_stmt.FunctionStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
+    function_call = stmt.FunctionStatement(
         test_case,
         gao.GenericFunction(
             module.identity,
@@ -264,7 +266,7 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
         ),
         {"a": int_stmt.ret_val},
     )
-    constructor_call = param_stmt.ConstructorStatement(
+    constructor_call = stmt.ConstructorStatement(
         test_case,
         gao.GenericConstructor(
             module.DummyClass,
@@ -276,7 +278,7 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
         ),
         {"x": function_call.ret_val},
     )
-    method_call = param_stmt.MethodStatement(
+    method_call = stmt.MethodStatement(
         test_case,
         gao.GenericMethod(
             module.DummyClass,
@@ -294,8 +296,8 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
 
 def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    function_call = param_stmt.FunctionStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
+    function_call = stmt.FunctionStatement(
         test_case,
         gao.GenericFunction(
             module.first,
@@ -314,8 +316,8 @@ def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromos
 
 def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, -5)
-    function_call = param_stmt.FunctionStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, -5)
+    function_call = stmt.FunctionStatement(
         test_case,
         gao.GenericFunction(
             module.first,
@@ -334,8 +336,8 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
 
 def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, -50)
-    function_call = param_stmt.FunctionStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, -50)
+    function_call = stmt.FunctionStatement(
         test_case,
         gao.GenericFunction(
             module.nested_branches,

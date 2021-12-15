@@ -11,12 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Compare
 
-from pynguin.testcase.execution.executiontracer import (
-    CodeObjectMetaData,
-    ExecutionTracer,
-    _le,
-    _lt,
-)
+from pynguin.testcase.execution import CodeObjectMetaData, ExecutionTracer, _le, _lt
 
 
 def test_functions_exists():
@@ -28,7 +23,7 @@ def test_functions_exists():
 
 def test_entered_function():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock(CodeObjectMetaData))
     tracer.executed_code_object(0)
     assert 0 in tracer.get_trace().executed_code_objects
@@ -43,7 +38,7 @@ def test_predicate_exists():
 
 def test_update_metrics_covered():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
@@ -60,7 +55,7 @@ def test_update_metrics_assertions(true_dist, false_dist):
 
 def test_update_metrics_true_dist_min():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(5, 0, 0, Compare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
@@ -70,7 +65,7 @@ def test_update_metrics_true_dist_min():
 
 def test_update_metrics_false_dist_min():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(3, 1, 0, Compare.NE)
     assert (0, 2) in tracer.get_trace().false_distances.items()
@@ -80,7 +75,7 @@ def test_update_metrics_false_dist_min():
 
 def test_passed_cmp_predicate():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(1, 0, 0, Compare.EQ)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
@@ -88,7 +83,7 @@ def test_passed_cmp_predicate():
 
 def test_passed_exception_match():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_exception_match(ValueError(), ValueError, 0)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
@@ -98,7 +93,7 @@ def test_passed_exception_match():
 
 def test_passed_exception_match_not():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_exception_match(NameError(), ValueError, 0)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
@@ -150,7 +145,7 @@ def test_passed_exception_match_not():
 )
 def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_compare_predicate(val1, val2, 0, cmp)
     assert (0, true_dist) in tracer.get_trace().true_distances.items()
@@ -159,7 +154,7 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
 
 def test_unknown_comp():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     with pytest.raises(Exception):
         tracer.executed_compare_predicate(1, 1, 0, Compare.EXC_MATCH)
@@ -168,14 +163,14 @@ def test_unknown_comp():
 def test_passed_bool_predicate():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(code_object_id=0))
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.executed_bool_predicate(True, 0)
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
 def test_bool_distance_true():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_bool_predicate(True, 0)
     assert (0, 0.0) in tracer.get_trace().true_distances.items()
@@ -184,7 +179,7 @@ def test_bool_distance_true():
 
 def test_bool_distance_false():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.executed_bool_predicate(False, 0)
     assert (0, 1.0) in tracer.get_trace().true_distances.items()
@@ -193,7 +188,7 @@ def test_bool_distance_false():
 
 def test_clear():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock(CodeObjectMetaData))
     tracer.executed_code_object(0)
     trace = tracer.get_trace()
@@ -203,7 +198,7 @@ def test_clear():
 
 def test_enable_disable_cmp():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     assert len(tracer.get_trace().executed_predicates) == 0
 
@@ -218,7 +213,7 @@ def test_enable_disable_cmp():
 
 def test_enable_disable_bool():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
     assert len(tracer.get_trace().executed_predicates) == 0
 
@@ -265,7 +260,7 @@ def test_no_branchless_code_object_register_multiple():
 
 def test_code_object_executed_other_thread():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
     thread = threading.Thread(target=tracer.executed_code_object, args=(0,))
     thread.start()
@@ -275,7 +270,7 @@ def test_code_object_executed_other_thread():
 
 def test_bool_predicate_executed_other_thread():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
     thread = threading.Thread(target=tracer.executed_bool_predicate, args=(True, 0))
@@ -286,7 +281,7 @@ def test_bool_predicate_executed_other_thread():
 
 def test_compare_predicate_executed_other_thread():
     tracer = ExecutionTracer()
-    tracer.current_thread_ident = threading.current_thread().ident
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
     thread = threading.Thread(

@@ -1,22 +1,32 @@
-[15:36:42] INFO     Start Pynguin Test Generation…                                                                          generator.py:88
-           INFO     Using seed 1629381673714481067                                                                         generator.py:147
-           INFO     Collecting constants from SUT.                                                                         generator.py:154
-           INFO     Use strategy: Algorithm.DYNAMOSA                                                      generationalgorithmfactory.py:206
-           INFO     Instantiated 14 fitness functions                                                     generationalgorithmfactory.py:259
-           INFO     Use selection function: Selection.TOURNAMENT_SELECTION                                generationalgorithmfactory.py:225
-           INFO     Use stopping condition: StoppingCondition.MAX_TIME                                     generationalgorithmfactory.py:83
-           INFO     Use crossover function: SinglePointRelativeCrossOver                                  generationalgorithmfactory.py:238
-           INFO     Use ranking function: RankBasedPreferenceSorting                                      generationalgorithmfactory.py:242
-           INFO     Start generating test cases                                                                            generator.py:236
-           INFO     Iteration:     0, Coverage: 0.785714                                                               searchobserver.py:62
-           INFO     Iteration:     1, Coverage: 0.785714                                                               searchobserver.py:68
-[15:36:43] INFO     Iteration:     2, Coverage: 0.785714                                                               searchobserver.py:68
-           INFO     Iteration:     3, Coverage: 0.785714                                                               searchobserver.py:68
-           INFO     Iteration:     4, Coverage: 0.785714                                                               searchobserver.py:68
-           INFO     Iteration:     5, Coverage: 0.857143                                                               searchobserver.py:68
-[15:36:44] INFO     Iteration:     6, Coverage: 1.000000                                                               searchobserver.py:68
-           INFO     Stop generating test cases                                                                             generator.py:240
-           INFO     Export 4 successful test cases to /tmp/pynguin-results/test_queue_example.py                           generator.py:269
-           INFO     Export 4 failing test cases to /tmp/pynguin-results/test_queue_example_failing.py                      generator.py:279
-           INFO     Writing statistics                                                                                    statistics.py:350
-           INFO     Stop Pynguin Test Generation…                                                                           generator.py:91
+[12:59:50] INFO     Start Pynguin Test Generation…                                                                                                         generator.py:98
+           INFO     Using seed 1629381673714481067                                                                                                        generator.py:176
+           INFO     Collecting constants from SUT.                                                                                                        generator.py:183
+           INFO     Using strategy: Algorithm.DYNAMOSA                                                                                   generationalgorithmfactory.py:235
+           INFO     Instantiated 14 fitness functions                                                                                    generationalgorithmfactory.py:311
+           INFO     Using CoverageArchive                                                                                                generationalgorithmfactory.py:279
+           INFO     Using selection function: Selection.TOURNAMENT_SELECTION                                                             generationalgorithmfactory.py:254
+           INFO     Using stopping condition: StoppingCondition.MAX_TIME                                                                  generationalgorithmfactory.py:90
+           INFO     Using crossover function: SinglePointRelativeCrossOver                                                               generationalgorithmfactory.py:267
+           INFO     Using ranking function: RankBasedPreferenceSorting                                                                   generationalgorithmfactory.py:287
+           INFO     Start generating test cases                                                                                                           generator.py:266
+           INFO     Iteration:     0, Coverage: 0.785714                                                                                              searchobserver.py:66
+[12:59:51] INFO     Iteration:     1, Coverage: 0.785714                                                                                              searchobserver.py:72
+           INFO     Iteration:     2, Coverage: 0.785714                                                                                              searchobserver.py:72
+           INFO     Iteration:     3, Coverage: 0.785714                                                                                              searchobserver.py:72
+[12:59:52] INFO     Iteration:     4, Coverage: 0.785714                                                                                              searchobserver.py:72
+           INFO     Iteration:     5, Coverage: 0.857143                                                                                              searchobserver.py:72
+           INFO     Iteration:     6, Coverage: 0.857143                                                                                              searchobserver.py:72
+           INFO     Iteration:     7, Coverage: 0.928571                                                                                              searchobserver.py:72
+[12:59:53] INFO     Iteration:     8, Coverage: 1.000000                                                                                              searchobserver.py:72
+           INFO     Algorithm stopped before using all resources.                                                                                         generator.py:271
+           INFO     Stop generating test cases                                                                                                            generator.py:272
+           INFO     Setup mutation controller                                                                                                        mutationadapter.py:66
+           INFO     Build AST for queue_example                                                                                                      mutationadapter.py:52
+           INFO     Mutate module queue_example                                                                                                      mutationadapter.py:54
+           INFO     Generated 30 mutants                                                                                                             mutationadapter.py:62
+           INFO     Execute 7 test cases                                                                                                   mutationanalysisgenerator.py:53
+[13:00:02] INFO     Generating assertions for test cases                                                                                   mutationanalysisgenerator.py:56
+           INFO     Export 3 successful test cases to /tmp/pynguin-results/test_queue_example.py                                                          generator.py:310
+           INFO     Export 4 failing test cases to /tmp/pynguin-results/test_queue_example_failing.py                                                     generator.py:320
+           INFO     Writing statistics                                                                                                                   statistics.py:350
+           INFO     Stop Pynguin Test Generation…                                                                                                         generator.py:101

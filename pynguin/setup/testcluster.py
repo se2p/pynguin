@@ -27,7 +27,7 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 if typing.TYPE_CHECKING:  # Break circular dependencies at runtime.
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
-    from pynguin.testcase.execution.executiontracer import KnownData
+    from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 

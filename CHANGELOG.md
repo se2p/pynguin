@@ -9,9 +9,87 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.16.0
+
+## Pynguin 0.15.0
+
+- Fix a bug for mutating a statement that is not in the current test case (see #17).
+- Set default assertion generation to `SIMPLE` due to issues with the experimental 
+  new generation strategy.
+- Add GitHub Actions that also runs our CI chain on GitHub.
+
+## Pynguin 0.14.0
+
+- *Breaking:* Simplify the logging such that Pynguin uses different log levels also 
+  for the log file.  This removes the `-q` option to make all outputs quiet.
+- Pynguin now also supports field accesses during test generation.  This is a 
+  preliminary feature.
+- Fix a deadlock in the executor
+- Pynguin now uses Python 3.10 as its default version for the provided Docker 
+  container as well as our CI.  Still, Pynguin supports Python 3.8 and 3.9.  Up to now,
+  Python 3.11 is not yet supported.
+- Refactor the state-trace implementation
+- Remove the module-loader singleton
+- Fix loading of mutated module for assertion generation.  Caused that no assertion 
+  was generated because the mutants were not loaded properly.  This is a regression 
+  from merging the assertion-generation strategy in Pynguin 0.13.0.
+
+## Pynguin 0.13.2
+
+- Add the reference to the preprint of our EMSE journal submission to documentation.
+- Clarify on the value of the `PYNGUIN_DANGER_AWARE` environment variable.  One can 
+  set an arbitrary value for the variable, Pynguin only checks whether its defined.
+
+## Pynguin 0.13.1
+
+- Fix documentation generation by adding our MutPy fork as a dependency
+
+## Pynguin 0.13.0
+
+- Add an assertion-generation strategy based on mutation (thanks to @f-str).
+
+  The new strategy is enabled by default (can be configured using the 
+  `--assertion-generation` parameter).  It uses a custom
+  [fork](https://github.com/se2p/mutpy-pynguin) of the mutation-testing framework
+  [MutPy](https://github.com/mutpy/mutpy), which mutates the subject under test and for
+  each mutant traces the values of fields and returned by method calls.  If these values
+  differ between mutant and original code, an assertion is generated based on the result
+  on the original subject under test.  One can also control whether the strategy shall
+  also generate assertions for unchanged values by the `--generate-all-assertions` flag.
+
+  The release also updates the documentation accordingly.
+
+  *Note:* This feature is an early prototype of such an assertion generation, which 
+  might cause unexpected behaviour.  You can switch back to the previous strategy for
+  assertion generation by setting `--assertion-generation SIMPLE`.
+
+## Pynguin 0.12.0
+
+- Generate more reasonable variable names in tests.
+  Before this release, Pynguin only generated variables named `var0`, `var1`, etc.
+  A simple heuristics now attempts to generate more reasonable names depending on the
+  type of the variable, such as `int_0`, `bool_1`, or `str_2`.
+  We also adjusted the documentation to match this change.
+- We updated all provided PyCharm run configurations the use the more sophisticated
+  queue example instead of the simple example module to see an improved output.
+- Prevent a potential regression when updating the dependencies to version 0.0.17 of the
+  [simple-parsing](https://pypi.org/project/simple-parsing) library for CLI argument
+  parsing, which changed its API.
+
 ## Pynguin 0.11.0
 
-- Add
+- Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph 
+  caused DynaMOSA to not consider certain targets because they were control 
+  dependent on goals that had not yet been covered due to the loop.
+- Improve documentation
+- Split and extend `FitnessValues` to avoid expensive re-computations.  This also 
+  extends the API of the `FitnessValues` and refactors large parts of the fitness 
+  handling.
+- Fix for bumpiness of flaky tests.  Whenever Pynguin generates a test that behaves 
+  flaky result could be that coverage over time looks like ventricular fibrillation 
+  especially for the MIO algorithm.  The fix prevents this by carefully revisiting 
+  the equality of chromosomes.
+- Improve handling of entry/exit nodes in the CFG; this fixes issues with Python 3.10
 
 ## Pynguin 0.10.0
 

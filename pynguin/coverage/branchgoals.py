@@ -17,9 +17,12 @@ import pynguin.ga.computations as ff
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
-    import pynguin.testcase.execution.testcaseexecutor as tce
-    from pynguin.testcase.execution.executionresult import ExecutionResult
-    from pynguin.testcase.execution.executiontracer import ExecutionTracer, KnownData
+    from pynguin.testcase.execution import (
+        ExecutionResult,
+        ExecutionTracer,
+        KnownData,
+        TestCaseExecutor,
+    )
 
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
@@ -291,9 +294,7 @@ class BranchGoalPool:
 class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
-    def __init__(
-        self, executor: tce.TestCaseExecutor, goal: AbstractBranchCoverageGoal
-    ):
+    def __init__(self, executor: TestCaseExecutor, goal: AbstractBranchCoverageGoal):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
@@ -362,7 +363,7 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
 
 
 def create_branch_coverage_fitness_functions(
-    executor: tce.TestCaseExecutor, branch_goal_pool: BranchGoalPool
+    executor: TestCaseExecutor, branch_goal_pool: BranchGoalPool
 ) -> OrderedSet[BranchCoverageTestFitness]:
     """Create fitness functions for each branch coverage goal.
 

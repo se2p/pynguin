@@ -17,9 +17,9 @@ from pynguin.utils.type_utils import is_assignable_to, is_type_unknown
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.statements.statement as stmt
+    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
 
 
 # pylint: disable=too-many-public-methods
@@ -54,11 +54,29 @@ class TestCase(metaclass=ABCMeta):
     @abstractmethod
     def add_statement(
         self, statement: stmt.Statement, position: int = -1
-    ) -> vr.VariableReference:
+    ) -> Optional[vr.VariableReference]:
         """Adds a new statement to the test case.
 
         The optional position parameter specifies the position.  If it is not given,
         the statement will be added to the end of the test case.
+
+        Args:
+            statement: The new statement
+            position: The optional position where to put the statement
+
+        Returns:  # noqa: DAR202
+            The return value of the statement.  Notice that the test might
+            choose to modify the statement you inserted.  You should use the returned
+            variable reference and not use references. Can be None, if this statement
+            does not create a variable.
+        """
+
+    @abstractmethod
+    def add_variable_creating_statement(
+        self, statement: stmt.VariableCreatingStatement, position: int = -1
+    ) -> vr.VariableReference:
+        """Overloaded version of add_statement that adds a statement
+        which creates a variable.
 
         Args:
             statement: The new statement
@@ -135,7 +153,7 @@ class TestCase(metaclass=ABCMeta):
     @abstractmethod
     def set_statement(
         self, statement: stmt.Statement, position: int
-    ) -> vr.VariableReference:
+    ) -> Optional[vr.VariableReference]:
         """Set new statement at position.
 
         Args:
@@ -143,7 +161,7 @@ class TestCase(metaclass=ABCMeta):
             position: the position for the new statement
 
         Returns:
-            A variable reference to the statements return value  # noqa: DAR202
+            A variable reference to the statements return value, if any  # noqa: DAR202
         """
 
     @abstractmethod
@@ -227,9 +245,9 @@ class TestCase(metaclass=ABCMeta):
         for i in range(bound):
             statement = self._statements[i]
             var = statement.ret_val
-            if not var.is_none_type() and is_assignable_to(
-                var.variable_type, parameter_type
-            ):
+            if var is None:
+                continue
+            if not var.is_none_type() and is_assignable_to(var.type, parameter_type):
                 variables.append(var)
 
         return variables
@@ -247,6 +265,8 @@ class TestCase(metaclass=ABCMeta):
         bound = min(len(self._statements), position)
         for i in range(bound):
             var = self.get_statement(i).ret_val
+            if var is None:
+                continue
             if not var.is_none_type():
                 variables.append(var)
         return variables

@@ -23,7 +23,7 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTimeStoppingCondition,
 )
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
 

@@ -20,8 +20,7 @@ if TYPE_CHECKING:
         ControlDependenceGraph,
     )
     from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
-    from pynguin.testcase.execution.executionresult import ExecutionResult
-    from pynguin.testcase.execution.executiontracer import ExecutionTracer
+    from pynguin.testcase.execution import ExecutionResult, ExecutionTracer
 
 
 @total_ordering

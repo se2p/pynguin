@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import enum
 import inspect
 from typing import Any, Dict, List, Set, Tuple, Union
 from unittest.mock import MagicMock, patch
@@ -15,14 +16,20 @@ from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,
     given_exception_matches,
+    is_assertable,
     is_assignable_to,
     is_bytes,
     is_collection_type,
+    is_dict,
+    is_enum,
+    is_list,
     is_none_type,
     is_numeric,
     is_optional_parameter,
     is_primitive_type,
+    is_set,
     is_string,
+    is_tuple,
     is_type_unknown,
     wrap_var_param_type,
 )
@@ -122,6 +129,65 @@ def test_is_bytes(value, result):
 
 
 @pytest.mark.parametrize(
+    "value, result",
+    [
+        (["foo", "bar"], True),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), False),
+    ],
+)
+def test_is_list(value, result):
+    assert is_list(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, True),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), False),
+    ],
+)
+def test_is_set(value, result):
+    assert is_set(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, True),
+        (("foo", "bar"), False),
+    ],
+)
+def test_is_dict(value, result):
+    assert is_dict(value) == result
+
+
+@pytest.mark.parametrize(
+    "value, result",
+    [
+        (["foo", "bar"], False),
+        ({"foo", "bar"}, False),
+        ({"foo": "bar"}, False),
+        (("foo", "bar"), True),
+    ],
+)
+def test_is_tuple(value, result):
+    assert is_tuple(value) == result
+
+
+def test_is_enum():
+    class Foo(enum.Enum):
+        pass
+
+    assert is_enum(Foo)
+
+
+@pytest.mark.parametrize(
     "param_name,result",
     [
         pytest.param("normal", False),
@@ -182,3 +248,32 @@ def test_is_collection_type(type_, result):
 )
 def test_given_exception_matches(exception, ex_match, result):
     assert given_exception_matches(exception, ex_match) == result
+
+
+@pytest.mark.parametrize(
+    "value,result",
+    [
+        (1, True),
+        (MagicMock(), False),
+        (enum.Enum("Dummy", "a").a, True),
+        ({1, 2}, True),
+        ({1, MagicMock()}, False),
+        ([1, 2], True),
+        ([1, MagicMock()], False),
+        ((1, 2), True),
+        ((1, MagicMock()), False),
+        ({1: 2}, True),
+        ({1: MagicMock()}, False),
+        ([[[[[[[[]]]]]]]], False),
+        ((), True),
+        (set(), True),
+        ({}, True),
+        ([], True),
+        ("foobar", True),
+        (["a", "b", ["a", "b", MagicMock()]], False),
+        (1.5, False),
+        ([1, 1.5], False),
+    ],
+)
+def test_is_assertable(value, result):
+    assert is_assertable(value) == result

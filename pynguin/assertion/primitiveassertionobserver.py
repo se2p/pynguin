@@ -11,30 +11,31 @@ from typing import TYPE_CHECKING, Optional
 
 import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.assertion.primitivetraceentry as pte
-import pynguin.testcase.statements.statementvisitor as stmt_sv
+import pynguin.testcase.statement as st
 from pynguin.utils.type_utils import is_primitive_type
 
 if TYPE_CHECKING:
-    import pynguin.assertion.outputtrace as ot
-    import pynguin.testcase.statements.statement as st
-    import pynguin.testcase.variable.variablereference as vr
-    from pynguin.testcase.execution.executioncontext import ExecutionContext
+    import pynguin.assertion.statetrace as ot
+    import pynguin.testcase.execution as ex
+    import pynguin.testcase.variablereference as vr
 
 
-class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]):
+class PrimitiveTraceObserver(ato.AssertionTraceObserver):
     """An observer that creates assertions on primitive values."""
 
     def before_statement_execution(
-        self, statement: st.Statement, exec_ctx: ExecutionContext
+        self, statement: st.Statement, exec_ctx: ex.ExecutionContext
     ):
         pass
 
     def after_statement_execution(
         self,
         statement: st.Statement,
-        exec_ctx: ExecutionContext,
+        exec_ctx: ex.ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:
+        if statement.ret_val is None:
+            return
         if exception is not None:
             return
         if statement.ret_val.is_none_type():
@@ -44,7 +45,7 @@ class PrimitiveTraceObserver(ato.AssertionTraceObserver[pte.PrimitiveTraceEntry]
         statement.accept(visitor)
 
 
-class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
+class PrimitiveAssertionVisitor(st.StatementVisitor):
     """
     Simple visitor to create primitive assertions.
     Primitive statements are not visited, because something like
@@ -55,9 +56,9 @@ class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
 
     def __init__(
         self,
-        exec_ctx: ExecutionContext,
+        exec_ctx: ex.ExecutionContext,
         variable: vr.VariableReference,
-        trace: ot.OutputTrace[pte.PrimitiveTraceEntry],
+        trace: ot.StateTrace,
     ):
         self._exec_ctx = exec_ctx
         self._variable = variable
@@ -111,19 +112,18 @@ class PrimitiveAssertionVisitor(stmt_sv.StatementVisitor):
     def visit_assignment_statement(self, stmt) -> None:
         raise NotImplementedError("Assignments are not supported yet")
 
-    def handle(self, statement: st.Statement) -> None:
+    def handle(self, statement: st.VariableCreatingStatement) -> None:
         """Actually handle the statement.
 
         Args:
             statement: the statement that is visited.
         """
-        value = self._exec_ctx.get_variable_value(self._variable)
+        value = self._exec_ctx.get_reference_value(self._variable)
         if value is None:
             return
 
         if is_primitive_type(type(value)):
             self._trace.add_entry(
                 statement.get_position(),
-                self._variable,
                 pte.PrimitiveTraceEntry(self._variable, value),
             )

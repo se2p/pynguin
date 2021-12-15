@@ -8,22 +8,24 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.testcase.statements.assignmentstatement as astmt
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.testcase.statement import AssignmentStatement
 
 
 @pytest.fixture
-def assignment_statement(test_case_mock) -> astmt.AssignmentStatement:
-    lhs = vri.VariableReferenceImpl(test_case_mock, int)
-    rhs = vri.VariableReferenceImpl(test_case_mock, float)
-    return astmt.AssignmentStatement(test_case_mock, lhs, rhs)
+def assignment_statement(test_case_mock) -> AssignmentStatement:
+    lhs = vr.FieldReference(
+        vr.VariableReference(test_case_mock, int),
+        gao.GenericField(MagicMock, "foo", int),
+    )
+    rhs = vr.VariableReference(test_case_mock, float)
+    return AssignmentStatement(test_case_mock, lhs, rhs)
 
 
 def test_rhs(test_case_mock, variable_reference_mock):
-    rhs = MagicMock(vri.VariableReferenceImpl)
-    field_statement = astmt.AssignmentStatement(
-        test_case_mock, variable_reference_mock, rhs
-    )
+    rhs = MagicMock(vr.VariableReference)
+    field_statement = AssignmentStatement(test_case_mock, variable_reference_mock, rhs)
     assert field_statement.rhs == rhs
 
 
@@ -41,15 +43,15 @@ def test_structural_eq_same(assignment_statement):
     assert assignment_statement.structural_eq(
         assignment_statement,
         {
-            assignment_statement.ret_val: assignment_statement.ret_val,
+            assignment_statement.lhs.get_variable_reference(): assignment_statement.lhs.get_variable_reference(),
             assignment_statement.rhs: assignment_statement.rhs,
         },
     )
 
 
 def test_structural_eq_other_type(test_case_mock, variable_reference_mock):
-    statement = astmt.AssignmentStatement(
-        test_case_mock, variable_reference_mock, MagicMock(vri.VariableReferenceImpl)
+    statement = AssignmentStatement(
+        test_case_mock, variable_reference_mock, MagicMock(vr.VariableReference)
     )
     assert not statement.structural_eq(test_case_mock, {})
 
@@ -64,19 +66,19 @@ def test_structural_eq_other_type(test_case_mock, variable_reference_mock):
     ],
 )
 def test_structural_eq_other_different_types(test_case_mock, lhs, rhs, res):
-    lhs1 = MagicMock(vri.VariableReferenceImpl)
+    lhs1 = MagicMock(vr.VariableReference)
     lhs1.structural_eq.return_value = lhs
-    lhs2 = MagicMock(vri.VariableReferenceImpl)
-    rhs1 = MagicMock(vri.VariableReferenceImpl)
+    lhs2 = MagicMock(vr.VariableReference)
+    rhs1 = MagicMock(vr.VariableReference)
     rhs1.structural_eq.return_value = rhs
-    rhs2 = MagicMock(vri.VariableReferenceImpl)
-    statement_1 = astmt.AssignmentStatement(test_case_mock, lhs1, rhs1)
-    statement_2 = astmt.AssignmentStatement(test_case_mock, lhs2, rhs2)
+    rhs2 = MagicMock(vr.VariableReference)
+    statement_1 = AssignmentStatement(test_case_mock, lhs1, rhs1)
+    statement_2 = AssignmentStatement(test_case_mock, lhs2, rhs2)
     assert statement_1.structural_eq(statement_2, {lhs1: lhs2, rhs1: rhs2}) == res
 
 
 def test_accept(test_case_mock, variable_reference_mock):
-    statement = astmt.AssignmentStatement(
+    statement = AssignmentStatement(
         test_case_mock, variable_reference_mock, variable_reference_mock
     )
     visitor = MagicMock()
@@ -93,23 +95,23 @@ def test_mutate(assignment_statement):
         assignment_statement.mutate()
 
 
-def test_get_variable_references(test_case_mock):
-    ret_val = MagicMock(vri.VariableReferenceImpl)
-    rhs = MagicMock(vri.VariableReferenceImpl)
-    statement = astmt.AssignmentStatement(test_case_mock, ret_val, rhs)
-    result = statement.get_variable_references()
-    assert result == {ret_val, rhs}
+def test_get_variable_references(test_case_mock, assignment_statement):
+    result = assignment_statement.get_variable_references()
+    assert result == {
+        assignment_statement.lhs.get_variable_reference(),
+        assignment_statement.rhs,
+    }
 
 
-def test_replace_ret_val(assignment_statement):
-    new = MagicMock(vri.VariableReferenceImpl)
-    old = assignment_statement.ret_val
+def test_replace_ret_val(test_case_mock, assignment_statement):
+    new = vr.VariableReference(test_case_mock, int)
+    old = assignment_statement.lhs.get_variable_reference()
     assignment_statement.replace(old, new)
-    assert assignment_statement.ret_val == new
+    assert assignment_statement.lhs.get_variable_reference() == new
 
 
-def test_replace_rhs(assignment_statement):
-    new = MagicMock(vri.VariableReferenceImpl)
+def test_replace_rhs(test_case_mock, assignment_statement):
+    new = vr.VariableReference(test_case_mock, int)
     old = assignment_statement.rhs
     assignment_statement.replace(old, new)
     assert assignment_statement.rhs == new

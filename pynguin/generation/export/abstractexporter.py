@@ -60,13 +60,13 @@ class AbstractTestExporter(metaclass=ABCMeta):
         if common_modules is not None:
             for module in common_modules:
                 imports.append(ast.Import(names=[ast.alias(name=module, asname=None)]))
-        for module_name in module_aliases.known_name_indices:
+        for module_name, alias in module_aliases:
             imports.append(
                 ast.Import(
                     names=[
                         ast.alias(
                             name=module_name,
-                            asname=module_aliases.get_name(module_name),
+                            asname=alias,
                         )
                     ]
                 )

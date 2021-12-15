@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.assertion.outputtrace as ot
-from pynguin.testcase.execution.executionresult import ExecutionResult
+import pynguin.assertion.statetrace as ot
+from pynguin.testcase.execution import ExecutionResult
 
 
 @pytest.fixture
@@ -52,6 +52,6 @@ def test_timeout(execution_result):
 
 
 def test_output_traces(execution_result):
-    trace = MagicMock(ot.OutputTrace)
+    trace = MagicMock(ot.StateTrace)
     execution_result.add_output_trace(str, trace)
     assert execution_result.output_traces == {str: trace}

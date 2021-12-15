@@ -15,9 +15,7 @@ from pynguin.coverage.controlflowdistance import (
     ControlFlowDistance,
     get_root_control_flow_distance,
 )
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.testcase.execution import ExecutionResult, ExecutionTrace, ExecutionTracer
 
 
 @pytest.fixture(scope="module")

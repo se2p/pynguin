@@ -19,7 +19,8 @@ Eager to start?  Make sure that Pynguin is :ref:`installed <install>` properly.
   To help prevent harming the system that runs Pynguin, its CLI will immediately abort
   unless the environment variable ``PYNGUIN_DANGER_AWARE`` is set. In setting this
   variable, you acknowledge that you are aware of the possible dangers of executing code
-  with random inputs.
+  with random inputs.  The assigned value can be arbitrary; Pynguin solely checks
+  whether the variable is defined.
 
   We do not provide any support and are not responsible if you break your computer by
   executing Pynguin on some random code from the internet!
@@ -68,17 +69,17 @@ it generate test cases (we use ``\`` and the line breaks for better readability 
 you can just omit them and type everything in one line)::
 
    $ pynguin \
-       --project_path ./docs/source/_static \
-       --output_path /tmp/pynguin-results \
-       --module_name example
+       --project-path ./docs/source/_static \
+       --output-path /tmp/pynguin-results \
+       --module-name example
 
 This runs for a moment without showing any output.  Thus, to have some more verbose
 output we add the ``-v`` parameter::
 
    $ pynguin \
-       --project_path ./docs/source/_static \
-       --output_path /tmp/pynguin-results \
-       --module_name example \
+       --project-path ./docs/source/_static \
+       --output-path /tmp/pynguin-results \
+       --module-name example \
        -v
 
 The output on the command line might be something like the following:
@@ -92,7 +93,7 @@ We can also see that it ran zero iterations of that algorithm, i.e.,
 the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
 The output then concludes with its results:
-Four test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -107,6 +108,10 @@ and that there are assertions that check for the correct return value.
   As of version 0.6.0, Pynguin is able to generate assertions for simple data
   types (``int``, ``float``, ``str``, ``bytes`` and ``bool``), as well as checks for ``None``
   return values.
+
+.. note::
+  As of version 0.13.0, Pynguin also provides a better assertion generation based on
+  mutation.  This allows to generate assertions also for more complex data types.
 
 
 A more complex example
@@ -139,8 +144,9 @@ The command yields the following output:
 
 .. literalinclude:: ../source/_static/queue-example-stdout.txt
 
-We can see that the *DYNAMOSA* algorithm had to perform six iterations to fully cover the ``Queue`` example with the given seed.
-We can also see that Pynguin generated four successful testcases:
+We can see that the *DYNAMOSA* algorithm had to perform nine iterations to fully cover
+the ``Queue`` example with the given seed.
+We can also see that Pynguin generated three successful testcases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:
@@ -148,12 +154,12 @@ We can also see that Pynguin generated four successful testcases:
     :lines: 8-
 
 
-And that it also generated four failing test cases. One of which looks this:
+And that it also generated four failing test cases, one of which looks this:
 
 .. literalinclude:: ../source/_static/test_queue_example_failing.py
     :linenos:
     :language: python
-    :lines: 33-62
+    :lines: 20-32
 
 Failing test cases hereby are test cases that raised an exception during their execution.
 For now, Pynguin cannot know if an exception is expected program behavior,
@@ -164,4 +170,7 @@ Thus, these test cases are wrapped in ``try-except`` blocks and should be manual
   Generated test cases may contain a lot of superfluous statements.
   Future versions of Pynguin will try minimize test cases as much as possible
   while retaining their coverage.
+
+  Also many generated assertions might be redundant.  Minimising these is open for a
+  future release of Pynguin, too.
 

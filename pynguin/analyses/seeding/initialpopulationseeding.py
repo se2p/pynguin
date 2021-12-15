@@ -22,7 +22,7 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.testcase.variable.variablereference as vr
+    import pynguin.testcase.variablereference as vr
     from pynguin.setup.testcluster import TestCluster
 
 
@@ -171,13 +171,15 @@ class _TestTransformer(ast.NodeVisitor):
                 self._current_parsable = False
             else:
                 ref_id, stmt = result
-                var_ref = self._current_testcase.add_statement(stmt)
+                # TODO(fk) not every statement creates a variable.
+                var_ref = self._current_testcase.add_variable_creating_statement(stmt)
                 self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:
         if (
             self._current_parsable
-            and config.configuration.test_case_output.generate_assertions
+            and config.configuration.test_case_output.assertion_generation
+            != config.AssertionGenerator.NONE
         ):
             if (result := ats.create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result

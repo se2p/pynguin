@@ -12,10 +12,9 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.statements.primitivestatements as prim
 import pynguin.testcase.testfactory as tf
-from pynguin.testcase.execution.executionresult import ExecutionResult
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.statement import ConstructorStatement, IntPrimitiveStatement
 
 
 @pytest.fixture
@@ -55,15 +54,15 @@ def test_get_last_mutatable_statement_empty(test_case_chromosome):
 
 def test_get_last_mutatable_statement_max(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     assert chromosome.get_last_mutatable_statement() == 0
 
 
 def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     result = MagicMock(ExecutionResult)
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 1
@@ -73,8 +72,8 @@ def test_get_last_mutatable_statement_mid(test_case_chromosome_with_test):
 
 def test_get_last_mutatable_statement_too_large(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     result = MagicMock(ExecutionResult)
     result.has_test_exceptions.return_value = True
     result.get_first_position_of_thrown_exception.return_value = 4
@@ -91,7 +90,7 @@ def test_mutation_insert_two():
     test_factory = MagicMock(tf.TestFactory)
 
     def side_effect(tc, pos):
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5))
+        tc.add_statement(IntPrimitiveStatement(tc, 5))
         return 0
 
     test_factory.insert_random_statement.side_effect = side_effect
@@ -130,7 +129,7 @@ def test_mutation_insert_max_length():
     test_factory = MagicMock(tf.TestFactory)
 
     def side_effect(tc, pos):
-        tc.add_statement(prim.IntPrimitiveStatement(tc, 5))
+        tc.add_statement(IntPrimitiveStatement(tc, 5))
         return 0
 
     test_factory.insert_random_statement.side_effect = side_effect
@@ -151,7 +150,7 @@ def test_mutation_change_nothing_to_change(test_case_chromosome):
 
 def test_mutation_change_single_prim(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    int0 = prim.IntPrimitiveStatement(test_case, 5)
+    int0 = IntPrimitiveStatement(test_case, 5)
     int0.ret_val.distance = 5
     test_case.add_statement(int0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
@@ -166,7 +165,7 @@ def test_mutation_change_call_success(constructor_mock, result):
     factory.change_random_call.return_value = result
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=factory)
-    const0 = ps.ConstructorStatement(test_case, constructor_mock)
+    const0 = ConstructorStatement(test_case, constructor_mock)
     const0.ret_val.distance = 5
     test_case.add_statement(const0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
@@ -180,7 +179,7 @@ def test_mutation_change_call_success(constructor_mock, result):
 
 def test_mutation_change_no_change(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 1.0
         assert not chromosome._mutation_change()
@@ -192,7 +191,7 @@ def test_delete_statement(result):
     test_factory.delete_statement_gracefully.return_value = result
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     assert chromosome._delete_statement(0) == result
     test_factory.delete_statement_gracefully.assert_called_with(test_case, 0)
 
@@ -204,8 +203,8 @@ def test_mutation_delete_empty(test_case_chromosome):
 def test_mutation_delete_not_empty():
     test_case = dtc.DefaultTestCase()
     chromosome = tcc.TestCaseChromosome(test_case)
-    int0 = prim.IntPrimitiveStatement(test_case, 5)
-    int1 = prim.IntPrimitiveStatement(test_case, 5)
+    int0 = IntPrimitiveStatement(test_case, 5)
+    int1 = IntPrimitiveStatement(test_case, 5)
     test_case.add_statement(int0)
     test_case.add_statement(int1)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
@@ -232,7 +231,7 @@ def test_mutate_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     chromosome.set_changed(False)
     for i in range(50):
-        test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+        test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     config.configuration.search_algorithm.test_insert_probability = 0.0
     config.configuration.search_algorithm.test_change_probability = 0.0
     config.configuration.search_algorithm.test_delete_probability = 0.0
@@ -249,7 +248,7 @@ def test_mutate_chop(test_case_chromosome_with_test):
 def test_mutate_no_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     for i in range(50):
-        test_case.add_statement(prim.IntPrimitiveStatement(test_case, 5))
+        test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     chromosome.set_changed(False)
     config.configuration.search_algorithm.test_insert_probability = 0.0
     config.configuration.search_algorithm.test_change_probability = 0.0

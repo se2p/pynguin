@@ -10,11 +10,8 @@ import pytest
 
 import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as ps
-import pynguin.testcase.statements.primitivestatements as prim
-import pynguin.testcase.statements.statement as st
-import pynguin.testcase.variable.variablereference as vr
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.statement as st
+import pynguin.testcase.variablereference as vr
 
 
 @pytest.fixture
@@ -227,13 +224,13 @@ def test_append_test_case(default_test_case):
 
 def test_get_objects(default_test_case):
     stmt_1 = MagicMock(st.Statement)
-    vri_1 = vri.VariableReferenceImpl(default_test_case, int)
+    vri_1 = vr.VariableReference(default_test_case, int)
     stmt_1.ret_val = vri_1
     stmt_2 = MagicMock(st.Statement)
-    vri_2 = vri.VariableReferenceImpl(default_test_case, float)
+    vri_2 = vr.VariableReference(default_test_case, float)
     stmt_2.ret_val = vri_2
     stmt_3 = MagicMock(st.Statement)
-    vri_3 = vri.VariableReferenceImpl(default_test_case, int)
+    vri_3 = vr.VariableReference(default_test_case, int)
     stmt_3.ret_val = vri_3
     default_test_case._statements = [stmt_1, stmt_2, stmt_3]
     result = default_test_case.get_objects(int, 2)
@@ -251,8 +248,8 @@ def test_set_statement_empty(default_test_case):
 
 
 def test_set_statement_valid(default_test_case):
-    int0 = prim.IntPrimitiveStatement(default_test_case, 5)
-    int1 = prim.IntPrimitiveStatement(default_test_case, 5)
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    int1 = st.IntPrimitiveStatement(default_test_case, 5)
     default_test_case.add_statement(int0)
     default_test_case.add_statement(int1)
     assert default_test_case.set_statement(int1, 0) == int1.ret_val
@@ -260,25 +257,25 @@ def test_set_statement_valid(default_test_case):
 
 
 def test_get_dependencies_self_empty(default_test_case, constructor_mock):
-    const0 = ps.ConstructorStatement(default_test_case, constructor_mock)
+    const0 = st.ConstructorStatement(default_test_case, constructor_mock)
     default_test_case.add_statement(const0)
     dependencies = default_test_case.get_dependencies(const0.ret_val)
     assert dependencies == {const0.ret_val}
 
 
 def test_get_dependencies_chained(default_test_case, function_mock):
-    unused_float = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    unused_float = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(unused_float)
 
-    float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
 
-    func0 = ps.FunctionStatement(
+    func0 = st.FunctionStatement(
         default_test_case, function_mock, {"a": float0.ret_val}
     )
     default_test_case.add_statement(func0)
 
-    func1 = ps.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
+    func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
     default_test_case.add_statement(func1)
     dependencies = default_test_case.get_dependencies(func1.ret_val)
     assert dependencies == {float0.ret_val, func0.ret_val, func1.ret_val}
@@ -290,17 +287,17 @@ def test_get_assertions_empty(default_test_case):
 
 @pytest.fixture()
 def default_test_case_with_assertions(default_test_case):
-    float0 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
     float0ass0 = pas.PrimitiveAssertion(float0.ret_val, 5.5)
     float0ass1 = pas.PrimitiveAssertion(float0.ret_val, 6)
     float0.add_assertion(float0ass0)
     float0.add_assertion(float0ass1)
 
-    float1 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    float1 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float1)
 
-    float2 = prim.FloatPrimitiveStatement(default_test_case, 5.5)
+    float2 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float2)
     float2ass0 = pas.PrimitiveAssertion(float2.ret_val, 5.5)
     float2.add_assertion(float2ass0)

@@ -9,7 +9,7 @@ import pytest
 import pynguin.analyses.controlflow.controldependencegraph as cdt
 import pynguin.analyses.controlflow.programgraph as pg
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
-from pynguin.testcase.execution.executiontracer import ExecutionTracer
+from pynguin.testcase.execution import ExecutionTracer
 
 
 def test_integration(small_control_flow_graph):

@@ -15,10 +15,9 @@ from bytecode import Bytecode, Instr, Label
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variable.variablereferenceimpl as vri
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
@@ -52,7 +51,7 @@ def test_case_mock():
 
 @pytest.fixture(scope="function")
 def variable_reference_mock():
-    return MagicMock(vri.VariableReferenceImpl)
+    return MagicMock(vr.Reference)
 
 
 @pytest.fixture(scope="session")
@@ -156,8 +155,8 @@ def field_mock() -> GenericField:
 @pytest.fixture
 def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    constructor_stmt = param_stmt.ConstructorStatement(
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
+    constructor_stmt = stmt.ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     test_case.add_statement(int_stmt)

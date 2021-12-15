@@ -14,19 +14,17 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, TypeVar
 
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
+from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
-    import pynguin.testcase.execution.testcaseexecutor as tce
-    from pynguin.testcase.execution.executionresult import ExecutionResult
-    from pynguin.testcase.execution.executiontracer import KnownData
+    from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
 
 
 @dataclasses.dataclass(eq=False)
 class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
     """An abstract computation on chromosomes."""
 
-    _executor: tce.TestCaseExecutor
+    _executor: TestCaseExecutor
     """Executor that will be used by the computation to execute chromosomes."""
 
 

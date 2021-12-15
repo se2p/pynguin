@@ -8,31 +8,32 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pynguin.assertion.assertionvisitor as av
-import pynguin.testcase.variable.variablereference as vr
+import pynguin.testcase.variablereference as vr
 
 
 class Assertion:
     """Base class for assertions."""
 
-    def __init__(self, source: vr.VariableReference, value: Any) -> None:
+    def __init__(self, source: Optional[vr.VariableReference], value: Any) -> None:
         """Create new assertion.
 
         Args:
-            source: the variable on which we assert something.
+            source: optional for a variable in the testcase on which we assert
+                    something.
             value: the expected value of the assertion.
         """
         self._source = source
         self._value = value
 
     @property
-    def source(self) -> vr.VariableReference:
-        """Provides the variable on which the assertion is made.
+    def source(self) -> Optional[vr.VariableReference]:
+        """Provides an optional for the variable on which the assertion is made.
 
         Returns:
-            the variable on which the assertion is made.
+            an optional for variable on which the assertion is made.
         """
         return self._source
 

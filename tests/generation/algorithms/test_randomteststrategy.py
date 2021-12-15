@@ -13,12 +13,11 @@ import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.statement as stmt
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.setup.testcluster import TestCluster
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,

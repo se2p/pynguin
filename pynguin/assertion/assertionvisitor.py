@@ -28,3 +28,21 @@ class AssertionVisitor:
             assertion: the visited assertion
 
         """
+
+    @abstractmethod
+    def visit_complex_assertion(self, assertion) -> None:
+        """Visit a complex assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_field_assertion(self, assertion) -> None:
+        """Visit a field assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """

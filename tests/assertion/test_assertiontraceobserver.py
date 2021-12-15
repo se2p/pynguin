@@ -9,19 +9,19 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.assertion.assertiontraceobserver as ato
-from pynguin.testcase.execution.executioncontext import ExecutionContext
-from pynguin.testcase.statements import statement as stmt
+from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.statement import Statement
 
 
 class FooObserver(ato.AssertionTraceObserver):
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self, statement: Statement, exec_ctx: ExecutionContext
     ):
         pass  # pragma: no cover
 
     def after_statement_execution(
         self,
-        statement: stmt.Statement,
+        statement: Statement,
         exec_ctx: ExecutionContext,
         exception: Optional[Exception] = None,
     ) -> None:

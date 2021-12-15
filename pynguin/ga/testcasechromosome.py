@@ -11,13 +11,14 @@ from typing import TYPE_CHECKING, Optional
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.testcase.statement as stmt
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomevisitor as cv
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
-    from pynguin.testcase.execution.executionresult import ExecutionResult
+    from pynguin.testcase.execution import ExecutionResult
 
 
 class TestCaseChromosome(chrom.Chromosome):
@@ -174,17 +175,21 @@ class TestCaseChromosome(chrom.Chromosome):
         while position <= last_mutatable_statement:
             if randomness.next_float() < p_per_statement:
                 statement = self._test_case.get_statement(position)
+                if not isinstance(statement, stmt.VariableCreatingStatement):
+                    continue
                 old_distance = statement.ret_val.distance
+                ret_val = statement.ret_val
                 if statement.mutate():
                     changed = True
                 else:
                     assert self._test_factory, "Mutation requires a test factory."
                     if self._test_factory.change_random_call(
-                        self._test_case, statement
+                        self._test_case,
+                        statement,
                     ):
                         changed = True
                 statement.ret_val.distance = old_distance
-                position = statement.get_position()
+                position = ret_val.get_statement_position()
             position += 1
 
         return changed

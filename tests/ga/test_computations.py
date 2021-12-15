@@ -11,10 +11,12 @@ import pytest
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import KnownData
-from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+from pynguin.testcase.execution import (
+    ExecutionResult,
+    ExecutionTrace,
+    KnownData,
+    TestCaseExecutor,
+)
 
 
 class DummyTestCaseChromosomeComputation(ff.TestCaseChromosomeComputation):

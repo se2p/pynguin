@@ -18,7 +18,7 @@ from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
-from pynguin.testcase.execution.executiontracer import (
+from pynguin.testcase.execution import (
     CodeObjectMetaData,
     ExecutionTracer,
     PredicateMetaData,

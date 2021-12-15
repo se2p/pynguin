@@ -235,7 +235,7 @@ def test_seeded_test_case_factory_with_delegation(
         pytest.param(False, tcf.RandomLengthTestCaseFactory),
     ],
 )
-@mock.patch("pynguin.testcase.execution.testcaseexecutor.TestCaseExecutor")
+@mock.patch("pynguin.testcase.execution.TestCaseExecutor")
 def test_algorithm_generation_factory(
     mock_class, dummy_test_cluster, enabled, fac_type
 ):

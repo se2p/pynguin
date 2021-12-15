@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         StoppingCondition,
     )
     from pynguin.setup.testcluster import TestCluster
-    from pynguin.testcase.execution.testcaseexecutor import TestCaseExecutor
+    from pynguin.testcase.execution import TestCaseExecutor
 
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
 

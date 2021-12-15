@@ -17,9 +17,12 @@ import pytest
 from hypothesis import given
 
 import pynguin.ga.computations as ff
-from pynguin.testcase.execution.executionresult import ExecutionResult
-from pynguin.testcase.execution.executiontrace import ExecutionTrace
-from pynguin.testcase.execution.executiontracer import KnownData, PredicateMetaData
+from pynguin.testcase.execution import (
+    ExecutionResult,
+    ExecutionTrace,
+    KnownData,
+    PredicateMetaData,
+)
 
 
 def test_normalise_less_zero():

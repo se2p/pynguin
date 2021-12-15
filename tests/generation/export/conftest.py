@@ -9,20 +9,24 @@ import pytest
 
 import pynguin.assertion.primitiveassertion as pas
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statements.parametrizedstatements as param_stmt
-import pynguin.testcase.statements.primitivestatements as prim_stmt
+from pynguin.testcase.statement import (
+    ConstructorStatement,
+    FloatPrimitiveStatement,
+    FunctionStatement,
+    IntPrimitiveStatement,
+)
 
 
 @pytest.fixture
 def exportable_test_case(constructor_mock, function_mock):
     test_case = dtc.DefaultTestCase()
-    int_stmt = prim_stmt.IntPrimitiveStatement(test_case, 5)
-    constructor_stmt = param_stmt.ConstructorStatement(
+    int_stmt = IntPrimitiveStatement(test_case, 5)
+    constructor_stmt = ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     constructor_stmt.add_assertion(pas.PrimitiveAssertion(constructor_stmt.ret_val, 5))
-    float_stmt = prim_stmt.FloatPrimitiveStatement(test_case, 42.23)
-    function_stmt = param_stmt.FunctionStatement(
+    float_stmt = FloatPrimitiveStatement(test_case, 42.23)
+    function_stmt = FunctionStatement(
         test_case, function_mock, {"z": float_stmt.ret_val}
     )
     function_stmt.add_assertion(pas.PrimitiveAssertion(function_stmt.ret_val, 42.23))
