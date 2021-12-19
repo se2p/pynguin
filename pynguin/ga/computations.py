@@ -14,6 +14,8 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, TypeVar
 
+from ordered_set import OrderedSet
+
 from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
@@ -227,6 +229,45 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
+class StatementCoverageTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+    """A fitness function based on statements covered and entered code objects."""
+
+    def __init__(self, executor):
+        super().__init__(executor)
+        self._excluded_code_objects: Set[int] = set()
+
+    def restrict(
+        self, exclude_code: Set[int]
+    ) -> None:
+        """Restrict this fitness function, i.e., which branches/code objects it
+        considers
+
+        Args:
+            exclude_code: Ids of the code objects that should not be considered.
+        """
+        self._excluded_code_objects.update(exclude_code)
+
+    def compute_fitness(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+
+        return compute_statement_coverage(merged_trace)
+
+    def compute_is_covered(self, individual) -> bool:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+
+        return compute_statement_coverage_fitness_is_covered(
+            merged_trace,
+            tracer.get_known_data(),
+            self._excluded_code_objects,
+        )
+
+    def is_maximisation_function(self) -> bool:
+        return True
+
+
 class CoverageFunction:  # pylint:disable=too-few-public-methods
     """Interface for a coverage function."""
 
@@ -285,7 +326,7 @@ class TestSuiteStatementCoverageFunction(TestSuiteCoverageFunction):
 
 
 class TestCaseStatementCoverageFunction(TestCaseCoverageFunction):
-    """Computes branch coverage on test cases."""
+    """Computes statement coverage on test cases."""
 
     def compute_coverage(self, individual) -> float:
         result = self._run_test_case_chromosome(individual)
@@ -355,6 +396,7 @@ class ComputationCache:
         """
         assert (
             not fitness_function.is_maximisation_function()
+            # TODO implement support for maximizing ffs
         ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
@@ -640,7 +682,7 @@ def compute_branch_distance_fitness_is_covered(
         exclude_false: Ids of predicates whose False branch should not be considered.
 
     Returns:
-        True, iff all branches were covered
+        True, if all branches were covered
     """
     # Handle None. Cannot use empty set as default, because of mutable default args.
     exclude_code = set() if exclude_code is None else exclude_code
@@ -673,6 +715,30 @@ def compute_branch_distance_fitness_is_covered(
         ):
             return False
     return True
+
+
+def compute_statement_coverage_fitness_is_covered(
+    trace: ExecutionTrace,
+    known_data: KnownData,
+    exclude_code: Optional[Set[int]] = None,
+) -> bool:
+    """Computes if all statements and code objects have been executed.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+        exclude_code: Ids of the code objects that should not be considered.
+
+    Returns:
+        True, if all statements were covered
+    """
+    # Handle None. Cannot use empty set as default, because of mutable default args.
+    exclude_code = set() if exclude_code is None else exclude_code
+
+    # Check if all code objects were executed.
+    registered_code_objects: OrderedSet[int] = OrderedSet(known_data.existing_code_objects.keys())
+    non_executed_objects = registered_code_objects.difference(trace.executed_code_objects, exclude_code)
+    return len(non_executed_objects) == 0
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:

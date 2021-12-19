@@ -323,14 +323,18 @@ class TestSuiteGenerationAlgorithmFactory(
     def _get_test_suite_fitness_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
-        # TODO alternatively return StatementCoverage FFs
-        return OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
+        if config.configuration.statistics_output.statement_coverage:
+            return OrderedSet([ff.StatementCoverageTestSuiteFitnessFunction(self._executor)])
+        else:
+            return OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
 
     def _get_test_suite_coverage_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
-        # TODO alternatively return StatementCoverage FFs
-        return OrderedSet([ff.TestSuiteBranchCoverageFunction(self._executor)])
+        if config.configuration.statistics_output.statement_coverage:
+            return OrderedSet([ff.TestSuiteStatementCoverageFunction(self._executor)])
+        else:
+            return OrderedSet([ff.TestSuiteBranchCoverageFunction(self._executor)])
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):
         search_alg = config.configuration.search_algorithm

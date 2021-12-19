@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         TestCaseExecutor,
     )
 
+
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 
@@ -88,6 +89,7 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         if not isinstance(other, StatementCoverageGoal):
             return False
         return self._file_name == other._file_name and self._line_number == other._line_number
+
 
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
     """Abstract base class for branch coverage goals."""
@@ -331,19 +333,18 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 
 
 class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
-    """A branch coverage fitness implementation for test cases."""
+    """A statement coverage fitness implementation for test cases."""
 
     def __init__(
-        self, executor: tce.TestCaseExecutor, goal: StatementCoverageGoal
+        self, executor: TestCaseExecutor, goal: StatementCoverageGoal
     ):
-        super().__init__(executor, goal._code_object_id)
+        super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
-
-        distance = self._goal.get_distance(result, self._executor.tracer)
-        return distance.get_resulting_branch_fitness()
+        coverage = ff.compute_statement_coverage(result.execution_trace)
+        return coverage
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)
@@ -369,6 +370,7 @@ def create_branch_coverage_fitness_functions(
 
     Args:
         executor: The test case executor for the fitness functions to use.
+        branch_goal_pool: The pool that holds all branch goals.
 
     Returns:
         All branch coverage related fitness functions.
@@ -382,13 +384,12 @@ def create_branch_coverage_fitness_functions(
 
 
 def create_statement_coverage_fitness_functions(
-    executor: tce.TestCaseExecutor
+    executor: TestCaseExecutor
 ) -> OrderedSet[StatementCoverageTestFitness]:
     """Create fitness functions for each branch coverage goal.
 
     Args:
         executor: The test case executor for the fitness functions to use.
-        branch_goal_pool: The pool that holds all branch goals.
 
     Returns:
         All branch coverage related fitness functions.
@@ -398,7 +399,7 @@ def create_statement_coverage_fitness_functions(
 
     for (file_name, file_data) in tracer.get_file_trackers().items():
         for line in file_data.statements:
-            # TODO how to get code_object_id here, when multiple code objects can call a line
-            line_goal = StatementCoverageGoal(42, line, file_name)
+            # TODO how to get correct code_object_id here, when multiple code objects can call a line
+            line_goal = StatementCoverageGoal(file_data.code_objects[0], line, file_name)
             statement_coverage_goals.append(StatementCoverageTestFitness(executor, line_goal))
     return statement_coverage_goals

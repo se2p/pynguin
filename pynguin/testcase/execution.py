@@ -336,9 +336,6 @@ class FileStatementData:
     # set of ids of the code_objects created for this file
     code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
 
-    def get_file_name(self):
-        return self.file_name
-
     def visit_statement(self, line_number: int, code_object_id: int) -> None:
         """Increment the visits of an already visited statement or add a number to the visited
         statements with its first visit already being counted.
@@ -605,10 +602,10 @@ class ExecutionTracer:
         """Should we track anything?
 
         We might have to disable tracing, e.g. when calling __eq__ ourselves.
-        Otherwise we create an endless recursion.
+        Otherwise, we create an endless recursion.
 
         Returns:
-            Whether or not we should track anything
+            Whether we should track anything
         """
         return not self._enabled
 
