@@ -205,7 +205,6 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
             max_depth: The maximum recursion depth.
         """
         value = self._exec_ctx.get_reference_value(ref)
-        asserted = False
         if isinstance(value, float):
             self._trace.add_entry(position, ass.FloatAssertion(ref, value))
         elif is_assertable(value):
@@ -217,19 +216,20 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
                 position, ass.CollectionLengthAssertion(ref, len(value))
             )
         elif depth < max_depth and hasattr(value, "__dict__"):
+            asserted_something = False
             # Reference is a complex object.
             # Try to assert something on its fields.
             for field, field_value in vars(value).items():
                 if not self._should_ignore(field, field_value):
-                    asserted = True
+                    asserted_something = True
                     self._check_reference(
                         vr.FieldReference(
                             ref, gao.GenericField(type(value), field, type(field_value))
                         ),
                         position,
                         depth + 1,
-                    )
-            if not asserted:
+                        )
+            if not asserted_something:
                 # If we can assert nothing else, we can at least assert that it
                 # is not None
                 self._trace.add_entry(position, ass.NotNoneAssertion(ref))
