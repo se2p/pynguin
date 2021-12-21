@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.14.0.dev"
+version = "0.16.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -45,7 +45,7 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^10.12"
+rich = "^10.16"
 pytest = "^6.2"
 Jinja2 = "^3.0"
 Pygments = "^2.10"
@@ -53,26 +53,26 @@ ordered-set = "^4.0"
 MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
-coverage = "^6.1"
+coverage = "^6.2"
 pytest = "^6.2"
-black = {version = "^21.10b0", allow-prereleases = true}
+black = {version = "^21.12b0", allow-prereleases = true}
 pytest-cov = "^3.0"
-pylint = "^2.11"
+pylint = "^2.12"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
-pytest-xdist = "^2.4"
-hypothesis = "^6.24"
+pytest-xdist = "^2.5"
+hypothesis = "^6.31"
 pytest-mock = "^3.6"
 mypy = "^0.910"
 isort = {extras = ["pyproject"], version = "^5.10"}
-pre-commit = "^2.15"
+pre-commit = "^2.16"
 darglint = "^1.8"
 pyupgrade = "^2.29"
 bandit = "^1.7"
 safety = "^1.10"
-sphinx = "^4.2"
+sphinx = "^4.3"
 sphinx-autodoc-typehints = "^1.12"
-flake8 = "^3.9"
+flake8 = "^4.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
@@ -144,7 +144,6 @@ testpaths = [
 # A lot of our own classes start with Test so pytest will pick them up during test collection.
 # But they don't actually contains tests, so we set an empty matcher for the class name.
 python_classes = ''
-bdd_features_base_dir = "tests/features/"
 
 [build-system]
 requires = ["poetry-core"]

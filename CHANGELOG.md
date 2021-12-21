@@ -9,8 +9,25 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.16.0
+
+## Pynguin 0.15.0
+
+- Fix a bug for mutating a statement that is not in the current test case (see #17).
+- Set default assertion generation to `SIMPLE` due to issues with the experimental 
+  new generation strategy.
+- Add GitHub Actions that also runs our CI chain on GitHub.
+
 ## Pynguin 0.14.0
 
+- *Breaking:* Simplify the logging such that Pynguin uses different log levels also 
+  for the log file.  This removes the `-q` option to make all outputs quiet.
+- Pynguin now also supports field accesses during test generation.  This is a 
+  preliminary feature.
+- Fix a deadlock in the executor
+- Pynguin now uses Python 3.10 as its default version for the provided Docker 
+  container as well as our CI.  Still, Pynguin supports Python 3.8 and 3.9.  Up to now,
+  Python 3.11 is not yet supported.
 - Refactor the state-trace implementation
 - Remove the module-loader singleton
 - Fix loading of mutated module for assertion generation.  Caused that no assertion 

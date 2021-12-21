@@ -11,7 +11,7 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.0-slim-bullseye AS build
+FROM python:3.10.1-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
 ENV POETRY_VERSION "1.1.12"
 
@@ -32,11 +32,11 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.0-slim-bullseye AS execute
+FROM python:3.10.1-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.14.0.dev0"
+ENV PYNGUIN_VERSION "0.16.0.dev0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the

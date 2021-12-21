@@ -1113,7 +1113,6 @@ class ParametrizedStatement(
                     },
                 ),
             )
-            copy.mutate()
             possible_replacements.append(copy.ret_val)
 
         # TODO(fk) Use param_type instead of to_mutate.variable_type,
@@ -1128,6 +1127,7 @@ class ParametrizedStatement(
         if copy and replacement == copy.ret_val:
             # The chosen replacement is a copy, so we have to add it to the test case.
             self.test_case.add_statement(copy, self.get_position())
+            copy.mutate()
         elif replacement is none_statement.ret_val:
             # The chosen replacement is a none statement, so we have to add it to the
             # test case.

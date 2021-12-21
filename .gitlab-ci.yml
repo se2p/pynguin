@@ -64,11 +64,11 @@ unit-tests:python-3.10:
   variables:
     PYTHON_VERSION: '3.10-bullseye'
 
-unit-tests:python-3.11:
-  <<: *unit-tests
-  allow_failure: true
-  variables:
-    PYTHON_VERSION: '3.11-rc-bullseye'
+#unit-tests:python-3.11:
+#  <<: *unit-tests
+#  allow_failure: true
+#  variables:
+#    PYTHON_VERSION: '3.11-rc-bullseye'
 
 .nightly-tests:
   only:
@@ -100,11 +100,11 @@ nightly-tests:python-3.10:
   variables:
     PYTHON_VERSION: '3.10-bullseye'
 
-nightly-tests:python-3.11:
-  extends: .nightly-tests
-  allow_failure: true
-  variables:
-    PYTHON_VERSION: '3.11-rc-bullseye'
+#nightly-tests:python-3.11:
+#  extends: .nightly-tests
+#  allow_failure: true
+#  variables:
+#    PYTHON_VERSION: '3.11-rc-bullseye'
 
 lint:
   stage: lint
