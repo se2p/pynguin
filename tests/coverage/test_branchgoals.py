@@ -166,8 +166,8 @@ def test_compute_fitness_values_no_branches():
             chromosome.add_fitness_function(goal)
             goals_dict[
                 tracer.get_known_data()
-                .existing_code_objects[goal._goal.code_object_id]
-                .code_object.co_name
+                    .existing_code_objects[goal._goal.code_object_id]
+                    .code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
@@ -351,4 +351,112 @@ def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(function_call)
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def test_compute_fitness_values_statement_coverage_empty():
+    module_name = "tests.fixtures.statementcoverage.emptyfile"
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = _get_empty_test()
+        goals = bg.create_statement_coverage_fitness_functions(executor)
+        assert not goals
+        fitness = chromosome.get_fitness()
+        assert fitness == 1
+
+
+def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test():
+    """Create an empty test for a non-empty file, which results in goals and a fitness of 0"""
+    module_name = "tests.fixtures.statementcoverage.plus"
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        goals = bg.create_statement_coverage_fitness_functions(executor)
+        assert len(goals) == 8
+
+        chromosome = _get_empty_test()
+        for goal in goals:
+            chromosome.add_fitness_function(goal)
+
+        fitness = chromosome.get_fitness()
+        assert fitness == 0
+
+
+def test_compute_fitness_values_statement_coverage_non_empty_file():
+    """
+    Test for a testcase for the plus module, which should cover 5 out of 8 goals,
+    which results in a fitness value of 0.625 for the statement coverage.
+
+    Generated testcase:
+        number = 42
+        plus = Plus()
+        plus.plus_four(number)
+    """
+    module_name = "tests.fixtures.statementcoverage.plus"
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        goals = bg.create_statement_coverage_fitness_functions(executor)
+        assert len(goals) == 8
+
+        chromosome = _get_test_for_statement_coverage(module)
+        for goal in goals:
+            chromosome.add_fitness_function(goal)
+
+        fitness = chromosome.get_fitness()
+        assert fitness == 0.625
+
+
+def _get_empty_test():
+    test_case = dtc.DefaultTestCase()
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def _get_test_for_statement_coverage(module):
+    test_case = dtc.DefaultTestCase()
+
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 42)
+
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            module.Plus,
+            InferredSignature(
+                signature=inspect.signature(module.Plus.__init__),
+                parameters={},
+                return_type=module.Plus,
+            ),
+        )
+    )
+
+    method_call = stmt.MethodStatement(
+        test_case,
+        gao.GenericMethod(
+            module.Plus,
+            module.Plus.plus_four,
+            InferredSignature(
+                signature=inspect.signature(module.Plus.plus_four),
+                parameters={"number": int},
+                return_type=int,
+            ),
+        ),
+        constructor_call.ret_val,
+        {"number": int_stmt.ret_val}
+    )
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(method_call)
     return tcc.TestCaseChromosome(test_case=test_case)
