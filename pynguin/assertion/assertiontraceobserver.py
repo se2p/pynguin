@@ -228,7 +228,7 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
                         ),
                         position,
                         depth + 1,
-                        )
+                    )
             if not asserted_something:
                 # If we can assert nothing else, we can at least assert that it
                 # is not None
