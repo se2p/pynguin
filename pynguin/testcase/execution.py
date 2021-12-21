@@ -39,7 +39,7 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.assertion.statetrace as ot
+    import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -59,7 +59,9 @@ class ExecutionContext:
         self._module_provider = module_provider
         self._local_namespace: Dict[str, Any] = {}
         self._variable_names = ns.NamingScope()
-        self._modules_aliases = ns.NamingScope(prefix="module")
+        self._module_aliases = ns.NamingScope(
+            prefix="module", new_name_callback=self._add_new_module_alias
+        )
         self._global_namespace: Dict[str, ModuleType] = {}
 
     @property
@@ -70,6 +72,15 @@ class ExecutionContext:
             The local namespace
         """
         return self._local_namespace
+
+    @property
+    def module_aliases(self) -> ns.NamingScope:
+        """The module aliases
+
+        Returns:
+            A naming scope that maps the used modules to their alias.
+        """
+        return self._module_aliases
 
     def get_reference_value(self, reference: vr.Reference) -> Any:
         """Resolve the given reference in this execution context.
@@ -83,7 +94,7 @@ class ExecutionContext:
         Returns:
             The value that is resolved.
         """
-        root, *attrs = reference.get_names(self._variable_names, self._modules_aliases)
+        root, *attrs = reference.get_names(self._variable_names, self._module_aliases)
         if root in self._local_namespace:
             # Check local namespace first
             res = self._local_namespace[root]
@@ -92,7 +103,7 @@ class ExecutionContext:
             res = self._global_namespace[root]
         else:
             # Root name is not defined?
-            raise ValueError("Root not found in this context")
+            raise ValueError("Root not found in this context: " + root)
         for attr in attrs:
             res = getattr(res, attr)
         return res
@@ -118,17 +129,10 @@ class ExecutionContext:
         Returns:
             An executable ast node.
         """
-        modules_before = len(self._modules_aliases)
         visitor = stmt_to_ast.StatementToAstVisitor(
-            self._modules_aliases, self._variable_names
+            self._module_aliases, self._variable_names
         )
         statement.accept(visitor)
-        if modules_before != len(self._modules_aliases):
-            # new module added
-            # TODO(fk) cleaner solution?
-            self._global_namespace = self._create_global_namespace(
-                self._modules_aliases
-            )
         assert (
             len(visitor.ast_nodes) == 1
         ), "Expected statement to produce exactly one ast node"
@@ -147,24 +151,8 @@ class ExecutionContext:
         ast.fix_missing_locations(node)
         return ast.Module(body=[node], type_ignores=[])
 
-    def _create_global_namespace(
-        self,
-        modules_aliases: ns.NamingScope,
-    ) -> Dict[str, ModuleType]:
-        """Provides the required modules under the given aliases.
-
-        Args:
-            modules_aliases: The module aliases
-
-        Returns:
-            A dictionary of module aliases and the corresponding module
-        """
-        global_namespace: Dict[str, ModuleType] = {}
-        for required_module, module_name in modules_aliases:
-            global_namespace[module_name] = self._module_provider.get_module(
-                required_module
-            )
-        return global_namespace
+    def _add_new_module_alias(self, module_name: str, alias: str) -> None:
+        self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
 
 class ExecutionObserver:
@@ -222,7 +210,7 @@ class ExecutionResult:
 
     def __init__(self, timeout: bool = False) -> None:
         self._exceptions: Dict[int, Exception] = {}
-        self._output_traces: Dict[Type, ot.StateTrace] = {}
+        self._assertion_traces: Dict[Type, at.AssertionTrace] = {}
         self._execution_trace: Optional[ExecutionTrace] = None
         self._timeout = timeout
 
@@ -245,14 +233,14 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def output_traces(self) -> Dict[Type, ot.StateTrace]:
+    def assertion_traces(self) -> Dict[Type, at.AssertionTrace]:
         """Provides the gathered state traces.
 
         Returns:
             the gathered output traces.
 
         """
-        return self._output_traces
+        return self._assertion_traces
 
     @property
     def execution_trace(self) -> ExecutionTrace:
@@ -273,15 +261,15 @@ class ExecutionResult:
         """
         self._execution_trace = trace
 
-    def add_output_trace(self, trace_type: Type, trace: ot.StateTrace) -> None:
-        """Add the given trace to the recorded output traces.
+    def add_assertion_trace(self, trace_type: Type, trace: at.AssertionTrace) -> None:
+        """Add the given trace to the recorded assertion traces.
 
         Args:
             trace_type: the type of trace.
             trace: the trace to store.
 
         """
-        self._output_traces[trace_type] = trace
+        self._assertion_traces[trace_type] = trace
 
     def has_test_exceptions(self) -> bool:
         """Returns true if any exceptions were thrown during the execution.

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
-import pynguin.assertion.mutation_analysis.mutationanalysisgenerator as mag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomeconverter as cc
@@ -292,8 +291,11 @@ def _run() -> ReturnCode:
 
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen != config.AssertionGenerator.NONE:
+        _LOGGER.info("Start generating assertions")
         if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-            generator: cv.ChromosomeVisitor = mag.MutationAnalysisGenerator(executor)
+            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
+                executor
+            )
         else:
             generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)

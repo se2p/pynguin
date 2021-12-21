@@ -7,7 +7,7 @@
 """Provide some fixtures for the export tests."""
 import pytest
 
-import pynguin.assertion.primitiveassertion as pas
+import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 from pynguin.testcase.statement import (
     ConstructorStatement,
@@ -24,12 +24,12 @@ def exportable_test_case(constructor_mock, function_mock):
     constructor_stmt = ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
-    constructor_stmt.add_assertion(pas.PrimitiveAssertion(constructor_stmt.ret_val, 5))
+    constructor_stmt.add_assertion(ass.ObjectAssertion(constructor_stmt.ret_val, 5))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_stmt = FunctionStatement(
         test_case, function_mock, {"z": float_stmt.ret_val}
     )
-    function_stmt.add_assertion(pas.PrimitiveAssertion(function_stmt.ret_val, 42.23))
+    function_stmt.add_assertion(ass.FloatAssertion(function_stmt.ret_val, 42.23))
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_stmt)
     test_case.add_statement(float_stmt)

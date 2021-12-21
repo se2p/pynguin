@@ -302,7 +302,7 @@ class FieldReference(Reference):
 
 
 class StaticFieldReference(Reference):
-    """A reference to a static field."""
+    """A reference to a static field of a class."""
 
     def __init__(self, field: gao.GenericStaticField):
         super().__init__(field.generated_type())
