@@ -7,7 +7,7 @@
 """Provides an abstract observer that can be used to generate assertions."""
 import copy
 from types import ModuleType
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
@@ -63,108 +63,47 @@ class AssertionTraceObserver(ex.ExecutionObserver):
     ) -> None:
         if exception is not None:
             return
-        visitor = AssertionGeneratingStatementVisitor(
-            exec_ctx, self._trace, self._watch_list
-        )
-        statement.accept(visitor)
+        if statement.affects_assertions:
+            stmt = cast(st.VariableCreatingStatement, statement)
+            self._handle(stmt, exec_ctx)
 
     def after_test_case_execution(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         result.add_assertion_trace(type(self), self.get_trace())
 
-
-class AssertionGeneratingStatementVisitor(st.StatementVisitor):
-    """Visitor to handle creation of assertions, depending on statement type."""
-
-    def __init__(
-        self,
-        exec_ctx: ex.ExecutionContext,
-        trace: at.AssertionTrace,
-        watch_list: List[vr.VariableReference],
-    ):
-        self._exec_ctx = exec_ctx
-        self._trace = trace
-        self._watch_list = watch_list
-
-    def visit_int_primitive_statement(self, stmt) -> None:
-        pass
-
-    def visit_float_primitive_statement(self, stmt) -> None:
-        pass
-
-    def visit_string_primitive_statement(self, stmt) -> None:
-        pass
-
-    def visit_bytes_primitive_statement(self, stmt) -> None:
-        pass
-
-    def visit_boolean_primitive_statement(self, stmt) -> None:
-        pass
-
-    def visit_none_statement(self, stmt) -> None:
-        pass
-
-    def visit_enum_statement(self, stmt) -> None:
-        pass
-
-    def visit_list_statement(self, stmt) -> None:
-        pass
-
-    def visit_set_statement(self, stmt) -> None:
-        pass
-
-    def visit_tuple_statement(self, stmt) -> None:
-        pass
-
-    def visit_dict_statement(self, stmt) -> None:
-        pass
-
-    def visit_constructor_statement(self, stmt: st.ConstructorStatement) -> None:
-        self._handle(stmt)
-
-    def visit_method_statement(self, stmt: st.MethodStatement) -> None:
-        self._handle(stmt)
-
-    def visit_function_statement(self, stmt: st.FunctionStatement) -> None:
-        self._handle(stmt)
-
-    def visit_field_statement(self, stmt) -> None:
-        raise NotImplementedError("Fields are not supported yet")
-
-    def visit_assignment_statement(self, stmt) -> None:
-        raise NotImplementedError("Assignments are not supported yet")
-
-    def _handle(self, statement: st.VariableCreatingStatement) -> None:
+    def _handle(
+        self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
+    ) -> None:
         """Actually handle the statement.
 
         Args:
+            exec_ctx: the execution context.
             statement: the statement that is visited.
         """
         position = statement.get_position()
 
         if not statement.ret_val.is_none_type():
-            if is_primitive_type(
-                type(self._exec_ctx.get_reference_value(statement.ret_val))
-            ):
+            if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
-                self._check_reference(statement.ret_val, position)
+                self._check_reference(exec_ctx, statement.ret_val, position)
             else:
                 # Everything else is continually checked.
                 self._watch_list.append(statement.ret_val)
 
         for var in self._watch_list:
-            self._check_reference(var, position)
+            self._check_reference(exec_ctx, var, position)
 
         # Check all used modules.
-        for module_name, alias in self._exec_ctx.module_aliases:
-            module = self._exec_ctx.global_namespace[alias]
+        for module_name, alias in exec_ctx.module_aliases:
+            module = exec_ctx.global_namespace[alias]
 
             # Check all static fields.
             for field, value in vars(module).items():
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    exec_ctx,
                     vr.StaticModuleFieldReference(
                         gao.GenericStaticModuleField(module_name, field, type(value))
                     ),
@@ -173,7 +112,7 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
 
         # Check fields of classes whose constructors were used.
         for seen_type in [
-            type(self._exec_ctx.get_reference_value(ref)) for ref in self._watch_list
+            type(exec_ctx.get_reference_value(ref)) for ref in self._watch_list
         ]:
             if is_primitive_type(seen_type) or is_collection_type(seen_type):
                 continue
@@ -185,26 +124,33 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    exec_ctx,
                     vr.StaticFieldReference(
                         gao.GenericStaticField(seen_type, field, type(value))
                     ),
                     position,
                 )
 
-    def _check_reference(
-        self, ref: vr.Reference, position: int, depth: int = 0, max_depth: int = 1
+    def _check_reference(  # pylint: disable=too-many-arguments
+        self,
+        exec_ctx: ex.ExecutionContext,
+        ref: vr.Reference,
+        position: int,
+        depth: int = 0,
+        max_depth: int = 1,
     ) -> None:
         """Check if we can generate an assertion for the given reference.
         For complex types, we do one recursion step, i.e., try to assert anything
         on the attributes of the given object.
 
         Args:
+            exec_ctx: The execution context.
             ref: The reference that should be checked.
             position: The position of the test case after which the assertions are made.
             depth: The current recursion depth
             max_depth: The maximum recursion depth.
         """
-        value = self._exec_ctx.get_reference_value(ref)
+        value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
             self._trace.add_entry(position, ass.FloatAssertion(ref, value))
         elif is_assertable(value):
@@ -223,6 +169,7 @@ class AssertionGeneratingStatementVisitor(st.StatementVisitor):
                 if not self._should_ignore(field, field_value):
                     asserted_something = True
                     self._check_reference(
+                        exec_ctx,
                         vr.FieldReference(
                             ref, gao.GenericField(type(value), field, type(field_value))
                         ),
