@@ -213,6 +213,15 @@ class Statement(metaclass=ABCMeta):
     def assertions(self, assertions: OrderedSet[ass.Assertion]) -> None:
         self._assertions = assertions
 
+    @property
+    def affects_assertions(self) -> bool:
+        """Does the execution of this statement possibly affects assertions.
+
+        Returns:
+            Whether the execution of this statement possibly affect assertions.
+        """
+        return False
+
     @abstractmethod
     def structural_eq(
         self, other: Statement, memo: Dict[vr.VariableReference, vr.VariableReference]
@@ -1159,6 +1168,10 @@ class ParametrizedStatement(
 
             return list(parameters.values())[arg]
         return parameters[arg]
+
+    @property
+    def affects_assertions(self) -> bool:
+        return True
 
     def structural_hash(self) -> int:
         return (
