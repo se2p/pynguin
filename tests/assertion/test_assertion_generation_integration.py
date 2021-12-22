@@ -33,8 +33,6 @@ assert human_0 is not None
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
 assert str_1 == 'foo bar'
-assert human_0 is not None
-assert module_0.static_state == 0
 """,
         ),
         (
@@ -44,7 +42,6 @@ float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
-assert module_0.static_state == 0
 """,
         ),
     ],

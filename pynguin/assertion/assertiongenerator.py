@@ -81,8 +81,20 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         self, tests_and_results: List[Tuple[tc.TestCase, List[ex.ExecutionResult]]]
     ):
         for test_case, results in tests_and_results:
+            # In order to avoid repeating the same assertions after each statement,
+            # we keep track of the last assertions and only assert things, if they
+            # have changed.
+            previous_statement_assertions = OrderedSet()
+
             for statement in test_case.statements:
-                for assertion in self._get_assertions_for(results, statement):
+                current_statement_assertions = self._get_assertions_for(
+                    results, statement
+                )
+                for assertion in current_statement_assertions:
+                    if assertion in previous_statement_assertions:
+                        # We already saw the same assertion in the previous statement
+                        # So the value did not change. Ignore it!
+                        continue
                     if (
                         test_case.size_with_assertions()
                         >= config.configuration.test_case_output.max_length_test_case
@@ -93,6 +105,11 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                         )
                         return
                     statement.add_assertion(assertion)
+
+                # Only update the previously seen assertions when we encounter a
+                # statement that actually affects assertions.
+                if statement.affects_assertions:
+                    previous_statement_assertions = current_statement_assertions
 
     def _get_assertions_for(  # pylint:disable=no-self-use
         self, results: List[ex.ExecutionResult], statement: st.Statement
