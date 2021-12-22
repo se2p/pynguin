@@ -81,35 +81,37 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         self, tests_and_results: List[Tuple[tc.TestCase, List[ex.ExecutionResult]]]
     ):
         for test_case, results in tests_and_results:
-            # In order to avoid repeating the same assertions after each statement,
-            # we keep track of the last assertions and only assert things, if they
-            # have changed.
-            previous_statement_assertions = OrderedSet()
+            self._add_assertions_for(test_case, results)
 
-            for statement in test_case.statements:
-                current_statement_assertions = self._get_assertions_for(
-                    results, statement
-                )
-                for assertion in current_statement_assertions:
-                    if assertion in previous_statement_assertions:
-                        # We already saw the same assertion in the previous statement
-                        # So the value did not change. Ignore it!
-                        continue
-                    if (
-                        test_case.size_with_assertions()
-                        >= config.configuration.test_case_output.max_length_test_case
-                    ):
-                        self._logger.debug(
-                            "No more assertions are added, because the maximum length "
-                            "of a test case with its assertions was reached"
-                        )
-                        return
-                    statement.add_assertion(assertion)
+    def _add_assertions_for(
+        self, test_case: tc.TestCase, results: List[ex.ExecutionResult]
+    ):
+        # In order to avoid repeating the same assertions after each statement,
+        # we keep track of the last assertions and only assert things, if they
+        # have changed.
+        previous_statement_assertions = OrderedSet()
+        for statement in test_case.statements:
+            current_statement_assertions = self._get_assertions_for(results, statement)
+            for assertion in current_statement_assertions:
+                if assertion in previous_statement_assertions:
+                    # We already saw the same assertion in the previous statement
+                    # So the value did not change. Ignore it!
+                    continue
+                if (
+                    test_case.size_with_assertions()
+                    >= config.configuration.test_case_output.max_length_test_case
+                ):
+                    self._logger.debug(
+                        "No more assertions are added, because the maximum length "
+                        "of a test case with its assertions was reached"
+                    )
+                    return
+                statement.add_assertion(assertion)
 
-                # Only update the previously seen assertions when we encounter a
-                # statement that actually affects assertions.
-                if statement.affects_assertions:
-                    previous_statement_assertions = current_statement_assertions
+            # Only update the previously seen assertions when we encounter a
+            # statement that actually affects assertions.
+            if statement.affects_assertions:
+                previous_statement_assertions = current_statement_assertions
 
     def _get_assertions_for(  # pylint:disable=no-self-use
         self, results: List[ex.ExecutionResult], statement: st.Statement
