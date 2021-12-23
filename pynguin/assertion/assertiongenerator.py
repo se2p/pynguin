@@ -95,7 +95,8 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             for assertion in current_statement_assertions:
                 if assertion in previous_statement_assertions:
                     # We already saw the same assertion in the previous statement
-                    # So the value did not change. Ignore it!
+                    # So the value did not change. Ignore it?
+                    # TODO(fk) add flag for this?
                     continue
                 if (
                     test_case.size_with_assertions()
