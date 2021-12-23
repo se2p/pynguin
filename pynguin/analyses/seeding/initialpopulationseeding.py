@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, AnyStr, List, Optional, Union
 
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
@@ -47,7 +47,7 @@ class _InitialPopulationSeeding:
         self._test_cluster = test_cluster
 
     def get_ast_tree(
-        self, module_path: Union[str, os.PathLike]
+        self, module_path: Union[AnyStr, os.PathLike[AnyStr]]
     ) -> Optional[ast.Module]:
         """Returns the ast tree from a module
 
@@ -59,9 +59,10 @@ class _InitialPopulationSeeding:
         """
         module_name = config.configuration.module_name.rsplit(".", maxsplit=1)[-1]
         self._logger.debug("Module name: %s", module_name)
-        result: List[str] = []
+        result: List[AnyStr] = []
         for root, _, files in os.walk(module_path):
             for name in files:
+                assert isinstance(name, str)
                 if module_name in name and "test_" in name:
                     result.append(os.path.join(root, name))
                     break
@@ -80,7 +81,9 @@ class _InitialPopulationSeeding:
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
-    def collect_testcases(self, module_path: Union[str, os.PathLike]) -> None:
+    def collect_testcases(
+        self, module_path: Union[AnyStr, os.PathLike[AnyStr]]
+    ) -> None:
         """Collect all test cases from a module.
 
         Args:
