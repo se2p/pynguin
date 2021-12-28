@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import TYPE_CHECKING, AnyStr, List, Optional, Union
+from typing import TYPE_CHECKING, AnyStr, List, Optional
 
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
@@ -22,6 +22,8 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    from typing import Union
+
     from pynguin.setup.testcluster import TestCluster
 
 
@@ -47,7 +49,7 @@ class _InitialPopulationSeeding:
         self._test_cluster = test_cluster
 
     def get_ast_tree(
-        self, module_path: Union[AnyStr, os.PathLike[AnyStr]]
+        self, module_path: "Union[AnyStr, os.PathLike[AnyStr]]"
     ) -> Optional[ast.Module]:
         """Returns the ast tree from a module
 
@@ -82,7 +84,7 @@ class _InitialPopulationSeeding:
             return None
 
     def collect_testcases(
-        self, module_path: Union[AnyStr, os.PathLike[AnyStr]]
+        self, module_path: "Union[AnyStr, os.PathLike[AnyStr]]"
     ) -> None:
         """Collect all test cases from a module.
 
