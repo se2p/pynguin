@@ -57,7 +57,7 @@ class ReferenceAssertion(Assertion, ABC):
         """Provides the reference on which we assert something.
 
         Returns:
-            The reference which None-ness is asserted.
+            The reference on which we assert something.
         """
         return self._source
 
