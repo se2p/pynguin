@@ -93,10 +93,12 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         for statement in test_case.statements:
             current_statement_assertions = self._get_assertions_for(results, statement)
             for assertion in current_statement_assertions:
-                if assertion in previous_statement_assertions:
+                if (
+                    not config.configuration.test_case_output.allow_stale_assertions
+                    and assertion in previous_statement_assertions
+                ):
                     # We already saw the same assertion in the previous statement
-                    # So the value did not change. Ignore it?
-                    # TODO(fk) add flag for this?
+                    # So the value did not change.
                     continue
                 if (
                     test_case.size_with_assertions()

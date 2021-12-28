@@ -222,6 +222,9 @@ class TestCaseOutputConfiguration:
     assertion_generation: AssertionGenerator = AssertionGenerator.SIMPLE
     """The generator that shall be used for assertion generation."""
 
+    allow_stale_assertions: bool = False
+    """Allow assertion on things that did not change between statement executions."""
+
     mutation_strategy: MutationStrategy = MutationStrategy.FIRST_ORDER_MUTANTS
     """The strategy that shall be used for creating mutants in the mutation analysis
     assertion generation method."""
