@@ -219,7 +219,7 @@ class TestCaseOutputConfiguration:
     """The maximum number of statement in as test case (normal + assertion
     statements)"""
 
-    assertion_generation: AssertionGenerator = AssertionGenerator.SIMPLE
+    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
     """The generator that shall be used for assertion generation."""
 
     allow_stale_assertions: bool = False
