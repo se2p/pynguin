@@ -100,30 +100,38 @@ def test_fitness_normalized(trace_mock, known_data_mock):
     assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 0.875
 
 
-def test_coverage_none(known_data_mock, trace_mock):
+def test_branch_coverage_none(known_data_mock, trace_mock):
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 1.0
 
 
-def test_coverage_half_branch(known_data_mock, trace_mock):
+def test_branch_coverage_half_branch(known_data_mock, trace_mock):
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.true_distances[0] = 0.0
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.5
 
 
-def test_coverage_no_branch(known_data_mock, trace_mock):
+def test_branch_coverage_no_branch(known_data_mock, trace_mock):
     known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.0
 
 
-def test_coverage_half_code_objects(known_data_mock, trace_mock):
+def test_branch_coverage_half_code_objects(known_data_mock, trace_mock):
     known_data_mock.branch_less_code_objects = {0, 1}
     trace_mock.executed_code_objects.add(0)
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.5
 
 
-def test_coverage_no_code_objects(known_data_mock, trace_mock):
+def test_branch_coverage_no_code_objects(known_data_mock, trace_mock):
     known_data_mock.branch_less_code_objects = {0, 1}
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.0
+
+
+def test_statement_coverage_none(known_data_mock, trace_mock):
+    pass  # TODO
+
+
+def test_statement_coverage_no_code_objects(known_data_mock, trace_mock):
+    pass  # TODO
 
 
 def test_analyze_traces_empty():
@@ -139,6 +147,7 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[1] = 2
     trace_mock.executed_predicates[0] = 1
     trace_mock.executed_code_objects.add(0)
+    # TODO also test for merge of file trackers
     result.execution_trace = trace_mock
     results.append(result)
     trace = ff.analyze_results(results)
