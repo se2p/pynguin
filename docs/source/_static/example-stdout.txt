@@ -1,24 +1,37 @@
-[12:59:19] INFO     Start Pynguin Test Generation…                                                                                                         generator.py:98
-           INFO     No seed given. Using 1636113559178642000                                                                                              generator.py:174
-           INFO     Collecting constants from SUT.                                                                                                        generator.py:183
-           INFO     Using strategy: Algorithm.DYNAMOSA                                                                                   generationalgorithmfactory.py:235
-           INFO     Instantiated 11 fitness functions                                                                                    generationalgorithmfactory.py:311
-           INFO     Using CoverageArchive                                                                                                generationalgorithmfactory.py:279
-           INFO     Using selection function: Selection.TOURNAMENT_SELECTION                                                             generationalgorithmfactory.py:254
-           INFO     Using stopping condition: StoppingCondition.MAX_TIME                                                                  generationalgorithmfactory.py:90
-           INFO     Using crossover function: SinglePointRelativeCrossOver                                                               generationalgorithmfactory.py:267
-           INFO     Using ranking function: RankBasedPreferenceSorting                                                                   generationalgorithmfactory.py:287
-           INFO     Start generating test cases                                                                                                           generator.py:266
-[12:59:20] INFO     Iteration:     0, Coverage: 1.000000                                                                                              searchobserver.py:66
-           INFO     Algorithm stopped before using all resources.                                                                                         generator.py:271
-           INFO     Stop generating test cases                                                                                                            generator.py:272
-           INFO     Setup mutation controller                                                                                                        mutationadapter.py:66
-           INFO     Build AST for example                                                                                                            mutationadapter.py:52
-           INFO     Mutate module example                                                                                                            mutationadapter.py:54
-           INFO     Generated 14 mutants                                                                                                             mutationadapter.py:62
-           INFO     Execute 5 test cases                                                                                                   mutationanalysisgenerator.py:53
-[12:59:22] INFO     Generating assertions for test cases                                                                                   mutationanalysisgenerator.py:56
-           INFO     Export 5 successful test cases to /tmp/pynguin-results/test_example.py                                                                generator.py:310
-           INFO     Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py                                                           generator.py:320
-           INFO     Writing statistics                                                                                                                   statistics.py:350
-           INFO     Stop Pynguin Test Generation…                                                                                                         generator.py:101
+[12:42:45] INFO     Start Pynguin Test Generation…                                                                                     generator.py:96
+           INFO     Using seed 1636113559178642000                                                                                    generator.py:174
+           INFO     Collecting constants from SUT.                                                                                    generator.py:181
+           INFO     Using strategy: Algorithm.DYNAMOSA                                                               generationalgorithmfactory.py:235
+           INFO     Instantiated 11 fitness functions                                                                generationalgorithmfactory.py:311
+           INFO     Using CoverageArchive                                                                            generationalgorithmfactory.py:279
+           INFO     Using selection function: Selection.TOURNAMENT_SELECTION                                         generationalgorithmfactory.py:254
+           INFO     Using stopping condition: StoppingCondition.MAX_TIME                                              generationalgorithmfactory.py:90
+           INFO     Using crossover function: SinglePointRelativeCrossOver                                           generationalgorithmfactory.py:267
+           INFO     Using ranking function: RankBasedPreferenceSorting                                               generationalgorithmfactory.py:287
+           INFO     Start generating test cases                                                                                       generator.py:264
+           INFO     Iteration:     0, Coverage: 1.000000                                                                          searchobserver.py:66
+           INFO     Algorithm stopped before using all resources.                                                                     generator.py:269
+           INFO     Stop generating test cases                                                                                        generator.py:270
+           INFO     Start generating assertions                                                                                       generator.py:294
+           INFO     Setup mutation controller                                                                                    mutationadapter.py:66
+           INFO     Build AST for example                                                                                        mutationadapter.py:52
+           INFO     Mutate module example                                                                                        mutationadapter.py:54
+           INFO     Generated 14 mutants                                                                                         mutationadapter.py:62
+           INFO     Running tests on mutant   1/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   2/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   3/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   4/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   5/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   6/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   7/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   8/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant   9/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant  10/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant  11/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant  12/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant  13/14                                                                           assertiongenerator.py:158
+           INFO     Running tests on mutant  14/14                                                                           assertiongenerator.py:158
+           INFO     Export 5 successful test cases to /tmp/pynguin-results/test_example.py                                            generator.py:311
+           INFO     Export 0 failing test cases to /tmp/pynguin-results/test_example_failing.py                                       generator.py:321
+           INFO     Writing statistics                                                                                               statistics.py:350
+           INFO     Stop Pynguin Test Generation…                                                                                      generator.py:99
