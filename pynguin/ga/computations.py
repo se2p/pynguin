@@ -730,7 +730,7 @@ def compute_statement_coverage_fitness_is_covered(
         exclude_code: Ids of the code objects that should not be considered.
 
     Returns:
-        True, if all statements were covered
+        True, if all statements were covered, false otherwise
     """
     # Handle None. Cannot use empty set as default, because of mutable default args.
     exclude_code = set() if exclude_code is None else exclude_code
@@ -785,7 +785,6 @@ def compute_statement_coverage(trace: ExecutionTrace) -> float:
     Returns:
         The computed coverage value
     """
-
     covered = 0
     existing = 0
     for file_tracker in trace.file_trackers.values():
