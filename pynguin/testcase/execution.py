@@ -396,9 +396,9 @@ class ExecutionTrace:
                 target[key].code_objects.update(source[key].code_objects)
                 for line in source[key].visited_statements:
                     if line in target[key].visited_statements:
-                        source[key].visited_statements[line] += target[key].visited_statements[line]
+                        target[key].visited_statements[line] += source[key].visited_statements[line]
                     else:
-                        source[key].visited_statements[line] = target[key].visited_statements[line]
+                        target[key].visited_statements[line] = source[key].visited_statements[line]
             else:
                 target[key] = source[key]
 
