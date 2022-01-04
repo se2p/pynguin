@@ -52,7 +52,7 @@ were not observed in every mutated execution, i.e., only if there is a mutant th
 Additional Filtering
 --------------------
 
-Both approaches try to filter non-relevant and/or trivially-flaky assertions.
+Both approaches try to filter out non-relevant and/or trivially-flaky assertions.
 They also filter out assertions that are stale, i.e., assertions that do not change during subsequent statement executions.
 For example, consider the following test case based on the :ref:`quickstart <quickstart>` ``Queue`` example:
 
@@ -75,4 +75,4 @@ However, Pynguin cannot know this, thus it adds an assertion on this value after
 Such an assertion can still be relevant, e.g., when we want to assert that a value remains constant,
 but they also clutter the test cases quite a bit.
 By default, both approaches remove such stale assertions. This can be changed using the option ``--allow-stale-assertions``.
-This option is turned off by default, such that Pynguin only generate assertions for things that change between statement executions.
+This option is turned off by default, such that Pynguin only generates assertions for things that change between statement executions.
