@@ -16,8 +16,9 @@ from bytecode import Compare
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
-    DynamicSeedingInstrumentation,
+    DynamicSeedingInstrumentation, StatementCoverageInstrumentation,
 )
+from pynguin.instrumentation.machinery import install_import_hook, InstrumentationLoader
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
 
@@ -229,6 +230,27 @@ def test_integrate_branch_distance_instrumentation(
         == branchless_function_count
     )
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
+
+
+def test_integrate_statement_coverage_instrumentation():
+    module_name = "tests.fixtures.statementcoverage.plus"
+    tracer = ExecutionTracer()
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        # statement coverage goals are only detected during instrumentation
+        instrumentation = StatementCoverageInstrumentation(tracer)
+        instrumentation_loader = InstrumentationLoader(
+            module_name,
+            "../fixtures/statementcoverage/plus.py",
+            tracer
+        )
+        code = instrumentation_loader.get_code(module_name)
+        instrumentation.instrument_module(code)
+
+        expected_statements = {"../fixtures/statementcoverage/plus.py": {1, 2, 4, 8, 5, 6, 9, 10}}
+        assert expected_statements == tracer.get_known_data().existing_statements
 
 
 @pytest.mark.parametrize(
