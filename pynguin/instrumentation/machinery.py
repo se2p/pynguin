@@ -172,7 +172,7 @@ def install_import_hook(
     for finder in sys.meta_path:
         if (
             isclass(finder)
-            and finder.__name__ == "PathFinder"  # type: ignore
+            and finder.__name__ == "PathFinder"
             and hasattr(finder, "find_spec")
         ):
             to_wrap = finder
