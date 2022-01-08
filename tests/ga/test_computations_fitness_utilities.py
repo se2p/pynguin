@@ -22,8 +22,6 @@ from pynguin.testcase.execution import (
     ExecutionTrace,
     KnownData,
     PredicateMetaData,
-    FileStatementData,
-    CodeObjectMetaData,
 )
 
 
@@ -128,53 +126,36 @@ def test_branch_coverage_no_code_objects(known_data_mock, trace_mock):
     assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.0
 
 
-def test_statement_coverage_none(trace_mock):
-    assert ff.compute_statement_coverage(trace_mock) == 1.0
+def test_statement_coverage_none(known_data_mock, trace_mock):
+    assert ff.compute_statement_coverage(trace_mock, known_data_mock) == 1.0
 
 
-def test_statement_coverage_zero(trace_mock):
-    file_tracker = FileStatementData("foo")
-    file_tracker.statements.add(0)
-    file_tracker.statements.add(1)
-    file_tracker.code_objects.add(0)
-    trace_mock.executed_code_objects.add(0)
-    trace_mock.file_trackers["foo"] = file_tracker
-    assert ff.compute_statement_coverage(trace_mock) == 0.0
+def test_statement_coverage_zero(known_data_mock, trace_mock):
+    known_data_mock.existing_statements = {"foo": {0, 1}}
+    assert ff.compute_statement_coverage(trace_mock, known_data_mock) == 0.0
 
 
-def test_statement_coverage_half_covered(trace_mock):
-    file_tracker = FileStatementData("foo")
-    file_tracker.statements.add(0)
-    file_tracker.statements.add(1)
-    file_tracker.visited_statements[0] = 1
-    file_tracker.code_objects.add(0)
-    trace_mock.executed_code_objects.add(0)
-    trace_mock.file_trackers["foo"] = file_tracker
-    assert ff.compute_statement_coverage(trace_mock) == 0.5
+def test_statement_coverage_half_covered(known_data_mock, trace_mock):
+    known_data_mock.existing_statements = {"foo": {0, 1}}
+    trace_mock.covered_statements = {"foo": {0}}
+    assert ff.compute_statement_coverage(trace_mock, known_data_mock) == 0.5
 
 
-def test_statement_coverage_fully_covered(trace_mock):
-    file_tracker = FileStatementData("foo")
-    file_tracker.statements.add(0)
-    file_tracker.statements.add(1)
-    file_tracker.visited_statements[0] = 1
-    file_tracker.visited_statements[1] = 1
-    file_tracker.code_objects.add(0)
-    trace_mock.executed_code_objects.add(0)
-    trace_mock.file_trackers["foo"] = file_tracker
-    assert ff.compute_statement_coverage(trace_mock) == 1.0
+def test_statement_coverage_fully_covered(known_data_mock, trace_mock):
+    known_data_mock.existing_statements = {"foo": {0, 1}}
+    trace_mock.covered_statements = {"foo": {0, 1}}
+    assert ff.compute_statement_coverage(trace_mock, known_data_mock) == 1.0
 
 
 def test_statement_coverage_is_not_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
-    known_data_mock.existing_code_objects[1] = MagicMock(CodeObjectMetaData)
-    trace_mock.executed_code_objects.add(0)
+    known_data_mock.existing_statements = {"foo": {0, 1}}
+    trace_mock.covered_statements = {"foo": {0}}
     assert not ff.compute_statement_coverage_fitness_is_covered(trace_mock, known_data_mock)
 
 
 def test_statement_coverage_is_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_code_objects[0] = MagicMock(CodeObjectMetaData)
-    trace_mock.executed_code_objects.add(0)
+    known_data_mock.existing_statements = {"foo": {0, 1}}
+    trace_mock.covered_statements = {"foo": {0, 1}}
     assert ff.compute_statement_coverage_fitness_is_covered(trace_mock, known_data_mock)
 
 
@@ -191,7 +172,7 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[1] = 2
     trace_mock.executed_predicates[0] = 1
     trace_mock.executed_code_objects.add(0)
-    trace_mock.file_trackers = {"foo": MagicMock(FileStatementData)}
+    trace_mock.covered_statements = {"foo": {1, 2}}
     result.execution_trace = trace_mock
     results.append(result)
     trace = ff.analyze_results(results)

@@ -680,8 +680,7 @@ class StatementCoverageInstrumentation(Instrumentation):
             ),
             Instr("LOAD_CONST", file_name, lineno=lineno),
             Instr("LOAD_CONST", lineno, lineno=lineno),
-            Instr("LOAD_CONST", code_object_id, lineno=lineno),
-            Instr("CALL_METHOD", 3, lineno=lineno),
+            Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
 

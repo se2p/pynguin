@@ -14,8 +14,6 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, TypeVar
 
-from ordered_set import OrderedSet
-
 from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
@@ -250,8 +248,9 @@ class StatementCoverageTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
 
-        return compute_statement_coverage(merged_trace)
+        return compute_statement_coverage(merged_trace, tracer.get_known_data())
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -261,7 +260,6 @@ class StatementCoverageTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return compute_statement_coverage_fitness_is_covered(
             merged_trace,
             tracer.get_known_data(),
-            self._excluded_code_objects,
         )
 
     def is_maximisation_function(self) -> bool:
@@ -322,7 +320,8 @@ class TestSuiteStatementCoverageFunction(TestSuiteCoverageFunction):
     def compute_coverage(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        return compute_statement_coverage(merged_trace)
+        tracer = self._executor.tracer
+        return compute_statement_coverage(merged_trace, tracer.get_known_data())
 
 
 class TestCaseStatementCoverageFunction(TestCaseCoverageFunction):
@@ -331,7 +330,8 @@ class TestCaseStatementCoverageFunction(TestCaseCoverageFunction):
     def compute_coverage(self, individual) -> float:
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        return compute_statement_coverage(merged_trace)
+        tracer = self._executor.tracer
+        return compute_statement_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -549,7 +549,7 @@ class ComputationCache:
         """Provides the coverage value for a certain coverage function
 
         Args:
-            coverage_function: The fitness function who's coverage value shall be
+            coverage_function: The fitness function whose coverage value shall be
                 returned
 
         Returns:
@@ -719,26 +719,24 @@ def compute_branch_distance_fitness_is_covered(
 
 def compute_statement_coverage_fitness_is_covered(
     trace: ExecutionTrace,
-    known_data: KnownData,
-    exclude_code: Optional[Set[int]] = None,
+    known_data: KnownData
 ) -> bool:
     """Computes if all statements and code objects have been executed.
 
     Args:
         trace: The execution trace
         known_data: All known data
-        exclude_code: Ids of the code objects that should not be considered.
 
     Returns:
         True, if all statements were covered, false otherwise
     """
-    # Handle None. Cannot use empty set as default, because of mutable default args.
-    exclude_code = set() if exclude_code is None else exclude_code
-
-    # Check if all code objects were executed.
-    registered_code_objects: OrderedSet[int] = OrderedSet(known_data.existing_code_objects.keys())
-    non_executed_objects = registered_code_objects.difference(trace.executed_code_objects, exclude_code)
-    return len(non_executed_objects) == 0
+    covered = 0
+    existing = 0
+    for lines in trace.covered_statements.values():
+        covered += len(lines)
+    for lines in known_data.existing_statements.values():
+        existing += len(lines)
+    return covered == existing
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
@@ -775,21 +773,23 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
     return coverage
 
 
-def compute_statement_coverage(trace: ExecutionTrace) -> float:
+def compute_statement_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
     """Computes statement coverage on bytecode instructions which should equal
     decision coverage on source.
 
     Args:
         trace: The execution trace
+        known_data: All known data
 
     Returns:
         The computed coverage value
     """
     covered = 0
     existing = 0
-    for file_tracker in trace.file_trackers.values():
-        covered += len(file_tracker.visited_statements)
-        existing += len(file_tracker.statements)
+    for lines in trace.covered_statements.values():
+        covered += len(lines)
+    for lines in known_data.existing_statements.values():
+        existing += len(lines)
 
     if existing == 0:
         # Nothing to cover => everything is covered.

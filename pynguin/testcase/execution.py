@@ -321,45 +321,6 @@ class ExecutionResult:
 
 
 @dataclass
-class FileStatementData:
-    """Tracks information about statements inside one file."""
-
-    # name of the file of the module that is being tracked
-    file_name: str
-
-    # the visited statements and the number of times they were visited
-    visited_statements: Dict[int, int] = field(default_factory=dict)
-
-    # overall available statements of a file
-    statements: OrderedSet[int] = field(default_factory=OrderedSet)
-
-    # set of ids of the code_objects created for this file
-    code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
-
-    def visit_statement(self, line_number: int, code_object_id: int) -> None:
-        """Increment the visits of an already visited statement or add a number to the visited
-        statements with its first visit already being counted.
-
-        Args:
-            line_number: The line number of the visited statement.
-            code_object_id: The id of the code object currently containing the line
-        """
-        self.code_objects.add(code_object_id)
-        if line_number in self.visited_statements:
-            self.visited_statements[line_number] += 1
-        else:
-            self.visited_statements[line_number] = 1
-
-    def track_statement(self, line_number: int) -> None:
-        """Add a statement in a line number to the tracked lines
-
-        Args:
-            line_number: The tracked line number of an executed statement.
-        """
-        self.statements.add(line_number)
-
-
-@dataclass
 class ExecutionTrace:
     """Stores trace information about the execution."""
 
@@ -367,7 +328,7 @@ class ExecutionTrace:
     executed_predicates: Dict[int, int] = field(default_factory=dict)
     true_distances: Dict[int, float] = field(default_factory=dict)
     false_distances: Dict[int, float] = field(default_factory=dict)
-    file_trackers: Dict[str, FileStatementData] = field(default_factory=dict)
+    covered_statements: Dict[str, OrderedSet[int]] = field(default_factory=dict)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -380,25 +341,19 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self._merge_file_trackers(self.file_trackers, other.file_trackers)
+        self._merge_covered_statements(self.covered_statements, other.covered_statements)
 
     @staticmethod
-    def _merge_file_trackers(target: Dict[str, FileStatementData], source: Dict[str, FileStatementData]) -> None:
+    def _merge_covered_statements(target: Dict[str, OrderedSet[int]], source: Dict[str, OrderedSet[int]]) -> None:
         """
-        Merge source file statement data into target file statement data.
+        Merge source covered statements into target covered statement data.
         Args:
             target: the target to merge the values in
             source: the source of the merge
         """
         for key in source:
             if key in target:
-                target[key].statements.update(source[key].statements)
-                target[key].code_objects.update(source[key].code_objects)
-                for line in source[key].visited_statements:
-                    if line in target[key].visited_statements:
-                        target[key].visited_statements[line] += source[key].visited_statements[line]
-                    else:
-                        target[key].visited_statements[line] = source[key].visited_statements[line]
+                target[key].update(source[key])
             else:
                 target[key] = source[key]
 
@@ -473,9 +428,12 @@ class KnownData:
     # Maps all known ids of predicates to meta information
     existing_predicates: Dict[int, PredicateMetaData] = field(default_factory=dict)
 
+    # stores which files contain which lines
+    existing_statements: Dict[str, OrderedSet[int]] = field(default_factory=dict)
+
 
 class ExecutionTracer:
-    """Tracks branch distances during execution.
+    """Tracks branch distances and covered statements during execution.
     The results are stored in an execution trace."""
 
     _logger = logging.getLogger(__name__)
@@ -765,20 +723,16 @@ class ExecutionTracer:
         finally:
             self.enable()
 
-    def get_file_trackers(self) -> Dict[str, FileStatementData]:
-        return self._trace.file_trackers
-
-    def track_statement_visit(self, file_name: str, line_number: int, code_object_id: int) -> None:
+    def track_statement_visit(self, file_name: str, line_number: int) -> None:
         """Tracks the visit of a statement.
 
         Args:
             file_name: The file in which the statement is
             line_number: The line of the statement that was tracked
-            code_object_id: the id of the code object which while executed covered the line
         """
-        if file_name not in self._trace.file_trackers:
-            self._trace.file_trackers[file_name] = FileStatementData(file_name)
-        self._trace.file_trackers[file_name].visit_statement(line_number, code_object_id)
+        if file_name not in self._trace.covered_statements:
+            self._trace.covered_statements[file_name] = OrderedSet()
+        self._trace.covered_statements[file_name].add(line_number)
 
     def track_statement(self, file_name: str, line_number: int) -> None:
         """Tracks the existence of a statement.
@@ -787,9 +741,9 @@ class ExecutionTracer:
             file_name: The file in which the statement is
             line_number: The line of the statement to track
         """
-        if file_name not in self._trace.file_trackers:
-            self._trace.file_trackers[file_name] = FileStatementData(file_name)
-        self._trace.file_trackers[file_name].track_statement(line_number)
+        if file_name not in self._known_data.existing_statements:
+            self._known_data.existing_statements[file_name] = OrderedSet()
+        self._known_data.existing_statements[file_name].add(line_number)
 
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int

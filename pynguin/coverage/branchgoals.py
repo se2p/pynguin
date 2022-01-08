@@ -70,8 +70,8 @@ class StatementCoverageGoal(AbstractCoverageGoal):
 
     def is_covered(self, result: ExecutionResult) -> bool:
         return (
-            result.execution_trace.file_trackers[self._file_name] and
-            self._line_number in result.execution_trace.file_trackers[self._file_name].visited_statements
+            result.execution_trace.covered_statements[self._file_name] and
+            self._line_number in result.execution_trace.covered_statements[self._file_name]
         )
 
     def __str__(self) -> str:
@@ -343,7 +343,8 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
-        coverage = ff.compute_statement_coverage(result.execution_trace)
+        tracer = self._executor.tracer
+        coverage = ff.compute_statement_coverage(result.execution_trace, tracer.get_known_data())
         return coverage
 
     def compute_is_covered(self, individual) -> bool:
@@ -386,7 +387,7 @@ def create_branch_coverage_fitness_functions(
 def create_statement_coverage_fitness_functions(
     executor: TestCaseExecutor
 ) -> OrderedSet[StatementCoverageTestFitness]:
-    """Create fitness functions for each branch coverage goal.
+    """Create fitness functions for each statement coverage goal.
 
     Args:
         executor: The test case executor for the fitness functions to use.
@@ -397,9 +398,10 @@ def create_statement_coverage_fitness_functions(
     statement_coverage_goals = OrderedSet()
     tracer: ExecutionTracer = executor.tracer
 
-    for (file_name, file_data) in tracer.get_file_trackers().items():
-        for line in file_data.statements:
-            # TODO how to get correct code_object_id here, when multiple code objects can call a line
-            line_goal = StatementCoverageGoal(file_data.code_objects[0], line, file_name)
+    for (file_name, lines_set) in tracer.get_known_data().existing_statements.items():
+        for line in lines_set:
+            # TODO remove code_object_id as attribute from StatementCoverageGoal,
+            #  since the code object calling a line is only known after execution
+            line_goal = StatementCoverageGoal(42, line, file_name)
             statement_coverage_goals.append(StatementCoverageTestFitness(executor, line_goal))
     return statement_coverage_goals
