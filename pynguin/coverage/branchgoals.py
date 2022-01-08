@@ -28,21 +28,6 @@ if TYPE_CHECKING:
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 
-    def __init__(
-        self,
-        code_object_id: int,
-    ):
-        self._code_object_id = code_object_id
-
-    @property
-    def code_object_id(self) -> int:
-        """Provides the code object id where the target resides.
-
-        Returns:
-            The id of the targeted code object.
-        """
-        return self._code_object_id
-
     @abstractmethod
     def is_covered(self, result: ExecutionResult) -> bool:
         """Determine if this coverage goal was covered.
@@ -60,11 +45,10 @@ class StatementCoverageGoal(AbstractCoverageGoal):
 
     def __init__(
         self,
-        code_object_id: int,
         line_number: int,
         file_name: str,
     ):
-        super().__init__(code_object_id)
+        super().__init__()
         self._line_number = line_number
         self._file_name = file_name
 
@@ -81,7 +65,7 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         return f"LineGoal({self._file_name}:{self._line_number})"
 
     def __hash__(self) -> int:
-        return 31 + self._code_object_id
+        return 31 + self._line_number  # TODO also include file_name into hashing
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
@@ -100,12 +84,22 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
         is_branchless_code_object: bool = False,
         is_branch: bool = False,
     ):
-        super().__init__(code_object_id)
+        super().__init__()
+        self._code_object_id = code_object_id
         assert (
             is_branchless_code_object ^ is_branch
         ), "Must be either branch-less code object or branch."
         self._is_branchless_code_object = is_branchless_code_object
         self._is_branch = is_branch
+
+    @property
+    def code_object_id(self) -> int:
+        """Provides the code object id where the target resides.
+
+        Returns:
+            The id of the targeted code object.
+        """
+        return self._code_object_id
 
     @abstractmethod
     def get_distance(
@@ -338,7 +332,7 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     def __init__(
         self, executor: TestCaseExecutor, goal: StatementCoverageGoal
     ):
-        super().__init__(executor, goal.code_object_id)
+        super().__init__(executor)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
@@ -400,8 +394,6 @@ def create_statement_coverage_fitness_functions(
 
     for (file_name, lines_set) in tracer.get_known_data().existing_statements.items():
         for line in lines_set:
-            # TODO remove code_object_id as attribute from StatementCoverageGoal,
-            #  since the code object calling a line is only known after execution
-            line_goal = StatementCoverageGoal(42, line, file_name)
+            line_goal = StatementCoverageGoal(line, file_name)
             statement_coverage_goals.append(StatementCoverageTestFitness(executor, line_goal))
     return statement_coverage_goals
