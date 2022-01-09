@@ -4,6 +4,13 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pynguin.testcase.execution import ExecutionTracer
 import importlib
 import inspect
 import threading
@@ -370,31 +377,50 @@ def test_compute_fitness_values_statement_coverage_empty():
         assert fitness == 1
 
 
-def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test():
-    """Create an empty test for a non-empty file, which results in goals and a fitness of 0"""
-    module_name = "tests.fixtures.statementcoverage.plus"
+def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
     tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    file_name = "../fixtures/statementcoverage/plus.py"
+    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+    tracer.get_known_data().existing_statements = {file_name: lines}
+    executor_mock.tracer = tracer
+    goals = bg.create_statement_coverage_fitness_functions(executor_mock)
 
-        executor = TestCaseExecutor(tracer)
-        goals = bg.create_statement_coverage_fitness_functions(executor)
-        assert len(goals) == 8
-
-        chromosome = _get_empty_test()
-        for goal in goals:
-            chromosome.add_fitness_function(goal)
-
-        fitness = chromosome.get_fitness()
-        assert fitness == 0
+    assert len(goals) == 8
 
 
-def test_compute_fitness_values_statement_coverage_non_empty_file():
+def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
+    known_data_mock,
+    executor_mock,
+    trace_mock
+):
+    """Create an empty test for a non-empty file, which results a fitness of 0"""
+    file_name = "../fixtures/statementcoverage/plus.py"
+    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+
+    tracer = ExecutionTracer()
+    tracer.get_known_data().existing_statements = {file_name: lines}
+    executor_mock.tracer = tracer
+    trace_mock.covered_statements = {}
+
+    chromosome = _get_empty_test()
+
+    # manually set goals
+    for line in lines:
+        line_goal = bg.StatementCoverageGoal(line, file_name)
+        chromosome.add_fitness_function(bg.StatementCoverageTestFitness(executor_mock, line_goal))
+
+    fitness = chromosome.get_fitness()
+    assert fitness == 0
+
+
+def test_compute_fitness_values_statement_coverage_non_empty_file(
+    known_data_mock,
+    executor_mock,
+    trace_mock
+):
     """
-    Test for a testcase for the plus module, which should cover 5 out of 8 goals,
-    which results in a fitness value of 0.625 for the statement coverage.
+    Test for a testcase for the plus module, which should cover 6 out of 8 goals,
+    which results in a fitness value of 6
 
     Generated testcase:
         number = 42
@@ -402,25 +428,31 @@ def test_compute_fitness_values_statement_coverage_non_empty_file():
         plus.plus_four(number)
     """
     module_name = "tests.fixtures.statementcoverage.plus"
+    file_name = "../fixtures/statementcoverage/plus.py"
+    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+
     tracer = ExecutionTracer()
+    tracer.get_known_data().existing_statements = {file_name: lines}
     tracer.current_thread_identifier = threading.current_thread().ident
+    trace_mock.covered_statements = {1, 2, 8, 9, 10}
+    executor_mock.tracer = tracer
+
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
-        goals = bg.create_statement_coverage_fitness_functions(executor)
-        assert len(goals) == 8
-
         chromosome = _get_test_for_statement_coverage(module)
-        for goal in goals:
-            chromosome.add_fitness_function(goal)
+
+        # manually set goals
+        for line in lines:
+            line_goal = bg.StatementCoverageGoal(line, file_name)
+            chromosome.add_fitness_function(bg.StatementCoverageTestFitness(executor_mock, line_goal))
 
         fitness = chromosome.get_fitness()
-        assert fitness == 0.625
+        assert fitness == 6
 
 
-def _get_empty_test():
+def _get_empty_test() -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
     return tcc.TestCaseChromosome(test_case=test_case)
 

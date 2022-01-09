@@ -18,7 +18,6 @@ from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation, StatementCoverageInstrumentation,
 )
-from pynguin.instrumentation.machinery import install_import_hook, InstrumentationLoader
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
 
@@ -232,25 +231,26 @@ def test_integrate_branch_distance_instrumentation(
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
 
 
-def test_integrate_statement_coverage_instrumentation():
-    module_name = "tests.fixtures.statementcoverage.plus"
+def test_integrate_statement_coverage_instrumentation(
+    simple_module
+):
     tracer = ExecutionTracer()
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    function_callable = getattr(simple_module, "multi_loop")
+    instr = StatementCoverageInstrumentation(tracer)
+    function_callable.__code__ = instr._instrument_code_recursive(
+        function_callable.__code__, 0
+    )
 
-        # statement coverage goals are only detected during instrumentation
-        instrumentation = StatementCoverageInstrumentation(tracer)
-        instrumentation_loader = InstrumentationLoader(
-            module_name,
-            "../fixtures/statementcoverage/plus.py",
-            tracer
-        )
-        code = instrumentation_loader.get_code(module_name)
-        instrumentation.instrument_module(code)
-
-        expected_statements = {"../fixtures/statementcoverage/plus.py": {1, 2, 4, 8, 5, 6, 9, 10}}
-        assert expected_statements == tracer.get_known_data().existing_statements
+    # only one file was instrumented
+    assert (
+        len(tracer.get_known_data().existing_statements)
+        == 1
+    )
+    # the body of the method contains 7 statements on lines 38 to 44
+    assert (
+        list(tracer.get_known_data().existing_statements.values())[0]
+        == {38, 39, 40, 41, 42, 43, 44}
+    )
 
 
 @pytest.mark.parametrize(
@@ -376,6 +376,25 @@ def test_exception_no_match_integrate():
     assert {0: 1} == tracer.get_trace().executed_predicates
     assert {0: 1.0} == tracer.get_trace().true_distances
     assert {0: 0.0} == tracer.get_trace().false_distances
+
+
+def test_tracking_covered_statements():
+    tracer = ExecutionTracer()
+
+    def func():
+        a = 42
+        if a:
+            a = "foo"
+        else:
+            a = "bar"
+
+    instr = StatementCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    func()
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert 3 == len(covered_lines)
+    assert {385, 386, 387} == covered_lines
 
 
 @pytest.fixture()
