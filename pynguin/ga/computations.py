@@ -227,30 +227,21 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
-class StatementCoverageTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on statements covered and entered code objects."""
 
     def __init__(self, executor):
         super().__init__(executor)
-        self._excluded_code_objects: Set[int] = set()
-
-    def restrict(
-        self, exclude_code: Set[int]
-    ) -> None:
-        """Restrict this fitness function, i.e., which branches/code objects it
-        considers
-
-        Args:
-            exclude_code: Ids of the code objects that should not be considered.
-        """
-        self._excluded_code_objects.update(exclude_code)
 
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
-        return compute_statement_coverage(merged_trace, tracer.get_known_data())
+        overall_covered_statements = 0
+        for lines in merged_trace.covered_statements.values():
+            overall_covered_statements += len(lines)
+
+        return overall_covered_statements
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)

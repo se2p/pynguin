@@ -332,14 +332,18 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     def __init__(
         self, executor: TestCaseExecutor, goal: StatementCoverageGoal
     ):
-        super().__init__(executor)
+        # TODO handle this differently
+        super().__init__(executor, None)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
-        tracer = self._executor.tracer
-        coverage = ff.compute_statement_coverage(result.execution_trace, tracer.get_known_data())
-        return coverage
+
+        overall_covered_statements = 0
+        for lines in result.execution_trace.covered_statements.values():
+            overall_covered_statements += len(lines)
+
+        return overall_covered_statements
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)

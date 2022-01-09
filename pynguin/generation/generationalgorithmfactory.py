@@ -324,7 +324,7 @@ class TestSuiteGenerationAlgorithmFactory(
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
         if config.configuration.statistics_output.statement_coverage:
-            return OrderedSet([ff.StatementCoverageTestSuiteFitnessFunction(self._executor)])
+            return OrderedSet([ff.StatementTestSuiteFitnessFunction(self._executor)])
         else:
             return OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
 
