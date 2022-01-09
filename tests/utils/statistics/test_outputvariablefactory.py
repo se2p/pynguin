@@ -37,7 +37,7 @@ def factory():
 
 @pytest.fixture
 def chromosome_factory():
-    return _DummyChromosomeOutputVariableFactory(RuntimeVariable.BranchCoverage)
+    return _DummyChromosomeOutputVariableFactory(RuntimeVariable.Coverage)
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def test_get_value(factory, chromosome):
 
 
 def test_get_float(chromosome):
-    factory = DirectSequenceOutputVariableFactory.get_float(RuntimeVariable.BranchCoverage)
+    factory = DirectSequenceOutputVariableFactory.get_float(RuntimeVariable.Coverage)
     assert isinstance(factory.get_value(chromosome), float)
     assert factory.get_value(chromosome) == 0.0
 
@@ -75,7 +75,7 @@ def test_get_output_variables(factory):
 
 def test_chromosome_factory_get_variable(chromosome_factory, chromosome):
     variable = chromosome_factory.get_variable(chromosome)
-    assert variable.name == RuntimeVariable.BranchCoverage.name
+    assert variable.name == RuntimeVariable.Coverage.name
     assert variable.value == 42
 
 
