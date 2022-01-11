@@ -378,7 +378,26 @@ def test_exception_no_match_integrate():
     assert {0: 0.0} == tracer.get_trace().false_distances
 
 
-def test_tracking_covered_statements():
+def test_tracking_covered_statements_explicit_return():
+    tracer = ExecutionTracer()
+
+    def func():
+        a = 42
+        if a:
+            a = "foo"
+        else:
+            a = "bar"
+        return None
+
+    instr = StatementCoverageInstrumentation(tracer)
+    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    func()
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert {385, 386, 387, 390} == covered_lines
+
+
+def test_tracking_covered_statements_implicit_return():
     tracer = ExecutionTracer()
 
     def func():
@@ -393,8 +412,7 @@ def test_tracking_covered_statements():
     tracer.current_thread_identifier = threading.current_thread().ident
     func()
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert 3 == len(covered_lines)
-    assert {385, 386, 387} == covered_lines
+    assert {404, 405, 406} == covered_lines
 
 
 @pytest.fixture()

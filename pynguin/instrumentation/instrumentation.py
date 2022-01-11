@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, List, Optional, Set, Tuple
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
+import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
@@ -611,12 +612,11 @@ class StatementCoverageInstrumentation(Instrumentation):
         """
         # Attributes which store the predicate ids assigned to instrumented nodes.
         for node in cfg.nodes:
-            self._instrument_node(node, code_object_id, file_name)
+            self._instrument_node(node, file_name)
 
     def _instrument_node(
         self,
         node: ProgramGraphNode,
-        code_object_id: int,
         file_name: str
     ) -> None:
         """Instrument a single node in the CFG.
@@ -626,10 +626,9 @@ class StatementCoverageInstrumentation(Instrumentation):
 
         Args:
             node: The node that should be instrumented.
-            code_object_id: The id of the code object which contains this node.
             file_name: The file that produced the code object of this node.
         """
-        if node.basic_block and not node.is_artificial:
+        if self._node_needs_instrumentation(node, file_name):
             # in this case the node holds instructions
             block: BasicBlock = node.basic_block
 
@@ -643,14 +642,38 @@ class StatementCoverageInstrumentation(Instrumentation):
                 #  by putting a new instruction in the block
                 if block[instr_index].lineno != lineno:
                     lineno = block[instr_index].lineno
-                    self.instrument_statement(block, code_object_id, instr_index, file_name, lineno)
-                    instr_index += 1
+                    self.instrument_statement(block, instr_index, file_name, lineno)
+                    instr_index += 6  # the instrument_statement entered 6 new instructions
                 instr_index += 1
+
+    def _node_needs_instrumentation(self, node: ProgramGraphNode, file_name: str):
+        """
+        Checks if a node should be instrumented.
+        An empty return value that is implicitly added on the same line as the last statement should not be
+        instrumented, otherwise the last line of a code object will always be considered covered.
+        However, a manually added line "return None" should be considered. For this, we check if the line
+        that contains the return statement already is tracked through another statement.
+        Args:
+            node: The node that needs to be checked
+            file_name: The file that produced the node
+
+        Returns: True, if the node needs to be instructed, false otherwise.
+        """
+        if node.basic_block and not node.is_artificial:
+            block: BasicBlock = node.basic_block
+            line_no = block[0].lineno
+            return not (
+                len(block) == 2 and
+                block[0] == Instr("LOAD_CONST", None, lineno=line_no) and
+                file_name in self._tracer.get_known_data().existing_statements and
+                line_no in self._tracer.get_known_data().existing_statements[file_name] and
+                block[1].opcode == op.RETURN_VALUE
+            )
+        return False
 
     def instrument_statement(
         self,
         block: BasicBlock,
-        code_object_id: int,
         instr_index: int,
         file_name: str,
         lineno: int
@@ -661,7 +684,6 @@ class StatementCoverageInstrumentation(Instrumentation):
 
         Args:
             block: The basic block containing the instrumented statement.
-            code_object_id: The id of the code object which contains this block.
             instr_index: the index of the instr
             file_name: The file that produced the code object of this block.
             lineno: The line number of the instrumented statement.
