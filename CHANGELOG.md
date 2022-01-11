@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
