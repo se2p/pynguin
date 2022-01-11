@@ -1,5 +1,5 @@
 # vim: set ft=yaml ts=2 sts=2 sw=2 expandtab:
-# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 # SPDX-License-Identifier: CC0-1.0
 cff-version: "1.2.0"
