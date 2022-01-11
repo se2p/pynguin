@@ -198,7 +198,7 @@ class BranchCoverageInstrumentation(Instrumentation):
     ) -> Optional[int]:
         """Instrument a single node in the CFG.
 
-        Currently we only instrument conditional jumps and for loops.
+        Currently, we only instrument conditional jumps and for loops.
 
         Args:
             cfg: The containing CFG.
@@ -206,7 +206,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             node: The node that should be instrumented.
 
         Returns:
-            A predicate id, if the contained a predicate which was instrumented.
+            A predicate id, if the node contained a predicate which was instrumented.
         """
         predicate_id: Optional[int] = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
@@ -264,7 +264,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             and isinstance(maybe_compare, Instr)
             and (
             (
-                maybe_compare.name == "COMPARE_OP"
+                maybe_compare.opcode == "COMPARE_OP"
                 and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
             )
             or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
@@ -650,7 +650,7 @@ class StatementCoverageInstrumentation(Instrumentation):
         """
         Checks if a node should be instrumented.
         An empty return value that is implicitly added on the same line as the last statement should not be
-        instrumented, otherwise the last line of a code object will always be considered covered.
+        instrumented, otherwise the last line of a function will always be considered covered.
         However, a manually added line "return None" should be considered. For this, we check if the line
         that contains the return statement already is tracked through another statement.
         Args:

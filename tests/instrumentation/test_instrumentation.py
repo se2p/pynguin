@@ -401,18 +401,43 @@ def test_tracking_covered_statements_implicit_return():
     tracer = ExecutionTracer()
 
     def func():
-        a = 42
+        a = None
         if a:
             a = "foo"
         else:
             a = "bar"
 
     instr = StatementCoverageInstrumentation(tracer)
+    # TODO "else"-line is not covered, but should be
     func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
     tracer.current_thread_identifier = threading.current_thread().ident
     func()
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert {404, 405, 406} == covered_lines
+    assert {404, 405, 407, 408} == covered_lines
+
+
+@pytest.mark.parametrize(
+    "numbers, expected_lines",
+    [
+        pytest.param({}, {430, 431, 433}),
+        pytest.param({42}, {430, 431, 432, 433}),
+    ],
+)
+def test_tracking_covered_statements_for_loop(numbers, expected_lines):
+    tracer = ExecutionTracer()
+
+    def sum_up(iterable):
+        summed = 0
+        for elem in iterable:
+            summed += elem
+        return summed
+
+    instr = StatementCoverageInstrumentation(tracer)
+    sum_up.__code__ = instr._instrument_code_recursive(sum_up.__code__, 0)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    sum_up(numbers)
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert expected_lines == covered_lines
 
 
 @pytest.fixture()
