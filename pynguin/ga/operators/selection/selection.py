@@ -5,8 +5,10 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provide abstract selection function."""
+from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Generic, List, TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
 
@@ -21,7 +23,7 @@ class SelectionFunction(Generic[T]):
         self._maximize = True
 
     @abstractmethod
-    def get_index(self, population: List[T]) -> int:
+    def get_index(self, population: list[T]) -> int:
         """Provide an index within the population.
 
         Args:
@@ -31,7 +33,7 @@ class SelectionFunction(Generic[T]):
             The index within the population  # noqa: DAR202
         """
 
-    def select(self, population: List[T], number: int = 1) -> List[T]:
+    def select(self, population: list[T], number: int = 1) -> list[T]:
         """Return N parents.
 
         Args:
@@ -41,7 +43,7 @@ class SelectionFunction(Generic[T]):
         Returns:
             A list of chromosomes that was selected
         """
-        offspring: List[T] = []
+        offspring: list[T] = []
         for _ in range(number):
             offspring.append(population[self.get_index(population)])
         return offspring

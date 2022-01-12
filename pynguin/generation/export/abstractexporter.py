@@ -11,7 +11,7 @@ import ast
 import os
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING
 
 import astor
 
@@ -30,9 +30,7 @@ class AbstractTestExporter(metaclass=ABCMeta):
         self._wrap_code = wrap_code
 
     @abstractmethod
-    def export_sequences(
-        self, path: Union[str, os.PathLike], test_cases: List[tc.TestCase]
-    ):
+    def export_sequences(self, path: str | os.PathLike, test_cases: list[tc.TestCase]):
         """Exports test cases to an AST module, where each test case is a method.
 
         Args:
@@ -45,8 +43,8 @@ class AbstractTestExporter(metaclass=ABCMeta):
 
     def _transform_to_asts(
         self,
-        test_cases: List[tc.TestCase],
-    ) -> Tuple[NamingScope, Set[str], List[List[ast.stmt]]]:
+        test_cases: list[tc.TestCase],
+    ) -> tuple[NamingScope, set[str], list[list[ast.stmt]]]:
         visitor = tc_to_ast.TestCaseToAstVisitor(wrap_code=self._wrap_code)
         for test_case in test_cases:
             test_case.accept(visitor)
@@ -54,9 +52,9 @@ class AbstractTestExporter(metaclass=ABCMeta):
 
     @staticmethod
     def _create_ast_imports(
-        module_aliases: NamingScope, common_modules: Optional[Set[str]] = None
-    ) -> List[ast.stmt]:
-        imports: List[ast.stmt] = []
+        module_aliases: NamingScope, common_modules: set[str] | None = None
+    ) -> list[ast.stmt]:
+        imports: list[ast.stmt] = []
         if common_modules is not None:
             for module in common_modules:
                 imports.append(ast.Import(names=[ast.alias(name=module, asname=None)]))
@@ -75,9 +73,9 @@ class AbstractTestExporter(metaclass=ABCMeta):
 
     @staticmethod
     def _create_functions(
-        asts: List[List[ast.stmt]], with_self_arg: bool
-    ) -> List[ast.stmt]:
-        functions: List[ast.stmt] = []
+        asts: list[list[ast.stmt]], with_self_arg: bool
+    ) -> list[ast.stmt]:
+        functions: list[ast.stmt] = []
         for i, nodes in enumerate(asts):
             function_name = f"case_{i}"
             if len(nodes) == 0:
@@ -90,7 +88,7 @@ class AbstractTestExporter(metaclass=ABCMeta):
 
     @staticmethod
     def __create_function_node(
-        function_name: str, nodes: List[ast.stmt], with_self_arg: bool
+        function_name: str, nodes: list[ast.stmt], with_self_arg: bool
     ) -> ast.FunctionDef:
         function_node = ast.FunctionDef(
             name=f"test_{function_name}",
@@ -109,7 +107,7 @@ class AbstractTestExporter(metaclass=ABCMeta):
         return function_node
 
     @staticmethod
-    def _save_ast_to_file(path: Union[str, os.PathLike], module: ast.Module) -> None:
+    def _save_ast_to_file(path: str | os.PathLike, module: ast.Module) -> None:
         """Saves an AST module to a file.
 
         Args:

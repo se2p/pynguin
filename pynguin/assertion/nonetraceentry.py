@@ -7,7 +7,7 @@
 """Provides an entry for none assertions"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 import pynguin.assertion.noneassertion as nas
 import pynguin.assertion.statetraceentry as ote
@@ -33,7 +33,7 @@ class NoneTraceEntry(ote.StateTraceEntry):
     def clone(self) -> NoneTraceEntry:
         return NoneTraceEntry(self._variable, self._is_none)
 
-    def get_assertions(self) -> Set[ass.Assertion]:
+    def get_assertions(self) -> set[ass.Assertion]:
         return {nas.NoneAssertion(self._variable, self._is_none)}
 
     def __eq__(self, other):

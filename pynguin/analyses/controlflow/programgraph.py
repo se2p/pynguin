@@ -5,7 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides base classes of a program graph."""
-from typing import Any, Generic, Optional, Set, TypeVar
+from __future__ import annotations
+
+from typing import Any, Generic, TypeVar
 
 import networkx as nx
 from bytecode import UNSET, BasicBlock, Compare
@@ -22,13 +24,13 @@ class ProgramGraphNode:
     def __init__(
         self,
         index: int,
-        basic_block: Optional[BasicBlock] = None,
+        basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
     ) -> None:
         self._index = index
         self._basic_block = basic_block
         self._is_artificial = is_artificial
-        self._predicate_id: Optional[int] = None
+        self._predicate_id: int | None = None
 
     @property
     def index(self) -> int:
@@ -40,7 +42,7 @@ class ProgramGraphNode:
         return self._index
 
     @property
-    def basic_block(self) -> Optional[BasicBlock]:
+    def basic_block(self) -> BasicBlock | None:
         """Provides the basic block attached to this node.
 
         Returns:
@@ -58,7 +60,7 @@ class ProgramGraphNode:
         return self._is_artificial
 
     @property
-    def predicate_id(self) -> Optional[int]:
+    def predicate_id(self) -> int | None:
         """If this node creates a branch based on a predicate, than this stores the id
         of this predicate.
 
@@ -146,7 +148,7 @@ class ProgramGraph(Generic[N]):
         """
         self._graph.add_edge(start, end, **attr)
 
-    def get_predecessors(self, node: N) -> Set[N]:
+    def get_predecessors(self, node: N) -> set[N]:
         """Provides a set of all direct predecessors of a node.
 
         Args:
@@ -155,12 +157,12 @@ class ProgramGraph(Generic[N]):
         Returns:
             A set of direct predecessors of the node
         """
-        predecessors: Set[N] = set()
+        predecessors: set[N] = set()
         for predecessor in self._graph.predecessors(node):
             predecessors.add(predecessor)
         return predecessors
 
-    def get_successors(self, node: N) -> Set[N]:
+    def get_successors(self, node: N) -> set[N]:
         """Provides a set of all direct successors of a node.
 
         Args:
@@ -169,13 +171,13 @@ class ProgramGraph(Generic[N]):
         Returns:
             A set of direct successors of the node
         """
-        successors: Set[N] = set()
+        successors: set[N] = set()
         for successor in self._graph.successors(node):
             successors.add(successor)
         return successors
 
     @property
-    def nodes(self) -> Set[N]:
+    def nodes(self) -> set[N]:
         """Provides all nodes in the graph.
 
         Returns:
@@ -196,7 +198,7 @@ class ProgramGraph(Generic[N]):
         return self._graph
 
     @property
-    def entry_node(self) -> Optional[N]:
+    def entry_node(self) -> N | None:
         """Provides the entry node of the graph.
 
         Returns:
@@ -208,19 +210,19 @@ class ProgramGraph(Generic[N]):
         return None
 
     @property
-    def exit_nodes(self) -> Set[N]:
+    def exit_nodes(self) -> set[N]:
         """Provides the exit nodes of the graph.
 
         Returns:
             The set of exit nodes of the graph
         """
-        exit_nodes: Set[N] = set()
+        exit_nodes: set[N] = set()
         for node in self._graph.nodes:
             if len(self.get_successors(node)) == 0:
                 exit_nodes.add(node)
         return exit_nodes
 
-    def get_transitive_successors(self, node: N) -> Set[N]:
+    def get_transitive_successors(self, node: N) -> set[N]:
         """Calculates the transitive closure (the transitive successors) of a node.
 
         Args:
@@ -231,8 +233,8 @@ class ProgramGraph(Generic[N]):
         """
         return self._get_transitive_successors(node, set())
 
-    def _get_transitive_successors(self, node: N, done: Set[N]) -> Set[N]:
-        successors: Set[N] = set()
+    def _get_transitive_successors(self, node: N, done: set[N]) -> set[N]:
+        successors: set[N] = set()
         for successor_node in self.get_successors(node):
             if successor_node not in done:
                 successors.add(successor_node)

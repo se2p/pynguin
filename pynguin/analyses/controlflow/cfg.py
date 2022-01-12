@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Dict, List, Optional, Tuple
 
 from bytecode import Bytecode, ControlFlowGraph, Instr
 from networkx import NetworkXError, diameter
@@ -30,7 +29,7 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
         """
         super().__init__()
         self._bytecode_cfg = bytecode_cfg
-        self._diameter: Optional[int] = None
+        self._diameter: int | None = None
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -133,9 +132,9 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     @staticmethod
     def _create_nodes_and_edges(
         blocks: ControlFlowGraph,
-    ) -> Tuple[Dict[int, List[Tuple[int, Dict]]], Dict[int, pg.ProgramGraphNode]]:
-        nodes: Dict[int, pg.ProgramGraphNode] = {}
-        edges: Dict[int, List[Tuple[int, Dict]]] = {}
+    ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, pg.ProgramGraphNode]]:
+        nodes: dict[int, pg.ProgramGraphNode] = {}
+        edges: dict[int, list[tuple[int, dict]]] = {}
         for node_index, block in enumerate(blocks):
             node = pg.ProgramGraphNode(index=node_index, basic_block=block)
             nodes[node_index] = node
@@ -187,8 +186,8 @@ class CFG(pg.ProgramGraph[pg.ProgramGraphNode]):
     @staticmethod
     def _create_graph(
         cfg: CFG,
-        edges: Dict[int, List[Tuple[int, Dict]]],
-        nodes: Dict[int, pg.ProgramGraphNode],
+        edges: dict[int, list[tuple[int, dict]]],
+        nodes: dict[int, pg.ProgramGraphNode],
     ):
         # add nodes to graph
         for node in nodes.values():

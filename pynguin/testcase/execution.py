@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Callable
 
 import astor
 from bytecode import Compare
@@ -57,13 +57,13 @@ class ExecutionContext:
             module_provider: The used module provider
         """
         self._module_provider = module_provider
-        self._local_namespace: Dict[str, Any] = {}
+        self._local_namespace: dict[str, Any] = {}
         self._variable_names = ns.NamingScope()
         self._modules_aliases = ns.NamingScope(prefix="module")
-        self._global_namespace: Dict[str, ModuleType] = {}
+        self._global_namespace: dict[str, ModuleType] = {}
 
     @property
-    def local_namespace(self) -> Dict[str, Any]:
+    def local_namespace(self) -> dict[str, Any]:
         """The local namespace.
 
         Returns:
@@ -98,7 +98,7 @@ class ExecutionContext:
         return res
 
     @property
-    def global_namespace(self) -> Dict[str, ModuleType]:
+    def global_namespace(self) -> dict[str, ModuleType]:
         """The global namespace.
 
         Returns:
@@ -150,7 +150,7 @@ class ExecutionContext:
     def _create_global_namespace(
         self,
         modules_aliases: ns.NamingScope,
-    ) -> Dict[str, ModuleType]:
+    ) -> dict[str, ModuleType]:
         """Provides the required modules under the given aliases.
 
         Args:
@@ -159,7 +159,7 @@ class ExecutionContext:
         Returns:
             A dictionary of module aliases and the corresponding module
         """
-        global_namespace: Dict[str, ModuleType] = {}
+        global_namespace: dict[str, ModuleType] = {}
         for required_module, module_name in modules_aliases:
             global_namespace[module_name] = self._module_provider.get_module(
                 required_module
@@ -205,7 +205,7 @@ class ExecutionObserver:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         """
         Called after a statement was executed.
@@ -221,9 +221,9 @@ class ExecutionResult:
     """Result of an execution."""
 
     def __init__(self, timeout: bool = False) -> None:
-        self._exceptions: Dict[int, Exception] = {}
-        self._output_traces: Dict[Type, ot.StateTrace] = {}
-        self._execution_trace: Optional[ExecutionTrace] = None
+        self._exceptions: dict[int, Exception] = {}
+        self._output_traces: dict[type, ot.StateTrace] = {}
+        self._execution_trace: ExecutionTrace | None = None
         self._timeout = timeout
 
     @property
@@ -236,7 +236,7 @@ class ExecutionResult:
         return self._timeout
 
     @property
-    def exceptions(self) -> Dict[int, Exception]:
+    def exceptions(self) -> dict[int, Exception]:
         """Provide a map of statements indices that threw an exception.
 
         Returns:
@@ -245,7 +245,7 @@ class ExecutionResult:
         return self._exceptions
 
     @property
-    def output_traces(self) -> Dict[Type, ot.StateTrace]:
+    def output_traces(self) -> dict[type, ot.StateTrace]:
         """Provides the gathered state traces.
 
         Returns:
@@ -273,7 +273,7 @@ class ExecutionResult:
         """
         self._execution_trace = trace
 
-    def add_output_trace(self, trace_type: Type, trace: ot.StateTrace) -> None:
+    def add_output_trace(self, trace_type: type, trace: ot.StateTrace) -> None:
         """Add the given trace to the recorded output traces.
 
         Args:
@@ -300,7 +300,7 @@ class ExecutionResult:
         """
         self._exceptions[stmt_idx] = ex
 
-    def get_first_position_of_thrown_exception(self) -> Optional[int]:
+    def get_first_position_of_thrown_exception(self) -> int | None:
         """Provide the index of the first thrown exception or None.
 
         Returns:
@@ -325,9 +325,9 @@ class ExecutionTrace:
     """Stores trace information about the execution."""
 
     executed_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
-    executed_predicates: Dict[int, int] = field(default_factory=dict)
-    true_distances: Dict[int, float] = field(default_factory=dict)
-    false_distances: Dict[int, float] = field(default_factory=dict)
+    executed_predicates: dict[int, int] = field(default_factory=dict)
+    true_distances: dict[int, float] = field(default_factory=dict)
+    false_distances: dict[int, float] = field(default_factory=dict)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -342,7 +342,7 @@ class ExecutionTrace:
         self._merge_min(self.false_distances, other.false_distances)
 
     @staticmethod
-    def _merge_min(target: Dict[int, float], source: Dict[int, float]) -> None:
+    def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
         """Merge source into target. Minimum value wins.
 
         Args:
@@ -361,7 +361,7 @@ class CodeObjectMetaData:
     code_object: CodeType
 
     # Id of the parent code object, if any
-    parent_code_object_id: Optional[int]
+    parent_code_object_id: int | None
 
     # CFG of this Code Object
     cfg: CFG
@@ -391,7 +391,7 @@ class KnownData:
     """
 
     # Maps all known ids of Code Objects to meta information
-    existing_code_objects: Dict[int, CodeObjectMetaData] = field(default_factory=dict)
+    existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
 
     # Stores which of the existing code objects do not contain a branch, i.e.,
     # they do not contain a predicate. Every code object is initially seen as
@@ -399,7 +399,7 @@ class KnownData:
     branch_less_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
 
     # Maps all known ids of predicates to meta information
-    existing_predicates: Dict[int, PredicateMetaData] = field(default_factory=dict)
+    existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
 
 class ExecutionTracer:
@@ -412,7 +412,7 @@ class ExecutionTracer:
     # for certain op codes should be computed.
     # The returned tuple for each computation is (true distance, false distance).
     # pylint: disable=arguments-out-of-order
-    _DISTANCE_COMPUTATIONS: Dict[Compare, Callable[[Any, Any], Tuple[float, float]]] = {
+    _DISTANCE_COMPUTATIONS: dict[Compare, Callable[[Any, Any], tuple[float, float]]] = {
         Compare.EQ: lambda val1, val2: (
             _eq(val1, val2),
             _neq(val1, val2),
@@ -461,10 +461,10 @@ class ExecutionTracer:
         self._import_trace = ExecutionTrace()
         self._init_trace()
         self._enabled = True
-        self._current_thread_identifier: Optional[int] = None
+        self._current_thread_identifier: int | None = None
 
     @property
-    def current_thread_identifier(self) -> Optional[int]:
+    def current_thread_identifier(self) -> int | None:
         """Get the current thread identifier.
 
         Returns:
@@ -859,7 +859,7 @@ class ModuleProvider:
     """Class for providing modules."""
 
     def __init__(self):
-        self._mutated_module_aliases: Dict[str, ModuleType] = {}
+        self._mutated_module_aliases: dict[str, ModuleType] = {}
 
     def get_module(self, module_name: str) -> ModuleType:
         """
@@ -910,7 +910,7 @@ class TestCaseExecutor:
     _logger = logging.getLogger(__name__)
 
     def __init__(
-        self, tracer: ExecutionTracer, module_provider: Optional[ModuleProvider] = None
+        self, tracer: ExecutionTracer, module_provider: ModuleProvider | None = None
     ) -> None:
         """Create new test case executor.
 
@@ -922,7 +922,7 @@ class TestCaseExecutor:
             module_provider if module_provider is not None else ModuleProvider()
         )
         self._tracer = tracer
-        self._observers: List[ExecutionObserver] = []
+        self._observers: list[ExecutionObserver] = []
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -1044,7 +1044,7 @@ class TestCaseExecutor:
 
     def _execute_statement(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ) -> Optional[Exception]:
+    ) -> Exception | None:
         ast_node = exec_ctx.executable_node_for(statement)
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Executing %s", astor.to_source(ast_node))
@@ -1064,7 +1064,7 @@ class TestCaseExecutor:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception],
+        exception: Exception | None,
     ):
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:

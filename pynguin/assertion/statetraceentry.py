@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -22,5 +22,5 @@ class StateTraceEntry:
         """Clone this entry."""
 
     @abstractmethod
-    def get_assertions(self) -> Set[ass.Assertion]:
+    def get_assertions(self) -> set[ass.Assertion]:
         """Get assertions represented by this entry."""

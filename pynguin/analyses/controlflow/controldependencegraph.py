@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -45,7 +45,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
             cdg.add_node(node)
 
         # Find matching edges in the CFG.
-        edges: Set[ControlDependenceGraph._Edge] = set()
+        edges: set[ControlDependenceGraph._Edge] = set()
         for source in nodes:
             for target in augmented_cfg.get_successors(source):
                 if source not in post_dominator_tree.get_transitive_successors(target):
@@ -122,7 +122,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
         return self._is_control_dependent_on_root(node, set())
 
     def _is_control_dependent_on_root(
-        self, node: pg.ProgramGraphNode, visited: Set[pg.ProgramGraphNode]
+        self, node: pg.ProgramGraphNode, visited: set[pg.ProgramGraphNode]
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:
             return True

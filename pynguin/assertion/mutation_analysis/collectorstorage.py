@@ -5,11 +5,13 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Storage for collected data, which was collected during a testcase execution."""
+from __future__ import annotations
+
 import copy
 import enum
 import logging
 from types import ModuleType
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
@@ -36,14 +38,14 @@ class CollectorStorage:
 
     def __init__(self):
         """Creates a new CollectorStorage."""
-        self._storage: List[Dict[Tuple[Any, ...], Any]] = []
+        self._storage: list[dict[tuple[Any, ...], Any]] = []
 
     def collect(
         self,
         statement: st.Statement,
         return_value: Any,
-        objects: Dict[vr.VariableReference, Any],
-        modules: Dict[str, ModuleType],
+        objects: dict[vr.VariableReference, Any],
+        modules: dict[str, ModuleType],
     ) -> None:
         """Collects the return value, objects fields and global fields by adding those
         to the storage. When collecting object fields both attribute values as well as
@@ -79,7 +81,7 @@ class CollectorStorage:
                 self._logger.debug("Return value couldn't be deep-copied.")
 
     def _collect_objects(
-        self, statement: st.Statement, objects: Dict[vr.VariableReference, Any]
+        self, statement: st.Statement, objects: dict[vr.VariableReference, Any]
     ) -> None:
         """Collects all object field values by adding those to the storage.
         Here attribute values of the given objects and class fields of the
@@ -134,7 +136,7 @@ class CollectorStorage:
                     self._logger.debug("Class field couldn't be deep-copied.")
 
     def _collect_globals(
-        self, statement: st.Statement, modules: Dict[str, ModuleType]
+        self, statement: st.Statement, modules: dict[str, ModuleType]
     ) -> None:
         """Collects global values by adding them to the storage.
 
@@ -163,7 +165,7 @@ class CollectorStorage:
                     except TypeError:
                         self._logger.debug("Global value couldn't be deep-copied.")
 
-    def _get_current_exec(self) -> Dict[Tuple[Any, ...], Any]:
+    def _get_current_exec(self) -> dict[tuple[Any, ...], Any]:
         return self._storage[len(self._storage) - 1]
 
     def append_execution(self) -> None:
@@ -173,7 +175,7 @@ class CollectorStorage:
         """
         self._storage.append({})
 
-    def get_execution_entry(self, index: int) -> Dict[Tuple[Any, ...], Any]:
+    def get_execution_entry(self, index: int) -> dict[tuple[Any, ...], Any]:
         """Gets the entry of execution at the given index.
 
         Args:
@@ -186,7 +188,7 @@ class CollectorStorage:
             raise IndexError("Index out of range.")
         return self._storage[index]
 
-    def get_mutations(self, key: Tuple[Any, ...]) -> List[Any]:
+    def get_mutations(self, key: tuple[Any, ...]) -> list[Any]:
         """Gets all values of the executions on mutated modules to a specific key.
 
         Args:
@@ -204,7 +206,7 @@ class CollectorStorage:
         return mutations
 
     @staticmethod
-    def _filter_condition(item: Tuple[str, Any]) -> bool:
+    def _filter_condition(item: tuple[str, Any]) -> bool:
         return (
             not item[0].startswith("__")
             and not item[0].endswith("__")

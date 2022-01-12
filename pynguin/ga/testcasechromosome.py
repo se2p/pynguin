@@ -7,7 +7,7 @@
 """Provides a chromosome for a single test case."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -26,9 +26,9 @@ class TestCaseChromosome(chrom.Chromosome):
 
     def __init__(
         self,
-        test_case: Optional[tc.TestCase] = None,
-        test_factory: Optional[tf.TestFactory] = None,
-        orig: Optional[TestCaseChromosome] = None,
+        test_case: tc.TestCase | None = None,
+        test_factory: tf.TestFactory | None = None,
+        orig: TestCaseChromosome | None = None,
     ) -> None:
         """
         Must supply either a TestCaseChromosome to copy from or the remaining arguments.
@@ -44,9 +44,9 @@ class TestCaseChromosome(chrom.Chromosome):
                 test_case is not None
             ), "Cannot create test case chromosome without test case"
             self._test_case: tc.TestCase = test_case
-            self._test_factory: Optional[tf.TestFactory] = test_factory
+            self._test_factory: tf.TestFactory | None = test_factory
             self._changed = True
-            self._last_execution_result: Optional[ExecutionResult] = None
+            self._last_execution_result: ExecutionResult | None = None
             self._num_mutations = 0
         else:
             self._test_case = orig._test_case.clone()
@@ -225,7 +225,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 changed = True
         return changed
 
-    def get_last_mutatable_statement(self) -> Optional[int]:
+    def get_last_mutatable_statement(self) -> int | None:
         """Provides the index of the last mutatable statement of the wrapped test case.
 
         If there was an exception during the last execution, this includes all statement
@@ -248,7 +248,7 @@ class TestCaseChromosome(chrom.Chromosome):
         # No exception, so the entire test case can be mutated.
         return self.size() - 1
 
-    def get_last_execution_result(self) -> Optional[ExecutionResult]:
+    def get_last_execution_result(self) -> ExecutionResult | None:
         """Get the last execution result.
 
         Returns:

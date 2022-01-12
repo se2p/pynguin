@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import pynguin.assertion.noneassertionobserver as nao
 import pynguin.assertion.primitiveassertionobserver as pao
@@ -52,7 +52,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         self.add_assertions([chromosome.test_case])
         self.filter_failing_assertions([chromosome.test_case])
 
-    def add_assertions(self, test_cases: List[tc.TestCase]) -> None:
+    def add_assertions(self, test_cases: list[tc.TestCase]) -> None:
         """Adds assertions to the given test cases
 
         Args:
@@ -82,7 +82,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                         return
                     statement.add_assertion(assertion)
 
-    def filter_failing_assertions(self, test_cases: List[tc.TestCase]) -> None:
+    def filter_failing_assertions(self, test_cases: list[tc.TestCase]) -> None:
         """Removes assertions from the given list of test cases, which do not hold in
         every execution.
 

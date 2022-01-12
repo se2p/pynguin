@@ -7,7 +7,7 @@
 """Provides an entry for a primitive assertion."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Set
+from typing import TYPE_CHECKING, Any
 
 import pynguin.assertion.primitiveassertion as pas
 import pynguin.assertion.statetraceentry as ote
@@ -27,7 +27,7 @@ class PrimitiveTraceEntry(ote.StateTraceEntry):
     def clone(self) -> PrimitiveTraceEntry:
         return PrimitiveTraceEntry(self._variable, self._value)
 
-    def get_assertions(self) -> Set[ass.Assertion]:
+    def get_assertions(self) -> set[ass.Assertion]:
         return {pas.PrimitiveAssertion(self._variable, self._value)}
 
     def __eq__(self, other):

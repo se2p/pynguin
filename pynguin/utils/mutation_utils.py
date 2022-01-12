@@ -5,7 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides some mutation related utilities."""
-from typing import Callable, List, Optional, TypeVar
+from __future__ import annotations
+
+from typing import Callable, TypeVar
 
 from pynguin.utils import randomness
 
@@ -13,8 +15,8 @@ T = TypeVar("T")  # pylint:disable=invalid-name
 
 
 def alpha_exponent_insertion(
-    elements: List[T],
-    value_supplier: Callable[[], Optional[T]],
+    elements: list[T],
+    value_supplier: Callable[[], T | None],
     alpha: float = 0.5,
     exponent: int = 0,
 ) -> bool:

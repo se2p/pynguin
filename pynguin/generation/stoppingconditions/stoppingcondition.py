@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.generation.searchobserver as so
@@ -89,7 +89,7 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         pass
 
@@ -202,7 +202,7 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         self._num_executed_statements += 1
 

@@ -5,8 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Handles the execution of testcases during the the mutation-analysis approach."""
+from __future__ import annotations
+
 from types import ModuleType
-from typing import List
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.configuration as config
@@ -20,7 +21,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         executor: ex.TestCaseExecutor,
-        mutated_modules: List[ModuleType],
+        mutated_modules: list[ModuleType],
         storage: cs.CollectorStorage,
     ):
         """
@@ -35,7 +36,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         self._mutated_modules = mutated_modules
         self._storage = storage
 
-    def execute(self, test_cases: List[tc.TestCase]) -> None:
+    def execute(self, test_cases: list[tc.TestCase]) -> None:
         """Executes the given list of test cases first on the not mutated module and
         then on every mutated module.
         """
@@ -44,7 +45,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
         for mutated_module in self._mutated_modules:
             self._execute_on_mutated(test_cases, mutated_module)
 
-    def _execute_on_default(self, test_cases: List[tc.TestCase]) -> None:
+    def _execute_on_default(self, test_cases: list[tc.TestCase]) -> None:
         # Expand the storage by one
         self._storage.append_execution()
         for test_case in test_cases:
@@ -56,7 +57,7 @@ class MutationAnalysisExecution:  # pylint: disable=too-few-public-methods
             self._executor.execute(test_case)
 
     def _execute_on_mutated(
-        self, test_cases: List[tc.TestCase], mutated_module: ModuleType
+        self, test_cases: list[tc.TestCase], mutated_module: ModuleType
     ) -> None:
         # Hand the mutated module over to the mutation module observer
         # which injects it to the execution context

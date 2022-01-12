@@ -11,6 +11,7 @@ license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/se2p/pynguin"
 documentation = "https://pynguin.readthedocs.io"
+homepage = "https://www.pynguin.eu"
 keywords = [
     "unit test",
     "random testing",
@@ -30,6 +31,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Education :: Testing",
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Unit",

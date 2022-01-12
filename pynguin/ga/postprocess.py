@@ -10,7 +10,7 @@ Provides chromosome visitors to perform post processing.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
@@ -38,7 +38,7 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
 class TestCasePostProcessor(cv.ChromosomeVisitor):
     """Applies all given visitors to the visited test cases."""
 
-    def __init__(self, test_case_visitors: List[tcv.TestCaseVisitor]):
+    def __init__(self, test_case_visitors: list[tcv.TestCaseVisitor]):
         self._test_case_visitors = test_case_visitors
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:

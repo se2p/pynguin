@@ -13,7 +13,7 @@ import numbers
 import types
 import typing
 from inspect import isclass, isfunction
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable
 
 from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
@@ -25,7 +25,7 @@ PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])
 
 
-def is_primitive_type(type_: Optional[Type]) -> bool:
+def is_primitive_type(type_: type | None) -> bool:
     """Check if the given type is a primitive.
 
     Args:
@@ -37,7 +37,7 @@ def is_primitive_type(type_: Optional[Type]) -> bool:
     return type_ in PRIMITIVES
 
 
-def is_collection_type(type_: Optional[Type]) -> bool:
+def is_collection_type(type_: type | None) -> bool:
     """Check if the given type is a collection type.
 
     Args:
@@ -75,7 +75,7 @@ def function_in_module(module_name: str) -> Callable[[Any], bool]:
     return lambda member: isfunction(member) and member.__module__ == module_name
 
 
-def is_none_type(type_: Optional[Type]) -> bool:
+def is_none_type(type_: type | None) -> bool:
     """Is the given type NoneType?
 
     Args:
@@ -87,7 +87,7 @@ def is_none_type(type_: Optional[Type]) -> bool:
     return type_ is type(None)  # noqa: E721
 
 
-def is_type_unknown(type_: Optional[Type]) -> bool:
+def is_type_unknown(type_: type | None) -> bool:
     """Is the type of this variable unknown?
 
     Args:
@@ -99,7 +99,7 @@ def is_type_unknown(type_: Optional[Type]) -> bool:
     return type_ is None
 
 
-def is_assignable_to(from_type: Optional[Type], to_type: Optional[Type]) -> bool:
+def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
     """A naive implementation to check if one type is assignable to another.
 
     Currently only unary types, Any and Union are supported.
@@ -251,7 +251,7 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
     return False
 
 
-def get_class_that_defined_method(method: object) -> Optional[object]:
+def get_class_that_defined_method(method: object) -> object | None:
     """Retrieves the class that defines a method.
 
     Taken from https://stackoverflow.com/a/25959545/4293396
@@ -304,7 +304,7 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
     )
 
 
-def wrap_var_param_type(type_: Optional[type], param_kind) -> Optional[type]:
+def wrap_var_param_type(type_: type | None, param_kind) -> type | None:
     """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
     respectively.
 

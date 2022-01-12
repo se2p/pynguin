@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract observer that can be used to generate assertions."""
+from __future__ import annotations
 
 from abc import ABC
 from typing import TypeVar

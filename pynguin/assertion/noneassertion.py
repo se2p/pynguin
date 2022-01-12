@@ -7,7 +7,7 @@
 """Provides a none assertion."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 import pynguin.assertion.variableassertion as va
 
@@ -23,6 +23,6 @@ class NoneAssertion(va.VariableAssertion):
         visitor.visit_none_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> NoneAssertion:
         return NoneAssertion(self.source.clone(memo), self.value)

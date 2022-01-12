@@ -5,12 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a strategy implementation that utilises stub files."""
+from __future__ import annotations
+
 import ast
 import inspect
 import os
 import sys
 from pydoc import locate
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable
 
 from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
@@ -20,9 +22,9 @@ from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
 class StubInferenceStrategy(TypeInferenceStrategy):
     """Provides a strategy that utilises stub files to infer variable types."""
 
-    _cache: Dict[str, ast.Module] = {}
+    _cache: dict[str, ast.Module] = {}
 
-    def __init__(self, pyi_dir: Union[str, os.PathLike]) -> None:
+    def __init__(self, pyi_dir: str | os.PathLike) -> None:
         self._pyi_dir = pyi_dir
 
     def infer_type_info(self, method: Callable) -> InferredSignature:
@@ -41,7 +43,7 @@ class StubInferenceStrategy(TypeInferenceStrategy):
             )
         return TypeHintsInferenceStrategy().infer_type_info(method)
 
-    def _read_stub(self, pyi_src: str) -> Optional[ast.Module]:
+    def _read_stub(self, pyi_src: str) -> ast.Module | None:
         path = os.path.join(self._pyi_dir, pyi_src)
         if path in self._cache:
             return self._cache[path]
@@ -57,13 +59,13 @@ class StubInferenceStrategy(TypeInferenceStrategy):
 
     @staticmethod
     def _get_parameter_annotations(
-        method: Callable, pyi_ast: Optional[ast.Module]
-    ) -> Tuple[Dict[str, Optional[type]], Optional[type]]:
+        method: Callable, pyi_ast: ast.Module | None
+    ) -> tuple[dict[str, type | None], type | None]:
         if not pyi_ast:
             return {}, None
 
-        param_types_matches: Dict[str, Optional[type]] = {}
-        return_type: Optional[type] = None
+        param_types_matches: dict[str, type | None] = {}
+        return_type: type | None = None
         if inspect.isfunction(method):
             function_listener = _FunctionListener(pyi_ast, method.__name__)
             function_listener.visit(pyi_ast)
@@ -77,14 +79,14 @@ class StubInferenceStrategy(TypeInferenceStrategy):
 
 
 class _FunctionListener(ast.NodeVisitor):
-    def __init__(self, pyi_ast: Optional[ast.Module], name: str) -> None:
+    def __init__(self, pyi_ast: ast.Module | None, name: str) -> None:
         self._pyi_ast = pyi_ast
         self._name = name
-        self._param_type_matches: Dict[str, Optional[type]] = {}
-        self._return_type: Optional[type] = None
+        self._param_type_matches: dict[str, type | None] = {}
+        self._return_type: type | None = None
 
     @property
-    def param_type_matches(self) -> Dict[str, Optional[type]]:
+    def param_type_matches(self) -> dict[str, type | None]:
         """Provides the matched parameter types.
 
         Returns:
@@ -95,7 +97,7 @@ class _FunctionListener(ast.NodeVisitor):
         return self._param_type_matches
 
     @property
-    def return_type(self) -> Optional[type]:
+    def return_type(self) -> type | None:
         """Provides the return type.
 
         Returns:
@@ -123,7 +125,7 @@ class _FunctionListener(ast.NodeVisitor):
             if node.returns and hasattr(node.returns, "id"):
                 self._return_type = self._locate(node.returns.id)  # type: ignore
 
-    def _locate(self, identifier: Optional[str]) -> Optional[type]:
+    def _locate(self, identifier: str | None) -> type | None:
         assert self._pyi_ast
         if not identifier:
             return None
@@ -138,10 +140,10 @@ class _FunctionListener(ast.NodeVisitor):
 class _ImportVisitor(ast.NodeVisitor):
     def __init__(self, name: str) -> None:
         self._name = name
-        self._full_qualified_name: Optional[str] = None
+        self._full_qualified_name: str | None = None
 
     @property
-    def full_qualified_name(self) -> Optional[str]:
+    def full_qualified_name(self) -> str | None:
         """Provides the inferred fully-qualified name.
 
         Returns:
@@ -159,15 +161,15 @@ class _ImportVisitor(ast.NodeVisitor):
 
 class _ClassListener(ast.NodeVisitor):
     def __init__(
-        self, pyi_ast: Optional[ast.Module], class_name: str, function_name: str
+        self, pyi_ast: ast.Module | None, class_name: str, function_name: str
     ) -> None:
         self._pyi_ast = pyi_ast
         self._class_name = class_name
         self._function_name = function_name
-        self._param_type_matches: Dict[str, Optional[type]] = {}
+        self._param_type_matches: dict[str, type | None] = {}
 
     @property
-    def param_type_matches(self) -> Dict[str, Optional[type]]:
+    def param_type_matches(self) -> dict[str, type | None]:
         """Provides the matched parameter types.
 
         Returns:

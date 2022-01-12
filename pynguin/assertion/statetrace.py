@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -24,7 +24,7 @@ class StateTrace:
     def __init__(self) -> None:
         """Create new output trace."""
         # One entry per statement, i.e., the states after executing that statement.
-        self._trace: Dict[int, OrderedSet[ote.StateTraceEntry]] = defaultdict(
+        self._trace: dict[int, OrderedSet[ote.StateTraceEntry]] = defaultdict(
             OrderedSet
         )
 

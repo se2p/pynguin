@@ -7,7 +7,7 @@
 """A generic exporter that selects its export strategy based on configuration."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Dict
+from typing import TYPE_CHECKING, Callable
 
 import pynguin.configuration as config
 from pynguin.generation.export.noneexporter import NoneExporter
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class ExportProvider:
     """Provides the possibility to export generated tests using a configured strategy"""
 
-    _strategies: Dict[config.ExportStrategy, Callable[[bool], AbstractTestExporter]] = {
+    _strategies: dict[config.ExportStrategy, Callable[[bool], AbstractTestExporter]] = {
         config.ExportStrategy.PY_TEST: PyTestExporter,
         config.ExportStrategy.NONE: NoneExporter,
     }

@@ -7,7 +7,7 @@
 """Provides an observer and statement visitor to create none assertions."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.assertion.nonetraceentry as nte
@@ -32,7 +32,7 @@ class NoneTraceObserver(ato.AssertionTraceObserver):
         self,
         statement: st.Statement,
         exec_ctx: ex.ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         if statement.ret_val is None:
             return

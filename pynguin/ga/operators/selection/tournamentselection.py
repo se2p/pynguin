@@ -4,7 +4,9 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 """Provide tournament selection."""
-from typing import List, TypeVar
+from __future__ import annotations
+
+from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -17,7 +19,7 @@ T = TypeVar("T", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 class TournamentSelection(SelectionFunction[T]):
     """Tournament selection."""
 
-    def get_index(self, population: List[T]) -> int:
+    def get_index(self, population: list[T]) -> int:
         new_num = randomness.next_int(lower_bound=0, upper_bound=len(population))
         winner = new_num
 

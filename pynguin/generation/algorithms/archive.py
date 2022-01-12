@@ -11,7 +11,7 @@ import logging
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Iterable
 
 from ordered_set import OrderedSet
 
@@ -26,7 +26,7 @@ class Archive(ABC):
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._on_target_covered_callbacks: List[
+        self._on_target_covered_callbacks: list[
             Callable[[ff.TestCaseFitnessFunction], None]
         ] = []
 
@@ -98,7 +98,7 @@ class CoverageArchive(Archive):
 
     def __init__(self, objectives: OrderedSet[ff.TestCaseFitnessFunction]) -> None:
         super().__init__()
-        self._covered: Dict[ff.TestCaseFitnessFunction, tcc.TestCaseChromosome] = {}
+        self._covered: dict[ff.TestCaseFitnessFunction, tcc.TestCaseChromosome] = {}
         self._uncovered = OrderedSet(objectives)
         self._objectives = OrderedSet(objectives)
 
@@ -204,7 +204,7 @@ class MIOPopulation:
         self._counter = 0
         self._capacity = population_size
         # Assumption: These are always sorted.
-        self._solutions: List[MIOPopulationPair] = []
+        self._solutions: list[MIOPopulationPair] = []
 
     @property
     def counter(self) -> int:
@@ -284,14 +284,14 @@ class MIOPopulation:
         """The current of number of contained solutions."""
         return len(self._solutions)
 
-    def sample_solution(self) -> Optional[tcc.TestCaseChromosome]:
+    def sample_solution(self) -> tcc.TestCaseChromosome | None:
         """Sample a random solution, if possible."""
         if len(self._solutions) == 0:
             return None
         self._counter += 1
         return randomness.choice(self._solutions).test_case_chromosome
 
-    def get_best_solution_if_any(self) -> Optional[tcc.TestCaseChromosome]:
+    def get_best_solution_if_any(self) -> tcc.TestCaseChromosome | None:
         """Get the best solution, if there is one."""
         if self.is_covered:
             return self._solutions[0].test_case_chromosome
@@ -353,7 +353,7 @@ class MIOArchive(Archive):
         initial_size: int,
     ):
         super().__init__()
-        self._archive: Dict[ff.TestCaseFitnessFunction, MIOPopulation] = {
+        self._archive: dict[ff.TestCaseFitnessFunction, MIOPopulation] = {
             target: MIOPopulation(initial_size) for target in targets
         }
 
@@ -380,7 +380,7 @@ class MIOArchive(Archive):
                     self._on_target_covered(target)
         return updated
 
-    def get_solution(self) -> Optional[tcc.TestCaseChromosome]:
+    def get_solution(self) -> tcc.TestCaseChromosome | None:
         """Get a random solution."""
 
         # Choose one target at random that has not been covered but contains some

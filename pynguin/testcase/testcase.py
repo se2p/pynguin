@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, List, Optional, Set, Type
+from typing import TYPE_CHECKING
 
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
@@ -32,10 +32,10 @@ class TestCase(metaclass=ABCMeta):
     _id_generator = AtomicInteger()
 
     def __init__(self) -> None:
-        self._statements: List[stmt.Statement] = []
+        self._statements: list[stmt.Statement] = []
 
     @property
-    def statements(self) -> List[stmt.Statement]:
+    def statements(self) -> list[stmt.Statement]:
         """Provides the list of statements in this test case.
 
         Returns:
@@ -54,7 +54,7 @@ class TestCase(metaclass=ABCMeta):
     @abstractmethod
     def add_statement(
         self, statement: stmt.Statement, position: int = -1
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         """Adds a new statement to the test case.
 
         The optional position parameter specifies the position.  If it is not given,
@@ -89,7 +89,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def add_statements(self, statements: List[stmt.Statement]) -> None:
+    def add_statements(self, statements: list[stmt.Statement]) -> None:
         """Adds a list of statements to the end of the test case.
 
         Args:
@@ -153,7 +153,7 @@ class TestCase(metaclass=ABCMeta):
     @abstractmethod
     def set_statement(
         self, statement: stmt.Statement, position: int
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         """Set new statement at position.
 
         Args:
@@ -176,7 +176,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clone(self, limit: Optional[int] = None) -> TestCase:
+    def clone(self, limit: int | None = None) -> TestCase:
         """Provides a deep copy of the test case.
 
         Args:
@@ -203,11 +203,11 @@ class TestCase(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_assertions(self) -> List[ass.Assertion]:
+    def get_assertions(self) -> list[ass.Assertion]:
         """Get all assertions that exist for this test case."""
 
     @abstractmethod
-    def get_dependencies(self, var: vr.VariableReference) -> Set[vr.VariableReference]:
+    def get_dependencies(self, var: vr.VariableReference) -> set[vr.VariableReference]:
         """Provides all variables on which var depends.
 
         Args:
@@ -218,8 +218,8 @@ class TestCase(metaclass=ABCMeta):
         """
 
     def get_objects(
-        self, parameter_type: Optional[Type], position: int
-    ) -> List[vr.VariableReference]:
+        self, parameter_type: type | None, position: int
+    ) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type before a
         given position.
 
@@ -240,7 +240,7 @@ class TestCase(metaclass=ABCMeta):
         if is_type_unknown(parameter_type):
             return self.get_all_objects(position)
 
-        variables: List[vr.VariableReference] = []
+        variables: list[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
             statement = self._statements[i]
@@ -252,7 +252,7 @@ class TestCase(metaclass=ABCMeta):
 
         return variables
 
-    def get_all_objects(self, position: int) -> List[vr.VariableReference]:
+    def get_all_objects(self, position: int) -> list[vr.VariableReference]:
         """Get all objects that are defined up to the given position (exclusive).
 
         Args:
@@ -261,7 +261,7 @@ class TestCase(metaclass=ABCMeta):
         Returns:
             A list of all objects defined up to the given position
         """
-        variables: List[vr.VariableReference] = []
+        variables: list[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
             var = self.get_statement(i).ret_val
@@ -272,7 +272,7 @@ class TestCase(metaclass=ABCMeta):
         return variables
 
     def get_random_object(
-        self, parameter_type: Optional[Type], position: int
+        self, parameter_type: type | None, position: int
     ) -> vr.VariableReference:
         """Get a random object of the given type up to the given position (exclusive).
 

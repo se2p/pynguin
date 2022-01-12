@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, cast
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
@@ -79,12 +79,12 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: List[
+        offspring_population: list[
             tcc.TestCaseChromosome
         ] = self._breed_next_generation()
 
         # Create union of parents and offspring
-        union: List[tcc.TestCaseChromosome] = []
+        union: list[tcc.TestCaseChromosome] = []
         union.extend(self._population)
         union.extend(offspring_population)
 
@@ -162,7 +162,7 @@ class _GoalsManager:
         """
         return self._current_goals
 
-    def update(self, solutions: List[tcc.TestCaseChromosome]) -> None:
+    def update(self, solutions: list[tcc.TestCaseChromosome]) -> None:
         """Updates the information on the current goals from the found solutions.
 
         Args:

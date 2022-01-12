@@ -5,9 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a assertion generation by utilizing the mutation-analysis approach."""
+from __future__ import annotations
+
 import logging
 from types import ModuleType
-from typing import Any, List, Set, Tuple
+from typing import Any
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.complexassertion as ca
@@ -40,7 +42,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._executor = executor
         self._executor.add_observer(sco.StateCollectingObserver(self._storage))
 
-        self._assertions: Set[ass.Assertion] = set()
+        self._assertions: set[ass.Assertion] = set()
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         test_cases = [chrom.test_case for chrom in chromosome.test_case_chromosomes]
@@ -60,7 +62,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         pass  # nothing to do here
 
     @staticmethod
-    def _mutate_module() -> List[Tuple[ModuleType, Any]]:
+    def _mutate_module() -> list[tuple[ModuleType, Any]]:
         adapter = ma.MutationAdapter()
         return adapter.mutate_module()
 
@@ -75,7 +77,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             for mut_value in mutated:
                 self._compare(key, ref_value, mut_value)
 
-    def _compare(self, key: Tuple[Any, ...], ref_value: Any, mut_value: Any):
+    def _compare(self, key: tuple[Any, ...], ref_value: Any, mut_value: Any):
         if self._is_assertable_item(ref_value):
             # ref_value and mut_value can be compared straight away
             if (
@@ -99,7 +101,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
                     self._switch_generation(key, ref_field_value, ref_field)
 
     def _switch_generation(
-        self, key: Tuple[Any, ...], ref_value: Any, field: str = None
+        self, key: tuple[Any, ...], ref_value: Any, field: str = None
     ):
         if key[0] == cs.EntryTypes.RETURN_VALUE:
             self._gen_return_value_assertion(key, ref_value, field)
@@ -113,7 +115,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
             raise ValueError("Unknown entry type.")
 
     def _gen_return_value_assertion(
-        self, key: Tuple[Any, ...], ref_value: Any, field: str = None
+        self, key: tuple[Any, ...], ref_value: Any, field: str = None
     ):
         statement = key[1]
         if field:
@@ -125,7 +127,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._add_assertion(statement, assertion)
 
     def _gen_global_field_assertion(
-        self, key: Tuple[Any, ...], ref_value: Any, field: str = None
+        self, key: tuple[Any, ...], ref_value: Any, field: str = None
     ):
         statement = key[1]
         module_name = key[2]
@@ -139,7 +141,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._add_assertion(statement, assertion)
 
     def _gen_object_attribute_assertion(
-        self, key: Tuple[Any, ...], ref_value: Any, field: str = None
+        self, key: tuple[Any, ...], ref_value: Any, field: str = None
     ):
         statement = key[1]
         obj_vr = key[2]
@@ -151,7 +153,7 @@ class MutationAnalysisGenerator(cv.ChromosomeVisitor):
         self._add_assertion(statement, assertion)
 
     def _gen_class_variable_assertion(
-        self, key: Tuple[Any, ...], ref_value: Any, field: str = None
+        self, key: tuple[Any, ...], ref_value: Any, field: str = None
     ):
         statement = key[1]
         clazz = key[2]

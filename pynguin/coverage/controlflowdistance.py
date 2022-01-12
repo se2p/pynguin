@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
@@ -216,5 +216,5 @@ def _get_node_with_predicate_id(
     return cdg_nodes.pop()
 
 
-def _predicate_fitness(predicate: int, branch_distances: Dict[int, float]) -> float:
+def _predicate_fitness(predicate: int, branch_distances: dict[int, float]) -> float:
     return branch_distances.get(predicate, inf)

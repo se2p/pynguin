@@ -5,9 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an adapter for the MutPy mutation testing framework."""
+from __future__ import annotations
+
 import logging
 from types import ModuleType
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 import mutpy.controller as mc
 import mutpy.operators as mo
@@ -24,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 class MutationAdapter:  # pylint: disable=too-few-public-methods
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
-    _strategies: Dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {
+    _strategies: dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {
         config.MutationStrategy.FIRST_TO_LAST: mc.FirstToLastHOMStrategy,
         config.MutationStrategy.BETWEEN_OPERATORS: mc.BetweenOperatorsHOMStrategy,
         config.MutationStrategy.RANDOM: mc.RandomHOMStrategy,
@@ -32,9 +34,9 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
     }
 
     def __init__(self):
-        self.target_loader: Optional[mu.ModulesLoader] = None
+        self.target_loader: mu.ModulesLoader | None = None
 
-    def mutate_module(self) -> List[Tuple[ModuleType, List[mo.Mutation]]]:
+    def mutate_module(self) -> list[tuple[ModuleType, list[mo.Mutation]]]:
         """Mutates the modules specified in the configuration by using MutPys'
         mutation procedure.
 
@@ -107,6 +109,6 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
         raise ConfigurationException("No suitable mutation strategy found.")
 
     @staticmethod
-    def _get_views() -> List[mv.QuietTextView]:
+    def _get_views() -> list[mv.QuietTextView]:
         # We do not want any output from MutPy here
         return [mv.QuietTextView()]

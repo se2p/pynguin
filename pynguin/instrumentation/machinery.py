@@ -16,7 +16,7 @@ from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
 from types import CodeType
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
@@ -54,7 +54,7 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        instrumentations: List[Instrumentation] = [
+        instrumentations: list[Instrumentation] = [
             BranchCoverageInstrumentation(self._tracer)
         ]
         if config.configuration.seeding.dynamic_constant_seeding:

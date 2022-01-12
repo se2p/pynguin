@@ -7,7 +7,7 @@
 """Provides a comparator for dominance comparisons."""
 from __future__ import annotations
 
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -24,18 +24,18 @@ class DominanceComparator(Generic[C]):
     def __init__(
         self,
         *,
-        goal: Optional[ff.FitnessFunction] = None,
-        goals: Optional[OrderedSet[ff.FitnessFunction]] = None,
+        goal: ff.FitnessFunction | None = None,
+        goals: OrderedSet[ff.FitnessFunction] | None = None,
     ) -> None:
         if goals is not None:
-            self._objectives: Optional[OrderedSet[ff.FitnessFunction]] = goals
+            self._objectives: OrderedSet[ff.FitnessFunction] | None = goals
         elif goal is not None:
             self._objectives = {goal}
         else:
             self._objectives = None
 
     # pylint: disable=too-many-return-statements
-    def compare(self, chromosome_1: Optional[C], chromosome_2: Optional[C]) -> int:
+    def compare(self, chromosome_1: C | None, chromosome_2: C | None) -> int:
         """Compares two chromosomes regarding their dominance.
 
         Args:

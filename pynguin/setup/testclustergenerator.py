@@ -5,13 +5,14 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides capabilities to create a test cluster"""
+from __future__ import annotations
+
 import dataclasses
 import enum
 import importlib
 import inspect
 import logging
 import typing
-from typing import List, Set, Type
 
 from typing_inspect import get_args, is_union_type
 
@@ -48,7 +49,7 @@ class DependencyPair:
     dependencies at different recursion levels.
     """
 
-    dependency_type: Type = dataclasses.field(compare=True, hash=True)
+    dependency_type: type = dataclasses.field(compare=True, hash=True)
     recursion_level: int = dataclasses.field(compare=False, hash=False)
 
 
@@ -59,8 +60,8 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
 
     def __init__(self, modules_name: str):
         self._module_name = modules_name
-        self._analyzed_classes: Set[Type] = set()
-        self._dependencies_to_solve: Set[DependencyPair] = set()
+        self._analyzed_classes: set[type] = set()
+        self._dependencies_to_solve: set[DependencyPair] = set()
         self._test_cluster: FullTestCluster = FullTestCluster()
         self._inference = typeinference.TypeInference(
             strategies=self._initialise_type_inference_strategies()
@@ -74,7 +75,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         typing.TYPE_CHECKING = True
 
     @staticmethod
-    def _initialise_type_inference_strategies() -> List[TypeInferenceStrategy]:
+    def _initialise_type_inference_strategies() -> list[TypeInferenceStrategy]:
         strategy = config.configuration.type_inference.type_inference_strategy
         if strategy == config.TypeInferenceStrategy.NONE:
             return [NoTypeInferenceStrategy()]
@@ -153,7 +154,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
                     self._logger.debug("Found typing annotation %s, skipping", elem)
                     # TODO(fk) fully support typing annotations.
 
-    def _add_dependency(self, klass: Type, recursion_level: int, add_to_test: bool):
+    def _add_dependency(self, klass: type, recursion_level: int, add_to_test: bool):
         """Add constructor/methods/attributes of the given type to the test cluster.
 
         Args:
@@ -169,7 +170,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._analyzed_classes.add(klass)
         self._logger.debug("Analyzing class %s", klass)
         if issubclass(klass, enum.Enum):
-            generic: typing.Union[GenericEnum, GenericConstructor] = GenericEnum(klass)
+            generic: GenericEnum | GenericConstructor = GenericEnum(klass)
         else:
             generic = generic_constructor = GenericConstructor(
                 klass, self._inference.infer_type_info(klass.__init__)[0]

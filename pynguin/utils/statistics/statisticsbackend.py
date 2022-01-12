@@ -5,13 +5,15 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an interface for a statistics writer."""
+from __future__ import annotations
+
 import csv
 import ctypes
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generic, TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.configuration as config
 
@@ -31,7 +33,7 @@ class AbstractStatisticsBackend(metaclass=ABCMeta):
     """An interface for a statistics writer."""
 
     @abstractmethod
-    def write_data(self, data: Dict[str, OutputVariable]) -> None:
+    def write_data(self, data: dict[str, OutputVariable]) -> None:
         """Write the particular statistics values.
 
         Args:
@@ -48,7 +50,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
     def __init__(self) -> None:
         csv.field_size_limit(int(ctypes.c_ulong(-1).value // 2))
 
-    def write_data(self, data: Dict[str, OutputVariable]) -> None:
+    def write_data(self, data: dict[str, OutputVariable]) -> None:
         try:
             output_dir = Path(
                 config.configuration.statistics_output.report_dir
@@ -70,6 +72,6 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
 class ConsoleStatisticsBackend(AbstractStatisticsBackend):
     """Simple dummy backend that just outputs all output variables to the console"""
 
-    def write_data(self, data: Dict[str, OutputVariable]) -> None:
+    def write_data(self, data: dict[str, OutputVariable]) -> None:
         for key, value in data.items():
             print(f"{key}: {value}")

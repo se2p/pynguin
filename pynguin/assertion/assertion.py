@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pynguin.assertion.assertionvisitor as av
 import pynguin.testcase.variablereference as vr
@@ -17,7 +17,7 @@ import pynguin.testcase.variablereference as vr
 class Assertion:
     """Base class for assertions."""
 
-    def __init__(self, source: Optional[vr.VariableReference], value: Any) -> None:
+    def __init__(self, source: vr.VariableReference | None, value: Any) -> None:
         """Create new assertion.
 
         Args:
@@ -29,7 +29,7 @@ class Assertion:
         self._value = value
 
     @property
-    def source(self) -> Optional[vr.VariableReference]:
+    def source(self) -> vr.VariableReference | None:
         """Provides an optional for the variable on which the assertion is made.
 
         Returns:
@@ -56,7 +56,7 @@ class Assertion:
 
     @abstractmethod
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> Assertion:
         """Clone this assertion.
 

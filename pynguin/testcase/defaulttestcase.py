@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from itertools import islice
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from ordered_set import OrderedSet
 
@@ -49,7 +49,7 @@ class DefaultTestCase(tc.TestCase):
 
     def add_statement(
         self, statement: stmt.Statement, position: int = -1
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         if position == -1:
             self._statements.append(statement)
         else:
@@ -65,11 +65,11 @@ class DefaultTestCase(tc.TestCase):
             self._statements.insert(position, statement)
         return statement.ret_val
 
-    def add_statements(self, statements: List[stmt.Statement]) -> None:
+    def add_statements(self, statements: list[stmt.Statement]) -> None:
         self._statements.extend(statements)
 
     def append_test_case(self, test_case: tc.TestCase) -> None:
-        memo: Dict[vr.VariableReference, vr.VariableReference] = {}
+        memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in test_case.statements:
             clone = statement.clone(self, memo)
             if statement.ret_val is not None:
@@ -101,7 +101,7 @@ class DefaultTestCase(tc.TestCase):
 
     def set_statement(
         self, statement: stmt.Statement, position: int
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
         return statement.ret_val
@@ -109,9 +109,9 @@ class DefaultTestCase(tc.TestCase):
     def has_statement(self, position: int) -> bool:
         return 0 <= position < len(self._statements)
 
-    def clone(self, limit: Optional[int] = None) -> tc.TestCase:
+    def clone(self, limit: int | None = None) -> tc.TestCase:
         test_case = DefaultTestCase()
-        memo: Dict[vr.VariableReference, vr.VariableReference] = {}
+        memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in islice(self._statements, limit):
             copy = statement.clone(test_case, memo)
             if statement.ret_val is not None:
@@ -143,8 +143,8 @@ class DefaultTestCase(tc.TestCase):
 
         return dependencies
 
-    def get_assertions(self) -> List[ass.Assertion]:
-        assertions: List[ass.Assertion] = []
+    def get_assertions(self) -> list[ass.Assertion]:
+        assertions: list[ass.Assertion] = []
         for statement in self._statements:
             assertions.extend(statement.assertions)
         return assertions
@@ -168,7 +168,7 @@ class DefaultTestCase(tc.TestCase):
         else:
             if len(self._statements) != len(other._statements):
                 return False
-            memo: Dict[vr.VariableReference, vr.VariableReference] = {}
+            memo: dict[vr.VariableReference, vr.VariableReference] = {}
             for left, right in zip(self._statements, other._statements):
                 if ((lret := left.ret_val) is None) ^ ((rret := right.ret_val) is None):
                     # One is None but the other isn't, i.e., one creates a variable
@@ -183,4 +183,4 @@ class DefaultTestCase(tc.TestCase):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum([17 * s.structural_hash() for s in self._statements])
+        return 31 + sum(17 * s.structural_hash() for s in self._statements)

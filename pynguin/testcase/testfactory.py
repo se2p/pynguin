@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin
@@ -105,7 +105,7 @@ class TestFactory:
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         """Appends a generic accessible object to a test case.
 
         Args:
@@ -203,7 +203,7 @@ class TestFactory:
         signature = constructor.inferred_signature
         length = test_case.size()
         try:
-            parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
+            parameters: dict[str, vr.VariableReference] = self.satisfy_parameters(
                 test_case=test_case,
                 signature=signature,
                 position=position,
@@ -232,7 +232,7 @@ class TestFactory:
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
-        callee: Optional[vr.VariableReference] = None,
+        callee: vr.VariableReference | None = None,
     ) -> vr.VariableReference:
         """Adds a method call to a test case at a given position.
 
@@ -270,7 +270,7 @@ class TestFactory:
                 test_case, method.owner, position, recursion_depth, allow_none=False
             )
         assert callee, "The callee must not be None"
-        parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
+        parameters: dict[str, vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
             signature=signature,
             position=position,
@@ -295,7 +295,7 @@ class TestFactory:
         field: gao.GenericField,
         position: int = -1,
         recursion_depth: int = 0,
-        callee: Optional[vr.VariableReference] = None,
+        callee: vr.VariableReference | None = None,
     ) -> vr.VariableReference:
         """Adds a field access to a test case at a given position.
 
@@ -411,7 +411,7 @@ class TestFactory:
 
         signature = function.inferred_signature
         length = test_case.size()
-        parameters: Dict[str, vr.VariableReference] = self.satisfy_parameters(
+        parameters: dict[str, vr.VariableReference] = self.satisfy_parameters(
             test_case=test_case,
             signature=signature,
             position=position,
@@ -568,7 +568,7 @@ class TestFactory:
     @staticmethod
     def _select_random_variable_for_call(
         test_case: tc.TestCase, position: int
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         """Randomly select one of the variables in the test defined up to
         position to insert a call for.
 
@@ -580,7 +580,7 @@ class TestFactory:
         Returns:
             A candidate, if found
         """
-        candidates: List[vr.VariableReference] = [
+        candidates: list[vr.VariableReference] = [
             var
             for var in test_case.get_all_objects(position)
             if not var.is_primitive()
@@ -679,7 +679,7 @@ class TestFactory:
         Returns:
             Whether or not the deletion was successful
         """
-        to_delete: Set[int] = set()
+        to_delete: set[int] = set()
         TestFactory._recursive_delete_inclusion(test_case, to_delete, position)
         for index in sorted(list(to_delete), reverse=True):
             test_case.remove(index)
@@ -687,7 +687,7 @@ class TestFactory:
 
     @staticmethod
     def _recursive_delete_inclusion(
-        test_case: tc.TestCase, to_delete: Set[int], position: int
+        test_case: tc.TestCase, to_delete: set[int], position: int
     ) -> None:
         if position in to_delete:
             return  # end of recursion
@@ -698,7 +698,7 @@ class TestFactory:
             TestFactory._recursive_delete_inclusion(test_case, to_delete, i)
 
     @staticmethod
-    def _get_reference_positions(test_case: tc.TestCase, position: int) -> Set[int]:
+    def _get_reference_positions(test_case: tc.TestCase, position: int) -> set[int]:
         references = set()
         positions = set()
         if (ret_val := test_case.get_statement(position).ret_val) is not None:
@@ -764,7 +764,7 @@ class TestFactory:
         """
         position = statement.ret_val.get_statement_position()
         return_value = statement.ret_val
-        replacement: Optional[stmt.Statement] = None
+        replacement: stmt.Statement | None = None
         if call.is_method():
             method = cast(gao.GenericMethod, call)
             assert method.owner
@@ -795,7 +795,7 @@ class TestFactory:
     @staticmethod
     def _get_reuse_parameters(
         test_case: tc.TestCase, inf_signature: InferredSignature, position: int
-    ) -> Dict[str, vr.VariableReference]:
+    ) -> dict[str, vr.VariableReference]:
         """Find specified parameters from existing objects.
 
         Args:
@@ -821,7 +821,7 @@ class TestFactory:
 
     @staticmethod
     def _get_random_non_none_object(
-        test_case: tc.TestCase, type_: Type, position: int
+        test_case: tc.TestCase, type_: type, position: int
     ) -> vr.VariableReference:
         variables = test_case.get_objects(type_, position)
         variables = [
@@ -839,8 +839,8 @@ class TestFactory:
         return randomness.choice(variables)
 
     def _get_possible_calls(
-        self, return_type: Type, objects: List[vr.VariableReference]
-    ) -> List[gao.GenericAccessibleObject]:
+        self, return_type: type, objects: list[vr.VariableReference]
+    ) -> list[gao.GenericAccessibleObject]:
         """Retrieve all the replacement calls that can be inserted at this position
          without changing the length.
 
@@ -851,7 +851,7 @@ class TestFactory:
         Returns:
             A list of possible replacement calls
         """
-        calls: List[gao.GenericAccessibleObject] = []
+        calls: list[gao.GenericAccessibleObject] = []
         try:
             all_calls = self._test_cluster.get_generators_for(return_type)
         except ConstructionFailedException:
@@ -863,7 +863,7 @@ class TestFactory:
 
     @staticmethod
     def _dependencies_satisfied(
-        dependencies: Set[Type], objects: List[vr.VariableReference]
+        dependencies: set[type], objects: list[vr.VariableReference]
     ) -> bool:
         """Determine if the set of objects is sufficient to satisfy the set of
         dependencies.
@@ -889,12 +889,12 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         signature: InferredSignature,
-        callee: Optional[vr.VariableReference] = None,
+        callee: vr.VariableReference | None = None,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
         can_reuse_existing_variables: bool = True,
-    ) -> Dict[str, vr.VariableReference]:
+    ) -> dict[str, vr.VariableReference]:
         """Satisfy a list of parameters by reusing or creating variables.
 
         Args:
@@ -916,7 +916,7 @@ class TestFactory:
         if position < 0:
             position = test_case.size()
 
-        parameters: Dict[str, vr.VariableReference] = {}
+        parameters: dict[str, vr.VariableReference] = {}
         self._logger.debug(
             "Trying to satisfy %d parameters at position %d",
             len(signature.parameters),
@@ -973,8 +973,8 @@ class TestFactory:
         return parameters
 
     def _reuse_variable(
-        self, test_case: tc.TestCase, parameter_type: Optional[Type], position: int
-    ) -> Optional[vr.VariableReference]:
+        self, test_case: tc.TestCase, parameter_type: type | None, position: int
+    ) -> vr.VariableReference | None:
         """Reuse an existing variable, if possible.
 
         Args:
@@ -1001,11 +1001,11 @@ class TestFactory:
     def _get_variable_fallback(
         self,
         test_case: tc.TestCase,
-        parameter_type: Optional[Type],
+        parameter_type: type | None,
         position: int,
         recursion_depth: int,
         allow_none: bool,
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         """Best effort approach to return some kind of matching variable.
 
         Args:
@@ -1052,12 +1052,12 @@ class TestFactory:
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: Optional[Type],
+        parameter_type: type | None,
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        exclude: Optional[vr.VariableReference] = None,
-    ) -> Optional[vr.VariableReference]:
+        exclude: vr.VariableReference | None = None,
+    ) -> vr.VariableReference | None:
         if is_type_unknown(parameter_type):
             if config.configuration.type_inference.guess_unknown_types:
                 parameter_type = randomness.choice(
@@ -1089,12 +1089,12 @@ class TestFactory:
     def _create_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: Optional[Type],
+        parameter_type: type | None,
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        exclude: Optional[vr.VariableReference] = None,
-    ) -> Optional[vr.VariableReference]:
+        exclude: vr.VariableReference | None = None,
+    ) -> vr.VariableReference | None:
         return self._attempt_generation(
             test_case, parameter_type, position, recursion_depth, allow_none, exclude
         )
@@ -1103,12 +1103,12 @@ class TestFactory:
     def _attempt_generation(
         self,
         test_case: tc.TestCase,
-        parameter_type: Optional[Type],
+        parameter_type: type | None,
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        exclude: Optional[vr.VariableReference] = None,
-    ) -> Optional[vr.VariableReference]:
+        exclude: vr.VariableReference | None = None,
+    ) -> vr.VariableReference | None:
         # We only select a concrete type e.g. from a union, when we are forced to
         # choose one.
         parameter_type = self._test_cluster.select_concrete_type(parameter_type)
@@ -1151,7 +1151,7 @@ class TestFactory:
         recursion_depth: int,
         allow_none: bool,
         type_generators: OrderedSet[gao.GenericAccessibleObject],
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         type_generator = randomness.choice(type_generators)
         return self.append_generic_accessible(
             test_case,
@@ -1167,7 +1167,7 @@ class TestFactory:
         position: int,
         recursion_depth: int,
         allow_none: bool,
-    ) -> Optional[vr.VariableReference]:
+    ) -> vr.VariableReference | None:
         return self._create_or_reuse_variable(
             test_case=test_case,
             parameter_type=randomness.choice(
@@ -1181,7 +1181,7 @@ class TestFactory:
     @staticmethod
     def _create_none(
         test_case: tc.TestCase,
-        parameter_type: Optional[Type],
+        parameter_type: type | None,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1193,7 +1193,7 @@ class TestFactory:
     @staticmethod
     def _create_primitive(
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: type,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1214,7 +1214,7 @@ class TestFactory:
     def _create_collection(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: type,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1237,7 +1237,7 @@ class TestFactory:
     def _create_list_or_set(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: type,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1270,7 +1270,7 @@ class TestFactory:
     def _create_tuple(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: type,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1302,7 +1302,7 @@ class TestFactory:
     def _create_dict(
         self,
         test_case: tc.TestCase,
-        parameter_type: Type,
+        parameter_type: type,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:

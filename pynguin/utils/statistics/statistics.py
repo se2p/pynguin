@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import queue
 import time
-from typing import Any, Dict, Generator, Optional, Tuple
+from typing import Any, Generator
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -50,7 +50,7 @@ class _StatisticsTracker:
         return self._variables
 
     @property
-    def variables_generator(self) -> Generator[Tuple[RuntimeVariable, Any], None, None]:
+    def variables_generator(self) -> Generator[tuple[RuntimeVariable, Any], None, None]:
         """Provides a generator.
 
         Yields:
@@ -129,7 +129,7 @@ class _StatisticsTracker:
         )
 
     @property
-    def output_variables(self) -> Dict[str, sb.OutputVariable]:
+    def output_variables(self) -> dict[str, sb.OutputVariable]:
         """Provides the output variables.
 
         Returns:
@@ -158,12 +158,12 @@ class _SearchStatistics:
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._backend: Optional[
+        self._backend: None | (
             sb.AbstractStatisticsBackend
-        ] = self._initialise_backend()
-        self._output_variables: Dict[str, sb.OutputVariable] = {}
-        self._variable_factories: Dict[str, ovf.ChromosomeOutputVariableFactory] = {}
-        self._sequence_output_variable_factories: Dict[
+        ) = self._initialise_backend()
+        self._output_variables: dict[str, sb.OutputVariable] = {}
+        self._variable_factories: dict[str, ovf.ChromosomeOutputVariableFactory] = {}
+        self._sequence_output_variable_factories: dict[
             str, ovf.SequenceOutputVariableFactory
         ] = {}
         self._init_factories()
@@ -173,10 +173,10 @@ class _SearchStatistics:
         self._fill_sequence_output_variable_factories()
         self._start_time = time.time_ns()
         self.set_sequence_output_variable_start_time(self._start_time)
-        self._best_individual: Optional[chrom.Chromosome] = None
+        self._best_individual: chrom.Chromosome | None = None
 
     @staticmethod
-    def _initialise_backend() -> Optional[sb.AbstractStatisticsBackend]:
+    def _initialise_backend() -> sb.AbstractStatisticsBackend | None:
         backend = config.configuration.statistics_output.statistics_backend
         if backend == config.StatisticsBackend.CONSOLE:
             return sb.ConsoleStatisticsBackend()
@@ -296,7 +296,7 @@ class _SearchStatistics:
         self.update_output_variable(sb.OutputVariable(name=variable.name, value=value))
 
     @property
-    def output_variables(self) -> Dict[str, sb.OutputVariable]:
+    def output_variables(self) -> dict[str, sb.OutputVariable]:
         """Provides the output variables.
 
         Returns:
@@ -306,8 +306,8 @@ class _SearchStatistics:
 
     def _get_output_variables(
         self, individual, skip_missing: bool = True
-    ) -> Dict[str, sb.OutputVariable]:
-        output_variables_map: Dict[str, sb.OutputVariable] = {}
+    ) -> dict[str, sb.OutputVariable]:
+        output_variables_map: dict[str, sb.OutputVariable] = {}
 
         for variable in config.configuration.statistics_output.output_variables:
             variable_name = variable.name

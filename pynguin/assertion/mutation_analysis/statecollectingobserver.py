@@ -5,7 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Observer collecting stating of various fields during the execution."""
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import pynguin.assertion.mutation_analysis.collectorstorage as cs
 import pynguin.testcase.execution as ex
@@ -21,7 +23,7 @@ class StateCollectingObserver(ex.ExecutionObserver):
     def __init__(self, storage: cs.CollectorStorage):
         self._storage = storage
 
-        self._objects: Dict[vr.VariableReference, Any] = {}
+        self._objects: dict[vr.VariableReference, Any] = {}
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:
         pass  # nothing to do here
@@ -40,7 +42,7 @@ class StateCollectingObserver(ex.ExecutionObserver):
         self,
         statement: stmt.Statement,
         exec_ctx: ex.ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         # When an exception was raised do not do anything.
         # This is done because after an exception has occurred, the execution of the

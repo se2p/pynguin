@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable
 
 from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
 
@@ -22,8 +22,8 @@ class TypeInference:
 
     def __init__(
         self,
-        strategies: Optional[List[TypeInferenceStrategy]] = None,
-        strategy_names: Optional[List[str]] = None,
+        strategies: list[TypeInferenceStrategy] | None = None,
+        strategy_names: list[str] | None = None,
     ) -> None:
         """Creates the type inference object.
 
@@ -46,13 +46,13 @@ class TypeInference:
             _strategies = self._initialise_strategies(strategy_names)
         else:
             _strategies = [NoTypeInferenceStrategy()]
-        self._strategies: List[TypeInferenceStrategy] = _strategies
+        self._strategies: list[TypeInferenceStrategy] = _strategies
 
     @staticmethod
     def _initialise_strategies(
-        strategy_names: List[str],
-    ) -> List[TypeInferenceStrategy]:
-        strategies: List[TypeInferenceStrategy] = []
+        strategy_names: list[str],
+    ) -> list[TypeInferenceStrategy]:
+        strategies: list[TypeInferenceStrategy] = []
         for strategy in strategy_names:
             try:
                 module_path, class_name = strategy.rsplit(".", 1)
@@ -62,7 +62,7 @@ class TypeInference:
                 raise ImportError(strategy) from exception
         return strategies
 
-    def infer_type_info(self, method: Callable) -> List[InferredSignature]:
+    def infer_type_info(self, method: Callable) -> list[InferredSignature]:
         """Evaluates the type information for a callable.
 
         It returns a list of `InferredSignature`s that could be inferred for the
@@ -74,7 +74,7 @@ class TypeInference:
         Returns:
             A list of InferredSignature
         """
-        method_types: List[InferredSignature] = []
+        method_types: list[InferredSignature] = []
         for strategy in self._strategies:
             method_types.append(strategy.infer_type_info(method))
         return method_types

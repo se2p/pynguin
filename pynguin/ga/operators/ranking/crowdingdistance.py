@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, List, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -21,7 +21,7 @@ C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 
 
 def fast_epsilon_dominance_assignment(
-    front: List[C], goals: OrderedSet[ff.FitnessFunction]
+    front: list[C], goals: OrderedSet[ff.FitnessFunction]
 ) -> None:
     """Implements a "fast" version of the variant of the crowding distance.
 
@@ -39,7 +39,7 @@ def fast_epsilon_dominance_assignment(
 
     for goal in goals:
         minimum = sys.float_info.max
-        min_set: List[C] = []
+        min_set: list[C] = []
         maximum = 0.0
         for test in front:
             value = test.get_fitness_for(goal)

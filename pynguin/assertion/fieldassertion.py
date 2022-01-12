@@ -7,7 +7,7 @@
 """Provides a field assertion."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.variablereference as vr
@@ -20,11 +20,11 @@ class FieldAssertion(ass.Assertion):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        source: Optional[vr.VariableReference],
+        source: vr.VariableReference | None,
         value: Any,
         field: str,
         module: str = None,
-        owners: List[Optional[str]] = None,
+        owners: list[str | None] = None,
     ):
         """Creates a new field assertion.
 
@@ -55,7 +55,7 @@ class FieldAssertion(ass.Assertion):
         return self._field
 
     @property
-    def module(self) -> Optional[str]:
+    def module(self) -> str | None:
         """Provides the module which contains the field to assert.
 
         Returns:
@@ -64,7 +64,7 @@ class FieldAssertion(ass.Assertion):
         return self._module
 
     @property
-    def owners(self) -> Optional[List[Optional[str]]]:
+    def owners(self) -> list[str | None] | None:
         """Provides a list of owners of the field.
         If this is set to 'None' the field is an attribute from an object.
 
@@ -77,7 +77,7 @@ class FieldAssertion(ass.Assertion):
         visitor.visit_field_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> FieldAssertion:
         return FieldAssertion(
             self._source.clone(memo) if self._source else None,
