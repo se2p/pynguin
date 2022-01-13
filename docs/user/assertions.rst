@@ -56,7 +56,7 @@ Both approaches try to filter out non-relevant and/or trivially-flaky assertions
 They also filter out assertions that are stale, i.e., assertions that do not change during subsequent statement executions.
 For example, consider the following test case based on the :ref:`quickstart <quickstart>` ``Queue`` example:
 
-.. code-block::
+.. code-block:: python
 
   int_0 = 42
   queue_0 = module_0.Queue(int_0)
