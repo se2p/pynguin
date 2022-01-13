@@ -71,7 +71,6 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             (test_case, []) for test_case in test_cases
         ]
         for _ in range(self._base_executions):
-            # TODO(fk) Maybe reload module?
             randomness.RNG.shuffle(tests_and_results)
             for test, results in tests_and_results:
                 results.append(self._executor.execute(test))
