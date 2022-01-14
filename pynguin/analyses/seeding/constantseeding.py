@@ -11,6 +11,7 @@ import ast
 import logging
 import os
 from abc import abstractmethod
+from pathlib import Path
 from pkgutil import iter_modules
 from typing import Any, Union, cast
 
@@ -139,7 +140,12 @@ class _StaticConstantSeeding(_ConstantSeeding):
             for info in iter_modules([pkg_path]):
                 if not info.ispkg:
                     name = info.name.replace(".", "/")
-                    modules.add(f"{package_name}/{name}.py")
+                    module = f"{package_name}/{name}.py"
+                    module_path = Path(project_path) / Path(module)
+                    if module_path.exists() and module_path.is_file():
+                        # Consider only Python files for constant seeding, as the
+                        # seeding relies on the availability of an AST.
+                        modules.add(module)
         return modules
 
     def collect_constants(
