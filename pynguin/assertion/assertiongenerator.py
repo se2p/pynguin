@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -56,7 +56,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         self._generate_assertions([chromosome.test_case])
 
-    def _generate_assertions(self, test_cases: List[tc.TestCase]) -> None:
+    def _generate_assertions(self, test_cases: list[tc.TestCase]) -> None:
         """Adds assertions to the given test case.
 
         Args:
@@ -65,9 +65,9 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         self._add_assertions(self._execute(test_cases))
 
     def _execute(
-        self, test_cases: List[tc.TestCase]
-    ) -> List[Tuple[tc.TestCase, List[ex.ExecutionResult]]]:
-        tests_and_results: List[Tuple[tc.TestCase, List[ex.ExecutionResult]]] = [
+        self, test_cases: list[tc.TestCase]
+    ) -> list[tuple[tc.TestCase, list[ex.ExecutionResult]]]:
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]] = [
             (test_case, []) for test_case in test_cases
         ]
         for _ in range(self._base_executions):
@@ -77,13 +77,13 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         return tests_and_results
 
     def _add_assertions(
-        self, tests_and_results: List[Tuple[tc.TestCase, List[ex.ExecutionResult]]]
+        self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
     ):
         for test_case, results in tests_and_results:
             self._add_assertions_for(test_case, results)
 
     def _add_assertions_for(
-        self, test_case: tc.TestCase, results: List[ex.ExecutionResult]
+        self, test_case: tc.TestCase, results: list[ex.ExecutionResult]
     ):
         # In order to avoid repeating the same assertions after each statement,
         # we keep track of the last assertions and only assert things, if they
@@ -116,7 +116,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 previous_statement_assertions = current_statement_assertions
 
     def _get_assertions_for(  # pylint:disable=no-self-use
-        self, results: List[ex.ExecutionResult], statement: st.Statement
+        self, results: list[ex.ExecutionResult], statement: st.Statement
     ) -> OrderedSet[ass.Assertion]:
         """Returns the set of assertions for the given statement.
 
@@ -128,7 +128,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             An ordered set of assertions for the given statement.
         """
         assert len(results) > 0, "Requires at least one result."
-        assertions: List[OrderedSet[ass.Assertion]] = []
+        assertions: list[OrderedSet[ass.Assertion]] = []
         for res in results:
             merged = OrderedSet()
             for trace in res.assertion_traces.values():
@@ -149,8 +149,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._mutated_modules = [x for x, _ in adapter.mutate_module()]
 
     def _execute(
-        self, test_cases: List[tc.TestCase]
-    ) -> List[Tuple[tc.TestCase, List[ex.ExecutionResult]]]:
+        self, test_cases: list[tc.TestCase]
+    ) -> list[tuple[tc.TestCase, list[ex.ExecutionResult]]]:
         tests_and_results = super()._execute(test_cases)
 
         for idx, mutated_module in enumerate(self._mutated_modules):
@@ -167,14 +167,14 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         return tests_and_results
 
     def _get_assertions_for(
-        self, results: List[ex.ExecutionResult], statement: st.Statement
+        self, results: list[ex.ExecutionResult], statement: st.Statement
     ) -> OrderedSet[ass.Assertion]:
         # The first executions are from executions on the non-mutated module.
         base_assertions = super()._get_assertions_for(
             results[: self._base_executions], statement
         )
 
-        assertion_counter: Dict[ass.Assertion, int] = Counter()
+        assertion_counter: dict[ass.Assertion, int] = Counter()
         for mutated_result in results[self._base_executions :]:
             for trace in mutated_result.assertion_traces.values():
                 assertion_counter.update(Counter(trace.get_assertions(statement)))
