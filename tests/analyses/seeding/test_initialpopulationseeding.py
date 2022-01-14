@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -97,7 +97,7 @@ def test_get_seeded_testcase(
         pytest.param("collfuncseed", 1, "empty!", 0),
         pytest.param("collfuncseed", 1, "empty!", 1),
         pytest.param("collfuncseed", 3, "not empty!", 2),
-        pytest.param("collfuncseed", 4, "not empty!", 3),
+        pytest.param("collfuncseed", 3, "not empty!", 3),
         pytest.param("collfuncseed", 1, "empty!", 4),
         pytest.param("classseed", 6, "not empty!", 0),
     ],

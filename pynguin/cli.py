@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -9,12 +9,13 @@
 This module provides the main entry location for the program execution from the command
 line.
 """
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 import simple_parsing
 from rich.logging import RichHandler
@@ -56,7 +57,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _expand_arguments_if_necessary(arguments: List[str]) -> List[str]:
+def _expand_arguments_if_necessary(arguments: list[str]) -> list[str]:
     """Expand command-line arguments, if necessary.
 
     This is a hacky way to pass comma separated output variables.  The reason to have
@@ -94,7 +95,7 @@ def _setup_output_path(output_path: str) -> None:
 
 def _setup_logging(
     verbosity: int,
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ):
     level = logging.WARNING
     if verbosity == 1:
@@ -102,7 +103,7 @@ def _setup_logging(
     if verbosity >= 2:
         level = logging.DEBUG
 
-    handlers: List[logging.Handler] = []
+    handlers: list[logging.Handler] = []
     if log_file:
         log_file_path = Path(log_file).resolve()
         if not log_file_path.parent.exists():
@@ -124,11 +125,11 @@ def _setup_logging(
     )
 
 
+# People may wipe their disk, so we give them a heads-up.
 _DANGER_ENV = "PYNGUIN_DANGER_AWARE"
-"""People may wipe their disk, so we give them a heads up."""
 
 
-def main(argv: List[str] = None) -> int:
+def main(argv: list[str] = None) -> int:
     """Entry point for the CLI of the Pynguin automatic unit test generation framework.
 
     This method behaves like a standard UNIX command-line application, i.e.,

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -32,9 +32,9 @@ C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 class RankedFronts(Generic[C]):
     """Contains the ranked fronts."""
 
-    fronts: Optional[List[List[C]]] = None
+    fronts: list[list[C]] | None = None
 
-    def get_sub_front(self, rank: int) -> List[C]:
+    def get_sub_front(self, rank: int) -> list[C]:
         """Returns the sub-front of chromosome objects of the given rank.
 
         Sub-fronts are ordered starting from 0 in ascending order, i.e., the first
@@ -66,7 +66,7 @@ class RankingFunction(Generic[C], metaclass=ABCMeta):
 
     @abstractmethod
     def compute_ranking_assignment(
-        self, solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
+        self, solutions: list[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> RankedFronts:
         """Computes the ranking assignment for the given population of solutions.
 
@@ -93,7 +93,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     _logger = logging.getLogger(__name__)
 
     def compute_ranking_assignment(
-        self, solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
+        self, solutions: list[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> RankedFronts:
         if not solutions:
             self._logger.debug("Solution is empty")
@@ -103,7 +103,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
 
         # First apply the "preference sorting" to the first front only then compute
         # the ranks according to the non-dominate sorting algorithm
-        zero_front: List[C] = self._get_zero_front(solutions, uncovered_goals)
+        zero_front: list[C] = self._get_zero_front(solutions, uncovered_goals)
         fronts.append(zero_front)
         front_index = 1
 
@@ -113,7 +113,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                 goals=uncovered_goals
             )
 
-            remaining: List[C] = []
+            remaining: list[C] = []
             remaining.extend(solutions)
             for element in zero_front:
                 if element in remaining:
@@ -123,7 +123,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
                 ranked_solutions < config.configuration.search_algorithm.population
                 and len(remaining) > 0
             ):
-                new_front: List[C] = self._get_non_dominated_solutions(
+                new_front: list[C] = self._get_non_dominated_solutions(
                     remaining, comparator, front_index
                 )
                 fronts.append(new_front)
@@ -147,14 +147,14 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
 
     @staticmethod
     def _get_zero_front(
-        solutions: List[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
-    ) -> List[C]:
+        solutions: list[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
+    ) -> list[C]:
         zero_front: OrderedSet[C] = OrderedSet()
         for goal in uncovered_goals:
             comparator: PreferenceSortingComparator[C] = PreferenceSortingComparator(
                 goal
             )
-            best: Optional[C] = None
+            best: C | None = None
             for solution in solutions:
                 flag = comparator.compare(solution, best)
                 if flag < 0 or (flag == 0 and randomness.next_bool()):
@@ -167,12 +167,12 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
 
     @staticmethod
     def _get_non_dominated_solutions(
-        solutions: List[C], comparator: DominanceComparator[C], front_index: int
-    ) -> List[C]:
-        front: List[C] = []
+        solutions: list[C], comparator: DominanceComparator[C], front_index: int
+    ) -> list[C]:
+        front: list[C] = []
         for solution in solutions:
             is_dominated = False
-            dominated_solutions: List[C] = []
+            dominated_solutions: list[C] = []
             for best in front:
                 flag = comparator.compare(solution, best)
                 if flag < 0:

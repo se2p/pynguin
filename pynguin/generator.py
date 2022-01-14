@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -26,7 +26,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
@@ -99,7 +99,7 @@ def run_pynguin() -> ReturnCode:
         _LOGGER.info("Stop Pynguin Test Generation…")
 
 
-def _setup_test_cluster() -> Optional[TestCluster]:
+def _setup_test_cluster() -> TestCluster | None:
     test_cluster = TestClusterGenerator(
         config.configuration.module_name
     ).generate_cluster()
@@ -192,7 +192,7 @@ def _setup_initial_population_seeding(test_cluster: TestCluster):
         )
 
 
-def _setup_and_check() -> Optional[Tuple[TestCaseExecutor, TestCluster]]:
+def _setup_and_check() -> tuple[TestCaseExecutor, TestCluster] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
     Perform setup and some sanity checks.
@@ -377,7 +377,7 @@ def _track_statistics(
 
 
 def _export_test_cases(
-    test_cases: List[tc.TestCase], suffix: str = "", wrap_code: bool = False
+    test_cases: list[tc.TestCase], suffix: str = "", wrap_code: bool = False
 ) -> str:
     """Export the given test cases.
 

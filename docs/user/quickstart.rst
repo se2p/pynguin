@@ -175,4 +175,3 @@ Thus, these test cases are wrapped in ``try-except`` blocks and should be manual
 
   Also many generated assertions might be redundant.  Minimising these is open for a
   future release of Pynguin, too.
-

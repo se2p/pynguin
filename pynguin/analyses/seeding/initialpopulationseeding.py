@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import TYPE_CHECKING, AnyStr, List, Optional
+from typing import TYPE_CHECKING, AnyStr
 
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
@@ -22,8 +22,6 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    from typing import Union
-
     from pynguin.setup.testcluster import TestCluster
 
 
@@ -32,7 +30,7 @@ class _InitialPopulationSeeding:
 
     def __init__(self):
         self._logger = logging.getLogger(__name__)
-        self._testcases: List[dtc.DefaultTestCase] = []
+        self._testcases: list[dtc.DefaultTestCase] = []
         self._test_cluster: TestCluster
 
     @property
@@ -49,8 +47,9 @@ class _InitialPopulationSeeding:
         self._test_cluster = test_cluster
 
     def get_ast_tree(
-        self, module_path: "Union[AnyStr, os.PathLike[AnyStr]]"
-    ) -> Optional[ast.Module]:
+        self, module_path: AnyStr | "os.PathLike[AnyStr]"
+    ) -> ast.Module | None:
+
         """Returns the ast tree from a module
 
         Args:
@@ -61,7 +60,7 @@ class _InitialPopulationSeeding:
         """
         module_name = config.configuration.module_name.rsplit(".", maxsplit=1)[-1]
         self._logger.debug("Module name: %s", module_name)
-        result: List[AnyStr] = []
+        result: list[AnyStr] = []
         for root, _, files in os.walk(module_path):
             for name in files:
                 assert isinstance(name, str)
@@ -83,9 +82,7 @@ class _InitialPopulationSeeding:
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
-    def collect_testcases(
-        self, module_path: "Union[AnyStr, os.PathLike[AnyStr]]"
-    ) -> None:
+    def collect_testcases(self, module_path: AnyStr | "os.PathLike[AnyStr]") -> None:
         """Collect all test cases from a module.
 
         Args:

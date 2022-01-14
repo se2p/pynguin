@@ -1,13 +1,15 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a singleton instance of Random that can be seeded."""
+from __future__ import annotations
+
 import random
 import string
-from typing import Any, List, Optional, Sequence, TypeVar
+from typing import Any, Sequence, TypeVar
 
 
 class Random(random.Random):
@@ -21,7 +23,7 @@ class Random(random.Random):
 
     def __init__(self, x=None) -> None:
         super().__init__(x)
-        self._current_seed: Optional[int] = None
+        self._current_seed: int | None = None
         self.seed(x)
 
     # pylint: disable=import-outside-toplevel
@@ -130,11 +132,11 @@ def choice(sequence: Sequence[_T]) -> _T:
 
 def choices(
     population: Sequence[Any],
-    weights: Optional[Sequence[float]] = None,
+    weights: Sequence[float] | None = None,
     *,
-    cum_weights: Optional[Sequence[float]] = None,
+    cum_weights: Sequence[float] | None = None,
     k: int = 1,
-) -> List[Any]:
+) -> list[Any]:
     """Return a k sized list of population elements chosen with replacement.
 
     If the relative weights or cumulative weights are not specified, the selections are
@@ -179,4 +181,4 @@ def next_bytes(length: int) -> bytes:
     Returns:
         Random bytes of given length.
     """
-    return bytes([next_byte() for _ in range(length)])
+    return bytes(next_byte() for _ in range(length))

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -12,7 +12,7 @@ import dataclasses
 import math
 import statistics
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from pynguin.testcase.execution import ExecutionTrace
 
@@ -58,7 +58,7 @@ class TestSuiteChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(self, individual) -> List[ExecutionResult]:
+    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
@@ -68,7 +68,7 @@ class TestSuiteChromosomeComputation(
         Returns:
             A list of execution results
         """
-        results: List[ExecutionResult] = []
+        results: list[ExecutionResult] = []
         for test_case_chromosome in individual.test_case_chromosomes:
             if (
                 test_case_chromosome.has_changed()
@@ -177,12 +177,12 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
     def __init__(self, executor):
         super().__init__(executor)
-        self._excluded_code_objects: Set[int] = set()
-        self._excluded_true_predicates: Set[int] = set()
-        self._excluded_false_predicates: Set[int] = set()
+        self._excluded_code_objects: set[int] = set()
+        self._excluded_true_predicates: set[int] = set()
+        self._excluded_false_predicates: set[int] = set()
 
     def restrict(
-        self, exclude_code: Set[int], exclude_true: Set[int], exclude_false: Set[int]
+        self, exclude_code: set[int], exclude_true: set[int], exclude_false: set[int]
     ) -> None:
         """Restrict this fitness function, i.e., which branches/code objects it
         considers
@@ -281,22 +281,22 @@ class ComputationCache:
     def __init__(
         self,
         chromosome,
-        fitness_functions: Optional[List[FitnessFunction]] = None,
-        coverage_functions: Optional[List[CoverageFunction]] = None,
-        fitness_cache: Optional[Dict[FitnessFunction, float]] = None,
-        is_covered_cache: Optional[Dict[FitnessFunction, bool]] = None,
-        coverage_cache: Optional[Dict[CoverageFunction, float]] = None,
+        fitness_functions: list[FitnessFunction] | None = None,
+        coverage_functions: list[CoverageFunction] | None = None,
+        fitness_cache: dict[FitnessFunction, float] | None = None,
+        is_covered_cache: dict[FitnessFunction, bool] | None = None,
+        coverage_cache: dict[CoverageFunction, float] | None = None,
     ):  # pylint:disable=too-many-arguments
         self._chromosome = chromosome
         self._fitness_functions = fitness_functions if fitness_functions else []
         self._coverage_functions = coverage_functions if coverage_functions else []
-        self._fitness_cache: Dict[FitnessFunction, float] = (
+        self._fitness_cache: dict[FitnessFunction, float] = (
             fitness_cache if fitness_cache else {}
         )
-        self._is_covered_cache: Dict[FitnessFunction, bool] = (
+        self._is_covered_cache: dict[FitnessFunction, bool] = (
             is_covered_cache if is_covered_cache else {}
         )
-        self._coverage_cache: Dict[CoverageFunction, float] = (
+        self._coverage_cache: dict[CoverageFunction, float] = (
             coverage_cache if coverage_cache else {}
         )
 
@@ -318,7 +318,7 @@ class ComputationCache:
             dict(self._coverage_cache),
         )
 
-    def get_fitness_functions(self) -> List[FitnessFunction]:
+    def get_fitness_functions(self) -> list[FitnessFunction]:
         """Provide the currently configured fitness functions of this chromosome.
 
         Returns:
@@ -340,7 +340,7 @@ class ComputationCache:
         ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
-    def get_coverage_functions(self) -> List[CoverageFunction]:
+    def get_coverage_functions(self) -> list[CoverageFunction]:
         """Provide the currently configured coverage functions of this chromosome.
 
         Returns:
@@ -363,10 +363,10 @@ class ComputationCache:
 
     def _check_cache(
         self,
-        comp: Callable[[Optional[T]], None],
-        cache: Dict[T, Any],
-        funcs: List[T],
-        only: Optional[T] = None,
+        comp: Callable[[T | None], None],
+        cache: dict[T, Any],
+        funcs: list[T],
+        only: T | None = None,
     ) -> None:
         """Check if values need to be computed.
 
@@ -388,7 +388,7 @@ class ComputationCache:
             # So we might have to compute the missing ones.
             comp(only)
 
-    def _compute_fitness(self, only: Optional[FitnessFunction] = None):
+    def _compute_fitness(self, only: FitnessFunction | None = None):
         for fitness_func in self._fitness_functions if only is None else (only,):
             if fitness_func not in self._fitness_cache:
                 new_value = fitness_func.compute_fitness(self._chromosome)
@@ -402,13 +402,13 @@ class ComputationCache:
                 # if the goal is covered, i.e. if it is zero.
                 self._is_covered_cache[fitness_func] = new_value == 0.0
 
-    def _compute_is_covered(self, only: Optional[FitnessFunction] = None):
+    def _compute_is_covered(self, only: FitnessFunction | None = None):
         for fitness_func in self._fitness_functions if only is None else (only,):
             if fitness_func not in self._is_covered_cache:
                 new_value = fitness_func.compute_is_covered(self._chromosome)
                 self._is_covered_cache[fitness_func] = new_value
 
-    def _compute_coverage(self, only: Optional[CoverageFunction] = None):
+    def _compute_coverage(self, only: CoverageFunction | None = None):
         for coverage_func in self._coverage_functions if only is None else (only,):
             if coverage_func not in self._coverage_cache:
                 new_value = coverage_func.compute_coverage(self._chromosome)
@@ -523,7 +523,7 @@ def normalise(value: float) -> float:
     return value / (1.0 + value)
 
 
-def analyze_results(results: List[ExecutionResult]) -> ExecutionTrace:
+def analyze_results(results: list[ExecutionResult]) -> ExecutionTrace:
     """Merge the trace of the given results.
 
     Args:
@@ -543,9 +543,9 @@ def analyze_results(results: List[ExecutionResult]) -> ExecutionTrace:
 def compute_branch_distance_fitness(
     trace: ExecutionTrace,
     known_data: KnownData,
-    exclude_code: Optional[Set[int]] = None,
-    exclude_true: Optional[Set[int]] = None,
-    exclude_false: Optional[Set[int]] = None,
+    exclude_code: set[int] | None = None,
+    exclude_true: set[int] | None = None,
+    exclude_false: set[int] | None = None,
 ) -> float:
     """Computes fitness based on covered branches and branch distances.
 
@@ -593,7 +593,7 @@ def compute_branch_distance_fitness(
 
 
 def _predicate_fitness(
-    predicate: int, branch_distances: Dict[int, float], trace: ExecutionTrace
+    predicate: int, branch_distances: dict[int, float], trace: ExecutionTrace
 ) -> float:
     if predicate in branch_distances and branch_distances[predicate] == 0.0:
         return 0.0
@@ -608,9 +608,9 @@ def _predicate_fitness(
 def compute_branch_distance_fitness_is_covered(
     trace: ExecutionTrace,
     known_data: KnownData,
-    exclude_code: Optional[Set[int]] = None,
-    exclude_true: Optional[Set[int]] = None,
-    exclude_false: Optional[Set[int]] = None,
+    exclude_code: set[int] | None = None,
+    exclude_true: set[int] | None = None,
+    exclude_false: set[int] | None = None,
 ) -> bool:
     """Computes if all branches and code objects have been executed.
 

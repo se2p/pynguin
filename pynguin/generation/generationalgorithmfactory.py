@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -71,7 +71,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
     _logger = logging.getLogger(__name__)
 
     # pylint:disable=line-too-long
-    _stopping_conditions: Dict[
+    _stopping_conditions: dict[
         config.StoppingCondition, Callable[[], StoppingCondition]
     ] = {
         config.StoppingCondition.MAX_ITERATIONS: MaxIterationsStoppingCondition,
@@ -108,7 +108,7 @@ class TestSuiteGenerationAlgorithmFactory(
 ):
     """A factory for a search algorithm generating test-suites."""
 
-    _strategies: Dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+    _strategies: dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
         config.Algorithm.DYNAMOSA: DynaMOSATestStrategy,
         config.Algorithm.MIO: MIOTestStrategy,
         config.Algorithm.MOSA: MOSATestStrategy,
@@ -118,7 +118,7 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
     }
 
-    _selections: Dict[config.Selection, Callable[[], SelectionFunction]] = {
+    _selections: dict[config.Selection, Callable[[], SelectionFunction]] = {
         config.Selection.TOURNAMENT_SELECTION: TournamentSelection,
         config.Selection.RANK_SELECTION: RankSelection,
     }

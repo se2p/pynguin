@@ -1,14 +1,16 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an inference strategy for types."""
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 from inspect import Parameter, Signature
-from typing import Callable, Dict, Optional
+from typing import Callable
 
 
 @dataclass
@@ -39,11 +41,11 @@ class InferredSignature:
     """
 
     signature: Signature
-    parameters: Dict[str, Optional[type]] = field(default_factory=dict)
-    return_type: Optional[type] = None
+    parameters: dict[str, type | None] = field(default_factory=dict)
+    return_type: type | None = None
 
     def update_parameter_type(
-        self, parameter_name: str, parameter_type: Optional[type]
+        self, parameter_name: str, parameter_type: type | None
     ) -> None:
         """Updates the type of one parameter.
 
@@ -55,7 +57,7 @@ class InferredSignature:
         self.parameters[parameter_name] = parameter_type
         self._update_signature_parameter(parameter_name, parameter_type)
 
-    def update_return_type(self, return_type: Optional[type]) -> None:
+    def update_return_type(self, return_type: type | None) -> None:
         """Updates the return type
 
         Args:
@@ -67,9 +69,9 @@ class InferredSignature:
     def _update_signature_parameter(
         self,
         parameter_name: str,
-        parameter_type: Optional[type],
+        parameter_type: type | None,
     ):
-        current_parameter: Optional[Parameter] = self.signature.parameters.get(
+        current_parameter: Parameter | None = self.signature.parameters.get(
             parameter_name
         )
         assert current_parameter is not None, "Cannot happen due to previous check"
@@ -81,7 +83,7 @@ class InferredSignature:
         new_signature = self.signature.replace(parameters=new_parameters)
         self.signature = new_signature
 
-    def _update_signature_return_type(self, return_type: Optional[type]):
+    def _update_signature_return_type(self, return_type: type | None):
         new_signature = self.signature.replace(return_annotation=return_type)
         self.signature = new_signature
 

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
@@ -27,7 +27,7 @@ class Assertion:
 
     @abstractmethod
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> Assertion:
         """Clone this assertion.
 
@@ -73,7 +73,7 @@ class NotNoneAssertion(ReferenceAssertion):
         visitor.visit_not_none_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> NotNoneAssertion:
         return NotNoneAssertion(self._source.clone(memo))
 
@@ -108,7 +108,7 @@ class FloatAssertion(ReferenceAssertion):
         visitor.visit_float_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> FloatAssertion:
         return FloatAssertion(self.source.clone(memo), self._value)
 
@@ -152,7 +152,7 @@ class ObjectAssertion(ReferenceAssertion):
         visitor.visit_object_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> ObjectAssertion:
         return ObjectAssertion(self.source.clone(memo), self._object)
 
@@ -197,7 +197,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         visitor.visit_collection_length_assertion(self)
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> CollectionLengthAssertion:
         return CollectionLengthAssertion(self.source.clone(memo), self._length)
 

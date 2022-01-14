@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import queue
-from typing import TYPE_CHECKING, Dict, Set
+from typing import TYPE_CHECKING
 
 import pynguin.analyses.controlflow.programgraph as pg
 
@@ -54,8 +54,8 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
         Returns:
             The dominance tree for the control-flow graph
         """
-        dominance: Dict[
-            pg.ProgramGraphNode, Set[pg.ProgramGraphNode]
+        dominance: dict[
+            pg.ProgramGraphNode, set[pg.ProgramGraphNode]
         ] = DominatorTree._calculate_dominance(graph)
         for dominance_node, nodes in dominance.items():
             nodes.discard(dominance_node)
@@ -80,17 +80,17 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     @staticmethod
     def _calculate_dominance(
         graph: cfg.CFG,
-    ) -> Dict[pg.ProgramGraphNode, Set[pg.ProgramGraphNode]]:
-        dominance_map: Dict[pg.ProgramGraphNode, Set[pg.ProgramGraphNode]] = {}
+    ) -> dict[pg.ProgramGraphNode, set[pg.ProgramGraphNode]]:
+        dominance_map: dict[pg.ProgramGraphNode, set[pg.ProgramGraphNode]] = {}
         entry = graph.entry_node
         assert entry, "Cannot work with a graph without entry nodes"
-        entry_dominators: Set[pg.ProgramGraphNode] = {entry}
+        entry_dominators: set[pg.ProgramGraphNode] = {entry}
         dominance_map[entry] = entry_dominators
 
         for node in graph.nodes:
             if node == entry:
                 continue
-            all_nodes: Set[pg.ProgramGraphNode] = set(graph.nodes)
+            all_nodes: set[pg.ProgramGraphNode] = set(graph.nodes)
             dominance_map[node] = all_nodes
 
         changed: bool = True
@@ -114,11 +114,11 @@ class DominatorTree(pg.ProgramGraph[pg.ProgramGraphNode]):
     @staticmethod
     def _calculate_dominators(
         graph: cfg.CFG,
-        dominance_map: Dict[pg.ProgramGraphNode, Set[pg.ProgramGraphNode]],
+        dominance_map: dict[pg.ProgramGraphNode, set[pg.ProgramGraphNode]],
         node: pg.ProgramGraphNode,
-    ) -> Set[pg.ProgramGraphNode]:
-        dominators: Set[pg.ProgramGraphNode] = {node}
-        intersection: Set[pg.ProgramGraphNode] = set()
+    ) -> set[pg.ProgramGraphNode]:
+        dominators: set[pg.ProgramGraphNode] = {node}
+        intersection: set[pg.ProgramGraphNode] = set()
         predecessors = graph.get_predecessors(node)
         if not predecessors:
             return set()

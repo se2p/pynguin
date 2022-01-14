@@ -1,14 +1,16 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Utility methods for collections."""
-from typing import Any, Dict, Set
+from __future__ import annotations
+
+from typing import Any
 
 
-def dict_without_keys(dict_to_change: Dict[Any, Any], keys: Set[Any]) -> Dict[Any, Any]:
+def dict_without_keys(dict_to_change: dict[Any, Any], keys: set[Any]) -> dict[Any, Any]:
     """
     Removes the given keys from the given dict.
 

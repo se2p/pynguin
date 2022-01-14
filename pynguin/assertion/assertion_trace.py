@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -23,7 +23,7 @@ class AssertionTrace:
     def __init__(self) -> None:
         """Create new assertion trace."""
         # One entry per statement, i.e., the assertions after executing that statement.
-        self._trace: Dict[int, OrderedSet[ass.Assertion]] = defaultdict(OrderedSet)
+        self._trace: dict[int, OrderedSet[ass.Assertion]] = defaultdict(OrderedSet)
 
     def add_entry(self, position: int, assertion: ass.Assertion) -> None:
         """Add an entry to this trace.

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from ordered_set import OrderedSet
 
@@ -199,7 +199,7 @@ class BranchGoalPool:
         self._predicate_to_branch_goals = self._compute_branch_goals(known_data)
 
     @property
-    def branchless_code_object_goals(self) -> List[BranchlessCodeObjectGoal]:
+    def branchless_code_object_goals(self) -> list[BranchlessCodeObjectGoal]:
         """Provide the goals for branch-less code objects.
 
         Returns:
@@ -208,7 +208,7 @@ class BranchGoalPool:
         return self._branchless_code_object_goals
 
     @property
-    def branch_goals(self) -> List[BranchGoal]:
+    def branch_goals(self) -> list[BranchGoal]:
         """Provide the goals for branches.
 
         Returns:
@@ -232,17 +232,17 @@ class BranchGoalPool:
     @staticmethod
     def _compute_branchless_code_object_goals(
         known_data: KnownData,
-    ) -> List[BranchlessCodeObjectGoal]:
+    ) -> list[BranchlessCodeObjectGoal]:
         return [
             BranchlessCodeObjectGoal(code_object_id)
             for code_object_id in known_data.branch_less_code_objects
         ]
 
     @staticmethod
-    def _compute_branch_goals(known_data: KnownData) -> Dict[int, List[BranchGoal]]:
-        goal_map: Dict[int, List[BranchGoal]] = {}
+    def _compute_branch_goals(known_data: KnownData) -> dict[int, list[BranchGoal]]:
+        goal_map: dict[int, list[BranchGoal]] = {}
         for predicate_id, meta in known_data.existing_predicates.items():
-            entry: List[BranchGoal] = []
+            entry: list[BranchGoal] = []
             goal_map[predicate_id] = entry
             entry.append(BranchGoal(meta.code_object_id, predicate_id, True))
             entry.append(BranchGoal(meta.code_object_id, predicate_id, False))

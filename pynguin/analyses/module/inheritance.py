@@ -1,11 +1,13 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 """Provides tools to build an inheritance graph of the subject under test."""
+from __future__ import annotations
+
 import inspect
-from typing import Any, NamedTuple, Optional, Set, Type, overload
+from typing import Any, NamedTuple, overload
 
 import networkx as nx
 
@@ -51,7 +53,7 @@ class InheritanceGraph:
         """
         self._graph.add_edge(source, target)
 
-    def find(self, class_information: ClassInformation) -> Optional[ClassInformation]:
+    def find(self, class_information: ClassInformation) -> ClassInformation | None:
         """Finds a class in the inheritance graph.
 
         Args:
@@ -68,7 +70,7 @@ class InheritanceGraph:
 
     def get_sub_types(
         self, class_information: ClassInformation
-    ) -> Set[ClassInformation]:
+    ) -> set[ClassInformation]:
         """Provides a set of sub types for a class.
 
         If there are no sub types, the returned set is empty.
@@ -84,9 +86,9 @@ class InheritanceGraph:
         raise ValueError("Node for class not found in inheritance graph.")
 
     def _get_transitive_successors(
-        self, node: ClassInformation, done: Set[ClassInformation]
-    ) -> Set[ClassInformation]:
-        successors: Set[ClassInformation] = set()
+        self, node: ClassInformation, done: set[ClassInformation]
+    ) -> set[ClassInformation]:
+        successors: set[ClassInformation] = set()
         for successor_node in self._get_successors(node):
             if successor_node not in done:
                 successors.add(successor_node)
@@ -94,15 +96,15 @@ class InheritanceGraph:
                 successors.update(self._get_transitive_successors(successor_node, done))
         return successors
 
-    def _get_successors(self, node: ClassInformation) -> Set[ClassInformation]:
-        successors: Set[ClassInformation] = set()
+    def _get_successors(self, node: ClassInformation) -> set[ClassInformation]:
+        successors: set[ClassInformation] = set()
         for successor in self._graph.successors(node):
             successors.add(successor)
         return successors
 
     def get_super_types(
         self, class_information: ClassInformation
-    ) -> Set[ClassInformation]:
+    ) -> set[ClassInformation]:
         """Provides a set of super types for a class.
 
         If there are no super types, the returned set is empty.
@@ -118,9 +120,9 @@ class InheritanceGraph:
         raise ValueError("Node for class not found in inheritance graph.")
 
     def _get_transitive_predecessors(
-        self, node: ClassInformation, done: Set[ClassInformation]
-    ) -> Set[ClassInformation]:
-        predecessors: Set[ClassInformation] = set()
+        self, node: ClassInformation, done: set[ClassInformation]
+    ) -> set[ClassInformation]:
+        predecessors: set[ClassInformation] = set()
         for predecessor_node in self._get_predecessors(node):
             if predecessor_node not in done:
                 predecessors.add(predecessor_node)
@@ -130,8 +132,8 @@ class InheritanceGraph:
                 )
         return predecessors
 
-    def _get_predecessors(self, node: ClassInformation) -> Set[ClassInformation]:
-        predecessors: Set[ClassInformation] = set()
+    def _get_predecessors(self, node: ClassInformation) -> set[ClassInformation]:
+        predecessors: set[ClassInformation] = set()
         for predecessor in self._graph.predecessors(node):
             predecessors.add(predecessor)
         return predecessors
@@ -179,7 +181,7 @@ class InheritanceGraph:
         return self._graph.number_of_edges()
 
 
-def build_inheritance_graph(analysed_classes: Set[Type]) -> InheritanceGraph:
+def build_inheritance_graph(analysed_classes: set[type]) -> InheritanceGraph:
     """Builds an inheritance graph for a set of types.
 
     Args:
@@ -210,7 +212,7 @@ def build_class_information(value: str) -> ClassInformation:
 
 
 @overload
-def build_class_information(value: Type) -> ClassInformation:
+def build_class_information(value: type) -> ClassInformation:
     ...  # pragma: no cover
 
 

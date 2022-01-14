@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -11,6 +11,7 @@ license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/se2p/pynguin"
 documentation = "https://pynguin.readthedocs.io"
+homepage = "https://www.pynguin.eu"
 keywords = [
     "unit test",
     "random testing",
@@ -30,6 +31,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Education :: Testing",
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Unit",
@@ -45,10 +47,10 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^10.16"
+rich = "^11.0"
 pytest = "^6.2"
 Jinja2 = "^3.0"
-Pygments = "^2.10"
+Pygments = "^2.11"
 ordered-set = "^4.0"
 MutPy-Pynguin = "^0.7.1"
 
@@ -61,17 +63,17 @@ pylint = "^2.12"
 pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.5"
-hypothesis = "^6.32"
+hypothesis = "^6.35"
 pytest-mock = "^3.6"
-mypy = "^0.930"
+mypy = "^0.931"
 isort = {extras = ["pyproject"], version = "^5.10"}
 pre-commit = "^2.16"
 darglint = "^1.8"
-pyupgrade = "^2.29"
+pyupgrade = "^2.31"
 bandit = "^1.7"
 safety = "^1.10"
 sphinx = "^4.3"
-sphinx-autodoc-typehints = "^1.12"
+sphinx-autodoc-typehints = "^1.15"
 flake8 = "^4.0"
 
 [tool.poetry.scripts]
@@ -79,7 +81,7 @@ pynguin = "pynguin.cli:main"
 
 [tool.black]
 line-length = 88
-target_version = ['py38', 'py39']
+target_version = ['py38', 'py39', 'py310']
 include = '\.pyi?$'
 exclude = '''
 

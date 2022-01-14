@@ -1,7 +1,7 @@
 <!--
   ~ This file is part of Pynguin.
   ~
-  ~ SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+  ~ SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
   ~
   ~ SPDX-License-Identifier: LGPL-3.0-or-later
   -->
@@ -25,7 +25,7 @@
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pynguin/__main__.py" />
     <option name="PARAMETERS" value="--algorithm RANDOM --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --budget 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v" />
     <option name="SHOW_COMMAND_LINE" value="false" />
-    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="EMULATE_TERMINAL" value="true" />
     <option name="MODULE_MODE" value="false" />
     <option name="REDIRECT_INPUT" value="false" />
     <option name="INPUT_FILE" value="" />

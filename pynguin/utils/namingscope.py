@@ -1,13 +1,15 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a naming scope."""
+from __future__ import annotations
+
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 import pynguin.testcase.variablereference as vr
 
@@ -52,7 +54,7 @@ class NamingScope(AbstractNamingScope):
     def __init__(
         self,
         prefix: str = "var",
-        new_name_callback: Optional[Callable[[Any, str], None]] = None,
+        new_name_callback: Callable[[Any, str], None] | None = None,
     ) -> None:
         """Initialises the scope.
 
@@ -60,7 +62,7 @@ class NamingScope(AbstractNamingScope):
             prefix: The prefix that will be used in all assigned names.
             new_name_callback: Called when a new object is named.
         """
-        self._known_names: Dict[Any, str] = {}
+        self._known_names: dict[Any, str] = {}
         self._prefix = prefix
         self._new_name_callback = new_name_callback
 
@@ -89,8 +91,8 @@ class VariableTypeNamingScope(AbstractNamingScope):
     """Names variables according to their type."""
 
     def __init__(self, prefix: str = "var"):
-        self._known_variable_names: Dict[vr.VariableReference, str] = {}
-        self._type_counter: Dict[str, int] = defaultdict(int)
+        self._known_variable_names: dict[vr.VariableReference, str] = {}
+        self._type_counter: dict[str, int] = defaultdict(int)
         self._prefix = prefix
 
     def get_name(self, obj: vr.VariableReference) -> str:
@@ -115,8 +117,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
         return len(self._known_variable_names)
 
     def __iter__(self):
-        for obj, name in self._known_variable_names.items():
-            yield obj, name
+        yield from self._known_variable_names.items()
 
     def is_known_name(self, obj) -> bool:
         return obj in self._known_variable_names

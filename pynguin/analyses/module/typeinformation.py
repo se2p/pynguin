@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 """Provides classes for the internal representation of types."""
@@ -9,17 +9,7 @@ from __future__ import annotations
 import functools
 import math
 from abc import ABCMeta, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Iterable,
-    Iterator,
-    NamedTuple,
-    Optional,
-    Set,
-    Type,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Iterator, NamedTuple
 
 from pynguin.utils import randomness
 
@@ -67,7 +57,7 @@ class ConcreteType(SignatureType):
         return self._class_information.name
 
     @property
-    def type_object(self) -> Type:
+    def type_object(self) -> type:
         """Provides the type of the class.
 
         Returns:
@@ -132,8 +122,8 @@ class SignatureElement(metaclass=ABCMeta):
         self._unknown_element = self.Element(
             signature_type=unknown_type, confidence=0.0
         )
-        self._elements: Set[SignatureElement.Element] = {self._unknown_element}
-        self._inheritance_graph: Optional[InheritanceGraph] = None
+        self._elements: set[SignatureElement.Element] = {self._unknown_element}
+        self._inheritance_graph: InheritanceGraph | None = None
 
     def add_element(self, signature: SignatureType, confidence: float) -> None:
         """Adds an element to the set of possible signature types.
@@ -190,14 +180,12 @@ class SignatureElement(metaclass=ABCMeta):
         if not self._contains_signature(signature):
             self.add_element(signature, confidence)
         else:
-            found: Optional[SignatureElement.Element] = self.get_element(signature)
+            found: SignatureElement.Element | None = self.get_element(signature)
             assert found is not None
             self._elements.remove(found)
             self._elements.add(self._element_factory(signature, confidence))
 
-    def get_element(
-        self, signature: SignatureType
-    ) -> Optional[SignatureElement.Element]:
+    def get_element(self, signature: SignatureType) -> SignatureElement.Element | None:
         """Provides the element with a given signature type.
 
         Returns None if not found
@@ -241,7 +229,7 @@ class SignatureElement(metaclass=ABCMeta):
         return randomness.choices(signatures, weights=confidences)[0]
 
     @property
-    def elements(self) -> Set[SignatureElement.Element]:
+    def elements(self) -> set[SignatureElement.Element]:
         """Provides all types that are possible.
 
         Returns:
