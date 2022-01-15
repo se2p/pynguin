@@ -582,8 +582,35 @@ class StatementCoverageInstrumentation(Instrumentation):
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
+        self._track_available_lines(cfg, code.co_filename)  # info about all lines is required for instrumentation
         self._instrument_cfg(cfg, code.co_filename)
         return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
+
+    def _track_available_lines(
+        self,
+        cfg: CFG,
+        file_name: str
+    ) -> None:
+        """
+        Tracks all available lines in the cfg.
+        Args:
+            cfg: The CFG that overlays the bytecode cfg.
+            file_name: The file that produced the code object of this CFG.
+        """
+        for node in cfg.nodes:
+            if node.basic_block and not node.is_artificial:
+                block: BasicBlock = node.basic_block
+
+                #  iterate over statements after the fist one in BB,
+                #  always trace new line when lineno attribute changes
+                #  by putting a new instruction in the block
+                lineno = -1
+                instr_index = 0
+                while instr_index < len(block):
+                    if block[instr_index].lineno != lineno:
+                        lineno = block[instr_index].lineno
+                        self._tracer.track_statement(file_name, lineno)
+                    instr_index += 1
 
     def _instrument_cfg(
         self,
@@ -614,17 +641,14 @@ class StatementCoverageInstrumentation(Instrumentation):
             file_name: The file that produced the code object of this node.
         """
         if self._node_needs_instrumentation(node, file_name):
-            # in this case the node holds instructions
             block: BasicBlock = node.basic_block
 
-            # always trace first line with code
+            #  iterate over statements after the fist one in BB,
+            #  always trace new line when lineno attribute changes
+            #  by putting a new instruction in the block
             lineno = -1
-
             instr_index = 0
             while instr_index < len(block):
-                #  iterate over statements after the fist one in BB,
-                #  always trace new line when lineno attribute changes
-                #  by putting a new instruction in the block
                 if block[instr_index].lineno != lineno:
                     lineno = block[instr_index].lineno
                     self.instrument_statement(block, instr_index, file_name, lineno)
@@ -673,10 +697,6 @@ class StatementCoverageInstrumentation(Instrumentation):
             file_name: The file that produced the code object of this block.
             lineno: The line number of the instrumented statement.
         """
-
-        # track that a statement exists
-        self._tracer.track_statement(file_name, lineno)
-
         # Insert instructions at the beginning.
         block[instr_index:instr_index] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
