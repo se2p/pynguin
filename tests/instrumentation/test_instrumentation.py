@@ -238,7 +238,7 @@ def test_integrate_statement_coverage_instrumentation(
     function_callable = getattr(simple_module, "multi_loop")
     instr = StatementCoverageInstrumentation(tracer)
     function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__, 0
+        function_callable.__code__
     )
 
     # only one file was instrumented
@@ -378,64 +378,95 @@ def test_exception_no_match_integrate():
     assert {0: 0.0} == tracer.get_trace().false_distances
 
 
-def test_tracking_covered_statements_explicit_return():
+def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
-    def func():
-        a = 42
-        if a:
-            a = "foo"
-        else:
-            a = "bar"
-        return None
-
     instr = StatementCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    simple_module.explicit_none_return.__code__ = instr._instrument_code_recursive(
+        simple_module.explicit_none_return.__code__
+    )
     tracer.current_thread_identifier = threading.current_thread().ident
-    func()
+    simple_module.explicit_none_return()
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert {385, 386, 387, 390} == covered_lines
-
-
-def test_tracking_covered_statements_implicit_return():
-    tracer = ExecutionTracer()
-
-    def func():
-        a = None
-        if a:
-            a = "foo"
-        else:
-            a = "bar"
-
-    instr = StatementCoverageInstrumentation(tracer)
-    # TODO "else"-line is not covered, but should be
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
-    tracer.current_thread_identifier = threading.current_thread().ident
-    func()
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert {404, 405, 407, 408} == covered_lines
+    assert {77, 78} == covered_lines
 
 
 @pytest.mark.parametrize(
-    "numbers, expected_lines",
+    "value1, value2, expected_lines",
     [
-        pytest.param({}, {430, 431, 433}),
-        pytest.param({42}, {430, 431, 432, 433}),
+        pytest.param(0, 1, {14, 16, 17}),  # TODO(SiL) else Statement not covered
+        pytest.param(1, 0, {14, 15}),
     ],
 )
-def test_tracking_covered_statements_for_loop(numbers, expected_lines):
+def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2, expected_lines):
     tracer = ExecutionTracer()
 
-    def sum_up(iterable):
-        summed = 0
-        for elem in iterable:
-            summed += elem
-        return summed
+    instr = StatementCoverageInstrumentation(tracer)
+    simple_module.cmp_predicate.__code__ = instr._instrument_code_recursive(
+        simple_module.cmp_predicate.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.cmp_predicate(value1, value2)
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert expected_lines == covered_lines
+
+
+@pytest.mark.parametrize(
+    "value, expected_lines",
+    [
+        pytest.param(False, {21, 23, 24}), # TODO(SiL) else Statement not covered
+        pytest.param(True, {21, 22}),
+    ],
+)
+def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_lines):
+    tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)
-    sum_up.__code__ = instr._instrument_code_recursive(sum_up.__code__, 0)
+    simple_module.bool_predicate.__code__ = instr._instrument_code_recursive(
+        simple_module.bool_predicate.__code__
+    )
     tracer.current_thread_identifier = threading.current_thread().ident
-    sum_up(numbers)
+    simple_module.bool_predicate(value)
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert expected_lines == covered_lines
+
+
+@pytest.mark.parametrize(
+    "number, expected_lines",
+    [
+        pytest.param(0, {33}),
+        pytest.param(1, {33, 34}),
+    ],
+)
+def test_tracking_covered_statements_for_loop(simple_module, number, expected_lines):
+    tracer = ExecutionTracer()
+
+    instr = StatementCoverageInstrumentation(tracer)
+    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
+        simple_module.full_for_loop.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.full_for_loop(number)
+    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
+    assert expected_lines == covered_lines
+
+
+@pytest.mark.parametrize(
+    "number, expected_lines",
+    [
+        pytest.param(0, {48}),
+        pytest.param(1, {48, 49, 50}),
+    ],
+)
+def test_tracking_covered_statements_while_loop(simple_module, number, expected_lines):
+    tracer = ExecutionTracer()
+
+    instr = StatementCoverageInstrumentation(tracer)
+    simple_module.while_loop.__code__ = instr._instrument_code_recursive(
+        simple_module.while_loop.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.while_loop(number)
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert expected_lines == covered_lines
 

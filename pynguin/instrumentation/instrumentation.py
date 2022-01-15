@@ -264,7 +264,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             and isinstance(maybe_compare, Instr)
             and (
             (
-                maybe_compare.opcode == "COMPARE_OP"
+                maybe_compare.name == "COMPARE_OP"
                 and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
             )
             or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
@@ -460,7 +460,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         The first block is called, if the iterator on which the loop is based
         yields at least one element, in which case we report the boolean value True
         to the tracer, leave the yielded value of the iterator on top of the stack and
-        jump to the the regular body of the loop.
+        jump to the regular body of the loop.
 
         The second block is called, if the iterator on which the loop is based
         does not yield an element, in which case we report the boolean value False
@@ -563,14 +563,12 @@ class StatementCoverageInstrumentation(Instrumentation):
 
     def _instrument_code_recursive(
         self,
-        code: CodeType,
-        parent_code_object_id: Optional[int] = None,
+        code: CodeType
     ) -> CodeType:
         """Instrument the given Code Object recursively.
 
         Args:
             code: The code object that should be instrumented
-            parent_code_object_id: The ID of the optional parent code object
 
         Returns:
             The instrumented code object
@@ -579,38 +577,25 @@ class StatementCoverageInstrumentation(Instrumentation):
             "Instrumenting Code Object for statement coverage for %s", code.co_name
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        cdg = ControlDependenceGraph.compute(cfg)
 
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
-        code_object_id = self._tracer.register_code_object(
-            CodeObjectMetaData(
-                code_object=code,
-                parent_code_object_id=parent_code_object_id,
-                cfg=cfg,
-                cdg=cdg,
-            )
-        )
-
-        self._instrument_cfg(cfg, code_object_id, code.co_filename)
+        self._instrument_cfg(cfg, code.co_filename)
         return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
 
     def _instrument_cfg(
         self,
         cfg: CFG,
-        code_object_id: int,
         file_name: str
     ) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:
             cfg: The CFG that overlays the bytecode cfg.
-            code_object_id: The id of the code object which contains this CFG.
             file_name: The file that produced the code object of this CFG.
         """
-        # Attributes which store the predicate ids assigned to instrumented nodes.
         for node in cfg.nodes:
             self._instrument_node(node, file_name)
 
