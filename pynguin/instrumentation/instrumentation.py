@@ -263,12 +263,12 @@ class BranchCoverageInstrumentation(Instrumentation):
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
             and (
-            (
-                maybe_compare.name == "COMPARE_OP"
-                and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
+                (
+                    maybe_compare.name == "COMPARE_OP"
+                    and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
+                )
+                or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
             )
-            or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
-        )
         ):
             return self._instrument_compare_based_conditional_jump(
                 block, code_object_id, node
@@ -561,10 +561,7 @@ class StatementCoverageInstrumentation(Instrumentation):
                 new_consts.append(const)
         return code.replace(co_consts=tuple(new_consts))
 
-    def _instrument_code_recursive(
-        self,
-        code: CodeType
-    ) -> CodeType:
+    def _instrument_code_recursive(self, code: CodeType) -> CodeType:
         """Instrument the given Code Object recursively.
 
         Args:
@@ -582,17 +579,15 @@ class StatementCoverageInstrumentation(Instrumentation):
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
-        self._track_available_lines(cfg, code.co_filename)  # info about all lines is required for instrumentation
+        self._track_available_lines(
+            cfg, code.co_filename
+        )  # info about all lines is required for instrumentation
         self._instrument_cfg(cfg, code.co_filename)
         return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
 
-    def _track_available_lines(
-        self,
-        cfg: CFG,
-        file_name: str
-    ) -> None:
-        """
-        Tracks all available lines in the cfg.
+    def _track_available_lines(self, cfg: CFG, file_name: str) -> None:
+        """Tracks all available lines in the cfg.
+
         Args:
             cfg: The CFG that overlays the bytecode cfg.
             file_name: The file that produced the code object of this CFG.
@@ -612,11 +607,7 @@ class StatementCoverageInstrumentation(Instrumentation):
                         self._tracer.track_statement(file_name, lineno)
                     instr_index += 1
 
-    def _instrument_cfg(
-        self,
-        cfg: CFG,
-        file_name: str
-    ) -> None:
+    def _instrument_cfg(self, cfg: CFG, file_name: str) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:
@@ -626,11 +617,7 @@ class StatementCoverageInstrumentation(Instrumentation):
         for node in cfg.nodes:
             self._instrument_node(node, file_name)
 
-    def _instrument_node(
-        self,
-        node: ProgramGraphNode,
-        file_name: str
-    ) -> None:
+    def _instrument_node(self, node: ProgramGraphNode, file_name: str) -> None:
         """Instrument a single node in the CFG.
 
         If the node is a statement node, instrument that the statement was executed
@@ -652,42 +639,42 @@ class StatementCoverageInstrumentation(Instrumentation):
                 if block[instr_index].lineno != lineno:
                     lineno = block[instr_index].lineno
                     self.instrument_statement(block, instr_index, file_name, lineno)
-                    instr_index += 6  # the instrument_statement entered 6 new instructions
+                    instr_index += (
+                        6  # the instrument_statement entered 6 new instructions
+                    )
                 instr_index += 1
 
     def _node_needs_instrumentation(self, node: ProgramGraphNode, file_name: str):
-        """
-        Checks if a node should be instrumented.
+        """Checks if a node should be instrumented.
         An empty return value that is implicitly added on the same line as the last statement should not be
         instrumented, otherwise the last line of a function will always be considered covered.
         However, a manually added line "return None" should be considered. For this, we check if the line
         that contains the return statement already is tracked through another statement.
+
         Args:
             node: The node that needs to be checked
             file_name: The file that produced the node
 
-        Returns: True, if the node needs to be instructed, false otherwise.
+        Returns:
+            True, if the node needs to be instructed, false otherwise.
         """
         if node.basic_block and not node.is_artificial:
             block: BasicBlock = node.basic_block
             line_no = block[0].lineno
             return not (
-                len(block) == 2 and
-                block[0] == Instr("LOAD_CONST", None, lineno=line_no) and
-                file_name in self._tracer.get_known_data().existing_statements and
-                line_no in self._tracer.get_known_data().existing_statements[file_name] and
-                block[1].opcode == op.RETURN_VALUE
+                len(block) == 2
+                and block[0] == Instr("LOAD_CONST", None, lineno=line_no)
+                and file_name in self._tracer.get_known_data().existing_statements
+                and line_no
+                in self._tracer.get_known_data().existing_statements[file_name]
+                and block[1].opcode == op.RETURN_VALUE
             )
         return False
 
     def instrument_statement(
-        self,
-        block: BasicBlock,
-        instr_index: int,
-        file_name: str,
-        lineno: int
+        self, block: BasicBlock, instr_index: int, file_name: str, lineno: int
     ) -> None:
-        """ Instrument instructions of a new line.
+        """Instrument instructions of a new line.
 
         We add a call to the tracer which reports a line was executed.
 

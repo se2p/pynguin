@@ -173,8 +173,8 @@ def test_compute_fitness_values_no_branches():
             chromosome.add_fitness_function(goal)
             goals_dict[
                 tracer.get_known_data()
-                    .existing_code_objects[goal._goal.code_object_id]
-                    .code_object.co_name
+                .existing_code_objects[goal._goal.code_object_id]
+                .code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
@@ -389,9 +389,7 @@ def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
-    known_data_mock,
-    executor_mock,
-    trace_mock
+    known_data_mock, executor_mock, trace_mock
 ):
     """Create an empty test for a non-empty file, which results a fitness of 0"""
     file_name = "../fixtures/statementcoverage/plus.py"
@@ -407,16 +405,16 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     # manually set goals
     for line in lines:
         line_goal = bg.StatementCoverageGoal(line, file_name)
-        chromosome.add_fitness_function(bg.StatementCoverageTestFitness(executor_mock, line_goal))
+        chromosome.add_fitness_function(
+            bg.StatementCoverageTestFitness(executor_mock, line_goal)
+        )
 
     fitness = chromosome.get_fitness()
     assert fitness == 0
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    known_data_mock,
-    executor_mock,
-    trace_mock
+    known_data_mock, executor_mock, trace_mock
 ):
     """
     Test for a testcase for the plus module, which should cover 6 out of 8 goals,
@@ -446,7 +444,9 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         # manually set goals
         for line in lines:
             line_goal = bg.StatementCoverageGoal(line, file_name)
-            chromosome.add_fitness_function(bg.StatementCoverageTestFitness(executor_mock, line_goal))
+            chromosome.add_fitness_function(
+                bg.StatementCoverageTestFitness(executor_mock, line_goal)
+            )
 
         fitness = chromosome.get_fitness()
         assert fitness == 6
@@ -471,7 +471,7 @@ def _get_test_for_statement_coverage(module):
                 parameters={},
                 return_type=module.Plus,
             ),
-        )
+        ),
     )
 
     method_call = stmt.MethodStatement(
@@ -486,7 +486,7 @@ def _get_test_for_statement_coverage(module):
             ),
         ),
         constructor_call.ret_val,
-        {"number": int_stmt.ret_val}
+        {"number": int_stmt.ret_val},
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(constructor_call)

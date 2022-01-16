@@ -16,7 +16,8 @@ from bytecode import Compare
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
-    DynamicSeedingInstrumentation, StatementCoverageInstrumentation,
+    DynamicSeedingInstrumentation,
+    StatementCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
@@ -231,9 +232,7 @@ def test_integrate_branch_distance_instrumentation(
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
 
 
-def test_integrate_statement_coverage_instrumentation(
-    simple_module
-):
+def test_integrate_statement_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "multi_loop")
     instr = StatementCoverageInstrumentation(tracer)
@@ -242,15 +241,17 @@ def test_integrate_statement_coverage_instrumentation(
     )
 
     # only one file was instrumented
-    assert (
-        len(tracer.get_known_data().existing_statements)
-        == 1
-    )
+    assert len(tracer.get_known_data().existing_statements) == 1
     # the body of the method contains 7 statements on lines 38 to 44
-    assert (
-        list(tracer.get_known_data().existing_statements.values())[0]
-        == {38, 39, 40, 41, 42, 43, 44}
-    )
+    assert list(tracer.get_known_data().existing_statements.values())[0] == {
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+    }
 
 
 @pytest.mark.parametrize(
@@ -398,7 +399,9 @@ def test_tracking_covered_statements_explicit_return(simple_module):
         pytest.param(1, 0, {14, 15}),
     ],
 )
-def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2, expected_lines):
+def test_tracking_covered_statements_cmp_predicate(
+    simple_module, value1, value2, expected_lines
+):
     tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)
@@ -414,11 +417,13 @@ def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2
 @pytest.mark.parametrize(
     "value, expected_lines",
     [
-        pytest.param(False, {21, 23, 24}), # TODO(SiL) else Statement not covered
+        pytest.param(False, {21, 23, 24}),  # TODO(SiL) else Statement not covered
         pytest.param(True, {21, 22}),
     ],
 )
-def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_lines):
+def test_tracking_covered_statements_bool_predicate(
+    simple_module, value, expected_lines
+):
     tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)

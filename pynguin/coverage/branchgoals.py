@@ -54,8 +54,9 @@ class StatementCoverageGoal(AbstractCoverageGoal):
 
     def is_covered(self, result: ExecutionResult) -> bool:
         return (
-            result.execution_trace.covered_statements[self._file_name] and
-            self._line_number in result.execution_trace.covered_statements[self._file_name]
+            result.execution_trace.covered_statements[self._file_name]
+            and self._line_number
+            in result.execution_trace.covered_statements[self._file_name]
         )
 
     def __str__(self) -> str:
@@ -72,7 +73,10 @@ class StatementCoverageGoal(AbstractCoverageGoal):
             return True
         if not isinstance(other, StatementCoverageGoal):
             return False
-        return self._file_name == other._file_name and self._line_number == other._line_number
+        return (
+            self._file_name == other._file_name
+            and self._line_number == other._line_number
+        )
 
 
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
@@ -329,9 +333,7 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
-    def __init__(
-        self, executor: TestCaseExecutor, goal: StatementCoverageGoal
-    ):
+    def __init__(self, executor: TestCaseExecutor, goal: StatementCoverageGoal):
         # TODO handle this differently
         super().__init__(executor, None)
         self._goal = goal
@@ -383,7 +385,7 @@ def create_branch_coverage_fitness_functions(
 
 
 def create_statement_coverage_fitness_functions(
-    executor: TestCaseExecutor
+    executor: TestCaseExecutor,
 ) -> OrderedSet[StatementCoverageTestFitness]:
     """Create fitness functions for each statement coverage goal.
 
@@ -399,5 +401,7 @@ def create_statement_coverage_fitness_functions(
     for (file_name, lines_set) in tracer.get_known_data().existing_statements.items():
         for line in lines_set:
             line_goal = StatementCoverageGoal(line, file_name)
-            statement_coverage_goals.append(StatementCoverageTestFitness(executor, line_goal))
+            statement_coverage_goals.append(
+                StatementCoverageTestFitness(executor, line_goal)
+            )
     return statement_coverage_goals

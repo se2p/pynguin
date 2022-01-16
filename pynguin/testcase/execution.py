@@ -341,12 +341,16 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self._merge_covered_statements(self.covered_statements, other.covered_statements)
+        self._merge_covered_statements(
+            self.covered_statements, other.covered_statements
+        )
 
     @staticmethod
-    def _merge_covered_statements(target: Dict[str, OrderedSet[int]], source: Dict[str, OrderedSet[int]]) -> None:
-        """
-        Merge source covered statements into target covered statement data.
+    def _merge_covered_statements(
+        target: Dict[str, OrderedSet[int]], source: Dict[str, OrderedSet[int]]
+    ) -> None:
+        """Merge source covered statements into target covered statement data.
+
         Args:
             target: the target to merge the values in
             source: the source of the merge
@@ -911,7 +915,7 @@ class ModuleProvider:
     """Class for providing modules."""
 
     def __init__(self):
-        self._mutated_module_aliases: Dict[str, ModuleType] = {}
+        self._mutated_module_aliases: dict[str, ModuleType] = {}
 
     def get_module(self, module_name: str) -> ModuleType:
         """

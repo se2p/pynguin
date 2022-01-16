@@ -387,7 +387,7 @@ class ComputationCache:
         """
         assert (
             not fitness_function.is_maximisation_function()
-            # TODO implement support for maximizing ffs
+            # TODO(SiL) implement support for maximizing ffs
         ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
@@ -709,8 +709,7 @@ def compute_branch_distance_fitness_is_covered(
 
 
 def compute_statement_coverage_fitness_is_covered(
-    trace: ExecutionTrace,
-    known_data: KnownData
+    trace: ExecutionTrace, known_data: KnownData
 ) -> bool:
     """Computes if all statements and code objects have been executed.
 

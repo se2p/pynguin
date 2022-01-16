@@ -150,7 +150,9 @@ def test_statement_coverage_fully_covered(known_data_mock, trace_mock):
 def test_statement_coverage_is_not_covered(known_data_mock, trace_mock):
     known_data_mock.existing_statements = {"foo": {0, 1}}
     trace_mock.covered_statements = {"foo": {0}}
-    assert not ff.compute_statement_coverage_fitness_is_covered(trace_mock, known_data_mock)
+    assert not ff.compute_statement_coverage_fitness_is_covered(
+        trace_mock, known_data_mock
+    )
 
 
 def test_statement_coverage_is_covered(known_data_mock, trace_mock):
