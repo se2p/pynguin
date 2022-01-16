@@ -596,9 +596,8 @@ class StatementCoverageInstrumentation(Instrumentation):
             if node.basic_block and not node.is_artificial:
                 block: BasicBlock = node.basic_block
 
-                #  iterate over statements after the fist one in BB,
-                #  always trace new line when lineno attribute changes
-                #  by putting a new instruction in the block
+                #  iterate over statements after the fist one in BB, always track newline
+                #  when the lineno attribute of an instruction is another than before
                 lineno = -1
                 instr_index = 0
                 while instr_index < len(block):
@@ -631,8 +630,7 @@ class StatementCoverageInstrumentation(Instrumentation):
             block: BasicBlock = node.basic_block
 
             #  iterate over statements after the fist one in BB,
-            #  always trace new line when lineno attribute changes
-            #  by putting a new instruction in the block
+            #  put new instructions in the block for each line
             lineno = -1
             instr_index = 0
             while instr_index < len(block):
@@ -645,7 +643,7 @@ class StatementCoverageInstrumentation(Instrumentation):
                 instr_index += 1
 
     def _node_needs_instrumentation(self, node: ProgramGraphNode, file_name: str):
-        """Checks if a node should be instrumented.
+        """Checks if a node is part of manually written code.
         An empty return value that is implicitly added on the same line as the last statement should not be
         instrumented, otherwise the last line of a function will always be considered covered.
         However, a manually added line "return None" should be considered. For this, we check if the line

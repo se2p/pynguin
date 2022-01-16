@@ -66,7 +66,7 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         return f"LineGoal({self._file_name}:{self._line_number})"
 
     def __hash__(self) -> int:
-        return 31 + self._line_number  # TODO also include file_name into hashing
+        return 31 + self._line_number + hash(self._file_name)
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
@@ -334,16 +334,13 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
     def __init__(self, executor: TestCaseExecutor, goal: StatementCoverageGoal):
-        # TODO handle this differently
+        # TODO(SiL) handle this differently
         super().__init__(executor, None)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
         result = self._run_test_case_chromosome(individual)
-
-        overall_covered_statements = 0
-        for lines in result.execution_trace.covered_statements.values():
-            overall_covered_statements += len(lines)
+        overall_covered_statements = sum(len(lines) for lines in result.execution_trace.covered_statements.values())
 
         return overall_covered_statements
 
