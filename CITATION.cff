@@ -13,6 +13,11 @@ authors:
     given-names: Lukas
   - family-names: Straubinger
     given-names: Florian
+  - family-names: Labrenz
+    given-names: Simon
+  - family-names: Fraser
+    given-names: Gordon
+    orcid: "https://orcid.org/0000-0002-4364-6595"
 doi: "10.5281/zenodo.3989840"
 identifiers:
   - type: doi
@@ -31,10 +36,24 @@ references:
       given-names: Florian
     - family-names: Fraser
       given-names: Gordon
+    title: An Empirical Study of Automated Unit Test Generation for Python
+    type: article
+    journal: CoRR
+    url: https://arxiv.org/abs/2111.05003
+    volume: abs/2111.05003
+    year: 2021
+  - authors:
+    - family-names: Lukasczyk
+      given-names: Stephan
+    - family-names: Kroiß
+      given-names: Florian
+    - family-names: Fraser
+      given-names: Gordon
+    title: Automated Unit Test Generation for Python
     doi: 10.1007/978-3-030-59762-7_2
     conference:
       name: "12th International Symposium on Search-Based Software Engineering (SSBSE)"
-    type: proceedings
+    type: conference-paper
     year: 2020
 message: "If you use this software, please cite it using these metadata."
 repository-code: "https://github.com/se2p/pynguin"
