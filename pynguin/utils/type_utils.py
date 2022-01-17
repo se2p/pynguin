@@ -220,8 +220,11 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
 
     Primitives (except float) are assertable.
     Enum values are assertable.
-    List, sets, dicts and tuples comprised only of assertable objects are also
+    List, sets, dicts and tuples composed only of assertable objects are also
     assertable.
+
+    Objects that are accepted by this function must be constructable in
+    `pynguin.assertion.assertion_to_ast._create_assertable_object`
 
     Args:
         obj: The object to check for assertability.
@@ -238,7 +241,7 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
         return False
 
     tp_ = type(obj)
-    if is_enum(tp_) or is_primitive_type(tp_):
+    if is_enum(tp_) or is_primitive_type(tp_) or is_none_type(tp_):
         return True
     if is_set(obj) or is_list(obj) or is_tuple(obj):
         return all(is_assertable(elem, recursion_depth + 1) for elem in obj)

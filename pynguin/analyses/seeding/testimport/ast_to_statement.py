@@ -12,21 +12,20 @@ import inspect
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
+import pynguin.assertion.assertion as ass
+import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-from pynguin.assertion.noneassertion import NoneAssertion
-from pynguin.assertion.primitiveassertion import PrimitiveAssertion
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.type_utils import is_assertable
 
 if TYPE_CHECKING:
-    import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
-    from pynguin.assertion.assertion import Assertion
     from pynguin.setup.testcluster import TestCluster
 
 logger = logging.getLogger(__name__)
@@ -79,7 +78,7 @@ def create_assign_stmt(
 
 def create_assert_stmt(
     ref_dict: dict[str, vr.VariableReference], assert_node: ast.Assert
-) -> tuple[Assertion, vr.VariableReference] | None:
+) -> tuple[ass.Assertion, vr.VariableReference] | None:
     """Creates an assert statement.
 
     Args:
@@ -90,7 +89,7 @@ def create_assert_stmt(
     Returns:
         The corresponding assert statement.
     """
-    assertion: PrimitiveAssertion | NoneAssertion | None = None
+    assertion: ass.Assertion | None = None
     try:
         source = ref_dict[assert_node.test.left.id]  # type: ignore
         val_elem = assert_node.test.comparators[0]  # type: ignore
@@ -107,7 +106,7 @@ def create_assert_stmt(
 def create_assertion(
     source: vr.VariableReference,
     val_elem: ast.Constant | ast.UnaryOp | None,
-) -> PrimitiveAssertion | NoneAssertion | None:
+) -> ass.Assertion | None:
     """Creates an assertion.
 
     Args:
@@ -117,12 +116,11 @@ def create_assertion(
     Returns:
         The assertion.
     """
-    if isinstance(val_elem, ast.Constant) and val_elem.value is None:
-        return NoneAssertion(source, val_elem.value)
-    if isinstance(val_elem, ast.Constant):
-        return PrimitiveAssertion(source, val_elem.value)
     if isinstance(val_elem, ast.UnaryOp):
-        return PrimitiveAssertion(source, val_elem.operand.value)  # type: ignore
+        val_elem = val_elem.operand  # type: ignore
+
+    if isinstance(val_elem, ast.Constant) and is_assertable(val_elem.value):
+        return ass.ObjectAssertion(source, val_elem.value)
     return None
 
 
@@ -146,9 +144,16 @@ def create_variable_references_from_call_args(
 
     """
     var_refs: dict[str, vr.VariableReference] = {}
+    # We have to ignore the first parameter (usually 'self') for regular methods and
+    # constructors because it is filled by the runtime.
+    # TODO(fk) also consider @classmethod, because their first argument is the class,
+    #  which is also filled by the runtime.
+    shift_by = 1 if gen_callable.is_method() or gen_callable.is_constructor() else 0
+
     # Handle positional arguments.
     for (name, param), call_arg in zip(
-        gen_callable.inferred_signature.signature.parameters.items(), call_args
+        list(gen_callable.inferred_signature.signature.parameters.items())[shift_by:],
+        call_args,
     ):
         if (
             param.kind

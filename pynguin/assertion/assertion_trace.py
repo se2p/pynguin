@@ -14,29 +14,26 @@ from ordered_set import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.assertion.statetraceentry as ote
     import pynguin.testcase.statement as stmt
 
 
-class StateTrace:
+class AssertionTrace:
     """Stores the states that have been observed during execution."""
 
     def __init__(self) -> None:
-        """Create new output trace."""
-        # One entry per statement, i.e., the states after executing that statement.
-        self._trace: dict[int, OrderedSet[ote.StateTraceEntry]] = defaultdict(
-            OrderedSet
-        )
+        """Create new assertion trace."""
+        # One entry per statement, i.e., the assertions after executing that statement.
+        self._trace: dict[int, OrderedSet[ass.Assertion]] = defaultdict(OrderedSet)
 
-    def add_entry(self, position: int, entry: ote.StateTraceEntry) -> None:
+    def add_entry(self, position: int, assertion: ass.Assertion) -> None:
         """Add an entry to this trace.
 
         Args:
             position: the position of the statement after whose execution the
                 state is observed.
-            entry: the entry describing the made assertion.
+            assertion: the made assertion.
         """
-        self._trace[position].add(entry)
+        self._trace[position].add(assertion)
 
     def get_assertions(self, statement: stmt.Statement) -> OrderedSet[ass.Assertion]:
         """Get all assertions contained within this trace for the given statement.
@@ -49,25 +46,23 @@ class StateTrace:
             All assertions in this trace for the given statement.
         """
         position = statement.get_position()
-        assertions = OrderedSet()
         if position in self._trace:
-            for entry in self._trace[position]:
-                assertions.update(entry.get_assertions())
-        return assertions
+            return OrderedSet(self._trace[position])
+        return OrderedSet()
 
     def clear(self) -> None:
         """Clear this trace."""
         self._trace.clear()
 
-    def clone(self) -> StateTrace:
+    def clone(self) -> AssertionTrace:
         """Clone this trace.
 
         Returns:
             a clone of this trace.
         """
-        copy: StateTrace = StateTrace()
+        copy: AssertionTrace = AssertionTrace()
         for stmt_key, stmt_value in self._trace.items():
             copy._trace[stmt_key] = OrderedSet()
             for entry in stmt_value:
-                copy._trace[stmt_key].add(entry.clone())
+                copy._trace[stmt_key].add(entry)
         return copy

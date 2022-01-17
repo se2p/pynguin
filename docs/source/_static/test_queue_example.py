@@ -12,69 +12,89 @@ import queue_example as module_0
 def test_case_0():
     int_0 = 1845
     queue_0 = module_0.Queue(int_0)
-    assert queue_0.tail == 0
     assert queue_0.max == 1845
     assert queue_0.head == 0
+    assert queue_0.tail == 0
     assert queue_0.size == 0
+    assert len(queue_0.data) == 1845
     bool_0 = queue_0.empty()
+    assert bool_0 is False
     int_1 = 484
     queue_1 = module_0.Queue(int_1)
     assert queue_1.max == 484
-    assert queue_1.size == 0
-    assert queue_1.tail == 0
     assert queue_1.head == 0
+    assert queue_1.tail == 0
+    assert queue_1.size == 0
+    assert len(queue_1.data) == 484
 
 
 def test_case_1():
     int_0 = 2311
     queue_0 = module_0.Queue(int_0)
+    assert queue_0.max == 2311
     assert queue_0.head == 0
     assert queue_0.tail == 0
     assert queue_0.size == 0
-    assert queue_0.max == 2311
+    assert len(queue_0.data) == 2311
     bool_0 = queue_0.full()
+    assert bool_0 is False
     queue_1 = module_0.Queue(int_0)
+    assert queue_1.max == 2311
     assert queue_1.head == 0
     assert queue_1.tail == 0
     assert queue_1.size == 0
-    assert queue_1.max == 2311
+    assert len(queue_1.data) == 2311
     queue_2 = module_0.Queue(int_0)
-    assert queue_2.size == 0
     assert queue_2.max == 2311
-    assert queue_2.tail == 0
     assert queue_2.head == 0
+    assert queue_2.tail == 0
+    assert queue_2.size == 0
+    assert len(queue_2.data) == 2311
     bool_1 = queue_1.full()
+    assert bool_1 is False
     int_1 = 2477
     bool_2 = queue_1.enqueue(int_1)
     assert bool_2 is True
+    assert queue_1.tail == 1
+    assert queue_1.size == 1
     bool_3 = queue_1.empty()
     assert bool_3 is True
-    var_0 = queue_2.dequeue()
+    optional_0 = queue_2.dequeue()
+    assert optional_0 is None
 
 
 def test_case_2():
     int_0 = 2311
     queue_0 = module_0.Queue(int_0)
-    assert queue_0.head == 0
     assert queue_0.max == 2311
-    assert queue_0.size == 0
+    assert queue_0.head == 0
     assert queue_0.tail == 0
+    assert queue_0.size == 0
+    assert len(queue_0.data) == 2311
     bool_0 = queue_0.full()
+    assert bool_0 is False
     queue_1 = module_0.Queue(int_0)
-    assert queue_1.tail == 0
-    assert queue_1.size == 0
     assert queue_1.max == 2311
     assert queue_1.head == 0
+    assert queue_1.tail == 0
+    assert queue_1.size == 0
+    assert len(queue_1.data) == 2311
     queue_2 = module_0.Queue(int_0)
-    assert queue_2.size == 0
-    assert queue_2.tail == 0
-    assert queue_2.head == 0
     assert queue_2.max == 2311
+    assert queue_2.head == 0
+    assert queue_2.tail == 0
+    assert queue_2.size == 0
+    assert len(queue_2.data) == 2311
     bool_1 = queue_1.full()
+    assert bool_1 is False
     int_1 = 2477
     bool_2 = queue_1.enqueue(int_1)
     assert bool_2 is True
+    assert queue_1.tail == 1
+    assert queue_1.size == 1
     bool_3 = queue_1.empty()
     assert bool_3 is True
-    var_0 = queue_1.dequeue()
-    assert var_0 == 2477
+    optional_0 = queue_1.dequeue()
+    assert optional_0 == 2477
+    assert queue_1.head == 1
+    assert queue_1.size == 0

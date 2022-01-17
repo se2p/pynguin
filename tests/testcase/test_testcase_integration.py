@@ -7,7 +7,7 @@
 """Some integration tests for the testcase/statements"""
 import pytest
 
-import pynguin.assertion.primitiveassertion as pas
+import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as st
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -74,7 +74,7 @@ def simple_test_case(function_mock) -> dtc.DefaultTestCase:
     int_prim2 = st.IntPrimitiveStatement(test_case, 5)
     float_prim = st.FloatPrimitiveStatement(test_case, 5.5)
     func = st.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
-    func.add_assertion(pas.PrimitiveAssertion(func.ret_val, 3.1415))
+    func.add_assertion(ass.ObjectAssertion(func.ret_val, 3.1415))
     string_prim = st.StringPrimitiveStatement(test_case, "Test")
     string_prim.ret_val._type = type(None)
     test_case.add_statement(int_prim)

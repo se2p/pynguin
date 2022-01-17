@@ -7,47 +7,18 @@
 """Provides a base class for assertions."""
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
-import pynguin.assertion.assertionvisitor as av
-import pynguin.testcase.variablereference as vr
+if TYPE_CHECKING:
+    import pynguin.testcase.variablereference as vr
 
 
 class Assertion:
     """Base class for assertions."""
 
-    def __init__(self, source: vr.VariableReference | None, value: Any) -> None:
-        """Create new assertion.
-
-        Args:
-            source: optional for a variable in the testcase on which we assert
-                    something.
-            value: the expected value of the assertion.
-        """
-        self._source = source
-        self._value = value
-
-    @property
-    def source(self) -> vr.VariableReference | None:
-        """Provides an optional for the variable on which the assertion is made.
-
-        Returns:
-            an optional for variable on which the assertion is made.
-        """
-        return self._source
-
-    @property
-    def value(self) -> Any:
-        """Provides the expected value of the assertion.
-
-        Returns:
-            the expected value of the assertion.
-        """
-        return self._value
-
     @abstractmethod
-    def accept(self, visitor: av.AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:
         """Accept an assertion visitor.
 
         Args:
@@ -66,12 +37,218 @@ class Assertion:
         Returns: the cloned assertion
         """
 
-    def __eq__(self, other: object) -> bool:
+    @abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def __hash__(self) -> int:
+        pass  # pragma: no cover
+
+
+class ReferenceAssertion(Assertion, ABC):
+    """An assertion on a single reference."""
+
+    def __init__(self, source: vr.Reference):
+        self._source = source
+
+    @property
+    def source(self) -> vr.Reference:
+        """Provides the reference on which we assert something.
+
+        Returns:
+            The reference on which we assert something.
+        """
+        return self._source
+
+
+class NotNoneAssertion(ReferenceAssertion):
+    """An assertion that a reference is not None.
+
+    For example:
+        assert var_0 is not None
+    """
+
+    def accept(self, visitor: AssertionVisitor) -> None:
+        visitor.visit_not_none_assertion(self)
+
+    def clone(
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> NotNoneAssertion:
+        return NotNoneAssertion(self._source.clone(memo))
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, NotNoneAssertion) and self._source == other._source
+
+    def __hash__(self) -> int:
+        return hash(self._source)
+
+
+class FloatAssertion(ReferenceAssertion):
+    """An assertion on the float value of a reference.
+
+    For example:
+        assert float_0 == pytest.approx(42, rel=0.01, abs=0.01)
+    """
+
+    def __init__(self, source: vr.Reference, value: float):
+        super().__init__(source)
+        self._value = value
+
+    @property
+    def value(self) -> float:
+        """Provides the value.
+
+        Returns:
+            The float value
+        """
+        return self._value
+
+    def accept(self, visitor: AssertionVisitor) -> None:
+        visitor.visit_float_assertion(self)
+
+    def clone(
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> FloatAssertion:
+        return FloatAssertion(self.source.clone(memo), self._value)
+
+    def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, Assertion)
+            isinstance(other, FloatAssertion)
             and self._source == other._source
             and self._value == other._value
         )
 
     def __hash__(self) -> int:
         return hash((self._source, self._value))
+
+
+class ObjectAssertion(ReferenceAssertion):
+    """An assertion on the object behind a reference.
+
+    This can be anything where the object can be reliably copied, besides float, which
+    is handled by FloatAssertion.
+
+    For example:
+        assert var_0 == [1,2,3]
+        assert var_1 == {Foo.BAR}
+        assert var_2 == "Foobar"
+    """
+
+    def __init__(self, source: vr.Reference, value: Any):
+        super().__init__(source)
+        self._object = value
+
+    @property
+    def object(self) -> Any:
+        """Provides the object used for comparison.
+
+        Returns:
+            The object used for comparison.
+        """
+        return self._object
+
+    def accept(self, visitor: AssertionVisitor) -> None:
+        visitor.visit_object_assertion(self)
+
+    def clone(
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> ObjectAssertion:
+        return ObjectAssertion(self.source.clone(memo), self._object)
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, ObjectAssertion)
+            and self._source == other._source
+            and self._object == other._object
+        )
+
+    def __hash__(self) -> int:
+        # We cannot include the value in the hash, as it might be unhashable.
+        # For example, dicts, lists and sets are not hashable.
+        return 17 * hash(self._source) + 31
+
+
+class CollectionLengthAssertion(ReferenceAssertion):
+    """An assertion on the length of a reference.
+
+    This can be necessary for a collection that contains elements that we can not
+    directly assert on. Though this kind of assertion is less preferable because it is
+    less precise.
+
+    For example:
+        assert len(var_0) = 42
+    """
+
+    def __init__(self, source: vr.Reference, length: int):
+        super().__init__(source)
+        self._length = length
+
+    @property
+    def length(self) -> Any:
+        """The expected length.
+
+        Returns:
+            The expected length.
+        """
+        return self._length
+
+    def accept(self, visitor: AssertionVisitor) -> None:
+        visitor.visit_collection_length_assertion(self)
+
+    def clone(
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> CollectionLengthAssertion:
+        return CollectionLengthAssertion(self.source.clone(memo), self._length)
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, CollectionLengthAssertion)
+            and self._source == other._source
+            and self._length == other._length
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._source, self._length))
+
+
+class AssertionVisitor:
+    """Abstract visitor for assertions."""
+
+    @abstractmethod
+    def visit_not_none_assertion(self, assertion: NotNoneAssertion) -> None:
+        """Visit a none assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_float_assertion(self, assertion: FloatAssertion) -> None:
+        """Visit a float assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_object_assertion(self, assertion: ObjectAssertion) -> None:
+        """Visit an object assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_collection_length_assertion(
+        self, assertion: CollectionLengthAssertion
+    ) -> None:
+        """Visit a collection length assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """

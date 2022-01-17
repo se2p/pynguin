@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 import pynguin.testcase.variablereference as vr
 
@@ -51,32 +51,40 @@ class AbstractNamingScope:
 class NamingScope(AbstractNamingScope):
     """Maps objects to unique, human friendly names."""
 
-    def __init__(self, prefix: str = "var") -> None:
-        """Initialises the scope
+    def __init__(
+        self,
+        prefix: str = "var",
+        new_name_callback: Callable[[Any, str], None] | None = None,
+    ) -> None:
+        """Initialises the scope.
 
         Args:
-            prefix: The prefix that will be used in the name.
+            prefix: The prefix that will be used in all assigned names.
+            new_name_callback: Called when a new object is named.
         """
-        self._known_name_indices: dict[Any, int] = {}
+        self._known_names: dict[Any, str] = {}
         self._prefix = prefix
+        self._new_name_callback = new_name_callback
 
     def get_name(self, obj: Any) -> str:
-        if obj in self._known_name_indices:
-            index = self._known_name_indices.get(obj)
-        else:
-            index = len(self._known_name_indices)
-            self._known_name_indices[obj] = index
-        return self._prefix + "_" + str(index)
+        if obj in self._known_names:
+            return self._known_names[obj]
+
+        index = len(self._known_names)
+        self._known_names[obj] = name = f"{self._prefix}_{index}"
+        if self._new_name_callback is not None:
+            self._new_name_callback(obj, name)
+        return name
 
     def __len__(self):
-        return len(self._known_name_indices)
+        return len(self._known_names)
 
     def __iter__(self):
-        for obj in self._known_name_indices:
+        for obj in self._known_names:
             yield obj, self.get_name(obj)
 
     def is_known_name(self, obj) -> bool:
-        return obj in self._known_name_indices
+        return obj in self._known_names
 
 
 class VariableTypeNamingScope(AbstractNamingScope):

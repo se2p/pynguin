@@ -120,7 +120,7 @@ def test_collect_different_types(
 
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert seeded_testcase is not None
-    assert next(iter(seeded_testcase.statements[position].assertions)).value == result
+    assert next(iter(seeded_testcase.statements[position].assertions)).object == result
 
 
 @pytest.mark.parametrize(
@@ -183,9 +183,7 @@ def test_generator_with_init_pop_seeding(
     gen._setup_initial_population_seeding(dummy_test_cluster)
     seeded_testcase = ips.initialpopulationseeding.seeded_testcase
     assert ips.initialpopulationseeding.has_tests
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
-    )
+    assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
 
 
 @mock.patch("pynguin.utils.randomness.next_int")
@@ -204,9 +202,7 @@ def test_seeded_test_case_factory_no_delegation(
     test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
 
     seeded_testcase = test_case_factory.get_test_case()
-    assert (
-        next(iter(seeded_testcase.statements[2].assertions)).value == "Bools are equal!"
-    )
+    assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
 
 
 @mock.patch("pynguin.utils.randomness.next_int")

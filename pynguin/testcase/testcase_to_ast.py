@@ -30,7 +30,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         """The module aliases are shared between test cases.
 
         Args:
-            wrap_code: Whether or not exported code shall be wrapped
+            wrap_code: Whether the exported code shall be wrapped
         """
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.

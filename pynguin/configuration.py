@@ -219,8 +219,11 @@ class TestCaseOutputConfiguration:
     """The maximum number of statement in as test case (normal + assertion
     statements)"""
 
-    assertion_generation: AssertionGenerator = AssertionGenerator.SIMPLE
+    assertion_generation: AssertionGenerator = AssertionGenerator.MUTATION_ANALYSIS
     """The generator that shall be used for assertion generation."""
+
+    allow_stale_assertions: bool = False
+    """Allow assertion on things that did not change between statement executions."""
 
     mutation_strategy: MutationStrategy = MutationStrategy.FIRST_ORDER_MUTANTS
     """The strategy that shall be used for creating mutants in the mutation analysis
@@ -229,11 +232,6 @@ class TestCaseOutputConfiguration:
     mutation_order: int = 1
     """The order of the generated higher order mutants in the mutation analysis
     assertion generation method."""
-
-    generate_all_assertions: bool = True
-    """Should the mutation analysis approach to assertion generation also generate
-    assertions in cases where the states between non-mutated and mutated modules do
-    not differ?"""
 
     post_process: bool = True
     """Should the results be post processed? For example, truncate test cases after

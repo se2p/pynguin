@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import logging
 import os
-from typing import TYPE_CHECKING, Any, AnyStr
+from typing import TYPE_CHECKING, AnyStr
 
 import pynguin.analyses.seeding.testimport.ast_to_statement as ats
 import pynguin.configuration as config
@@ -22,7 +22,6 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.testcase.variablereference as vr
     from pynguin.setup.testcluster import TestCluster
 
 
@@ -48,8 +47,9 @@ class _InitialPopulationSeeding:
         self._test_cluster = test_cluster
 
     def get_ast_tree(
-        self, module_path: AnyStr | os.PathLike[AnyStr]
+        self, module_path: AnyStr | "os.PathLike[AnyStr]"
     ) -> ast.Module | None:
+
         """Returns the ast tree from a module
 
         Args:
@@ -82,7 +82,7 @@ class _InitialPopulationSeeding:
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
-    def collect_testcases(self, module_path: AnyStr | os.PathLike[AnyStr]) -> None:
+    def collect_testcases(self, module_path: AnyStr | "os.PathLike[AnyStr]") -> None:
         """Collect all test cases from a module.
 
         Args:
@@ -93,9 +93,14 @@ class _InitialPopulationSeeding:
             config.configuration.seeding.initial_population_seeding = False
             self._logger.info("Provided testcases are not used.")
             return
-        transformer = _TestTransformer(self._test_cluster)
+        transformer = ats.AstToTestCaseTransformer(
+            self._test_cluster,
+            config.configuration.test_case_output.assertion_generation
+            != config.AssertionGenerator.NONE,
+        )
         transformer.visit(tree)
         self._testcases = transformer.testcases
+        stat.track_output_variable(RuntimeVariable.FoundTestCases, len(self._testcases))
         if not self._testcases:
             config.configuration.seeding.initial_population_seeding = False
             self._logger.info("None of the provided test cases can be parsed.")
@@ -135,67 +140,6 @@ class _InitialPopulationSeeding:
             Whether or not test cases have been found
         """
         return len(self._testcases) > 0
-
-
-# pylint: disable=invalid-name, missing-function-docstring
-class _TestTransformer(ast.NodeVisitor):
-    def __init__(self, test_cluster: TestCluster):
-        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
-        self._current_parsable: bool = True
-        self._var_refs: dict[str, vr.VariableReference] = {}
-        self._testcases: list[dtc.DefaultTestCase] = []
-        self._number_found_testcases: int = 0
-        self._test_cluster = test_cluster
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        self.generic_visit(node)
-        stat.track_output_variable(
-            RuntimeVariable.FoundTestCases, self._number_found_testcases
-        )
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self._number_found_testcases += 1
-        self._current_testcase = dtc.DefaultTestCase()
-        self._current_parsable = True
-        self._var_refs.clear()
-        self.generic_visit(node)
-        if self._current_parsable:
-            self._testcases.append(self._current_testcase)
-
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        if self._current_parsable:
-            if (
-                result := ats.create_assign_stmt(
-                    node, self._current_testcase, self._var_refs, self._test_cluster
-                )
-            ) is None:
-                self._current_parsable = False
-            else:
-                ref_id, stmt = result
-                # TODO(fk) not every statement creates a variable.
-                var_ref = self._current_testcase.add_variable_creating_statement(stmt)
-                self._var_refs[ref_id] = var_ref
-
-    def visit_Assert(self, node: ast.Assert) -> Any:
-        if (
-            self._current_parsable
-            and config.configuration.test_case_output.assertion_generation
-            != config.AssertionGenerator.NONE
-        ):
-            if (result := ats.create_assert_stmt(self._var_refs, node)) is not None:
-                assertion, var_ref = result
-                self._current_testcase.get_statement(
-                    var_ref.get_statement_position()
-                ).add_assertion(assertion)
-
-    @property
-    def testcases(self) -> list[dtc.DefaultTestCase]:
-        """Provides the transformed testcases.
-
-        Returns:
-            The transformed testcases.
-        """
-        return self._testcases
 
 
 initialpopulationseeding = _InitialPopulationSeeding()
