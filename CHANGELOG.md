@@ -9,7 +9,9 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
-## Pynguin 0.17.0
+## Pynguin 0.16.1
+
+- Update `CITATION.cff` information
 
 ## Pynguin 0.16.0
 
