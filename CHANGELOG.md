@@ -11,6 +11,17 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.16.0
 
+- Refactor the assertion generation.  This unifies the `SIMPLE` and the 
+  `MUTATION_ANALYSIS` approaches.  Furthermore, Pynguin now uses the 
+  `MUTATION_ANALYSIS` approach again as the default.
+- Update the type annotations in Pynguin's code to the simplified, future versions 
+  (e.g. instead of `Dict[str, Set[int]]` we can now write `dict[str, set[int]]`) and do
+  not need any imports from Python's `typing` module.
+- Fix a crash of the seeding when native modules are present.  Fixes #20.
+- Provide a hint in the documentation that PyCharm 2021.3 now integrates `poetry` 
+  support, thus no plugin is required for this (and newer) versions (thanks to 
+  @labrenz).
+
 ## Pynguin 0.15.0
 
 - Fix a bug for mutating a statement that is not in the current test case (see #17).
