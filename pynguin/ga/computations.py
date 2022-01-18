@@ -237,11 +237,11 @@ class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
 
-        overall_covered_statements = 0
-        for lines in merged_trace.covered_statements.values():
-            overall_covered_statements += len(lines)
-
-        return overall_covered_statements
+        return sum(
+            len(lines) for lines in self._executor.tracer.get_known_data().existing_statements.values()
+        ) - sum(
+            len(lines) for lines in merged_trace.covered_statements.values()
+        )
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -254,7 +254,7 @@ class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         )
 
     def is_maximisation_function(self) -> bool:
-        return True
+        return False
 
 
 class CoverageFunction:  # pylint:disable=too-few-public-methods
@@ -387,7 +387,6 @@ class ComputationCache:
         """
         assert (
             not fitness_function.is_maximisation_function()
-            # TODO(SiL) implement support for maximizing ffs
         ), "Currently only minimization is supported"
         self._fitness_functions.append(fitness_function)
 
@@ -720,13 +719,8 @@ def compute_statement_coverage_fitness_is_covered(
     Returns:
         True, if all statements were covered, false otherwise
     """
-    covered = 0
-    existing = 0
-    for lines in trace.covered_statements.values():
-        covered += len(lines)
-    for lines in known_data.existing_statements.values():
-        existing += len(lines)
-    return covered == existing
+    return sum(len(lines) for lines in trace.covered_statements.values()) == sum(
+        len(lines) for lines in known_data.existing_statements.values())
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
@@ -764,8 +758,7 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
 
 
 def compute_statement_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
-    """Computes statement coverage on bytecode instructions which should equal
-    decision coverage on source.
+    """Computes statement coverage on bytecode instructions.
 
     Args:
         trace: The execution trace
@@ -774,17 +767,13 @@ def compute_statement_coverage(trace: ExecutionTrace, known_data: KnownData) -> 
     Returns:
         The computed coverage value
     """
-    covered = 0
-    existing = 0
-    for lines in trace.covered_statements.values():
-        covered += len(lines)
-    for lines in known_data.existing_statements.values():
-        existing += len(lines)
+    existing = sum(len(lines) for lines in known_data.existing_statements.values())
 
     if existing == 0:
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
+        covered = sum(len(lines) for lines in trace.covered_statements.values())
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

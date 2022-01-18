@@ -46,6 +46,11 @@ def branch_goal():
     return bg.BranchGoal(0, 0, True)
 
 
+@pytest.fixture
+def statement_coverage_goal():
+    return bg.StatementCoverageGoal(0, "foo")
+
+
 def test_root_branch_coverage_goal(branchless_codeobject_goal):
     assert branchless_codeobject_goal.code_object_id == 0
 
@@ -53,6 +58,11 @@ def test_root_branch_coverage_goal(branchless_codeobject_goal):
 def test_non_root_branch_coverage_goal(branch_goal):
     assert branch_goal.predicate_id == 0
     assert branch_goal.value is True
+
+
+def test_statement_coverage_goal(statement_coverage_goal):
+    assert statement_coverage_goal.line_number == 0
+    assert statement_coverage_goal.file_name == "foo"
 
 
 def test_root_hash(branchless_codeobject_goal):
@@ -63,12 +73,20 @@ def test_non_root_hash(branch_goal):
     assert branch_goal.__hash__() != 0
 
 
+def test_statement_coverage_hash(statement_coverage_goal):
+    assert statement_coverage_goal.__hash__() != 0
+
+
 def test_root_eq_same(branchless_codeobject_goal):
     assert branchless_codeobject_goal.__eq__(branchless_codeobject_goal)
 
 
 def test_non_root_eq_same(branch_goal):
     assert branch_goal.__eq__(branch_goal)
+
+
+def test_statement_coverage_eq_same(statement_coverage_goal):
+    assert statement_coverage_goal.__eq__(statement_coverage_goal)
 
 
 def test_root_eq_other_type(branchless_codeobject_goal):
@@ -79,6 +97,10 @@ def test_non_root_eq_other_type(branch_goal):
     assert not branch_goal.__eq__(MagicMock())
 
 
+def test_statement_coverage_eq_other_type(statement_coverage_goal):
+    assert not statement_coverage_goal.__eq__(MagicMock())
+
+
 def test_root_eq_other(branchless_codeobject_goal):
     other = bg.BranchlessCodeObjectGoal(0)
     assert branchless_codeobject_goal.__eq__(other)
@@ -87,6 +109,11 @@ def test_root_eq_other(branchless_codeobject_goal):
 def test_non_root_eq_other(branch_goal):
     other = bg.BranchGoal(0, 0, True)
     assert branch_goal.__eq__(other)
+
+
+def test_statement_coverage_eq_other(statement_coverage_goal):
+    other = bg.StatementCoverageGoal(0, "foo")
+    assert statement_coverage_goal.__eq__(other)
 
 
 def test_root_get_distance(branchless_codeobject_goal, mocker):
@@ -374,7 +401,7 @@ def test_compute_fitness_values_statement_coverage_empty():
         goals = bg.create_statement_coverage_fitness_functions(executor)
         assert not goals
         fitness = chromosome.get_fitness()
-        assert fitness == 1
+        assert fitness == 0
 
 
 def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
@@ -391,7 +418,7 @@ def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
 def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     known_data_mock, executor_mock, trace_mock
 ):
-    """Create an empty test for a non-empty file, which results a fitness of 0"""
+    """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
     file_name = "../fixtures/statementcoverage/plus.py"
     lines = {1, 2, 4, 8, 5, 6, 9, 10}
 
@@ -410,15 +437,15 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
         )
 
     fitness = chromosome.get_fitness()
-    assert fitness == 0
+    assert fitness == 8
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
     known_data_mock, executor_mock, trace_mock
 ):
     """
-    Test for a testcase for the plus module, which should cover 6 out of 8 goals,
-    which results in a fitness value of 6
+    Test for a testcase for the plus module, which should cover 5 out of 8 goals,
+    which results in a fitness value of 8 - 5 = 3
 
     Generated testcase:
         number = 42
@@ -432,7 +459,6 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
     tracer = ExecutionTracer()
     tracer.get_known_data().existing_statements = {file_name: lines}
     tracer.current_thread_identifier = threading.current_thread().ident
-    trace_mock.covered_statements = {1, 2, 8, 9, 10}
     executor_mock.tracer = tracer
 
     with install_import_hook(module_name, tracer):
@@ -448,8 +474,14 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
                 bg.StatementCoverageTestFitness(executor_mock, line_goal)
             )
 
-        fitness = chromosome.get_fitness()
-        assert fitness == 6
+        with mock.patch.object(bg.StatementCoverageTestFitness, "_run_test_case_chromosome") as run_suite_mock:
+            result = ExecutionResult()
+            trace_mock.covered_statements = {file_name: {1, 2, 8, 9, 10}}
+            result.execution_trace = trace_mock
+            run_suite_mock.return_value = result
+
+            fitness = chromosome.get_fitness()
+            assert fitness == 3
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:

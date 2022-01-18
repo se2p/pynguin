@@ -72,7 +72,7 @@ def test_test_case_is_minimizing_function(executor_mock):
 
 def test_test_case_is_maximisation_function(executor_mock):
     func = ff.StatementTestSuiteFitnessFunction(executor_mock)
-    assert func.is_maximisation_function()
+    assert not func.is_maximisation_function()
 
 
 def test_test_case_compute_fitness_values(known_data_mock, executor_mock, trace_mock):

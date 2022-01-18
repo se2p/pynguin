@@ -52,6 +52,24 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         self._line_number = line_number
         self._file_name = file_name
 
+    @property
+    def line_number(self) -> int:
+        """Provides the line number of the targeted line.
+
+        Returns:
+            The line number of the targeted line.
+        """
+        return self._line_number
+
+    @property
+    def file_name(self) -> str:
+        """Provides the file name of the targeted file.
+
+        Returns:
+            The targeted file name.
+        """
+        return self._file_name
+
     def is_covered(self, result: ExecutionResult) -> bool:
         return (
             result.execution_trace.covered_statements[self._file_name]
@@ -60,10 +78,10 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         )
 
     def __str__(self) -> str:
-        return f"Line Goal{self._file_name}:{self._line_number}"
+        return f"Statement Coverage Goal{self._file_name}:{self._line_number}"
 
     def __repr__(self) -> str:
-        return f"LineGoal({self._file_name}:{self._line_number})"
+        return f"StatementCoverageGoal({self._file_name}:{self._line_number})"
 
     def __hash__(self) -> int:
         return 31 + self._line_number + hash(self._file_name)
@@ -339,17 +357,14 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
-        result = self._run_test_case_chromosome(individual)
-        overall_covered_statements = sum(len(lines) for lines in result.execution_trace.covered_statements.values())
-
-        return overall_covered_statements
+        return 0 if self.compute_is_covered(individual) else 1
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)
         return self._goal.is_covered(result)
 
     def is_maximisation_function(self) -> bool:
-        return True
+        return False
 
     def __str__(self) -> str:
         return f"StatementCoverageTestFitness for {self._goal}"
