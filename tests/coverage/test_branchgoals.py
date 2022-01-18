@@ -403,7 +403,7 @@ def test_compute_fitness_values_statement_coverage_empty():
 def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
     tracer = ExecutionTracer()
     file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+    lines = {8, 9, 11, 12, 13, 15, 16, 17}
     tracer.get_known_data().existing_statements = {file_name: lines}
     executor_mock.tracer = tracer
     goals = bg.create_statement_coverage_fitness_functions(executor_mock)
@@ -416,7 +416,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
 ):
     """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
     file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+    lines = {8, 9, 11, 12, 13, 15, 16, 17}
 
     tracer = ExecutionTracer()
     tracer.get_known_data().existing_statements = {file_name: lines}
@@ -450,7 +450,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
     """
     module_name = "tests.fixtures.statementcoverage.plus"
     file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {1, 2, 4, 8, 5, 6, 9, 10}
+    lines = {8, 9, 11, 12, 13, 15, 16, 17}
 
     tracer = ExecutionTracer()
     tracer.get_known_data().existing_statements = {file_name: lines}
@@ -474,7 +474,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
             bg.StatementCoverageTestFitness, "_run_test_case_chromosome"
         ) as run_suite_mock:
             result = ExecutionResult()
-            trace_mock.covered_statements = {file_name: {1, 2, 8, 9, 10}}
+            trace_mock.covered_statements = {file_name: {8, 9, 15, 16, 17}}
             result.execution_trace = trace_mock
             run_suite_mock.return_value = result
 
