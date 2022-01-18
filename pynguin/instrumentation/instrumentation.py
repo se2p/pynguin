@@ -575,10 +575,6 @@ class StatementCoverageInstrumentation(Instrumentation):
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
 
-        assert cfg.entry_node is not None, "Entry node cannot be None."
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-
         self._track_available_lines(
             cfg, code.co_filename
         )  # info about all lines is required for instrumentation

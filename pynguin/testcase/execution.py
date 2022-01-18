@@ -372,17 +372,6 @@ class ExecutionTrace:
         for key, value in source.items():
             target[key] = min(target.get(key, inf), value)
 
-    @staticmethod
-    def _merge_max(target: Dict[int, float], source: Dict[int, float]) -> None:
-        """Merge source into target. Maximum value wins.
-
-        Args:
-            target: the target to merge the values in
-            source: the source of the merge
-        """
-        for key, value in source.items():
-            target[key] = max(target.get(key, -inf), value)
-
 
 @dataclass
 class CodeObjectMetaData:

@@ -61,10 +61,3 @@ def test_merge_min():
     dict1 = {0: 0.3, 1: 0.6}
     ExecutionTrace._merge_min(dict0, dict1)
     assert dict0 == {0: 0.3, 1: 0.2}
-
-
-def test_merge_max():
-    dict0 = {0: 0.5, 1: 0.2}
-    dict1 = {0: 0.3, 1: 0.6}
-    ExecutionTrace._merge_max(dict0, dict1)
-    assert dict0 == {0: 0.5, 1: 0.6}

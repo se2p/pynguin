@@ -395,7 +395,7 @@ def test_tracking_covered_statements_explicit_return(simple_module):
 @pytest.mark.parametrize(
     "value1, value2, expected_lines",
     [
-        pytest.param(0, 1, {14, 16, 17}),  # TODO(SiL) else Statement not covered
+        pytest.param(0, 1, {14, 17}),
         pytest.param(1, 0, {14, 15}),
     ],
 )
@@ -417,7 +417,7 @@ def test_tracking_covered_statements_cmp_predicate(
 @pytest.mark.parametrize(
     "value, expected_lines",
     [
-        pytest.param(False, {21, 23, 24}),  # TODO(SiL) else Statement not covered
+        pytest.param(False, {21, 24}),
         pytest.param(True, {21, 22}),
     ],
 )
