@@ -1,12 +1,14 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provide rank selection."""
+from __future__ import annotations
+
 from math import sqrt
-from typing import List, TypeVar
+from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -19,7 +21,7 @@ T = TypeVar("T", bound=chrom.Chromosome)  # pylint:disable=invalid-name
 class RankSelection(SelectionFunction[T]):
     """Rank selection."""
 
-    def get_index(self, population: List[T]) -> int:
+    def get_index(self, population: list[T]) -> int:
         """Provides an index in the population that is chosen by rank selection.
 
         Make sure that the population is sorted. The fittest chromosomes have to

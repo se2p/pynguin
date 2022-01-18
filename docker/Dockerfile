@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019-2021 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -36,7 +36,7 @@ FROM python:3.10.1-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.16.0.dev0"
+ENV PYNGUIN_VERSION "0.17.0.dev0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the

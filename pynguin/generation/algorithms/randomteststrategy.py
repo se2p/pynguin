@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -35,7 +35,7 @@ class RandomTestStrategy(TestGenerationStrategy):
 
     def __init__(self) -> None:
         super().__init__()
-        self._execution_results: List[ExecutionResult] = []
+        self._execution_results: list[ExecutionResult] = []
 
     def generate_tests(
         self,
@@ -163,7 +163,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         )
         return object_under_test
 
-    def _random_test_cases(self, test_cases: List[tc.TestCase]) -> List[tc.TestCase]:
+    def _random_test_cases(self, test_cases: list[tc.TestCase]) -> list[tc.TestCase]:
         if config.configuration.random.max_sequence_length == 0:
             selectables = test_cases
         else:

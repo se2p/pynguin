@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -59,4 +59,4 @@ def test_after_test_case_execution():
         clone = object()
         trace_mock.clone.return_value = clone
         observer.after_test_case_execution(MagicMock(), result)
-        result.add_output_trace.assert_called_with(type(observer), clone)
+        result.add_assertion_trace.assert_called_with(type(observer), clone)

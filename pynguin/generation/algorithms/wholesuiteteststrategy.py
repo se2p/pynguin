@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Set, cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
@@ -33,7 +33,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
 
     def __init__(self) -> None:
         super().__init__()
-        self._population: List[tsc.TestSuiteChromosome] = []
+        self._population: list[tsc.TestSuiteChromosome] = []
 
     def generate_tests(
         self,
@@ -98,7 +98,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
         self._update_archive()
         self._sort_population()
 
-    def _get_random_population(self) -> List[tsc.TestSuiteChromosome]:
+    def _get_random_population(self) -> list[tsc.TestSuiteChromosome]:
         population = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
@@ -115,9 +115,9 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
             self._archive.update(suite.test_case_chromosomes)
         # New goals were covered
         if before != len(self._archive.uncovered_goals):
-            exclude_code: Set[int] = set()
-            exclude_true: Set[int] = set()
-            exclude_false: Set[int] = set()
+            exclude_code: set[int] = set()
+            exclude_true: set[int] = set()
+            exclude_false: set[int] = set()
 
             # TODO(fk) Move this logic to BranchCoverageTestFitness?
             # i.e. combine with Archive.add_on_target_covered()
@@ -163,7 +163,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
         return self._get_best_individual()
 
     @staticmethod
-    def is_next_population_full(population: List[tsc.TestSuiteChromosome]) -> bool:
+    def is_next_population_full(population: list[tsc.TestSuiteChromosome]) -> bool:
         """Check if the population is already full.
 
         Args:
@@ -174,7 +174,7 @@ class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
         """
         return len(population) >= config.configuration.search_algorithm.population
 
-    def elitism(self) -> List[tsc.TestSuiteChromosome]:
+    def elitism(self) -> list[tsc.TestSuiteChromosome]:
         """Copy best individuals.
 
         Returns:

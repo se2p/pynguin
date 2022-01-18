@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -17,7 +17,7 @@ StatisticsBackend = config.StatisticsBackend
 StoppingCondition = config.StoppingCondition
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
-__version__ = "0.16.0.dev"
+__version__ = "0.17.0.dev"
 __all__ = [
     "set_configuration",
     "run_pynguin",

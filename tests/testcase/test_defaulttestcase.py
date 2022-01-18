@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.assertion.primitiveassertion as pas
+import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
@@ -289,8 +289,8 @@ def test_get_assertions_empty(default_test_case):
 def default_test_case_with_assertions(default_test_case):
     float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
-    float0ass0 = pas.PrimitiveAssertion(float0.ret_val, 5.5)
-    float0ass1 = pas.PrimitiveAssertion(float0.ret_val, 6)
+    float0ass0 = ass.ObjectAssertion(float0.ret_val, 5.5)
+    float0ass1 = ass.ObjectAssertion(float0.ret_val, 6)
     float0.add_assertion(float0ass0)
     float0.add_assertion(float0ass1)
 
@@ -299,7 +299,7 @@ def default_test_case_with_assertions(default_test_case):
 
     float2 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float2)
-    float2ass0 = pas.PrimitiveAssertion(float2.ret_val, 5.5)
+    float2ass0 = ass.ObjectAssertion(float2.ret_val, 5.5)
     float2.add_assertion(float2ass0)
     return default_test_case, {float0ass0, float0ass1, float2ass0}
 

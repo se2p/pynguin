@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Generic, Iterable, List, TypeVar
+from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -60,7 +60,7 @@ class TestGenerationStrategy(
             ff.TestSuiteCoverageFunction
         ] = OrderedSet()
         self._branch_goal_pool: bg.BranchGoalPool
-        self._search_observers: List[so.SearchObserver] = []
+        self._search_observers: list[so.SearchObserver] = []
 
     @property
     def chromosome_factory(self) -> cf.ChromosomeFactory:

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from math import ceil
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.generation.algorithms.archive as arch
@@ -53,7 +53,7 @@ class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
 
     def __init__(self) -> None:
         super().__init__()
-        self._solution: Optional[tcc.TestCaseChromosome] = None
+        self._solution: tcc.TestCaseChromosome | None = None
         self._parameters = Parameters()
         self._current_mutations = 0
         self._focused = False

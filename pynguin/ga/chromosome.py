@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
@@ -17,7 +16,7 @@ import pynguin.ga.computations as ff
 class Chromosome(metaclass=ABCMeta):
     """An abstract base class for chromosomes"""
 
-    def __init__(self, orig: Optional[Chromosome] = None):
+    def __init__(self, orig: Chromosome | None = None):
         """
         Args:
             orig: Original, if we clone an existing chromosome.
@@ -67,7 +66,7 @@ class Chromosome(metaclass=ABCMeta):
         """
         self._changed = changed
 
-    def get_fitness_functions(self) -> List[ff.FitnessFunction]:
+    def get_fitness_functions(self) -> list[ff.FitnessFunction]:
         """Provide the currently configured fitness functions of this chromosome.
 
         Returns:
@@ -86,7 +85,7 @@ class Chromosome(metaclass=ABCMeta):
         """
         self._computation_cache.add_fitness_function(fitness_function)
 
-    def get_coverage_functions(self) -> List[ff.CoverageFunction]:
+    def get_coverage_functions(self) -> list[ff.CoverageFunction]:
         """Provide the currently configured coverage functions of this chromosome.
 
         Returns:

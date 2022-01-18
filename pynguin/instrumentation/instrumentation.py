@@ -11,7 +11,7 @@ import json
 import logging
 from abc import abstractmethod
 from types import CodeType
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -58,7 +58,7 @@ class Instrumentation:
     @staticmethod
     def _create_consecutive_blocks(
         bytecode_cfg: ControlFlowGraph, first: BasicBlock, amount: int
-    ) -> Tuple[BasicBlock, ...]:
+    ) -> tuple[BasicBlock, ...]:
         """Split the given basic block into more blocks.
 
         The blocks are consecutive in the list of basic blocks.
@@ -73,7 +73,7 @@ class Instrumentation:
         """
         assert amount > 0, "Amount of created basic blocks must be positive."
         current: BasicBlock = first
-        nodes: List[BasicBlock] = []
+        nodes: list[BasicBlock] = []
         # Can be any instruction, as it is discarded anyway.
         dummy_instruction = Instr("POP_TOP")
         for _ in range(amount):
@@ -100,7 +100,7 @@ class BranchCoverageInstrumentation(Instrumentation):
     # comparisons and just track their boolean value.
     # As of CPython 3.9, this is no longer a compare op but instead
     # a JUMP_IF_NOT_EXC_MATCH, which we also handle as boolean based jump.
-    _IGNORED_COMPARE_OPS: Set[Compare] = {Compare.EXC_MATCH}
+    _IGNORED_COMPARE_OPS: set[Compare] = {Compare.EXC_MATCH}
 
     # Conditional jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
@@ -142,7 +142,7 @@ class BranchCoverageInstrumentation(Instrumentation):
     def _instrument_code_recursive(
         self,
         code: CodeType,
-        parent_code_object_id: Optional[int] = None,
+        parent_code_object_id: int | None = None,
     ) -> CodeType:
         """Instrument the given Code Object recursively.
 
@@ -195,7 +195,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Instrument a single node in the CFG.
 
         Currently, we only instrument conditional jumps and for loops.
@@ -208,7 +208,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         Returns:
             A predicate id, if the node contained a predicate which was instrumented.
         """
-        predicate_id: Optional[int] = None
+        predicate_id: int | None = None
         # Not every block has an associated basic block, e.g. the artificial exit node.
         if not node.is_artificial:
             assert (
@@ -216,7 +216,7 @@ class BranchCoverageInstrumentation(Instrumentation):
             ), "Non artificial node does not have a basic block."
             assert len(node.basic_block) > 0, "Empty basic block in CFG."
             maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
-            maybe_compare: Optional[Instr] = (
+            maybe_compare: Instr | None = (
                 node.basic_block[self._COMPARE_OP_POS]
                 if len(node.basic_block) > 1
                 else None
@@ -237,7 +237,7 @@ class BranchCoverageInstrumentation(Instrumentation):
     def _instrument_cond_jump(
         self,
         code_object_id: int,
-        maybe_compare: Optional[Instr],
+        maybe_compare: Instr | None,
         jump: Instr,
         block: BasicBlock,
         node: ProgramGraphNode,
@@ -945,17 +945,17 @@ class DynamicSeedingInstrumentation(Instrumentation):
                 node.basic_block is not None
             ), "Non artificial node does not have a basic block."
             assert len(node.basic_block) > 0, "Empty basic block in CFG."
-            maybe_compare: Optional[Instr] = (
+            maybe_compare: Instr | None = (
                 node.basic_block[self._COMPARE_OP_POS]
                 if len(node.basic_block) > 1
                 else None
             )
-            maybe_string_func: Optional[Instr] = (
+            maybe_string_func: Instr | None = (
                 node.basic_block[self._STRING_FUNC_POS]
                 if len(node.basic_block) > 2
                 else None
             )
-            maybe_string_func_with_arg: Optional[Instr] = (
+            maybe_string_func_with_arg: Instr | None = (
                 node.basic_block[self._STRING_FUNC_POS_WITH_ARG]
                 if len(node.basic_block) > 3
                 else None

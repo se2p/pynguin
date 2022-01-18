@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.assertion.statetrace as ot
+import pynguin.assertion.assertion_trace as at
 from pynguin.testcase.execution import ExecutionResult
 
 
@@ -32,11 +32,6 @@ def test_exceptions(execution_result):
     assert execution_result.exceptions[0] == ex
 
 
-def test_fitness_setter(execution_result):
-    execution_result.fitness = 5.0
-    assert execution_result.fitness == 5.0
-
-
 def test_get_first_position_of_ex(execution_result):
     execution_result.report_new_thrown_exception(5, Exception())
     execution_result.report_new_thrown_exception(3, Exception())
@@ -52,6 +47,6 @@ def test_timeout(execution_result):
 
 
 def test_output_traces(execution_result):
-    trace = MagicMock(ot.StateTrace)
-    execution_result.add_output_trace(str, trace)
-    assert execution_result.output_traces == {str: trace}
+    trace = MagicMock(at.AssertionTrace)
+    execution_result.add_assertion_trace(str, trace)
+    assert execution_result.assertion_traces == {str: trace}

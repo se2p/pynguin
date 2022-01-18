@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -17,14 +17,14 @@ import dataclasses
 import enum
 import logging
 from collections import deque
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union
+from typing import Any, Iterable, Iterator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def has_decorator(
-    func: Union[ast.FunctionDef, ast.AsyncFunctionDef],
-    decorators: Union[str, Iterable[str]],
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+    decorators: str | Iterable[str],
 ) -> bool:
     """Checks whether a function has one or more decorators.
 
@@ -44,7 +44,7 @@ def has_decorator(
     return False
 
 
-def get_docstring(node: ast.AST) -> Optional[str]:
+def get_docstring(node: ast.AST) -> str | None:
     """Retrieves the docstring for an AST node if any.
 
     If the node does not provide a docstring, it raises a ``TypeError``.
@@ -60,7 +60,7 @@ def get_docstring(node: ast.AST) -> Optional[str]:
 
 def get_all_functions(
     tree: ast.AST,
-) -> Iterator[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
+) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
     """Yields all functions from an AST.
 
     Args:
@@ -90,7 +90,7 @@ def get_all_classes(tree: ast.AST) -> Iterator[ast.ClassDef]:
 
 def get_all_methods(
     tree: ast.AST,
-) -> Iterator[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
+) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
     """Yields all methods from an AST.
 
     Args:
@@ -100,13 +100,10 @@ def get_all_methods(
         All methods from the AST
     """
     for class_ in get_all_classes(tree):
-        for func in get_all_functions(class_):
-            yield func
+        yield from get_all_functions(class_)
 
 
-def get_return_type(
-    func: Union[ast.FunctionDef, ast.AsyncFunctionDef]
-) -> Optional[str]:
+def get_return_type(func: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     """Retrieves the return type of a function from the AST.
 
     Args:
@@ -120,9 +117,7 @@ def get_return_type(
     return None
 
 
-def get_line_number_for_function(
-    func: Union[ast.FunctionDef, ast.AsyncFunctionDef]
-) -> int:
+def get_line_number_for_function(func: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     """Retrieves the line number for a function from the AST.
 
     Args:
@@ -142,22 +137,22 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
     """Extracts all functions, methods, and properties from an AST."""
 
     def __init__(self) -> None:
-        self.__callables: Set[Union[ast.FunctionDef, ast.AsyncFunctionDef]] = set()
-        self.__methods: Set[Union[ast.FunctionDef, ast.AsyncFunctionDef]] = set()
-        self.__properties: Set[Union[ast.FunctionDef, ast.AsyncFunctionDef]] = set()
+        self.__callables: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
+        self.__methods: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
+        self.__properties: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
 
     @property
-    def functions(self) -> List[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
+    def functions(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
         """Provides all traced functions."""
         return list(self.__callables - self.__methods - self.__properties)
 
     @property
-    def methods(self) -> List[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
+    def methods(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
         """Provides all traced methods."""
         return list(self.__methods)
 
     @property
-    def properties(self) -> List[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
+    def properties(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
         """Provides all traced properties."""
         return list(self.__properties)
 
@@ -216,7 +211,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.is_abstract: Optional[bool] = None
+        self.is_abstract: bool | None = None
         self.is_static: bool = False
 
     @staticmethod
@@ -257,7 +252,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         )
 
     def __analyse_pure_abstract(
-        self, node: Union[ast.AsyncFunctionDef, ast.FunctionDef]
+        self, node: ast.AsyncFunctionDef | ast.FunctionDef
     ) -> bool:
         if not has_decorator(node, "abstractmethod"):
             return False
@@ -282,7 +277,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         )
 
     @staticmethod
-    def __analyse_static(node: Union[ast.AsyncFunctionDef, ast.FunctionDef]) -> bool:
+    def __analyse_static(node: ast.AsyncFunctionDef | ast.FunctionDef) -> bool:
         return has_decorator(node, "staticmethod")
 
     # pylint: disable=invalid-name, missing-docstring
@@ -302,32 +297,30 @@ class _Context:
     """A context tracking exceptions and symbols."""
 
     def __init__(self) -> None:
-        self.exceptions: Set[str] = set()
+        self.exceptions: set[str] = set()
 
         # If we are in a bare handler, we have to capture new exceptions raised
         # separately from the existing ones.  So, we copy the existing exceptions
         # over here.  This complicates the logic, for the calling class (as
         # contextual operations have to account for two cases), but it does not seem
         # avoidable.
-        self.bare_handler_exceptions: Optional[Set[str]] = None
+        self.bare_handler_exceptions: set[str] | None = None
 
         # A lookup from variable names to AST nodes.  If the variable name occurs in
         # a raise exceptions, then the exception will be added using this lookup.
-        self.variables: Dict[str, Union[str, List[str]]] = {}
+        self.variables: dict[str, str | list[str]] = {}
 
         # The error(s) which the current exception block is handling.
-        self.handling: Optional[List[str]] = None
+        self.handling: list[str] | None = None
 
     def set_in_bare_handler(self) -> None:
         """Move exceptions to bare handler."""
         self.bare_handler_exceptions = set(self.exceptions)
         self.remove_all_exceptions()
 
-    def __get_attr_name(
-        self, attr: Union[ast.Attribute, ast.Name, ast.Tuple]
-    ) -> List[str]:
+    def __get_attr_name(self, attr: ast.Attribute | ast.Name | ast.Tuple) -> list[str]:
         curr: Any = attr
-        parts: List[str] = []
+        parts: list[str] = []
 
         # Assume finite depth of AST here
         while curr:
@@ -338,7 +331,7 @@ class _Context:
                 parts.append(curr.id)
                 curr = None
             elif isinstance(curr, ast.Tuple):
-                names: List[str] = []
+                names: list[str] = []
                 for node in curr.elts:
                     if isinstance(node, (ast.Attribute, ast.Name)):
                         names.extend(self.__get_attr_name(node))
@@ -362,14 +355,14 @@ class _Context:
         return [".".join(parts)]
 
     @staticmethod
-    def __get_name_name(name: Union[ast.Name, ast.Tuple]) -> Union[str, List[str]]:
+    def __get_name_name(name: ast.Name | ast.Tuple) -> str | list[str]:
         assert isinstance(name, (ast.Name, ast.Tuple))
         if isinstance(name, ast.Name):
             return name.id
         return [node.id for node in name.elts if isinstance(node, ast.Name)]
 
     # pylint: disable=too-many-branches, too-many-return-statements
-    def __get_exception_name(self, raises: ast.Raise) -> Union[str, List[str]]:
+    def __get_exception_name(self, raises: ast.Raise) -> str | list[str]:
         if isinstance(raises, str):
             return raises
 
@@ -409,7 +402,7 @@ class _Context:
             _LOGGER.debug("Unexpected type in raises expression: %s", raises.exc)
         return ""
 
-    def add_exception(self, node: ast.Raise) -> Set[str]:
+    def add_exception(self, node: ast.Raise) -> set[str]:
         """Add an exception to the context.
 
         If the exception(s) do not have a name and do not have more children,
@@ -429,7 +422,7 @@ class _Context:
             if self.exceptions:
                 return self.exceptions
             if self.variables:
-                values: Set[str] = set()
+                values: set[str] = set()
                 for value in self.variables.values():
                     if isinstance(value, list):
                         values |= set(value)
@@ -469,9 +462,7 @@ class _Context:
         """Removes all exceptions."""
         self.exceptions.clear()
 
-    def add_variable(
-        self, variable: str, exception: Union[ast.Name, ast.Tuple]
-    ) -> None:
+    def add_variable(self, variable: str, exception: ast.Name | ast.Tuple) -> None:
         """Add a variable to the context
 
         Args:
@@ -480,7 +471,7 @@ class _Context:
         """
         self.variables[variable] = self.__get_name_name(exception)
 
-    def set_handling(self, attr: Union[ast.Attribute, ast.Name, ast.Tuple]) -> None:
+    def set_handling(self, attr: ast.Attribute | ast.Name | ast.Tuple) -> None:
         """Set the handling
 
         Args:
@@ -517,7 +508,7 @@ class _RaiseVisitor(ast.NodeVisitor):
         self.contexts = deque([_Context()])
 
     @property
-    def exceptions(self) -> Set[str]:
+    def exceptions(self) -> set[str]:
         """Provides the set of exceptions that are not handled."""
         return self.contexts[0].exceptions
 
@@ -589,7 +580,7 @@ class _YieldVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.yields: List[Union[ast.Yield, ast.YieldFrom]] = []
+        self.yields: list[ast.Yield | ast.YieldFrom] = []
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_Yield(self, node: ast.Yield) -> ast.AST:
@@ -607,8 +598,8 @@ class _ArgumentVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.arguments: List[str] = []
-        self.types: List[Tuple[str, Optional[str]]] = []
+        self.arguments: list[str] = []
+        self.types: list[tuple[str, str | None]] = []
 
     def __add_arg_by_name(self, name: str, arg: ast.arg) -> None:
         self.arguments.append(name)
@@ -645,7 +636,7 @@ class _VariableVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.variables: List[ast.Name] = []
+        self.variables: list[ast.Name] = []
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_Name(self, node: ast.Name) -> ast.AST:
@@ -659,8 +650,8 @@ class _ReturnVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.returns: List[Optional[ast.Return]] = []
-        self.return_types: List[Optional[ast.AST]] = []
+        self.returns: list[ast.Return | None] = []
+        self.return_types: list[ast.AST | None] = []
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_Return(self, node: ast.Return) -> ast.AST:
@@ -673,7 +664,7 @@ class _AssertVisitor(ast.NodeVisitor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.asserts: List[ast.Assert] = []
+        self.asserts: list[ast.Assert] = []
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_Assert(self, node: ast.Assert) -> ast.AST:
@@ -737,27 +728,27 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
         variables: A list of variables that get defined inside the function
     """
 
-    argument_names: List[str]
-    argument_types: List[Tuple[str, Optional[str]]]
-    docstring: Optional[str]
-    func: Union[ast.AsyncFunctionDef, ast.FunctionDef]
+    argument_names: list[str]
+    argument_types: list[tuple[str, str | None]]
+    docstring: str | None
+    func: ast.AsyncFunctionDef | ast.FunctionDef
     has_empty_return: bool
     has_return: bool
     has_yield: bool
-    is_abstract: Optional[bool]
+    is_abstract: bool | None
     is_method: bool
     is_property: bool
     is_static: bool
     line_number: int
     name: str
-    raises: Set[str]
+    raises: set[str]
     raises_assert: bool
-    return_type: Optional[str]
-    return_value: Optional[ast.Return]
-    variables: List[ast.Name]
+    return_type: str | None
+    return_value: ast.Return | None
+    variables: list[ast.Name]
 
 
-def get_function_descriptions(program: ast.AST) -> List[FunctionDescription]:
+def get_function_descriptions(program: ast.AST) -> list[FunctionDescription]:
     """Extracts the function descriptions from the AST.
 
     Args:
@@ -766,7 +757,7 @@ def get_function_descriptions(program: ast.AST) -> List[FunctionDescription]:
     Returns:
         A list of function descriptions extracted from the AST
     """
-    result: List[FunctionDescription] = []
+    result: list[FunctionDescription] = []
     functions_methods = FunctionAndMethodVisitor()
     functions_methods.visit(program)
     for prop in functions_methods.properties:
@@ -787,7 +778,7 @@ def get_function_descriptions(program: ast.AST) -> List[FunctionDescription]:
 
 
 def __build_function_description(
-    function_type: FunctionType, func: Union[ast.AsyncFunctionDef, ast.FunctionDef]
+    function_type: FunctionType, func: ast.AsyncFunctionDef | ast.FunctionDef
 ) -> FunctionDescription:
     function_analysis = FunctionAnalysisVisitor()
     function_analysis.visit(func)

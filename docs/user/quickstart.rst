@@ -1,4 +1,4 @@
-.. quickstart:
+.. _quickstart:
 
 Quickstart
 ==========
@@ -92,6 +92,7 @@ options that are used for its *DYNAMOSA* algorithm.
 We can also see that it ran zero iterations of that algorithm, i.e.,
 the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
+Pynguin created assertions using :ref:`Mutation Analysis <mutation_analysis>`.
 The output then concludes with its results:
 Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
@@ -111,7 +112,8 @@ and that there are assertions that check for the correct return value.
 
 .. note::
   As of version 0.13.0, Pynguin also provides a better assertion generation based on
-  mutation.  This allows to generate assertions also for more complex data types.
+  mutation. This allows to generate assertions also for more complex data types, see
+  :ref:`assertions <assertions>` for more details.
 
 
 A more complex example
@@ -159,7 +161,7 @@ And that it also generated four failing test cases, one of which looks this:
 .. literalinclude:: ../source/_static/test_queue_example_failing.py
     :linenos:
     :language: python
-    :lines: 20-32
+    :lines: 20-34
 
 Failing test cases hereby are test cases that raised an exception during their execution.
 For now, Pynguin cannot know if an exception is expected program behavior,
@@ -173,4 +175,3 @@ Thus, these test cases are wrapped in ``try-except`` blocks and should be manual
 
   Also many generated assertions might be redundant.  Minimising these is open for a
   future release of Pynguin, too.
-

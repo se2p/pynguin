@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import ast
 from inspect import Parameter
-from typing import TYPE_CHECKING, Any, List, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
 from pynguin.testcase.statement import StatementVisitor
@@ -58,12 +58,12 @@ class StatementToAstVisitor(StatementVisitor):
             variable_names: A naming scope for variable names
             wrap_nodes: If True, wrap the create AST nodes in a try-except block
         """
-        self._ast_nodes: List[ast.stmt] = []
+        self._ast_nodes: list[ast.stmt] = []
         self._variable_names = variable_names
         self._module_aliases = module_aliases
         self._wrap_nodes = wrap_nodes
 
-    def append_nodes(self, statements: List[ast.stmt]) -> None:
+    def append_nodes(self, statements: list[ast.stmt]) -> None:
         """Add additional nodes to the already generated nodes.
 
         Args:
@@ -74,7 +74,7 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_nodes.extend(statements)
 
     @property
-    def ast_nodes(self) -> List[ast.stmt]:
+    def ast_nodes(self) -> list[ast.stmt]:
         """Get the list of generated AST nodes.
 
         In case the `wrap_nodes` property was set, the nodes will be wrapped in
@@ -89,7 +89,7 @@ class StatementToAstVisitor(StatementVisitor):
             A list of AST nodes
         """
         if self._wrap_nodes:
-            nodes: List[ast.stmt] = [
+            nodes: list[ast.stmt] = [
                 ast.Try(
                     body=self._ast_nodes,
                     handlers=[
@@ -365,7 +365,7 @@ class StatementToAstVisitor(StatementVisitor):
             value=ast.Constant(value=stmt.value),
         )
 
-    def _create_args(self, stmt: ParametrizedStatement) -> List[ast.expr]:
+    def _create_args(self, stmt: ParametrizedStatement) -> list[ast.expr]:
         """Creates the positional arguments, i.e., POSITIONAL_ONLY,
         POSITIONAL_OR_KEYWORD and VAR_POSITIONAL.
 
@@ -375,7 +375,7 @@ class StatementToAstVisitor(StatementVisitor):
         Returns:
             A list of AST statements
         """
-        args: List[ast.expr] = []
+        args: list[ast.expr] = []
         gen_callable: GenericCallableAccessibleObject = cast(
             GenericCallableAccessibleObject, stmt.accessible_object()
         )
@@ -411,7 +411,7 @@ class StatementToAstVisitor(StatementVisitor):
                     )
         return args
 
-    def _create_kw_args(self, stmt: ParametrizedStatement) -> List[ast.keyword]:
+    def _create_kw_args(self, stmt: ParametrizedStatement) -> list[ast.keyword]:
         """Creates the keyword arguments, i.e., KEYWORD_ONLY or VAR_KEYWORD.
 
         Args:

@@ -1,13 +1,15 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract base class for MOSA and its derivatives."""
+from __future__ import annotations
+
 import logging
 from abc import ABCMeta
-from typing import List, cast
+from typing import cast
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -27,11 +29,11 @@ class AbstractMOSATestStrategy(
 
     def __init__(self) -> None:
         super().__init__()
-        self._population: List[tcc.TestCaseChromosome] = []
+        self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
 
-    def _breed_next_generation(self) -> List[tcc.TestCaseChromosome]:
-        offspring_population: List[tcc.TestCaseChromosome] = []
+    def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:
+        offspring_population: list[tcc.TestCaseChromosome] = []
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
             parent_2 = self._selection_function.select(self._population)[0]
@@ -86,15 +88,15 @@ class AbstractMOSATestStrategy(
             offspring.mutate()
 
     def _get_non_dominated_solutions(
-        self, solutions: List[tcc.TestCaseChromosome]
-    ) -> List[tcc.TestCaseChromosome]:
+        self, solutions: list[tcc.TestCaseChromosome]
+    ) -> list[tcc.TestCaseChromosome]:
         comparator: DominanceComparator[tcc.TestCaseChromosome] = DominanceComparator(
             goals=self._archive.covered_goals
         )
-        next_front: List[tcc.TestCaseChromosome] = []
+        next_front: list[tcc.TestCaseChromosome] = []
         for solution in solutions:
             is_dominated = False
-            dominated_solutions: List[tcc.TestCaseChromosome] = []
+            dominated_solutions: list[tcc.TestCaseChromosome] = []
             for best in next_front:
                 flag = comparator.compare(solution, best)
                 if flag < 0:
@@ -109,12 +111,12 @@ class AbstractMOSATestStrategy(
                     next_front.remove(dominated_solution)
         return next_front
 
-    def _get_random_population(self) -> List[tcc.TestCaseChromosome]:
-        population: List[tcc.TestCaseChromosome] = []
+    def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
+        population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
             population.append(chromosome)
         return population
 
-    def _get_best_individuals(self) -> List[tcc.TestCaseChromosome]:
+    def _get_best_individuals(self) -> list[tcc.TestCaseChromosome]:
         return self._get_non_dominated_solutions(self._population)

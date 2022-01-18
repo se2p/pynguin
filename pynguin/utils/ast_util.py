@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -20,7 +20,7 @@ def create_full_name(
     module_names: ns.AbstractNamingScope,
     var: vr.Reference,
     load: bool,
-) -> typing.Union[ast.Name, ast.Attribute]:
+) -> ast.Name | ast.Attribute:
     """Create a name node for the corresponding variable.
 
     Args:
@@ -36,7 +36,7 @@ def create_full_name(
     loads = [True for _ in names[:-1]]
     loads.append(load)
     # First has to be ast.Name
-    res: typing.Union[ast.Name, ast.Attribute] = create_ast_name(names[0], not loads[0])
+    res: ast.Name | ast.Attribute = create_ast_name(names[0], not loads[0])
     # Remaining are ast.Attribute
     for name, loa in zip(names[1:], loads[1:]):
         res = create_ast_attribute(name, res, not loa)

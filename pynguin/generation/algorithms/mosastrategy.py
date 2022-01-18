@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
@@ -69,12 +69,12 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: List[
+        offspring_population: list[
             tcc.TestCaseChromosome
         ] = self._breed_next_generation()
 
         # Create union of parents and offspring
-        union: List[tcc.TestCaseChromosome] = []
+        union: list[tcc.TestCaseChromosome] = []
         union.extend(self._population)
         union.extend(offspring_population)
 

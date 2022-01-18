@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -15,9 +15,7 @@ from pynguin.testcase.execution import ExecutionContext, ModuleProvider
 
 def test_get_reference_value():
     ctx = ExecutionContext(ModuleProvider())
-    ref = vr.StaticModuleFieldReference(
-        gao.GenericStaticModuleField("sys", "modules", dict)
-    )
+    ref = vr.VariableReference(MagicMock(), int)
     with pytest.raises(ValueError):
         ctx.get_reference_value(ref)
 
@@ -29,7 +27,7 @@ def test_get_reference_value_2():
         vr.StaticModuleFieldReference(gao.GenericStaticModuleField("sys", "foo", int)),
         gao.GenericField(MagicMock, "bar", int),
     )
-    ctx._global_namespace = {ctx._modules_aliases.get_name("sys"): module_mock}
+    ctx._global_namespace = {ctx._module_aliases.get_name("sys"): module_mock}
     assert ctx.get_reference_value(ref) == 5
 
 

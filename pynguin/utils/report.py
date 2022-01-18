@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -14,7 +14,6 @@ import inspect
 import sys
 import typing
 from pathlib import Path
-from typing import Dict, List
 
 import pygments
 from jinja2 import Template
@@ -90,7 +89,7 @@ class CoverageReport:
     module: str
 
     # Raw source code of the module under test
-    source: List[str]
+    source: list[str]
 
     # Achieved branch coverage
     branch_coverage: float
@@ -101,7 +100,7 @@ class CoverageReport:
     # Information about total covered branchless code objects
     branchless_code_objects: CoverageEntry
 
-    line_annotations: List[LineAnnotation]
+    line_annotations: list[LineAnnotation]
 
 
 # pylint:disable=too-many-locals
@@ -211,8 +210,8 @@ def _get_line_to_branchless_code_object_coverage(known_data, trace):
 
 def _get_line_annotations(
     lineno: int,
-    code_object_coverage: Dict[int, CoverageEntry],
-    predicate_coverage: Dict[int, CoverageEntry],
+    code_object_coverage: dict[int, CoverageEntry],
+    predicate_coverage: dict[int, CoverageEntry],
 ) -> LineAnnotation:
     """Compute line annotation for the given line no.
 

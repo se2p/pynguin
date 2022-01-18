@@ -1,13 +1,15 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a strategy implementation that uses type hints."""
+from __future__ import annotations
+
 import inspect
 import typing
-from typing import Callable, Dict, Optional
+from typing import Callable
 
 from pynguin.typeinference.strategy import InferredSignature, TypeInferenceStrategy
 from pynguin.utils.type_utils import wrap_var_param_type
@@ -28,7 +30,7 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
     @staticmethod
     def _infer_type_info_for_callable(method: Callable) -> InferredSignature:
         signature = inspect.signature(method)
-        parameters: Dict[str, Optional[type]] = {}
+        parameters: dict[str, type | None] = {}
         hints = typing.get_type_hints(method)
         for param_name in signature.parameters:
             if param_name == "self":
@@ -37,7 +39,7 @@ class TypeHintsInferenceStrategy(TypeInferenceStrategy):
             hint = wrap_var_param_type(hint, signature.parameters[param_name].kind)
             parameters[param_name] = hint
 
-        return_type: Optional[type] = hints.get("return", None)
+        return_type: type | None = hints.get("return", None)
 
         return InferredSignature(
             signature=signature, parameters=parameters, return_type=return_type

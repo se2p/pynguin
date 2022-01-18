@@ -6,7 +6,7 @@
 #
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Set
+from typing import List
 from unittest import mock
 
 import pynguin.testcase.defaulttestcase as dtc
@@ -19,7 +19,7 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     def structural_eq(
         self,
         other: stmt.Statement,
-        memo: Dict[vr.VariableReference, vr.VariableReference],
+        memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
         return True  # pragma: no cover
 
@@ -31,7 +31,7 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     ) -> vr.VariableReference:
         return self.elements[0]
 
-    def _insertion_supplier(self) -> Optional[vr.VariableReference]:
+    def _insertion_supplier(self) -> vr.VariableReference | None:
         return self.elements[0]
 
     def clone(
@@ -42,7 +42,7 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     def accept(self, visitor: stmt.StatementVisitor) -> None:
         pass  # pragma: no cover
 
-    def get_variable_references(self) -> Set[vr.VariableReference]:
+    def get_variable_references(self) -> set[vr.VariableReference]:
         pass  # pragma: no cover
 
     def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:

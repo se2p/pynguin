@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 import typing
 from abc import ABCMeta, abstractmethod
-from typing import Generic, List, Tuple, TypeVar, overload
+from typing import Generic, TypeVar, overload
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.statisticsbackend as sb
@@ -59,8 +59,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
     def __init__(self, variable: stat.RuntimeVariable) -> None:
         self._variable = variable
-        self._time_stamps: List[int] = []
-        self._values: List[T] = []
+        self._time_stamps: list[int] = []
+        self._values: list[T] = []
         self._start_time: int = 0
 
     def set_start_time(self, start_time: int) -> None:
@@ -108,7 +108,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._time_stamps.append(time.time_ns() - self._start_time)
         self._values.append(value)
 
-    def get_variable_names_indices(self) -> List[Tuple[int, str]]:
+    def get_variable_names_indices(self) -> list[tuple[int, str]]:
         """Provides a list of variable names
 
         Returns:
@@ -119,7 +119,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             for i in range(self._calculate_number_of_intervals())
         ]
 
-    def get_output_variables(self) -> List[sb.OutputVariable[T]]:
+    def get_output_variables(self) -> list[sb.OutputVariable[T]]:
         """Provides the output variables
 
         Returns:

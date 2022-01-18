@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -16,7 +16,7 @@ from importlib.abc import FileLoader, MetaPathFinder
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
 from types import CodeType
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
@@ -55,12 +55,11 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        instrumentations: List[Instrumentation] = []
+        instrumentations: list[Instrumentation] = []
         if config.configuration.statistics_output.statement_coverage:
             instrumentations.append(StatementCoverageInstrumentation(self._tracer))
         else:
             instrumentations.append(BranchCoverageInstrumentation(self._tracer))
-
         if config.configuration.seeding.dynamic_constant_seeding:
             instrumentations.append(
                 DynamicSeedingInstrumentation(dynamic_constant_seeding)

@@ -1,13 +1,13 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a test suite chromosome."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -24,10 +24,9 @@ class TestSuiteChromosome(chrom.Chromosome):
 
     def __init__(
         self,
-        test_case_chromosome_factory: Optional[
-            cf.ChromosomeFactory[tcc.TestCaseChromosome]
-        ] = None,
-        orig: Optional[TestSuiteChromosome] = None,
+        test_case_chromosome_factory: None
+        | (cf.ChromosomeFactory[tcc.TestCaseChromosome]) = None,
+        orig: TestSuiteChromosome | None = None,
     ):
         """
         Create new test suite chromosome.
@@ -41,10 +40,10 @@ class TestSuiteChromosome(chrom.Chromosome):
         super().__init__(orig=orig)
 
         if orig is None:
-            self._test_case_chromosome_factory: Optional[
+            self._test_case_chromosome_factory: None | (
                 cf.ChromosomeFactory[tcc.TestCaseChromosome]
-            ] = test_case_chromosome_factory
-            self._test_case_chromosomes: List[tcc.TestCaseChromosome] = []
+            ) = test_case_chromosome_factory
+            self._test_case_chromosomes: list[tcc.TestCaseChromosome] = []
         else:
             self._test_case_chromosomes = [
                 chromosome.clone() for chromosome in orig._test_case_chromosomes
@@ -72,7 +71,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         except ValueError:
             pass
 
-    def add_test_case_chromosomes(self, tests: List[tcc.TestCaseChromosome]) -> None:
+    def add_test_case_chromosomes(self, tests: list[tcc.TestCaseChromosome]) -> None:
         """Adds a list of test cases to the test suite.
 
         Args:
@@ -102,7 +101,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         return self._test_case_chromosomes[index]
 
     @property
-    def test_case_chromosomes(self) -> List[tcc.TestCaseChromosome]:
+    def test_case_chromosomes(self) -> list[tcc.TestCaseChromosome]:
         """Provides all test chromosomes.
 
         Returns:
@@ -131,7 +130,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         return len(self._test_case_chromosomes)
 
     def length(self) -> int:
-        return sum([test.length() for test in self._test_case_chromosomes])
+        return sum(test.length() for test in self._test_case_chromosomes)
 
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
@@ -209,4 +208,4 @@ class TestSuiteChromosome(chrom.Chromosome):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum([17 * hash(t) for t in self._test_case_chromosomes])
+        return 31 + sum(17 * hash(t) for t in self._test_case_chromosomes)

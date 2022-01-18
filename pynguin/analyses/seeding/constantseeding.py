@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -11,8 +11,9 @@ import ast
 import logging
 import os
 from abc import abstractmethod
+from pathlib import Path
 from pkgutil import iter_modules
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Union, cast
 
 from _py_abc import ABCMeta
 from ordered_set import OrderedSet
@@ -56,7 +57,7 @@ class _ConstantSeeding(metaclass=ABCMeta):
         return self.has_constants(float)
 
     @abstractmethod
-    def has_constants(self, type_: Type[Types]) -> bool:
+    def has_constants(self, type_: type[Types]) -> bool:
         """Returns whether a constant of a given type exists in the pool.
 
         Args:
@@ -94,7 +95,7 @@ class _ConstantSeeding(metaclass=ABCMeta):
         return cast(float, self.random_element(float))
 
     @abstractmethod
-    def random_element(self, type_: Type[Types]) -> Types:
+    def random_element(self, type_: type[Types]) -> Types:
         """Provides a random element of the given type
 
         Args:
@@ -112,14 +113,14 @@ class _StaticConstantSeeding(_ConstantSeeding):
     """
 
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+        self._constants: dict[type[Types], OrderedSet[Types]] = {
             int: OrderedSet(),
             float: OrderedSet(),
             str: OrderedSet(),
         }
 
     @staticmethod
-    def _find_modules(project_path: Union[str, os.PathLike]) -> OrderedSet[str]:
+    def _find_modules(project_path: str | os.PathLike) -> OrderedSet[str]:
         modules: OrderedSet[str] = OrderedSet()
         for package in find_packages(
             project_path,
@@ -139,12 +140,17 @@ class _StaticConstantSeeding(_ConstantSeeding):
             for info in iter_modules([pkg_path]):
                 if not info.ispkg:
                     name = info.name.replace(".", "/")
-                    modules.add(f"{package_name}/{name}.py")
+                    module = f"{package_name}/{name}.py"
+                    module_path = Path(project_path) / Path(module)
+                    if module_path.exists() and module_path.is_file():
+                        # Consider only Python files for constant seeding, as the
+                        # seeding relies on the availability of an AST.
+                        modules.add(module)
         return modules
 
     def collect_constants(
-        self, project_path: Union[str, os.PathLike]
-    ) -> Dict[Type[Types], OrderedSet[Types]]:
+        self, project_path: str | os.PathLike
+    ) -> dict[type[Types], OrderedSet[Types]]:
         """Collect all constants for a given project.
 
         Args:
@@ -167,11 +173,11 @@ class _StaticConstantSeeding(_ConstantSeeding):
         self._constants = collector.constants
         return self._constants
 
-    def has_constants(self, type_: Type[Types]) -> bool:
+    def has_constants(self, type_: type[Types]) -> bool:
         assert self._constants is not None
         return len(self._constants[type_]) > 0
 
-    def random_element(self, type_: Type[Types]) -> Types:
+    def random_element(self, type_: type[Types]) -> Types:
         assert self._constants is not None
         return randomness.choice(tuple(self._constants[type_]))
 
@@ -179,7 +185,7 @@ class _StaticConstantSeeding(_ConstantSeeding):
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     def __init__(self) -> None:
-        self._constants: Dict[Type[Types], OrderedSet[Types]] = {
+        self._constants: dict[type[Types], OrderedSet[Types]] = {
             float: OrderedSet(),
             int: OrderedSet(),
             str: OrderedSet(),
@@ -213,7 +219,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self.generic_visit(node)
 
     @property
-    def constants(self) -> Dict[Type[Types], OrderedSet[Types]]:
+    def constants(self) -> dict[type[Types], OrderedSet[Types]]:
         """Provides the collected constants.
 
         Returns:
@@ -259,7 +265,7 @@ class DynamicConstantSeeding(_ConstantSeeding):
     }
 
     def __init__(self):
-        self._dynamic_pool: Dict[Type[Types], OrderedSet[Types]] = {
+        self._dynamic_pool: dict[type[Types], OrderedSet[Types]] = {
             int: OrderedSet(),
             float: OrderedSet(),
             str: OrderedSet(),
@@ -270,11 +276,11 @@ class DynamicConstantSeeding(_ConstantSeeding):
         for elem in self._dynamic_pool.values():
             elem.clear()
 
-    def has_constants(self, type_: Type[Types]) -> bool:
+    def has_constants(self, type_: type[Types]) -> bool:
         assert type_ in self._dynamic_pool
         return len(self._dynamic_pool[type_]) > 0
 
-    def random_element(self, type_: Type[Types]) -> Types:
+    def random_element(self, type_: type[Types]) -> Types:
         return randomness.choice(tuple(self._dynamic_pool[type_]))
 
     def add_value(self, value: Types):

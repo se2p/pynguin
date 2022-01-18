@@ -1,13 +1,13 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides a comparator for preference sorting."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
 
@@ -28,7 +28,7 @@ class PreferenceSortingComparator(Generic[C]):
         self._objective = goal
 
     # pylint: disable=too-many-return-statements
-    def compare(self, solution_1: Optional[C], solution_2: Optional[C]) -> int:
+    def compare(self, solution_1: C | None, solution_2: C | None) -> int:
         """Compare the fitness value of two chromosome objects focusing only on one
         goal.
 

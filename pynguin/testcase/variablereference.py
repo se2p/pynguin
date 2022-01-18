@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from pynguin.utils import type_utils
 from pynguin.utils.type_utils import is_type_unknown
@@ -30,11 +30,11 @@ class Reference(metaclass=ABCMeta):
     Here, foo_0, int_0 and foo_0.bar are references.
     """
 
-    def __init__(self, tp_: Optional[Type]) -> None:
+    def __init__(self, tp_: type | None) -> None:
         self._type = tp_
 
     @property
-    def type(self) -> Optional[Type]:
+    def type(self) -> type | None:
         """Provides the type of this reference.
 
         Returns:
@@ -71,7 +71,7 @@ class Reference(metaclass=ABCMeta):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         """Get the names involved when addressing this reference.
 
         Args:
@@ -85,7 +85,7 @@ class Reference(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clone(self, memo: Dict[VariableReference, VariableReference]) -> Reference:
+    def clone(self, memo: dict[VariableReference, VariableReference]) -> Reference:
         """Clone this reference.
 
         Args:
@@ -98,7 +98,7 @@ class Reference(metaclass=ABCMeta):
 
     @abstractmethod
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         """Compare if this reference is the same as the other.
 
@@ -121,7 +121,7 @@ class Reference(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         """Provide the variable reference used in this reference
 
         Returns: The variable reference used here, if any.
@@ -149,7 +149,7 @@ class VariableReference(Reference):
     to check for equality. The other reference do implement eq/hash.
     """
 
-    def __init__(self, test_case: tc.TestCase, tp_: Optional[Type]):
+    def __init__(self, test_case: tc.TestCase, tp_: type | None):
         super().__init__(tp_)
         self._test_case = test_case
         self._distance = 0
@@ -186,16 +186,16 @@ class VariableReference(Reference):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         return [variable_names.get_name(self)]
 
     def clone(
-        self, memo: Dict[VariableReference, VariableReference]
+        self, memo: dict[VariableReference, VariableReference]
     ) -> VariableReference:
         return memo[self]
 
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, VariableReference):
             return False
@@ -221,7 +221,7 @@ class VariableReference(Reference):
             "Variable reference is not declared in the test case in which it is used"
         )
 
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         return self
 
     def replace_variable_reference(
@@ -261,16 +261,16 @@ class FieldReference(Reference):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         lst = self._source.get_names(variable_names, module_names)
         lst.append(self._field.field)
         return lst
 
-    def clone(self, memo: Dict[VariableReference, VariableReference]) -> FieldReference:
+    def clone(self, memo: dict[VariableReference, VariableReference]) -> FieldReference:
         return FieldReference(self._source.clone(memo), self._field)
 
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, FieldReference):
             return False
@@ -289,7 +289,7 @@ class FieldReference(Reference):
     def __hash__(self):
         return hash((self._field, self._source))
 
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         return self._source.get_variable_reference()
 
     def replace_variable_reference(
@@ -302,7 +302,7 @@ class FieldReference(Reference):
 
 
 class StaticFieldReference(Reference):
-    """A reference to a static field."""
+    """A reference to a static field of a class."""
 
     def __init__(self, field: gao.GenericStaticField):
         super().__init__(field.generated_type())
@@ -321,7 +321,7 @@ class StaticFieldReference(Reference):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         assert self._field.owner is not None
         return [
             module_names.get_name(self._field.owner.__module__),
@@ -330,12 +330,12 @@ class StaticFieldReference(Reference):
         ]
 
     def clone(
-        self, memo: Dict[VariableReference, VariableReference]
+        self, memo: dict[VariableReference, VariableReference]
     ) -> StaticFieldReference:
         return StaticFieldReference(self._field)
 
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, StaticFieldReference):
             return False
@@ -350,7 +350,7 @@ class StaticFieldReference(Reference):
     def __hash__(self):
         return self.structural_hash()
 
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         return None
 
     def replace_variable_reference(
@@ -381,16 +381,16 @@ class StaticModuleFieldReference(Reference):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         return [module_names.get_name(self._field.module), self._field.field]
 
     def clone(
-        self, memo: Dict[VariableReference, VariableReference]
+        self, memo: dict[VariableReference, VariableReference]
     ) -> StaticModuleFieldReference:
         return StaticModuleFieldReference(self._field)
 
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, StaticModuleFieldReference):
             return False
@@ -405,7 +405,7 @@ class StaticModuleFieldReference(Reference):
     def __hash__(self):
         return self.structural_hash()
 
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         return None
 
     def replace_variable_reference(

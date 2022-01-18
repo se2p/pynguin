@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2021 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from ast import stmt
-from typing import TYPE_CHECKING, List, Set
+from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -30,12 +30,12 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         """The module aliases are shared between test cases.
 
         Args:
-            wrap_code: Whether or not exported code shall be wrapped
+            wrap_code: Whether the exported code shall be wrapped
         """
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
-        self._common_modules: Set[str] = set()
-        self._test_case_asts: List[List[stmt]] = []
+        self._common_modules: set[str] = set()
+        self._test_case_asts: list[list[stmt]] = []
         self._wrap_code = wrap_code
 
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
@@ -55,7 +55,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._test_case_asts.append(statement_visitor.ast_nodes)
 
     @property
-    def test_case_asts(self) -> List[List[stmt]]:
+    def test_case_asts(self) -> list[list[stmt]]:
         """Provides the generated asts for each test case.
 
         Returns:
@@ -73,7 +73,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         return self._module_aliases
 
     @property
-    def common_modules(self) -> Set[str]:
+    def common_modules(self) -> set[str]:
         """Provides the common modules that were used when transforming all test cases.
         This is used, because common modules (e.g., math) should not be aliased.
 
