@@ -230,18 +230,14 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on statements covered and entered code objects."""
 
-    def __init__(self, executor):
-        super().__init__(executor)
-
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
+        existing_statements = self._executor.tracer.get_known_data().existing_statements
 
-        return sum(
-            len(lines) for lines in self._executor.tracer.get_known_data().existing_statements.values()
-        ) - sum(
-            len(lines) for lines in merged_trace.covered_statements.values()
-        )
+        existing = sum(len(lines) for lines in existing_statements.values())
+        covered = sum(len(lines) for lines in merged_trace.covered_statements.values())
+        return existing - covered
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -720,7 +716,8 @@ def compute_statement_coverage_fitness_is_covered(
         True, if all statements were covered, false otherwise
     """
     return sum(len(lines) for lines in trace.covered_statements.values()) == sum(
-        len(lines) for lines in known_data.existing_statements.values())
+        len(lines) for lines in known_data.existing_statements.values()
+    )
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:

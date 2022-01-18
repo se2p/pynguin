@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     )
 
 
+# pylint:disable=too-few-public-methods
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 
@@ -353,7 +354,7 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def __init__(self, executor: TestCaseExecutor, goal: StatementCoverageGoal):
         # TODO(SiL) handle this differently
-        super().__init__(executor, None)
+        super().__init__(executor, 42)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:

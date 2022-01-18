@@ -335,7 +335,7 @@ class ExecutionTrace:
 
     @staticmethod
     def _merge_covered_statements(
-        target: Dict[str, OrderedSet[int]], source: Dict[str, OrderedSet[int]]
+        target: dict[str, OrderedSet[int]], source: dict[str, OrderedSet[int]]
     ) -> None:
         """Merge source covered statements into target covered statement data.
 
@@ -410,7 +410,7 @@ class KnownData:
     existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
     # stores which files contain which lines
-    existing_statements: Dict[str, OrderedSet[int]] = field(default_factory=dict)
+    existing_statements: dict[str, OrderedSet[int]] = field(default_factory=dict)
 
 
 class ExecutionTracer:

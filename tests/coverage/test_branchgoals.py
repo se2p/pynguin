@@ -7,10 +7,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pynguin.testcase.execution import ExecutionTracer
 import importlib
 import inspect
 import threading
@@ -474,7 +470,9 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
                 bg.StatementCoverageTestFitness(executor_mock, line_goal)
             )
 
-        with mock.patch.object(bg.StatementCoverageTestFitness, "_run_test_case_chromosome") as run_suite_mock:
+        with mock.patch.object(
+            bg.StatementCoverageTestFitness, "_run_test_case_chromosome"
+        ) as run_suite_mock:
             result = ExecutionResult()
             trace_mock.covered_statements = {file_name: {1, 2, 8, 9, 10}}
             result.execution_trace = trace_mock

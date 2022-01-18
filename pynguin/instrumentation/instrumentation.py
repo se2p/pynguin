@@ -305,7 +305,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
         # it to the tracer.
-        block[self._JUMP_OP_POS: self._JUMP_OP_POS] = [
+        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             Instr("DUP_TOP", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
@@ -359,7 +359,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
@@ -399,7 +399,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._JUMP_OP_POS: self._JUMP_OP_POS] = [
+        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
@@ -592,8 +592,9 @@ class StatementCoverageInstrumentation(Instrumentation):
             if node.basic_block and not node.is_artificial:
                 block: BasicBlock = node.basic_block
 
-                #  iterate over statements after the fist one in BB, always track newline
-                #  when the lineno attribute of an instruction is another than before
+                #  iterate over statements after the fist one in BB,
+                #  always track newline when the lineno attribute
+                #  of an instruction is another than before
                 lineno = -1
                 instr_index = 0
                 while instr_index < len(block):
@@ -640,10 +641,12 @@ class StatementCoverageInstrumentation(Instrumentation):
 
     def _node_needs_instrumentation(self, node: ProgramGraphNode, file_name: str):
         """Checks if a node is part of manually written code.
-        An empty return value that is implicitly added on the same line as the last statement should not be
-        instrumented, otherwise the last line of a function will always be considered covered.
-        However, a manually added line "return None" should be considered. For this, we check if the line
-        that contains the return statement already is tracked through another statement.
+        An empty return value that is implicitly added on the same line as
+        the last statement should not be instrumented, otherwise the last
+        line of a function will always be considered covered.
+        However, a manually added line "return None" should be considered.
+        For this, we check if the line that contains the return statement
+        already is tracked through another statement.
 
         Args:
             node: The node that needs to be checked
@@ -851,7 +854,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
             block: The containing basic block.
         """
         lineno = block[self._COMPARE_OP_POS].lineno
-        block[self._COMPARE_OP_POS: self._COMPARE_OP_POS] = [
+        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             Instr("DUP_TOP_TWO", lineno=lineno),
             Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
             Instr(
