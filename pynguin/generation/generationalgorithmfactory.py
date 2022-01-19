@@ -305,14 +305,18 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
         ):
-            fitness_functions = []
-            if config.configuration.statistics_output.statement_coverage:
-                fitness_functions = bg.create_statement_coverage_fitness_functions(
-                    self._executor
+            fitness_functions = OrderedSet()
+            coverage_metrics = config.configuration.statistics_output.coverage_metrics
+            if config.CoverageMetric.STATEMENT in coverage_metrics:
+                fitness_functions.update(
+                    bg.create_statement_coverage_fitness_functions(self._executor)
                 )
-            else:
-                fitness_functions = bg.create_branch_coverage_fitness_functions(
-                    self._executor, strategy.branch_goal_pool
+
+            if config.CoverageMetric.BRANCH in coverage_metrics:
+                fitness_functions.update(
+                    bg.create_branch_coverage_fitness_functions(
+                        self._executor, strategy.branch_goal_pool
+                    )
                 )
             self._logger.info(
                 "Instantiated %d fitness functions", len(fitness_functions)
@@ -323,20 +327,30 @@ class TestSuiteGenerationAlgorithmFactory(
     def _get_test_suite_fitness_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
-        return (
-            OrderedSet([ff.StatementTestSuiteFitnessFunction(self._executor)])
-            if config.configuration.statistics_output.statement_coverage
-            else OrderedSet([ff.BranchDistanceTestSuiteFitnessFunction(self._executor)])
-        )
+        test_suite_ffs = OrderedSet()
+        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        if config.CoverageMetric.STATEMENT in coverage_metrics:
+            test_suite_ffs.update(
+                [ff.StatementTestSuiteFitnessFunction(self._executor)]
+            )
+        if config.CoverageMetric.BRANCH in coverage_metrics:
+            test_suite_ffs.update(
+                [ff.BranchDistanceTestSuiteFitnessFunction(self._executor)]
+            )
+        return test_suite_ffs
 
     def _get_test_suite_coverage_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
-        return (
-            OrderedSet([ff.TestSuiteStatementCoverageFunction(self._executor)])
-            if config.configuration.statistics_output.statement_coverage
-            else OrderedSet([ff.TestSuiteBranchCoverageFunction(self._executor)])
-        )
+        test_suite_ffs = OrderedSet()
+        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        if config.CoverageMetric.STATEMENT in coverage_metrics:
+            test_suite_ffs.update(
+                [ff.TestSuiteStatementCoverageFunction(self._executor)]
+            )
+        if config.CoverageMetric.BRANCH in coverage_metrics:
+            test_suite_ffs.update([ff.TestSuiteBranchCoverageFunction(self._executor)])
+        return test_suite_ffs
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):
         search_alg = config.configuration.search_algorithm

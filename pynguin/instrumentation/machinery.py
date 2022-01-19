@@ -56,10 +56,12 @@ class InstrumentationLoader(SourceFileLoader):
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
         instrumentations: list[Instrumentation] = []
-        if config.configuration.statistics_output.statement_coverage:
-            instrumentations.append(StatementCoverageInstrumentation(self._tracer))
-        else:
+        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        if config.CoverageMetric.BRANCH in coverage_metrics:
             instrumentations.append(BranchCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.STATEMENT in coverage_metrics:
+            instrumentations.append(StatementCoverageInstrumentation(self._tracer))
+
         if config.configuration.seeding.dynamic_constant_seeding:
             instrumentations.append(
                 DynamicSeedingInstrumentation(dynamic_constant_seeding)

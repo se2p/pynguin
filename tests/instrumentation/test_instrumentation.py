@@ -236,9 +236,7 @@ def test_integrate_statement_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "multi_loop")
     instr = StatementCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__
-    )
+    function_callable.__code__ = instr.instrument_module(function_callable.__code__)
 
     # only one file was instrumented
     assert len(tracer.get_known_data().existing_statements) == 1

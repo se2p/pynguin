@@ -66,20 +66,36 @@ def _expand_arguments_if_necessary(arguments: list[str]) -> list[str]:
     function allows to provide the output variables either separated by spaces or by
     commas, which works as a work-around for the aforementioned problem.
 
-    This function replaces the commas for the ``--output-variables`` parameter by spaces
-    that can then be handled by the argument-parsing code.
+    This function replaces the commas for the ``--output-variables`` parameter and
+    the ``--coverage-metrics`` by spaces that can then be handled by the argument-
+    parsing code.
 
     Args:
         arguments: The list of command-line arguments
     Returns:
         The (potentially) processed list of command-line arguments
     """
-    if "--output_variables" not in arguments and "--output-variables" not in arguments:
+    if (
+        "--output_variables" not in arguments
+        and "--output-variables" not in arguments
+        and "--coverage_metrics" not in arguments
+        and "--coverage-metrics" not in arguments
+    ):
         return arguments
     if "--output_variables" in arguments:
-        index = arguments.index("--output_variables")
-    else:
-        index = arguments.index("--output-variables")
+        arguments = _parse_comma_separated_option(arguments, "--output_variables")
+    elif "--output-variables" in arguments:
+        arguments = _parse_comma_separated_option(arguments, "--output-variables")
+
+    if "--coverage_metrics" in arguments:
+        arguments = _parse_comma_separated_option(arguments, "--coverage_metrics")
+    elif "--coverage-metrics" in arguments:
+        arguments = _parse_comma_separated_option(arguments, "--coverage-metrics")
+    return arguments
+
+
+def _parse_comma_separated_option(arguments: list[str], option: str):
+    index = arguments.index(option)
     if "," not in arguments[index + 1]:
         return arguments
     variables = arguments[index + 1].split(",")
