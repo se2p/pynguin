@@ -7,7 +7,7 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
-from typing import Optional
+from typing import List, Optional
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -191,14 +191,14 @@ class StatisticsOutputConfiguration:
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    coverage_metrics: list[CoverageMetric] = dataclasses.field(
+    coverage_metrics: List[CoverageMetric] = dataclasses.field(
         default_factory=lambda: [
             CoverageMetric.BRANCH,
         ]
     )
-    """Set of coverage metrics that are optimised during the search"""
+    """List of coverage metrics that are optimised during the search"""
 
-    output_variables: list[RuntimeVariable] = dataclasses.field(
+    output_variables: List[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
