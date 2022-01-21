@@ -575,33 +575,8 @@ class StatementCoverageInstrumentation(Instrumentation):
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
 
-        self._track_available_lines(
-            cfg, code.co_filename
-        )  # info about all lines is required for instrumentation
         self._instrument_cfg(cfg, code.co_filename)
         return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
-
-    def _track_available_lines(self, cfg: CFG, file_name: str) -> None:
-        """Tracks all available lines in the cfg.
-
-        Args:
-            cfg: The CFG that overlays the bytecode cfg.
-            file_name: The file that produced the code object of this CFG.
-        """
-        for node in cfg.nodes:
-            if node.basic_block and not node.is_artificial:
-                block: BasicBlock = node.basic_block
-
-                #  iterate over statements after the fist one in BB,
-                #  always track newline when the lineno attribute
-                #  of an instruction is another than before
-                lineno = -1
-                instr_index = 0
-                while instr_index < len(block):
-                    if block[instr_index].lineno != lineno:
-                        lineno = block[instr_index].lineno
-                        self._tracer.track_statement(file_name, lineno)
-                    instr_index += 1
 
     def _instrument_cfg(self, cfg: CFG, file_name: str) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
@@ -623,7 +598,11 @@ class StatementCoverageInstrumentation(Instrumentation):
             node: The node that should be instrumented.
             file_name: The file that produced the code object of this node.
         """
-        if self._node_needs_instrumentation(node, file_name):
+        if (
+            node.basic_block
+            and not node.is_artificial
+            and not node_is_return_none_node(node)
+        ):
             block: BasicBlock = node.basic_block
 
             #  iterate over statements after the fist one in BB,
@@ -633,44 +612,15 @@ class StatementCoverageInstrumentation(Instrumentation):
             while instr_index < len(block):
                 if block[instr_index].lineno != lineno:
                     lineno = block[instr_index].lineno
-                    self.instrument_statement(block, instr_index, file_name, lineno)
-                    instr_index += (
-                        6  # the instrument_statement entered 6 new instructions
+                    self._tracer.track_statement(file_name, lineno)
+                    instr_index += (  # increment by the amount of instructions inserted
+                        self.instrument_statement(block, instr_index, file_name, lineno)
                     )
                 instr_index += 1
 
-    def _node_needs_instrumentation(self, node: ProgramGraphNode, file_name: str):
-        """Checks if a node is part of manually written code.
-        An empty return value that is implicitly added on the same line as
-        the last statement should not be instrumented, otherwise the last
-        line of a function will always be considered covered.
-        However, a manually added line "return None" should be considered.
-        For this, we check if the line that contains the return statement
-        already is tracked through another statement.
-
-        Args:
-            node: The node that needs to be checked
-            file_name: The file that produced the node
-
-        Returns:
-            True, if the node needs to be instructed, false otherwise.
-        """
-        if node.basic_block and not node.is_artificial:
-            block: BasicBlock = node.basic_block
-            line_no = block[0].lineno
-            return not (
-                len(block) == 2
-                and block[0] == Instr("LOAD_CONST", None, lineno=line_no)
-                and file_name in self._tracer.get_known_data().existing_statements
-                and line_no
-                in self._tracer.get_known_data().existing_statements[file_name]
-                and block[1].opcode == op.RETURN_VALUE
-            )
-        return False
-
     def instrument_statement(
         self, block: BasicBlock, instr_index: int, file_name: str, lineno: int
-    ) -> None:
+    ) -> int:
         """Instrument instructions of a new line.
 
         We add a call to the tracer which reports a line was executed.
@@ -680,9 +630,11 @@ class StatementCoverageInstrumentation(Instrumentation):
             instr_index: the index of the instr
             file_name: The file that produced the code object of this block.
             lineno: The line number of the instrumented statement.
+
+        Returns:
+            The number of instructions inserted into the block
         """
-        # Insert instructions at the beginning.
-        block[instr_index:instr_index] = [
+        inserted_instructions = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
@@ -694,6 +646,9 @@ class StatementCoverageInstrumentation(Instrumentation):
             Instr("CALL_METHOD", 2, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
+        # Insert instructions at the beginning.
+        block[instr_index:instr_index] = inserted_instructions
+        return len(inserted_instructions)
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         return self._instrument_code_recursive(module_code)
@@ -982,3 +937,22 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         return self._instrument_code_recursive(module_code)
+
+
+def node_is_return_none_node(node: ProgramGraphNode) -> bool:
+    """Checks if a node is a "return None" statement.
+
+    Args:
+        node: The node that needs to be checked
+
+    Returns:
+        True, if the node is a "return None" statement, false otherwise.
+    """
+    if node.basic_block:
+        block = node.basic_block
+        return (
+            len(block) == 2
+            and block[0] == Instr("LOAD_CONST", None, lineno=block[0].lineno)
+            and block[1].opcode == op.RETURN_VALUE
+        )
+    return False

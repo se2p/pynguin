@@ -386,6 +386,7 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.explicit_none_return()
+    assert tracer.get_trace().covered_statements
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert {77, 78} == covered_lines
 
@@ -408,6 +409,7 @@ def test_tracking_covered_statements_cmp_predicate(
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.cmp_predicate(value1, value2)
+    assert tracer.get_trace().covered_statements
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert expected_lines == covered_lines
 
@@ -430,6 +432,7 @@ def test_tracking_covered_statements_bool_predicate(
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.bool_predicate(value)
+    assert tracer.get_trace().covered_statements
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert expected_lines == covered_lines
 
@@ -450,6 +453,7 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.full_for_loop(number)
+    assert tracer.get_trace().covered_statements
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert expected_lines == covered_lines
 
@@ -470,6 +474,7 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.while_loop(number)
+    assert tracer.get_trace().covered_statements
     covered_lines = list(tracer.get_trace().covered_statements.values())[0]
     assert expected_lines == covered_lines
 
