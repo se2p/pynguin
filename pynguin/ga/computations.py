@@ -233,11 +233,8 @@ class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        existing_statements = self._executor.tracer.get_known_data().existing_statements
-
-        existing = sum(len(lines) for lines in existing_statements.values())
-        covered = sum(len(lines) for lines in merged_trace.covered_statements.values())
-        return existing - covered
+        existing_lines = self._executor.tracer.get_known_data().existing_lines.keys()
+        return len(existing_lines) - len(merged_trace.covered_lines)
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -715,9 +712,7 @@ def compute_statement_coverage_fitness_is_covered(
     Returns:
         True, if all statements were covered, false otherwise
     """
-    return sum(len(lines) for lines in trace.covered_statements.values()) == sum(
-        len(lines) for lines in known_data.existing_statements.values()
-    )
+    return len(trace.covered_lines) == len(known_data.existing_lines)
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
@@ -764,13 +759,13 @@ def compute_statement_coverage(trace: ExecutionTrace, known_data: KnownData) -> 
     Returns:
         The computed coverage value
     """
-    existing = sum(len(lines) for lines in known_data.existing_statements.values())
+    existing = len(known_data.existing_lines)
 
     if existing == 0:
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
-        covered = sum(len(lines) for lines in trace.covered_statements.values())
+        covered = len(trace.covered_lines)
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

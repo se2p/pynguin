@@ -543,11 +543,14 @@ class StatementCoverageInstrumentation(Instrumentation):
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
+    def _instrument_inner_code_objects(
+        self, code: CodeType, parent_code_object_id: int
+    ) -> CodeType:
         """Apply the instrumentation to all statements of the given code object.
 
         Args:
             code: the Code Object that should be instrumented.
+            parent_code_object_id: the id of the parent code object, if any.
 
         Returns:
             the code object whose constants were instrumented.
@@ -636,14 +639,16 @@ class StatementCoverageInstrumentation(Instrumentation):
             while instr_index < len(block):
                 if block[instr_index].lineno != lineno:
                     lineno = block[instr_index].lineno
-                    self._tracer.track_statement(file_name, lineno)
+                    line_id = self._tracer.register_line(
+                        code_object_id, file_name, lineno
+                    )
                     instr_index += (  # increment by the amount of instructions inserted
-                        self.instrument_statement(block, instr_index, file_name, lineno)
+                        self.instrument_statement(block, instr_index, line_id, lineno)
                     )
                 instr_index += 1
 
     def instrument_statement(
-        self, block: BasicBlock, instr_index: int, file_name: str, lineno: int
+        self, block: BasicBlock, instr_index: int, line_id: int, lineno: int
     ) -> int:
         """Instrument instructions of a new line.
 
@@ -652,8 +657,8 @@ class StatementCoverageInstrumentation(Instrumentation):
         Args:
             block: The basic block containing the instrumented statement.
             instr_index: the index of the instr
-            file_name: The file that produced the code object of this block.
-            lineno: The line number of the instrumented statement.
+            line_id: The id of the line that is visited.
+            lineno: The line number of the instrumented line.
 
         Returns:
             The number of instructions inserted into the block
@@ -662,12 +667,11 @@ class StatementCoverageInstrumentation(Instrumentation):
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
-                self._tracer.track_statement_visit.__name__,
+                self._tracer.track_line_visit.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", file_name, lineno=lineno),
-            Instr("LOAD_CONST", lineno, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
+            Instr("LOAD_CONST", line_id, lineno=lineno),
+            Instr("CALL_METHOD", 1, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
         # Insert instructions at the beginning.

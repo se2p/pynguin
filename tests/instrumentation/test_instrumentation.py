@@ -238,18 +238,9 @@ def test_integrate_statement_coverage_instrumentation(simple_module):
     instr = StatementCoverageInstrumentation(tracer)
     function_callable.__code__ = instr.instrument_module(function_callable.__code__)
 
-    # only one file was instrumented
-    assert len(tracer.get_known_data().existing_statements) == 1
+    assert tracer.get_known_data().existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
-    assert list(tracer.get_known_data().existing_statements.values())[0] == {
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-    }
+    assert {0, 1, 2, 3, 4, 5, 6} == tracer.get_known_data().existing_lines.keys()
 
 
 @pytest.mark.parametrize(
@@ -386,20 +377,19 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.explicit_none_return()
-    assert tracer.get_trace().covered_statements
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert {77, 78} == covered_lines
+    assert tracer.get_trace().covered_lines
+    assert {0, 1} == tracer.get_trace().covered_lines
 
 
 @pytest.mark.parametrize(
-    "value1, value2, expected_lines",
+    "value1, value2, expected_ids",
     [
-        pytest.param(0, 1, {14, 17}),
-        pytest.param(1, 0, {14, 15}),
+        pytest.param(0, 1, {0, 2}),
+        pytest.param(1, 0, {1, 2}),
     ],
 )
 def test_tracking_covered_statements_cmp_predicate(
-    simple_module, value1, value2, expected_lines
+    simple_module, value1, value2, expected_ids
 ):
     tracer = ExecutionTracer()
 
@@ -409,21 +399,18 @@ def test_tracking_covered_statements_cmp_predicate(
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.cmp_predicate(value1, value2)
-    assert tracer.get_trace().covered_statements
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert expected_lines == covered_lines
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
 
 
 @pytest.mark.parametrize(
-    "value, expected_lines",
+    "value, expected_ids",
     [
-        pytest.param(False, {21, 24}),
-        pytest.param(True, {21, 22}),
+        pytest.param(False, {0, 2}),
+        pytest.param(True, {1, 2}),
     ],
 )
-def test_tracking_covered_statements_bool_predicate(
-    simple_module, value, expected_lines
-):
+def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_ids):
     tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)
@@ -432,19 +419,18 @@ def test_tracking_covered_statements_bool_predicate(
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.bool_predicate(value)
-    assert tracer.get_trace().covered_statements
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert expected_lines == covered_lines
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
 
 
 @pytest.mark.parametrize(
-    "number, expected_lines",
+    "number, expected_ids",
     [
-        pytest.param(0, {33}),
-        pytest.param(1, {33, 34}),
+        pytest.param(0, {0}),
+        pytest.param(1, {0, 1}),
     ],
 )
-def test_tracking_covered_statements_for_loop(simple_module, number, expected_lines):
+def test_tracking_covered_statements_for_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)
@@ -453,19 +439,18 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.full_for_loop(number)
-    assert tracer.get_trace().covered_statements
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert expected_lines == covered_lines
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
 
 
 @pytest.mark.parametrize(
-    "number, expected_lines",
+    "number, expected_ids",
     [
-        pytest.param(0, {48}),
-        pytest.param(1, {48, 49, 50}),
+        pytest.param(0, {2}),
+        pytest.param(1, {0, 1, 2}),
     ],
 )
-def test_tracking_covered_statements_while_loop(simple_module, number, expected_lines):
+def test_tracking_covered_statements_while_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
     instr = StatementCoverageInstrumentation(tracer)
@@ -474,9 +459,8 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.while_loop(number)
-    assert tracer.get_trace().covered_statements
-    covered_lines = list(tracer.get_trace().covered_statements.values())[0]
-    assert expected_lines == covered_lines
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
 
 
 @pytest.fixture()

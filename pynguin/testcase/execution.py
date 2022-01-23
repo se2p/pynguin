@@ -316,7 +316,7 @@ class ExecutionTrace:
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
-    covered_statements: dict[str, OrderedSet[int]] = field(default_factory=dict)
+    covered_lines: OrderedSet[int] = field(default_factory=set)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -329,25 +329,17 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self._merge_covered_statements(
-            self.covered_statements, other.covered_statements
-        )
+        self._merge_covered_lines(self.covered_lines, other.covered_lines)
 
     @staticmethod
-    def _merge_covered_statements(
-        target: dict[str, OrderedSet[int]], source: dict[str, OrderedSet[int]]
-    ) -> None:
+    def _merge_covered_lines(target: OrderedSet[int], source: OrderedSet[int]) -> None:
         """Merge source covered statements into target covered statement data.
 
         Args:
             target: the target to merge the values in
             source: the source of the merge
         """
-        for key in source:
-            if key in target:
-                target[key].update(source[key])
-            else:
-                target[key] = source[key]
+        target.update(source)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -393,6 +385,20 @@ class PredicateMetaData:
 
 
 @dataclass
+class LineMetaData:
+    """Stores meta data of a line."""
+
+    # Id of the code object where the line is first defined
+    code_object_id: int
+
+    # name of the file containing a line
+    file_name: str
+
+    # Line number where the predicate is defined.
+    line_number: int
+
+
+@dataclass
 class KnownData:
     """Contains known code objects and predicates.
     FIXME(fk) better class name...
@@ -409,8 +415,8 @@ class KnownData:
     # Maps all known ids of predicates to meta information
     existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
-    # stores which files contain which lines
-    existing_statements: dict[str, OrderedSet[int]] = field(default_factory=dict)
+    # stores which line id represents which line in which file
+    existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
 
 class ExecutionTracer:
@@ -704,27 +710,35 @@ class ExecutionTracer:
         finally:
             self.enable()
 
-    def track_statement_visit(self, file_name: str, line_number: int) -> None:
-        """Tracks the visit of a statement.
+    def track_line_visit(self, line_id: int) -> None:
+        """Tracks the visit of a line.
 
         Args:
-            file_name: The file in which the statement is
-            line_number: The line of the statement that was tracked
+            line_id: the if of the line that was visited
         """
-        if file_name not in self._trace.covered_statements:
-            self._trace.covered_statements[file_name] = OrderedSet()
-        self._trace.covered_statements[file_name].add(line_number)
+        self._trace.covered_lines.add(line_id)
 
-    def track_statement(self, file_name: str, line_number: int) -> None:
-        """Tracks the existence of a statement.
+    def register_line(
+        self, code_object_id: int, file_name: str, line_number: int
+    ) -> int:
+        """Tracks the existence of a line.
 
         Args:
+            code_object_id: The id of the code object that contains the line
             file_name: The file in which the statement is
             line_number: The line of the statement to track
+
+        Returns:
+            the id of the registered line
         """
-        if file_name not in self._known_data.existing_statements:
-            self._known_data.existing_statements[file_name] = OrderedSet()
-        self._known_data.existing_statements[file_name].add(line_number)
+        line_meta = LineMetaData(code_object_id, file_name, line_number)
+        if line_meta not in self._known_data.existing_lines.values():
+            line_id = len(self._known_data.existing_lines)
+            self._known_data.existing_lines[line_id] = line_meta
+        else:
+            index = list(self._known_data.existing_lines.values()).index(line_meta)
+            line_id = list(self._known_data.existing_lines.keys())[index]
+        return line_id
 
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int

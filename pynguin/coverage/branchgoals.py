@@ -64,48 +64,32 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         self._line_id = line_id
 
     @property
-    def line_number(self) -> int:
-        """Provides the line number of the targeted line.
+    def line_id(self) -> int:
+        """Provides the line id of the targeted line.
 
         Returns:
-            The line number of the targeted line.
+            The line id of the targeted line.
         """
-        return self._line_number
-
-    @property
-    def file_name(self) -> str:
-        """Provides the file name of the targeted file.
-
-        Returns:
-            The targeted file name.
-        """
-        return self._file_name
+        return self._line_id
 
     def is_covered(self, result: ExecutionResult) -> bool:
-        return (
-            result.execution_trace.covered_statements[self._file_name]
-            and self._line_number
-            in result.execution_trace.covered_statements[self._file_name]
-        )
+        return self._line_id in result.execution_trace.covered_lines
 
     def __str__(self) -> str:
-        return f"Statement Coverage Goal{self._file_name}:{self._line_number}"
+        return f"Statement Coverage Goal{self._line_id}"
 
     def __repr__(self) -> str:
-        return f"StatementCoverageGoal({self._file_name}:{self._line_number})"
+        return f"StatementCoverageGoal({self._line_id})"
 
     def __hash__(self) -> int:
-        return 31 + self._line_number + hash(self._file_name)
+        return 31 + self._line_id
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, StatementCoverageGoal):
             return False
-        return (
-            self._file_name == other._file_name
-            and self._line_number == other._line_number
-        )
+        return self._line_id == other._line_id
 
 
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
@@ -407,13 +391,14 @@ def create_statement_coverage_fitness_functions(
     Returns:
         All branch coverage related fitness functions.
     """
-    statement_coverage_goals = OrderedSet()
-    tracer: ExecutionTracer = executor.tracer
-
-    for (file_name, lines_set) in tracer.get_known_data().existing_statements.items():
-        for line in lines_set:
-            line_goal = StatementCoverageGoal(line, file_name)
-            statement_coverage_goals.append(
-                StatementCoverageTestFitness(executor, line_goal)
+    return OrderedSet(
+        [
+            StatementCoverageTestFitness(
+                executor, StatementCoverageGoal(line_meta.code_object_id, line_id)
             )
-    return statement_coverage_goals
+            for (
+                line_id,
+                line_meta,
+            ) in executor.tracer.get_known_data().existing_lines.items()
+        ]
+    )

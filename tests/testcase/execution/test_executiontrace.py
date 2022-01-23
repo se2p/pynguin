@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from ordered_set import OrderedSet
+
 from pynguin.testcase.execution import ExecutionTrace
 
 
@@ -24,7 +26,7 @@ def test_merge_full():
     trace0.true_distances[1] = 3
     trace0.false_distances[0] = 0
     trace0.false_distances[1] = 1
-    trace0.covered_statements = {"foo": {1}}
+    trace0.covered_lines = {0}
 
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
@@ -35,7 +37,7 @@ def test_merge_full():
     trace1.true_distances[2] = 3
     trace1.false_distances[1] = 234
     trace1.false_distances[2] = 0
-    trace1.covered_statements = {"foo": {0}}
+    trace1.covered_lines = {1}
 
     result = ExecutionTrace()
     result.executed_code_objects.add(0)
@@ -50,7 +52,7 @@ def test_merge_full():
     result.false_distances[0] = 0
     result.false_distances[1] = 1
     result.false_distances[2] = 0
-    result.covered_statements = {"foo": {0, 1}}
+    result.covered_lines = {0, 1}
 
     trace0.merge(trace1)
     assert trace0 == result
@@ -61,3 +63,10 @@ def test_merge_min():
     dict1 = {0: 0.3, 1: 0.6}
     ExecutionTrace._merge_min(dict0, dict1)
     assert dict0 == {0: 0.3, 1: 0.2}
+
+
+def test_merge_covered_lines():
+    set1 = OrderedSet({0, 1, 2})
+    set2 = OrderedSet({1, 2, 3})
+    ExecutionTrace._merge_covered_lines(set1, set2)
+    assert set1 == {0, 1, 2, 3}

@@ -27,6 +27,7 @@ from pynguin.testcase.execution import (
     ExecutionTrace,
     ExecutionTracer,
     KnownData,
+    LineMetaData,
     TestCaseExecutor,
 )
 from pynguin.typeinference.strategy import InferredSignature
@@ -44,7 +45,7 @@ def branch_goal():
 
 @pytest.fixture
 def statement_coverage_goal():
-    return bg.StatementCoverageGoal(0, "foo")
+    return bg.StatementCoverageGoal(0, 42)
 
 
 def test_root_branch_coverage_goal(branchless_codeobject_goal):
@@ -57,8 +58,8 @@ def test_non_root_branch_coverage_goal(branch_goal):
 
 
 def test_statement_coverage_goal(statement_coverage_goal):
-    assert statement_coverage_goal.line_number == 0
-    assert statement_coverage_goal.file_name == "foo"
+    assert statement_coverage_goal.code_object_id == 0
+    assert statement_coverage_goal.line_id == 42
 
 
 def test_root_hash(branchless_codeobject_goal):
@@ -108,7 +109,7 @@ def test_non_root_eq_other(branch_goal):
 
 
 def test_statement_coverage_eq_other(statement_coverage_goal):
-    other = bg.StatementCoverageGoal(0, "foo")
+    other = bg.StatementCoverageGoal(0, 42)
     assert statement_coverage_goal.__eq__(other)
 
 
@@ -402,9 +403,7 @@ def test_compute_fitness_values_statement_coverage_empty():
 
 def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
     tracer = ExecutionTracer()
-    file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {8, 9, 11, 12, 13, 15, 16, 17}
-    tracer.get_known_data().existing_statements = {file_name: lines}
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
     executor_mock.tracer = tracer
     goals = bg.create_statement_coverage_fitness_functions(executor_mock)
 
@@ -415,22 +414,14 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     known_data_mock, executor_mock, trace_mock
 ):
     """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
-    file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {8, 9, 11, 12, 13, 15, 16, 17}
-
     tracer = ExecutionTracer()
-    tracer.get_known_data().existing_statements = {file_name: lines}
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+
     executor_mock.tracer = tracer
-    trace_mock.covered_statements = {}
+    trace_mock.covered_lines = {}
 
     chromosome = _get_empty_test()
-
-    # manually set goals
-    for line in lines:
-        line_goal = bg.StatementCoverageGoal(line, file_name)
-        chromosome.add_fitness_function(
-            bg.StatementCoverageTestFitness(executor_mock, line_goal)
-        )
+    _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
 
     fitness = chromosome.get_fitness()
     assert fitness == 8
@@ -449,11 +440,10 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         plus.plus_four(number)
     """
     module_name = "tests.fixtures.statementcoverage.plus"
-    file_name = "../fixtures/statementcoverage/plus.py"
-    lines = {8, 9, 11, 12, 13, 15, 16, 17}
 
     tracer = ExecutionTracer()
-    tracer.get_known_data().existing_statements = {file_name: lines}
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+
     tracer.current_thread_identifier = threading.current_thread().ident
     executor_mock.tracer = tracer
 
@@ -462,24 +452,36 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         importlib.reload(module)
 
         chromosome = _get_test_for_statement_coverage(module)
-
-        # manually set goals
-        for line in lines:
-            line_goal = bg.StatementCoverageGoal(line, file_name)
-            chromosome.add_fitness_function(
-                bg.StatementCoverageTestFitness(executor_mock, line_goal)
-            )
+        _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
 
         with mock.patch.object(
             bg.StatementCoverageTestFitness, "_run_test_case_chromosome"
         ) as run_suite_mock:
             result = ExecutionResult()
-            trace_mock.covered_statements = {file_name: {8, 9, 15, 16, 17}}
+            trace_mock.covered_lines = {0, 1, 5, 6, 7}
             result.execution_trace = trace_mock
             run_suite_mock.return_value = result
 
             fitness = chromosome.get_fitness()
             assert fitness == 3
+
+
+def _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock):
+    lines = [8, 9, 11, 12, 13, 15, 16, 17]
+    for line_id in range(len(lines)):
+        line_goal = bg.StatementCoverageGoal(0, line_id)
+        chromosome.add_fitness_function(
+            bg.StatementCoverageTestFitness(executor_mock, line_goal)
+        )
+
+
+def _get_lines_data_for_plus_module():
+    file_name = "../fixtures/statementcoverage/plus.py"
+    lines = [8, 9, 11, 12, 13, 15, 16, 17]
+    return {
+        line_id: LineMetaData(0, file_name, lines[line_id])
+        for line_id in range(len(lines))
+    }
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
