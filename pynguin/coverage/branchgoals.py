@@ -29,6 +29,21 @@ if TYPE_CHECKING:
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 
+    def __init__(
+        self,
+        code_object_id: int,
+    ):
+        self._code_object_id = code_object_id
+
+    @property
+    def code_object_id(self) -> int:
+        """Provides the code object id where the target resides.
+
+        Returns:
+            The id of the targeted code object.
+        """
+        return self._code_object_id
+
     @abstractmethod
     def is_covered(self, result: ExecutionResult) -> bool:
         """Determine if this coverage goal was covered.
@@ -44,14 +59,9 @@ class AbstractCoverageGoal:
 class StatementCoverageGoal(AbstractCoverageGoal):
     """Line to be covered by the search as goal."""
 
-    def __init__(
-        self,
-        line_number: int,
-        file_name: str,
-    ):
-        super().__init__()
-        self._line_number = line_number
-        self._file_name = file_name
+    def __init__(self, code_object_id: int, line_id: int):
+        super().__init__(code_object_id)
+        self._line_id = line_id
 
     @property
     def line_number(self) -> int:
@@ -107,22 +117,12 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
         is_branchless_code_object: bool = False,
         is_branch: bool = False,
     ):
-        super().__init__()
-        self._code_object_id = code_object_id
+        super().__init__(code_object_id)
         assert (
             is_branchless_code_object ^ is_branch
         ), "Must be either branch-less code object or branch."
         self._is_branchless_code_object = is_branchless_code_object
         self._is_branch = is_branch
-
-    @property
-    def code_object_id(self) -> int:
-        """Provides the code object id where the target resides.
-
-        Returns:
-            The id of the targeted code object.
-        """
-        return self._code_object_id
 
     @abstractmethod
     def get_distance(
@@ -353,8 +353,7 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
     def __init__(self, executor: TestCaseExecutor, goal: StatementCoverageGoal):
-        # TODO(SiL) handle this differently
-        super().__init__(executor, 42)
+        super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
     def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:

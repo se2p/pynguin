@@ -556,16 +556,25 @@ class StatementCoverageInstrumentation(Instrumentation):
         for const in code.co_consts:
             if isinstance(const, CodeType):
                 # The const is an inner code object
-                new_consts.append(self._instrument_code_recursive(const))
+                new_consts.append(
+                    self._instrument_code_recursive(
+                        const, parent_code_object_id=parent_code_object_id
+                    )
+                )
             else:
                 new_consts.append(const)
         return code.replace(co_consts=tuple(new_consts))
 
-    def _instrument_code_recursive(self, code: CodeType) -> CodeType:
+    def _instrument_code_recursive(
+        self,
+        code: CodeType,
+        parent_code_object_id: int | None = None,
+    ) -> CodeType:
         """Instrument the given Code Object recursively.
 
         Args:
             code: The code object that should be instrumented
+            parent_code_object_id: The ID of the optional parent code object
 
         Returns:
             The instrumented code object
@@ -574,27 +583,42 @@ class StatementCoverageInstrumentation(Instrumentation):
             "Instrumenting Code Object for statement coverage for %s", code.co_name
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
+        cdg = ControlDependenceGraph.compute(cfg)
+        code_object_id = self._tracer.register_code_object(
+            CodeObjectMetaData(
+                code_object=code,
+                parent_code_object_id=parent_code_object_id,
+                cfg=cfg,
+                cdg=cdg,
+            )
+        )
 
-        self._instrument_cfg(cfg, code.co_filename)
-        return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
+        self._instrument_cfg(cfg, code_object_id, code.co_filename)
+        return self._instrument_inner_code_objects(
+            cfg.bytecode_cfg().to_code(), code_object_id
+        )
 
-    def _instrument_cfg(self, cfg: CFG, file_name: str) -> None:
+    def _instrument_cfg(self, cfg: CFG, code_object_id: int, file_name: str) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:
             cfg: The CFG that overlays the bytecode cfg.
+            code_object_id: The id of the code object which contains this CFG.
             file_name: The file that produced the code object of this CFG.
         """
         for node in cfg.nodes:
-            self._instrument_node(node, file_name)
+            self._instrument_node(code_object_id, node, file_name)
 
-    def _instrument_node(self, node: ProgramGraphNode, file_name: str) -> None:
+    def _instrument_node(
+        self, code_object_id: int, node: ProgramGraphNode, file_name: str
+    ) -> None:
         """Instrument a single node in the CFG.
 
         If the node is a statement node, instrument that the statement was executed
         during the test execution.
 
         Args:
+            code_object_id: The containing Code Object
             node: The node that should be instrumented.
             file_name: The file that produced the code object of this node.
         """
