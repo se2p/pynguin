@@ -534,9 +534,9 @@ class BranchCoverageInstrumentation(Instrumentation):
 
 
 # pylint:disable=too-few-public-methods
-class StatementCoverageInstrumentation(Instrumentation):
-    """Instruments code objects to enable tracking of executed statements and thus
-    statement coverage."""
+class LineCoverageInstrumentation(Instrumentation):
+    """Instruments code objects to enable tracking of executed lines and thus
+    line coverage."""
 
     _logger = logging.getLogger(__name__)
 
@@ -546,7 +546,7 @@ class StatementCoverageInstrumentation(Instrumentation):
     def _instrument_inner_code_objects(
         self, code: CodeType, parent_code_object_id: int
     ) -> CodeType:
-        """Apply the instrumentation to all statements of the given code object.
+        """Apply the instrumentation to all lines of the given code object.
 
         Args:
             code: the Code Object that should be instrumented.
@@ -583,7 +583,7 @@ class StatementCoverageInstrumentation(Instrumentation):
             The instrumented code object
         """
         self._logger.debug(
-            "Instrumenting Code Object for statement coverage for %s", code.co_name
+            "Instrumenting Code Object for line coverage for %s", code.co_name
         )
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
         cdg = ControlDependenceGraph.compute(cfg)
@@ -617,7 +617,7 @@ class StatementCoverageInstrumentation(Instrumentation):
     ) -> None:
         """Instrument a single node in the CFG.
 
-        If the node is a statement node, instrument that the statement was executed
+        If the node is a line node, instrument that the line was executed
         during the test execution.
 
         Args:
@@ -632,7 +632,7 @@ class StatementCoverageInstrumentation(Instrumentation):
         ):
             block: BasicBlock = node.basic_block
 
-            #  iterate over statements after the fist one in BB,
+            #  iterate over instructions after the fist one in BB,
             #  put new instructions in the block for each line
             lineno = -1
             instr_index = 0
@@ -643,11 +643,11 @@ class StatementCoverageInstrumentation(Instrumentation):
                         code_object_id, file_name, lineno
                     )
                     instr_index += (  # increment by the amount of instructions inserted
-                        self.instrument_statement(block, instr_index, line_id, lineno)
+                        self.instrument_line(block, instr_index, line_id, lineno)
                     )
                 instr_index += 1
 
-    def instrument_statement(
+    def instrument_line(
         self, block: BasicBlock, instr_index: int, line_id: int, lineno: int
     ) -> int:
         """Instrument instructions of a new line.
@@ -655,7 +655,7 @@ class StatementCoverageInstrumentation(Instrumentation):
         We add a call to the tracer which reports a line was executed.
 
         Args:
-            block: The basic block containing the instrumented statement.
+            block: The basic block containing the instrumented line.
             instr_index: the index of the instr
             line_id: The id of the line that is visited.
             lineno: The line number of the instrumented line.
@@ -968,13 +968,13 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
 
 def node_is_return_none_node(node: ProgramGraphNode) -> bool:
-    """Checks if a node is a "return None" statement.
+    """Checks if a node is a "return None" line.
 
     Args:
         node: The node that needs to be checked
 
     Returns:
-        True, if the node is a "return None" statement, false otherwise.
+        True, if the node is a "return None" line, false otherwise.
     """
     if node.basic_block:
         block = node.basic_block

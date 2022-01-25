@@ -227,13 +227,13 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
-class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
-    """A fitness function based on statements covered and entered code objects."""
+class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+    """A fitness function based on lines covered and entered code objects."""
 
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        existing_lines = self._executor.tracer.get_known_data().existing_lines.keys()
+        existing_lines = self._executor.tracer.get_known_data().existing_lines
         return len(existing_lines) - len(merged_trace.covered_lines)
 
     def compute_is_covered(self, individual) -> bool:
@@ -241,7 +241,7 @@ class StatementTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return compute_statement_coverage_fitness_is_covered(
+        return compute_line_coverage_fitness_is_covered(
             merged_trace,
             tracer.get_known_data(),
         )
@@ -298,24 +298,24 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         return compute_branch_coverage(merged_trace, tracer.get_known_data())
 
 
-class TestSuiteStatementCoverageFunction(TestSuiteCoverageFunction):
-    """Computes statement coverage on test suites."""
+class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
+    """Computes line coverage on test suites."""
 
     def compute_coverage(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_statement_coverage(merged_trace, tracer.get_known_data())
+        return compute_line_coverage(merged_trace, tracer.get_known_data())
 
 
-class TestCaseStatementCoverageFunction(TestCaseCoverageFunction):
-    """Computes statement coverage on test cases."""
+class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
+    """Computes line coverage on test cases."""
 
     def compute_coverage(self, individual) -> float:
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_statement_coverage(merged_trace, tracer.get_known_data())
+        return compute_line_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -700,17 +700,17 @@ def compute_branch_distance_fitness_is_covered(
     return True
 
 
-def compute_statement_coverage_fitness_is_covered(
+def compute_line_coverage_fitness_is_covered(
     trace: ExecutionTrace, known_data: KnownData
 ) -> bool:
-    """Computes if all statements and code objects have been executed.
+    """Computes if all lines and code objects have been executed.
 
     Args:
         trace: The execution trace
         known_data: All known data
 
     Returns:
-        True, if all statements were covered, false otherwise
+        True, if all lines were covered, false otherwise
     """
     return len(trace.covered_lines) == len(known_data.existing_lines)
 
@@ -749,8 +749,8 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
     return coverage
 
 
-def compute_statement_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
-    """Computes statement coverage on bytecode instructions.
+def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+    """Computes line coverage on bytecode instructions.
 
     Args:
         trace: The execution trace

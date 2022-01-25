@@ -307,9 +307,9 @@ class TestSuiteGenerationAlgorithmFactory(
         ):
             fitness_functions = OrderedSet()
             coverage_metrics = config.configuration.statistics_output.coverage_metrics
-            if config.CoverageMetric.STATEMENT in coverage_metrics:
+            if config.CoverageMetric.LINE in coverage_metrics:
                 fitness_functions.update(
-                    bg.create_statement_coverage_fitness_functions(self._executor)
+                    bg.create_line_coverage_fitness_functions(self._executor)
                 )
 
             if config.CoverageMetric.BRANCH in coverage_metrics:
@@ -329,10 +329,8 @@ class TestSuiteGenerationAlgorithmFactory(
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
         test_suite_ffs = OrderedSet()
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.STATEMENT in coverage_metrics:
-            test_suite_ffs.update(
-                [ff.StatementTestSuiteFitnessFunction(self._executor)]
-            )
+        if config.CoverageMetric.LINE in coverage_metrics:
+            test_suite_ffs.update([ff.LineTestSuiteFitnessFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
             test_suite_ffs.update(
                 [ff.BranchDistanceTestSuiteFitnessFunction(self._executor)]
@@ -344,10 +342,8 @@ class TestSuiteGenerationAlgorithmFactory(
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
         test_suite_ffs = OrderedSet()
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.STATEMENT in coverage_metrics:
-            test_suite_ffs.update(
-                [ff.TestSuiteStatementCoverageFunction(self._executor)]
-            )
+        if config.CoverageMetric.LINE in coverage_metrics:
+            test_suite_ffs.update([ff.TestSuiteLineCoverageFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteBranchCoverageFunction(self._executor)])
         return test_suite_ffs

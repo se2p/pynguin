@@ -71,7 +71,7 @@ def test_test_case_is_minimizing_function(executor_mock):
 
 
 def test_test_case_is_maximisation_function(executor_mock):
-    func = ff.StatementTestSuiteFitnessFunction(executor_mock)
+    func = ff.LineTestSuiteFitnessFunction(executor_mock)
     assert not func.is_maximisation_function()
 
 
@@ -116,7 +116,7 @@ def test_test_suite_compute_statements_covered_fitness_values(
     tracer = MagicMock()
     tracer.get_known_data.return_value = known_data_mock
     executor_mock.tracer.return_value = tracer
-    func = ff.StatementTestSuiteFitnessFunction(executor_mock)
+    func = ff.LineTestSuiteFitnessFunction(executor_mock)
     indiv = MagicMock()
     with patch.object(func, "_run_test_suite_chromosome") as run_suite_mock:
         result = ExecutionResult()

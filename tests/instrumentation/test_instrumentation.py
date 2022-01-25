@@ -17,7 +17,7 @@ from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
-    StatementCoverageInstrumentation,
+    LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
@@ -235,7 +235,7 @@ def test_integrate_branch_distance_instrumentation(
 def test_integrate_statement_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "multi_loop")
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     function_callable.__code__ = instr.instrument_module(function_callable.__code__)
 
     assert tracer.get_known_data().existing_lines
@@ -371,7 +371,7 @@ def test_exception_no_match_integrate():
 def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     simple_module.explicit_none_return.__code__ = instr._instrument_code_recursive(
         simple_module.explicit_none_return.__code__
     )
@@ -393,7 +393,7 @@ def test_tracking_covered_statements_cmp_predicate(
 ):
     tracer = ExecutionTracer()
 
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     simple_module.cmp_predicate.__code__ = instr._instrument_code_recursive(
         simple_module.cmp_predicate.__code__
     )
@@ -413,7 +413,7 @@ def test_tracking_covered_statements_cmp_predicate(
 def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     simple_module.bool_predicate.__code__ = instr._instrument_code_recursive(
         simple_module.bool_predicate.__code__
     )
@@ -433,7 +433,7 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
 def test_tracking_covered_statements_for_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
         simple_module.full_for_loop.__code__
     )
@@ -453,7 +453,7 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_id
 def test_tracking_covered_statements_while_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = StatementCoverageInstrumentation(tracer)
+    instr = LineCoverageInstrumentation(tracer)
     simple_module.while_loop.__code__ = instr._instrument_code_recursive(
         simple_module.while_loop.__code__
     )

@@ -23,7 +23,7 @@ from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
-    StatementCoverageInstrumentation,
+    LineCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:
@@ -59,8 +59,8 @@ class InstrumentationLoader(SourceFileLoader):
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.BRANCH in coverage_metrics:
             instrumentations.append(BranchCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.STATEMENT in coverage_metrics:
-            instrumentations.append(StatementCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.LINE in coverage_metrics:
+            instrumentations.append(LineCoverageInstrumentation(self._tracer))
 
         if config.configuration.seeding.dynamic_constant_seeding:
             instrumentations.append(

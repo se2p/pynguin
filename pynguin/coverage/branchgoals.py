@@ -56,7 +56,7 @@ class AbstractCoverageGoal:
         """
 
 
-class StatementCoverageGoal(AbstractCoverageGoal):
+class LineCoverageGoal(AbstractCoverageGoal):
     """Line to be covered by the search as goal."""
 
     def __init__(self, code_object_id: int, line_id: int):
@@ -76,10 +76,10 @@ class StatementCoverageGoal(AbstractCoverageGoal):
         return self._line_id in result.execution_trace.covered_lines
 
     def __str__(self) -> str:
-        return f"Statement Coverage Goal{self._line_id}"
+        return f"Line Coverage Goal{self._line_id}"
 
     def __repr__(self) -> str:
-        return f"StatementCoverageGoal({self._line_id})"
+        return f"LineCoverageGoal({self._line_id})"
 
     def __hash__(self) -> int:
         return 31 + self._line_id
@@ -87,7 +87,7 @@ class StatementCoverageGoal(AbstractCoverageGoal):
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
-        if not isinstance(other, StatementCoverageGoal):
+        if not isinstance(other, LineCoverageGoal):
             return False
         return self._line_id == other._line_id
 
@@ -333,10 +333,10 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
         return self._goal
 
 
-class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
+class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: TestCaseExecutor, goal: StatementCoverageGoal):
+    def __init__(self, executor: TestCaseExecutor, goal: LineCoverageGoal):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
@@ -351,12 +351,11 @@ class StatementCoverageTestFitness(ff.TestCaseFitnessFunction):
         return False
 
     def __str__(self) -> str:
-        return f"StatementCoverageTestFitness for {self._goal}"
+        return f"LineCoverageTestFitness for {self._goal}"
 
     def __repr__(self) -> str:
         return (
-            f"StatementCoverageTestFitness(executor={self._executor}, "
-            f"goal={self._goal})"
+            f"LineCoverageTestFitness(executor={self._executor}, " f"goal={self._goal})"
         )
 
 
@@ -380,10 +379,10 @@ def create_branch_coverage_fitness_functions(
     )
 
 
-def create_statement_coverage_fitness_functions(
+def create_line_coverage_fitness_functions(
     executor: TestCaseExecutor,
-) -> OrderedSet[StatementCoverageTestFitness]:
-    """Create fitness functions for each statement coverage goal.
+) -> OrderedSet[LineCoverageTestFitness]:
+    """Create fitness functions for each line coverage goal.
 
     Args:
         executor: The test case executor for the fitness functions to use.
@@ -393,8 +392,8 @@ def create_statement_coverage_fitness_functions(
     """
     return OrderedSet(
         [
-            StatementCoverageTestFitness(
-                executor, StatementCoverageGoal(line_meta.code_object_id, line_id)
+            LineCoverageTestFitness(
+                executor, LineCoverageGoal(line_meta.code_object_id, line_id)
             )
             for (
                 line_id,

@@ -157,8 +157,8 @@ class CoverageMetric(str, enum.Enum):
     BRANCH = "BRANCH"
     """Calculate how many of the possible branches in the code were executed"""
 
-    STATEMENT = "STATEMENT"
-    """Calculate how many of the possible statements in the code were executed"""
+    LINE = "LINE"
+    """Calculate how many of the possible lines in the code were executed"""
 
 
 class Selection(str, enum.Enum):
