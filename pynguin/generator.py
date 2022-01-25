@@ -26,7 +26,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
@@ -36,6 +36,7 @@ import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
@@ -239,6 +240,10 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
         len(tracer.get_known_data().existing_predicates),
     )
     stat.track_output_variable(
+        RuntimeVariable.Lines,
+        len(tracer.get_known_data().existing_lines),
+    )
+    stat.track_output_variable(
         RuntimeVariable.AccessibleObjectsUnderTest,
         test_cluster.num_accessible_objects_under_test(),
     )
@@ -251,6 +256,32 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
         RuntimeVariable.ImportBranchCoverage,
         ff.compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
     )
+    stat.track_output_variable(
+        RuntimeVariable.ImportLineCoverage,
+        ff.compute_line_coverage(tracer.import_trace, tracer.get_known_data()),
+    )
+
+
+def _get_coverage_ff_from_algorithm(
+    algorithm: TestGenerationStrategy, function_type: Type[ff.CoverageFunction]
+) -> ff.CoverageFunction:
+    """Retrieve the coverage function for a test suite of a given coverage type.
+
+    Args:
+        algorithm: The test generation strategy
+        function_type: the type of coverage function to receive
+
+    Returns:
+        The coverage function for a test suite for this run of the given type
+    """
+    test_suite_coverage_func = None
+    for coverage_func in algorithm.test_suite_coverage_functions:
+        if isinstance(coverage_func, function_type):
+            test_suite_coverage_func = coverage_func
+    assert (
+        test_suite_coverage_func
+    ), "The required coverage function was not initialised"
+    return test_suite_coverage_func
 
 
 def _run() -> ReturnCode:
@@ -273,11 +304,7 @@ def _run() -> ReturnCode:
     # search statistics
     executor.clear_observers()
 
-    # Track coverage of the generated test suites.
-    # This possibly re-executes the test suites.
-    stat.track_output_variable(
-        RuntimeVariable.Coverage, generation_result.get_coverage()
-    )
+    _track_coverage_metrics(algorithm, generation_result)
 
     if config.configuration.test_case_output.post_process:
         truncation = pp.ExceptionTruncation()
@@ -334,6 +361,39 @@ def _run() -> ReturnCode:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
     return ReturnCode.OK
+
+
+def _track_coverage_metrics(
+    algorithm: TestGenerationStrategy, generation_result: tsc.TestSuiteChromosome
+) -> None:
+    """Track multiple set coverage metrics of the generated test suites.
+    This possibly re-executes the test suites.
+
+    Args:
+        algorithm: The test generation strategy
+        generation_result:  The resulting chromosome of the generation strategy
+    """
+
+    stat.track_output_variable(
+        RuntimeVariable.Coverage, generation_result.get_coverage()
+    )
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.CoverageMetric.LINE in coverage_metrics:
+        line_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+            algorithm, ff.TestSuiteLineCoverageFunction
+        )
+        stat.track_output_variable(
+            RuntimeVariable.LineCoverage,
+            generation_result.get_coverage_for(line_coverage_ff),
+        )
+    if config.CoverageMetric.BRANCH in coverage_metrics:
+        branch_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+            algorithm, ff.TestSuiteBranchCoverageFunction
+        )
+        stat.track_output_variable(
+            RuntimeVariable.BranchCoverage,
+            generation_result.get_coverage_for(branch_coverage_ff),
+        )
 
 
 def _instantiate_test_generation_strategy(
