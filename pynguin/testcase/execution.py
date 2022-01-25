@@ -329,17 +329,7 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self._merge_covered_lines(self.covered_lines, other.covered_lines)
-
-    @staticmethod
-    def _merge_covered_lines(target: OrderedSet[int], source: OrderedSet[int]) -> None:
-        """Merge source covered statements into target covered statement data.
-
-        Args:
-            target: the target to merge the values in
-            source: the source of the merge
-        """
-        target.update(source)
+        self.covered_lines.update(other.covered_lines)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -388,7 +378,7 @@ class PredicateMetaData:
 class LineMetaData:
     """Stores meta data of a line."""
 
-    # Id of the code object where the line is first defined
+    # id of the code object where the line is first defined
     code_object_id: int
 
     # name of the file containing a line
@@ -396,6 +386,22 @@ class LineMetaData:
 
     # Line number where the predicate is defined.
     line_number: int
+
+    def __hash__(self):
+        # code object id is not checked since file
+        # and line number are the unique identifiers
+        return 31 + self.line_number + hash(self.file_name)
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, LineMetaData):
+            return False
+        # code object id is not checked since file
+        # and line number are the unique identifiers
+        return (
+            self.line_number == other.line_number and self.file_name == other.file_name
+        )
 
 
 @dataclass

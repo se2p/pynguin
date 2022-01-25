@@ -41,7 +41,7 @@ def test_line_registration():
     assert tracer.register_line(0, "foo", 42) == 0
     assert tracer.register_line(0, "foo", 43) == 1
     assert tracer.register_line(0, "bar", 42) == 2
-    assert tracer.register_line(0, "foo", 42) == 0
+    assert tracer.register_line(1, "foo", 42) == 0
     assert {0, 1, 2} == tracer.get_known_data().existing_lines.keys()
 
 
