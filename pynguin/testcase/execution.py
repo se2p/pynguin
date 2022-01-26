@@ -716,6 +716,14 @@ class ExecutionTracer:
         finally:
             self.enable()
 
+    def reset_code_objects(self) -> None:
+        """Resets the tracked code objects in known data.
+        Otherwise, the registered code objects would be
+        duplicated, when another instrumentation is run.
+        """
+        self._known_data.existing_code_objects.clear()
+        self._known_data.existing_predicates.clear()
+
     def track_line_visit(self, line_id: int) -> None:
         """Tracks the visit of a line.
 

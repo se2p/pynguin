@@ -348,6 +348,26 @@ def test_exception_integrate():
     assert {0: 1.0} == tracer.get_trace().false_distances
 
 
+def test_multiple_instrumentations_share_code_object_ids(simple_module):
+    tracer = ExecutionTracer()
+
+    line_instr = LineCoverageInstrumentation(tracer)
+    simple_module.simple_function.__code__ = line_instr.instrument_module(
+        simple_module.simple_function.__code__
+    )
+
+    branch_instr = BranchCoverageInstrumentation(tracer)
+    simple_module.simple_function.__code__ = branch_instr.instrument_module(
+        simple_module.simple_function.__code__
+    )
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.simple_function(42)
+    assert {0} == tracer.get_known_data().existing_code_objects.keys()
+    assert {0} == tracer.get_known_data().branch_less_code_objects
+    assert {0} == tracer.get_trace().executed_code_objects
+
+
 def test_exception_no_match_integrate():
     tracer = ExecutionTracer()
 

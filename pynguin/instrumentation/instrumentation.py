@@ -440,11 +440,6 @@ class BranchCoverageInstrumentation(Instrumentation):
         ]
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
-        for const in module_code.co_consts:
-            if isinstance(const, ExecutionTracer):
-                # Abort instrumentation, since we have already
-                # instrumented this code object for branch coverage.
-                assert False, "Tried to instrument already instrumented module."
         return self._instrument_code_recursive(module_code)
 
     def _instrument_for_loop(
@@ -679,7 +674,9 @@ class LineCoverageInstrumentation(Instrumentation):
         return len(inserted_instructions)
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
-        return self._instrument_code_recursive(module_code)
+        code = self._instrument_code_recursive(module_code)
+        self._tracer.reset_code_objects()
+        return code
 
 
 # pylint:disable=too-few-public-methods
@@ -920,7 +917,7 @@ class DynamicSeedingInstrumentation(Instrumentation):
     ) -> None:
         """Instrument a single node in the CFG.
 
-        Currently we only instrument conditional jumps and for loops.
+        Currently, we only instrument conditional jumps and for loops.
 
         Args:
             node: The node that should be instrumented.
