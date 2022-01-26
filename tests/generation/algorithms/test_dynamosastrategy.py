@@ -20,7 +20,7 @@ def known_data():
 
     tracer = ExecutionTracer()
     instr = BranchCoverageInstrumentation(tracer)
-    instr.instrument_module(nested_module.test_me.__code__)
+    instr._instrument_code_recursive(nested_module.test_me.__code__)
     return tracer.get_known_data()
 
 
@@ -32,7 +32,7 @@ def known_data_nested():
 
     tracer = ExecutionTracer()
     instr = BranchCoverageInstrumentation(tracer)
-    instr.instrument_module(testMe.__code__)
+    instr._instrument_code_recursive(testMe.__code__)
     return tracer.get_known_data()
 
 

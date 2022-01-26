@@ -16,6 +16,7 @@ from bytecode import Compare
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
+    CodeTypeInstrumentationWrapper,
     DynamicSeedingInstrumentation,
     LineCoverageInstrumentation,
 )
@@ -189,13 +190,40 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
-def test_avoid_duplicate_instrumentation(simple_module):
-    tracer = MagicMock(ExecutionTracer)
-    tracer.register_code_object.return_value = 0
-    instr = BranchCoverageInstrumentation(tracer)
-    already_instrumented = instr.instrument_module(simple_module.cmp_predicate.__code__)
+@pytest.mark.parametrize(
+    "instrumentation",
+    [
+        pytest.param(BranchCoverageInstrumentation(ExecutionTracer())),
+        pytest.param(LineCoverageInstrumentation(ExecutionTracer())),
+        pytest.param(DynamicSeedingInstrumentation(DynamicConstantSeeding())),
+    ],
+)
+def test_avoid_duplicate_instrumentation(simple_module, instrumentation):
+    wrapped_code = CodeTypeInstrumentationWrapper(
+        to_instrument=simple_module.simple_function.__code__,
+        applied_instrumentations=[],
+    )
+    already_instrumented = instrumentation.instrument_module(wrapped_code)
     with pytest.raises(AssertionError):
-        instr.instrument_module(already_instrumented)
+        instrumentation.instrument_module(already_instrumented)
+
+
+def test_allow_multiple_different_instrumentations(simple_module):
+    wrapped_code = CodeTypeInstrumentationWrapper(
+        to_instrument=simple_module.simple_function.__code__,
+        applied_instrumentations=[],
+    )
+
+    tracer = ExecutionTracer()
+
+    branch_instr = BranchCoverageInstrumentation(tracer)
+    already_instrumented = branch_instr.instrument_module(wrapped_code)
+
+    line_instr = LineCoverageInstrumentation(tracer)
+    try:
+        line_instr.instrument_module(already_instrumented)
+    except AssertionError:
+        pytest.fail("Multiple different instrumentations should not assert")
 
 
 @pytest.mark.parametrize(
@@ -236,7 +264,8 @@ def test_integrate_statement_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "multi_loop")
     instr = LineCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr.instrument_module(function_callable.__code__)
+    wrapped_code = CodeTypeInstrumentationWrapper(function_callable.__code__, [])
+    instr.instrument_module(wrapped_code)
 
     assert tracer.get_known_data().existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
@@ -352,14 +381,15 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer = ExecutionTracer()
 
     line_instr = LineCoverageInstrumentation(tracer)
+
     simple_module.simple_function.__code__ = line_instr.instrument_module(
-        simple_module.simple_function.__code__
-    )
+        CodeTypeInstrumentationWrapper(simple_module.simple_function.__code__, [])
+    ).to_instrument
 
     branch_instr = BranchCoverageInstrumentation(tracer)
     simple_module.simple_function.__code__ = branch_instr.instrument_module(
-        simple_module.simple_function.__code__
-    )
+        CodeTypeInstrumentationWrapper(simple_module.simple_function.__code__, [])
+    ).to_instrument
 
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
@@ -501,7 +531,7 @@ def dummy_module():
 
 def test_compare_op_int(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
+    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(10, 11)
@@ -513,7 +543,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
 
 def test_compare_op_float(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
+    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(1.0, 2.5)
@@ -525,7 +555,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
 
 def test_compare_op_string(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
+    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy("abc", "def")
@@ -537,7 +567,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
 
 def test_compare_op_other_type(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
+    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(True, "def")
@@ -551,7 +581,7 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
 
 def test_startswith_function(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.startswith_dummy.__code__ = instr.instrument_module(
+    dummy_module.startswith_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.startswith_dummy.__code__
     )
     res = dummy_module.startswith_dummy("abc", "ab")
@@ -563,7 +593,7 @@ def test_startswith_function(dynamic_instr, dummy_module):
 
 def test_endswith_function(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.endswith_dummy.__code__ = instr.instrument_module(
+    dummy_module.endswith_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.endswith_dummy.__code__
     )
     res = dummy_module.endswith_dummy("abc", "bc")
@@ -575,7 +605,7 @@ def test_endswith_function(dynamic_instr, dummy_module):
 
 def test_isalnum_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
+    dummy_module.isalnum_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isalnum_dummy.__code__
     )
     res = dummy_module.isalnum_dummy("alnumtest")
@@ -588,7 +618,7 @@ def test_isalnum_function_true(dynamic_instr, dummy_module):
 
 def test_isalnum_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
+    dummy_module.isalnum_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isalnum_dummy.__code__
     )
     res = dummy_module.isalnum_dummy("alnum_test")
@@ -601,7 +631,7 @@ def test_isalnum_function_false(dynamic_instr, dummy_module):
 
 def test_islower_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr.instrument_module(
+    dummy_module.islower_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.islower_dummy.__code__
     )
     res = dummy_module.islower_dummy("lower")
@@ -614,7 +644,7 @@ def test_islower_function_true(dynamic_instr, dummy_module):
 
 def test_islower_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr.instrument_module(
+    dummy_module.islower_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.islower_dummy.__code__
     )
     res = dummy_module.islower_dummy("NotLower")
@@ -627,7 +657,7 @@ def test_islower_function_false(dynamic_instr, dummy_module):
 
 def test_isupper_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
+    dummy_module.isupper_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isupper_dummy.__code__
     )
     res = dummy_module.isupper_dummy("UPPER")
@@ -640,7 +670,7 @@ def test_isupper_function_true(dynamic_instr, dummy_module):
 
 def test_isupper_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
+    dummy_module.isupper_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isupper_dummy.__code__
     )
     res = dummy_module.isupper_dummy("NotUpper")
@@ -653,7 +683,7 @@ def test_isupper_function_false(dynamic_instr, dummy_module):
 
 def test_isdecimal_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
+    dummy_module.isdecimal_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isdecimal_dummy.__code__
     )
     res = dummy_module.isdecimal_dummy("012345")
@@ -666,7 +696,7 @@ def test_isdecimal_function_true(dynamic_instr, dummy_module):
 
 def test_isdecimal_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
+    dummy_module.isdecimal_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isdecimal_dummy.__code__
     )
     res = dummy_module.isdecimal_dummy("not_decimal")
@@ -679,7 +709,7 @@ def test_isdecimal_function_false(dynamic_instr, dummy_module):
 
 def test_isalpha_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
+    dummy_module.isalpha_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isalpha_dummy.__code__
     )
     res = dummy_module.isalpha_dummy("alpha")
@@ -692,7 +722,7 @@ def test_isalpha_function_true(dynamic_instr, dummy_module):
 
 def test_isalpha_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
+    dummy_module.isalpha_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isalpha_dummy.__code__
     )
     res = dummy_module.isalpha_dummy("not_alpha")
@@ -705,7 +735,7 @@ def test_isalpha_function_false(dynamic_instr, dummy_module):
 
 def test_isdigit_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
+    dummy_module.isdigit_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isdigit_dummy.__code__
     )
     res = dummy_module.isdigit_dummy("012345")
@@ -718,7 +748,7 @@ def test_isdigit_function_true(dynamic_instr, dummy_module):
 
 def test_isdigit_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
+    dummy_module.isdigit_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isdigit_dummy.__code__
     )
     res = dummy_module.isdigit_dummy("not_digit")
@@ -731,7 +761,7 @@ def test_isdigit_function_false(dynamic_instr, dummy_module):
 
 def test_isidentifier_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
+    dummy_module.isidentifier_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isidentifier_dummy.__code__
     )
     res = dummy_module.isidentifier_dummy("is_identifier")
@@ -744,7 +774,7 @@ def test_isidentifier_function_true(dynamic_instr, dummy_module):
 
 def test_isidentifier_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
+    dummy_module.isidentifier_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isidentifier_dummy.__code__
     )
     res = dummy_module.isidentifier_dummy("not_identifier!")
@@ -757,7 +787,7 @@ def test_isidentifier_function_false(dynamic_instr, dummy_module):
 
 def test_isnumeric_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
+    dummy_module.isnumeric_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isnumeric_dummy.__code__
     )
     res = dummy_module.isnumeric_dummy("44444")
@@ -770,7 +800,7 @@ def test_isnumeric_function_true(dynamic_instr, dummy_module):
 
 def test_isnumeric_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
+    dummy_module.isnumeric_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isnumeric_dummy.__code__
     )
     res = dummy_module.isnumeric_dummy("not_numeric")
@@ -783,7 +813,7 @@ def test_isnumeric_function_false(dynamic_instr, dummy_module):
 
 def test_isprintable_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
+    dummy_module.isprintable_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isprintable_dummy.__code__
     )
     res = dummy_module.isprintable_dummy("printable")
@@ -796,7 +826,7 @@ def test_isprintable_function_true(dynamic_instr, dummy_module):
 
 def test_isprintable_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
+    dummy_module.isprintable_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isprintable_dummy.__code__
     )
     res = dummy_module.isprintable_dummy(f"not_printable{os.linesep}")
@@ -809,7 +839,7 @@ def test_isprintable_function_false(dynamic_instr, dummy_module):
 
 def test_isspace_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
+    dummy_module.isspace_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isspace_dummy.__code__
     )
     res = dummy_module.isspace_dummy(" ")
@@ -822,7 +852,7 @@ def test_isspace_function_true(dynamic_instr, dummy_module):
 
 def test_isspace_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
+    dummy_module.isspace_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.isspace_dummy.__code__
     )
     res = dummy_module.isspace_dummy("no_space")
@@ -835,7 +865,7 @@ def test_isspace_function_false(dynamic_instr, dummy_module):
 
 def test_istitle_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
+    dummy_module.istitle_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.istitle_dummy.__code__
     )
     res = dummy_module.istitle_dummy("Title")
@@ -848,7 +878,7 @@ def test_istitle_function_true(dynamic_instr, dummy_module):
 
 def test_istitle_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
+    dummy_module.istitle_dummy.__code__ = instr._instrument_code_recursive(
         dummy_module.istitle_dummy.__code__
     )
     res = dummy_module.istitle_dummy("no Title")

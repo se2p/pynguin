@@ -22,6 +22,7 @@ import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
+    CodeTypeInstrumentationWrapper,
     DynamicSeedingInstrumentation,
     LineCoverageInstrumentation,
 )
@@ -53,8 +54,13 @@ class InstrumentationLoader(SourceFileLoader):
         Returns:
             The modules code blocks
         """
-        to_instrument = cast(CodeType, super().get_code(fullname))
-        assert to_instrument, "Failed to get code object of module."
+        instrumentation_wrapper = CodeTypeInstrumentationWrapper(
+            to_instrument=cast(CodeType, super().get_code(fullname)),
+            applied_instrumentations=[],
+        )
+        assert (
+            instrumentation_wrapper.to_instrument
+        ), "Failed to get code object of module."
         instrumentations: list[Instrumentation] = []
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
@@ -68,8 +74,10 @@ class InstrumentationLoader(SourceFileLoader):
             )
 
         for instrumentation in instrumentations:
-            to_instrument = instrumentation.instrument_module(to_instrument)
-        return to_instrument
+            instrumentation_wrapper = instrumentation.instrument_module(
+                instrumentation_wrapper
+            )
+        return instrumentation_wrapper.to_instrument
 
 
 class InstrumentationFinder(MetaPathFinder):

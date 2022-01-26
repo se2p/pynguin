@@ -11,7 +11,7 @@ import json
 import logging
 from abc import abstractmethod
 from types import CodeType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -32,6 +32,23 @@ CODE_OBJECT_ID_KEY = "code_object_id"
 
 
 # pylint:disable=too-few-public-methods
+class CodeTypeInstrumentationWrapper(NamedTuple):
+    """A wrapper around CodeType objects for instrumentation.
+
+    The rationale of this wrapper is to track which instrumentations have already been
+    applied to the CodeType in order to avoid duplicate instrumentation.
+    An implementation of the Instrumentation class needs to check in its
+    instrument_module method whether it is already in the list of applied
+    instrumentations.  In such a case it must not do instrumentation again.
+    If it was not part of the list and does some instrumentation it has to
+    add itself to the list of applied instrumentations.
+    """
+
+    to_instrument: CodeType
+    applied_instrumentations: list[str]
+
+
+# pylint:disable=too-few-public-methods
 class Instrumentation:
     """Abstract base class for bytecode instrumentations.
 
@@ -45,7 +62,9 @@ class Instrumentation:
     implicitly returns None."""
 
     @abstractmethod
-    def instrument_module(self, module_code: CodeType) -> CodeType:
+    def instrument_module(
+        self, module_code: CodeTypeInstrumentationWrapper
+    ) -> CodeTypeInstrumentationWrapper:
         """Instrument the given code object of a module.
 
         Args:
@@ -439,8 +458,16 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("POP_TOP", lineno=lineno),
         ]
 
-    def instrument_module(self, module_code: CodeType) -> CodeType:
-        return self._instrument_code_recursive(module_code)
+    def instrument_module(
+        self, module_code: CodeTypeInstrumentationWrapper
+    ) -> CodeTypeInstrumentationWrapper:
+        if "BranchCoverageInstrumentation" in module_code.applied_instrumentations:
+            raise AssertionError("Tried to instrument already instrumented module.")
+        return CodeTypeInstrumentationWrapper(
+            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
+            applied_instrumentations=module_code.applied_instrumentations
+            + ["BranchCoverageInstrumentation"],
+        )
 
     def _instrument_for_loop(
         self,
@@ -673,9 +700,18 @@ class LineCoverageInstrumentation(Instrumentation):
         block[instr_index:instr_index] = inserted_instructions
         return len(inserted_instructions)
 
-    def instrument_module(self, module_code: CodeType) -> CodeType:
-        code = self._instrument_code_recursive(module_code)
-        self._tracer.reset_code_objects()
+    def instrument_module(
+        self, module_code: CodeTypeInstrumentationWrapper
+    ) -> CodeTypeInstrumentationWrapper:
+        if "LineCoverageInstrumentation" in module_code.applied_instrumentations:
+            raise AssertionError("Tried to instrument already instrumented module.")
+        code = CodeTypeInstrumentationWrapper(
+            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
+            applied_instrumentations=module_code.applied_instrumentations
+            + ["LineCoverageInstrumentation"],
+        )
+        # clear registered code objects to not throw of branch calculation
+        self._tracer.reset_code_objects()  # can be removed if Issue 177 is fixed
         return code
 
 
@@ -960,8 +996,16 @@ class DynamicSeedingInstrumentation(Instrumentation):
                     node.basic_block, maybe_string_func_with_arg.arg
                 )
 
-    def instrument_module(self, module_code: CodeType) -> CodeType:
-        return self._instrument_code_recursive(module_code)
+    def instrument_module(
+        self, module_code: CodeTypeInstrumentationWrapper
+    ) -> CodeTypeInstrumentationWrapper:
+        if "DynamicSeedingInstrumentation" in module_code.applied_instrumentations:
+            raise AssertionError("Tried to instrument already instrumented module.")
+        return CodeTypeInstrumentationWrapper(
+            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
+            applied_instrumentations=module_code.applied_instrumentations
+            + ["DynamicSeedingInstrumentation"],
+        )
 
 
 def node_is_return_none_node(node: ProgramGraphNode) -> bool:
