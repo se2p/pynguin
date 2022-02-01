@@ -10,7 +10,7 @@ import pynguin.analyses.controlflow.controldependencegraph as cdt
 import pynguin.analyses.controlflow.programgraph as pg
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
-    CodeTypeInstrumentationWrapper,
+    InstrumentationTransformer,
 )
 from pynguin.testcase.execution import ExecutionTracer
 
@@ -72,10 +72,9 @@ def small_fixture(x, y):  # pragma: no cover
 )
 def test_get_control_dependencies(node, deps):
     tracer = ExecutionTracer()
-    instr = BranchCoverageInstrumentation(tracer)
-
-    wrapped_code = CodeTypeInstrumentationWrapper(small_fixture.__code__, [])
-    instr.instrument_module(wrapped_code)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    transformer.instrument_module(small_fixture.__code__)
     cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
     assert set(cdg.get_control_dependencies(node)) == deps
 
@@ -83,9 +82,9 @@ def test_get_control_dependencies(node, deps):
 @pytest.mark.parametrize("node", ["foobar", None])
 def test_get_control_dependencies_asserts(node):
     tracer = ExecutionTracer()
-    instr = BranchCoverageInstrumentation(tracer)
-    wrapped_code = CodeTypeInstrumentationWrapper(small_fixture.__code__, [])
-    instr.instrument_module(wrapped_code)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    transformer.instrument_module(small_fixture.__code__)
     cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)

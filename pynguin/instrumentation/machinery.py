@@ -22,13 +22,13 @@ import pynguin.configuration as config
 from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
-    CodeTypeInstrumentationWrapper,
     DynamicSeedingInstrumentation,
+    InstrumentationTransformer,
     LineCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:
-    from pynguin.instrumentation.instrumentation import Instrumentation
+    from pynguin.instrumentation.instrumentation import InstrumentationAdapter
     from pynguin.testcase.execution import ExecutionTracer
 
 
@@ -54,30 +54,20 @@ class InstrumentationLoader(SourceFileLoader):
         Returns:
             The modules code blocks
         """
-        instrumentation_wrapper = CodeTypeInstrumentationWrapper(
-            to_instrument=cast(CodeType, super().get_code(fullname)),
-            applied_instrumentations=[],
-        )
-        assert (
-            instrumentation_wrapper.to_instrument
-        ), "Failed to get code object of module."
-        instrumentations: list[Instrumentation] = []
+        to_instrument = cast(CodeType, super().get_code(fullname))
+        assert to_instrument, "Failed to get code object of module."
+        adapters: list[InstrumentationAdapter] = []
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.LINE in coverage_metrics:
-            instrumentations.append(LineCoverageInstrumentation(self._tracer))
         if config.CoverageMetric.BRANCH in coverage_metrics:
-            instrumentations.append(BranchCoverageInstrumentation(self._tracer))
+            adapters.append(BranchCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.LINE in coverage_metrics:
+            adapters.append(LineCoverageInstrumentation(self._tracer))
 
         if config.configuration.seeding.dynamic_constant_seeding:
-            instrumentations.append(
-                DynamicSeedingInstrumentation(dynamic_constant_seeding)
-            )
+            adapters.append(DynamicSeedingInstrumentation(dynamic_constant_seeding))
 
-        for instrumentation in instrumentations:
-            instrumentation_wrapper = instrumentation.instrument_module(
-                instrumentation_wrapper
-            )
-        return instrumentation_wrapper.to_instrument
+        transformer = InstrumentationTransformer(self._tracer, adapters)
+        return transformer.instrument_module(to_instrument)
 
 
 class InstrumentationFinder(MetaPathFinder):

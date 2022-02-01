@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from abc import abstractmethod
 from types import CodeType
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -32,25 +31,8 @@ CODE_OBJECT_ID_KEY = "code_object_id"
 
 
 # pylint:disable=too-few-public-methods
-class CodeTypeInstrumentationWrapper(NamedTuple):
-    """A wrapper around CodeType objects for instrumentation.
-
-    The rationale of this wrapper is to track which instrumentations have already been
-    applied to the CodeType in order to avoid duplicate instrumentation.
-    An implementation of the Instrumentation class needs to check in its
-    instrument_module method whether it is already in the list of applied
-    instrumentations.  In such a case it must not do instrumentation again.
-    If it was not part of the list and does some instrumentation it has to
-    add itself to the list of applied instrumentations.
-    """
-
-    to_instrument: CodeType
-    applied_instrumentations: list[str]
-
-
-# pylint:disable=too-few-public-methods
-class Instrumentation:
-    """Abstract base class for bytecode instrumentations.
+class InstrumentationAdapter:
+    """Abstract base class for bytecode instrumentation adapters.
 
     General notes:
 
@@ -59,19 +41,38 @@ class Instrumentation:
     to reorder the elements accordingly.
 
     A POP_TOP instruction is required after calling a method, because each method
-    implicitly returns None."""
+    implicitly returns None.
 
-    @abstractmethod
-    def instrument_module(
-        self, module_code: CodeTypeInstrumentationWrapper
-    ) -> CodeTypeInstrumentationWrapper:
-        """Instrument the given code object of a module.
+    This class defines visit_* methods that are called from the
+    InstrumentationTransformer. Each subclass should override the visit_* methods
+    where it wants to do something.
+    """
+
+    # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
+    #  Or use sub visitors?
+
+    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
+        """Called when we visit the entry node of a code object.
 
         Args:
-            module_code: The code object of the module
+            block: The basic block of the entry node.
+            code_object_id: The code object id of the containing code object.
+        """
 
-        Returns:
-            The instrumented code object of the module
+    def visit_node(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        node: ProgramGraphNode,
+        basic_block: BasicBlock,
+    ) -> None:
+        """Called for each non-artificial node, i.e., nodes that have a basic block
+
+        Args:
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            basic_block: The basic block associated with the node.
         """
 
     @staticmethod
@@ -110,53 +111,41 @@ class Instrumentation:
         return tuple(nodes)
 
 
-class BranchCoverageInstrumentation(Instrumentation):
-    """Instruments code objects to enable tracking branch distances and thus
-    branch coverage."""
+class InstrumentationTransformer:
+    """Applies a given list of instrumentation adapters to code objects.
 
-    # As of CPython 3.8, there are a few compare ops for which we can't really
-    # compute a sensible branch distance. So for now, we just ignore those
-    # comparisons and just track their boolean value.
-    # As of CPython 3.9, this is no longer a compare op but instead
-    # a JUMP_IF_NOT_EXC_MATCH, which we also handle as boolean based jump.
-    _IGNORED_COMPARE_OPS: set[Compare] = {Compare.EXC_MATCH}
+    This class is responsible for traversing all nested code objects and their
+    basic blocks and requesting their instrumentation from the given adapters.
 
-    # Conditional jump operations are the last operation within a basic block
-    _JUMP_OP_POS = -1
-
-    # If a conditional jump is based on a comparison, it has to be the second-to-last
-    # instruction within the basic block.
-    _COMPARE_OP_POS = -2
+    Ideally we would want something like ASM with nested visitors where changes from
+    different adapters don't affect each other, but that's of overkill for now.
+    """
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(
+        self,
+        tracer: ExecutionTracer,
+        instrumentation_adapters: list[InstrumentationAdapter],
+    ):
+        self._instrumentation_adapters = instrumentation_adapters
         self._tracer = tracer
 
-    def _instrument_inner_code_objects(
-        self, code: CodeType, parent_code_object_id: int
-    ) -> CodeType:
-        """Apply the instrumentation to all constants of the given code object.
+    def instrument_module(self, module_code: CodeType) -> CodeType:
+        """Instrument the given code object of a module.
 
         Args:
-            code: the Code Object that should be instrumented.
-            parent_code_object_id: the id of the parent code object, if any.
+            module_code: The code object of the module
 
         Returns:
-            the code object whose constants were instrumented.
+            The instrumented code object of the module
         """
-        new_consts = []
-        for const in code.co_consts:
-            if isinstance(const, CodeType):
-                # The const is an inner code object
-                new_consts.append(
-                    self._instrument_code_recursive(
-                        const, parent_code_object_id=parent_code_object_id
-                    )
-                )
-            else:
-                new_consts.append(const)
-        return code.replace(co_consts=tuple(new_consts))
+        for const in module_code.co_consts:
+            if isinstance(const, ExecutionTracer):
+                # Abort instrumentation, since we have already
+                # instrumented this code object.
+                assert False, "Tried to instrument already instrumented module."
+        return self._instrument_code_recursive(module_code)
 
     def _instrument_code_recursive(
         self,
@@ -190,11 +179,37 @@ class BranchCoverageInstrumentation(Instrumentation):
         assert cfg.entry_node is not None, "Entry node cannot be None."
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-        self._add_code_object_executed(real_entry_node.basic_block, code_object_id)
+        for adapter in self._instrumentation_adapters:
+            adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
         self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
         )
+
+    def _instrument_inner_code_objects(
+        self, code: CodeType, parent_code_object_id: int
+    ) -> CodeType:
+        """Apply the instrumentation to all constants of the given code object.
+
+        Args:
+            code: the Code Object that should be instrumented.
+            parent_code_object_id: the id of the parent code object, if any.
+
+        Returns:
+            the code object whose constants were instrumented.
+        """
+        new_consts = []
+        for const in code.co_consts:
+            if isinstance(const, CodeType):
+                # The const is an inner code object
+                new_consts.append(
+                    self._instrument_code_recursive(
+                        const, parent_code_object_id=parent_code_object_id
+                    )
+                )
+            else:
+                new_consts.append(const)
+        return code.replace(co_consts=tuple(new_consts))
 
     def _instrument_cfg(self, cfg: CFG, code_object_id: int) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
@@ -203,18 +218,48 @@ class BranchCoverageInstrumentation(Instrumentation):
             cfg: The CFG that overlays the bytecode cfg.
             code_object_id: The id of the code object which contains this CFG.
         """
-        # Required to transform for loops.
         for node in cfg.nodes:
-            predicate_id = self._instrument_node(cfg, code_object_id, node)
-            if predicate_id is not None:
-                node.predicate_id = predicate_id
+            if node.is_artificial:
+                # Artificial nodes don't have a basic block, so we don't need to
+                # instrument anything.
+                continue
+            assert (
+                node.basic_block is not None
+            ), "Non artificial node does not have a basic block."
+            for adapter in self._instrumentation_adapters:
+                adapter.visit_node(cfg, code_object_id, node, node.basic_block)
 
-    def _instrument_node(
+
+class BranchCoverageInstrumentation(InstrumentationAdapter):
+    """Instruments code objects to enable tracking branch distances and thus
+    branch coverage."""
+
+    # As of CPython 3.8, there are a few compare ops for which we can't really
+    # compute a sensible branch distance. So for now, we just ignore those
+    # comparisons and just track their boolean value.
+    # As of CPython 3.9, this is no longer a compare op but instead
+    # a JUMP_IF_NOT_EXC_MATCH, which we also handle as boolean based jump.
+    _IGNORED_COMPARE_OPS: set[Compare] = {Compare.EXC_MATCH}
+
+    # Conditional jump operations are the last operation within a basic block
+    _JUMP_OP_POS = -1
+
+    # If a conditional jump is based on a comparison, it has to be the second-to-last
+    # instruction within the basic block.
+    _COMPARE_OP_POS = -2
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, tracer: ExecutionTracer) -> None:
+        self._tracer = tracer
+
+    def visit_node(
         self,
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-    ) -> int | None:
+        basic_block: BasicBlock,
+    ) -> None:
         """Instrument a single node in the CFG.
 
         Currently, we only instrument conditional jumps and for loops.
@@ -223,35 +268,30 @@ class BranchCoverageInstrumentation(Instrumentation):
             cfg: The containing CFG.
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
-
-        Returns:
-            A predicate id, if the node contained a predicate which was instrumented.
+            basic_block: The basic block of the node that should be instrumented.
         """
-        predicate_id: int | None = None
-        # Not every block has an associated basic block, e.g. the artificial exit node.
-        if not node.is_artificial:
-            assert (
-                node.basic_block is not None
-            ), "Non artificial node does not have a basic block."
-            assert len(node.basic_block) > 0, "Empty basic block in CFG."
-            maybe_jump: Instr = node.basic_block[self._JUMP_OP_POS]
-            maybe_compare: Instr | None = (
-                node.basic_block[self._COMPARE_OP_POS]
-                if len(node.basic_block) > 1
-                else None
-            )
-            if isinstance(maybe_jump, Instr):
-                if maybe_jump.name == "FOR_ITER":
-                    predicate_id = self._instrument_for_loop(cfg, node, code_object_id)
-                elif maybe_jump.is_cond_jump():
-                    predicate_id = self._instrument_cond_jump(
-                        code_object_id,
-                        maybe_compare,
-                        maybe_jump,
-                        node.basic_block,
-                        node,
-                    )
-        return predicate_id
+
+        assert len(basic_block) > 0, "Empty basic block in CFG."
+        maybe_jump: Instr = basic_block[self._JUMP_OP_POS]
+        maybe_compare: Instr | None = (
+            basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
+        )
+        if isinstance(maybe_jump, Instr):
+            predicate_id: int | None = None
+            if maybe_jump.name == "FOR_ITER":
+                predicate_id = self._instrument_for_loop(
+                    cfg, node, basic_block, code_object_id
+                )
+            elif maybe_jump.is_cond_jump():
+                predicate_id = self._instrument_cond_jump(
+                    code_object_id,
+                    maybe_compare,
+                    maybe_jump,
+                    basic_block,
+                    node,
+                )
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
 
     def _instrument_cond_jump(
         self,
@@ -434,7 +474,7 @@ class BranchCoverageInstrumentation(Instrumentation):
         ]
         return predicate_id
 
-    def _add_code_object_executed(self, block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
 
@@ -458,21 +498,11 @@ class BranchCoverageInstrumentation(Instrumentation):
             Instr("POP_TOP", lineno=lineno),
         ]
 
-    def instrument_module(
-        self, module_code: CodeTypeInstrumentationWrapper
-    ) -> CodeTypeInstrumentationWrapper:
-        if "BranchCoverageInstrumentation" in module_code.applied_instrumentations:
-            raise AssertionError("Tried to instrument already instrumented module.")
-        return CodeTypeInstrumentationWrapper(
-            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
-            applied_instrumentations=module_code.applied_instrumentations
-            + ["BranchCoverageInstrumentation"],
-        )
-
     def _instrument_for_loop(
         self,
         cfg: CFG,
         node: ProgramGraphNode,
+        basic_block: BasicBlock,
         code_object_id: int,
     ) -> int:
         """Transform the for loop whose header is defined in the given node.
@@ -496,27 +526,30 @@ class BranchCoverageInstrumentation(Instrumentation):
         Jumps which reach the loop header from outside the loop will still target
         the original loop header, so they don't need to be modified.
 
+        Attention! These changes to the control flow are not reflected in the high level
+        CFG, but only in the bytecode CFG.
+
         Args:
             cfg: The CFG that contains the loop
             node: The node which contains the header of the for loop.
+            basic_block: The basic block of the node.
             code_object_id: The id of the containing Code Object.
 
         Returns:
             The ID of the instrumented predicate
         """
-        assert node.basic_block is not None, "Basic block of for loop cannot be None."
-        for_instr = node.basic_block[self._JUMP_OP_POS]
+        for_instr = basic_block[self._JUMP_OP_POS]
         assert for_instr.name == "FOR_ITER"
         lineno = for_instr.lineno
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         for_loop_exit = for_instr.arg
-        for_loop_body = node.basic_block.next_block
+        for_loop_body = basic_block.next_block
 
         # pylint:disable=unbalanced-tuple-unpacking
         entered, not_entered = self._create_consecutive_blocks(
-            cfg.bytecode_cfg(), node.basic_block, 2
+            cfg.bytecode_cfg(), basic_block, 2
         )
         for_instr.arg = not_entered
 
@@ -556,7 +589,7 @@ class BranchCoverageInstrumentation(Instrumentation):
 
 
 # pylint:disable=too-few-public-methods
-class LineCoverageInstrumentation(Instrumentation):
+class LineCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines and thus
     line coverage."""
 
@@ -565,107 +598,27 @@ class LineCoverageInstrumentation(Instrumentation):
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    def _instrument_inner_code_objects(
-        self, code: CodeType, parent_code_object_id: int
-    ) -> CodeType:
-        """Apply the instrumentation to all lines of the given code object.
-
-        Args:
-            code: the Code Object that should be instrumented.
-            parent_code_object_id: the id of the parent code object, if any.
-
-        Returns:
-            the code object whose constants were instrumented.
-        """
-        new_consts = []
-        for const in code.co_consts:
-            if isinstance(const, CodeType):
-                # The const is an inner code object
-                new_consts.append(
-                    self._instrument_code_recursive(
-                        const, parent_code_object_id=parent_code_object_id
-                    )
-                )
-            else:
-                new_consts.append(const)
-        return code.replace(co_consts=tuple(new_consts))
-
-    def _instrument_code_recursive(
+    def visit_node(
         self,
-        code: CodeType,
-        parent_code_object_id: int | None = None,
-    ) -> CodeType:
-        """Instrument the given Code Object recursively.
-
-        Args:
-            code: The code object that should be instrumented
-            parent_code_object_id: The ID of the optional parent code object
-
-        Returns:
-            The instrumented code object
-        """
-        self._logger.debug(
-            "Instrumenting Code Object for line coverage for %s", code.co_name
-        )
-        cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        cdg = ControlDependenceGraph.compute(cfg)
-        code_object_id = self._tracer.register_code_object(
-            CodeObjectMetaData(
-                code_object=code,
-                parent_code_object_id=parent_code_object_id,
-                cfg=cfg,
-                cdg=cdg,
-            )
-        )
-
-        self._instrument_cfg(cfg, code_object_id, code.co_filename)
-        return self._instrument_inner_code_objects(
-            cfg.bytecode_cfg().to_code(), code_object_id
-        )
-
-    def _instrument_cfg(self, cfg: CFG, code_object_id: int, file_name: str) -> None:
-        """Instrument the bytecode cfg associated with the given CFG.
-
-        Args:
-            cfg: The CFG that overlays the bytecode cfg.
-            code_object_id: The id of the code object which contains this CFG.
-            file_name: The file that produced the code object of this CFG.
-        """
-        for node in cfg.nodes:
-            self._instrument_node(code_object_id, node, file_name)
-
-    def _instrument_node(
-        self, code_object_id: int, node: ProgramGraphNode, file_name: str
+        cfg: CFG,
+        code_object_id: int,
+        node: ProgramGraphNode,
+        basic_block: BasicBlock,
     ) -> None:
-        """Instrument a single node in the CFG.
-
-        If the node is a line node, instrument that the line was executed
-        during the test execution.
-
-        Args:
-            code_object_id: The containing Code Object
-            node: The node that should be instrumented.
-            file_name: The file that produced the code object of this node.
-        """
-        if (
-            node.basic_block
-            and not node.is_artificial
-            and not node_is_return_none_node(node)
-        ):
-            block: BasicBlock = node.basic_block
-
+        if not is_return_none_basic_block(basic_block):
             #  iterate over instructions after the fist one in BB,
             #  put new instructions in the block for each line
+            file_name = cfg.bytecode_cfg().filename
             lineno = -1
             instr_index = 0
-            while instr_index < len(block):
-                if block[instr_index].lineno != lineno:
-                    lineno = block[instr_index].lineno
+            while instr_index < len(basic_block):
+                if basic_block[instr_index].lineno != lineno:
+                    lineno = basic_block[instr_index].lineno
                     line_id = self._tracer.register_line(
                         code_object_id, file_name, lineno
                     )
                     instr_index += (  # increment by the amount of instructions inserted
-                        self.instrument_line(block, instr_index, line_id, lineno)
+                        self.instrument_line(basic_block, instr_index, line_id, lineno)
                     )
                 instr_index += 1
 
@@ -700,23 +653,9 @@ class LineCoverageInstrumentation(Instrumentation):
         block[instr_index:instr_index] = inserted_instructions
         return len(inserted_instructions)
 
-    def instrument_module(
-        self, module_code: CodeTypeInstrumentationWrapper
-    ) -> CodeTypeInstrumentationWrapper:
-        if "LineCoverageInstrumentation" in module_code.applied_instrumentations:
-            raise AssertionError("Tried to instrument already instrumented module.")
-        code = CodeTypeInstrumentationWrapper(
-            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
-            applied_instrumentations=module_code.applied_instrumentations
-            + ["LineCoverageInstrumentation"],
-        )
-        # clear registered code objects to not throw of branch calculation
-        self._tracer.reset_code_objects()  # can be removed if Issue 177 is fixed
-        return code
-
 
 # pylint:disable=too-few-public-methods
-class DynamicSeedingInstrumentation(Instrumentation):
+class DynamicSeedingInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable dynamic constant seeding.
 
     Supported is collecting values of the types int, float and string.
@@ -766,6 +705,40 @@ class DynamicSeedingInstrumentation(Instrumentation):
 
     def __init__(self, dynamic_constant_seeding: DynamicConstantSeeding):
         self._dynamic_constant_seeding = dynamic_constant_seeding
+
+    def visit_node(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        node: ProgramGraphNode,
+        basic_block: BasicBlock,
+    ) -> None:
+        assert len(basic_block) > 0, "Empty basic block in CFG."
+        maybe_compare: Instr | None = (
+            basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
+        )
+        maybe_string_func: Instr | None = (
+            basic_block[self._STRING_FUNC_POS] if len(basic_block) > 2 else None
+        )
+        maybe_string_func_with_arg: Instr | None = (
+            basic_block[self._STRING_FUNC_POS_WITH_ARG]
+            if len(basic_block) > 3
+            else None
+        )
+        if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
+            self._instrument_compare_op(basic_block)
+        if (
+            isinstance(maybe_string_func, Instr)
+            and maybe_string_func.name == "LOAD_METHOD"
+            and maybe_string_func.arg in self._STRING_FUNCTION_NAMES
+        ):
+            self._instrument_string_func(basic_block, maybe_string_func.arg)
+        if (
+            isinstance(maybe_string_func_with_arg, Instr)
+            and maybe_string_func_with_arg.name == "LOAD_METHOD"
+            and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
+        ):
+            self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
@@ -895,133 +868,20 @@ class DynamicSeedingInstrumentation(Instrumentation):
         ]
         self._logger.debug("Instrumented compare_op")
 
-    def _instrument_inner_code_objects(self, code: CodeType) -> CodeType:
-        """Apply the instrumentation to all constants of the given code object.
 
-        Args:
-            code: the Code Object that should be instrumented.
-
-        Returns:
-            the code object whose constants were instrumented.
-        """
-        new_consts = []
-        for const in code.co_consts:
-            if isinstance(const, CodeType):
-                # The const is an inner code object
-                new_consts.append(self._instrument_code_recursive(const))
-            else:
-                new_consts.append(const)
-        return code.replace(co_consts=tuple(new_consts))
-
-    def _instrument_code_recursive(
-        self,
-        code: CodeType,
-    ) -> CodeType:
-        """Instrument the given Code Object recursively.
-
-        Args:
-            code: The code object that should be instrumented
-
-        Returns:
-            The instrumented code object
-        """
-        self._logger.debug(
-            "Instrumenting Code Object for dynamic seeding for %s", code.co_name
-        )
-        cfg = CFG.from_bytecode(Bytecode.from_code(code))
-
-        assert cfg.entry_node is not None, "Entry node cannot be None."
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-
-        self._instrument_cfg(cfg)
-        return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code())
-
-    def _instrument_cfg(self, cfg: CFG) -> None:
-        """Instrument the bytecode cfg associated with the given CFG.
-
-        Args:
-            cfg: The CFG that overlays the bytecode cfg.
-        """
-        # Attributes which store the predicate ids assigned to instrumented nodes.
-        for node in cfg.nodes:
-            self._instrument_node(node)
-
-    def _instrument_node(
-        self,
-        node: ProgramGraphNode,
-    ) -> None:
-        """Instrument a single node in the CFG.
-
-        Currently, we only instrument conditional jumps and for loops.
-
-        Args:
-            node: The node that should be instrumented.
-        """
-        # Not every block has an associated basic block, e.g. the artificial exit node.
-        if not node.is_artificial:
-            assert (
-                node.basic_block is not None
-            ), "Non artificial node does not have a basic block."
-            assert len(node.basic_block) > 0, "Empty basic block in CFG."
-            maybe_compare: Instr | None = (
-                node.basic_block[self._COMPARE_OP_POS]
-                if len(node.basic_block) > 1
-                else None
-            )
-            maybe_string_func: Instr | None = (
-                node.basic_block[self._STRING_FUNC_POS]
-                if len(node.basic_block) > 2
-                else None
-            )
-            maybe_string_func_with_arg: Instr | None = (
-                node.basic_block[self._STRING_FUNC_POS_WITH_ARG]
-                if len(node.basic_block) > 3
-                else None
-            )
-            if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
-                self._instrument_compare_op(node.basic_block)
-            if (
-                isinstance(maybe_string_func, Instr)
-                and maybe_string_func.name == "LOAD_METHOD"
-                and maybe_string_func.arg in self._STRING_FUNCTION_NAMES
-            ):
-                self._instrument_string_func(node.basic_block, maybe_string_func.arg)
-            if (
-                isinstance(maybe_string_func_with_arg, Instr)
-                and maybe_string_func_with_arg.name == "LOAD_METHOD"
-                and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
-            ):
-                self._instrument_string_func(
-                    node.basic_block, maybe_string_func_with_arg.arg
-                )
-
-    def instrument_module(
-        self, module_code: CodeTypeInstrumentationWrapper
-    ) -> CodeTypeInstrumentationWrapper:
-        if "DynamicSeedingInstrumentation" in module_code.applied_instrumentations:
-            raise AssertionError("Tried to instrument already instrumented module.")
-        return CodeTypeInstrumentationWrapper(
-            to_instrument=self._instrument_code_recursive(module_code.to_instrument),
-            applied_instrumentations=module_code.applied_instrumentations
-            + ["DynamicSeedingInstrumentation"],
-        )
-
-
-def node_is_return_none_node(node: ProgramGraphNode) -> bool:
+def is_return_none_basic_block(basic_block: BasicBlock) -> bool:
     """Checks if a node is a "return None" line.
 
     Args:
-        node: The node that needs to be checked
+        basic_block: The basic block that needs to be checked
 
     Returns:
         True, if the node is a "return None" line, false otherwise.
     """
-    if node.basic_block:
-        block = node.basic_block
-        return (
-            len(block) == 2
-            and block[0] == Instr("LOAD_CONST", None, lineno=block[0].lineno)
-            and block[1].opcode == op.RETURN_VALUE
-        )
-    return False
+    # TODO(fk) there seem to be cases where this check is not sufficient.
+    # Not sure how to detect those.
+    return (
+        len(basic_block) == 2
+        and basic_block[0] == Instr("LOAD_CONST", None, lineno=basic_block[0].lineno)
+        and basic_block[1].opcode == op.RETURN_VALUE
+    )
