@@ -316,6 +316,7 @@ class ExecutionTrace:
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
+    covered_lines: OrderedSet[int] = field(default_factory=set)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -328,6 +329,7 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
+        self.covered_lines.update(other.covered_lines)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -373,6 +375,36 @@ class PredicateMetaData:
 
 
 @dataclass
+class LineMetaData:
+    """Stores meta data of a line."""
+
+    # id of the code object where the line is first defined
+    code_object_id: int
+
+    # name of the file containing a line
+    file_name: str
+
+    # Line number where the predicate is defined.
+    line_number: int
+
+    def __hash__(self):
+        # code object id is not checked since file
+        # and line number are the unique identifiers
+        return 31 + self.line_number + hash(self.file_name)
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, LineMetaData):
+            return False
+        # code object id is not checked since file
+        # and line number are the unique identifiers
+        return (
+            self.line_number == other.line_number and self.file_name == other.file_name
+        )
+
+
+@dataclass
 class KnownData:
     """Contains known code objects and predicates.
     FIXME(fk) better class name...
@@ -389,9 +421,12 @@ class KnownData:
     # Maps all known ids of predicates to meta information
     existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
+    # stores which line id represents which line in which file
+    existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
+
 
 class ExecutionTracer:
-    """Tracks branch distances during execution.
+    """Tracks branch distances and covered statements during execution.
     The results are stored in an execution trace."""
 
     _logger = logging.getLogger(__name__)
@@ -518,10 +553,10 @@ class ExecutionTracer:
         """Should we track anything?
 
         We might have to disable tracing, e.g. when calling __eq__ ourselves.
-        Otherwise we create an endless recursion.
+        Otherwise, we create an endless recursion.
 
         Returns:
-            Whether or not we should track anything
+            Whether we should track anything
         """
         return not self._enabled
 
@@ -680,6 +715,36 @@ class ExecutionTracer:
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
             self.enable()
+
+    def track_line_visit(self, line_id: int) -> None:
+        """Tracks the visit of a line.
+
+        Args:
+            line_id: the if of the line that was visited
+        """
+        self._trace.covered_lines.add(line_id)
+
+    def register_line(
+        self, code_object_id: int, file_name: str, line_number: int
+    ) -> int:
+        """Tracks the existence of a line.
+
+        Args:
+            code_object_id: The id of the code object that contains the line
+            file_name: The file in which the statement is
+            line_number: The line of the statement to track
+
+        Returns:
+            the id of the registered line
+        """
+        line_meta = LineMetaData(code_object_id, file_name, line_number)
+        if line_meta not in self._known_data.existing_lines.values():
+            line_id = len(self._known_data.existing_lines)
+            self._known_data.existing_lines[line_id] = line_meta
+        else:
+            index = list(self._known_data.existing_lines.values()).index(line_meta)
+            line_id = list(self._known_data.existing_lines.keys())[index]
+        return line_id
 
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int

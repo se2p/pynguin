@@ -10,7 +10,10 @@ import pytest
 
 import pynguin.coverage.branchgoals as bg
 import pynguin.generation.algorithms.dynamosastrategy as dyna
-from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import (
+    BranchCoverageInstrumentation,
+    InstrumentationTransformer,
+)
 from pynguin.testcase.execution import ExecutionTracer
 
 
@@ -19,8 +22,9 @@ def known_data():
     nested_module = importlib.import_module("tests.fixtures.examples.nested")
 
     tracer = ExecutionTracer()
-    instr = BranchCoverageInstrumentation(tracer)
-    instr.instrument_module(nested_module.test_me.__code__)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    transformer.instrument_module(nested_module.test_me.__code__)
     return tracer.get_known_data()
 
 
@@ -31,8 +35,9 @@ def known_data_nested():
             pass
 
     tracer = ExecutionTracer()
-    instr = BranchCoverageInstrumentation(tracer)
-    instr.instrument_module(testMe.__code__)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    transformer.instrument_module(testMe.__code__)
     return tracer.get_known_data()
 
 

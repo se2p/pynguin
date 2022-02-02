@@ -44,6 +44,12 @@ def multi_loop(x: int) -> int:
     return the_sum
 
 
+def while_loop(length: int):
+    while length > 0:
+        print(length)
+        length -= 1
+
+
 def comprehension(y, z):
     return [x for x in range(y) if x != z]
 
@@ -65,3 +71,8 @@ def conditionally_nested_class(x: int):
                 self.y = 3
 
         TestClass()
+
+
+def explicit_none_return():
+    print("This does nothing")
+    return None

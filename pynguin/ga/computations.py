@@ -112,7 +112,7 @@ class FitnessFunction:
             individual: the chromosome to check coverage on.
 
         Returns:
-            True, iff the goal of this fitness function is covered.
+            True, if the goal of this fitness function is covered.
         """
 
     @abstractmethod
@@ -227,6 +227,29 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
+class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+    """A fitness function based on lines covered and entered code objects."""
+
+    def compute_fitness(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        existing_lines = self._executor.tracer.get_known_data().existing_lines
+        return len(existing_lines) - len(merged_trace.covered_lines)
+
+    def compute_is_covered(self, individual) -> bool:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+
+        return compute_line_coverage_fitness_is_covered(
+            merged_trace,
+            tracer.get_known_data(),
+        )
+
+    def is_maximisation_function(self) -> bool:
+        return False
+
+
 class CoverageFunction:  # pylint:disable=too-few-public-methods
     """Interface for a coverage function."""
 
@@ -273,6 +296,26 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_branch_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
+    """Computes line coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_line_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
+    """Computes line coverage on test cases."""
+
+    def compute_coverage(self, individual) -> float:
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+        tracer = self._executor.tracer
+        return compute_line_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -489,7 +532,7 @@ class ComputationCache:
         """Provides the coverage value for a certain coverage function
 
         Args:
-            coverage_function: The fitness function who's coverage value shall be
+            coverage_function: The fitness function whose coverage value shall be
                 returned
 
         Returns:
@@ -622,7 +665,7 @@ def compute_branch_distance_fitness_is_covered(
         exclude_false: Ids of predicates whose False branch should not be considered.
 
     Returns:
-        True, iff all branches were covered
+        True, if all branches were covered
     """
     # Handle None. Cannot use empty set as default, because of mutable default args.
     exclude_code = set() if exclude_code is None else exclude_code
@@ -657,6 +700,21 @@ def compute_branch_distance_fitness_is_covered(
     return True
 
 
+def compute_line_coverage_fitness_is_covered(
+    trace: ExecutionTrace, known_data: KnownData
+) -> bool:
+    """Computes if all lines and code objects have been executed.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        True, if all lines were covered, false otherwise
+    """
+    return len(trace.covered_lines) == len(known_data.existing_lines)
+
+
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
     """Computes branch coverage on bytecode instructions which should equal
     decision coverage on source.
@@ -686,6 +744,28 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
+        coverage = covered / existing
+    assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+    return coverage
+
+
+def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+    """Computes line coverage on bytecode instructions.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        The computed coverage value
+    """
+    existing = len(known_data.existing_lines)
+
+    if existing == 0:
+        # Nothing to cover => everything is covered.
+        coverage = 1.0
+    else:
+        covered = len(trace.covered_lines)
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

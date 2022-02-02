@@ -4,6 +4,9 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+
+from __future__ import annotations
+
 import importlib
 import inspect
 import threading
@@ -24,6 +27,7 @@ from pynguin.testcase.execution import (
     ExecutionTrace,
     ExecutionTracer,
     KnownData,
+    LineMetaData,
     TestCaseExecutor,
 )
 from pynguin.typeinference.strategy import InferredSignature
@@ -39,6 +43,11 @@ def branch_goal():
     return bg.BranchGoal(0, 0, True)
 
 
+@pytest.fixture
+def statement_coverage_goal():
+    return bg.LineCoverageGoal(0, 42)
+
+
 def test_root_branch_coverage_goal(branchless_codeobject_goal):
     assert branchless_codeobject_goal.code_object_id == 0
 
@@ -46,6 +55,11 @@ def test_root_branch_coverage_goal(branchless_codeobject_goal):
 def test_non_root_branch_coverage_goal(branch_goal):
     assert branch_goal.predicate_id == 0
     assert branch_goal.value is True
+
+
+def test_statement_coverage_goal(statement_coverage_goal):
+    assert statement_coverage_goal.code_object_id == 0
+    assert statement_coverage_goal.line_id == 42
 
 
 def test_root_hash(branchless_codeobject_goal):
@@ -56,12 +70,20 @@ def test_non_root_hash(branch_goal):
     assert branch_goal.__hash__() != 0
 
 
+def test_statement_coverage_hash(statement_coverage_goal):
+    assert statement_coverage_goal.__hash__() != 0
+
+
 def test_root_eq_same(branchless_codeobject_goal):
     assert branchless_codeobject_goal.__eq__(branchless_codeobject_goal)
 
 
 def test_non_root_eq_same(branch_goal):
     assert branch_goal.__eq__(branch_goal)
+
+
+def test_statement_coverage_eq_same(statement_coverage_goal):
+    assert statement_coverage_goal.__eq__(statement_coverage_goal)
 
 
 def test_root_eq_other_type(branchless_codeobject_goal):
@@ -72,6 +94,10 @@ def test_non_root_eq_other_type(branch_goal):
     assert not branch_goal.__eq__(MagicMock())
 
 
+def test_statement_coverage_eq_other_type(statement_coverage_goal):
+    assert not statement_coverage_goal.__eq__(MagicMock())
+
+
 def test_root_eq_other(branchless_codeobject_goal):
     other = bg.BranchlessCodeObjectGoal(0)
     assert branchless_codeobject_goal.__eq__(other)
@@ -80,6 +106,11 @@ def test_root_eq_other(branchless_codeobject_goal):
 def test_non_root_eq_other(branch_goal):
     other = bg.BranchGoal(0, 0, True)
     assert branch_goal.__eq__(other)
+
+
+def test_statement_coverage_eq_other(statement_coverage_goal):
+    other = bg.LineCoverageGoal(0, 42)
+    assert statement_coverage_goal.__eq__(other)
 
 
 def test_root_get_distance(branchless_codeobject_goal, mocker):
@@ -351,4 +382,145 @@ def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
     )
     test_case.add_statement(int_stmt)
     test_case.add_statement(function_call)
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def test_compute_fitness_values_statement_coverage_empty():
+    module_name = "tests.fixtures.linecoverage.emptyfile"
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = _get_empty_test()
+        goals = bg.create_line_coverage_fitness_functions(executor)
+        assert not goals
+        fitness = chromosome.get_fitness()
+        assert fitness == 0
+
+
+def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
+    tracer = ExecutionTracer()
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+    executor_mock.tracer = tracer
+    goals = bg.create_line_coverage_fitness_functions(executor_mock)
+
+    assert len(goals) == 8
+
+
+def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
+    known_data_mock, executor_mock, trace_mock
+):
+    """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
+    tracer = ExecutionTracer()
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+
+    executor_mock.tracer = tracer
+    trace_mock.covered_lines = {}
+
+    chromosome = _get_empty_test()
+    _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
+
+    fitness = chromosome.get_fitness()
+    assert fitness == 8
+
+
+def test_compute_fitness_values_statement_coverage_non_empty_file(
+    known_data_mock, executor_mock, trace_mock
+):
+    """
+    Test for a testcase for the plus module, which should cover 5 out of 8 goals,
+    which results in a fitness value of 8 - 5 = 3
+
+    Generated testcase:
+        number = 42
+        plus = Plus()
+        plus.plus_four(number)
+    """
+    module_name = "tests.fixtures.linecoverage.plus"
+
+    tracer = ExecutionTracer()
+    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+    executor_mock.tracer = tracer
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        chromosome = _get_test_for_statement_coverage(module)
+        _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
+
+        with mock.patch.object(
+            bg.LineCoverageTestFitness, "_run_test_case_chromosome"
+        ) as run_suite_mock:
+            result = ExecutionResult()
+            trace_mock.covered_lines = {0, 1, 5, 6, 7}
+            result.execution_trace = trace_mock
+            run_suite_mock.return_value = result
+
+            fitness = chromosome.get_fitness()
+            assert fitness == 3
+
+
+def _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock):
+    lines = [8, 9, 11, 12, 13, 15, 16, 17]
+    for line_id in range(len(lines)):
+        line_goal = bg.LineCoverageGoal(0, line_id)
+        chromosome.add_fitness_function(
+            bg.LineCoverageTestFitness(executor_mock, line_goal)
+        )
+
+
+def _get_lines_data_for_plus_module():
+    file_name = "../fixtures/linecoverage/plus.py"
+    lines = [8, 9, 11, 12, 13, 15, 16, 17]
+    return {
+        line_id: LineMetaData(0, file_name, lines[line_id])
+        for line_id in range(len(lines))
+    }
+
+
+def _get_empty_test() -> tcc.TestCaseChromosome:
+    test_case = dtc.DefaultTestCase()
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def _get_test_for_statement_coverage(module):
+    test_case = dtc.DefaultTestCase()
+
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 42)
+
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            module.Plus,
+            InferredSignature(
+                signature=inspect.signature(module.Plus.__init__),
+                parameters={},
+                return_type=module.Plus,
+            ),
+        ),
+    )
+
+    method_call = stmt.MethodStatement(
+        test_case,
+        gao.GenericMethod(
+            module.Plus,
+            module.Plus.plus_four,
+            InferredSignature(
+                signature=inspect.signature(module.Plus.plus_four),
+                parameters={"number": int},
+                return_type=int,
+            ),
+        ),
+        constructor_call.ret_val,
+        {"number": int_stmt.ret_val},
+    )
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(method_call)
     return tcc.TestCaseChromosome(test_case=test_case)

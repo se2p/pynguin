@@ -23,10 +23,12 @@ from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
+    InstrumentationTransformer,
+    LineCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:
-    from pynguin.instrumentation.instrumentation import Instrumentation
+    from pynguin.instrumentation.instrumentation import InstrumentationAdapter
     from pynguin.testcase.execution import ExecutionTracer
 
 
@@ -54,17 +56,18 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        instrumentations: list[Instrumentation] = [
-            BranchCoverageInstrumentation(self._tracer)
-        ]
-        if config.configuration.seeding.dynamic_constant_seeding:
-            instrumentations.append(
-                DynamicSeedingInstrumentation(dynamic_constant_seeding)
-            )
+        adapters: list[InstrumentationAdapter] = []
+        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        if config.CoverageMetric.BRANCH in coverage_metrics:
+            adapters.append(BranchCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.LINE in coverage_metrics:
+            adapters.append(LineCoverageInstrumentation(self._tracer))
 
-        for instrumentation in instrumentations:
-            to_instrument = instrumentation.instrument_module(to_instrument)
-        return to_instrument
+        if config.configuration.seeding.dynamic_constant_seeding:
+            adapters.append(DynamicSeedingInstrumentation(dynamic_constant_seeding))
+
+        transformer = InstrumentationTransformer(self._tracer, adapters)
+        return transformer.instrument_module(to_instrument)
 
 
 class InstrumentationFinder(MetaPathFinder):

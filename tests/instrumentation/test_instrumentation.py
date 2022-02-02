@@ -17,6 +17,8 @@ from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
+    InstrumentationTransformer,
+    LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
@@ -45,9 +47,10 @@ def tracer_mock():
 
 
 def test_entered_function(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.simple_function.__code__ = instr._instrument_code_recursive(
-        simple_module.simple_function.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.simple_function.__code__ = transformer.instrument_module(
+        simple_module.simple_function.__code__
     )
     simple_module.simple_function(1)
     tracer_mock.register_code_object.assert_called_once()
@@ -55,9 +58,10 @@ def test_entered_function(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_no_jump(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.for_loop.__code__ = transformer.instrument_module(
+        simple_module.for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(3)
@@ -65,9 +69,10 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.for_loop.__code__ = transformer.instrument_module(
+        simple_module.for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(0)
@@ -75,9 +80,10 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_full_loop(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.full_for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
+        simple_module.full_for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
@@ -88,9 +94,10 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.full_for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
+        simple_module.full_for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
@@ -98,9 +105,10 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
 
 
 def test_add_bool_predicate(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.bool_predicate.__code__ = instr._instrument_code_recursive(
-        simple_module.bool_predicate.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.bool_predicate.__code__ = transformer.instrument_module(
+        simple_module.bool_predicate.__code__
     )
     simple_module.bool_predicate(True)
     tracer_mock.register_predicate.assert_called_once()
@@ -108,9 +116,10 @@ def test_add_bool_predicate(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.cmp_predicate.__code__ = instr._instrument_code_recursive(
-        simple_module.cmp_predicate.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
+        simple_module.cmp_predicate.__code__
     )
     simple_module.cmp_predicate(1, 2)
     tracer_mock.register_predicate.assert_called_once()
@@ -118,9 +127,10 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
 
 
 def test_transform_for_loop_multi(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.multi_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.multi_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.multi_loop.__code__ = transformer.instrument_module(
+        simple_module.multi_loop.__code__
     )
     assert simple_module.multi_loop(2) == 4
     assert tracer_mock.register_predicate.call_count == 3
@@ -133,9 +143,10 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.comprehension.__code__ = instr._instrument_code_recursive(
-        simple_module.comprehension.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.comprehension.__code__ = transformer.instrument_module(
+        simple_module.comprehension.__code__
     )
     call_count = 5
     simple_module.comprehension(call_count, 3)
@@ -145,9 +156,10 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.lambda_func.__code__ = instr._instrument_code_recursive(
-        simple_module.lambda_func.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.lambda_func.__code__ = transformer.instrument_module(
+        simple_module.lambda_func.__code__
     )
     lam = simple_module.lambda_func(10)
     lam(5)
@@ -160,9 +172,10 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
 
 
 def test_conditional_assignment(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.conditional_assignment.__code__ = instr._instrument_code_recursive(
-        simple_module.conditional_assignment.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.conditional_assignment.__code__ = transformer.instrument_module(
+        simple_module.conditional_assignment.__code__
     )
     simple_module.conditional_assignment(10)
     tracer_mock.register_predicate.assert_called_once()
@@ -172,11 +185,10 @@ def test_conditional_assignment(simple_module, tracer_mock):
 
 
 def test_conditionally_nested_class(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.conditionally_nested_class.__code__ = (
-        instr._instrument_code_recursive(
-            simple_module.conditionally_nested_class.__code__, True
-        )
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
+        simple_module.conditionally_nested_class.__code__
     )
     assert tracer_mock.register_code_object.call_count == 3
 
@@ -191,10 +203,13 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = MagicMock(ExecutionTracer)
     tracer.register_code_object.return_value = 0
-    instr = BranchCoverageInstrumentation(tracer)
-    already_instrumented = instr.instrument_module(simple_module.cmp_predicate.__code__)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    already_instrumented = transformer.instrument_module(
+        simple_module.cmp_predicate.__code__
+    )
     with pytest.raises(AssertionError):
-        instr.instrument_module(already_instrumented)
+        transformer.instrument_module(already_instrumented)
 
 
 @pytest.mark.parametrize(
@@ -220,15 +235,30 @@ def test_integrate_branch_distance_instrumentation(
 ):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, function_name)
-    instr = BranchCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__, 0
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
     )
     assert (
         len(tracer.get_known_data().branch_less_code_objects)
         == branchless_function_count
     )
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
+
+
+def test_integrate_line_coverage_instrumentation(simple_module):
+    tracer = ExecutionTracer()
+    function_callable = getattr(simple_module, "multi_loop")
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
+    )
+
+    assert tracer.get_known_data().existing_lines
+    # the body of the method contains 7 statements on lines 38 to 44
+    assert {0, 1, 2, 3, 4, 5, 6} == tracer.get_known_data().existing_lines.keys()
 
 
 @pytest.mark.parametrize(
@@ -238,9 +268,10 @@ def test_integrate_branch_distance_instrumentation(
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
     function_callable = getattr(comparison_module, "_" + op.name.lower())
-    instr = BranchCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__, 0
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
     )
     with mock.patch.object(tracer, "executed_compare_predicate") as trace_mock:
         function_callable("a", "a")
@@ -257,8 +288,9 @@ def test_exception():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
         func()
         trace_mock.assert_called_with(True, 0)
@@ -274,8 +306,9 @@ def test_exception_no_match():
         except ValueError:
             pass  # pragma: no cover
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
         with pytest.raises(RuntimeError):
             func()
@@ -292,8 +325,9 @@ def test_exception_39plus():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         func()
         trace_mock.assert_called_with(ValueError, ValueError, 0)
@@ -309,8 +343,9 @@ def test_exception_no_match_39plus():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         with pytest.raises(RuntimeError):
             func()
@@ -326,14 +361,32 @@ def test_exception_integrate():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     func()
     assert {0} == tracer.get_trace().executed_code_objects
     assert {0: 1} == tracer.get_trace().executed_predicates
     assert {0: 0.0} == tracer.get_trace().true_distances
     assert {0: 1.0} == tracer.get_trace().false_distances
+
+
+def test_multiple_instrumentations_share_code_object_ids(simple_module):
+    tracer = ExecutionTracer()
+
+    line_instr = LineCoverageInstrumentation(tracer)
+    branch_instr = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [line_instr, branch_instr])
+    simple_module.simple_function.__code__ = transformer.instrument_module(
+        simple_module.simple_function.__code__
+    )
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.simple_function(42)
+    assert {0} == tracer.get_known_data().existing_code_objects.keys()
+    assert {0} == tracer.get_known_data().branch_less_code_objects
+    assert {0} == tracer.get_trace().executed_code_objects
 
 
 def test_exception_no_match_integrate():
@@ -345,8 +398,9 @@ def test_exception_no_match_integrate():
         except ValueError:
             pass  # pragma: no cover
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     with pytest.raises(RuntimeError):
         func()
@@ -356,11 +410,112 @@ def test_exception_no_match_integrate():
     assert {0: 0.0} == tracer.get_trace().false_distances
 
 
+def test_tracking_covered_statements_explicit_return(simple_module):
+    tracer = ExecutionTracer()
+
+    instr = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [instr])
+    simple_module.explicit_none_return.__code__ = transformer.instrument_module(
+        simple_module.explicit_none_return.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.explicit_none_return()
+    assert tracer.get_trace().covered_lines
+    assert {0, 1} == tracer.get_trace().covered_lines
+
+
+@pytest.mark.parametrize(
+    "value1, value2, expected_ids",
+    [
+        pytest.param(0, 1, {0, 2}),
+        pytest.param(1, 0, {1, 2}),
+    ],
+)
+def test_tracking_covered_statements_cmp_predicate(
+    simple_module, value1, value2, expected_ids
+):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
+        simple_module.cmp_predicate.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.cmp_predicate(value1, value2)
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
+
+
+@pytest.mark.parametrize(
+    "value, expected_ids",
+    [
+        pytest.param(False, {0, 2}),
+        pytest.param(True, {1, 2}),
+    ],
+)
+def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_ids):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.bool_predicate.__code__ = transformer.instrument_module(
+        simple_module.bool_predicate.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.bool_predicate(value)
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
+
+
+@pytest.mark.parametrize(
+    "number, expected_ids",
+    [
+        pytest.param(0, {0}),
+        pytest.param(1, {0, 1}),
+    ],
+)
+def test_tracking_covered_statements_for_loop(simple_module, number, expected_ids):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
+        simple_module.full_for_loop.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.full_for_loop(number)
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
+
+
+@pytest.mark.parametrize(
+    "number, expected_ids",
+    [
+        pytest.param(0, {2}),
+        pytest.param(1, {0, 1, 2}),
+    ],
+)
+def test_tracking_covered_statements_while_loop(simple_module, number, expected_ids):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.while_loop.__code__ = transformer.instrument_module(
+        simple_module.while_loop.__code__
+    )
+    tracer.current_thread_identifier = threading.current_thread().ident
+    simple_module.while_loop(number)
+    assert tracer.get_trace().covered_lines
+    assert expected_ids == tracer.get_trace().covered_lines
+
+
 @pytest.fixture()
 def dynamic_instr():
     dynamic_constants = DynamicConstantSeeding()
-    instr = DynamicSeedingInstrumentation(dynamic_constants)
-    return dynamic_constants, instr
+    adapter = DynamicSeedingInstrumentation(dynamic_constants)
+    transformer = InstrumentationTransformer(ExecutionTracer(), [adapter])
+    return dynamic_constants, transformer
 
 
 @pytest.fixture()

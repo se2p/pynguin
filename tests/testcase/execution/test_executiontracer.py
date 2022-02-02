@@ -36,6 +36,23 @@ def test_predicate_exists():
     assert 0 in tracer.get_known_data().existing_predicates
 
 
+def test_line_registration():
+    tracer = ExecutionTracer()
+    assert tracer.register_line(0, "foo", 42) == 0
+    assert tracer.register_line(0, "foo", 43) == 1
+    assert tracer.register_line(0, "bar", 42) == 2
+    assert tracer.register_line(1, "foo", 42) == 0
+    assert {0, 1, 2} == tracer.get_known_data().existing_lines.keys()
+
+
+def test_line_visit():
+    tracer = ExecutionTracer()
+    tracer.track_line_visit(42)
+    tracer.track_line_visit(43)
+    tracer.track_line_visit(42)
+    assert tracer._trace.covered_lines == {42, 43}
+
+
 def test_update_metrics_covered():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident

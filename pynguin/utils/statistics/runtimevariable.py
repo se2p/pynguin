@@ -40,8 +40,14 @@ class RuntimeVariable(str, enum.Enum):
     # Execution results
     ExecutionResults = "ExecutionResults"
 
-    # Obtained coverage of the chosen testing criterion
+    # Obtained coverage of the chosen testing criterion(s)
     Coverage = "Coverage"
+
+    # Obtained branch coverage
+    BranchCoverage = "BranchCoverage"
+
+    # Obtained line coverage
+    LineCoverage = "LineCoverage"
 
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning
@@ -62,8 +68,11 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
 
-    # Coverage over time
+    # Branch coverage over time
     BranchCoverageTimeline = "BranchCoverageTimeline"
+
+    # Line coverage over time
+    LineCoverageTimeline = "LineCoverageTimeline"
 
     # Total number of statements in the final test suite
     Length = "Length"
@@ -92,6 +101,9 @@ class RuntimeVariable(str, enum.Enum):
     # Predicates in the bytecode of the SUT
     Predicates = "Predicates"
 
+    # Lines in the bytecode of the SUT
+    Lines = "Lines"
+
     # Accessible objects under test (e.g., methods and functions)
     AccessibleObjectsUnderTest = "AccessibleObjectsUnderTest"
 
@@ -100,6 +112,9 @@ class RuntimeVariable(str, enum.Enum):
 
     # Branch Coverage that is achieved by simply importing the SUT
     ImportBranchCoverage = "ImportBranchCoverage"
+
+    # Line Coverage that is achieved by simply importing the SUT
+    ImportLineCoverage = "ImportLineCoverage"
 
     # The number of goals, i.e., number of fitness functions
     Goals = "Goals"

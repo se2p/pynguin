@@ -151,6 +151,16 @@ class StatisticsBackend(str, enum.Enum):
     """Write statistics to a CSV file."""
 
 
+class CoverageMetric(str, enum.Enum):
+    """The different available coverage metrics available for optimisation"""
+
+    BRANCH = "BRANCH"
+    """Calculate how many of the possible branches in the code were executed"""
+
+    LINE = "LINE"
+    """Calculate how many of the possible lines in the code were executed"""
+
+
 class Selection(str, enum.Enum):
     """Different selection algorithms to select from."""
 
@@ -180,6 +190,13 @@ class StatisticsOutputConfiguration:
 
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
+
+    coverage_metrics: List[CoverageMetric] = dataclasses.field(
+        default_factory=lambda: [
+            CoverageMetric.BRANCH,
+        ]
+    )
+    """List of coverage metrics that are optimised during the search"""
 
     output_variables: List[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
