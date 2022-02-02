@@ -81,7 +81,8 @@ class InstrumentationAdapter:
     ) -> tuple[BasicBlock, ...]:
         """Split the given basic block into more blocks.
 
-        The blocks are consecutive in the list of basic blocks.
+        The blocks are consecutive in the list of basic blocks, e.g., to allow
+        fall-through
 
         Args:
             bytecode_cfg: The control-flow graph
@@ -118,7 +119,7 @@ class InstrumentationTransformer:
     basic blocks and requesting their instrumentation from the given adapters.
 
     Ideally we would want something like ASM with nested visitors where changes from
-    different adapters don't affect each other, but that's of overkill for now.
+    different adapters don't affect each other, but that's a bit of overkill for now.
     """
 
     _logger = logging.getLogger(__name__)
