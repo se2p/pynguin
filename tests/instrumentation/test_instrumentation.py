@@ -16,8 +16,8 @@ from bytecode import Compare
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
-    CodeTypeInstrumentationWrapper,
     DynamicSeedingInstrumentation,
+    InstrumentationTransformer,
     LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
@@ -47,9 +47,10 @@ def tracer_mock():
 
 
 def test_entered_function(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.simple_function.__code__ = instr._instrument_code_recursive(
-        simple_module.simple_function.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.simple_function.__code__ = transformer.instrument_module(
+        simple_module.simple_function.__code__
     )
     simple_module.simple_function(1)
     tracer_mock.register_code_object.assert_called_once()
@@ -57,9 +58,10 @@ def test_entered_function(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_no_jump(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.for_loop.__code__ = transformer.instrument_module(
+        simple_module.for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(3)
@@ -67,9 +69,10 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.for_loop.__code__ = transformer.instrument_module(
+        simple_module.for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.for_loop(0)
@@ -77,9 +80,10 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_full_loop(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.full_for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
+        simple_module.full_for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
@@ -90,9 +94,10 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
 
 
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.full_for_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
+        simple_module.full_for_loop.__code__
     )
     tracer_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
@@ -100,9 +105,10 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
 
 
 def test_add_bool_predicate(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.bool_predicate.__code__ = instr._instrument_code_recursive(
-        simple_module.bool_predicate.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.bool_predicate.__code__ = transformer.instrument_module(
+        simple_module.bool_predicate.__code__
     )
     simple_module.bool_predicate(True)
     tracer_mock.register_predicate.assert_called_once()
@@ -110,9 +116,10 @@ def test_add_bool_predicate(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.cmp_predicate.__code__ = instr._instrument_code_recursive(
-        simple_module.cmp_predicate.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
+        simple_module.cmp_predicate.__code__
     )
     simple_module.cmp_predicate(1, 2)
     tracer_mock.register_predicate.assert_called_once()
@@ -120,9 +127,10 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
 
 
 def test_transform_for_loop_multi(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.multi_loop.__code__ = instr._instrument_code_recursive(
-        simple_module.multi_loop.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.multi_loop.__code__ = transformer.instrument_module(
+        simple_module.multi_loop.__code__
     )
     assert simple_module.multi_loop(2) == 4
     assert tracer_mock.register_predicate.call_count == 3
@@ -135,9 +143,10 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.comprehension.__code__ = instr._instrument_code_recursive(
-        simple_module.comprehension.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.comprehension.__code__ = transformer.instrument_module(
+        simple_module.comprehension.__code__
     )
     call_count = 5
     simple_module.comprehension(call_count, 3)
@@ -147,9 +156,10 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
 
 
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.lambda_func.__code__ = instr._instrument_code_recursive(
-        simple_module.lambda_func.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.lambda_func.__code__ = transformer.instrument_module(
+        simple_module.lambda_func.__code__
     )
     lam = simple_module.lambda_func(10)
     lam(5)
@@ -162,9 +172,10 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
 
 
 def test_conditional_assignment(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.conditional_assignment.__code__ = instr._instrument_code_recursive(
-        simple_module.conditional_assignment.__code__, True
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.conditional_assignment.__code__ = transformer.instrument_module(
+        simple_module.conditional_assignment.__code__
     )
     simple_module.conditional_assignment(10)
     tracer_mock.register_predicate.assert_called_once()
@@ -174,11 +185,10 @@ def test_conditional_assignment(simple_module, tracer_mock):
 
 
 def test_conditionally_nested_class(simple_module, tracer_mock):
-    instr = BranchCoverageInstrumentation(tracer_mock)
-    simple_module.conditionally_nested_class.__code__ = (
-        instr._instrument_code_recursive(
-            simple_module.conditionally_nested_class.__code__, True
-        )
+    adapter = BranchCoverageInstrumentation(tracer_mock)
+    transformer = InstrumentationTransformer(tracer_mock, [adapter])
+    simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
+        simple_module.conditionally_nested_class.__code__
     )
     assert tracer_mock.register_code_object.call_count == 3
 
@@ -190,40 +200,16 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
-@pytest.mark.parametrize(
-    "instrumentation",
-    [
-        pytest.param(BranchCoverageInstrumentation(ExecutionTracer())),
-        pytest.param(LineCoverageInstrumentation(ExecutionTracer())),
-        pytest.param(DynamicSeedingInstrumentation(DynamicConstantSeeding())),
-    ],
-)
-def test_avoid_duplicate_instrumentation(simple_module, instrumentation):
-    wrapped_code = CodeTypeInstrumentationWrapper(
-        to_instrument=simple_module.simple_function.__code__,
-        applied_instrumentations=[],
+def test_avoid_duplicate_instrumentation(simple_module):
+    tracer = MagicMock(ExecutionTracer)
+    tracer.register_code_object.return_value = 0
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    already_instrumented = transformer.instrument_module(
+        simple_module.cmp_predicate.__code__
     )
-    already_instrumented = instrumentation.instrument_module(wrapped_code)
     with pytest.raises(AssertionError):
-        instrumentation.instrument_module(already_instrumented)
-
-
-def test_allow_multiple_different_instrumentations(simple_module):
-    wrapped_code = CodeTypeInstrumentationWrapper(
-        to_instrument=simple_module.simple_function.__code__,
-        applied_instrumentations=[],
-    )
-
-    tracer = ExecutionTracer()
-
-    branch_instr = BranchCoverageInstrumentation(tracer)
-    already_instrumented = branch_instr.instrument_module(wrapped_code)
-
-    line_instr = LineCoverageInstrumentation(tracer)
-    try:
-        line_instr.instrument_module(already_instrumented)
-    except AssertionError:
-        pytest.fail("Multiple different instrumentations should not assert")
+        transformer.instrument_module(already_instrumented)
 
 
 @pytest.mark.parametrize(
@@ -249,9 +235,10 @@ def test_integrate_branch_distance_instrumentation(
 ):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, function_name)
-    instr = BranchCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__, 0
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
     )
     assert (
         len(tracer.get_known_data().branch_less_code_objects)
@@ -260,12 +247,14 @@ def test_integrate_branch_distance_instrumentation(
     assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
 
 
-def test_integrate_statement_coverage_instrumentation(simple_module):
+def test_integrate_line_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "multi_loop")
-    instr = LineCoverageInstrumentation(tracer)
-    wrapped_code = CodeTypeInstrumentationWrapper(function_callable.__code__, [])
-    instr.instrument_module(wrapped_code)
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
+    )
 
     assert tracer.get_known_data().existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
@@ -279,9 +268,10 @@ def test_integrate_statement_coverage_instrumentation(simple_module):
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
     function_callable = getattr(comparison_module, "_" + op.name.lower())
-    instr = BranchCoverageInstrumentation(tracer)
-    function_callable.__code__ = instr._instrument_code_recursive(
-        function_callable.__code__, 0
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
     )
     with mock.patch.object(tracer, "executed_compare_predicate") as trace_mock:
         function_callable("a", "a")
@@ -298,8 +288,9 @@ def test_exception():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
         func()
         trace_mock.assert_called_with(True, 0)
@@ -315,8 +306,9 @@ def test_exception_no_match():
         except ValueError:
             pass  # pragma: no cover
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
         with pytest.raises(RuntimeError):
             func()
@@ -333,8 +325,9 @@ def test_exception_39plus():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         func()
         trace_mock.assert_called_with(ValueError, ValueError, 0)
@@ -350,8 +343,9 @@ def test_exception_no_match_39plus():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
         with pytest.raises(RuntimeError):
             func()
@@ -367,8 +361,9 @@ def test_exception_integrate():
         except ValueError:
             pass
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     func()
     assert {0} == tracer.get_trace().executed_code_objects
@@ -381,15 +376,11 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer = ExecutionTracer()
 
     line_instr = LineCoverageInstrumentation(tracer)
-
-    simple_module.simple_function.__code__ = line_instr.instrument_module(
-        CodeTypeInstrumentationWrapper(simple_module.simple_function.__code__, [])
-    ).to_instrument
-
     branch_instr = BranchCoverageInstrumentation(tracer)
-    simple_module.simple_function.__code__ = branch_instr.instrument_module(
-        CodeTypeInstrumentationWrapper(simple_module.simple_function.__code__, [])
-    ).to_instrument
+    transformer = InstrumentationTransformer(tracer, [line_instr, branch_instr])
+    simple_module.simple_function.__code__ = transformer.instrument_module(
+        simple_module.simple_function.__code__
+    )
 
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
@@ -407,8 +398,9 @@ def test_exception_no_match_integrate():
         except ValueError:
             pass  # pragma: no cover
 
-    instr = BranchCoverageInstrumentation(tracer)
-    func.__code__ = instr._instrument_code_recursive(func.__code__, 0)
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     with pytest.raises(RuntimeError):
         func()
@@ -422,7 +414,8 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
     instr = LineCoverageInstrumentation(tracer)
-    simple_module.explicit_none_return.__code__ = instr._instrument_code_recursive(
+    transformer = InstrumentationTransformer(tracer, [instr])
+    simple_module.explicit_none_return.__code__ = transformer.instrument_module(
         simple_module.explicit_none_return.__code__
     )
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -443,8 +436,9 @@ def test_tracking_covered_statements_cmp_predicate(
 ):
     tracer = ExecutionTracer()
 
-    instr = LineCoverageInstrumentation(tracer)
-    simple_module.cmp_predicate.__code__ = instr._instrument_code_recursive(
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
     )
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -463,8 +457,9 @@ def test_tracking_covered_statements_cmp_predicate(
 def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = LineCoverageInstrumentation(tracer)
-    simple_module.bool_predicate.__code__ = instr._instrument_code_recursive(
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
     )
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -483,8 +478,9 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
 def test_tracking_covered_statements_for_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = LineCoverageInstrumentation(tracer)
-    simple_module.full_for_loop.__code__ = instr._instrument_code_recursive(
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -503,8 +499,9 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_id
 def test_tracking_covered_statements_while_loop(simple_module, number, expected_ids):
     tracer = ExecutionTracer()
 
-    instr = LineCoverageInstrumentation(tracer)
-    simple_module.while_loop.__code__ = instr._instrument_code_recursive(
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    simple_module.while_loop.__code__ = transformer.instrument_module(
         simple_module.while_loop.__code__
     )
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -516,8 +513,9 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
 @pytest.fixture()
 def dynamic_instr():
     dynamic_constants = DynamicConstantSeeding()
-    instr = DynamicSeedingInstrumentation(dynamic_constants)
-    return dynamic_constants, instr
+    adapter = DynamicSeedingInstrumentation(dynamic_constants)
+    transformer = InstrumentationTransformer(ExecutionTracer(), [adapter])
+    return dynamic_constants, transformer
 
 
 @pytest.fixture()
@@ -531,7 +529,7 @@ def dummy_module():
 
 def test_compare_op_int(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(10, 11)
@@ -543,7 +541,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
 
 def test_compare_op_float(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(1.0, 2.5)
@@ -555,7 +553,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
 
 def test_compare_op_string(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy("abc", "def")
@@ -567,7 +565,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
 
 def test_compare_op_other_type(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
         dummy_module.compare_op_dummy.__code__
     )
     res = dummy_module.compare_op_dummy(True, "def")
@@ -581,7 +579,7 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
 
 def test_startswith_function(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.startswith_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.startswith_dummy.__code__ = instr.instrument_module(
         dummy_module.startswith_dummy.__code__
     )
     res = dummy_module.startswith_dummy("abc", "ab")
@@ -593,7 +591,7 @@ def test_startswith_function(dynamic_instr, dummy_module):
 
 def test_endswith_function(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.endswith_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.endswith_dummy.__code__ = instr.instrument_module(
         dummy_module.endswith_dummy.__code__
     )
     res = dummy_module.endswith_dummy("abc", "bc")
@@ -605,7 +603,7 @@ def test_endswith_function(dynamic_instr, dummy_module):
 
 def test_isalnum_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
         dummy_module.isalnum_dummy.__code__
     )
     res = dummy_module.isalnum_dummy("alnumtest")
@@ -618,7 +616,7 @@ def test_isalnum_function_true(dynamic_instr, dummy_module):
 
 def test_isalnum_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
         dummy_module.isalnum_dummy.__code__
     )
     res = dummy_module.isalnum_dummy("alnum_test")
@@ -631,7 +629,7 @@ def test_isalnum_function_false(dynamic_instr, dummy_module):
 
 def test_islower_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.islower_dummy.__code__ = instr.instrument_module(
         dummy_module.islower_dummy.__code__
     )
     res = dummy_module.islower_dummy("lower")
@@ -644,7 +642,7 @@ def test_islower_function_true(dynamic_instr, dummy_module):
 
 def test_islower_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.islower_dummy.__code__ = instr.instrument_module(
         dummy_module.islower_dummy.__code__
     )
     res = dummy_module.islower_dummy("NotLower")
@@ -657,7 +655,7 @@ def test_islower_function_false(dynamic_instr, dummy_module):
 
 def test_isupper_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
         dummy_module.isupper_dummy.__code__
     )
     res = dummy_module.isupper_dummy("UPPER")
@@ -670,7 +668,7 @@ def test_isupper_function_true(dynamic_instr, dummy_module):
 
 def test_isupper_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
         dummy_module.isupper_dummy.__code__
     )
     res = dummy_module.isupper_dummy("NotUpper")
@@ -683,7 +681,7 @@ def test_isupper_function_false(dynamic_instr, dummy_module):
 
 def test_isdecimal_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
         dummy_module.isdecimal_dummy.__code__
     )
     res = dummy_module.isdecimal_dummy("012345")
@@ -696,7 +694,7 @@ def test_isdecimal_function_true(dynamic_instr, dummy_module):
 
 def test_isdecimal_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
         dummy_module.isdecimal_dummy.__code__
     )
     res = dummy_module.isdecimal_dummy("not_decimal")
@@ -709,7 +707,7 @@ def test_isdecimal_function_false(dynamic_instr, dummy_module):
 
 def test_isalpha_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
         dummy_module.isalpha_dummy.__code__
     )
     res = dummy_module.isalpha_dummy("alpha")
@@ -722,7 +720,7 @@ def test_isalpha_function_true(dynamic_instr, dummy_module):
 
 def test_isalpha_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
         dummy_module.isalpha_dummy.__code__
     )
     res = dummy_module.isalpha_dummy("not_alpha")
@@ -735,7 +733,7 @@ def test_isalpha_function_false(dynamic_instr, dummy_module):
 
 def test_isdigit_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
         dummy_module.isdigit_dummy.__code__
     )
     res = dummy_module.isdigit_dummy("012345")
@@ -748,7 +746,7 @@ def test_isdigit_function_true(dynamic_instr, dummy_module):
 
 def test_isdigit_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
         dummy_module.isdigit_dummy.__code__
     )
     res = dummy_module.isdigit_dummy("not_digit")
@@ -761,7 +759,7 @@ def test_isdigit_function_false(dynamic_instr, dummy_module):
 
 def test_isidentifier_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
         dummy_module.isidentifier_dummy.__code__
     )
     res = dummy_module.isidentifier_dummy("is_identifier")
@@ -774,7 +772,7 @@ def test_isidentifier_function_true(dynamic_instr, dummy_module):
 
 def test_isidentifier_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
         dummy_module.isidentifier_dummy.__code__
     )
     res = dummy_module.isidentifier_dummy("not_identifier!")
@@ -787,7 +785,7 @@ def test_isidentifier_function_false(dynamic_instr, dummy_module):
 
 def test_isnumeric_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
         dummy_module.isnumeric_dummy.__code__
     )
     res = dummy_module.isnumeric_dummy("44444")
@@ -800,7 +798,7 @@ def test_isnumeric_function_true(dynamic_instr, dummy_module):
 
 def test_isnumeric_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
         dummy_module.isnumeric_dummy.__code__
     )
     res = dummy_module.isnumeric_dummy("not_numeric")
@@ -813,7 +811,7 @@ def test_isnumeric_function_false(dynamic_instr, dummy_module):
 
 def test_isprintable_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
         dummy_module.isprintable_dummy.__code__
     )
     res = dummy_module.isprintable_dummy("printable")
@@ -826,7 +824,7 @@ def test_isprintable_function_true(dynamic_instr, dummy_module):
 
 def test_isprintable_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
         dummy_module.isprintable_dummy.__code__
     )
     res = dummy_module.isprintable_dummy(f"not_printable{os.linesep}")
@@ -839,7 +837,7 @@ def test_isprintable_function_false(dynamic_instr, dummy_module):
 
 def test_isspace_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
         dummy_module.isspace_dummy.__code__
     )
     res = dummy_module.isspace_dummy(" ")
@@ -852,7 +850,7 @@ def test_isspace_function_true(dynamic_instr, dummy_module):
 
 def test_isspace_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
         dummy_module.isspace_dummy.__code__
     )
     res = dummy_module.isspace_dummy("no_space")
@@ -865,7 +863,7 @@ def test_isspace_function_false(dynamic_instr, dummy_module):
 
 def test_istitle_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
         dummy_module.istitle_dummy.__code__
     )
     res = dummy_module.istitle_dummy("Title")
@@ -878,7 +876,7 @@ def test_istitle_function_true(dynamic_instr, dummy_module):
 
 def test_istitle_function_false(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr._instrument_code_recursive(
+    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
         dummy_module.istitle_dummy.__code__
     )
     res = dummy_module.istitle_dummy("no Title")
