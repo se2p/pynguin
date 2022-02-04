@@ -100,7 +100,7 @@ class ControlDependenceGraph(pg.ProgramGraph[pg.ProgramGraphNode]):
     def _retrieve_control_dependencies(
         self, node: pg.ProgramGraphNode, handled: OrderedSet
     ) -> OrderedSet[ControlDependency]:
-        result = OrderedSet()
+        result: OrderedSet[ControlDependency] = OrderedSet()
         for pred in self._graph.predecessors(node):
             if (pred, node) in handled:
                 continue

@@ -88,7 +88,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         # In order to avoid repeating the same assertions after each statement,
         # we keep track of the last assertions and only assert things, if they
         # have changed.
-        previous_statement_assertions = OrderedSet()
+        previous_statement_assertions: OrderedSet[ass.Assertion] = OrderedSet()
         for statement in test_case.statements:
             current_statement_assertions = self._get_assertions_for(results, statement)
             for assertion in current_statement_assertions:
@@ -130,7 +130,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         assert len(results) > 0, "Requires at least one result."
         assertions: list[OrderedSet[ass.Assertion]] = []
         for res in results:
-            merged = OrderedSet()
+            merged: OrderedSet[ass.Assertion] = OrderedSet()
             for trace in res.assertion_traces.values():
                 merged.update(trace.get_assertions(statement))
             assertions.append(merged)

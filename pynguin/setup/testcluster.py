@@ -290,7 +290,7 @@ class FilteredTestCluster(TestCluster):
         }
         for target in targets:
             if (acc := self._get_accessible_object_for_target(target)) is not None:
-                targets_for_acc = self._accessible_to_targets.get(acc, None)
+                targets_for_acc = self._accessible_to_targets[acc]
                 targets_for_acc.add(target)
 
         # Get informed by archive, when a target is covered.

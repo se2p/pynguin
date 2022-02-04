@@ -316,7 +316,7 @@ class ExecutionTrace:
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
-    covered_lines: OrderedSet[int] = field(default_factory=set)
+    covered_lines: OrderedSet[int] = field(default_factory=OrderedSet)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.

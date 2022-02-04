@@ -38,7 +38,7 @@ class RankSelection(SelectionFunction[T]):
         return int(
             len(population)
             * (
-                (bias - sqrt(bias ** 2 - (4.0 * (bias - 1.0) * random_value)))
+                (bias - sqrt(bias**2 - (4.0 * (bias - 1.0) * random_value)))
                 / 2.0
                 / (bias - 1.0)
             )

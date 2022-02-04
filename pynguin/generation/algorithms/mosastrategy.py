@@ -43,11 +43,11 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
 
         # Calculate dominance ranks and crowding distance
         fronts = self._ranking_function.compute_ranking_assignment(
-            self._population, self._archive.uncovered_goals
+            self._population, self._archive.uncovered_goals  # type: ignore
         )
         for i in range(fronts.get_number_of_sub_fronts()):
             fast_epsilon_dominance_assignment(
-                fronts.get_sub_front(i), self._archive.uncovered_goals
+                fronts.get_sub_front(i), self._archive.uncovered_goals  # type: ignore
             )
 
         self.before_first_search_iteration(
@@ -78,7 +78,9 @@ class MOSATestStrategy(AbstractMOSATestStrategy):
         union.extend(self._population)
         union.extend(offspring_population)
 
-        uncovered_goals: OrderedSet[ff.FitnessFunction] = self._archive.uncovered_goals
+        uncovered_goals: OrderedSet[
+            ff.FitnessFunction
+        ] = self._archive.uncovered_goals  # type: ignore
 
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))

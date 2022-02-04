@@ -305,7 +305,7 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
         ):
-            fitness_functions = OrderedSet()
+            fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
             coverage_metrics = config.configuration.statistics_output.coverage_metrics
             if config.CoverageMetric.LINE in coverage_metrics:
                 fitness_functions.update(
@@ -327,7 +327,7 @@ class TestSuiteGenerationAlgorithmFactory(
     def _get_test_suite_fitness_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
-        test_suite_ffs = OrderedSet()
+        test_suite_ffs: OrderedSet[ff.TestSuiteFitnessFunction] = OrderedSet()
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.LineTestSuiteFitnessFunction(self._executor)])
@@ -340,7 +340,7 @@ class TestSuiteGenerationAlgorithmFactory(
     def _get_test_suite_coverage_functions(
         self,
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
-        test_suite_ffs = OrderedSet()
+        test_suite_ffs: OrderedSet[ff.TestSuiteCoverageFunction] = OrderedSet()
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteLineCoverageFunction(self._executor)])

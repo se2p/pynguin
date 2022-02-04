@@ -180,7 +180,7 @@ class Statement(metaclass=ABCMeta):
         Returns:
             A set of assertions
         """
-        copy = OrderedSet()
+        copy: OrderedSet[ass.Assertion] = OrderedSet()
         for assertion in self._assertions:
             copy.add(assertion.clone(memo))
         return copy

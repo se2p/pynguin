@@ -176,7 +176,7 @@ def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_moc
         result.execution_trace = trace_mock
         run_suite_mock.return_value = result
         fitness = ff.compute_fitness(indiv)
-        assert pytest.approx(1.666666, fitness)
+        assert fitness == pytest.approx(1.666666)
         run_suite_mock.assert_called_with(indiv)
 
 

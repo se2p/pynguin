@@ -229,7 +229,7 @@ class _ConstantCollector(ast.NodeVisitor):
         return self._constants
 
     def _remove_docstrings(self) -> None:
-        self._constants[str] -= self._string_expressions
+        self._constants[str] -= self._string_expressions  # type: ignore
 
 
 class DynamicConstantSeeding(_ConstantSeeding):

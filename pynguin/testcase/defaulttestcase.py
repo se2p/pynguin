@@ -126,12 +126,12 @@ class DefaultTestCase(tc.TestCase):
     def get_dependencies(
         self, var: vr.VariableReference
     ) -> OrderedSet[vr.VariableReference]:
-        dependencies = OrderedSet()
+        dependencies: OrderedSet[vr.VariableReference] = OrderedSet()
 
         # TODO(fk) a variable will be a dependency of itself?!
         dependent_stmts = {self.get_statement(var.get_statement_position())}
         for idx in range(var.get_statement_position(), -1, -1):
-            new_stmts = OrderedSet()
+            new_stmts: OrderedSet[stmt.Statement] = OrderedSet()
             for statement in dependent_stmts:
                 if (
                     ret_val := self.get_statement(idx).ret_val

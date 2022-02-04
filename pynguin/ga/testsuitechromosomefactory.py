@@ -58,8 +58,8 @@ class TestSuiteChromosomeFactory(
             chromosome.add_test_case_chromosome(
                 self._test_case_chromosome_factory.get_chromosome()
             )
-        for func in self._fitness_functions:
-            chromosome.add_fitness_function(func)
-        for func in self._coverage_functions:
-            chromosome.add_coverage_function(func)
+        for fitness_function in self._fitness_functions:
+            chromosome.add_fitness_function(fitness_function)
+        for coverage_function in self._coverage_functions:
+            chromosome.add_coverage_function(coverage_function)
         return chromosome

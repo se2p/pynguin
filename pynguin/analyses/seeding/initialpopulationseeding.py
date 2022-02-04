@@ -47,7 +47,7 @@ class _InitialPopulationSeeding:
         self._test_cluster = test_cluster
 
     def get_ast_tree(
-        self, module_path: AnyStr | "os.PathLike[AnyStr]"
+        self, module_path: AnyStr | os.PathLike[AnyStr]
     ) -> ast.Module | None:
 
         """Returns the ast tree from a module
@@ -82,7 +82,7 @@ class _InitialPopulationSeeding:
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
 
-    def collect_testcases(self, module_path: AnyStr | "os.PathLike[AnyStr]") -> None:
+    def collect_testcases(self, module_path: AnyStr | os.PathLike[AnyStr]) -> None:
         """Collect all test cases from a module.
 
         Args:

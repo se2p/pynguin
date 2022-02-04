@@ -428,7 +428,7 @@ class MIOArchive(Archive):
 
     @property
     def solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:
-        result = OrderedSet()
+        result: OrderedSet[tcc.TestCaseChromosome] = OrderedSet()
         for population in self._archive.values():
             solution = population.get_best_solution_if_any()
             if solution is not None:

@@ -30,7 +30,7 @@ class DominanceComparator(Generic[C]):
         if goals is not None:
             self._objectives: OrderedSet[ff.FitnessFunction] | None = goals
         elif goal is not None:
-            self._objectives = {goal}
+            self._objectives = OrderedSet({goal})
         else:
             self._objectives = None
 
@@ -55,7 +55,7 @@ class DominanceComparator(Generic[C]):
         dominate_2 = False
 
         if self._objectives is None:
-            self._objectives = set(chromosome_1.get_fitness_functions())
+            self._objectives = OrderedSet(chromosome_1.get_fitness_functions())
 
         for objective in self._objectives:
             flag = ff.compare(

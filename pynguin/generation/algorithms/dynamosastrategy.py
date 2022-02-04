@@ -42,7 +42,7 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,
+            self._test_case_fitness_functions,  # type: ignore
             self._archive,
             self.executor.tracer.get_known_data(),
         )
@@ -151,7 +151,7 @@ class _GoalsManager:
         self._current_goals: OrderedSet[
             bg.BranchCoverageTestFitness
         ] = self._graph.root_branches
-        self._archive.add_goals(self._current_goals)
+        self._archive.add_goals(self._current_goals)  # type: ignore
 
     @property
     def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
@@ -160,7 +160,7 @@ class _GoalsManager:
         Returns:
             The set of current goals
         """
-        return self._current_goals
+        return self._current_goals  # type: ignore
 
     def update(self, solutions: list[tcc.TestCaseChromosome]) -> None:
         """Updates the information on the current goals from the found solutions.
@@ -173,13 +173,11 @@ class _GoalsManager:
         while new_goals_added:
             self._archive.update(solutions)
             covered = self._archive.covered_goals
-            new_goals = OrderedSet()
+            new_goals: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
             new_goals_added = False
             for old_goal in self._current_goals:
                 if old_goal in covered:
-                    children = self._graph.get_structural_children(
-                        cast(bg.BranchCoverageTestFitness, old_goal)
-                    )
+                    children = self._graph.get_structural_children(old_goal)
                     for child in children:
                         if child not in self._current_goals and child not in covered:
                             new_goals.add(child)
@@ -187,7 +185,7 @@ class _GoalsManager:
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
-            self._archive.add_goals(self._current_goals)
+            self._archive.add_goals(self._current_goals)  # type: ignore
         self._logger.debug("current goals after update: %s", self._current_goals)
 
 
@@ -207,7 +205,7 @@ class _BranchFitnessGraph:
         self._graph = nx.DiGraph()
         # Branch less code objects and branches that are not control dependent on other
         # branches.
-        self._root_branches = OrderedSet()
+        self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
         self._build_graph(fitness_functions, known_data)
 
     def _build_graph(

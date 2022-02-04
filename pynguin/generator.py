@@ -26,7 +26,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.assertion.assertiongenerator as ag
@@ -263,7 +263,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
 
 
 def _get_coverage_ff_from_algorithm(
-    algorithm: TestGenerationStrategy, function_type: Type[ff.CoverageFunction]
+    algorithm: TestGenerationStrategy, function_type: type[ff.CoverageFunction]
 ) -> ff.CoverageFunction:
     """Retrieve the coverage function for a test suite of a given coverage type.
 

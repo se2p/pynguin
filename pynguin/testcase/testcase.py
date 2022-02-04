@@ -10,6 +10,8 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
+from ordered_set import OrderedSet
+
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -207,7 +209,9 @@ class TestCase(metaclass=ABCMeta):
         """Get all assertions that exist for this test case."""
 
     @abstractmethod
-    def get_dependencies(self, var: vr.VariableReference) -> set[vr.VariableReference]:
+    def get_dependencies(
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
         """Provides all variables on which var depends.
 
         Args:
