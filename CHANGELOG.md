@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.17.0
 
+- Add line coverage as another coverage type (thanks to @labrenz).
+  The user can now choose between using either line or branch coverage or both by
+  setting the parameter `--coverage-metrics` to `LINE`, `BRANCH`, or `LINE,BRANCH`.
+  Default value is `BRANCH`.
+
 ## Pynguin 0.16.1
 
 - Update `CITATION.cff` information
