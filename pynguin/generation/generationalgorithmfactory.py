@@ -331,6 +331,8 @@ class TestSuiteGenerationAlgorithmFactory(
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.LineTestSuiteFitnessFunction(self._executor)])
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            test_suite_ffs.update([ff.CheckedTestSuiteFitnessFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
             test_suite_ffs.update(
                 [ff.BranchDistanceTestSuiteFitnessFunction(self._executor)]
@@ -344,6 +346,8 @@ class TestSuiteGenerationAlgorithmFactory(
         coverage_metrics = config.configuration.statistics_output.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteLineCoverageFunction(self._executor)])
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            test_suite_ffs.update([ff.TestSuiteCheckedCoverageFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteBranchCoverageFunction(self._executor)])
         return test_suite_ffs

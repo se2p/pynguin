@@ -250,6 +250,28 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
+class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+    """A fitness function based on lines checked and entered code objects."""
+
+    def compute_fitness(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        # TODO(SiL) how to calculate fitness of checked lines?
+        return 1
+
+    def compute_is_covered(self, individual) -> bool:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_checked_coverage_fitness_is_covered(
+            merged_trace,
+            tracer.get_known_data(),
+        )
+
+    def is_maximisation_function(self) -> bool:
+        return False
+
+
 class CoverageFunction:  # pylint:disable=too-few-public-methods
     """Interface for a coverage function."""
 
@@ -316,6 +338,26 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_line_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
+    """Computes branch coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestCaseCheckedCoverageFunction(TestCaseCoverageFunction):
+    """Computes branch coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -715,6 +757,22 @@ def compute_line_coverage_fitness_is_covered(
     return len(trace.covered_lines) == len(known_data.existing_lines)
 
 
+def compute_checked_coverage_fitness_is_covered(
+    trace: ExecutionTrace, known_data: KnownData
+) -> bool:
+    """Computes if all lines and code objects have been executed.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        True, if all lines were covered, false otherwise
+    """
+    # TODO(SiL) how to check covered status of checked lines?
+    return True
+
+
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
     """Computes branch coverage on bytecode instructions which should equal
     decision coverage on source.
@@ -769,6 +827,20 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
+
+
+def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+    """Computes checked coverage on bytecode instructions.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        The computed coverage value
+    """
+    # TODO(SiL) call sclicer here to calculate checked coverage
+    return 1
 
 
 def compare(fitness_1: float, fitness_2: float) -> int:

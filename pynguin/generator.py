@@ -394,6 +394,14 @@ def _track_coverage_metrics(
             RuntimeVariable.BranchCoverage,
             generation_result.get_coverage_for(branch_coverage_ff),
         )
+    if config.CoverageMetric.CHECKED in coverage_metrics:
+        checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+            algorithm, ff.TestSuiteCheckedCoverageFunction
+        )
+        stat.track_output_variable(
+            RuntimeVariable.CheckedCoverage,
+            generation_result.get_coverage_for(checked_coverage_ff),
+        )
 
 
 def _instantiate_test_generation_strategy(

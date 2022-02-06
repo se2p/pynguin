@@ -160,6 +160,9 @@ class CoverageMetric(str, enum.Enum):
     LINE = "LINE"
     """Calculate how many of the possible lines in the code were executed"""
 
+    CHECKED = "CHECKED"
+    """Calculate how many of the possible lines in the code are checked by an assertion."""
+
 
 class Selection(str, enum.Enum):
     """Different selection algorithms to select from."""
@@ -513,6 +516,9 @@ class StoppingConfiguration:
 
     maximum_statement_executions: int = 600
     """Maximum number of test cases to be executed."""
+
+    maximum_slicing_time: int = 600
+    """Time budget (in seconds) that can be used for slicing."""
 
     maximum_iterations: int = 60
     """Maximum iterations"""
