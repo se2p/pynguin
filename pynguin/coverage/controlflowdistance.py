@@ -16,10 +16,7 @@ import networkx as nx
 import pynguin.ga.computations as ff
 
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow.controldependencegraph import (
-        ControlDependenceGraph,
-    )
-    from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+    from pynguin.analyses.controlflow import ControlDependenceGraph, ProgramGraphNode
     from pynguin.testcase.execution import ExecutionResult, ExecutionTracer
 
 

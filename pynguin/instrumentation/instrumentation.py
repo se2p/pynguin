@@ -15,8 +15,7 @@ from typing import TYPE_CHECKING
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.testcase.execution import (
     CodeObjectMetaData,
@@ -25,7 +24,7 @@ from pynguin.testcase.execution import (
 )
 
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+    from pynguin.analyses.controlflow import ProgramGraphNode
 
 CODE_OBJECT_ID_KEY = "code_object_id"
 

@@ -26,11 +26,9 @@ from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
-import pynguin.analyses.controlflow.programgraph as pg
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -371,7 +369,7 @@ class PredicateMetaData:
     code_object_id: int
 
     # The node in the program graph, that defines this predicate.
-    node: pg.ProgramGraphNode
+    node: ProgramGraphNode
 
 
 @dataclass

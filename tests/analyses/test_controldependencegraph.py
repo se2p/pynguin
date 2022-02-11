@@ -6,8 +6,11 @@
 #
 import pytest
 
-import pynguin.analyses.controlflow.controldependencegraph as cdt
-import pynguin.analyses.controlflow.programgraph as pg
+from pynguin.analyses.controlflow import (
+    ControlDependenceGraph,
+    ControlDependency,
+    ProgramGraphNode,
+)
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     InstrumentationTransformer,
@@ -16,9 +19,7 @@ from pynguin.testcase.execution import ExecutionTracer
 
 
 def test_integration(small_control_flow_graph):
-    control_dependence_graph = cdt.ControlDependenceGraph.compute(
-        small_control_flow_graph
-    )
+    control_dependence_graph = ControlDependenceGraph.compute(small_control_flow_graph)
     dot_representation = control_dependence_graph.dot
     graph = """strict digraph  {
 "ProgramGraphNode(2)";
@@ -54,17 +55,17 @@ def small_fixture(x, y):  # pragma: no cover
     "node,deps",
     [
         pytest.param(
-            pg.ProgramGraphNode(index=5),
-            {cdt.ControlDependency(0, True)},
+            ProgramGraphNode(index=5),
+            {ControlDependency(0, True)},
             id="return True depends on y == 17",
         ),
-        pytest.param(pg.ProgramGraphNode(index=0), set(), id="Entry has no dependency"),
+        pytest.param(ProgramGraphNode(index=0), set(), id="Entry has no dependency"),
         pytest.param(
-            pg.ProgramGraphNode(index=6),
+            ProgramGraphNode(index=6),
             {
-                cdt.ControlDependency(predicate_id=0, branch_value=False),
-                cdt.ControlDependency(predicate_id=2, branch_value=False),
-                cdt.ControlDependency(predicate_id=3, branch_value=False),
+                ControlDependency(predicate_id=0, branch_value=False),
+                ControlDependency(predicate_id=2, branch_value=False),
+                ControlDependency(predicate_id=3, branch_value=False),
             },
             id="return False depends on all False branches",
         ),

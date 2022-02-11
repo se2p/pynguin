@@ -8,16 +8,13 @@ import sys
 
 from bytecode import Bytecode
 
-import pynguin.analyses.controlflow.cfg as cfg
-import pynguin.analyses.controlflow.dominatortree as pdt
+from pynguin.analyses.controlflow import CFG, DominatorTree
 from tests.fixtures.programgraph.samples import for_loop
 
 
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
-    control_flow_graph = cfg.CFG.from_bytecode(conditional_jump_example_bytecode)
-    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
-        control_flow_graph
-    )
+    control_flow_graph = CFG.from_bytecode(conditional_jump_example_bytecode)
+    post_dominator_tree = DominatorTree.compute_post_dominator_tree(control_flow_graph)
     dot_representation = post_dominator_tree.dot
     graph = """strict digraph  {
 "ProgramGraphNode(9223372036854775807)";
@@ -70,7 +67,7 @@ POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(-1)";
 
 
 def test_integration(small_control_flow_graph):
-    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
+    post_dominator_tree = DominatorTree.compute_post_dominator_tree(
         small_control_flow_graph
     )
     dot_representation = post_dominator_tree.dot
@@ -95,7 +92,7 @@ def test_integration(small_control_flow_graph):
 
 
 def test_integration_post_domination(larger_control_flow_graph):
-    post_dominator_tree = pdt.DominatorTree.compute_post_dominator_tree(
+    post_dominator_tree = DominatorTree.compute_post_dominator_tree(
         larger_control_flow_graph
     )
     node = [n for n in larger_control_flow_graph.nodes if n.index == 110][0]
@@ -123,7 +120,7 @@ def test_integration_post_domination(larger_control_flow_graph):
 
 
 def test_integration_dominator_tree():
-    for_loop_cfg = cfg.CFG.from_bytecode(Bytecode.from_code(for_loop.__code__))
-    dom_tree = pdt.DominatorTree.compute(for_loop_cfg)
+    for_loop_cfg = CFG.from_bytecode(Bytecode.from_code(for_loop.__code__))
+    dom_tree = DominatorTree.compute(for_loop_cfg)
     # Every node of the cfg should be in the dominator tree
     assert for_loop_cfg.nodes == dom_tree.nodes

@@ -19,8 +19,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+from pynguin.analyses.controlflow import CFG, ProgramGraphNode
 from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
