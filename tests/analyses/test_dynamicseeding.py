@@ -6,7 +6,7 @@
 #
 import pytest
 
-from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
+from pynguin.analyses.seeding import DynamicConstantSeeding
 
 
 @pytest.fixture()

@@ -4,14 +4,17 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
 import os
 
 import pytest
 
-from pynguin.analyses.seeding.constantseeding import (
-    _StaticConstantSeeding,
-    static_constant_seeding,
-)
+from pynguin.analyses.seeding import _StaticConstantSeeding, static_constant_seeding
 
 
 @pytest.fixture
@@ -25,7 +28,7 @@ def seeding():
 def fixture_dir():
     return os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..",
+        "",
         "..",
         "fixtures",
         "seeding",

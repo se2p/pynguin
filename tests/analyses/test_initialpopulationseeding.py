@@ -4,17 +4,23 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
 import os
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.seeding.initialpopulationseeding as ips
 import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
 import pynguin.generator as gen
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.seeding import initialpopulationseeding
 from pynguin.generation.generationalgorithmfactory import (
     TestSuiteGenerationAlgorithmFactory,
 )
@@ -27,7 +33,7 @@ from pynguin.testcase.testfactory import TestFactory
 def seed_modules_path():
     dummy_test_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..",
+        "",
         "..",
         "fixtures",
         "seeding",
@@ -39,8 +45,8 @@ def seed_modules_path():
 
 @pytest.fixture()
 def clear_ips_instance():
-    ips.initialpopulationseeding._testcases = []
-    ips.initialpopulationseeding.test_cluster = FullTestCluster()
+    initialpopulationseeding._testcases = []
+    initialpopulationseeding.test_cluster = FullTestCluster()
 
 
 @pytest.fixture()
@@ -61,21 +67,21 @@ def dummy_test_cluster() -> TestCluster:
 
 def test_get_testcases(clear_ips_instance, seed_modules_path, triangle_test_cluster):
     config.configuration.module_name = "triangle"
-    ips.initialpopulationseeding.test_cluster = triangle_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = triangle_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
 
-    assert ips.initialpopulationseeding.has_tests
-    assert len(ips.initialpopulationseeding._testcases) == 2
+    assert initialpopulationseeding.has_tests
+    assert len(initialpopulationseeding._testcases) == 2
 
 
 def test_get_seeded_testcase(
     clear_ips_instance, seed_modules_path, triangle_test_cluster
 ):
     config.configuration.module_name = "triangle"
-    ips.initialpopulationseeding.test_cluster = triangle_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = triangle_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
 
-    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
+    seeded_testcase = initialpopulationseeding.seeded_testcase
     assert isinstance(seeded_testcase, dtc.DefaultTestCase)
 
 
@@ -114,11 +120,11 @@ def test_collect_different_types(
     testcase_pos,
 ):
     config.configuration.module_name = module_name
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
     rand_mock.return_value = testcase_pos
 
-    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
+    seeded_testcase = initialpopulationseeding.seeded_testcase
     assert seeded_testcase is not None
     assert next(iter(seeded_testcase.statements[position].assertions)).object == result
 
@@ -143,11 +149,11 @@ def test_create_assertion(
     testcase_pos,
 ):
     config.configuration.module_name = "assertseed"
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
     rand_mock.return_value = testcase_pos
 
-    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
+    seeded_testcase = initialpopulationseeding.seeded_testcase
     assert len(seeded_testcase.statements[position].assertions) == num_assertions
 
 
@@ -164,10 +170,10 @@ def test_not_working_cases(
     clear_ips_instance, seed_modules_path, dummy_test_cluster, module_name
 ):
     config.configuration.module_name = module_name
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
 
-    assert not ips.initialpopulationseeding._testcases
+    assert not initialpopulationseeding._testcases
 
 
 @mock.patch("pynguin.utils.randomness.next_int")
@@ -175,14 +181,14 @@ def test_generator_with_init_pop_seeding(
     rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
     rand_mock.return_value = 2
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
     config.configuration.seeding.initial_population_seeding = True
     config.configuration.seeding.initial_population_data = seed_modules_path
     gen.set_configuration(config.configuration)
     gen._setup_initial_population_seeding(dummy_test_cluster)
-    seeded_testcase = ips.initialpopulationseeding.seeded_testcase
-    assert ips.initialpopulationseeding.has_tests
+    seeded_testcase = initialpopulationseeding.seeded_testcase
+    assert initialpopulationseeding.has_tests
     assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
 
 
@@ -191,12 +197,12 @@ def test_seeded_test_case_factory_no_delegation(
     rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
     rand_mock.return_value = 2
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
     config.configuration.seeding.initial_population_seeding = True
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 1.0
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
@@ -210,12 +216,12 @@ def test_seeded_test_case_factory_with_delegation(
     rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
 ):
     rand_mock.return_value = 2
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.test_cluster = dummy_test_cluster
     config.configuration.module_name = "primitiveseed"
     config.configuration.seeding.initial_population_seeding = True
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 0.0
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.collect_testcases(seed_modules_path)
     test_factory = TestFactory(dummy_test_cluster)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     delegate.get_test_case = MagicMock()
@@ -250,9 +256,9 @@ def test_algorithm_generation_factory(
 @mock.patch("ast.parse")
 def test_module_not_readable(parse_mock, clear_ips_instance, seed_modules_path):
     parse_mock.side_effect = BaseException
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.collect_testcases(seed_modules_path)
 
-    assert not ips.initialpopulationseeding._testcases
+    assert not initialpopulationseeding._testcases
 
 
 @mock.patch("pynguin.ga.testcasechromosome.TestCaseChromosome.mutate")
@@ -261,6 +267,6 @@ def test_initial_mutation(
 ):
     config.configuration.seeding.initial_population_mutations = 2
     config.configuration.module_name = "primitiveseed"
-    ips.initialpopulationseeding.test_cluster = dummy_test_cluster
-    ips.initialpopulationseeding.collect_testcases(seed_modules_path)
+    initialpopulationseeding.test_cluster = dummy_test_cluster
+    initialpopulationseeding.collect_testcases(seed_modules_path)
     mutate_mock.assert_called()
