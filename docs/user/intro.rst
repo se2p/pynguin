@@ -91,29 +91,29 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
-* Straubinger, F: “Mutation Analysis to Improve the Generation of Assertions for
-  Automatically Generated Python Unit-tests”.  Bachelor Thesis.  University of Passau,
+* F. Straubinger: **Mutation Analysis to Improve the Generation of Assertions for
+  Automatically Generated Python Unit-tests**.  Bachelor Thesis.  University of Passau,
   2021.
 
   Provided the mutation-based assertion generation for improved regression tests.
-* Steffens, L: “Seeding Strategies in Search-Based Unit Test Generation for Python”.
+* L. Steffens: **Seeding Strategies in Search-Based Unit Test Generation for Python**.
   Bachelor Thesis.  University of Passau, 2021.
 
   Provided the dynamic seeding as well as the seeding from existing test cases to
   Pynguin.
-* Kroiß, F: “Automatic Generation of Whole Test Suites in Python”.  Bachelor Thesis.
+* F. Kroiß: **Automatic Generation of Whole Test Suites in Python**.  Bachelor Thesis.
   University of Passau, 2020.
 
   Provided the whole-suite test generation algorithm as well as large parts of the core
   parts of Pynguin, e.g., instrumentation, test-case representation, and execution.
-* Frädrich, C: “Combining Test Generation and Type Inference for Testing Dynamically
-  Typed Programming Language”.  Master Thesis.  University of Passau, 2019.
+* C. Frädrich: **Combining Test Generation and Type Inference for Testing Dynamically
+  Typed Programming Language**.  Master Thesis.  University of Passau, 2019.
 
   Implemented a proof-of-concept using a Randoop-like test-generation algorithm and
   incorporated several ideas for type inference.  Although this work was done before
   Pynguin was actually startet, it is the foundation and proof-of-concept that test
   generation for Python was actually a feasible goal.  Thus, we consider it as the
-  initial start point of this endeavour.
+  seminal starting point of this endeavour.
 
 .. _`lgpl`:
 
