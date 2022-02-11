@@ -10,9 +10,9 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.seeding import initialpopulationseeding
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -76,9 +76,9 @@ class SeededTestCaseFactory(TestCaseFactory):
     def get_test_case(self) -> tc.TestCase:
         if (
             config.configuration.seeding.initial_population_seeding
-            and initpopseeding.initialpopulationseeding.has_tests
+            and initialpopulationseeding.has_tests
             and randomness.next_float()
             <= config.configuration.seeding.seeded_testcases_reuse_probability
         ):
-            return initpopseeding.initialpopulationseeding.seeded_testcase
+            return initialpopulationseeding.seeded_testcase
         return self._delegate.get_test_case()

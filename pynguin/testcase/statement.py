@@ -15,13 +15,10 @@ from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast, get_args
 
 from ordered_set import OrderedSet
 
+import pynguin.analyses.seeding as seeding  # pylint: disable=consider-using-from-import
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.seeding.constantseeding import (
-    dynamic_constant_seeding,
-    static_constant_seeding,
-)
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
@@ -1460,19 +1457,19 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         )
         if (
             config.configuration.seeding.dynamic_constant_seeding
-            and dynamic_constant_seeding.has_ints
+            and seeding.dynamic_constant_seeding.has_ints
             and use_seed
             and config.configuration.seeding.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dynamic_constant_seeding.random_int
+            self._value = seeding.dynamic_constant_seeding.random_int
         elif (
             config.configuration.seeding.constant_seeding
-            and static_constant_seeding.has_ints
+            and seeding.static_constant_seeding.has_ints
             and use_seed
         ):
-            self._value = static_constant_seeding.random_int
+            self._value = seeding.static_constant_seeding.random_int
         else:
             self._value = int(
                 randomness.next_gaussian() * config.configuration.test_creation.max_int
@@ -1515,19 +1512,19 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         )
         if (
             config.configuration.seeding.dynamic_constant_seeding
-            and dynamic_constant_seeding.has_floats
+            and seeding.dynamic_constant_seeding.has_floats
             and use_seed
             and config.configuration.seeding.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dynamic_constant_seeding.random_float
+            self._value = seeding.dynamic_constant_seeding.random_float
         elif (
             config.configuration.seeding.constant_seeding
-            and static_constant_seeding.has_floats
+            and seeding.static_constant_seeding.has_floats
             and use_seed
         ):
-            self._value = static_constant_seeding.random_float
+            self._value = seeding.static_constant_seeding.random_float
         else:
             val = (
                 randomness.next_gaussian() * config.configuration.test_creation.max_int
@@ -1578,19 +1575,19 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         )
         if (
             config.configuration.seeding.dynamic_constant_seeding
-            and dynamic_constant_seeding.has_strings
+            and seeding.dynamic_constant_seeding.has_strings
             and use_seed
             and config.configuration.seeding.constant_seeding
             and randomness.next_float()
             <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
         ):
-            self._value = dynamic_constant_seeding.random_string
+            self._value = seeding.dynamic_constant_seeding.random_string
         elif (
             config.configuration.seeding.constant_seeding
-            and static_constant_seeding.has_strings
+            and seeding.static_constant_seeding.has_strings
             and use_seed
         ):
-            self._value = static_constant_seeding.random_string
+            self._value = seeding.static_constant_seeding.random_string
         else:
             length = randomness.next_int(
                 0, config.configuration.test_creation.string_length + 1

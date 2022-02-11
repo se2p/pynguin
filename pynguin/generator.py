@@ -28,7 +28,7 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
+import pynguin.analyses.seeding as seeding  # pylint: disable=consider-using-from-import
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -40,7 +40,6 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.seeding.constantseeding import static_constant_seeding
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -180,15 +179,17 @@ def _setup_constant_seeding_collection() -> None:
     """Collect constants from SUT, if enabled."""
     if config.configuration.seeding.constant_seeding:
         _LOGGER.info("Collecting constants from SUT.")
-        static_constant_seeding.collect_constants(config.configuration.project_path)
+        seeding.static_constant_seeding.collect_constants(
+            config.configuration.project_path
+        )
 
 
 def _setup_initial_population_seeding(test_cluster: TestCluster):
     """Collect and parse tests for seeding the initial population"""
     if config.configuration.seeding.initial_population_seeding:
         _LOGGER.info("Collecting and parsing provided testcases.")
-        initpopseeding.initialpopulationseeding.test_cluster = test_cluster
-        initpopseeding.initialpopulationseeding.collect_testcases(
+        seeding.initialpopulationseeding.test_cluster = test_cluster
+        seeding.initialpopulationseeding.collect_testcases(
             config.configuration.seeding.initial_population_data
         )
 
