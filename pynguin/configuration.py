@@ -161,7 +161,8 @@ class CoverageMetric(str, enum.Enum):
     """Calculate how many of the possible lines in the code were executed"""
 
     CHECKED = "CHECKED"
-    """Calculate how many of the possible lines in the code are checked by an assertion."""
+    """Calculate how many of the possible lines in the
+    code are checked by an assertion."""
 
 
 class Selection(str, enum.Enum):
@@ -208,6 +209,11 @@ class StatisticsOutputConfiguration:
         ]
     )
     """List of variables to output to the statistics backend."""
+
+    custom_assertions: List[str] = dataclasses.field(
+        default_factory=lambda: []  # TODO(SiL) handle CIL parsing of list
+    )
+    """Name of methods treated as assertions (one or multiple)"""
 
     configuration_id: str = ""
     """Label that identifies the used configuration of Pynguin.  This is only done

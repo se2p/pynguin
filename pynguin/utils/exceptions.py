@@ -25,3 +25,22 @@ class ConstructionFailedException(BaseException):
 
 class TimerError(Exception):
     """A custom exception used to report errors in use of Timer class"""
+
+
+class InstructionNotFoundException(BaseException):
+    """A custom exception if no matching instruction is found for a search."""
+
+
+class UncertainStackEffectException(BaseException):
+    """A custom exception if the simulation of the stack effect is not possible
+    due to an instruction with special control flow."""
+
+
+class TestTimeoutException(BaseException):
+    """A custom exception if the execution of a single test took
+    longer than the configured maximum duration."""
+
+
+class SlicingTimeoutException(BaseException):
+    """A custom exception if slicing of a single test took longer
+    than the configured maximum duration."""

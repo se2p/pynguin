@@ -26,11 +26,13 @@ class ProgramGraphNode:
         index: int,
         basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
+        offset: int = 0,
     ) -> None:
         self._index = index
         self._basic_block = basic_block
         self._is_artificial = is_artificial
         self._predicate_id: int | None = None
+        self._offset = offset
 
     @property
     def index(self) -> int:
@@ -52,16 +54,16 @@ class ProgramGraphNode:
 
     @property
     def is_artificial(self) -> bool:
-        """Whether or not a node is artificially inserted into the graph.
+        """Whether a node is artificially inserted into the graph.
 
         Returns:
-            Whether or not a node is artificially inserted into the graph
+            Whether a node is artificially inserted into the graph
         """
         return self._is_artificial
 
     @property
     def predicate_id(self) -> int | None:
-        """If this node creates a branch based on a predicate, than this stores the id
+        """If this node creates a branch based on a predicate, then this stores the id
         of this predicate.
 
         Returns:
@@ -77,6 +79,24 @@ class ProgramGraphNode:
             predicate_id: The predicate id
         """
         self._predicate_id = predicate_id
+
+    @property
+    def offset(self) -> int:
+        """Provides the offset of the basic block of the node.
+
+        Returns:
+            The offset assigned to this node, 0 if no other specified.
+        """
+        return self._offset
+
+    @offset.setter
+    def offset(self, offset: int) -> None:
+        """Set a new offset.
+
+        Args:
+            offset: The predicate id
+        """
+        self._offset = offset
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ProgramGraphNode):

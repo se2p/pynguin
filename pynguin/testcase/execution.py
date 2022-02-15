@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import ctypes
+import inspect
 import logging
 import os
 import sys
@@ -18,17 +20,28 @@ from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
 from queue import Empty, Queue
-from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable
+from types import (
+    BuiltinFunctionType,
+    BuiltinMethodType,
+    CodeType,
+    FunctionType,
+    MethodType,
+    ModuleType,
+)
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
 
 import astor
-from bytecode import Compare
+import pytest
+from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
+from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.analyses.controlflow.programgraph as pg
+import pynguin.configuration as config
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
+import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
 from pynguin.utils.type_utils import (
@@ -37,6 +50,13 @@ from pynguin.utils.type_utils import (
     is_numeric,
     is_string,
 )
+
+immutable_types = [int, float, complex, str, tuple, frozenset, bytes]
+
+# TODO(SiL) check compatibility with pytest
+TESTCASE_MODULE = "foo"  # pytest.TestCase.__module__
+TESTCASE_CLASS = "bar"  # pytest.TestCase.__qualname__
+
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
@@ -312,11 +332,22 @@ class ExecutionResult:
 class ExecutionTrace:
     """Stores trace information about the execution."""
 
+    _logger = logging.getLogger(__name__)
+
     executed_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_lines: OrderedSet[int] = field(default_factory=OrderedSet)
+    executed_instructions: OrderedSet[ExecutedInstruction] = field(
+        default_factory=OrderedSet
+    )
+    test_id: str = ""
+    module_name: str = ""
+    module: bool = False
+    traced_assertions: List[TracedAssertion] = field(default_factory=list)
+    unique_assertions: Set[UniqueAssertion] = field(default_factory=set)
+    current_assertion: Optional[TracedAssertion] = None
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -341,6 +372,176 @@ class ExecutionTrace:
         """
         for key, value in source.items():
             target[key] = min(target.get(key, inf), value)
+
+    def add_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """
+        Creates a new ExecutedInstruction object and adds it to the trace.
+        """
+        executed_instr = ExecutedInstruction(
+            module, code_object_id, node_id, opcode, None, lineno, offset
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_memory_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg_name: str,
+        arg_address: int,
+        is_mutable_type: bool,
+        object_creation: bool,
+    ) -> None:
+        """Creates a new ExecutedMemoryInstruction object and adds it to the trace."""
+        executed_instr = ExecutedMemoryInstruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            arg_name,
+            arg_address,
+            is_mutable_type,
+            object_creation,
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_attribute_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        attr_name: str,
+        src_address: int,
+        arg_address: int,
+        is_mutable_type: bool,
+    ) -> None:
+        """Creates a new ExecutedAttributeInstruction object and
+        adds it to the trace."""
+        executed_instr = ExecutedAttributeInstruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            attr_name,
+            src_address,
+            arg_address,
+            is_mutable_type,
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_jump_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        target_id: int,
+    ) -> None:
+        """Creates a new ExecutedControlInstruction object and adds it to the trace."""
+        executed_instr = ExecutedControlInstruction(
+            module, code_object_id, node_id, opcode, lineno, offset, target_id
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_call_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        """Creates a new ExecutedCallInstruction object and adds it to the trace."""
+        executed_instr = ExecutedCallInstruction(
+            module, code_object_id, node_id, opcode, lineno, offset, arg
+        )
+
+        self.executed_instructions.append(executed_instr)
+
+    def add_return_instruction(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Creates a new ExecutedReturnInstruction object and adds it to the trace."""
+        executed_instr = ExecutedReturnInstruction(
+            module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+        self.executed_instructions.append(executed_instr)
+
+    def start_assertion(
+        self, code_object_id: int, node_id: int, lineno: int
+    ) -> TracedAssertion:
+        """Initialise a new TracedAssertion object and store it as current assertion.
+        This is used to know where an assertion started and keep track of all following
+        instructions until end_assertion() is called.
+
+        Returns:
+            the newly created TracedAssertion object stored in current_assertion.
+        """
+        self.current_assertion = TracedAssertion(
+            code_object_id, node_id, lineno, len(self.executed_instructions) - 1
+        )
+        return self.current_assertion
+
+    def end_assertion(self):
+        """Create a new UniqueAssertion object from _current_assertion's instruction,
+        which started the assertion to the current position.
+        This clears the _current_assertion attribute until start_assertion() is called
+        again.
+        """
+        assert self.current_assertion
+        assert self.current_assertion.traced_assertion_call
+        assert self.current_assertion.traced_assertion_call.opcode in [
+            op.CALL_METHOD,
+            op.CALL_FUNCTION_KW,
+            op.CALL_FUNCTION_EX,
+        ]
+        assert self.current_assertion.trace_position_end > 0
+        assert self.traced_assertions
+
+        self.traced_assertions.append(self.current_assertion)
+        self.unique_assertions.add(
+            UniqueAssertion(self.current_assertion.traced_assertion_call)
+        )
+
+        self.current_assertion = None
+
+    def print_trace_debug(self) -> None:
+        """Print debugging infos about the executed assertions and instructions."""
+        self._logger.debug("\n %d assertion calls(s)", len(self.traced_assertions))
+        self._logger.debug("\n")
+        self._logger.debug("------ Execution Trace ------")
+        for instr in self.executed_instructions:
+            self._logger.debug(instr)
+        self._logger.debug("\n")
 
 
 @dataclass
@@ -485,6 +686,11 @@ class ExecutionTracer:
         self._init_trace()
         self._enabled = True
         self._current_thread_identifier: int | None = None
+        self._current_test: str = ""
+        self._setup: bool = False
+        self._known_object_addresses: Set[int] = set()
+        self._current_assertion: Optional[TracedAssertion] = None
+        self._assertion_stack_counter = 0
 
     @property
     def current_thread_identifier(self) -> int | None:
@@ -515,6 +721,24 @@ class ExecutionTracer:
         copied = ExecutionTrace()
         copied.merge(self._import_trace)
         return copied
+
+    @property
+    def current_test(self) -> str:
+        """The name of the test currently executed.
+
+        Returns:
+            The name of the test currently executed.
+        """
+        return self._current_test
+
+    @current_test.setter
+    def current_test(self, current_test: str) -> None:
+        """Set the name of the test currently traced.
+
+        Args:
+            current_test: the new test name used for this trace
+        """
+        self._current_test = current_test
 
     def get_known_data(self) -> KnownData:
         """Provide known data.
@@ -767,8 +991,540 @@ class ExecutionTracer:
             self._trace.false_distances.get(predicate, inf), distance_false
         )
 
+    def track_generic(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Track a generic instruction inside the trace."""
+        self._trace.add_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+    def track_memory_access(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: Union[str, CellVar, FreeVar],
+        arg_address: int,
+        arg_type: type,
+    ) -> None:
+        """Track a memory access instruction in the trace."""
+        if not arg:
+            if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
+                raise ValueError("A memory access instruction must have an argument")
+        if isinstance(arg, (CellVar, FreeVar)):
+            arg = arg.name
+
+        # Determine if this is a mutable type
+        mutable_type = True
+        if arg_type in immutable_types:
+            mutable_type = False
+
+        # Determine if this is a definition of a completely new object
+        # (required later during slicing).
+        object_creation = False
+        if arg_address and arg_address not in self._known_object_addresses:
+            object_creation = True
+            self._known_object_addresses.add(arg_address)
+
+        self._trace.add_memory_instruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            arg,
+            arg_address,
+            mutable_type,
+            object_creation,
+        )
+
+    def track_attribute_access(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        attr_name: str,
+        src_address: int,
+        arg_address: int,
+        arg_type: type,
+    ) -> None:
+        """Track a attribute access instruction in the trace."""
+        trace = self._trace
+        if opcode in op.MEMORY_USE_INSTRUCTIONS and arg_type in [
+            MethodType,
+            FunctionType,
+        ]:
+            custom_assertions = config.configuration.statistics_output.custom_assertions
+
+            if custom_assertions and attr_name in custom_assertions:
+                if self._current_assertion:
+                    # Start of a new assertion, but old not finished -> end old here
+                    trace.end_assertion()
+                self._current_assertion = trace.start_assertion(
+                    code_object_id, node_id, lineno
+                )
+            elif attr_name.startswith("assert") and attr_name in dir(pytest.TestCase):
+                # Standard detection method
+                # The loaded method is reconstructed from memory to check if it is
+                # indeed a method of the pytest TestCase (and not, for example,
+                # a custom method with the same name)
+                # noinspection PyTypeChecker
+                source_object = ctypes.cast(src_address, ctypes.py_object).value
+                if (
+                    hasattr(source_object, "__module__")
+                    and source_object.__module__ == TESTCASE_MODULE
+                    and hasattr(source_object, "__qualname__")
+                    and source_object.__qualname__.startswith(TESTCASE_CLASS)
+                ):
+                    if self._current_assertion:
+                        # Start of a new assertion, but old not finished -> end old here
+                        trace.end_assertion()
+                    self._current_assertion = trace.start_assertion(
+                        code_object_id, node_id, lineno
+                    )
+
+        # Different built-in methods and functions often have the same address when
+        # accessed sequentially.
+        # The address is not recorded in such cases.
+        if arg_type is BuiltinMethodType or arg_type is BuiltinFunctionType:
+            arg_address = -1
+
+        # Determine if this is a mutable type
+        mutable_type = True
+        if arg_type in immutable_types:
+            mutable_type = False
+
+        trace.add_attribute_instruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            attr_name,
+            src_address,
+            arg_address,
+            mutable_type,
+        )
+
+    def track_jump(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        target_id: int,
+    ) -> None:
+        """Track a jump instruction in the trace."""
+        self._trace.add_jump_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset, target_id
+        )
+
+    def track_call(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        """Track a method call instruction in the trace."""
+        self._trace.add_call_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset, arg
+        )
+
+        # Update current assertion
+        # It is either finished already or we use the last call instruction in this line
+        if self._current_assertion:
+            current_assertion = self._current_assertion
+            if (
+                current_assertion.code_object_id == code_object_id
+                and current_assertion.node_id == node_id
+                and current_assertion.lineno == lineno
+            ):
+                current_assertion.traced_assertion_call = (
+                    self._trace.executed_instructions[-1]
+                )
+                current_assertion.trace_position_end = (
+                    len(self._trace.executed_instructions) - 1
+                )
+
+    def track_return(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Track a return instruction in the trace."""
+        self._trace.add_return_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+    @staticmethod
+    def attribute_lookup(object_type, attribute: str) -> int:
+        """Check the dictionary of classes making up the MRO (_PyType_Lookup)
+        The attribute must be a data descriptor to be prioritized here
+
+        Args:
+            object_type: The type object to check
+            attribute: the attribute to check for in the class
+
+        Returns:
+            The id of the object type or the class if it has the attribute, -1 otherwise
+        """
+
+        for cls in type(object_type).__mro__:
+            if attribute in cls.__dict__:
+                # Class in the MRO hierarchy has attribute
+                if inspect.isdatadescriptor(cls.__dict__.get(attribute)):
+                    # Class has attribute and attribute is a data descriptor
+                    return id(cls)
+
+        # This would lead to an infinite recursion and thus a crash of the program
+        if attribute in ("__getattr__", "__getitem__"):
+            return -1
+        # Check if the dictionary of the object on which lookup is performed
+        if hasattr(object_type, "__dict__") and object_type.__dict__:
+            if attribute in object_type.__dict__:
+                return id(object_type)
+        if hasattr(object_type, "__slots__") and object_type.__slots__:
+            if attribute in object_type.__slots__:
+                return id(object_type)
+
+        # Check if attribute in MRO hierarchy (no need for data descriptor)
+        for cls in type(object_type).__mro__:
+            if attribute in cls.__dict__:
+                return id(cls)
+
+        return -1
+
     def __repr__(self) -> str:
         return "ExecutionTracer"
+
+
+@dataclass
+class TracedAssertion:
+    """Data class for assertions of a testcase traced during execution for slicing"""
+
+    code_object_id: int
+    node_id: int
+    lineno: int
+    trace_position_start: int
+    trace_position_end: int = -1
+    traced_assertion_call: Optional[ExecutedInstruction] = None
+
+
+class UniqueAssertion:
+    """Data class for an assertion uniquely identifiable by its instruction"""
+
+    def __init__(self, assertion_call_instruction: ExecutedInstruction):
+        self.assertion_call_instruction = assertion_call_instruction
+
+    def __eq__(self, other):
+        if not isinstance(other, UniqueAssertion):
+            return False
+
+        return (
+            self.assertion_call_instruction.code_object_id
+            == other.assertion_call_instruction.code_object_id
+            and self.assertion_call_instruction.node_id
+            == other.assertion_call_instruction.node_id
+            and self.assertion_call_instruction.lineno
+            == other.assertion_call_instruction.lineno
+            and self.assertion_call_instruction.offset
+            == other.assertion_call_instruction.offset
+        )
+
+    def __hash__(self):
+        hash_string = (
+            str(self.assertion_call_instruction.code_object_id)
+            + "_"
+            + str(self.assertion_call_instruction.node_id)
+            + "_"
+            + str(self.assertion_call_instruction.lineno)
+            + "_"
+            + str(self.assertion_call_instruction.offset)
+            + "_"
+        )
+
+        return hash(hash_string)
+
+    def __str__(self):
+        return str(self.assertion_call_instruction.lineno)
+
+
+class CheckedExecutionTrace:
+    """Stores trace information about the execution."""
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, module: bool = False):
+        self._test_id = ""
+        self._module_name = ""
+        self._module = module
+        self._executed_instructions: List[ExecutedInstruction] = []
+        self._traced_assertions: List[TracedAssertion] = []
+        self._unique_assertions: Set[UniqueAssertion] = set()
+        self._current_assertion: Optional[TracedAssertion] = None
+
+    @property
+    def executed_instructions(self) -> List[ExecutedInstruction]:
+        """
+        Returns the list of executed instructions of a trace.
+        Returns:
+            A list of executed instructions.
+        """
+        return self._executed_instructions
+
+    @property
+    def test_id(self) -> str:
+        """
+        Returns the id of an executed test as string.
+        Returns:
+            The id of the test case or suite that created the trace.
+        """
+        return self._test_id
+
+    @test_id.setter
+    def test_id(self, test_id: str) -> None:
+        """
+        Sets the id of an executed test case or suite inside a trace.
+        Args:
+            test_id: the new test id as string
+        """
+        self.test_id = test_id
+
+    @property
+    def module_name(self) -> str:
+        """
+        Returns the name of the module that was tested during the trace.
+        Returns:
+            The name of the module that was tested during the trace.
+        """
+        return self._module_name
+
+    @module_name.setter
+    def module_name(self, module_name: str) -> None:
+        """
+        Sets the module name for the trace.
+        Args:
+            module_name: the new set module name
+        """
+        self._module_name = module_name
+
+
+class ExecutedInstruction:
+    """Represents an executed bytecode instruction with additional information."""
+
+    def __init__(
+        self,
+        file: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        arg,
+        lineno: int,
+        offset: int,
+    ):
+        self.file = file
+        self.code_object_id = code_object_id
+        self.node_id = node_id
+        self.opcode = opcode
+        self.argument = arg
+        self.lineno = lineno
+        self.offset = offset
+
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of the executed instruction.
+        Returns:
+            The name of the executed instruction.
+        """
+        return opname[self.opcode]
+
+    @staticmethod
+    def is_jump() -> bool:
+        """
+        Returns whether the executed instruction is a jump condition.
+        Returns:
+            True, if the instruction is a jump condition, False otherwise.
+        """
+        return False
+
+    def __str__(self) -> str:
+        return (
+            f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+class ExecutedMemoryInstruction(ExecutedInstruction):
+    """Represents an executed instructions which read from or wrote to memory."""
+
+    def __init__(
+        self,
+        file: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg_name: str,
+        arg_address: int,
+        is_mutable_type: bool,
+        object_creation: bool,
+    ) -> None:
+        super().__init__(
+            file, code_object_id, node_id, opcode, arg_name, lineno, offset
+        )
+        self.arg_address = arg_address
+        self.is_mutable_type = is_mutable_type
+        self.object_creation = object_creation
+
+    def __str__(self) -> str:
+        if not self.arg_address:
+            arg_address = -1
+        else:
+            arg_address = self.arg_address
+        return (
+            f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+class ExecutedAttributeInstruction(ExecutedInstruction):
+    """
+    Represents an executed instructions which accessed an attribute.
+
+    We prepend each accessed attribute with the address of the object the attribute
+    is taken from. This allows to build correct def-use pairs during backward traversal.
+    """
+
+    def __init__(
+        self,
+        file: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        attr_name: str,
+        src_address: int,
+        arg_address: int,
+        is_mutable_type: bool,
+    ) -> None:
+        super().__init__(
+            file, code_object_id, node_id, opcode, attr_name, lineno, offset
+        )
+        self.src_address = src_address
+        self.combined_attr = hex(self.src_address) + "_" + self.argument
+        self.arg_address = arg_address
+        self.is_mutable_type = is_mutable_type
+
+    def __str__(self) -> str:
+        return (
+            f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.combined_attr:<51} {self.code_object_id:02d} "
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+class ExecutedControlInstruction(ExecutedInstruction):
+    """Represents an executed control flow instruction."""
+
+    def __init__(
+        self,
+        file: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        super().__init__(file, code_object_id, node_id, opcode, arg, lineno, offset)
+
+    @staticmethod
+    def is_jump() -> bool:
+        """
+        Returns whether the executed instruction is a jump condition.
+        Returns:
+            True, if the instruction is a jump condition, False otherwise.
+        """
+        return True
+
+    def __str__(self) -> str:
+        return (
+            f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.argument:<51} {self.code_object_id:02d} "
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+class ExecutedCallInstruction(ExecutedInstruction):
+    """Represents an executed call instruction."""
+
+    def __init__(
+        self,
+        file: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        super().__init__(file, code_object_id, node_id, opcode, arg, lineno, offset)
+
+    def __str__(self) -> str:
+        return (
+            f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+class ExecutedReturnInstruction(ExecutedInstruction):
+    """Represents an executed return instruction."""
+
+    def __init__(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        super().__init__(module, code_object_id, node_id, opcode, None, lineno, offset)
+
+    def __str__(self) -> str:
+        return (
+            f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+        )
 
 
 def _eq(val1, val2) -> float:
