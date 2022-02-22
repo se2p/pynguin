@@ -254,8 +254,8 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on lines checked and entered code objects."""
 
     def compute_fitness(self, individual) -> float:
-        results = self._run_test_suite_chromosome(individual)
-        merged_trace = analyze_results(results)
+        # results = self._run_test_suite_chromosome(individual)
+        # merged_trace = analyze_results(results)
         # TODO(SiL) how to calculate fitness of checked lines?
         return 1
 

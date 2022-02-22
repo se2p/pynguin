@@ -668,9 +668,13 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    def _instrument_node(
-        self, node: ProgramGraphNode, cfg: CFG, code_object_id: int, offset: int
-    ) -> int:
+    def visit_node(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        node: ProgramGraphNode,
+        basic_block: BasicBlock,
+    ) -> None:
         """Instrument a single node in the CFG.
         We instrument memory accesses, control flow instruction and
         attribute access instructions.
@@ -679,24 +683,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         uniquely identify the traced instruction in the original bytecode. Since
         instructions have a fixed length of two bytes since version 3.6, this is rather
         trivial to keep track of.
-
-        Args:
-            node: The node that should be instrumented.
-            cfg: The control flow graph where `node` belongs to.
-            code_object_id: Internal id for the code object of `cfg`.
-            offset: Instruction offset of the basic block in `node`.
-
-        Returns:
-            The offset of the next instruction after the basic block of this node.
         """
-        # Not every block has an associated basic block, e.g. the artificial exit node.
-        if node.is_artificial:
-            return offset
+        offset = 0  # FIXME(SiL) what to do with the offset
 
-        assert (
-            node.basic_block is not None
-        ), "Non artificial node does not have a basic block."
-        assert len(node.basic_block) > 0, "Empty basic block in CFG."
+        assert len(basic_block) > 0, "Empty basic block in CFG."
 
         new_block_instructions: list[Instr] = []
 
@@ -811,7 +801,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         node.basic_block.clear()
         node.basic_block.extend(new_block_instructions)
 
-        return offset
+        return  # offset
 
     def _instrument_generic(
         self,

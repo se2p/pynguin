@@ -18,9 +18,10 @@ from pynguin.utils.exceptions import UncertainStackEffectException
 
 # pylint:disable=too-few-public-methods.
 class _SE:
-    """Stack effects in python 3.8
+    """Stack effects in python 3.9
     Stack effects are should match the combined effects in the CPython interpreter:
-    https://github.com/python/cpython/blob/3.8/Python/compile.c#L999
+    https://github.com/python/cpython/blob/3.9/Python/compile.c#L874
+    FIXME(SiL) adjust effects below to 3.9 above
     """
 
     NOP = 0, 0

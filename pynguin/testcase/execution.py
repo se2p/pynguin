@@ -1062,7 +1062,7 @@ class ExecutionTracer:
         arg_address: int,
         arg_type: type,
     ) -> None:
-        """Track a attribute access instruction in the trace."""
+        """Track an attribute access instruction in the trace."""
         trace = self._trace
         if opcode in op.MEMORY_USE_INSTRUCTIONS and arg_type in [
             MethodType,
