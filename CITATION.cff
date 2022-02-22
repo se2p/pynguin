@@ -32,6 +32,17 @@ references:
   - authors:
     - family-names: Lukasczyk
       given-names: Stephan
+    - family-names: Fraser
+      given-names: Gordon
+    title: "Pynguin: Automated Unit Test Generation for Python"
+    doi: 10.1145/3510454.3516829
+    conference:
+      name: "44th International Conference on Software Engineering Companion (ICSE '22 Companion)"
+    type: conference-paper
+    year: 2022
+  - authors:
+    - family-names: Lukasczyk
+      given-names: Stephan
     - family-names: Kroiß
       given-names: Florian
     - family-names: Fraser
