@@ -69,3 +69,17 @@ references:
 message: "If you use this software, please cite it using these metadata."
 repository-code: "https://github.com/se2p/pynguin"
 title: "Pynguin"
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: Lukasczyk
+    given-names: Stephan
+    orcid: "https://orcid.org/0000-0002-0092-3476"
+  - family-names: Fraser
+    given-names: Gordon
+    orcid: "https://orcid.org/0000-0002-4364-6595"
+  doi: 10.1145/3510454.3516829
+  conference:
+    name: "44th International Conference on Software Engineering Companion (ICSE '22 Companion)"
+  title: "Pynguin: Automated Unit Test Generation for Python"
+  year: 2022
