@@ -10,6 +10,10 @@
 
 """Provides enums for opcode numbers of instructions in bytecode"""
 
+import sys
+
+# initialise all opcodes available in python 3.8
+
 POP_TOP = 1
 ROT_TWO = 2
 ROT_THREE = 3
@@ -39,11 +43,11 @@ BINARY_TRUE_DIVIDE = 27
 INPLACE_FLOOR_DIVIDE = 28
 INPLACE_TRUE_DIVIDE = 29
 
-RERAISE = 48
-WITH_EXCEPT_START=49
 GET_AITER = 50
 GET_ANEXT = 51
 BEFORE_ASYNC_WITH = 52
+
+BEGIN_FINALLY = 53
 
 END_ASYNC_FOR = 54
 INPLACE_ADD = 55
@@ -66,12 +70,15 @@ PRINT_EXPR = 70
 LOAD_BUILD_CLASS = 71
 YIELD_FROM = 72
 GET_AWAITABLE = 73
-LOAD_ASSERTION_ERROR = 74
+
 INPLACE_LSHIFT = 75
 INPLACE_RSHIFT = 76
 INPLACE_AND = 77
 INPLACE_XOR = 78
 INPLACE_OR = 79
+
+WITH_CLEANUP_START = 81
+WITH_CLEANUP_FINISH = 82
 
 LIST_TO_TUPLE = 82
 RETURN_VALUE = 83
@@ -79,6 +86,8 @@ IMPORT_STAR = 84
 SETUP_ANNOTATIONS = 85
 YIELD_VALUE = 86
 POP_BLOCK = 87
+
+END_FINALLY = 88
 
 POP_EXCEPT = 89
 
@@ -114,10 +123,6 @@ POP_JUMP_IF_TRUE = 115
 
 LOAD_GLOBAL = 116
 
-IS_OP = 117
-CONTAINS_OP = 188
-
-JUMP_IF_NOT_EXEC_MATCH = 121
 SETUP_FINALLY = 122
 
 LOAD_FAST = 124
@@ -155,12 +160,13 @@ BUILD_STRING = 157
 LOAD_METHOD = 160
 CALL_METHOD = 161
 
+CALL_FINALLY = 162
+POP_FINALLY = 163
+
 LIST_EXTEND = 162
 SET_UPDATE = 163
 DICT_MERGE = 164
 DICT_UPDATE = 165
-
-# FIXME where to place new instructions?
 
 OP_UNARY = [
     UNARY_POSITIVE,
@@ -278,3 +284,35 @@ COND_BRANCH_INSTRUCTIONS = [
     JUMP_IF_FALSE_OR_POP,
     FOR_ITER,
 ]
+
+assert sys.version_info >= (3, 8), "Unsupported python version"
+assert sys.version_info <= (3, 10), "Unsupported python version"
+
+if sys.version_info[1] == 9:
+    """Update opcodes for python 3.9"""
+
+    # delete opcodes removed after 3.8
+    del BEGIN_FINALLY
+    del WITH_CLEANUP_START
+    del WITH_CLEANUP_FINISH
+    del END_FINALLY
+    del CALL_FINALLY
+    del POP_FINALLY
+
+    # add new operations added in 3.9
+    # TODO(SiL) add these to any of the sets above?
+    RERAISE = 48
+    WITH_EXCEPT_START = 49
+    LOAD_ASSERTION_ERROR = 74
+
+    IS_OP = 117
+    CONTAINS_OP = 118
+    JUMP_IF_NOT_EXEC_MATCH = 121
+    OP_COMPARE.append(IS_OP)
+    OP_COMPARE.append(CONTAINS_OP)
+    OP_COMPARE.append(JUMP_IF_NOT_EXEC_MATCH)
+
+
+if sys.version_info[1] == 10:
+    """Update opcodes for python 3.10"""
+    pass  # no opcodes were added or removed in 3.10
