@@ -22,7 +22,7 @@ from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
 
 
 def test_single_assertion():
-    """Problem assertion wird nicht getrackt, 'LOAD_ASSERTION_ERROR' instruction erst seit Python 3.9 """
+    """Problem assertion wird nicht getrackt, 'LOAD_ASSERTION_ERROR' instruction erst seit Python 3.9"""
     module_name = "tests.fixtures.assertion.basic"
     trace = _trace_call(module_name)
 

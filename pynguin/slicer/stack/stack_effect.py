@@ -4,233 +4,329 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Idea and structure are taken from the pyChecco project, see:
+# Idea taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
-"""Provides offset calculations for stack effects"""
-
-from typing import Tuple
-
-from opcode import opmap, opname
+"""Provides offset calculations for stack effects based on the used python version."""
+import sys
+from typing import Dict, Tuple
 
 import pynguin.utils.opcodes as op
-from pynguin.utils.exceptions import UncertainStackEffectException
+
+
+def _get_base_se() -> Dict[int, Tuple[int, int]]:
+    """Initialize all unconditional opcode stack effects
+    that are shared between all used python versions of pynguin."""
+    return {
+        # OP NAME: (POP, PUSH)
+        op.POP_TOP: (1, 0),
+        op.ROT_TWO: (2, 2),
+        op.ROT_THREE: (3, 3),
+        op.ROT_FOUR: (4, 4),
+        op.DUP_TOP: (0, 1),
+        op.DUP_TOP_TWO: (0, 2),
+        op.NOP: (0, 0),
+        op.UNARY_POSITIVE: (1, 1),
+        op.UNARY_NEGATIVE: (1, 1),
+        op.UNARY_NOT: (1, 1),
+        op.UNARY_INVERT: (1, 1),
+        op.BINARY_MATRIX_MULTIPLY: (2, 1),
+        op.INPLACE_MATRIX_MULTIPLY: (2, 1),
+        op.BINARY_POWER: (2, 1),
+        op.BINARY_MULTIPLY: (2, 1),
+        op.BINARY_MODULO: (2, 1),
+        op.BINARY_ADD: (2, 1),
+        op.BINARY_SUBTRACT: (2, 1),
+        op.BINARY_SUBSCR: (2, 1),
+        op.BINARY_FLOOR_DIVIDE: (2, 1),
+        op.BINARY_TRUE_DIVIDE: (2, 1),
+        op.INPLACE_FLOOR_DIVIDE: (2, 1),
+        op.INPLACE_TRUE_DIVIDE: (2, 1),
+        op.BEFORE_ASYNC_WITH: (0, 1),
+        op.END_ASYNC_FOR: (7, 0),  # TODO conditional 0 pops?
+        op.INPLACE_ADD: (2, 1),
+        op.INPLACE_SUBTRACT: (2, 1),
+        op.INPLACE_MULTIPLY: (2, 1),
+        op.INPLACE_MODULO: (2, 1),
+        op.STORE_SUBSCR: (3, 0),
+        op.DELETE_SUBSCR: (2, 0),
+        op.BINARY_LSHIFT: (2, 1),
+        op.BINARY_RSHIFT: (2, 1),
+        op.BINARY_AND: (2, 1),
+        op.BINARY_XOR: (2, 1),
+        op.BINARY_OR: (2, 1),
+        op.INPLACE_POWER: (2, 1),
+        op.GET_AITER: (1, 1),
+        op.GET_ANEXT: (0, 1),
+        op.GET_ITER: (1, 1),
+        op.GET_YIELD_FROM_ITER: (1, 1),
+        op.PRINT_EXPR: (1, 0),
+        op.LOAD_BUILD_CLASS: (0, 1),
+        op.YIELD_FROM: (1, 0),
+        op.GET_AWAITABLE: (0, 0),
+        op.INPLACE_LSHIFT: (2, 1),
+        op.INPLACE_RSHIFT: (2, 1),
+        op.INPLACE_AND: (2, 1),
+        op.INPLACE_XOR: (2, 1),
+        op.INPLACE_OR: (2, 1),
+        op.RETURN_VALUE: (1, 0),
+        op.IMPORT_STAR: (1, 0),
+        op.SETUP_ANNOTATIONS: (2, 8),
+        op.YIELD_VALUE: (1, 1),
+        op.POP_BLOCK: (0, 0),
+        op.POP_EXCEPT: (0, 0),
+        # opcodes above 90 can have an argument
+        op.STORE_NAME: (1, 0),
+        op.DELETE_NAME: (0, 0),
+        op.UNPACK_SEQUENCE: (0, -1),
+        op.FOR_ITER: (0, 1),  # TODO(SiL) check
+        op.UNPACK_EX: (0, 0),  # TODO(SiL) check
+        op.STORE_ATTR: (2, 0),
+        op.DELETE_ATTR: (1, 0),
+        op.STORE_GLOBAL: (1, 0),
+        op.DELETE_GLOBAL: (0, 0),
+        op.LOAD_CONST: (0, 1),
+        op.LOAD_NAME: (0, 1),
+        op.LOAD_ATTR: (1, 1),
+        op.COMPARE_OP: (2, 1),
+        op.IMPORT_NAME: (2, 1),
+        op.IMPORT_FROM: (0, 1),
+        op.JUMP_FORWARD: (0, 0),
+        op.JUMP_ABSOLUTE: (0, 0),
+        op.POP_JUMP_IF_FALSE: (2, 1),
+        op.POP_JUMP_IF_TRUE: (2, 1),
+        op.LOAD_GLOBAL: (0, 1),
+        op.LOAD_FAST: (0, 1),
+        op.STORE_FAST: (1, 0),
+        op.DELETE_FAST: (0, 0),
+        op.LOAD_CLOSURE: (0, 1),
+        op.LOAD_DEREF: (0, 1),
+        op.STORE_DEREF: (1, 0),
+        op.DELETE_DEREF: (0, 0),
+        op.LIST_APPEND: (2, 1),
+        op.SET_ADD: (1, 0),
+        op.MAP_ADD: (3, 1),
+        op.LOAD_CLASSDEREF: (0, 1),
+        op.EXTENDED_ARG: (0, 0),
+        op.SETUP_ASYNC_WITH: (0, 5),
+        op.FORMAT_VALUE: (1, 1),
+        op.LOAD_METHOD: (0, 1)
+    }
+
+
+def _update_se_to_38(_se_lookup) -> None:
+    """Add all 3.8 specific opcodes (opcodes removed later than 3.8).
+    These have to be added only after the version check, otherwise the op code
+    attributes will be already be deleted, causing an Attribute error.
+    """
+    _se_lookup[op.BEGIN_FINALLY] = (0, 6)
+
+    _se_lookup[op.WITH_CLEANUP_START] = (0, 2)
+    _se_lookup[op.WITH_CLEANUP_FINISH] = (3, 0)
+
+    _se_lookup[op.END_FINALLY] = (6, 0)  # TODO conditional?
+
+    _se_lookup[op.CALL_FINALLY] = (0, 1)
+    _se_lookup[op.POP_FINALLY] = (6, 0)
+
+
+def _update_se_to_39(_se_lookup) -> None:
+    # added instruction from 3.8 to 3.9
+    _se_lookup[op.RERAISE] = (3, 0)
+    _se_lookup[op.WITH_EXCEPT_START] = (0, 1)
+    _se_lookup[op.LOAD_ASSERTION_ERROR] = (0, 1)
+
+    _se_lookup[op.IS_OP] = (1, 0)  # TODO check
+    _se_lookup[op.CONTAINS_OP] = (1, 0)  # TODO check
+    _se_lookup[op.JUMP_IF_NOT_EXEC_MATCH] = (2, 0)  # TODO check
+
+    # the instructions removed between 3.8 to 3.9 are not even added to the _se
+    # unless the code runs with python 3.8, so need to remove something here
+
+
+def _update_se_to_310(_se_lookup) -> None:
+    _se_lookup[op.GET_LEN] = (0, 1)
+    _se_lookup[op.MATCH_MAPPING] = (0, 1)
+    _se_lookup[op.MATCH_SEQUENCE] = (0, 1)
+    _se_lookup[op.MATCH_KEYS] = (0, 2)
+    _se_lookup[op.COPY_DICT_WITHOUT_KEYS] = (2, 2)
+    _se_lookup[op.ROT_N] = (0, 0)
+    _se_lookup[op.RERAISE] = (3, 0)
+    _se_lookup[op.GEN_START] = (1, 0)
+    _se_lookup[op.MATCH_CLASS] = (2, 1)
+
+
+# pylint: disable=too-many-branches, too-many-return-statements
+def _conditional_se38(opcode: int, arg, jump: bool) -> Tuple[int, int]:
+    # jump based operations
+    if opcode == op.SETUP_WITH:
+        if not jump:
+            return 0, 1
+        return 0, 6
+    if opcode == op.FOR_ITER:
+        if not jump:
+            return 1, 2
+        return 1, 0
+    if opcode in (op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP):
+        if not jump:
+            return 1, 0
+        return 0, 0
+    if opcode == op.SETUP_FINALLY:
+        if not jump:
+            return 0, 0
+        return 0, 6
+    if opcode == op.CALL_FINALLY:
+        if not jump:
+            return 0, 1
+        return 0, 0
+
+    # argument dependant operations
+    if opcode == op.UNPACK_SEQUENCE:
+        return 1, arg
+    if opcode == op.UNPACK_EX:
+        return 1, (arg & 0xFF) + (arg >> 8) + 1
+    if opcode in (op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING):
+        return arg, 1
+    if opcode == op.BUILD_MAP:
+        return (2 * arg), 1
+    if opcode == op.BUILD_CONST_KEY_MAP:
+        return (1 + arg), 1
+    if opcode == op.RAISE_VARARGS:
+        return arg, 0
+    if opcode == op.CALL_FUNCTION:
+        return (1 + arg), 1
+    if opcode == op.CALL_METHOD:
+        return (2 + arg), 1
+    if opcode == op.CALL_FUNCTION_KW:
+        return (2 + arg), 1
+    if opcode == op.CALL_FUNCTION_EX:
+        # argument contains flags
+        pops = 2
+        if arg & 0x01 != 0:
+            pops += 1
+        return pops, 1
+    if opcode == op.MAKE_FUNCTION:
+        # argument contains flags
+        pops = 2
+        if arg & 0x01 != 0:
+            pops += 1
+        if arg & 0x02 != 0:
+            pops += 1
+        if arg & 0x04 != 0:
+            pops += 1
+        if arg & 0x08 != 0:
+            pops += 1
+        return pops, 1
+    if opcode == op.BUILD_SLICE:
+        if arg == 3:
+            return 3, 1
+        return 2, 1
+    raise ValueError(f"The opcode {opcode} isn't recognized.")
+
+
+def _conditional_se39(opcode: int, arg, jump: bool) -> Tuple[int, int]:
+    # jump based operations
+    if opcode == op.SETUP_WITH:
+        if not jump:
+            return 0, 1
+        return 0, 6
+    if opcode == op.FOR_ITER:
+        if not jump:
+            return 1, 2
+        return 1, 0
+    if opcode in (op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP):
+        if not jump:
+            return 1, 0
+        return 0, 0
+    if opcode == op.SETUP_FINALLY:
+        if not jump:
+            return 0, 0
+        return 0, 6
+    # argument dependant operations
+    if opcode == op.UNPACK_SEQUENCE:
+        return 1, arg
+    if opcode == op.UNPACK_EX:
+        return 1, (arg & 0xFF) + (arg >> 8) + 1
+    if opcode in (op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING):
+        return arg, 1
+    if opcode == op.BUILD_MAP:
+        return (2 * arg), 1
+    if opcode == op.BUILD_CONST_KEY_MAP:
+        return (1 + arg), 1
+    if opcode == op.RAISE_VARARGS:
+        return arg, 0
+    if opcode == op.CALL_FUNCTION:
+        return (1 + arg), 1
+    if opcode == op.CALL_METHOD:
+        return (2 + arg), 1
+    if opcode == op.CALL_FUNCTION_KW:
+        return (2 + arg), 1
+    if opcode == op.CALL_FUNCTION_EX:
+        # argument contains flags
+        pops = 2
+        if arg & 0x01 != 0:
+            pops += 1
+        return pops, 1
+    if opcode == op.MAKE_FUNCTION:
+        # argument contains flags
+        pops = 2
+        if arg & 0x01 != 0:
+            pops += 1
+        if arg & 0x02 != 0:
+            pops += 1
+        if arg & 0x04 != 0:
+            pops += 1
+        if arg & 0x08 != 0:
+            pops += 1
+        return pops, 1
+    if opcode == op.BUILD_SLICE:
+        if arg == 3:
+            return 3, 1
+        return 2, 1
+    raise ValueError(f"The opcode {opcode} isn't recognized.")
+
+
+def _conditional_se310(opcode: int, arg, jump: bool) -> Tuple[int, int]:
+    # python 3.10 behaves the same as 3.9 in regard to conditional stack effects
+    return _conditional_se39(opcode, arg, jump)
 
 
 # pylint:disable=too-few-public-methods.
-class _SE:
-    """Stack effects in python 3.9
-    Stack effects are should match the combined effects in the CPython interpreter:
-    https://github.com/python/cpython/blob/3.9/Python/compile.c#L874
-    FIXME(SiL) adjust effects below to 3.9 above
-    """
-
-    NOP = 0, 0
-    EXTENDED_ARG = 0, 0
-
-    # Stack manipulation
-    POP_TOP = 1, 0
-    ROT_TWO = 2, 2
-    ROT_THREE = 3, 3
-    ROT_FOUR = 4, 4
-    DUP_TOP = 1, 2
-    DUP_TOP_TWO = 2, 4
-
-    UNARY_POSITIVE = UNARY_NEGATIVE = UNARY_NOT = UNARY_INVERT = 1, 1
-
-    SET_ADD = 2, 1
-    LIST_APPEND = 1, 0
-    MAP_ADD = 2, 0
-
-    BINARY_POWER = (
-        BINARY_MULTIPLY
-    ) = (
-        BINARY_MATRIX_MULTIPLY
-    ) = (
-        BINARY_MODULO
-    ) = (
-        BINARY_ADD
-    ) = BINARY_SUBTRACT = BINARY_SUBSCR = BINARY_FLOOR_DIVIDE = BINARY_TRUE_DIVIDE = (
-        2,
-        1,
-    )
-
-    INPLACE_FLOOR_DIVIDE = INPLACE_TRUE_DIVIDE = 2, 1
-
-    INPLACE_ADD = (
-        INPLACE_SUBTRACT
-    ) = INPLACE_MULTIPLY = INPLACE_MATRIX_MULTIPLY = INPLACE_MODULO = (2, 1)
-    STORE_SUBSCR = 3, 0
-    DELETE_SUBSCR = 2, 0
-
-    BINARY_LSHIFT = BINARY_RSHIFT = BINARY_AND = BINARY_XOR = BINARY_OR = 2, 1
-    INPLACE_POWER = 2, 1
-    GET_ITER = 1, 1
-
-    PRINT_EXPR = 1, 0
-    LOAD_BUILD_CLASS = 0, 1
-    INPLACE_LSHIFT = INPLACE_RSHIFT = INPLACE_AND = INPLACE_XOR = INPLACE_OR = 2, 1
-
-    RETURN_VALUE = 1, 0
-    IMPORT_STAR = 1, 0
-    SETUP_ANNOTATIONS = 0, 0
-    YIELD_VALUE = 1, 1
-    YIELD_FROM = 2, 1
-    POP_BLOCK = 0, 0
-    POP_EXCEPT = 3, 0
-    POP_FINALLY = END_FINALLY = 6, 0
-
-    STORE_NAME = 1, 0
-    DELETE_NAME = 0, 0
-
-    STORE_ATTR = 2, 0
-    DELETE_ATTR = 1, 0
-    STORE_GLOBAL = 1, 0
-    DELETE_GLOBAL = 0, 0
-    LOAD_CONST = 0, 1
-    LOAD_NAME = 0, 1
-    LOAD_ATTR = 1, 1
-    COMPARE_OP = 2, 1
-    IMPORT_NAME = 2, 1
-    IMPORT_FROM = 0, 1
-    # 1, 2 would be more accurate, but this would cause a wider scope;
-    # we compensate this by treating IMPORT_NAME as a definition
-    # -> connection is made via module memory address
-
-    JUMP_FORWARD = 0, 0
-    JUMP_ABSOLUTE = 0, 0
-
-    POP_JUMP_IF_FALSE = 1, 0
-    POP_JUMP_IF_TRUE = 1, 0
-
-    LOAD_GLOBAL = 0, 1
-
-    BEGIN_FINALLY = 0, 6
-
-    LOAD_FAST = 0, 1
-    STORE_FAST = 1, 0
-    DELETE_FAST = 0, 0
-
-    LOAD_CLOSURE = 0, 1
-    LOAD_DEREF = LOAD_CLASSDEREF = 0, 1
-    STORE_DEREF = 1, 0
-    DELETE_DEREF = 0, 0
-
-    GET_AWAITABLE = 1, 1
-    BEFORE_ASYNC_WITH = 1, 2
-    GET_AITER = 1, 1
-    GET_ANEXT = 1, 2
-    GET_YIELD_FROM_ITER = 1, 1
-
-    LOAD_METHOD = 1, 2
-
-
 class StackEffect:
     """Utility class for all stack effect calculations."""
 
-    UNCERTAIN = [
-        op.WITH_CLEANUP_START,
-        op.WITH_CLEANUP_FINISH,
-        op.SETUP_ASYNC_WITH,
-        op.END_ASYNC_FOR,
-        op.FORMAT_VALUE,
-    ]
-    STACK_MANIPULATION = [
-        op.ROT_TWO,
-        op.ROT_THREE,
-        op.ROT_FOUR,
-        op.DUP_TOP,
-        op.DUP_TOP_TWO,
-    ]
-    BUILD = [op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING]
-    UNPACK = [
-        op.BUILD_LIST_UNPACK,
-        op.BUILD_TUPLE_UNPACK,
-        op.BUILD_TUPLE_UNPACK_WITH_CALL,
-        op.BUILD_SET_UNPACK,
-        op.BUILD_MAP_UNPACK,
-        op.BUILD_MAP_UNPACK_WITH_CALL,
-    ]
+    assert sys.version_info >= (3, 8), "Unsupported python version"
+    assert sys.version_info <= (3, 10), "Unsupported python version"
 
-    # lookup method for python3.8
-    _se = dict((opmap.get(op), getattr(_SE, op)) for op in opname if hasattr(_SE, op))
+    _se_lookup: Dict[int, Tuple[int, int]] = _get_base_se()
+    if sys.version_info[1] == 8:
+        _update_se_to_38(_se_lookup)
+    if sys.version_info[1] == 9:
+        _update_se_to_39(_se_lookup)
+    if sys.version_info[1] == 10:
+        _update_se_to_310(_se_lookup)
 
-    # pylint: disable=too-many-branches, too-many-return-statements
     @staticmethod
-    def stack_effect(opcode: int, arg, jump: bool) -> Tuple[int, int]:  # noqa: C901
-        """Get the stack effect for an opcode."""
-        if opcode in StackEffect.UNCERTAIN:
-            raise UncertainStackEffectException(
-                "The opname " + str(opcode) + " has a special flow control"
-            )
+    def stack_effect(opcode: int, arg, jump: bool = False) -> Tuple[int, int]:
+        """Get the stack effect as a tuple of number of pops and number of pushes
+        for an opcode.
 
-        # Static stack effect
-        if opcode in StackEffect._se:
-            return StackEffect._se[opcode]
+        Args:
+            opcode: The opcode, to get the pops and pushes for.
+            arg: numeric argument to operation (if any), otherwise None
+            jump: if the code has a jump and jump is true
 
-        # Instructions depending on jump
-        if opcode == op.SETUP_WITH:
-            if not jump:
-                return 0, 1
-            return 0, 6
-        if opcode == op.FOR_ITER:
-            if not jump:
-                return 1, 2
-            return 1, 0
-        if opcode in (op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP):
-            if not jump:
-                return 1, 0
-            return 0, 0
-        if opcode == op.SETUP_FINALLY:
-            if not jump:
-                return 0, 0
-            return 0, 6
-        if opcode == op.CALL_FINALLY:
-            if not jump:
-                return 0, 1
-            return 0, 0
+        Returns:
+            A tuple containing the number of pops and pushes as integer.
+        """
+        if opcode in StackEffect._se_lookup:
+            return StackEffect._se_lookup[opcode]
 
-        # Instructions depending on argument
-        if opcode == op.UNPACK_SEQUENCE:
-            return 1, arg
-        if opcode == op.UNPACK_EX:
-            return 1, (arg & 0xFF) + (arg >> 8) + 1
-        if opcode in StackEffect.BUILD:
-            return arg, 1
-        if opcode in StackEffect.UNPACK:
-            return arg, 1
-        if opcode == op.BUILD_MAP:
-            return (2 * arg), 1
-        if opcode == op.BUILD_CONST_KEY_MAP:
-            return (1 + arg), 1
-        if opcode == op.RAISE_VARARGS:
-            return arg, 0
-        if opcode == op.CALL_FUNCTION:
-            return (1 + arg), 1
-        if opcode == op.CALL_METHOD:
-            return (2 + arg), 1
-        if opcode == op.CALL_FUNCTION_KW:
-            return (2 + arg), 1
-        if opcode == op.CALL_FUNCTION_EX:
-            # argument contains flags
-            pops = 2
-            if arg & 0x01 != 0:
-                pops += 1
-            return pops, 1
-        if opcode == op.MAKE_FUNCTION:
-            # argument contains flags
-            pops = 2
-            if arg & 0x01 != 0:
-                pops += 1
-            if arg & 0x02 != 0:
-                pops += 1
-            if arg & 0x04 != 0:
-                pops += 1
-            if arg & 0x08 != 0:
-                pops += 1
-            return pops, 1
-        if opcode == op.BUILD_SLICE:
-            if arg == 3:
-                return 3, 1
-            return 2, 1
+        if sys.version_info[1] == 8:
+            return _conditional_se38(opcode, arg, jump)
 
-        raise ValueError("The opcode " + str(opcode) + " isn't recognized.")
+        if sys.version_info[1] == 9:
+            return _conditional_se39(opcode, arg, jump)
+
+        if sys.version_info[1] == 10:
+            return _conditional_se310(opcode, arg, jump)
+        raise AssertionError("Unsupported python version")

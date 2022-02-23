@@ -31,11 +31,6 @@ class InstructionNotFoundException(BaseException):
     """A custom exception if no matching instruction is found for a search."""
 
 
-class UncertainStackEffectException(BaseException):
-    """A custom exception if the simulation of the stack effect is not possible
-    due to an instruction with special control flow."""
-
-
 class TestTimeoutException(BaseException):
     """A custom exception if the execution of a single test took
     longer than the configured maximum duration."""

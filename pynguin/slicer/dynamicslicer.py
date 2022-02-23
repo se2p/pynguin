@@ -38,7 +38,6 @@ from pynguin.testcase.execution import (
 from pynguin.utils.exceptions import (
     InstructionNotFoundException,
     SlicingTimeoutException,
-    UncertainStackEffectException,
 )
 
 
@@ -348,7 +347,7 @@ class DynamicSlicer:
                 last_unique_instr.dis_arg,
                 jump=last_state.jump,
             )
-        except UncertainStackEffectException:
+        except ValueError:
             # Stack simulation in not possible with this opcode
             slc.stack_simulation = False
 
