@@ -24,4 +24,5 @@ def test_opcodes_39():
 @python310
 def test_opcodes_310():
     assert not hasattr(op, "BEGIN_FINALLY")
-    assert hasattr(op, "IS_OP")
+    assert hasattr(op, "ROT_N")
+    assert op.RERAISE == 99

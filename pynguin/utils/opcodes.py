@@ -13,7 +13,6 @@
 import sys
 
 # initialise all opcodes available in python 3.8
-
 POP_TOP = 1
 ROT_TWO = 2
 ROT_THREE = 3
@@ -80,7 +79,6 @@ INPLACE_OR = 79
 WITH_CLEANUP_START = 81
 WITH_CLEANUP_FINISH = 82
 
-LIST_TO_TUPLE = 82
 RETURN_VALUE = 83
 IMPORT_STAR = 84
 SETUP_ANNOTATIONS = 85
@@ -162,11 +160,6 @@ CALL_METHOD = 161
 
 CALL_FINALLY = 162
 POP_FINALLY = 163
-
-LIST_EXTEND = 162
-SET_UPDATE = 163
-DICT_MERGE = 164
-DICT_UPDATE = 165
 
 OP_UNARY = [
     UNARY_POSITIVE,
@@ -288,7 +281,7 @@ COND_BRANCH_INSTRUCTIONS = [
 assert sys.version_info >= (3, 8), "Unsupported python version"
 assert sys.version_info <= (3, 10), "Unsupported python version"
 
-if sys.version_info[1] == 9:
+if sys.version_info[1] >= 9:
     """Update opcodes for python 3.9"""
 
     # delete opcodes removed after 3.8
@@ -313,6 +306,20 @@ if sys.version_info[1] == 9:
     OP_COMPARE.append(JUMP_IF_NOT_EXEC_MATCH)
 
 
-if sys.version_info[1] == 10:
+if sys.version_info[1] >= 10:
     """Update opcodes for python 3.10"""
-    pass  # no opcodes were added or removed in 3.10
+
+    # delete opcodes removed after 3.9
+    del RERAISE
+
+    # add new operations added in 3.10
+    # TODO(SiL) add these to any of the sets above?
+    GET_LEN = 30
+    MATCH_MAPPING = 31
+    MATCH_SEQUENCE = 32
+    MATCH_KEYS = 33
+    COPY_DICT_WITHOUT_KEYS = 34
+    ROT_N = 99
+    RERAISE = 119
+    GEN_START = 129
+    MATCH_CLASS = 152
