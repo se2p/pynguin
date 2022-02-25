@@ -801,7 +801,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
-        return  # offset
+        # return offset
 
     def _instrument_generic(
         self,

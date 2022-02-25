@@ -16,7 +16,7 @@ import pynguin.utils.opcodes as opcodes
 
 @pytest.mark.parametrize(
     "op",
-    [pytest.param(op) for op in range(90)],  # opcodes up to 90 take no argument
+    [pytest.param(op) for op in range(90)],  # opcodes up to 90 ignore their argument
 )
 def test_argument_less_opcodes(op):
     """Test argument less opcode stack effects."""

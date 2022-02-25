@@ -89,7 +89,7 @@ END_FINALLY = 88
 
 POP_EXCEPT = 89
 
-# opcodes above 90 have an argument
+# opcodes below 90 ignore their argument
 
 STORE_NAME = 90
 DELETE_NAME = 91
@@ -292,18 +292,19 @@ if sys.version_info[1] >= 9:  # Update opcodes for python 3.9
     del POP_FINALLY
 
     # add new operations added in 3.9
-    # TODO(SiL) add these to any of the sets above?
     RERAISE = 48
     WITH_EXCEPT_START = 49
     LOAD_ASSERTION_ERROR = 74
 
     IS_OP = 117
-    CONTAINS_OP = 118
-    JUMP_IF_NOT_EXEC_MATCH = 121
     OP_COMPARE.append(IS_OP)
-    OP_COMPARE.append(CONTAINS_OP)
-    OP_COMPARE.append(JUMP_IF_NOT_EXEC_MATCH)
 
+    CONTAINS_OP = 118
+    OP_COMPARE.append(CONTAINS_OP)
+
+    JUMP_IF_NOT_EXEC_MATCH = 121
+    OP_ABSOLUTE_JUMP.append(JUMP_IF_NOT_EXEC_MATCH)
+    COND_BRANCH_INSTRUCTIONS.append(JUMP_IF_NOT_EXEC_MATCH)
 
 if sys.version_info[1] >= 10:  # Update opcodes for python
 
@@ -311,7 +312,6 @@ if sys.version_info[1] >= 10:  # Update opcodes for python
     del RERAISE
 
     # add new operations added in 3.10
-    # TODO(SiL) add these to any of the sets above?
     GET_LEN = 30
     MATCH_MAPPING = 31
     MATCH_SEQUENCE = 32

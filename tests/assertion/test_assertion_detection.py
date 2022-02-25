@@ -20,9 +20,7 @@ from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
 
 
 def test_single_assertion():
-    """Problem assertion wird nicht getrackt, 'LOAD_ASSERTION_ERROR' instruction erst seit Python 3.9"""
-    module_name = "tests.fixtures.assertion.basic"
-    trace = _trace_call(module_name)
+    trace = _trace_checked_coverage("tests.fixtures.assertion.basic")
 
     assert trace.test_id == "basic.test_foo"
     assert len(trace.traced_assertions) == 1
@@ -30,8 +28,7 @@ def test_single_assertion():
 
 
 def test_multiple_assertions():
-    module_name = "tests.fixtures.assertion.multiple"
-    trace = _trace_call(module_name)
+    trace = _trace_checked_coverage("tests.fixtures.assertion.multiple")
 
     assert len(trace.traced_assertions) == 3
     assert trace.traced_assertions[0].traced_assertion_call.lineno == 15
@@ -40,8 +37,7 @@ def test_multiple_assertions():
 
 
 def test_loop_assertions():
-    module_name = "tests.fixtures.assertion.loop"
-    trace = _trace_call(module_name)
+    trace = _trace_checked_coverage("tests.fixtures.assertion.loop")
 
     assert len(trace.traced_assertions) == 5
     for assertion in trace.traced_assertions:
@@ -49,20 +45,23 @@ def test_loop_assertions():
 
 
 def test_custom_assertion_specified():
-    module_name = "tests.fixtures.assertion.custom"
-    trace = _trace_call(module_name, custom_assertions=["assert_custom"])
+    trace = _trace_checked_coverage(
+        "tests.fixtures.assertion.custom",
+        custom_assertions=["assert_custom"]
+    )
 
     assert len(trace.traced_assertions) == 1
 
 
 def test_custom_assertion_unspecified():
-    module_name = "tests.fixtures.assertion.custom"
-    trace = _trace_call(module_name)
+    trace = _trace_checked_coverage("tests.fixtures.assertion.custom")
 
     assert len(trace.traced_assertions) == 0
 
 
-def _trace_call(module_name: str, custom_assertions: List = None) -> ExecutionTrace:
+def _trace_checked_coverage(module_name: str, custom_assertions: List = None) -> ExecutionTrace:
+    """Trace a given module name with the CheckedCoverage Instrumentation.
+    The traced module must contain a test called test_foo()."""
     module = importlib.import_module(module_name)
     module = importlib.reload(module)
 
