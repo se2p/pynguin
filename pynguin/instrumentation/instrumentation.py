@@ -690,7 +690,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions: list[Instr] = []
 
-        for instr in node.basic_block:
+        for instr in basic_block:
             # Perform the actual instrumentation
             if offset >= 0:  # Skip import of ExecutionTracer
                 if (
@@ -798,8 +798,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
             offset += 2
 
-        node.basic_block.clear()
-        node.basic_block.extend(new_block_instructions)
+        basic_block.clear()
+        basic_block.extend(new_block_instructions)
 
         return  # offset
 
