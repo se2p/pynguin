@@ -89,7 +89,7 @@ END_FINALLY = 88
 
 POP_EXCEPT = 89
 
-HAVE_ARGUMENT = 90
+# opcodes above 90 have an argument
 
 STORE_NAME = 90
 DELETE_NAME = 91
@@ -281,8 +281,7 @@ COND_BRANCH_INSTRUCTIONS = [
 assert sys.version_info >= (3, 8), "Unsupported python version"
 assert sys.version_info <= (3, 10), "Unsupported python version"
 
-if sys.version_info[1] >= 9:
-    """Update opcodes for python 3.9"""
+if sys.version_info[1] >= 9:  # Update opcodes for python 3.9
 
     # delete opcodes removed after 3.8
     del BEGIN_FINALLY
@@ -306,8 +305,7 @@ if sys.version_info[1] >= 9:
     OP_COMPARE.append(JUMP_IF_NOT_EXEC_MATCH)
 
 
-if sys.version_info[1] >= 10:
-    """Update opcodes for python 3.10"""
+if sys.version_info[1] >= 10:  # Update opcodes for python
 
     # delete opcodes removed after 3.9
     del RERAISE

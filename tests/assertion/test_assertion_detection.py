@@ -11,8 +11,6 @@ import importlib.util
 import threading
 from typing import List
 
-import pytest
-
 import pynguin.configuration as config
 from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,

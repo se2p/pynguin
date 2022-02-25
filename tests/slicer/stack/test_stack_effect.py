@@ -35,6 +35,8 @@ def _conditional_combinations() -> List[Tuple[int, int, bool]]:
     # (opcode, argument, jump)
     combinations: List[Tuple[int, int, bool]] = []
     for op in conditional_opcodes:
+        if op is opcodes.SETUP_ASYNC_WITH:
+            continue  # async is not supported
         for arg in args:
             combinations.append((op, arg, True))
             combinations.append((op, arg, False))
@@ -54,3 +56,6 @@ def test_conditional_opcodes(op, arg, jump):
         assert expected == (pushes - pops)
 
 
+def test_async_setup_throws_exception():
+    with pytest.raises(AssertionError):
+        se.StackEffect.stack_effect(opcodes.SETUP_ASYNC_WITH, 0)

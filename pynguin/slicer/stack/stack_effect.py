@@ -6,6 +6,10 @@
 #
 # Idea taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
+
+# mypy does not detect, that some enums are only accessed if a specific version is used
+# mypy: ignore-errors
+
 """Provides offset calculations for stack effects based on the used python version."""
 import sys
 from typing import Dict, Tuple
@@ -70,16 +74,13 @@ def _get_base_se() -> Dict[int, Tuple[int, int]]:
         op.INPLACE_OR: (2, 1),
         op.RETURN_VALUE: (1, 0),
         op.IMPORT_STAR: (1, 0),
-        op.SETUP_ANNOTATIONS: (2, 8),
+        op.SETUP_ANNOTATIONS: (0, 0),
         op.YIELD_VALUE: (1, 1),
         op.POP_BLOCK: (0, 0),
-        op.POP_EXCEPT: (0, 0),
+        op.POP_EXCEPT: (3, 0),
         # opcodes above 90 can have an argument
         op.STORE_NAME: (1, 0),
         op.DELETE_NAME: (0, 0),
-        op.UNPACK_SEQUENCE: (0, -1),
-        op.FOR_ITER: (0, 1),  # TODO(SiL) check
-        op.UNPACK_EX: (0, 0),  # TODO(SiL) check
         op.STORE_ATTR: (2, 0),
         op.DELETE_ATTR: (1, 0),
         op.STORE_GLOBAL: (1, 0),
@@ -107,9 +108,8 @@ def _get_base_se() -> Dict[int, Tuple[int, int]]:
         op.MAP_ADD: (3, 1),
         op.LOAD_CLASSDEREF: (0, 1),
         op.EXTENDED_ARG: (0, 0),
-        op.SETUP_ASYNC_WITH: (0, 5),
         op.FORMAT_VALUE: (1, 1),
-        op.LOAD_METHOD: (0, 1)
+        op.LOAD_METHOD: (0, 1),
     }
 
 
@@ -118,32 +118,41 @@ def _update_se_to_38(_se_lookup) -> None:
     These have to be added only after the version check, otherwise the op code
     attributes will be already be deleted, causing an Attribute error.
     """
+    assert (
+        sys.version_info[0] == 3 and sys.version_info[1] == 8
+    ), "Only call this method with python 3.8"
     _se_lookup[op.BEGIN_FINALLY] = (0, 6)
 
     _se_lookup[op.WITH_CLEANUP_START] = (0, 2)
     _se_lookup[op.WITH_CLEANUP_FINISH] = (3, 0)
 
-    _se_lookup[op.END_FINALLY] = (6, 0)  # TODO conditional?
+    _se_lookup[op.END_FINALLY] = (6, 0)
 
     _se_lookup[op.CALL_FINALLY] = (0, 1)
     _se_lookup[op.POP_FINALLY] = (6, 0)
 
 
 def _update_se_to_39(_se_lookup) -> None:
+    assert (
+        sys.version_info[0] == 3 and sys.version_info[1] == 9
+    ), "Only call this method with python 3.9"
     # added instruction from 3.8 to 3.9
     _se_lookup[op.RERAISE] = (3, 0)
     _se_lookup[op.WITH_EXCEPT_START] = (0, 1)
     _se_lookup[op.LOAD_ASSERTION_ERROR] = (0, 1)
 
-    _se_lookup[op.IS_OP] = (1, 0)  # TODO check
-    _se_lookup[op.CONTAINS_OP] = (1, 0)  # TODO check
-    _se_lookup[op.JUMP_IF_NOT_EXEC_MATCH] = (2, 0)  # TODO check
+    _se_lookup[op.IS_OP] = (2, 1)
+    _se_lookup[op.CONTAINS_OP] = (2, 1)
+    _se_lookup[op.JUMP_IF_NOT_EXEC_MATCH] = (2, 0)
 
     # the instructions removed between 3.8 to 3.9 are not even added to the _se
     # unless the code runs with python 3.8, so need to remove something here
 
 
 def _update_se_to_310(_se_lookup) -> None:
+    assert (
+        sys.version_info[0] == 3 and sys.version_info[1] == 10
+    ), "Only call this method with python 3.10"
     _se_lookup[op.GET_LEN] = (0, 1)
     _se_lookup[op.MATCH_MAPPING] = (0, 1)
     _se_lookup[op.MATCH_SEQUENCE] = (0, 1)
@@ -156,74 +165,7 @@ def _update_se_to_310(_se_lookup) -> None:
 
 
 # pylint: disable=too-many-branches, too-many-return-statements
-def _conditional_se38(opcode: int, arg, jump: bool) -> Tuple[int, int]:
-    # jump based operations
-    if opcode == op.SETUP_WITH:
-        if not jump:
-            return 0, 1
-        return 0, 6
-    if opcode == op.FOR_ITER:
-        if not jump:
-            return 1, 2
-        return 1, 0
-    if opcode in (op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP):
-        if not jump:
-            return 1, 0
-        return 0, 0
-    if opcode == op.SETUP_FINALLY:
-        if not jump:
-            return 0, 0
-        return 0, 6
-    if opcode == op.CALL_FINALLY:
-        if not jump:
-            return 0, 1
-        return 0, 0
-
-    # argument dependant operations
-    if opcode == op.UNPACK_SEQUENCE:
-        return 1, arg
-    if opcode == op.UNPACK_EX:
-        return 1, (arg & 0xFF) + (arg >> 8) + 1
-    if opcode in (op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING):
-        return arg, 1
-    if opcode == op.BUILD_MAP:
-        return (2 * arg), 1
-    if opcode == op.BUILD_CONST_KEY_MAP:
-        return (1 + arg), 1
-    if opcode == op.RAISE_VARARGS:
-        return arg, 0
-    if opcode == op.CALL_FUNCTION:
-        return (1 + arg), 1
-    if opcode == op.CALL_METHOD:
-        return (2 + arg), 1
-    if opcode == op.CALL_FUNCTION_KW:
-        return (2 + arg), 1
-    if opcode == op.CALL_FUNCTION_EX:
-        # argument contains flags
-        pops = 2
-        if arg & 0x01 != 0:
-            pops += 1
-        return pops, 1
-    if opcode == op.MAKE_FUNCTION:
-        # argument contains flags
-        pops = 2
-        if arg & 0x01 != 0:
-            pops += 1
-        if arg & 0x02 != 0:
-            pops += 1
-        if arg & 0x04 != 0:
-            pops += 1
-        if arg & 0x08 != 0:
-            pops += 1
-        return pops, 1
-    if opcode == op.BUILD_SLICE:
-        if arg == 3:
-            return 3, 1
-        return 2, 1
-    raise ValueError(f"The opcode {opcode} isn't recognized.")
-
-
-def _conditional_se39(opcode: int, arg, jump: bool) -> Tuple[int, int]:
+def _conditional_se(opcode: int, arg, jump: bool) -> Tuple[int, int]:  # noqa: C901
     # jump based operations
     if opcode == op.SETUP_WITH:
         if not jump:
@@ -283,11 +225,6 @@ def _conditional_se39(opcode: int, arg, jump: bool) -> Tuple[int, int]:
             return 3, 1
         return 2, 1
     raise ValueError(f"The opcode {opcode} isn't recognized.")
-
-
-def _conditional_se310(opcode: int, arg, jump: bool) -> Tuple[int, int]:
-    # python 3.10 behaves the same as 3.9 in regard to conditional stack effects
-    return _conditional_se39(opcode, arg, jump)
 
 
 # pylint:disable=too-few-public-methods.
@@ -318,15 +255,24 @@ class StackEffect:
         Returns:
             A tuple containing the number of pops and pushes as integer.
         """
+        assert (
+            opcode != op.SETUP_ASYNC_WITH
+        ), "Uncertain stack effect for SETUP_ASYNC_WITH"
+
         if opcode in StackEffect._se_lookup:
             return StackEffect._se_lookup[opcode]
 
         if sys.version_info[1] == 8:
-            return _conditional_se38(opcode, arg, jump)
+            # check 3.8 specific conditional opcodes
+            if opcode == op.CALL_FINALLY:
+                if not jump:
+                    return 0, 1
+                return 0, 0
 
         if sys.version_info[1] == 9:
-            return _conditional_se39(opcode, arg, jump)
+            pass  # no 3.9 specific conditional opcodes
 
         if sys.version_info[1] == 10:
-            return _conditional_se310(opcode, arg, jump)
-        raise AssertionError("Unsupported python version")
+            pass  # no 3.10 specific conditional opcodes
+
+        return _conditional_se(opcode, arg, jump)
