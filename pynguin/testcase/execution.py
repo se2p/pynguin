@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import contextlib
-import ctypes
 import inspect
 import logging
 import os
@@ -19,26 +18,22 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
+from opcode import opname
 from queue import Empty, Queue
 from types import (
     BuiltinFunctionType,
     BuiltinMethodType,
     CodeType,
-    FunctionType,
-    MethodType,
     ModuleType,
 )
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
 
 import astor
-import pytest
 from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.analyses.controlflow.programgraph as pg
-import pynguin.configuration as config
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
@@ -1063,39 +1058,6 @@ class ExecutionTracer:
         arg_type: type,
     ) -> None:
         """Track an attribute access instruction in the trace."""
-        trace = self._trace
-        if opcode in op.MEMORY_USE_INSTRUCTIONS and arg_type in [
-            MethodType,
-            FunctionType,
-        ]:
-            custom_assertions = config.configuration.statistics_output.custom_assertions
-
-            if custom_assertions and attr_name in custom_assertions:
-                if self._current_assertion:
-                    # Start of a new assertion, but old not finished -> end old here
-                    trace.end_assertion()
-                self._current_assertion = trace.start_assertion(
-                    code_object_id, node_id, lineno
-                )
-            elif attr_name.startswith("assert") and attr_name in dir(pytest.TestCase):
-                # Standard detection method
-                # The loaded method is reconstructed from memory to check if it is
-                # indeed a method of the pytest TestCase (and not, for example,
-                # a custom method with the same name)
-                # noinspection PyTypeChecker
-                source_object = ctypes.cast(src_address, ctypes.py_object).value
-                if (
-                    hasattr(source_object, "__module__")
-                    and source_object.__module__ == TESTCASE_MODULE
-                    and hasattr(source_object, "__qualname__")
-                    and source_object.__qualname__.startswith(TESTCASE_CLASS)
-                ):
-                    if self._current_assertion:
-                        # Start of a new assertion, but old not finished -> end old here
-                        trace.end_assertion()
-                    self._current_assertion = trace.start_assertion(
-                        code_object_id, node_id, lineno
-                    )
 
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
@@ -1108,7 +1070,7 @@ class ExecutionTracer:
         if arg_type in immutable_types:
             mutable_type = False
 
-        trace.add_attribute_instruction(
+        self._trace.add_attribute_instruction(
             module,
             code_object_id,
             node_id,
