@@ -48,11 +48,6 @@ from pynguin.utils.type_utils import (
 
 immutable_types = [int, float, complex, str, tuple, frozenset, bytes]
 
-# TODO(SiL) check compatibility with pytest
-TESTCASE_MODULE = "foo"  # pytest.TestCase.__module__
-TESTCASE_CLASS = "bar"  # pytest.TestCase.__qualname__
-
-
 if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
@@ -1141,6 +1136,25 @@ class ExecutionTracer:
         """Track a return instruction in the trace."""
         self._trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+    def track_assert(
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+
+    ) -> None:
+
+        trace = self._trace
+        if self._current_assertion:
+            # Start of a new assertion, but old not finished -> end old here
+            trace.end_assertion()
+        self._current_assertion = trace.start_assertion(
+            code_object_id, node_id, lineno
         )
 
     @staticmethod

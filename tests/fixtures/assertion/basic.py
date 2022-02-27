@@ -17,6 +17,7 @@ def test_foo():
 
 
 """
+ BB-ID   OFFSET OPERATION
   2           0 LOAD_CONST               1 (1)
               2 STORE_FAST               0 (x)
 

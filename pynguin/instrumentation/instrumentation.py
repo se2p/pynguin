@@ -657,6 +657,35 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         return len(inserted_instructions)
 
 
+def basic_block_is_assertion(basic_block: BasicBlock):
+    """Checks if a basic block is an assert-statement.
+
+    Args:
+        basic_block: The basic block to check.
+
+    Returns:
+        Whether the given basic block is an assert-statement.
+    """
+    # TODO(SiL) does this work properly and on all versions used in pynguin?
+    i = 0
+    while i < len(basic_block) - 3:
+        if (
+            basic_block[i].opcode == op.POP_JUMP_IF_TRUE and
+            basic_block[i + 1].opcode == op.LOAD_ASSERTION_ERROR and
+            basic_block[i + 2].opcode == op.RAISE_VARARGS
+        ):
+            return True
+        i += 1
+    return False
+
+
+def _get_offset_for_basic_block(
+    cfg: CFG, code_object_id: int, node: ProgramGraphNode, basic_block: BasicBlock
+) -> int:
+    # FIXME(SiL) how to get offset of first instruction in bb
+    return 0
+
+
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines and thus
     line coverage."""
@@ -684,11 +713,14 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         instructions have a fixed length of two bytes since version 3.6, this is rather
         trivial to keep track of.
         """
-        offset = 0  # FIXME(SiL) what to do with the offset
-
         assert len(basic_block) > 0, "Empty basic block in CFG."
 
+        offset = _get_offset_for_basic_block(cfg, code_object_id, node, basic_block)
+
         new_block_instructions: list[Instr] = []
+
+        # TODO(SiL) how to hande an assert statement
+        bb_is_assert = basic_block_is_assertion(basic_block)
 
         for instr in basic_block:
             # Perform the actual instrumentation
@@ -1178,7 +1210,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                Instr("LOAD_GLOBAL", self._tracer, lineno=instr.lineno),
+                Instr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 Instr(
                     "LOAD_METHOD",
                     self._tracer.track_memory_access.__name__,
@@ -1412,6 +1444,17 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             Instr("STORE_GLOBAL", self._tracer.__class__.__name__, lineno=lineno),
             Instr("POP_TOP", lineno=lineno),
         ]
+
+    def _instrument_assertion(
+        self,
+        code_object_id: int,
+        node_id: int,
+        new_block_instructions: list[Instr],
+        instr: Instr,
+        offset: int,
+    ) -> None:
+        # TODO(SiL) implement
+        pass
 
     @staticmethod
     def _load_args(
