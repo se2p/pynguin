@@ -11,7 +11,7 @@ import builtins
 import json
 import logging
 from types import CodeType
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -67,7 +67,8 @@ class InstrumentationAdapter:
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-    ) -> None:
+        offset: int,
+    ) -> int:
         """Called for each non-artificial node, i.e., nodes that have a basic block
 
         Args:
@@ -75,6 +76,10 @@ class InstrumentationAdapter:
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
+            offset: The offset at which the node starts with at its first instruction.
+
+        Returns:
+            The offset the next node will start at as int.
         """
 
     @staticmethod
@@ -221,6 +226,7 @@ class InstrumentationTransformer:
             cfg: The CFG that overlays the bytecode cfg.
             code_object_id: The id of the code object which contains this CFG.
         """
+        offset = 0
         for node in cfg.nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
@@ -230,7 +236,9 @@ class InstrumentationTransformer:
                 node.basic_block is not None
             ), "Non artificial node does not have a basic block."
             for adapter in self._instrumentation_adapters:
-                adapter.visit_node(cfg, code_object_id, node, node.basic_block)
+                offset = adapter.visit_node(
+                    cfg, code_object_id, node, node.basic_block, offset
+                )
 
 
 class BranchCoverageInstrumentation(InstrumentationAdapter):
@@ -262,7 +270,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-    ) -> None:
+        offset: int,
+    ) -> int:
         """Instrument a single node in the CFG.
 
         Currently, we only instrument conditional jumps and for loops.
@@ -272,6 +281,10 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
             basic_block: The basic block of the node that should be instrumented.
+            offset: The offset at which the node starts with at its first instruction.
+
+        Returns:
+            The offset the next node will start at as int.
         """
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
@@ -295,6 +308,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
+
+        return offset
 
     def _instrument_cond_jump(
         self,
@@ -607,7 +622,8 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-    ) -> None:
+        offset: int,
+    ) -> int:
         if not is_return_none_basic_block(basic_block):
             #  iterate over instructions after the fist one in BB,
             #  put new instructions in the block for each line
@@ -624,6 +640,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
                         self.instrument_line(basic_block, instr_index, line_id, lineno)
                     )
                 instr_index += 1
+        return offset
 
     def instrument_line(
         self, block: BasicBlock, instr_index: int, line_id: int, lineno: int
@@ -670,27 +687,20 @@ def basic_block_is_assertion(basic_block: BasicBlock):
     i = 0
     while i < len(basic_block) - 3:
         if (
-            basic_block[i].opcode == op.POP_JUMP_IF_TRUE and
-            basic_block[i + 1].opcode == op.LOAD_ASSERTION_ERROR and
-            basic_block[i + 2].opcode == op.RAISE_VARARGS
+            basic_block[i].opcode == op.POP_JUMP_IF_TRUE
+            and basic_block[i + 1].opcode == op.LOAD_ASSERTION_ERROR
+            and basic_block[i + 2].opcode == op.RAISE_VARARGS
         ):
             return True
         i += 1
     return False
 
 
-def _get_offset_for_basic_block(
-    cfg: CFG, code_object_id: int, node: ProgramGraphNode, basic_block: BasicBlock
-) -> int:
-    # FIXME(SiL) how to get offset of first instruction in bb
-    return 0
-
-
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
-    """Instruments code objects to enable tracking of executed lines and thus
-    line coverage."""
-
-    _IMPORT_OFFSET = 12
+    """Instruments code objects to enable tracking of executed instructions.
+    Special instructions get instrumented differently to track information
+    required to calculate the percentage of instructions in a backward slice for
+    an assertion, thus checked coverage."""
 
     _logger = logging.getLogger(__name__)
 
@@ -703,7 +713,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-    ) -> None:
+        offset: int,
+    ) -> int:
         """Instrument a single node in the CFG.
         We instrument memory accesses, control flow instruction and
         attribute access instructions.
@@ -712,120 +723,131 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         uniquely identify the traced instruction in the original bytecode. Since
         instructions have a fixed length of two bytes since version 3.6, this is rather
         trivial to keep track of.
-        """
-        assert len(basic_block) > 0, "Empty basic block in CFG."
 
-        offset = _get_offset_for_basic_block(cfg, code_object_id, node, basic_block)
+        Args:
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            basic_block: The basic block associated with the node.
+            offset: The offset at which the node starts with at its first instruction.
+
+        Returns:
+            The offset the next node will start at as int.
+        """
+
+        # TODOs:
+        #  1. register instructions with ids instead of dataclasses?
+
+        assert len(basic_block) > 0, "Empty basic block in CFG."
+        if not offset:
+            offset = 0
 
         new_block_instructions: list[Instr] = []
 
         # TODO(SiL) how to hande an assert statement
-        bb_is_assert = basic_block_is_assertion(basic_block)
+        # bb_is_assert = basic_block_is_assertion(basic_block)
 
         for instr in basic_block:
             # Perform the actual instrumentation
-            if offset >= 0:  # Skip import of ExecutionTracer
-                if (
-                    (instr.opcode in op.OP_UNARY)
-                    or (instr.opcode in op.OP_BINARY)
-                    or (instr.opcode in op.OP_INPLACE)
-                    or (instr.opcode in op.OP_COMPARE)
-                ):
-                    self._instrument_generic(
-                        new_block_instructions,
-                        code_object_id,
-                        node.index,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_LOCAL_ACCESS:
-                    self._instrument_local_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_NAME_ACCESS:
-                    self._instrument_name_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_GLOBAL_ACCESS:
-                    self._instrument_global_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_DEREF_ACCESS:
-                    self._instrument_deref_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_ATTR_ACCESS:
-                    self._instrument_attr_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_SUBSCR_ACCESS:
-                    self._instrument_subscr_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif (
-                    instr.opcode in op.OP_ABSOLUTE_JUMP
-                    or instr.opcode in op.OP_RELATIVE_JUMP
-                ):
-                    self._instrument_jump(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                        cfg,
-                    )
-                elif instr.opcode in op.OP_CALL:
-                    self._instrument_call(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_RETURN:
-                    self._instrument_return(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                elif instr.opcode in op.OP_IMPORT_NAME:
-                    self._instrument_import_name_access(
-                        code_object_id,
-                        node.index,
-                        new_block_instructions,
-                        instr,
-                        offset,
-                    )
-                else:
-                    # Un-traced instruction retrieved during analysis
-                    new_block_instructions.append(instr)
+            if (
+                (instr.opcode in op.OP_UNARY)
+                or (instr.opcode in op.OP_BINARY)
+                or (instr.opcode in op.OP_INPLACE)
+                or (instr.opcode in op.OP_COMPARE)
+            ):
+                self._instrument_generic(
+                    new_block_instructions,
+                    code_object_id,
+                    node.index,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_LOCAL_ACCESS:
+                self._instrument_local_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_NAME_ACCESS:
+                self._instrument_name_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_GLOBAL_ACCESS:
+                self._instrument_global_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_DEREF_ACCESS:
+                self._instrument_deref_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_ATTR_ACCESS:
+                self._instrument_attr_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_SUBSCR_ACCESS:
+                self._instrument_subscr_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif (
+                instr.opcode in op.OP_ABSOLUTE_JUMP
+                or instr.opcode in op.OP_RELATIVE_JUMP
+            ):
+                self._instrument_jump(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                    cfg,
+                )
+            elif instr.opcode in op.OP_CALL:
+                self._instrument_call(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_RETURN:
+                self._instrument_return(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
+            elif instr.opcode in op.OP_IMPORT_NAME:
+                self._instrument_import_name_access(
+                    code_object_id,
+                    node.index,
+                    new_block_instructions,
+                    instr,
+                    offset,
+                )
             else:
+                # Un-traced instruction retrieved during analysis
                 new_block_instructions.append(instr)
 
             offset += 2
@@ -833,7 +855,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
-        # return offset
+        return offset
 
     def _instrument_generic(
         self,
@@ -855,6 +877,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 # Load arguments
                 # Current module
+                # TODO(SiL) replace with file name from code object,
+                #  similar to LineCoverage?
                 Instr("LOAD_GLOBAL", "__file__", lineno=instr.lineno),
                 # Code object id
                 Instr("LOAD_CONST", code_object_id, lineno=instr.lineno),
@@ -1421,30 +1445,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
 
-    def _instrument_import(self, cfg: CFG) -> None:
-        """Import the tracer at the beginning of a module.
-
-        Args:
-            cfg: The cfg of the module code object.
-        """
-
-        assert cfg.entry_node is not None, "Entry node cannot be None."
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-
-        # Add import right at the beginning
-        lineno = 1
-
-        # TODO(SiL) does this work with a non-static tracer class?
-        real_entry_node.basic_block[0:0] = [
-            Instr("LOAD_CONST", 0, lineno=lineno),
-            Instr("LOAD_CONST", self._tracer.__class__.__name__, lineno=lineno),
-            Instr("IMPORT_NAME", self._tracer.__module__, lineno=lineno),
-            Instr("IMPORT_FROM", self._tracer.__class__.__name__, lineno=lineno),
-            Instr("STORE_GLOBAL", self._tracer.__class__.__name__, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
-        ]
-
     def _instrument_assertion(
         self,
         code_object_id: int,
@@ -1569,7 +1569,8 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-    ) -> None:
+        offset: int,
+    ) -> int:
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_compare: Instr | None = (
             basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
@@ -1596,6 +1597,8 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
         ):
             self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
+
+        return offset
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
