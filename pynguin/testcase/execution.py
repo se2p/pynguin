@@ -18,19 +18,14 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
-from opcode import opname
 from queue import Empty, Queue
-from types import (
-    BuiltinFunctionType,
-    BuiltinMethodType,
-    CodeType,
-    ModuleType,
-)
+from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
 
 import astor
 from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
+from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.analyses.controlflow.programgraph as pg
@@ -285,7 +280,7 @@ class ExecutionResult:
         """Returns true if any exceptions were thrown during the execution.
 
         Returns:
-            Whether or not the test has exceptions
+            Whether the test has exceptions
         """
         return bool(self._exceptions)
 
@@ -681,6 +676,11 @@ class ExecutionTracer:
         self._known_object_addresses: Set[int] = set()
         self._current_assertion: Optional[TracedAssertion] = None
         self._assertion_stack_counter = 0
+        self._test_id = ""
+        self._module_name = ""
+        self._executed_instructions: List[ExecutedInstruction] = []
+        self._traced_assertions: List[TracedAssertion] = []
+        self._unique_assertions: Set[UniqueAssertion] = set()
 
     @property
     def current_thread_identifier(self) -> int | None:
@@ -729,6 +729,51 @@ class ExecutionTracer:
             current_test: the new test name used for this trace
         """
         self._current_test = current_test
+
+    @property
+    def executed_instructions(self) -> List[ExecutedInstruction]:
+        """
+        Returns the list of executed instructions of a trace.
+        Returns:
+            A list of executed instructions.
+        """
+        return self._executed_instructions
+
+    @property
+    def test_id(self) -> str:
+        """
+        Returns the id of an executed test as string.
+        Returns:
+            The id of the test case or suite that created the trace.
+        """
+        return self._test_id
+
+    @test_id.setter
+    def test_id(self, test_id: str) -> None:
+        """
+        Sets the id of an executed test case or suite inside a trace.
+        Args:
+            test_id: the new test id as string
+        """
+        self.test_id = test_id
+
+    @property
+    def module_name(self) -> str:
+        """
+        Returns the name of the module that was tested during the trace.
+        Returns:
+            The name of the module that was tested during the trace.
+        """
+        return self._module_name
+
+    @module_name.setter
+    def module_name(self, module_name: str) -> None:
+        """
+        Sets the module name for the trace.
+        Args:
+            module_name: the new set module name
+        """
+        self._module_name = module_name
 
     def get_known_data(self) -> KnownData:
         """Provide known data.
@@ -1146,16 +1191,13 @@ class ExecutionTracer:
         opcode: int,
         lineno: int,
         offset: int,
-
     ) -> None:
 
         trace = self._trace
         if self._current_assertion:
             # Start of a new assertion, but old not finished -> end old here
             trace.end_assertion()
-        self._current_assertion = trace.start_assertion(
-            code_object_id, node_id, lineno
-        )
+        self._current_assertion = trace.start_assertion(code_object_id, node_id, lineno)
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
@@ -1250,66 +1292,130 @@ class UniqueAssertion:
         return str(self.assertion_call_instruction.lineno)
 
 
-class CheckedExecutionTrace:
-    """Stores trace information about the execution."""
-
-    _logger = logging.getLogger(__name__)
-
-    def __init__(self, module: bool = False):
-        self._test_id = ""
-        self._module_name = ""
-        self._module = module
-        self._executed_instructions: List[ExecutedInstruction] = []
-        self._traced_assertions: List[TracedAssertion] = []
-        self._unique_assertions: Set[UniqueAssertion] = set()
-        self._current_assertion: Optional[TracedAssertion] = None
-
-    @property
-    def executed_instructions(self) -> List[ExecutedInstruction]:
-        """
-        Returns the list of executed instructions of a trace.
-        Returns:
-            A list of executed instructions.
-        """
-        return self._executed_instructions
-
-    @property
-    def test_id(self) -> str:
-        """
-        Returns the id of an executed test as string.
-        Returns:
-            The id of the test case or suite that created the trace.
-        """
-        return self._test_id
-
-    @test_id.setter
-    def test_id(self, test_id: str) -> None:
-        """
-        Sets the id of an executed test case or suite inside a trace.
-        Args:
-            test_id: the new test id as string
-        """
-        self.test_id = test_id
-
-    @property
-    def module_name(self) -> str:
-        """
-        Returns the name of the module that was tested during the trace.
-        Returns:
-            The name of the module that was tested during the trace.
-        """
-        return self._module_name
-
-    @module_name.setter
-    def module_name(self, module_name: str) -> None:
-        """
-        Sets the module name for the trace.
-        Args:
-            module_name: the new set module name
-        """
-        self._module_name = module_name
-
-
+# TODO(SiL) replace instruction classes with dataclasses once equality issue is fixed
+# @dataclass
+# class ExecutedInstruction:
+#     """Represents an executed bytecode instruction with additional information."""
+#
+#     file: str
+#     code_object_id: int
+#     node_id: int
+#     opcode: int
+#     arg: Optional[int | str]
+#     lineno: int
+#     offset: int
+#
+#     @property
+#     def name(self) -> str:
+#         """
+#         Returns the name of the executed instruction.
+#         Returns:
+#             The name of the executed instruction.
+#         """
+#         return opname[self.opcode]
+#
+#     @staticmethod
+#     def is_jump() -> bool:
+#         """
+#         Returns whether the executed instruction is a jump condition.
+#         Returns:
+#             True, if the instruction is a jump condition, False otherwise.
+#         """
+#         return False
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+#         )
+#
+#
+# @dataclass
+# class ExecutedMemoryInstruction(ExecutedInstruction):
+#     """Represents an executed instructions which read from or wrote to memory."""
+#
+#     arg_address: int
+#     is_mutable_type: bool
+#     object_creation: bool
+#
+#     def __str__(self) -> str:
+#         if not self.arg_address:
+#             arg_address = -1
+#         else:
+#             arg_address = self.arg_address
+#         return (
+#             f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+#             f"{self.arg:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
+#             f"@ line: {self.lineno:d}-{self.offset:d}"
+#         )
+#
+#
+# @dataclass
+# class ExecutedAttributeInstruction(ExecutedInstruction):
+#     """
+#     Represents an executed instructions which accessed an attribute.
+#
+#     We prepend each accessed attribute with the address of the object the attribute
+#     is taken from. This allows to build correct def-use pairs during backward traversal.
+#     """
+#
+#     src_address: int
+#     arg_address: int
+#     is_mutable_type: bool
+#
+#     @property
+#     def combined_attr(self):
+#         return f"{hex(self.src_address)}_{self.arg}"
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+#             f"{self.combined_attr:<51} {self.code_object_id:02d} "
+#             f"@ line: {self.lineno:d}-{self.offset:d}"
+#         )
+#
+#
+# @dataclass
+# class ExecutedControlInstruction(ExecutedInstruction):
+#     """Represents an executed control flow instruction."""
+#
+#     @staticmethod
+#     def is_jump() -> bool:
+#         """
+#         Returns whether the executed instruction is a jump condition.
+#         Returns:
+#             True, if the instruction is a jump condition, False otherwise.
+#         """
+#         return True
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+#             f"{self.arg:<51} {self.code_object_id:02d} "
+#             f"@ line: {self.lineno:d}-{self.offset:d}"
+#         )
+#
+#
+# @dataclass
+# class ExecutedCallInstruction(ExecutedInstruction):
+#     """Represents an executed call instruction."""
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+#         )
+#
+#
+# @dataclass
+# class ExecutedReturnInstruction(ExecutedInstruction):
+#     """Represents an executed return instruction."""
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+#         )
 class ExecutedInstruction:
     """Represents an executed bytecode instruction with additional information."""
 

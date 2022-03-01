@@ -20,7 +20,7 @@ from pynguin.instrumentation.instrumentation import (
 )
 from pynguin.slicer.dynamicslicer import DynamicSlice, DynamicSlicer, SlicingCriterion
 from pynguin.slicer.instruction import UniqueInstruction
-from pynguin.testcase.execution import CheckedExecutionTrace, ExecutionTracer
+from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
 from pynguin.utils.pyc import Pyc
 
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, bytes(), (), (), (), "", "", 0, bytes())
@@ -119,7 +119,7 @@ def slice_function_at_return(
     trace = tracer.get_trace()
     known_code_objects = tracer.get_known_data().existing_code_objects
     dynamic_slicer = DynamicSlicer(trace, known_code_objects)
-    checked_trace = CheckedExecutionTrace()
+    checked_trace = ExecutionTrace()
 
     # Slicing criterion at foo
     last_traced_instr = trace.executed_instructions[-1]
@@ -167,7 +167,7 @@ def slice_module_at_return(module_file: str) -> DynamicSlice:
     trace = tracer.get_trace()
     known_code_objects = tracer.get_known_data().existing_code_objects
     dynamic_slicer = DynamicSlicer(trace, known_code_objects)
-    checked_trace = CheckedExecutionTrace()
+    checked_trace = ExecutionTrace()
 
     # Slicing criterion at foo
     last_traced_instr = trace.executed_instructions[-1]

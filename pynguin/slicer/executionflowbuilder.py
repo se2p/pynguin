@@ -17,9 +17,9 @@ import pynguin.utils.opcodes as op
 from pynguin.instrumentation.instrumentation import is_traced_instruction
 from pynguin.slicer.instruction import UniqueInstruction
 from pynguin.testcase.execution import (
-    CheckedExecutionTrace,
     CodeObjectMetaData,
     ExecutedInstruction,
+    ExecutionTrace,
 )
 from pynguin.utils.exceptions import InstructionNotFoundException
 
@@ -63,7 +63,7 @@ class ExecutionFlowBuilder:
 
     def __init__(
         self,
-        trace: CheckedExecutionTrace,
+        trace: ExecutionTrace,
         known_code_objects: Dict[int, CodeObjectMetaData],
     ):
         self.trace = trace

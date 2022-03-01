@@ -7,7 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-"""Tests if the assertions inside a pytest unit test are correctly traced by pygnuin
+"""Tests if the assertions inside a pytest unit test are correctly traced by pynguin
 to calculate the checked coverage metric."""
 
 import importlib.util

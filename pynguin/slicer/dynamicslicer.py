@@ -28,7 +28,6 @@ from pynguin.slicer.instruction import UniqueInstruction
 from pynguin.slicer.stack.stack_effect import StackEffect
 from pynguin.slicer.stack.stack_simulation import TraceStack
 from pynguin.testcase.execution import (
-    CheckedExecutionTrace,
     CodeObjectMetaData,
     ExecutedAttributeInstruction,
     ExecutedInstruction,
@@ -166,7 +165,7 @@ class DynamicSlicer:
 
     def slice(
         self,
-        trace: CheckedExecutionTrace,
+        trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
         trace_position: Optional[int] = None,
     ) -> DynamicSlice:
@@ -893,7 +892,7 @@ class DynamicSlicer:
 
     @staticmethod
     def find_trace_position(
-        trace: CheckedExecutionTrace, slicing_criterion: SlicingCriterion
+        trace: ExecutionTrace, slicing_criterion: SlicingCriterion
     ) -> int:
         """
         Find the position of the slicing criterion in the executed instructions
