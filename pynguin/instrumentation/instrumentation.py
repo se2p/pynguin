@@ -11,7 +11,7 @@ import builtins
 import json
 import logging
 from types import CodeType
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -735,9 +735,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             The offset the next node will start at as int.
         """
 
-        # TODOs:
-        #  1. register instructions with ids instead of dataclasses?
-
         assert len(basic_block) > 0, "Empty basic block in CFG."
         if not offset:
             offset = 0
@@ -749,11 +746,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         for instr in basic_block:
             # Perform the actual instrumentation
-            if (
-                (instr.opcode in op.OP_UNARY)
-                or (instr.opcode in op.OP_BINARY)
-                or (instr.opcode in op.OP_INPLACE)
-                or (instr.opcode in op.OP_COMPARE)
+            if instr.opcode in (
+                op.OP_UNARY,
+                op.OP_BINARY,
+                op.OP_INPLACE,
+                op.OP_COMPARE,
             ):
                 self._instrument_generic(
                     new_block_instructions,
@@ -810,10 +807,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     instr,
                     offset,
                 )
-            elif (
-                instr.opcode in op.OP_ABSOLUTE_JUMP
-                or instr.opcode in op.OP_RELATIVE_JUMP
-            ):
+            elif instr.opcode in (op.OP_ABSOLUTE_JUMP, op.OP_RELATIVE_JUMP):
                 self._instrument_jump(
                     code_object_id,
                     node.index,
@@ -906,7 +900,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         instr: Instr,
         offset: int,
     ) -> None:
-        if instr.opcode in [op.LOAD_FAST, op.STORE_FAST]:
+        if instr.opcode in (op.LOAD_FAST, op.STORE_FAST):
             # Original instruction before instrumentation
             new_block_instructions.append(instr)
 

@@ -324,6 +324,7 @@ class ExecutionTrace:
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_lines: OrderedSet[int] = field(default_factory=OrderedSet)
+    # TODO(SiL) add all attributes below to _merge
     executed_instructions: OrderedSet[ExecutedInstruction] = field(
         default_factory=OrderedSet
     )
@@ -370,10 +371,11 @@ class ExecutionTrace:
         """
         Creates a new ExecutedInstruction object and adds it to the trace.
         """
+        # TODO(SiL) register instructions with ids instead of dataclasses?
         executed_instr = ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def add_memory_instruction(
         self,
@@ -394,14 +396,14 @@ class ExecutionTrace:
             code_object_id,
             node_id,
             opcode,
+            arg_name,
             lineno,
             offset,
-            arg_name,
             arg_address,
             is_mutable_type,
             object_creation,
         )
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def add_attribute_instruction(
         self,
@@ -423,14 +425,14 @@ class ExecutionTrace:
             code_object_id,
             node_id,
             opcode,
+            attr_name,
             lineno,
             offset,
-            attr_name,
             src_address,
             arg_address,
             is_mutable_type,
         )
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def add_jump_instruction(
         self,
@@ -446,7 +448,7 @@ class ExecutionTrace:
         executed_instr = ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def add_call_instruction(
         self,
@@ -463,7 +465,7 @@ class ExecutionTrace:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def add_return_instruction(
         self,
@@ -476,10 +478,10 @@ class ExecutionTrace:
     ) -> None:
         """Creates a new ExecutedReturnInstruction object and adds it to the trace."""
         executed_instr = ExecutedReturnInstruction(
-            module, code_object_id, node_id, opcode, lineno, offset
+            module, code_object_id, node_id, opcode, None, lineno, offset
         )
 
-        self.executed_instructions.append(executed_instr)
+        self.executed_instructions.add(executed_instr)
 
     def start_assertion(
         self, code_object_id: int, node_id: int, lineno: int
@@ -1185,14 +1187,11 @@ class ExecutionTracer:
 
     def track_assert(
         self,
-        module: str,
         code_object_id: int,
         node_id: int,
-        opcode: int,
         lineno: int,
-        offset: int,
     ) -> None:
-
+        """Track an assertion in the trace."""
         trace = self._trace
         if self._current_assertion:
             # Start of a new assertion, but old not finished -> end old here
@@ -1292,150 +1291,17 @@ class UniqueAssertion:
         return str(self.assertion_call_instruction.lineno)
 
 
-# TODO(SiL) replace instruction classes with dataclasses once equality issue is fixed
-# @dataclass
-# class ExecutedInstruction:
-#     """Represents an executed bytecode instruction with additional information."""
-#
-#     file: str
-#     code_object_id: int
-#     node_id: int
-#     opcode: int
-#     arg: Optional[int | str]
-#     lineno: int
-#     offset: int
-#
-#     @property
-#     def name(self) -> str:
-#         """
-#         Returns the name of the executed instruction.
-#         Returns:
-#             The name of the executed instruction.
-#         """
-#         return opname[self.opcode]
-#
-#     @staticmethod
-#     def is_jump() -> bool:
-#         """
-#         Returns whether the executed instruction is a jump condition.
-#         Returns:
-#             True, if the instruction is a jump condition, False otherwise.
-#         """
-#         return False
-#
-#     def __str__(self) -> str:
-#         return (
-#             f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-#         )
-#
-#
-# @dataclass
-# class ExecutedMemoryInstruction(ExecutedInstruction):
-#     """Represents an executed instructions which read from or wrote to memory."""
-#
-#     arg_address: int
-#     is_mutable_type: bool
-#     object_creation: bool
-#
-#     def __str__(self) -> str:
-#         if not self.arg_address:
-#             arg_address = -1
-#         else:
-#             arg_address = self.arg_address
-#         return (
-#             f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-#             f"{self.arg:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
-#             f"@ line: {self.lineno:d}-{self.offset:d}"
-#         )
-#
-#
-# @dataclass
-# class ExecutedAttributeInstruction(ExecutedInstruction):
-#     """
-#     Represents an executed instructions which accessed an attribute.
-#
-#     We prepend each accessed attribute with the address of the object the attribute
-#     is taken from. This allows to build correct def-use pairs during backward traversal.
-#     """
-#
-#     src_address: int
-#     arg_address: int
-#     is_mutable_type: bool
-#
-#     @property
-#     def combined_attr(self):
-#         return f"{hex(self.src_address)}_{self.arg}"
-#
-#     def __str__(self) -> str:
-#         return (
-#             f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-#             f"{self.combined_attr:<51} {self.code_object_id:02d} "
-#             f"@ line: {self.lineno:d}-{self.offset:d}"
-#         )
-#
-#
-# @dataclass
-# class ExecutedControlInstruction(ExecutedInstruction):
-#     """Represents an executed control flow instruction."""
-#
-#     @staticmethod
-#     def is_jump() -> bool:
-#         """
-#         Returns whether the executed instruction is a jump condition.
-#         Returns:
-#             True, if the instruction is a jump condition, False otherwise.
-#         """
-#         return True
-#
-#     def __str__(self) -> str:
-#         return (
-#             f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-#             f"{self.arg:<51} {self.code_object_id:02d} "
-#             f"@ line: {self.lineno:d}-{self.offset:d}"
-#         )
-#
-#
-# @dataclass
-# class ExecutedCallInstruction(ExecutedInstruction):
-#     """Represents an executed call instruction."""
-#
-#     def __str__(self) -> str:
-#         return (
-#             f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-#         )
-#
-#
-# @dataclass
-# class ExecutedReturnInstruction(ExecutedInstruction):
-#     """Represents an executed return instruction."""
-#
-#     def __str__(self) -> str:
-#         return (
-#             f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-#             f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-#         )
+@dataclass(frozen=True)
 class ExecutedInstruction:
     """Represents an executed bytecode instruction with additional information."""
 
-    def __init__(
-        self,
-        file: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        arg,
-        lineno: int,
-        offset: int,
-    ):
-        self.file = file
-        self.code_object_id = code_object_id
-        self.node_id = node_id
-        self.opcode = opcode
-        self.argument = arg
-        self.lineno = lineno
-        self.offset = offset
+    file: str
+    code_object_id: int
+    node_id: int
+    opcode: int
+    argument: Optional[int | str]
+    lineno: int
+    offset: int
 
     @property
     def name(self) -> str:
@@ -1462,28 +1328,13 @@ class ExecutedInstruction:
         )
 
 
+@dataclass(frozen=True)
 class ExecutedMemoryInstruction(ExecutedInstruction):
     """Represents an executed instructions which read from or wrote to memory."""
 
-    def __init__(
-        self,
-        file: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        arg_name: str,
-        arg_address: int,
-        is_mutable_type: bool,
-        object_creation: bool,
-    ) -> None:
-        super().__init__(
-            file, code_object_id, node_id, opcode, arg_name, lineno, offset
-        )
-        self.arg_address = arg_address
-        self.is_mutable_type = is_mutable_type
-        self.object_creation = object_creation
+    arg_address: int
+    is_mutable_type: bool
+    object_creation: bool
 
     def __str__(self) -> str:
         if not self.arg_address:
@@ -1497,6 +1348,7 @@ class ExecutedMemoryInstruction(ExecutedInstruction):
         )
 
 
+@dataclass(frozen=True)
 class ExecutedAttributeInstruction(ExecutedInstruction):
     """
     Represents an executed instructions which accessed an attribute.
@@ -1505,26 +1357,13 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
     is taken from. This allows to build correct def-use pairs during backward traversal.
     """
 
-    def __init__(
-        self,
-        file: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        is_mutable_type: bool,
-    ) -> None:
-        super().__init__(
-            file, code_object_id, node_id, opcode, attr_name, lineno, offset
-        )
-        self.src_address = src_address
-        self.combined_attr = hex(self.src_address) + "_" + self.argument
-        self.arg_address = arg_address
-        self.is_mutable_type = is_mutable_type
+    src_address: int
+    arg_address: int
+    is_mutable_type: bool
+
+    @property
+    def combined_attr(self):
+        return f"{hex(self.src_address)}_{self.argument}"
 
     def __str__(self) -> str:
         return (
@@ -1534,20 +1373,9 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
         )
 
 
+@dataclass(frozen=True)
 class ExecutedControlInstruction(ExecutedInstruction):
     """Represents an executed control flow instruction."""
-
-    def __init__(
-        self,
-        file: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        arg: int,
-    ) -> None:
-        super().__init__(file, code_object_id, node_id, opcode, arg, lineno, offset)
 
     @staticmethod
     def is_jump() -> bool:
@@ -1566,20 +1394,9 @@ class ExecutedControlInstruction(ExecutedInstruction):
         )
 
 
+@dataclass(frozen=True)
 class ExecutedCallInstruction(ExecutedInstruction):
     """Represents an executed call instruction."""
-
-    def __init__(
-        self,
-        file: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        arg: int,
-    ) -> None:
-        super().__init__(file, code_object_id, node_id, opcode, arg, lineno, offset)
 
     def __str__(self) -> str:
         return (
@@ -1588,19 +1405,9 @@ class ExecutedCallInstruction(ExecutedInstruction):
         )
 
 
+@dataclass(frozen=True)
 class ExecutedReturnInstruction(ExecutedInstruction):
     """Represents an executed return instruction."""
-
-    def __init__(
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-    ) -> None:
-        super().__init__(module, code_object_id, node_id, opcode, None, lineno, offset)
 
     def __str__(self) -> str:
         return (
