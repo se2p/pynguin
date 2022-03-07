@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 from abc import abstractmethod
+from statistics import mean
 from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
 from ordered_set import OrderedSet
@@ -47,7 +48,7 @@ class TestGenerationStrategy(
         self._test_cluster: TestCluster
         self._test_factory: tf.TestFactory
         self._selection_function: SelectionFunction
-        self._stopping_condition: StoppingCondition
+        self._stopping_conditions: list[StoppingCondition]
         self._crossover_function: CrossOverFunction
         self._ranking_function: RankingFunction
         self._test_case_fitness_functions: OrderedSet[
@@ -148,17 +149,17 @@ class TestGenerationStrategy(
         self._selection_function = selection_function
 
     @property
-    def stopping_condition(self) -> StoppingCondition:
-        """Provides the used stopping condition.
+    def stopping_conditions(self) -> list[StoppingCondition]:
+        """Provides the used stopping conditions.
 
         Returns:
             The used stopping condition
         """
-        return self._stopping_condition
+        return self._stopping_conditions
 
-    @stopping_condition.setter
-    def stopping_condition(self, stopping_condition: StoppingCondition) -> None:
-        self._stopping_condition = stopping_condition
+    @stopping_conditions.setter
+    def stopping_conditions(self, stopping_conditions: list[StoppingCondition]) -> None:
+        self._stopping_conditions = stopping_conditions
 
     @property
     def crossover_function(self) -> CrossOverFunction:
@@ -313,15 +314,14 @@ class TestGenerationStrategy(
         """Checks if there are still resources left, e.g., time or test case executions.
 
         Returns:
-            Whether or not there are resources left.
+            Whether there are resources left.
         """
-        return not self._stopping_condition.is_fulfilled()
+        return all(not sc.is_fulfilled() for sc in self._stopping_conditions)
 
     def progress(self) -> float:
         """Provides the progress of the search.
+        Averages the progress of all stopping conditions.
 
         Returns:
             A value in [0,1]."""
-        limit = self._stopping_condition.limit()
-        assert limit > 0.0
-        return self._stopping_condition.current_value() / limit
+        return mean(sc.current_value() / sc.limit() for sc in self._stopping_conditions)

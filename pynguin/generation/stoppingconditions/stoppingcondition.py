@@ -11,7 +11,6 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
-import pynguin.configuration as config
 import pynguin.generation.searchobserver as so
 from pynguin.testcase.execution import ExecutionObserver
 
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
-    """Provides an interface for a stopping condition of the algorithm."""
+    """Provides an interface for a stopping condition of an algorithm."""
 
     def __init__(self, observes_execution: bool = False):
         self._observes_execution = observes_execution
@@ -64,8 +63,9 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
             limit: The new upper limit
         """
 
+    @abstractmethod
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.current_value()} / {self.limit()}"
+        pass
 
     @property
     def observes_execution(self) -> bool:
@@ -109,10 +109,16 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
-    def __init__(self):
+    def __init__(self, max_iterations: int):
+        """Create new MaxIterationsStoppingCondition.
+
+        Args:
+            max_iterations: the maximum number of allowed iterations.
+        """
         super().__init__()
         self._num_iterations = 0
-        self._max_iterations = config.configuration.stopping.maximum_iterations
+        assert max_iterations > 0.0
+        self._max_iterations = max_iterations
 
     def current_value(self) -> int:
         return self._num_iterations
@@ -135,16 +141,23 @@ class MaxIterationsStoppingCondition(StoppingCondition):
     def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
         self._num_iterations += 1
 
+    def __str__(self):
+        return f"Used iterations: {self.current_value()}/{self.limit()}"
+
 
 class MaxTestExecutionsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test case executions."""
 
-    def __init__(self):
+    def __init__(self, max_test_executions: int):
+        """Create new MaxTestExecutionsStoppingCondition.
+
+        Args:
+            max_test_executions: the maximum number of allowed test executions.
+        """
         super().__init__(observes_execution=True)
         self._num_executed_tests = 0
-        self._max_test_executions = (
-            config.configuration.stopping.maximum_test_executions
-        )
+        assert max_test_executions > 0.0
+        self._max_test_executions = max_test_executions
 
     def current_value(self) -> int:
         return self._num_executed_tests
@@ -169,16 +182,23 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
     ):
         self._num_executed_tests += 1
 
+    def __str__(self):
+        return f"Executed test cases: {self.current_value()}/{self.limit()}"
+
 
 class MaxStatementExecutionsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of executed statements."""
 
-    def __init__(self):
+    def __init__(self, max_executed_statements: int):
+        """Create new MaxTestExecutionsStoppingCondition.
+
+        Args:
+            max_executed_statements: the maximum number of allowed statement executions.
+        """
         super().__init__(observes_execution=True)
         self._num_executed_statements = 0
-        self._max_executed_statements = (
-            config.configuration.stopping.maximum_statement_executions
-        )
+        assert max_executed_statements > 0.0
+        self._max_executed_statements = max_executed_statements
 
     def current_value(self) -> int:
         return self._num_executed_statements
@@ -206,14 +226,23 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
     ) -> None:
         self._num_executed_statements += 1
 
+    def __str__(self):
+        return f"Executed statements: {self.current_value()}/{self.limit()}"
 
-class MaxTimeStoppingCondition(StoppingCondition):
+
+class MaxSearchTimeStoppingCondition(StoppingCondition):
     """Stop search after a predefined amount of time."""
 
-    def __init__(self):
+    def __init__(self, max_seconds: int):
+        """Create new MaxTestExecutionsStoppingCondition.
+
+        Args:
+            max_seconds: the maximum time (in seconds) that can be used for the search.
+        """
         super().__init__()
-        self._max_seconds = config.configuration.stopping.budget
         self._start_time = 0
+        assert max_seconds > 0.0
+        self._max_seconds = max_seconds
 
     def current_value(self) -> int:
         return (time.time_ns() - self._start_time) // 1_000_000_000
@@ -232,3 +261,6 @@ class MaxTimeStoppingCondition(StoppingCondition):
 
     def before_search_start(self, start_time_ns: int) -> None:
         self._start_time = start_time_ns
+
+    def __str__(self):
+        return f"Used search time: {self.current_value()}/{self.limit()}"

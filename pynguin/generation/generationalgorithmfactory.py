@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, List, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -43,9 +43,9 @@ from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
+    MaxSearchTimeStoppingCondition,
     MaxStatementExecutionsStoppingCondition,
     MaxTestExecutionsStoppingCondition,
-    MaxTimeStoppingCondition,
 )
 from pynguin.setup.testcluster import FilteredTestCluster, TestCluster
 from pynguin.testcase.execution import TestCaseExecutor
@@ -70,28 +70,36 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
 
     _logger = logging.getLogger(__name__)
 
-    # pylint:disable=line-too-long
-    _stopping_conditions: dict[
-        config.StoppingCondition, Callable[[], StoppingCondition]
-    ] = {
-        config.StoppingCondition.MAX_ITERATIONS: MaxIterationsStoppingCondition,
-        config.StoppingCondition.MAX_TEST_EXECUTIONS: MaxTestExecutionsStoppingCondition,
-        config.StoppingCondition.MAX_STATEMENT_EXECUTIONS: MaxStatementExecutionsStoppingCondition,
-        config.StoppingCondition.MAX_TIME: MaxTimeStoppingCondition,
-    }
+    _DEFAULT_MAX_SEARCH_TIME = 600
 
-    def get_stopping_condition(self) -> StoppingCondition:
-        """Instantiates the stopping condition depending on the configuration settings.
+    def get_stopping_conditions(self) -> List[StoppingCondition]:
+        """Instantiates the stopping conditions depending on the configuration settings.
 
         Returns:
-            A stopping condition
+            A list of stopping conditions
         """
-        stopping_condition = config.configuration.stopping.stopping_condition
-        self._logger.info("Using stopping condition: %s", stopping_condition)
-        if stopping_condition in self._stopping_conditions:
-            return self._stopping_conditions[stopping_condition]()
-        self._logger.warning("Unknown stopping condition: %s", stopping_condition)
-        return MaxTimeStoppingCondition()
+        stopping = config.configuration.stopping
+        conditions: list[StoppingCondition] = []
+        if (max_iter := stopping.maximum_iterations) is not None:
+            conditions.append(MaxIterationsStoppingCondition(max_iter))
+        if (max_stmt := stopping.maximum_statement_executions) is not None:
+            conditions.append(MaxStatementExecutionsStoppingCondition(max_stmt))
+        if (max_test_exec := stopping.maximum_test_executions) is not None:
+            conditions.append(MaxTestExecutionsStoppingCondition(max_test_exec))
+        if (max_search_time := stopping.maximum_search_time) is not None:
+            conditions.append(MaxSearchTimeStoppingCondition(max_search_time))
+        if len(conditions) == 0:
+            self._logger.info("No stopping condition configured!")
+            self._logger.info(
+                "Using fallback timeout of %i seconds",
+                GenerationAlgorithmFactory._DEFAULT_MAX_SEARCH_TIME,
+            )
+            conditions.append(
+                MaxSearchTimeStoppingCondition(
+                    GenerationAlgorithmFactory._DEFAULT_MAX_SEARCH_TIME
+                )
+            )
+        return conditions
 
     @abstractmethod
     def get_search_algorithm(self) -> TestGenerationStrategy:
@@ -201,11 +209,12 @@ class TestSuiteGenerationAlgorithmFactory(
         selection_function.maximize = False
         strategy.selection_function = selection_function
 
-        stopping_condition = self.get_stopping_condition()
-        strategy.stopping_condition = stopping_condition
-        strategy.add_search_observer(stopping_condition)
-        if stopping_condition.observes_execution:
-            self._executor.add_observer(stopping_condition)
+        stopping_conditions = self.get_stopping_conditions()
+        strategy.stopping_conditions = stopping_conditions
+        for stop in stopping_conditions:
+            strategy.add_search_observer(stop)
+            if stop.observes_execution:
+                self._executor.add_observer(stop)
         strategy.add_search_observer(so.LogSearchObserver())
         strategy.add_search_observer(sso.SequenceStartTimeObserver())
         strategy.add_search_observer(sso.IterationObserver())

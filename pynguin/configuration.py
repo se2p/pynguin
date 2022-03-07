@@ -109,22 +109,6 @@ class MutationStrategy(str, enum.Enum):
     IEEE Transactions on SE 39.4 2013)"""
 
 
-class StoppingCondition(str, enum.Enum):
-    """The different stopping conditions for the algorithms."""
-
-    MAX_TIME = "MAX_TIME"
-    """Stop after a maximum time limit has been reached."""
-
-    MAX_ITERATIONS = "MAX_ITERATIONS"
-    """Stop after a maximum number of algorithm iterations."""
-
-    MAX_TEST_EXECUTIONS = "MAX_TEST_EXECUTIONS"
-    """Stop as soon as a maximum number of tests were executed."""
-
-    MAX_STATEMENT_EXECUTIONS = "MAX_STATEMENT_EXECUTIONS"
-    """Stop as soon as a maximum number of statements were executed."""
-
-
 class TypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
 
@@ -500,21 +484,21 @@ class SearchAlgorithmConfiguration:
 
 @dataclasses.dataclass
 class StoppingConfiguration:
-    """Configuration related to when Pynguin should stop."""
+    """Configuration related to when Pynguin should stop.
+    Note that these are mostly soft-limits rather than hard limits, because
+    the search algorithms only check the condition at the start of each algorithm
+    iteration."""
 
-    stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
-    """What condition should be checked to end the search/test generation."""
-
-    budget: int = 600
+    maximum_search_time: Optional[int] = None
     """Time budget (in seconds) that can be used for generating tests."""
 
-    maximum_test_executions: int = 60
+    maximum_test_executions: Optional[int] = None
     """Maximum number of test cases to be executed."""
 
-    maximum_statement_executions: int = 600
+    maximum_statement_executions: Optional[int] = None
     """Maximum number of test cases to be executed."""
 
-    maximum_iterations: int = 60
+    maximum_iterations: Optional[int] = None
     """Maximum iterations"""
 
 

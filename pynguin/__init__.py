@@ -14,7 +14,6 @@ Configuration = config.Configuration
 Algorithm = config.Algorithm
 ExportStrategy = config.ExportStrategy
 StatisticsBackend = config.StatisticsBackend
-StoppingCondition = config.StoppingCondition
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
 __version__ = "0.18.0.dev"
@@ -26,6 +25,5 @@ __all__ = [
     "Algorithm",
     "ExportStrategy",
     "StatisticsBackend",
-    "StoppingCondition",
     "TypeInferenceStrategy",
 ]

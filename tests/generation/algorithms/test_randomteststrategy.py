@@ -31,7 +31,7 @@ def executor():
 
 
 def test_generate_sequences(executor):
-    config.configuration.stopping.budget = 1
+    config.configuration.stopping.maximum_search_time = 1
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
@@ -53,7 +53,7 @@ def test_generate_sequences_exception(executor):
         chromosome.get_fitness.return_value = 1.0
         return chromosome
 
-    config.configuration.stopping.budget = 1
+    config.configuration.stopping.maximum_search_time = 1
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
