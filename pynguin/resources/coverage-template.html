@@ -44,9 +44,15 @@ td.lines span{
 </head>
 <body>
 <h1>Pynguin coverage report for module '{{cov_report.module}}'</h1>
-<p>Achieved {{"{:.2%}".format(cov_report.branch_coverage)}} branch coverage.
-<p>{{cov_report.branchless_code_objects.covered}}/{{cov_report.branchless_code_objects.existing}} branchless code objects covered.</p>
-<p>{{cov_report.branches.covered}}/{{cov_report.branches.existing}} branches covered.</p>
+{% if cov_report.branch_coverage != None -%}
+<p>Achieved {{"{:.2%}".format(cov_report.branch_coverage)}} branch coverage:
+{{cov_report.branchless_code_objects.covered}}/{{cov_report.branchless_code_objects.existing}} branchless code objects covered.
+{{cov_report.branches.covered}}/{{cov_report.branches.existing}} branches covered.</p>
+{% endif -%}
+{% if cov_report.line_coverage != None -%}
+<p>Achieved {{"{:.2%}".format(cov_report.line_coverage)}} line coverage:
+{{cov_report.lines.covered}}/{{cov_report.lines.existing}} lines covered. </p>
+{% endif -%}
   <table>
     <tbody>
         <tr>

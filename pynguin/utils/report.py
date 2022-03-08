@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides capabilites to create a coverage report."""
+"""Provides capabilities to create a coverage report."""
 from __future__ import annotations
 
 import dataclasses
@@ -61,6 +61,8 @@ class LineAnnotation:
 
     branchless_code_objects: CoverageEntry
 
+    lines: CoverageEntry
+
     def message(self):
         """Compute the message that should be displayed as a tool tip
         when hovering over this line number.
@@ -79,11 +81,35 @@ class LineAnnotation:
                 f"{self.branchless_code_objects.existing}"
                 f" branchless code objects covered"
             )
-        return ";".join(msgs)
+        if self.lines.existing > 0:
+            # No need to say something like "1 out of 1 lines executed".
+            msgs.append(
+                f"Line {self.line_no}"
+                f"{'' if self.lines.covered == 1 else ' not'} covered"
+            )
+        return "; ".join(msgs)
+
+    def __add__(self, other: LineAnnotation) -> LineAnnotation:
+        """Add data from another line annotation entry to this one.
+
+        Args:
+            other: another line annotation whose values are added to this one.
+
+        Returns:
+            A new line annotation with the summed up elements of self and other.
+        """
+        assert self.line_no == other.line_no
+        return LineAnnotation(
+            self.line_no,
+            self.total + other.total,
+            self.branches + other.branches,
+            self.branchless_code_objects + other.branchless_code_objects,
+            self.lines + other.lines,
+        )
 
 
 @dataclasses.dataclass
-class CoverageReport:
+class CoverageReport:  # pylint:disable=too-many-instance-attributes
     """All coverage related data required to create a coverage report."""
 
     module: str
@@ -91,27 +117,36 @@ class CoverageReport:
     # Raw source code of the module under test
     source: list[str]
 
-    # Achieved branch coverage
-    branch_coverage: float
-
     # Information about total covered branches
     branches: CoverageEntry
 
     # Information about total covered branchless code objects
     branchless_code_objects: CoverageEntry
 
+    # Information about total covered lines
+    lines: CoverageEntry
+
     line_annotations: list[LineAnnotation]
+
+    # Achieved branch coverage
+    branch_coverage: float | None = None
+
+    # Line coverage
+    line_coverage: float | None = None
 
 
 # pylint:disable=too-many-locals
 def get_coverage_report(
-    suite: tsc.TestSuiteChromosome, executor: TestCaseExecutor
+    suite: tsc.TestSuiteChromosome,
+    executor: TestCaseExecutor,
+    metrics: list[config.CoverageMetric],
 ) -> CoverageReport:
     """Create a coverage report for the given test suite
 
     Args:
         suite: The suite for which a coverage report should be generated.
         executor: The executor
+        metrics: In which coverage metrics are we interested?
 
     Returns:
         The coverage report.
@@ -123,37 +158,77 @@ def get_coverage_report(
         results.append(result)
     trace = ff.analyze_results(results)
     known_data = executor.tracer.get_known_data()
-
-    line_to_branchless_code_object_coverage = (
-        _get_line_to_branchless_code_object_coverage(known_data, trace)
-    )
-
-    line_to_branch_coverage = _get_line_to_branch_coverage(known_data, trace)
-
     source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
-    branch_coverage = ff.compute_branch_coverage(trace, known_data)
-
-    branchless_code_objects = CoverageEntry()
-    for cov in line_to_branchless_code_object_coverage.values():
-        branchless_code_objects += cov
-    branches = CoverageEntry()
-    for cov in line_to_branch_coverage.values():
-        branches += cov
-
     line_annotations = [
-        _get_line_annotations(
-            idx + 1, line_to_branchless_code_object_coverage, line_to_branch_coverage
+        LineAnnotation(
+            idx + 1, CoverageEntry(), CoverageEntry(), CoverageEntry(), CoverageEntry()
         )
         for idx in range(len(source))
     ]
 
+    branch_coverage = None
+    branchless_code_objects = CoverageEntry()
+    branches = CoverageEntry()
+    if config.CoverageMetric.BRANCH in metrics:
+        line_to_branchless_code_object_coverage = (
+            _get_line_to_branchless_code_object_coverage(known_data, trace)
+        )
+        line_to_branch_coverage = _get_line_to_branch_coverage(known_data, trace)
+
+        branch_coverage = ff.compute_branch_coverage(trace, known_data)
+        for cov in line_to_branchless_code_object_coverage.values():
+            branchless_code_objects += cov
+        for cov in line_to_branch_coverage.values():
+            branches += cov
+        line_annotations = [
+            line_annotation
+            + _get_line_annotations_for_branch_coverage(
+                idx + 1,
+                line_to_branchless_code_object_coverage,
+                line_to_branch_coverage,
+            )
+            for idx, line_annotation in enumerate(line_annotations)
+        ]
+    line_coverage = None
+    lines = CoverageEntry()
+    if config.CoverageMetric.LINE in metrics:
+        line_coverage = ff.compute_line_coverage(trace, known_data)
+        covered_lines = {
+            known_data.existing_lines[line_id].line_number
+            for line_id in trace.covered_lines
+        }
+        existing_lines = {
+            line.line_number for line in known_data.existing_lines.values()
+        }
+        lines += CoverageEntry(len(covered_lines), len(existing_lines))
+
+        def comp_line_annotation(line_no: int) -> LineAnnotation:
+            total = CoverageEntry(
+                1 if line_no in covered_lines else 0,
+                1 if line_no in existing_lines else 0,
+            )
+            return LineAnnotation(
+                line_no,
+                total=total,
+                branches=CoverageEntry(),
+                branchless_code_objects=CoverageEntry(),
+                lines=total,
+            )
+
+        line_annotations = [
+            line_annotation + comp_line_annotation(idx + 1)
+            for idx, line_annotation in enumerate(line_annotations)
+        ]
+
     return CoverageReport(
-        config.configuration.module_name,
-        source,
-        branch_coverage,
-        branches,
-        branchless_code_objects,
-        line_annotations,
+        module=config.configuration.module_name,
+        source=source,
+        branch_coverage=branch_coverage,
+        line_coverage=line_coverage,
+        branches=branches,
+        branchless_code_objects=branchless_code_objects,
+        lines=lines,
+        line_annotations=line_annotations,
     )
 
 
@@ -208,12 +283,12 @@ def _get_line_to_branchless_code_object_coverage(known_data, trace):
     return line_to_branchless_code_object_coverage
 
 
-def _get_line_annotations(
+def _get_line_annotations_for_branch_coverage(
     lineno: int,
     code_object_coverage: dict[int, CoverageEntry],
     predicate_coverage: dict[int, CoverageEntry],
 ) -> LineAnnotation:
-    """Compute line annotation for the given line no.
+    """Compute line annotation for branch coverage of the given line no.
 
     Args:
         lineno: The lineno for which we should generate the information.
@@ -232,4 +307,6 @@ def _get_line_annotations(
     if lineno in predicate_coverage:
         branches = predicate_coverage[lineno]
         total += branches
-    return LineAnnotation(lineno, total, branches, branchless_code_objects)
+    return LineAnnotation(
+        lineno, total, branches, branchless_code_objects, CoverageEntry()
+    )
