@@ -96,9 +96,9 @@ def baz():
 
 def bar(x: int):
     if x:
-        pass
+        return 5
     else:
-        pass
+        return 6
 """
 
 
@@ -117,13 +117,13 @@ def sample_report() -> CoverageReport:
             "\n",
             "def bar(x: int):\n",
             "    if x:\n",
-            "        pass\n",
+            "        return 5\n",
             "    else:\n",
-            "        pass\n",
+            "        return 6\n",
         ],
         branches=CoverageEntry(covered=2, existing=6),
         branchless_code_objects=CoverageEntry(covered=1, existing=2),
-        lines=CoverageEntry(covered=2, existing=7),
+        lines=CoverageEntry(covered=2, existing=8),
         line_annotations=[
             LineAnnotation(
                 line_no=1,
@@ -197,10 +197,10 @@ def sample_report() -> CoverageReport:
             ),
             LineAnnotation(
                 line_no=11,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
-                lines=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=12,
@@ -218,7 +218,7 @@ def sample_report() -> CoverageReport:
             ),
         ],
         branch_coverage=0.375,
-        line_coverage=0.2857142857142857,
+        line_coverage=0.25,
     )
 
 
@@ -400,8 +400,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "<p>Achieved 37.50% branch coverage:\n",
             "1/2 branchless code objects covered.\n",
             "2/6 branches covered.</p>\n",
-            "<p>Achieved 28.57% line coverage:\n",
-            "2/7 lines covered. </p>\n",
+            "<p>Achieved 25.00% line coverage:\n",
+            "2/8 lines covered. </p>\n",
             "<table>\n",
             "    <tbody>\n",
             "        <tr>\n",
@@ -422,7 +422,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             'covered">9</span>\n',
             '                  <span class="notCovered" title="0/2 branches covered; Line '
             '10 not covered">10</span>\n',
-            '                  <span class="notRelevant">11</span>\n',
+            '                  <span class="notCovered" title="Line 11 not '
+            'covered">11</span>\n',
             '                  <span class="notRelevant">12</span>\n',
             '                  <span class="notCovered" title="Line 13 not '
             'covered">13</span>\n',
@@ -446,9 +447,9 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             'class="nb">int</span><span class="p">):</span>\n',
             '    <span class="k">if</span> <span class="n">x</span><span '
             'class="p">:</span>\n',
-            '        <span class="k">pass</span>\n',
+            '        <span class="k">return</span> <span class="mi">5</span>\n',
             '    <span class="k">else</span><span class="p">:</span>\n',
-            '        <span class="k">pass</span>\n',
+            '        <span class="k">return</span> <span class="mi">6</span>\n',
             "</pre></div>\n",
             "</td>\n",
             "        </tr>\n",
