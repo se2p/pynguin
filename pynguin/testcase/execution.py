@@ -23,7 +23,7 @@ from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
 
 import astor
-from bytecode import CellVar, Compare, FreeVar
+from bytecode import CellVar, Compare, FreeVar, Instr
 from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
@@ -484,7 +484,7 @@ class ExecutionTrace:
         self.executed_instructions.add(executed_instr)
 
     def start_assertion(
-        self, code_object_id: int, node_id: int, lineno: int
+        self, traced_comparison: ExecutedInstruction
     ) -> TracedAssertion:
         """Initialise a new TracedAssertion object and store it as current assertion.
         This is used to know where an assertion started and keep track of all following
@@ -494,7 +494,8 @@ class ExecutionTrace:
             the newly created TracedAssertion object stored in current_assertion.
         """
         self.current_assertion = TracedAssertion(
-            code_object_id, node_id, lineno, len(self.executed_instructions) - 1
+            traced_comparison.code_object_id, traced_comparison.node_id, traced_comparison.lineno,
+            len(self.executed_instructions) - 1, traced_comparison
         )
         return self.current_assertion
 
@@ -505,18 +506,12 @@ class ExecutionTrace:
         again.
         """
         assert self.current_assertion
-        assert self.current_assertion.traced_assertion_call
-        assert self.current_assertion.traced_assertion_call.opcode in [
-            op.CALL_METHOD,
-            op.CALL_FUNCTION_KW,
-            op.CALL_FUNCTION_EX,
-        ]
-        assert self.current_assertion.trace_position_end > 0
-        assert self.traced_assertions
+        assert self.current_assertion.traced_assertion_comparison
+        assert self.current_assertion.traced_assertion_comparison.opcode in op.OP_COMPARE
 
         self.traced_assertions.append(self.current_assertion)
         self.unique_assertions.add(
-            UniqueAssertion(self.current_assertion.traced_assertion_call)
+            UniqueAssertion(self.current_assertion.traced_assertion_comparison)
         )
 
         self.current_assertion = None
@@ -680,7 +675,6 @@ class ExecutionTracer:
         self._assertion_stack_counter = 0
         self._test_id = ""
         self._module_name = ""
-        self._executed_instructions: List[ExecutedInstruction] = []
         self._traced_assertions: List[TracedAssertion] = []
         self._unique_assertions: Set[UniqueAssertion] = set()
 
@@ -731,15 +725,6 @@ class ExecutionTracer:
             current_test: the new test name used for this trace
         """
         self._current_test = current_test
-
-    @property
-    def executed_instructions(self) -> List[ExecutedInstruction]:
-        """
-        Returns the list of executed instructions of a trace.
-        Returns:
-            A list of executed instructions.
-        """
-        return self._executed_instructions
 
     @property
     def test_id(self) -> str:
@@ -1155,22 +1140,6 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-        # Update current assertion
-        # It is either finished already or we use the last call instruction in this line
-        if self._current_assertion:
-            current_assertion = self._current_assertion
-            if (
-                current_assertion.code_object_id == code_object_id
-                and current_assertion.node_id == node_id
-                and current_assertion.lineno == lineno
-            ):
-                current_assertion.traced_assertion_call = (
-                    self._trace.executed_instructions[-1]
-                )
-                current_assertion.trace_position_end = (
-                    len(self._trace.executed_instructions) - 1
-                )
-
     def track_return(
         self,
         module: str,
@@ -1185,18 +1154,27 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def track_assert(
+    def track_assert_start(
         self,
+        module: str,
         code_object_id: int,
         node_id: int,
+        opcode: int,
         lineno: int,
+        offset: int,
     ) -> None:
-        """Track an assertion in the trace."""
-        trace = self._trace
+        """Track the beginning of an assertion in the trace."""
         if self._current_assertion:
             # Start of a new assertion, but old not finished -> end old here
-            trace.end_assertion()
-        self._current_assertion = trace.start_assertion(code_object_id, node_id, lineno)
+            self._trace.end_assertion()
+
+        comparison_instr = ExecutedInstruction(module, code_object_id, node_id, opcode, None, lineno, offset)
+        self._current_assertion = self._trace.start_assertion(comparison_instr)
+
+    def track_assert_end(self) -> None:
+        """Track the end of an assertion in the trace."""
+        assert self._current_assertion
+        self._trace.end_assertion()
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
@@ -1248,15 +1226,14 @@ class TracedAssertion:
     node_id: int
     lineno: int
     trace_position_start: int
-    trace_position_end: int = -1
-    traced_assertion_call: Optional[ExecutedInstruction] = None
+    traced_assertion_comparison: ExecutedInstruction
 
 
 class UniqueAssertion:
     """Data class for an assertion uniquely identifiable by its instruction"""
 
-    def __init__(self, assertion_call_instruction: ExecutedInstruction):
-        self.assertion_call_instruction = assertion_call_instruction
+    def __init__(self, assertion_comparison_instruction: ExecutedInstruction):
+        self.assertion_call_instruction = assertion_comparison_instruction
 
     def __eq__(self, other):
         if not isinstance(other, UniqueAssertion):

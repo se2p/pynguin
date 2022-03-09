@@ -24,16 +24,16 @@ def test_single_assertion():
     trace = _trace_checked_coverage("tests.fixtures.assertion.basic")
 
     assert len(trace.traced_assertions) == 1
-    assert trace.traced_assertions[0].traced_assertion_call.lineno == 16
+    assert trace.traced_assertions[0].traced_assertion_comparison.lineno == 16
 
 
 def test_multiple_assertions():
     trace = _trace_checked_coverage("tests.fixtures.assertion.multiple")
 
     assert len(trace.traced_assertions) == 3
-    assert trace.traced_assertions[0].traced_assertion_call.lineno == 15
-    assert trace.traced_assertions[1].traced_assertion_call.lineno == 16
-    assert trace.traced_assertions[2].traced_assertion_call.lineno == 17
+    assert trace.traced_assertions[0].traced_assertion_comparison.lineno == 15
+    assert trace.traced_assertions[1].traced_assertion_comparison.lineno == 16
+    assert trace.traced_assertions[2].traced_assertion_comparison.lineno == 17
 
 
 def test_loop_assertions():
@@ -41,7 +41,7 @@ def test_loop_assertions():
 
     assert len(trace.traced_assertions) == 5
     for assertion in trace.traced_assertions:
-        assert assertion.traced_assertion_call.lineno == 24
+        assert assertion.traced_assertion_comparison.lineno == 24
 
 
 def _trace_checked_coverage(module_name: str) -> ExecutionTrace:

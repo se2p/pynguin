@@ -674,26 +674,47 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         return len(inserted_instructions)
 
 
-def basic_block_is_assertion(basic_block: BasicBlock):
-    """Checks if a basic block is an assert-statement.
+def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
+    """Checks if a basic block is the throwing of an assertion error.
 
     Args:
         basic_block: The basic block to check.
 
     Returns:
-        Whether the given basic block is an assert-statement.
+        Whether the given basic block is the throwing of an assertion error.
     """
-    # TODO(SiL) does this work properly and on all versions used in pynguin?
-    i = 0
-    while i < len(basic_block) - 3:
-        if (
-            basic_block[i].opcode == op.POP_JUMP_IF_TRUE
-            and basic_block[i + 1].opcode == op.LOAD_ASSERTION_ERROR
-            and basic_block[i + 2].opcode == op.RAISE_VARARGS
-        ):
-            return True
-        i += 1
-    return False
+    return (
+        basic_block[0].opcode == op.LOAD_ASSERTION_ERROR
+        and basic_block[1].opcode == op.RAISE_VARARGS
+    )
+
+
+def _get_node_before_assertion(cfg: CFG, node: ProgramGraphNode) -> ProgramGraphNode:
+    """Iterate through the nodes in the cfg until the first non-artificial block
+    before an assertion error comes. Return this basic block, which will hold the jump condition
+    before the assertion error.
+    Since the cfg traversal is in reverse, we have to increment the indexes to receive the node before the assertion.
+    """
+    nodes_list = list(cfg.nodes)
+    index_in_cfg = nodes_list.index(node)
+    index_in_cfg += 1
+    while nodes_list[index_in_cfg].is_artificial:
+        index_in_cfg += 1
+    return nodes_list[index_in_cfg]
+
+
+def _get_block_after_assertion(cfg: CFG, node: ProgramGraphNode) -> BasicBlock:
+    """Iterate through the nodes in the cfg until the first non-artificial block
+    after an assertion error comes. Return this basic block, which will hold the jump target
+    after the assertion error.
+    Since the cfg traversal is in reverse, we have to decrement the indexes to receive the node after the assertion.
+    """
+    nodes_list = list(cfg.nodes)
+    index_in_cfg = nodes_list.index(node)
+    index_in_cfg -= 1
+    while nodes_list[index_in_cfg].is_artificial:
+        index_in_cfg -= 1
+    return nodes_list[index_in_cfg].basic_block
 
 
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
@@ -741,8 +762,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions: list[Instr] = []
 
-        # TODO(SiL) how to hande an assert statement
-        # bb_is_assert = basic_block_is_assertion(basic_block)
+        if basic_block_is_assertion_error(basic_block):
+            self._instrument_assertion(code_object_id, cfg, new_block_instructions, node, basic_block[0].lineno, offset)
 
         for instr in basic_block:
             # Perform the actual instrumentation
@@ -1439,16 +1460,101 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
 
-    def _instrument_assertion(
+    def _instrument_assertion(self, code_object_id, cfg, new_block_instructions, node, lineno, offset):
+        """To know where an assertion started and ended, the last comparison instruction of the node
+        before the assertion error must be instrumented to call the tracer that an assertion was started.
+
+        The tracer must also be called when an assertion either ended or threw an assertion error.
+        Therefore, the throwing of the error in the current block and the first instruction of the node
+        after the assertion node must be instrumented to tell the tracer an assertion ended.
+
+        Args:
+            cfg: TODO
+            new_block_instructions: TODO
+            node: TODO
+
+        Returns:
+            TODO
+        """
+        node_before_assertion = _get_node_before_assertion(cfg, node)
+        self._instrument_start_assert(
+            # TODO(SiL) is the offset of the start of the assertion to the compare op always 4?
+            code_object_id, node_before_assertion.index, offset - 4, node_before_assertion.basic_block
+        )
+
+        # TODO(SiL) also add stop assert for throw
+        # # instrument assertion error
+        # new_block_instructions.append([
+        #         Instr("LOAD_CONST", self._tracer, lineno=lineno),
+        #         Instr(
+        #             "LOAD_METHOD",
+        #             self._tracer.track_assert_end.__name__,
+        #             lineno=lineno,
+        #         ),
+        #         Instr("CALL_METHOD", 0, lineno=lineno),
+        #         Instr("POP_TOP", lineno=lineno),
+        # ])
+
+        block_after_assertion = _get_block_after_assertion(cfg, node)
+        self._instrument_end_assert(block_after_assertion)
+
+    def _instrument_start_assert(
         self,
-        code_object_id: int,
-        node_id: int,
-        new_block_instructions: list[Instr],
-        instr: Instr,
-        offset: int,
+        code_object_id,
+        node_id,
+        offset,
+        block_before_assertion: BasicBlock,
     ) -> None:
-        # TODO(SiL) implement
-        pass
+        # the first comparison in reverse traversal is the comparison used in the assertion
+        comparison_index = len(block_before_assertion) - 1
+        comparison_op = -1
+        for instr in reversed(block_before_assertion):
+            if instr.opcode in op.OP_COMPARE:
+                comparison_op = instr.opcode
+                break
+            comparison_index -= 1
+
+        lineno = block_before_assertion[comparison_index].lineno
+        # enter the instrumentation after the comparison operation
+        # therefore, when track_assert_start is called, the compare op is the last executed op
+        block_before_assertion[comparison_index + 1: comparison_index + 1] = [
+            Instr("LOAD_CONST", self._tracer, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                self._tracer.track_assert_start.__name__,
+                lineno=lineno,
+            ),
+            Instr("LOAD_GLOBAL", "__file__", lineno=lineno),
+            # Code object id
+            Instr("LOAD_CONST", code_object_id, lineno=lineno),
+            # Basic block id
+            Instr("LOAD_CONST", node_id, lineno=lineno),
+            # Instruction opcode
+            Instr("LOAD_CONST", comparison_op, lineno=lineno),
+            # Line number of access
+            Instr("LOAD_CONST", lineno, lineno=lineno),
+            # Instruction number of access
+            Instr("LOAD_CONST", offset, lineno=lineno),
+            Instr("CALL_METHOD", 6, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
+
+    def _instrument_end_assert(
+        self,
+        block_after_assertion: BasicBlock
+    ) -> None:
+        lineno = block_after_assertion[0].lineno
+
+        block_after_assertion[0:0] = [
+            Instr("LOAD_CONST", self._tracer, lineno=lineno),
+            Instr(
+                "LOAD_METHOD",
+                self._tracer.track_assert_end.__name__,
+                lineno=lineno,
+            ),
+            Instr("CALL_METHOD", 0, lineno=lineno),
+            Instr("POP_TOP", lineno=lineno),
+        ]
 
     @staticmethod
     def _load_args(
