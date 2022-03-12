@@ -11,7 +11,7 @@ import builtins
 import json
 import logging
 from types import CodeType
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Tuple
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -683,38 +683,25 @@ def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
     Returns:
         Whether the given basic block is the throwing of an assertion error.
     """
+    # TODO(SiL) only works in python 3.9
     return (
         basic_block[0].opcode == op.LOAD_ASSERTION_ERROR
         and basic_block[1].opcode == op.RAISE_VARARGS
     )
 
 
-def _get_node_before_assertion(cfg: CFG, node: ProgramGraphNode) -> ProgramGraphNode:
-    """Iterate through the nodes in the cfg until the first non-artificial block
-    before an assertion error comes. Return this basic block, which will hold the jump condition
-    before the assertion error.
-    Since the cfg traversal is in reverse, we have to increment the indexes to receive the node before the assertion.
-    """
-    nodes_list = list(cfg.nodes)
-    index_in_cfg = nodes_list.index(node)
-    index_in_cfg += 1
-    while nodes_list[index_in_cfg].is_artificial:
-        index_in_cfg += 1
-    return nodes_list[index_in_cfg]
-
-
-def _get_block_after_assertion(cfg: CFG, node: ProgramGraphNode) -> BasicBlock:
-    """Iterate through the nodes in the cfg until the first non-artificial block
-    after an assertion error comes. Return this basic block, which will hold the jump target
-    after the assertion error.
-    Since the cfg traversal is in reverse, we have to decrement the indexes to receive the node after the assertion.
-    """
-    nodes_list = list(cfg.nodes)
-    index_in_cfg = nodes_list.index(node)
-    index_in_cfg -= 1
-    while nodes_list[index_in_cfg].is_artificial:
-        index_in_cfg -= 1
-    return nodes_list[index_in_cfg].basic_block
+def get_nodes_around_node(cfg: CFG, assertion_node: ProgramGraphNode) -> Tuple[ProgramGraphNode, ProgramGraphNode]:
+    """Retrieve the nodes before and after a given node inside the cfg."""
+    index_of_assertion = assertion_node.index
+    node_before_assertion = None
+    node_after_assertion = None
+    for node in cfg.nodes:
+        if node.index == index_of_assertion - 1:
+            node_before_assertion = node
+            continue  # if a node has a smaller index, the index can not also be bigger
+        if node.index == index_of_assertion + 1:
+            node_after_assertion = node
+    return node_before_assertion, node_after_assertion
 
 
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
@@ -1476,10 +1463,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             TODO
         """
-        node_before_assertion = _get_node_before_assertion(cfg, node)
+        node_before, node_after = get_nodes_around_node(cfg, node)
         self._instrument_start_assert(
             # TODO(SiL) is the offset of the start of the assertion to the compare op always 4?
-            code_object_id, node_before_assertion.index, offset - 4, node_before_assertion.basic_block
+            code_object_id, node_before.index, offset - 4, node_before.basic_block
         )
 
         # TODO(SiL) also add stop assert for throw
@@ -1495,8 +1482,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         #         Instr("POP_TOP", lineno=lineno),
         # ])
 
-        block_after_assertion = _get_block_after_assertion(cfg, node)
-        self._instrument_end_assert(block_after_assertion)
+        self._instrument_end_assert(node_after.basic_block)
 
     def _instrument_start_assert(
         self,

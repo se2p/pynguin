@@ -11,14 +11,18 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+from bytecode import Bytecode
 from bytecode import Compare
 
+from pynguin.analyses.controlflow.cfg import CFG
 from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
+    get_nodes_around_node,
+    basic_block_is_assertion_error,
 )
 from pynguin.testcase.execution import ExecutionTracer
 from tests.conftest import python38, python39plus
@@ -885,3 +889,28 @@ def test_istitle_function_false(dynamic_instr, dummy_module):
     assert dynamic.has_strings
     assert "no Title" in dynamic._dynamic_pool[str]
     assert "Is Title" in dynamic._dynamic_pool[str]
+
+
+@pytest.mark.parametrize(
+    "assertion_index, expected_before_index, expected_after_index",
+    [
+        pytest.param(4, 8, 0),  # assertion on line 16
+        pytest.param(5, 0, 1),  # assertion on line 17
+        pytest.param(7, 1, 2),  # assertion on line 18
+    ],
+)
+def test_get_nodes_around_assertion(assertion_index, expected_before_index, expected_after_index):
+    module_name = "tests.fixtures.assertion.multiple"
+    module = importlib.import_module(module_name)
+    module = importlib.reload(module)
+    cfg = CFG.from_bytecode(Bytecode.from_code(module.test_foo.__code__))
+    nodes = list(cfg.nodes)
+
+    assertion_node = nodes[assertion_index]
+    assert basic_block_is_assertion_error(assertion_node.basic_block)
+
+    before, after = get_nodes_around_node(cfg, assertion_node)
+
+    assert nodes[expected_before_index] == before
+    assert nodes[expected_after_index] == after
+
