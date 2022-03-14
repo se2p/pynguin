@@ -234,13 +234,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances and thus
     branch coverage."""
 
-    # As of CPython 3.8, there are a few compare ops for which we can't really
-    # compute a sensible branch distance. So for now, we just ignore those
-    # comparisons and just track their boolean value.
-    # As of CPython 3.9, this is no longer a compare op but instead
-    # a JUMP_IF_NOT_EXC_MATCH, which we also handle as boolean based jump.
-    _IGNORED_COMPARE_OPS: set[Compare] = {Compare.EXC_MATCH}
-
     # Conditional jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
 
@@ -321,20 +314,11 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
-            and (
-                (
-                    maybe_compare.name == "COMPARE_OP"
-                    and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
-                )
-                or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
-            )
+            and maybe_compare.name in ("COMPARE_OP", "IS_OP", "CONTAINS_OP")
         ):
             return self._instrument_compare_based_conditional_jump(
                 block, code_object_id, node
             )
-        # Up to 3.9, there was COMPARE_OP EXC_MATCH which was handled below
-        # Beginning with 3.9, there is a combined compare+jump op, which is handled
-        # here.
         if jump.name == "JUMP_IF_NOT_EXC_MATCH":
             return self._instrument_exception_based_conditional_jump(
                 block, code_object_id, node
@@ -409,6 +393,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             compare = operation.arg
         elif operation.name == "IS_OP":
             # Beginning with 3.9, there are separate OPs for various comparisons.
+            # Map them back to the old operations, so we can use the enum from the
+            # bytecode library.
             compare = Compare.IS_NOT if operation.arg else Compare.IS
         elif operation.name == "CONTAINS_OP":
             compare = Compare.NOT_IN if operation.arg else Compare.IN
