@@ -50,7 +50,7 @@ def test_line_visit():
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
-    assert tracer._trace.covered_lines == {42, 43}
+    assert tracer._trace.covered_line_ids == {42, 43}
 
 
 def test_update_metrics_covered():

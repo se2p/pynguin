@@ -314,7 +314,7 @@ class ExecutionTrace:
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
-    covered_lines: OrderedSet[int] = field(default_factory=OrderedSet)
+    covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -327,7 +327,7 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self.covered_lines.update(other.covered_lines)
+        self.covered_line_ids.update(other.covered_line_ids)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -720,7 +720,7 @@ class ExecutionTracer:
         Args:
             line_id: the if of the line that was visited
         """
-        self._trace.covered_lines.add(line_id)
+        self._trace.covered_line_ids.add(line_id)
 
     def register_line(
         self, code_object_id: int, file_name: str, line_number: int
@@ -767,6 +767,22 @@ class ExecutionTracer:
 
     def __repr__(self) -> str:
         return "ExecutionTracer"
+
+    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
+        """Convenience method to translate line ids to line numbers.
+
+        Args:
+            line_ids: The ids that should be translated.
+
+        Returns:
+            The line numbers.
+        """
+        return OrderedSet(
+            [
+                self._known_data.existing_lines[line_id].line_number
+                for line_id in line_ids
+            ]
+        )
 
 
 def _eq(val1, val2) -> float:

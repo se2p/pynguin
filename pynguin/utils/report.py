@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pygments
 from jinja2 import Template
+from ordered_set import OrderedSet
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
 
@@ -193,13 +194,10 @@ def get_coverage_report(
     lines = CoverageEntry()
     if config.CoverageMetric.LINE in metrics:
         line_coverage = ff.compute_line_coverage(trace, known_data)
-        covered_lines = {
-            known_data.existing_lines[line_id].line_number
-            for line_id in trace.covered_lines
-        }
-        existing_lines = {
-            line.line_number for line in known_data.existing_lines.values()
-        }
+        covered_lines = executor.tracer.lineids_to_linenos(trace.covered_line_ids)
+        existing_lines = executor.tracer.lineids_to_linenos(
+            OrderedSet(known_data.existing_lines.keys())
+        )
         lines += CoverageEntry(len(covered_lines), len(existing_lines))
 
         def comp_line_annotation(line_no: int) -> LineAnnotation:

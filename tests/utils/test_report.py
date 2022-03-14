@@ -237,7 +237,7 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
             executed_predicates={},
             true_distances={0: 0.0, 1: 1.0},
             false_distances={0: 1.0, 1: 0.0},
-            covered_lines=OrderedSet([0, 1]),
+            covered_line_ids=OrderedSet([0, 1]),
         )
     )
     test_case.get_last_execution_result.return_value = last_result
