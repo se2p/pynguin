@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -45,7 +44,7 @@ def long_chromosome() -> tcc.TestCaseChromosome:
 
 
 @pytest.fixture
-def chromosomes(short_chromosome, long_chromosome) -> List[tcc.TestCaseChromosome]:
+def chromosomes(short_chromosome, long_chromosome) -> list[tcc.TestCaseChromosome]:
     return [long_chromosome, short_chromosome]
 
 

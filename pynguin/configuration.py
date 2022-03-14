@@ -7,7 +7,6 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
-from typing import List, Optional
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -191,14 +190,14 @@ class StatisticsOutputConfiguration:
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    coverage_metrics: List[CoverageMetric] = dataclasses.field(
+    coverage_metrics: list[CoverageMetric] = dataclasses.field(
         default_factory=lambda: [
             CoverageMetric.BRANCH,
         ]
     )
     """List of coverage metrics that are optimised during the search"""
 
-    output_variables: List[RuntimeVariable] = dataclasses.field(
+    output_variables: list[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
@@ -263,7 +262,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: Optional[int] = None
+    seed: int | None = None
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True
@@ -380,7 +379,7 @@ class TypeInferenceConfiguration:
     """The maximum level of recursion when calculating the dependencies in the test
     cluster."""
 
-    stub_dir: Optional[str] = None
+    stub_dir: str | None = None
     """Path to the pyi-stub files for the StubInferenceStrategy"""
 
 

@@ -6,7 +6,6 @@
 #
 from __future__ import annotations
 
-from typing import List
 from unittest import mock
 
 import pynguin.testcase.defaulttestcase as dtc
@@ -52,14 +51,14 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
 def test_elements():
     test_case = dtc.DefaultTestCase()
     int0 = stmt.IntPrimitiveStatement(test_case, 3)
-    dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val])
+    dummy = DummyCollectionStatement(test_case, list[int], [int0.ret_val])
     test_case.add_statements([int0, dummy])
     assert dummy.elements == [int0.ret_val]
 
 
 def test_accessible_element():
     test_case = dtc.DefaultTestCase()
-    dummy = DummyCollectionStatement(test_case, List[int], [])
+    dummy = DummyCollectionStatement(test_case, list[int], [])
     assert dummy.accessible_object() is None
 
 
@@ -67,7 +66,7 @@ def test_random_replacement():
     test_case = dtc.DefaultTestCase()
     int0 = stmt.IntPrimitiveStatement(test_case, 3)
     int1 = stmt.IntPrimitiveStatement(test_case, 5)
-    dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val, int1.ret_val])
+    dummy = DummyCollectionStatement(test_case, list[int], [int0.ret_val, int1.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [1, 0]
@@ -79,7 +78,7 @@ def test_random_insertion():
     test_case = dtc.DefaultTestCase()
     int0 = stmt.IntPrimitiveStatement(test_case, 3)
     int1 = stmt.IntPrimitiveStatement(test_case, 5)
-    dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val])
+    dummy = DummyCollectionStatement(test_case, list[int], [int0.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.2
@@ -96,7 +95,7 @@ def test_random_deletion():
     test_case = dtc.DefaultTestCase()
     int0 = stmt.IntPrimitiveStatement(test_case, 3)
     int1 = stmt.IntPrimitiveStatement(test_case, 5)
-    dummy = DummyCollectionStatement(test_case, List[int], [int0.ret_val, int1.ret_val])
+    dummy = DummyCollectionStatement(test_case, list[int], [int0.ret_val, int1.ret_val])
     test_case.add_statements([int0, int1, dummy])
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [1, 0]

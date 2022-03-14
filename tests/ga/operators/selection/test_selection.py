@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List
 from unittest.mock import MagicMock
 
 import pynguin.ga.operators.selection.selection as sel
@@ -14,7 +13,7 @@ from pynguin.utils import randomness
 
 
 class PseudoSelection(sel.SelectionFunction):
-    def get_index(self, population: List[T]) -> int:
+    def get_index(self, population: list[T]) -> int:
         return randomness.next_int(0, len(population))
 
 

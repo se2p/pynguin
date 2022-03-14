@@ -28,8 +28,6 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Education :: Testing",
@@ -39,7 +37,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 astor = "^0.8.1"
 simple-parsing = "^0.0.18"
 bytecode = "^0"
@@ -47,8 +45,8 @@ typing_inspect = "^0"
 jellyfish = "^0"
 networkx = {extras = ["pydot"], version = "^2"}
 pydot = "^1.4"
-rich = "^11.1"
-pytest = "^7.0"
+rich = "^12.0"
+pytest = "^7.1"
 Jinja2 = "^3.0"
 Pygments = "^2.11"
 ordered-set = "^4.1"
@@ -56,7 +54,7 @@ MutPy-Pynguin = "^0.7.1"
 
 [tool.poetry.dev-dependencies]
 coverage = "^6.3"
-pytest = "^7.0"
+pytest = "^7.1"
 black = "^22.1"
 pytest-cov = "^3.0"
 pylint = "^2.12"
@@ -65,7 +63,7 @@ pytest-picked = "^0.4"
 pytest-xdist = "^2.5"
 hypothesis = "^6.36"
 pytest-mock = "^3.7"
-mypy = "^0.931"
+mypy = "^0.940"
 isort = {extras = ["pyproject"], version = "^5.10"}
 pre-commit = "^2.17"
 darglint = "^1.8"
@@ -81,7 +79,7 @@ pynguin = "pynguin.cli:main"
 
 [tool.black]
 line-length = 88
-target_version = ['py38', 'py39', 'py310']
+target_version = ['py310']
 include = '\.pyi?$'
 exclude = '''
 

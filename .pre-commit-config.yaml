@@ -19,10 +19,10 @@ repos:
         args: [--fix=lf]
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.31.0
+    rev: v2.31.1
     hooks:
       - id: pyupgrade
-        args: [--py38-plus]
+        args: [--py310-plus]
 
   - repo: https://github.com/PyCQA/isort
     rev: 5.10.1

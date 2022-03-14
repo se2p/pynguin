@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Any, Dict, cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,7 +19,7 @@ class FooReferenceAssertion(ass.ReferenceAssertion):
         pass  # pragma: no cover
 
     def clone(
-        self, memo: Dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> Assertion:
         pass  # pragma: no cover
 

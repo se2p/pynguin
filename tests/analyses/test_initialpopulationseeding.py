@@ -32,7 +32,7 @@ from pynguin.testcase.testfactory import TestFactory
 @pytest.fixture()
 def seed_modules_path():
     dummy_test_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(__file__),
         "",
         "..",
         "fixtures",
