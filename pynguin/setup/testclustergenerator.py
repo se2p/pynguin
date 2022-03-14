@@ -80,7 +80,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         if strategy == config.TypeInferenceStrategy.NONE:
             return [NoTypeInferenceStrategy()]
         if strategy == config.TypeInferenceStrategy.STUB_FILES:
-            if config.configuration.type_inference.stub_dir is None:
+            if config.configuration.type_inference.stub_dir == "":
                 raise ConfigurationException(
                     "Missing configuration value `stub_dir' for StubInferenceStrategy"
                 )

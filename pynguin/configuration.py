@@ -7,6 +7,7 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
+import time
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -262,7 +263,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: int | None = None
+    seed: int = time.time_ns()
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True
@@ -379,7 +380,7 @@ class TypeInferenceConfiguration:
     """The maximum level of recursion when calculating the dependencies in the test
     cluster."""
 
-    stub_dir: str | None = None
+    stub_dir: str = ""
     """Path to the pyi-stub files for the StubInferenceStrategy"""
 
 
