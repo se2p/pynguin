@@ -84,13 +84,14 @@ def test_simple_dependencies_only_own_classes():
     assert len(cluster.accessible_objects_under_test) == 1
 
 
-@pytest.mark.skip(reason="Need to figure out why this changes")
-def test_resolve_only_union():
+def test_resolve_dependenices():
     cluster = TestClusterGenerator(
         "tests.fixtures.cluster.typing_parameters"
     ).generate_cluster()
+    # 3 functions
     assert len(cluster.accessible_objects_under_test) == 3
-    assert len(cluster.generators) == 1
+    # 3 non primitive types in args
+    assert len(cluster.generators) == 3
 
 
 def test_resolve_optional():
