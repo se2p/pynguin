@@ -389,17 +389,18 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         )
         operation = block[self._COMPARE_OP_POS]
 
-        if operation.name == "COMPARE_OP":
-            compare = operation.arg
-        elif operation.name == "IS_OP":
-            # Beginning with 3.9, there are separate OPs for various comparisons.
-            # Map them back to the old operations, so we can use the enum from the
-            # bytecode library.
-            compare = Compare.IS_NOT if operation.arg else Compare.IS
-        elif operation.name == "CONTAINS_OP":
-            compare = Compare.NOT_IN if operation.arg else Compare.IN
-        else:
-            raise RuntimeError(f"Unknown comparison OP {operation}")
+        match operation.name:
+            case "COMPARE_OP":
+                compare = operation.arg
+            case "IS_OP":
+                # Beginning with 3.9, there are separate OPs for various comparisons.
+                # Map them back to the old operations, so we can use the enum from the
+                # bytecode library.
+                compare = Compare.IS_NOT if operation.arg else Compare.IS
+            case "CONTAINS_OP":
+                compare = Compare.NOT_IN if operation.arg else Compare.IN
+            case _:
+                raise RuntimeError(f"Unknown comparison OP {operation}")
 
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
