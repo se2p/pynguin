@@ -301,7 +301,7 @@ def test_exception_no_match():
         try:
             raise RuntimeError()
         except ValueError:
-            pass
+            pass  # pragma: no cover
 
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
