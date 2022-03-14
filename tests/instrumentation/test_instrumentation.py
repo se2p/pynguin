@@ -21,7 +21,6 @@ from pynguin.instrumentation.instrumentation import (
     LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
-from tests.conftest import python38, python39plus
 
 
 @pytest.fixture()
@@ -278,45 +277,7 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
-@python38
 def test_exception():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise ValueError()
-        except ValueError:
-            pass
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        func()
-        trace_mock.assert_called_with(True, 0)
-
-
-@python38
-def test_exception_no_match():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise RuntimeError()
-        except ValueError:
-            pass  # pragma: no cover
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        with pytest.raises(RuntimeError):
-            func()
-        trace_mock.assert_called_with(False, 0)
-
-
-@python39plus
-def test_exception_39plus():
     tracer = ExecutionTracer()
 
     def func():
@@ -333,8 +294,7 @@ def test_exception_39plus():
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
-@python39plus
-def test_exception_no_match_39plus():
+def test_exception_no_match():
     tracer = ExecutionTracer()
 
     def func():

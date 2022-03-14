@@ -282,18 +282,4 @@ def larger_control_flow_graph() -> CFG:
     return graph
 
 
-# Markers
-python38 = pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Works only with CPython 3.8"
-)
-python39plus = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Works only with CPython 3.9+"
-)
-python38and39 = pytest.mark.skipif(
-    sys.version_info >= (3, 10), reason="Works only with CPython 3.8 and 3.9"
-)
-python310plus = pytest.mark.skipif(
-    sys.version_info < (3, 10), reason="Works only with CPython 3.10+"
-)
-
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
