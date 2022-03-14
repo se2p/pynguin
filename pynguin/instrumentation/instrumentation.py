@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
-import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.testcase.execution import (
@@ -605,22 +604,19 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         node: ProgramGraphNode,
         basic_block: BasicBlock,
     ) -> None:
-        if not is_return_none_basic_block(basic_block):
-            #  iterate over instructions after the fist one in BB,
-            #  put new instructions in the block for each line
-            file_name = cfg.bytecode_cfg().filename
-            lineno = -1
-            instr_index = 0
-            while instr_index < len(basic_block):
-                if basic_block[instr_index].lineno != lineno:
-                    lineno = basic_block[instr_index].lineno
-                    line_id = self._tracer.register_line(
-                        code_object_id, file_name, lineno
-                    )
-                    instr_index += (  # increment by the amount of instructions inserted
-                        self.instrument_line(basic_block, instr_index, line_id, lineno)
-                    )
-                instr_index += 1
+        #  iterate over instructions after the fist one in BB,
+        #  put new instructions in the block for each line
+        file_name = cfg.bytecode_cfg().filename
+        lineno = -1
+        instr_index = 0
+        while instr_index < len(basic_block):
+            if basic_block[instr_index].lineno != lineno:
+                lineno = basic_block[instr_index].lineno
+                line_id = self._tracer.register_line(code_object_id, file_name, lineno)
+                instr_index += (  # increment by the amount of instructions inserted
+                    self.instrument_line(basic_block, instr_index, line_id, lineno)
+                )
+            instr_index += 1
 
     def instrument_line(
         self, block: BasicBlock, instr_index: int, line_id: int, lineno: int
@@ -867,21 +863,3 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.debug("Instrumented compare_op")
-
-
-def is_return_none_basic_block(basic_block: BasicBlock) -> bool:
-    """Checks if a node is a "return None" line.
-
-    Args:
-        basic_block: The basic block that needs to be checked
-
-    Returns:
-        True, if the node is a "return None" line, false otherwise.
-    """
-    # TODO(fk) there seem to be cases where this check is not sufficient.
-    # Not sure how to detect those.
-    return (
-        len(basic_block) == 2
-        and basic_block[0] == Instr("LOAD_CONST", None, lineno=basic_block[0].lineno)
-        and basic_block[1].opcode == op.RETURN_VALUE
-    )

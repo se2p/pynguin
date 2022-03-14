@@ -32,6 +32,13 @@ def simple_module():
 
 
 @pytest.fixture()
+def artificial_none_module():
+    simple = importlib.import_module("tests.fixtures.linecoverage.artificial_none")
+    simple = importlib.reload(simple)
+    return simple
+
+
+@pytest.fixture()
 def comparison_module():
     comparison = importlib.import_module("tests.fixtures.instrumentation.comparison")
     comparison = importlib.reload(comparison)
@@ -515,6 +522,36 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.while_loop(number)
     assert tracer.get_trace().covered_line_ids
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
+
+
+@pytest.mark.parametrize(
+    "func,arg,expected_lines",
+    [
+        ("explicit_return_none", None, {8}),
+        ("empty_function", None, {11}),
+        ("pass_function", None, {16}),
+        ("only_return_on_branch", True, {20, 21}),
+        ("only_return_on_branch", False, {20}),
+        ("return_on_both_branches", True, {25, 26}),
+        ("return_on_both_branches", False, {25, 27}),
+        ("pass_on_both", True, {31, 32}),
+        ("pass_on_both", False, {31, 34}),
+        ("for_return", [], {38}),
+        ("for_return", [1], {38, 39}),
+    ],
+)
+def test_expected_covered_lines(func, arg, expected_lines, artificial_none_module):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func_object = getattr(artificial_none_module, func)
+    func_object.__code__ = transformer.instrument_module(func_object.__code__)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    func_object(arg)
     assert (
         tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
     )
