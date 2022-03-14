@@ -607,7 +607,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         #  iterate over instructions after the fist one in BB,
         #  put new instructions in the block for each line
         file_name = cfg.bytecode_cfg().filename
-        lineno = -1
+        lineno = None
         instr_index = 0
         while instr_index < len(basic_block):
             if basic_block[instr_index].lineno != lineno:
