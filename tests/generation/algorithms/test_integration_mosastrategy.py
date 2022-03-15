@@ -41,9 +41,6 @@ from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 def test_integrate_mosa(module_name: str, algorithm):
     config.configuration.algorithm = algorithm
     config.configuration.stopping.maximum_iterations = 2
-    config.configuration.stopping.stopping_condition = (
-        config.StoppingCondition.MAX_ITERATIONS
-    )
     config.configuration.module_name = module_name
     config.configuration.search_algorithm.max_initial_tests = 1
     config.configuration.search_algorithm.max_initial_tests = 1

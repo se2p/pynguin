@@ -130,7 +130,7 @@ def test_integrate(tmp_path):
     project_path = project_path / "docs" / "source" / "_static"
     configuration = config.Configuration(
         algorithm=config.Algorithm.MOSA,
-        stopping=config.StoppingConfiguration(budget=1),
+        stopping=config.StoppingConfiguration(maximum_search_time=1),
         module_name="example",
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(project_path),

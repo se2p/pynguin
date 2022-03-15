@@ -170,7 +170,8 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     @staticmethod
     def _calculate_number_of_intervals() -> int:
         interval = config.configuration.statistics_output.timeline_interval
-        total_time = config.configuration.stopping.budget * 1_000_000_000
+        assert config.configuration.stopping.maximum_search_time is not None
+        total_time = config.configuration.stopping.maximum_search_time * 1_000_000_000
         number_of_intervals = total_time // interval
         return int(number_of_intervals)
 

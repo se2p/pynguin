@@ -18,9 +18,9 @@ from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
+    MaxSearchTimeStoppingCondition,
     MaxStatementExecutionsStoppingCondition,
     MaxTestExecutionsStoppingCondition,
-    MaxTimeStoppingCondition,
 )
 from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution import TestCaseExecutor
@@ -55,24 +55,30 @@ def test_instantiate_strategy(algorithm, cls, algorithm_factory):
     "condition, cls",
     [
         pytest.param(
-            config.StoppingCondition.MAX_TEST_EXECUTIONS,
+            "maximum_test_executions",
             MaxTestExecutionsStoppingCondition,
         ),
         pytest.param(
-            config.StoppingCondition.MAX_STATEMENT_EXECUTIONS,
+            "maximum_statement_executions",
             MaxStatementExecutionsStoppingCondition,
         ),
-        pytest.param(config.StoppingCondition.MAX_TIME, MaxTimeStoppingCondition),
-        pytest.param(
-            config.StoppingCondition.MAX_ITERATIONS, MaxIterationsStoppingCondition
-        ),
-        pytest.param("foo", MaxTimeStoppingCondition),
+        pytest.param("maximum_search_time", MaxSearchTimeStoppingCondition),
+        pytest.param("maximum_iterations", MaxIterationsStoppingCondition),
     ],
 )
 def test_stopping_condition(condition, cls, algorithm_factory):
-    config.configuration.stopping.stopping_condition = condition
+    setattr(config.configuration.stopping, condition, 5)
     strategy = algorithm_factory.get_search_algorithm()
-    assert isinstance(strategy.stopping_condition, cls)
+    assert isinstance(strategy.stopping_conditions[0], cls)
+
+
+def test_stopping_condition_not_set(algorithm_factory):
+    strategy = algorithm_factory.get_search_algorithm()
+    assert isinstance(strategy.stopping_conditions[0], MaxSearchTimeStoppingCondition)
+    assert (
+        strategy.stopping_conditions[0].limit()
+        == gaf.GenerationAlgorithmFactory._DEFAULT_MAX_SEARCH_TIME
+    )
 
 
 def test_unknown_strategy(algorithm_factory):

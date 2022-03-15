@@ -10,13 +10,13 @@ from unittest import mock
 import pytest
 
 from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxTimeStoppingCondition,
+    MaxSearchTimeStoppingCondition,
 )
 
 
 @pytest.fixture
 def stopping_condition():
-    return MaxTimeStoppingCondition()
+    return MaxSearchTimeStoppingCondition(600)
 
 
 def test_current_value(stopping_condition):

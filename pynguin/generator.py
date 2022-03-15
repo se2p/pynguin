@@ -295,10 +295,12 @@ def _run() -> ReturnCode:
     )
     _LOGGER.info("Start generating test cases")
     generation_result = algorithm.generate_tests()
-    if algorithm.stopping_condition.is_fulfilled():
-        _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
-    else:
+    if algorithm.resources_left():
         _LOGGER.info("Algorithm stopped before using all resources.")
+    else:
+        _LOGGER.info("Stopping condition reached")
+        for stop in algorithm.stopping_conditions:
+            _LOGGER.info("%s", stop)
     _LOGGER.info("Stop generating test cases")
 
     # Executions that happen after this point should not influence the

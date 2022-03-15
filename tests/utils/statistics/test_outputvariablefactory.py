@@ -68,7 +68,7 @@ def test_get_integer(chromosome):
 
 
 def test_get_output_variables(factory):
-    config.configuration.stopping.budget = 0
+    config.configuration.stopping.maximum_search_time = 0
     result = factory.get_output_variables()
     assert result == []
 
@@ -91,7 +91,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
         assert name == f"CoverageTimeline_T{index}"  # pragma: no cover
         assert value == 42  # pragma: no cover
 
-    config.configuration.stopping.budget = 0.25
+    config.configuration.stopping.maximum_search_time = 0.25
     chromosome_2 = tsc.TestSuiteChromosome()
     sequence_factory.set_start_time(time.time_ns())
     time.sleep(0.05)
