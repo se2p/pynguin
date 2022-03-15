@@ -324,7 +324,7 @@ class _SearchStatistics:
             elif variable_name in self._sequence_output_variable_factories:
                 # Time related values, which will be expanded in a list of values
                 # through time
-                assert config.configuration.stopping.maximum_search_time is not None, (
+                assert config.configuration.stopping.maximum_search_time >= 0, (
                     "Tracking sequential variables is only possible when using "
                     "maximum search time as a stopping condition"
                 )

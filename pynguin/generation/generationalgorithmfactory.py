@@ -78,13 +78,13 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         """
         stopping = config.configuration.stopping
         conditions: list[StoppingCondition] = []
-        if (max_iter := stopping.maximum_iterations) is not None:
+        if (max_iter := stopping.maximum_iterations) >= 0:
             conditions.append(MaxIterationsStoppingCondition(max_iter))
-        if (max_stmt := stopping.maximum_statement_executions) is not None:
+        if (max_stmt := stopping.maximum_statement_executions) >= 0:
             conditions.append(MaxStatementExecutionsStoppingCondition(max_stmt))
-        if (max_test_exec := stopping.maximum_test_executions) is not None:
+        if (max_test_exec := stopping.maximum_test_executions) >= 0:
             conditions.append(MaxTestExecutionsStoppingCondition(max_test_exec))
-        if (max_search_time := stopping.maximum_search_time) is not None:
+        if (max_search_time := stopping.maximum_search_time) >= 0:
             conditions.append(MaxSearchTimeStoppingCondition(max_search_time))
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")

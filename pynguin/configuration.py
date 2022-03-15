@@ -489,16 +489,16 @@ class StoppingConfiguration:
     the search algorithms only check the condition at the start of each algorithm
     iteration."""
 
-    maximum_search_time: Optional[int] = None
+    maximum_search_time: int = -1
     """Time budget (in seconds) that can be used for generating tests."""
 
-    maximum_test_executions: Optional[int] = None
+    maximum_test_executions: int = -1
     """Maximum number of test cases to be executed."""
 
-    maximum_statement_executions: Optional[int] = None
+    maximum_statement_executions: int = -1
     """Maximum number of test cases to be executed."""
 
-    maximum_iterations: Optional[int] = None
+    maximum_iterations: int = -1
     """Maximum iterations"""
 
 
