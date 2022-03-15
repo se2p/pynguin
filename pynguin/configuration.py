@@ -490,7 +490,7 @@ class StoppingConfiguration:
     iteration."""
 
     maximum_search_time: int = -1
-    """Time budget (in seconds) that can be used for generating tests."""
+    """Time (in seconds) that can be used for generating tests."""
 
     maximum_test_executions: int = -1
     """Maximum number of test cases to be executed."""
