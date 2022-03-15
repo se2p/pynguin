@@ -73,7 +73,7 @@ class LineCoverageGoal(AbstractCoverageGoal):
         return self._line_id
 
     def is_covered(self, result: ExecutionResult) -> bool:
-        return self._line_id in result.execution_trace.covered_lines
+        return self._line_id in result.execution_trace.covered_line_ids
 
     def __str__(self) -> str:
         return f"Line Coverage Goal{self._line_id}"
