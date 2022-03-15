@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Generic, List, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 from ordered_set import OrderedSet
 
@@ -72,7 +72,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
 
     _DEFAULT_MAX_SEARCH_TIME = 600
 
-    def get_stopping_conditions(self) -> List[StoppingCondition]:
+    def get_stopping_conditions(self) -> list[StoppingCondition]:
         """Instantiates the stopping conditions depending on the configuration settings.
 
         Returns:
