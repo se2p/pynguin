@@ -168,11 +168,8 @@ def _setup_report_dir() -> bool:
 
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
-    if config.configuration.seeding.seed is None:
-        _LOGGER.info("No seed given. Using %d", randomness.RNG.get_seed())
-    else:
-        _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
-        randomness.RNG.seed(config.configuration.seeding.seed)
+    _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
+    randomness.RNG.seed(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding_collection() -> None:
