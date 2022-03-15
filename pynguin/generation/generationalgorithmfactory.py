@@ -46,6 +46,7 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxSearchTimeStoppingCondition,
     MaxStatementExecutionsStoppingCondition,
     MaxTestExecutionsStoppingCondition,
+    StoppingCondition,
 )
 from pynguin.setup.testcluster import FilteredTestCluster, TestCluster
 from pynguin.testcase.execution import TestCaseExecutor
@@ -57,9 +58,6 @@ if TYPE_CHECKING:
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.generation.algorithms.testgenerationstrategy import (
         TestGenerationStrategy,
-    )
-    from pynguin.generation.stoppingconditions.stoppingcondition import (
-        StoppingCondition,
     )
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
