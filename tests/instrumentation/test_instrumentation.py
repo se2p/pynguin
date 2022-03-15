@@ -21,7 +21,6 @@ from pynguin.instrumentation.instrumentation import (
     LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import ExecutionTracer
-from tests.conftest import python38, python39plus
 
 
 @pytest.fixture()
@@ -215,16 +214,16 @@ def test_avoid_duplicate_instrumentation(simple_module):
 @pytest.mark.parametrize(
     "function_name, branchless_function_count, branches_count",
     [
-        pytest.param("simple_function", 1, 0),
-        pytest.param("cmp_predicate", 0, 1),
-        pytest.param("bool_predicate", 0, 1),
-        pytest.param("for_loop", 0, 1),
-        pytest.param("full_for_loop", 0, 1),
-        pytest.param("multi_loop", 0, 3),
-        pytest.param("comprehension", 1, 2),
-        pytest.param("lambda_func", 1, 1),
-        pytest.param("conditional_assignment", 0, 1),
-        pytest.param("conditionally_nested_class", 2, 1),
+        ("simple_function", 1, 0),
+        ("cmp_predicate", 0, 1),
+        ("bool_predicate", 0, 1),
+        ("for_loop", 0, 1),
+        ("full_for_loop", 0, 1),
+        ("multi_loop", 0, 3),
+        ("comprehension", 1, 2),
+        ("lambda_func", 1, 1),
+        ("conditional_assignment", 0, 1),
+        ("conditionally_nested_class", 2, 1),
     ],
 )
 def test_integrate_branch_distance_instrumentation(
@@ -263,7 +262,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
 
 @pytest.mark.parametrize(
     "op",
-    [pytest.param(op) for op in Compare if op != Compare.EXC_MATCH],
+    [op for op in Compare if op != Compare.EXC_MATCH],
 )
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
@@ -278,45 +277,7 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
-@python38
 def test_exception():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise ValueError()
-        except ValueError:
-            pass
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        func()
-        trace_mock.assert_called_with(True, 0)
-
-
-@python38
-def test_exception_no_match():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise RuntimeError()
-        except ValueError:
-            pass  # pragma: no cover
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        with pytest.raises(RuntimeError):
-            func()
-        trace_mock.assert_called_with(False, 0)
-
-
-@python39plus
-def test_exception_39plus():
     tracer = ExecutionTracer()
 
     def func():
@@ -333,15 +294,14 @@ def test_exception_39plus():
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
-@python39plus
-def test_exception_no_match_39plus():
+def test_exception_no_match():
     tracer = ExecutionTracer()
 
     def func():
         try:
             raise RuntimeError()
         except ValueError:
-            pass
+            pass  # pragma: no cover
 
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])

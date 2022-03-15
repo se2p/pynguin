@@ -6,7 +6,7 @@
 #
 import enum
 import inspect
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -207,11 +207,11 @@ def test_should_skip_parameter(param_name, result):
 @pytest.mark.parametrize(
     "kind,type_,result",
     [
-        pytest.param(inspect.Parameter.VAR_POSITIONAL, None, List[Any]),
-        pytest.param(inspect.Parameter.VAR_POSITIONAL, str, List[str]),
-        pytest.param(inspect.Parameter.VAR_KEYWORD, None, Dict[str, Any]),
-        pytest.param(inspect.Parameter.VAR_KEYWORD, str, Dict[str, str]),
-        pytest.param(inspect.Parameter.POSITIONAL_OR_KEYWORD, Dict, Dict),
+        pytest.param(inspect.Parameter.VAR_POSITIONAL, None, list[Any]),
+        pytest.param(inspect.Parameter.VAR_POSITIONAL, str, list[str]),
+        pytest.param(inspect.Parameter.VAR_KEYWORD, None, dict[str, Any]),
+        pytest.param(inspect.Parameter.VAR_KEYWORD, str, dict[str, str]),
+        pytest.param(inspect.Parameter.POSITIONAL_OR_KEYWORD, dict, dict),
     ],
 )
 def test_wrap_var_param_type(kind, type_, result):
@@ -225,10 +225,10 @@ def test_wrap_var_param_type(kind, type_, result):
         pytest.param(set, True),
         pytest.param(dict, True),
         pytest.param(tuple, True),
-        pytest.param(List[str], True),
-        pytest.param(Set[str], True),
-        pytest.param(Tuple[str], True),
-        pytest.param(Dict[str, str], True),
+        pytest.param(list[str], True),
+        pytest.param(set[str], True),
+        pytest.param(tuple[str], True),
+        pytest.param(dict[str, str], True),
         pytest.param(str, False),
     ],
 )

@@ -4,11 +4,11 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Iterator, List
+from typing import Iterator
 
 
 class Foo:
-    def __init__(self, a: List[int]) -> None:
+    def __init__(self, a: list[int]) -> None:
         self._a = a
 
     def foo(self, x: int) -> int:

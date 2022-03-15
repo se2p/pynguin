@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 import importlib
 import inspect
-from typing import Set, Type
 from unittest.mock import MagicMock
 
 import pytest
@@ -73,7 +72,7 @@ def test_build_inheritance_graph(module_name, number_of_nodes, number_of_edges):
     assert graph.number_of_edges() == number_of_edges
 
 
-def _extract_classes_from_module(module_name: str) -> Set[Type]:
+def _extract_classes_from_module(module_name: str) -> set[type]:
     module = importlib.import_module(module_name)
     return {v for _, v in inspect.getmembers(module, inspect.isclass)}
 

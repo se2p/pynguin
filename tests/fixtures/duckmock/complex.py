@@ -8,7 +8,6 @@
 # noqa
 import dataclasses
 import logging
-from typing import List, Type
 
 from pynguin.setup.testcluster import TestCluster
 from pynguin.typeinference.strategy import TypeInferenceStrategy
@@ -26,7 +25,7 @@ class DependencyPair:
     dependencies at different recursion levels.
     """
 
-    dependency_type: Type = dataclasses.field(compare=True, hash=True)
+    dependency_type: type = dataclasses.field(compare=True, hash=True)
     recursion_level: int = dataclasses.field(compare=False, hash=False)
 
 
@@ -39,7 +38,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         pass
 
     @staticmethod
-    def _initialise_type_inference_strategies() -> List[TypeInferenceStrategy]:
+    def _initialise_type_inference_strategies() -> list[TypeInferenceStrategy]:
         pass
 
     def generate_cluster(self) -> TestCluster:
@@ -59,7 +58,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             recursion_level: The current level of recursion of the search
         """
 
-    def _add_dependency(self, klass: Type, recursion_level: int, add_to_test: bool):
+    def _add_dependency(self, klass: type, recursion_level: int, add_to_test: bool):
         """Add constructor/methods/attributes of the given type to the test cluster.
 
         Args:

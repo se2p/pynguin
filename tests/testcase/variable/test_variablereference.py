@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,21 +21,21 @@ class DummyReference(vr.Reference):
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
-    ) -> List[str]:
+    ) -> list[str]:
         pass  # pragma: no cover
 
-    def clone(self, memo: Dict[VariableReference, VariableReference]) -> Reference:
+    def clone(self, memo: dict[VariableReference, VariableReference]) -> Reference:
         pass  # pragma: no cover
 
     def structural_eq(
-        self, other: Any, memo: Dict[VariableReference, VariableReference]
+        self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         pass  # pragma: no cover
 
     def structural_hash(self) -> int:
         pass  # pragma: no cover
 
-    def get_variable_reference(self) -> Optional[VariableReference]:
+    def get_variable_reference(self) -> VariableReference | None:
         pass  # pragma: no cover
 
     def replace_variable_reference(

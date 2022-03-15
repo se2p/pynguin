@@ -13,7 +13,7 @@
 # Build stage for Pynguin
 FROM python:3.10.2-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
-ENV POETRY_VERSION "1.1.12"
+ENV POETRY_VERSION "1.1.13"
 
 WORKDIR /pynguin-build
 

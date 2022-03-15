@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Optional
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -23,7 +22,7 @@ class FooObserver(ato.AssertionTraceObserver):
         self,
         statement: Statement,
         exec_ctx: ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         pass  # pragma: no cover
 

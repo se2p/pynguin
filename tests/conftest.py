@@ -7,7 +7,7 @@
 import importlib
 import inspect
 import sys
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 from unittest.mock import MagicMock
 
 import pytest
@@ -54,7 +54,7 @@ def variable_reference_mock():
 
 
 @pytest.fixture(scope="session")
-def provide_imported_modules() -> Dict[str, Any]:
+def provide_imported_modules() -> dict[str, Any]:
     module_names = [
         "tests.fixtures.examples.basket",
         "tests.fixtures.examples.dummies",
@@ -69,7 +69,7 @@ def provide_imported_modules() -> Dict[str, Any]:
 @pytest.fixture(scope="session")
 def provide_callables_from_fixtures_modules(
     provide_imported_modules,
-) -> Dict[str, Callable]:
+) -> dict[str, Callable]:
     def inspect_member(member):
         return (
             inspect.isclass(member)
@@ -281,19 +281,5 @@ def larger_control_flow_graph() -> CFG:
     graph.add_edge(n_300, n_exit)
     return graph
 
-
-# Markers
-python38 = pytest.mark.skipif(
-    sys.version_info >= (3, 9), reason="Works only with CPython 3.8"
-)
-python39plus = pytest.mark.skipif(
-    sys.version_info < (3, 9), reason="Works only with CPython 3.9+"
-)
-python38and39 = pytest.mark.skipif(
-    sys.version_info >= (3, 10), reason="Works only with CPython 3.8 and 3.9"
-)
-python310plus = pytest.mark.skipif(
-    sys.version_info < (3, 10), reason="Works only with CPython 3.10+"
-)
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

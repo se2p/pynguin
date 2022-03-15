@@ -13,7 +13,7 @@ from __future__ import annotations
 import abc
 import enum
 import typing
-from typing import Callable, List, cast
+from typing import Callable, cast
 
 if typing.TYPE_CHECKING:
     from pynguin.typeinference.strategy import InferredSignature
@@ -119,7 +119,7 @@ class GenericEnum(GenericAccessibleObject):
 
     def __init__(self, owner: type[enum.Enum]):
         super().__init__(owner)
-        self._names = list(map(lambda e: e.name, cast(List[enum.Enum], list(owner))))
+        self._names = list(map(lambda e: e.name, cast(list[enum.Enum], list(owner))))
 
     def generated_type(self) -> type | None:
         return self._owner
