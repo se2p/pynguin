@@ -7,7 +7,7 @@
 """Module-level docstring."""
 import string
 from contextlib import contextmanager
-from typing import Iterator, Union
+from typing import Iterator
 
 
 @contextmanager
@@ -86,5 +86,5 @@ class AClass:
             yield f"{character}: {self.__twice(self._b)}"
 
     @staticmethod
-    def __twice(x: Union[complex, int, float]) -> Union[complex, int, float]:
+    def __twice(x: complex | int | float) -> complex | int | float:
         return 2 * x

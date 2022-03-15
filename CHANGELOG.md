@@ -11,6 +11,12 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.18.0
 
+### Breaking Change
+- *We drop the support for Python 3.8 and Python 3.9 with this version!*
+
+  You need Python 3.10 to run Pynguin!  We recommend using our Docker container,
+  which is already based on Python 3.10, to run Pynguin.
+
 ## Pynguin 0.17.0
 
 - Add line coverage as another coverage type (thanks to @labrenz).

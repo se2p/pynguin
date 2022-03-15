@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import List
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -74,7 +73,7 @@ def test_remove_integration(constructor_mock):
     test_case.add_statement(stmt.FloatPrimitiveStatement(test_case))
     int0 = stmt.IntPrimitiveStatement(test_case)
     test_case.add_statement(int0)
-    list0 = stmt.ListStatement(test_case, List[int], [int0.ret_val])
+    list0 = stmt.ListStatement(test_case, list[int], [int0.ret_val])
     test_case.add_statement(list0)
     float0 = stmt.FloatPrimitiveStatement(test_case)
     test_case.add_statement(float0)

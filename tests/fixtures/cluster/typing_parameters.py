@@ -4,20 +4,18 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Optional, Tuple, Union
-
 from tests.fixtures.cluster.complex_dependency import SomeOtherType, YetAnotherType
 from tests.fixtures.cluster.dependency import SomeArgumentType
 
 
-def method_with_union(x: Union[int, SomeArgumentType]) -> None:
+def method_with_union(x: int | SomeArgumentType) -> None:
     print(x)
     pass
 
 
-def method_with_other(x: Tuple[SomeOtherType, YetAnotherType]) -> None:
+def method_with_other(x: tuple[SomeOtherType, YetAnotherType]) -> None:
     pass
 
 
-def method_with_optional(x: Optional[int]) -> None:
+def method_with_optional(x: int | None) -> None:
     pass

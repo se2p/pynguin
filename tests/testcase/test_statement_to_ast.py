@@ -6,7 +6,6 @@
 #
 import inspect
 from ast import Module
-from typing import Dict, List, Set, Tuple
 from unittest.mock import MagicMock
 
 import astor
@@ -341,7 +340,7 @@ def test_statement_to_ast_list_single(
 ):
     list_stmt = stmt.ListStatement(
         test_case_mock,
-        List[int],
+        list[int],
         [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
     )
     statement_to_ast_visitor.visit_list_statement(list_stmt)
@@ -356,7 +355,7 @@ def test_statement_to_ast_list_empty(
 ):
     list_stmt = stmt.ListStatement(
         test_case_mock,
-        List[int],
+        list[int],
         [],
     )
     statement_to_ast_visitor.visit_list_statement(list_stmt)
@@ -371,7 +370,7 @@ def test_statement_to_ast_set_single(
 ):
     set_stmt = stmt.SetStatement(
         test_case_mock,
-        Set[int],
+        set[int],
         [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
     )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
@@ -384,7 +383,7 @@ def test_statement_to_ast_set_single(
 def test_statement_to_ast_set_empty(
     statement_to_ast_visitor, test_case_mock, function_mock
 ):
-    set_stmt = stmt.SetStatement(test_case_mock, Set[int], [])
+    set_stmt = stmt.SetStatement(test_case_mock, set[int], [])
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         astor.to_source(Module(body=statement_to_ast_visitor.ast_nodes))
@@ -397,7 +396,7 @@ def test_statement_to_ast_tuple_single(
 ):
     tuple_stmt = stmt.TupleStatement(
         test_case_mock,
-        Tuple[int],
+        tuple[int],
         [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
     )
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
@@ -412,7 +411,7 @@ def test_statement_to_ast_tuple_empty(
 ):
     tuple_stmt = stmt.TupleStatement(
         test_case_mock,
-        Tuple,
+        tuple,
         [],
     )
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
@@ -427,7 +426,7 @@ def test_statement_to_ast_dict_single(
 ):
     dict_stmt = stmt.DictStatement(
         test_case_mock,
-        Dict[int, int],
+        dict[int, int],
         [
             (
                 stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val,
@@ -447,7 +446,7 @@ def test_statement_to_ast_dict_empty(
 ):
     dict_stmt = stmt.DictStatement(
         test_case_mock,
-        Tuple,
+        tuple,
         [],
     )
     statement_to_ast_visitor.visit_dict_statement(dict_stmt)

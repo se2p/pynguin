@@ -11,7 +11,7 @@ import abc
 import logging
 import math
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_args
 
 from ordered_set import OrderedSet
 
@@ -720,7 +720,7 @@ class TupleStatement(NonDictCollection):
 
 
 class DictStatement(
-    CollectionStatement[Tuple[vr.VariableReference, vr.VariableReference]]
+    CollectionStatement[tuple[vr.VariableReference, vr.VariableReference]]
 ):
     """Represents a dict. The tuples represent key-value pairs."""
 

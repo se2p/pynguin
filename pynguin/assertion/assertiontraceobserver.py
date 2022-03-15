@@ -7,7 +7,7 @@
 """Provides an abstract observer that can be used to generate assertions."""
 import copy
 from types import ModuleType
-from typing import List, Optional, cast
+from typing import cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
@@ -30,7 +30,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 
     def __init__(self) -> None:
         self._trace: at.AssertionTrace = at.AssertionTrace()
-        self._watch_list: List[vr.VariableReference] = []
+        self._watch_list: list[vr.VariableReference] = []
 
     def clear(self) -> None:
         """Clear the existing gathered trace."""
@@ -59,7 +59,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         self,
         statement: st.Statement,
         exec_ctx: ex.ExecutionContext,
-        exception: Optional[Exception] = None,
+        exception: Exception | None = None,
     ) -> None:
         if exception is not None:
             return

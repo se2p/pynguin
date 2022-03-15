@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Any, Tuple, Union
+from typing import Any, Union
 
 import pytest
 
@@ -19,11 +19,11 @@ def untyped_dummy(a, b, c):
     return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
-def union_dummy(a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
+def union_dummy(a: int | float, b: int | float) -> int | float:
     return a + b  # pragma: no cover
 
 
-def return_tuple() -> Tuple[int, int]:
+def return_tuple() -> tuple[int, int]:
     return 23, 42  # pragma: no cover
 
 
@@ -57,7 +57,7 @@ class UntypedDummy:
             {"a": Union[int, float], "b": Union[int, float]},
             Union[int, float],
         ),
-        pytest.param(return_tuple, {}, Tuple[int, int]),
+        pytest.param(return_tuple, {}, tuple[int, int]),
         pytest.param(return_tuple_no_annotation, {}, None),
         pytest.param(TypedDummy, {"a": Any}, type(None)),
         pytest.param(UntypedDummy, {"a": None}, None),

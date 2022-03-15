@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Optional, Set, Type
 from unittest.mock import MagicMock
 
 from pynguin.typeinference.strategy import InferredSignature
@@ -19,10 +18,10 @@ from tests.fixtures.accessibles.accessible import SomeType
 
 
 class TestAccessibleObject(GenericAccessibleObject):
-    def generated_type(self) -> Optional[Type]:
+    def generated_type(self) -> type | None:
         pass  # pragma: no cover
 
-    def get_dependencies(self) -> Set[Type]:
+    def get_dependencies(self) -> set[type]:
         pass  # pragma: no cover
 
 
