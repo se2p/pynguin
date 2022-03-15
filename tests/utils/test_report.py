@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 from pynguin.instrumentation.machinery import install_import_hook
@@ -39,21 +40,43 @@ def test_coverage_entry_add_inplace():
     [
         (
             LineAnnotation(
-                1, MagicMock(CoverageEntry), CoverageEntry(1, 2), CoverageEntry(0, 0)
+                1,
+                MagicMock(CoverageEntry),
+                CoverageEntry(1, 2),
+                CoverageEntry(0, 0),
+                CoverageEntry(),
             ),
             "1/2 branches covered",
         ),
         (
             LineAnnotation(
-                1, MagicMock(CoverageEntry), CoverageEntry(0, 0), CoverageEntry(1, 2)
+                1,
+                MagicMock(CoverageEntry),
+                CoverageEntry(0, 0),
+                CoverageEntry(1, 2),
+                CoverageEntry(),
             ),
             "1/2 branchless code objects covered",
         ),
         (
             LineAnnotation(
-                1, MagicMock(CoverageEntry), CoverageEntry(1, 2), CoverageEntry(3, 4)
+                1,
+                MagicMock(CoverageEntry),
+                CoverageEntry(1, 2),
+                CoverageEntry(3, 4),
+                CoverageEntry(),
             ),
-            "1/2 branches covered;3/4 branchless code objects covered",
+            "1/2 branches covered; 3/4 branchless code objects covered",
+        ),
+        (
+            LineAnnotation(
+                1,
+                MagicMock(CoverageEntry),
+                CoverageEntry(1, 2),
+                CoverageEntry(3, 4),
+                CoverageEntry(1, 1),
+            ),
+            "1/2 branches covered; 3/4 branchless code objects covered; Line 1 covered",
         ),
     ],
 )
@@ -73,9 +96,9 @@ def baz():
 
 def bar(x: int):
     if x:
-        pass
+        return 5
     else:
-        pass
+        return 6
 """
 
 
@@ -94,93 +117,108 @@ def sample_report() -> CoverageReport:
             "\n",
             "def bar(x: int):\n",
             "    if x:\n",
-            "        pass\n",
+            "        return 5\n",
             "    else:\n",
-            "        pass\n",
+            "        return 6\n",
         ],
-        branch_coverage=0.375,
         branches=CoverageEntry(covered=2, existing=6),
         branchless_code_objects=CoverageEntry(covered=1, existing=2),
+        lines=CoverageEntry(covered=2, existing=8),
         line_annotations=[
             LineAnnotation(
                 line_no=1,
-                total=CoverageEntry(covered=1, existing=2),
+                total=CoverageEntry(covered=2, existing=3),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=1, existing=2),
+                lines=CoverageEntry(covered=1, existing=1),
             ),
             LineAnnotation(
                 line_no=2,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=3,
                 total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=4,
                 total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=5,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=1, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=1, existing=1),
             ),
             LineAnnotation(
                 line_no=6,
-                total=CoverageEntry(covered=2, existing=4),
+                total=CoverageEntry(covered=2, existing=5),
                 branches=CoverageEntry(covered=2, existing=4),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=7,
                 total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=8,
                 total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=9,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=10,
-                total=CoverageEntry(covered=0, existing=2),
+                total=CoverageEntry(covered=0, existing=3),
                 branches=CoverageEntry(covered=0, existing=2),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=11,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
             LineAnnotation(
                 line_no=12,
                 total=CoverageEntry(covered=0, existing=0),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=0),
             ),
             LineAnnotation(
                 line_no=13,
-                total=CoverageEntry(covered=0, existing=0),
+                total=CoverageEntry(covered=0, existing=1),
                 branches=CoverageEntry(covered=0, existing=0),
                 branchless_code_objects=CoverageEntry(covered=0, existing=0),
+                lines=CoverageEntry(covered=0, existing=1),
             ),
         ],
+        branch_coverage=0.375,
+        line_coverage=0.25,
     )
 
 
@@ -194,17 +232,34 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
 
     test_case = MagicMock()
     last_result = MagicMock(
-        execution_trace=ExecutionTrace({0}, {}, {0: 0.0, 1: 1.0}, {0: 1.0, 1: 0.0})
+        execution_trace=ExecutionTrace(
+            executed_code_objects=OrderedSet([0]),
+            executed_predicates={},
+            true_distances={0: 0.0, 1: 1.0},
+            false_distances={0: 1.0, 1: 0.0},
+            covered_line_ids=OrderedSet([0, 1]),
+        )
     )
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
     tracer = ExecutionTracer()
 
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.LINE,
+        config.CoverageMetric.BRANCH,
+    ]
     with install_import_hook(test_module, tracer):
         importlib.import_module(test_module)
     executor = MagicMock(tracer=tracer)
     config.configuration.module_name = test_module
-    assert get_coverage_report(test_suite, executor) == sample_report
+    assert (
+        get_coverage_report(
+            test_suite,
+            executor,
+            [config.CoverageMetric.LINE, config.CoverageMetric.BRANCH],
+        )
+        == sample_report
+    )
 
 
 def test_render_coverage_report(sample_report, tmp_path: Path):
@@ -221,10 +276,14 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "  <style>\n",
             "\n",
             "pre { line-height: 125%; }\n",
-            "td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }\n",
-            "span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }\n",
-            "td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }\n",
-            "span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }\n",
+            "td.linenos .normal { color: #586e75; background-color: #073642; "
+            "padding-left: 5px; padding-right: 5px; }\n",
+            "span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; "
+            "padding-right: 5px; }\n",
+            "td.linenos .special { color: #000000; background-color: #ffffc0; "
+            "padding-left: 5px; padding-right: 5px; }\n",
+            "span.linenos.special { color: #000000; background-color: #ffffc0; "
+            "padding-left: 5px; padding-right: 5px; }\n",
             ".highlight .hll { background-color: #073642 }\n",
             ".highlight { background: #002b36; color: #839496 }\n",
             ".highlight .c { color: #586e75; font-style: italic } /* Comment */\n",
@@ -237,12 +296,15 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .o { color: #586e75 } /* Operator */\n",
             ".highlight .x { color: #839496 } /* Other */\n",
             ".highlight .p { color: #839496 } /* Punctuation */\n",
-            ".highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */\n",
-            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */\n",
+            ".highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang "
+            "*/\n",
+            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline "
+            "*/\n",
             ".highlight .cp { color: #d33682 } /* Comment.Preproc */\n",
             ".highlight .cpf { color: #586e75 } /* Comment.PreprocFile */\n",
             ".highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */\n",
-            ".highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */\n",
+            ".highlight .cs { color: #586e75; font-style: italic } /* Comment.Special "
+            "*/\n",
             ".highlight .gd { color: #dc322f } /* Generic.Deleted */\n",
             ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
             ".highlight .gr { color: #dc322f } /* Generic.Error */\n",
@@ -251,7 +313,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .go { color: #839496 } /* Generic.Output */\n",
             ".highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */\n",
             ".highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */\n",
-            ".highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */\n",
+            ".highlight .gu { color: #839496; text-decoration: underline } /* "
+            "Generic.Subheading */\n",
             ".highlight .gt { color: #268bd2 } /* Generic.Traceback */\n",
             ".highlight .kc { color: #2aa198 } /* Keyword.Constant */\n",
             ".highlight .kd { color: #2aa198 } /* Keyword.Declaration */\n",
@@ -318,56 +381,75 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "}\n",
             "\n",
             ".notCovered{\n",
-            "    border-right: 3px solid darkred;\n",
+            "    border-right: 5px solid darkred;\n",
             "}\n",
             ".partiallyCovered{\n",
-            "    border-right: 3px solid orangered;\n",
+            "    border-right: 5px solid orangered;\n",
             "}\n",
             ".fullyCovered{\n",
-            "    border-right: 3px solid darkgreen;\n",
+            "    border-right: 5px solid darkgreen;\n",
             "}\n",
             ".notRelevant{\n",
-            "    border-right: 3px solid transparent;\n",
+            "    border-right: 5px solid transparent;\n",
             "}\n",
             "\n",
             "</style>\n",
             "</head>\n",
             "<body>\n",
             "<h1>Pynguin coverage report for module 'cov_demo'</h1>\n",
-            "<p>Achieved 37.50% branch coverage.\n",
-            "<p>1/2 branchless code objects covered.</p>\n",
-            "<p>2/6 branches covered.</p>\n",
-            "  <table>\n",
+            "<p>Achieved 37.50% branch coverage:\n",
+            "1/2 branchless code objects covered.\n",
+            "2/6 branches covered.</p>\n",
+            "<p>Achieved 25.00% line coverage:\n",
+            "2/8 lines covered. </p>\n",
+            "<table>\n",
             "    <tbody>\n",
             "        <tr>\n",
             '            <td style="width: 40px; text-align: right;" class="lines">\n',
-            '                <span class="partiallyCovered" title="1/2 branchless code objects covered">1</span>\n',
-            '                  <span class="notRelevant">2</span>\n',
+            '                <span class="partiallyCovered" title="1/2 branchless code '
+            'objects covered; Line 1 covered">1</span>\n',
+            '                  <span class="notCovered" title="Line 2 not '
+            'covered">2</span>\n',
             '                  <span class="notRelevant">3</span>\n',
             '                  <span class="notRelevant">4</span>\n',
-            '                  <span class="notRelevant">5</span>\n',
-            '                  <span class="partiallyCovered" title="2/4 branches covered">6</span>\n',
+            '                  <span class="fullyCovered" title="Line 5 '
+            'covered">5</span>\n',
+            '                  <span class="partiallyCovered" title="2/4 branches '
+            'covered; Line 6 not covered">6</span>\n',
             '                  <span class="notRelevant">7</span>\n',
             '                  <span class="notRelevant">8</span>\n',
-            '                  <span class="notRelevant">9</span>\n',
-            '                  <span class="notCovered" title="0/2 branches covered">10</span>\n',
-            '                  <span class="notRelevant">11</span>\n',
+            '                  <span class="notCovered" title="Line 9 not '
+            'covered">9</span>\n',
+            '                  <span class="notCovered" title="0/2 branches covered; Line '
+            '10 not covered">10</span>\n',
+            '                  <span class="notCovered" title="Line 11 not '
+            'covered">11</span>\n',
             '                  <span class="notRelevant">12</span>\n',
-            '                  <span class="notRelevant">13</span>\n',
+            '                  <span class="notCovered" title="Line 13 not '
+            'covered">13</span>\n',
             "                  </td>\n",
-            '            <td style="width: 100%;"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">foo</span><span class="p">():</span>\n',
+            '            <td style="width: 100%;"><div '
+            'class="highlight"><pre><span></span><span class="k">def</span> <span '
+            'class="nf">foo</span><span class="p">():</span>\n',
             '    <span class="k">pass</span>\n',
             "\n",
             "\n",
-            '<span class="k">def</span> <span class="nf">baz</span><span class="p">():</span>\n',
-            '    <span class="k">assert</span> <span class="mi">3</span> <span class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> <span class="mi">3</span> <span class="o">==</span> <span class="o">-</span><span class="mi">3</span>\n',
+            '<span class="k">def</span> <span class="nf">baz</span><span '
+            'class="p">():</span>\n',
+            '    <span class="k">assert</span> <span class="mi">3</span> <span '
+            'class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> '
+            '<span class="mi">3</span> <span class="o">==</span> <span '
+            'class="o">-</span><span class="mi">3</span>\n',
             "\n",
             "\n",
-            '<span class="k">def</span> <span class="nf">bar</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>\n',
-            '    <span class="k">if</span> <span class="n">x</span><span class="p">:</span>\n',
-            '        <span class="k">pass</span>\n',
+            '<span class="k">def</span> <span class="nf">bar</span><span '
+            'class="p">(</span><span class="n">x</span><span class="p">:</span> <span '
+            'class="nb">int</span><span class="p">):</span>\n',
+            '    <span class="k">if</span> <span class="n">x</span><span '
+            'class="p">:</span>\n',
+            '        <span class="k">return</span> <span class="mi">5</span>\n',
             '    <span class="k">else</span><span class="p">:</span>\n',
-            '        <span class="k">pass</span>\n',
+            '        <span class="k">return</span> <span class="mi">6</span>\n',
             "</pre></div>\n",
             "</td>\n",
             "        </tr>\n",

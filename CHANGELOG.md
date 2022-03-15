@@ -9,7 +9,21 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.19.0
+
 ## Pynguin 0.18.0
+
+### Breaking Change
+- *We drop the support for Python 3.8 and Python 3.9 with this version!*
+
+  You need Python 3.10 to run Pynguin!  We recommend using our Docker container,
+  which is already based on Python 3.10, to run Pynguin.
+
+### Further Changes
+- Add line coverage visualisation to the coverage report.
+- Add a citation reference to our freshly accepted ICSE'22 tool demo paper “Pynguin: 
+  Automated Unit Test Generation for Python.
+- Unify the modules for the analysis of the module under test.
 
 ## Pynguin 0.17.0
 

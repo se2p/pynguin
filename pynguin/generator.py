@@ -352,7 +352,11 @@ def _run() -> ReturnCode:
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
-            get_coverage_report(generation_result, executor),
+            get_coverage_report(
+                generation_result,
+                executor,
+                config.configuration.statistics_output.coverage_metrics,
+            ),
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
             datetime.datetime.now(),
         )

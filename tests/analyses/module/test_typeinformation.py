@@ -6,7 +6,6 @@
 import importlib
 import inspect
 import itertools
-from typing import Set, Type
 from unittest.mock import MagicMock
 
 import pytest
@@ -84,7 +83,7 @@ def inheritance_graph():
     )
 
 
-def _extract_classes_from_module(module_name: str) -> Set[Type]:
+def _extract_classes_from_module(module_name: str) -> set[type]:
     module = importlib.import_module(module_name)
     return {v for _, v in inspect.getmembers(module, inspect.isclass)}
 
