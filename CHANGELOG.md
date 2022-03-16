@@ -11,6 +11,26 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.19.0
 
+### Breaking Change
+
+- One can now use multiple stopping conditions at a time.
+
+  *This breaks the CLI in two ways:*
+  - The parameter `--stopping-condition` has been removed.
+  - The parameter `--budget` was renamed to `--maximum-search-time`.
+  
+  Users have to change their run configurations accordingly!
+
+  To specify stopping conditions, add one or many from `--maximum-search-time`,
+  `--maximum-test-executions`, `--maximum-statement-executions`, and
+  `--maximum-iterations` to your command line.
+
+### Further Changes
+
+- Clarify log output for search phases
+- Pynguin now uses the `ast.unparse` function from Python's AST library instead of 
+  the third-party `astor` library to generate the source code of the test cases.
+
 ## Pynguin 0.18.0
 
 ### Breaking Change
