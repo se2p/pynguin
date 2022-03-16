@@ -63,14 +63,12 @@ class LogSearchObserver(SearchObserver):
         self.iteration = 0
 
     def before_first_search_iteration(self, initial: tsc.TestSuiteChromosome) -> None:
-        self._logger.info(
-            "Iteration: %5i, Coverage: %5f", self.iteration, initial.get_coverage()
-        )
+        self._logger.info("Initial Population, Coverage: %5f", initial.get_coverage())
 
     def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
         self.iteration += 1
         self._logger.info(
-            "Iteration: %5i, Coverage: %5f", self.iteration, best.get_coverage()
+            "Iteration: %7i, Coverage: %5f", self.iteration, best.get_coverage()
         )
 
     def after_search_finish(self) -> None:
