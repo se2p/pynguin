@@ -9,20 +9,8 @@ import pynguin.utils.opcodes as op
 from tests.conftest import python38, python39, python310
 
 
-@python38
-def test_opcodes_38():
-    assert hasattr(op, "BEGIN_FINALLY")
-    assert not hasattr(op, "IS_OP")
-
-
-@python39
-def test_opcodes_39():
-    assert not hasattr(op, "BEGIN_FINALLY")
-    assert hasattr(op, "IS_OP")
-
-
 @python310
 def test_opcodes_310():
     assert not hasattr(op, "BEGIN_FINALLY")
     assert hasattr(op, "ROT_N")
-    assert op.RERAISE == 99
+    assert op.RERAISE == 119

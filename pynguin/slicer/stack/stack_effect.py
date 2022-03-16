@@ -7,17 +7,14 @@
 # Idea taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-# mypy does not detect, that some enums are only accessed if a specific version is used
-# mypy: ignore-errors
 
 """Provides offset calculations for stack effects based on the used python version."""
-import sys
 from typing import Dict, Tuple
 
 import pynguin.utils.opcodes as op
 
 
-def _get_base_se() -> Dict[int, Tuple[int, int]]:
+def _get_base_se_lookup() -> Dict[int, Tuple[int, int]]:
     """Initialize all unconditional opcode stack effects
     that are shared between all used python versions of pynguin."""
     return {
@@ -110,58 +107,21 @@ def _get_base_se() -> Dict[int, Tuple[int, int]]:
         op.EXTENDED_ARG: (0, 0),
         op.FORMAT_VALUE: (1, 1),
         op.LOAD_METHOD: (0, 1),
+        op.WITH_EXCEPT_START: (0, 1),
+        op.LOAD_ASSERTION_ERROR: (0, 1),
+        op.IS_OP: (2, 1),
+        op.CONTAINS_OP: (2, 1),
+        op.JUMP_IF_NOT_EXEC_MATCH: (2, 0),
+        op.GET_LEN: (0, 1),
+        op.MATCH_MAPPING: (0, 1),
+        op.MATCH_SEQUENCE: (0, 1),
+        op.MATCH_KEYS: (0, 2),
+        op.COPY_DICT_WITHOUT_KEYS: (2, 2),
+        op.ROT_N: (0, 0),
+        op.RERAISE: (3, 0),
+        op.GEN_START: (1, 0),
+        op.MATCH_CLASS: (2, 1),
     }
-
-
-def _update_se_to_38(_se_lookup) -> None:
-    """Add all 3.8 specific opcodes (opcodes removed later than 3.8).
-    These have to be added only after the version check, otherwise the op code
-    attributes will be already be deleted, causing an Attribute error.
-    """
-    assert (
-        sys.version_info[0] == 3 and sys.version_info[1] == 8
-    ), "Only call this method with python 3.8"
-    _se_lookup[op.BEGIN_FINALLY] = (0, 6)
-
-    _se_lookup[op.WITH_CLEANUP_START] = (0, 2)
-    _se_lookup[op.WITH_CLEANUP_FINISH] = (3, 0)
-
-    _se_lookup[op.END_FINALLY] = (6, 0)
-
-    _se_lookup[op.CALL_FINALLY] = (0, 1)
-    _se_lookup[op.POP_FINALLY] = (6, 0)
-
-
-def _update_se_to_39(_se_lookup) -> None:
-    assert (
-        sys.version_info[0] == 3 and sys.version_info[1] == 9
-    ), "Only call this method with python 3.9"
-    # added instruction from 3.8 to 3.9
-    _se_lookup[op.RERAISE] = (3, 0)
-    _se_lookup[op.WITH_EXCEPT_START] = (0, 1)
-    _se_lookup[op.LOAD_ASSERTION_ERROR] = (0, 1)
-
-    _se_lookup[op.IS_OP] = (2, 1)
-    _se_lookup[op.CONTAINS_OP] = (2, 1)
-    _se_lookup[op.JUMP_IF_NOT_EXEC_MATCH] = (2, 0)
-
-    # the instructions removed between 3.8 to 3.9 are not even added to the _se
-    # unless the code runs with python 3.8, so need to remove something here
-
-
-def _update_se_to_310(_se_lookup) -> None:
-    assert (
-        sys.version_info[0] == 3 and sys.version_info[1] == 10
-    ), "Only call this method with python 3.10"
-    _se_lookup[op.GET_LEN] = (0, 1)
-    _se_lookup[op.MATCH_MAPPING] = (0, 1)
-    _se_lookup[op.MATCH_SEQUENCE] = (0, 1)
-    _se_lookup[op.MATCH_KEYS] = (0, 2)
-    _se_lookup[op.COPY_DICT_WITHOUT_KEYS] = (2, 2)
-    _se_lookup[op.ROT_N] = (0, 0)
-    _se_lookup[op.RERAISE] = (3, 0)
-    _se_lookup[op.GEN_START] = (1, 0)
-    _se_lookup[op.MATCH_CLASS] = (2, 1)
 
 
 # pylint: disable=too-many-branches, too-many-return-statements
@@ -231,16 +191,7 @@ def _conditional_se(opcode: int, arg, jump: bool) -> Tuple[int, int]:  # noqa: C
 class StackEffect:
     """Utility class for all stack effect calculations."""
 
-    assert sys.version_info >= (3, 8), "Unsupported python version"
-    assert sys.version_info <= (3, 10), "Unsupported python version"
-
-    _se_lookup: Dict[int, Tuple[int, int]] = _get_base_se()
-    if sys.version_info[1] == 8:
-        _update_se_to_38(_se_lookup)
-    if sys.version_info[1] == 9:
-        _update_se_to_39(_se_lookup)
-    if sys.version_info[1] == 10:
-        _update_se_to_310(_se_lookup)
+    _se_lookup: Dict[int, Tuple[int, int]] = _get_base_se_lookup()
 
     @staticmethod
     def stack_effect(opcode: int, arg, jump: bool = False) -> Tuple[int, int]:
@@ -261,18 +212,5 @@ class StackEffect:
 
         if opcode in StackEffect._se_lookup:
             return StackEffect._se_lookup[opcode]
-
-        if sys.version_info[1] == 8:
-            # check 3.8 specific conditional opcodes
-            if opcode == op.CALL_FINALLY:
-                if not jump:
-                    return 0, 1
-                return 0, 0
-
-        if sys.version_info[1] == 9:
-            pass  # no 3.9 specific conditional opcodes
-
-        if sys.version_info[1] == 10:
-            pass  # no 3.10 specific conditional opcodes
 
         return _conditional_se(opcode, arg, jump)
