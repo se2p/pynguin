@@ -9,12 +9,11 @@
 
 
 """Provides offset calculations for stack effects based on the used python version."""
-from typing import Dict, Tuple
 
 import pynguin.utils.opcodes as op
 
 
-def _get_base_se_lookup() -> Dict[int, Tuple[int, int]]:
+def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
     """Initialize all unconditional opcode stack effects
     that are shared between all used python versions of pynguin."""
     return {
@@ -125,7 +124,7 @@ def _get_base_se_lookup() -> Dict[int, Tuple[int, int]]:
 
 
 # pylint: disable=too-many-branches, too-many-return-statements
-def _conditional_se(opcode: int, arg, jump: bool) -> Tuple[int, int]:  # noqa: C901
+def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C901
     # jump based operations
     if opcode == op.SETUP_WITH:
         if not jump:
@@ -191,10 +190,10 @@ def _conditional_se(opcode: int, arg, jump: bool) -> Tuple[int, int]:  # noqa: C
 class StackEffect:
     """Utility class for all stack effect calculations."""
 
-    _se_lookup: Dict[int, Tuple[int, int]] = _get_base_se_lookup()
+    _se_lookup: dict[int, tuple[int, int]] = _get_base_se_lookup()
 
     @staticmethod
-    def stack_effect(opcode: int, arg, jump: bool = False) -> Tuple[int, int]:
+    def stack_effect(opcode: int, arg, jump: bool = False) -> tuple[int, int]:
         """Get the stack effect as a tuple of number of pops and number of pushes
         for an opcode.
 

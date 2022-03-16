@@ -14,7 +14,7 @@ import pytest
 from bytecode import Bytecode
 from bytecode import Compare
 
-from pynguin.analyses.controlflow.cfg import CFG
+from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,

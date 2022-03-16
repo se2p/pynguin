@@ -19,9 +19,7 @@ from bytecode import Instr
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
 from pynguin.instrumentation.instrumentation import is_traced_instruction
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, LastInstrState
 from pynguin.slicer.instruction import UniqueInstruction

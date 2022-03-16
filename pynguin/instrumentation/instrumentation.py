@@ -11,10 +11,11 @@ import builtins
 import json
 import logging
 from types import CodeType
-from typing import TYPE_CHECKING, Union, Tuple
+from typing import TYPE_CHECKING, Union
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
+import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.slicer.instruction import UniqueInstruction
@@ -672,7 +673,7 @@ def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
     )
 
 
-def get_nodes_around_node(cfg: CFG, assertion_node: ProgramGraphNode) -> Tuple[ProgramGraphNode, ProgramGraphNode]:
+def get_nodes_around_node(cfg: CFG, assertion_node: ProgramGraphNode) -> tuple[ProgramGraphNode, ProgramGraphNode]:
     """Retrieve the nodes before and after a given node inside the cfg."""
     index_of_assertion = assertion_node.index
     node_before_assertion = None
