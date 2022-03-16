@@ -750,7 +750,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr] = []
 
         if basic_block_is_assertion_error(basic_block):
-            self._instrument_assertion(code_object_id, cfg, new_block_instructions, node, basic_block[0].lineno, offset)
+            self._instrument_assertion(code_object_id, cfg, node, offset)
 
         for instr in basic_block:
             # Perform the actual instrumentation
@@ -1447,41 +1447,25 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
 
-    def _instrument_assertion(self, code_object_id, cfg, new_block_instructions, node, lineno, offset):
+    def _instrument_assertion(self, code_object_id, cfg, node, offset) -> None:
         """To know where an assertion started and ended, the last comparison instruction of the node
         before the assertion error must be instrumented to call the tracer that an assertion was started.
 
-        The tracer must also be called when an assertion either ended or threw an assertion error.
-        Therefore, the throwing of the error in the current block and the first instruction of the node
-        after the assertion node must be instrumented to tell the tracer an assertion ended.
+        The tracer must also be called when an assertion ended.
+        Therefore, we instrument and end_call before the first instruction of the node
+        after the assertion error node to tell the tracer an assertion ended.
 
         Args:
-            cfg: TODO
-            new_block_instructions: TODO
-            node: TODO
-
-        Returns:
-            TODO
+            cfg: The cfg required to get the nodes before and after the assertion throwing.
+            node: The node containing the assertion throwing.
         """
         node_before, node_after = get_nodes_around_node(cfg, node)
+        # TODO offset counter is off
         self._instrument_start_assert(
-            # TODO(SiL) is the offset of the start of the assertion to the compare op always 4?
             code_object_id, node_before.index, offset - 4, node_before.basic_block
         )
 
-        # TODO(SiL) also add stop assert for throw
-        # # instrument assertion error
-        # new_block_instructions.append([
-        #         Instr("LOAD_CONST", self._tracer, lineno=lineno),
-        #         Instr(
-        #             "LOAD_METHOD",
-        #             self._tracer.track_assert_end.__name__,
-        #             lineno=lineno,
-        #         ),
-        #         Instr("CALL_METHOD", 0, lineno=lineno),
-        #         Instr("POP_TOP", lineno=lineno),
-        # ])
-
+        # TODO offset counter is off
         self._instrument_end_assert(node_after.basic_block)
 
     def _instrument_start_assert(
@@ -1491,19 +1475,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset,
         block_before_assertion: BasicBlock,
     ) -> None:
-        # the first comparison in reverse traversal is the comparison used in the assertion
-        comparison_index = len(block_before_assertion) - 1
-        comparison_op = -1
-        for instr in reversed(block_before_assertion):
-            if instr.opcode in op.OP_COMPARE:
-                comparison_op = instr.opcode
-                break
-            comparison_index -= 1
+        # find the index of the last POP_JUMP_IF_TRUE instruction inside the block
+        pop_jump_index = next(
+            i for i in reversed(range(len(block_before_assertion)))
+            if block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
+        )
 
-        lineno = block_before_assertion[comparison_index].lineno
-        # enter the instrumentation after the comparison operation
-        # therefore, when track_assert_start is called, the compare op is the last executed op
-        block_before_assertion[comparison_index + 1: comparison_index + 1] = [
+        lineno = block_before_assertion[pop_jump_index].lineno
+        # enter the instrumentation before the pop_jump operation
+        block_before_assertion[pop_jump_index: pop_jump_index] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
@@ -1516,7 +1496,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # Basic block id
             Instr("LOAD_CONST", node_id, lineno=lineno),
             # Instruction opcode
-            Instr("LOAD_CONST", comparison_op, lineno=lineno),
+            Instr("LOAD_CONST", op.POP_JUMP_IF_TRUE, lineno=lineno),
             # Line number of access
             Instr("LOAD_CONST", lineno, lineno=lineno),
             # Instruction number of access
@@ -1531,6 +1511,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     ) -> None:
         lineno = block_after_assertion[0].lineno
 
+        # enter instrumentation that assertion ended before first instruction of next block is executed
         block_after_assertion[0:0] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(

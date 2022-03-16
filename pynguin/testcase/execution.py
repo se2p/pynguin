@@ -484,7 +484,7 @@ class ExecutionTrace:
         self.executed_instructions.add(executed_instr)
 
     def start_assertion(
-        self, traced_comparison: ExecutedInstruction
+        self, traced_pop_jump: ExecutedInstruction
     ) -> TracedAssertion:
         """Initialise a new TracedAssertion object and store it as current assertion.
         This is used to know where an assertion started and keep track of all following
@@ -494,8 +494,8 @@ class ExecutionTrace:
             the newly created TracedAssertion object stored in current_assertion.
         """
         self.current_assertion = TracedAssertion(
-            traced_comparison.code_object_id, traced_comparison.node_id, traced_comparison.lineno,
-            len(self.executed_instructions) - 1, traced_comparison
+            traced_pop_jump.code_object_id, traced_pop_jump.node_id, traced_pop_jump.lineno,
+            len(self.executed_instructions) - 1, traced_pop_jump
         )
         return self.current_assertion
 
@@ -506,12 +506,15 @@ class ExecutionTrace:
         again.
         """
         assert self.current_assertion
-        assert self.current_assertion.traced_assertion_comparison
-        assert self.current_assertion.traced_assertion_comparison.opcode in op.OP_COMPARE
+        assert self.current_assertion.traced_assertion_pop_jump
+        assert self.current_assertion.traced_assertion_pop_jump.opcode == op.POP_JUMP_IF_TRUE
+
+        # TODO(SiL) is this the correct calculation
+        self.current_assertion.trace_position_end = len(self.executed_instructions) - 1
 
         self.traced_assertions.append(self.current_assertion)
         self.unique_assertions.add(
-            UniqueAssertion(self.current_assertion.traced_assertion_comparison)
+            UniqueAssertion(self.current_assertion.traced_assertion_pop_jump)
         )
 
         self.current_assertion = None
@@ -1168,8 +1171,8 @@ class ExecutionTracer:
             # Start of a new assertion, but old not finished -> end old here
             self._trace.end_assertion()
 
-        comparison_instr = ExecutedInstruction(module, code_object_id, node_id, opcode, None, lineno, offset)
-        self._current_assertion = self._trace.start_assertion(comparison_instr)
+        pop_jump_instr = ExecutedInstruction(module, code_object_id, node_id, opcode, None, lineno, offset)
+        self._current_assertion = self._trace.start_assertion(pop_jump_instr)
 
     def track_assert_end(self) -> None:
         """Track the end of an assertion in the trace."""
@@ -1226,46 +1229,47 @@ class TracedAssertion:
     node_id: int
     lineno: int
     trace_position_start: int
-    traced_assertion_comparison: ExecutedInstruction
+    traced_assertion_pop_jump: ExecutedInstruction
+    trace_position_end: int = -1
 
 
 class UniqueAssertion:
     """Data class for an assertion uniquely identifiable by its instruction"""
 
-    def __init__(self, assertion_comparison_instruction: ExecutedInstruction):
-        self.assertion_call_instruction = assertion_comparison_instruction
+    def __init__(self, assertion_pop_jump_instruction: ExecutedInstruction):
+        self.assertion_pop_jump_instruction = assertion_pop_jump_instruction
 
     def __eq__(self, other):
         if not isinstance(other, UniqueAssertion):
             return False
 
         return (
-            self.assertion_call_instruction.code_object_id
-            == other.assertion_call_instruction.code_object_id
-            and self.assertion_call_instruction.node_id
-            == other.assertion_call_instruction.node_id
-            and self.assertion_call_instruction.lineno
-            == other.assertion_call_instruction.lineno
-            and self.assertion_call_instruction.offset
-            == other.assertion_call_instruction.offset
+            self.assertion_pop_jump_instruction.code_object_id
+            == other.assertion_pop_jump_instruction.code_object_id
+            and self.assertion_pop_jump_instruction.node_id
+            == other.assertion_pop_jump_instruction.node_id
+            and self.assertion_pop_jump_instruction.lineno
+            == other.assertion_pop_jump_instruction.lineno
+            and self.assertion_pop_jump_instruction.offset
+            == other.assertion_pop_jump_instruction.offset
         )
 
     def __hash__(self):
         hash_string = (
-            str(self.assertion_call_instruction.code_object_id)
+            str(self.assertion_pop_jump_instruction.code_object_id)
             + "_"
-            + str(self.assertion_call_instruction.node_id)
+            + str(self.assertion_pop_jump_instruction.node_id)
             + "_"
-            + str(self.assertion_call_instruction.lineno)
+            + str(self.assertion_pop_jump_instruction.lineno)
             + "_"
-            + str(self.assertion_call_instruction.offset)
+            + str(self.assertion_pop_jump_instruction.offset)
             + "_"
         )
 
         return hash(hash_string)
 
     def __str__(self):
-        return str(self.assertion_call_instruction.lineno)
+        return str(self.assertion_pop_jump_instruction.lineno)
 
 
 @dataclass(frozen=True)
