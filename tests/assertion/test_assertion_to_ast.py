@@ -4,11 +4,10 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 import enum
-from _ast import Module
 from unittest.mock import MagicMock
 
-import astor
 import pytest
 
 import pynguin.assertion.assertion as ass
@@ -24,34 +23,39 @@ def assertion_to_ast() -> ata.AssertionToAstVisitor:
     return ata.AssertionToAstVisitor(scope, module_aliases, set())
 
 
+def __create_source_from_ast(module_body: list[ast.stmt]) -> str:
+    return ast.unparse(
+        ast.fix_missing_locations(ast.Module(body=module_body, type_ignores=[]))
+    )
+
+
 def test_none(assertion_to_ast):
     assertion = ass.NotNoneAssertion(source=vr.VariableReference(MagicMock(), None))
     assertion.accept(assertion_to_ast)
     assert (
-        astor.to_source(Module(body=assertion_to_ast.nodes))
-        == "assert var_0 is not None\n"
+        __create_source_from_ast(assertion_to_ast.nodes) == "assert var_0 is not None"
     )
 
 
 @pytest.mark.parametrize(
     "obj,output",
     [
-        (True, "assert var_0 is True\n"),
-        (False, "assert var_0 is False\n"),
-        ((True, False), "assert var_0 == (True, False)\n"),
-        ([3, 8], "assert var_0 == [3, 8]\n"),
-        ([[3, 8], {"foo"}], "assert var_0 == [[3, 8], {'foo'}]\n"),
+        (True, "assert var_0 is True"),
+        (False, "assert var_0 is False"),
+        ((True, False), "assert var_0 == (True, False)"),
+        ([3, 8], "assert var_0 == [3, 8]"),
+        ([[3, 8], {"foo"}], "assert var_0 == [[3, 8], {'foo'}]"),
         (
             {"foo": ["nope", 1, False, None]},
-            "assert var_0 == {'foo': ['nope', 1, False, None]}\n",
+            "assert var_0 == {'foo': ['nope', 1, False, None]}",
         ),
         (
             {"foo": "bar", "baz": "argh"},
-            "assert var_0 == {'foo': 'bar', 'baz': 'argh'}\n",
+            "assert var_0 == {'foo': 'bar', 'baz': 'argh'}",
         ),
         (
             {enum.Enum("Dummy", "a").a: False},
-            "assert var_0 == {module_0.Dummy.a: False}\n",
+            "assert var_0 == {module_0.Dummy.a: False}",
         ),
     ],
 )
@@ -60,7 +64,7 @@ def test_object_assertion(assertion_to_ast, obj, output):
         source=vr.VariableReference(MagicMock(), None), value=obj
     )
     assertion.accept(assertion_to_ast)
-    assert astor.to_source(Module(body=assertion_to_ast.nodes)) == output
+    assert __create_source_from_ast(assertion_to_ast.nodes) == output
 
 
 def test_float_assertion(assertion_to_ast):
@@ -69,18 +73,18 @@ def test_float_assertion(assertion_to_ast):
     )
     assertion.accept(assertion_to_ast)
     assert (
-        astor.to_source(Module(body=assertion_to_ast.nodes))
-        == "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)\n"
+        __create_source_from_ast(assertion_to_ast.nodes)
+        == "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"
     )
 
 
 @pytest.mark.parametrize(
     "length, output",
-    [(0, "assert len(var_0) == 0\n"), (42, "assert len(var_0) == 42\n")],
+    [(0, "assert len(var_0) == 0"), (42, "assert len(var_0) == 42")],
 )
 def test_collection_length(assertion_to_ast, length, output):
     assertion = ass.CollectionLengthAssertion(
         source=vr.VariableReference(MagicMock(), None), length=length
     )
     assertion.accept(assertion_to_ast)
-    assert astor.to_source(Module(body=assertion_to_ast.nodes)) == output
+    assert __create_source_from_ast(assertion_to_ast.nodes) == output

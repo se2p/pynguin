@@ -31,5 +31,5 @@ class PyTestExporter(AbstractTestExporter):
             module_aliases, common_modules
         )
         functions = AbstractTestExporter._create_functions(asts, False)
-        module = ast.Module(body=import_nodes + functions)
+        module = ast.Module(body=import_nodes + functions, type_ignores=[])
         AbstractTestExporter._save_ast_to_file(path, module)
