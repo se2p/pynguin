@@ -7,7 +7,6 @@
 import ast
 import importlib
 
-import astor
 import pytest
 
 import pynguin.assertion.assertiongenerator as ag
@@ -32,8 +31,7 @@ human_0 = module_0.Human(str_0, float_0)
 assert human_0 is not None
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
-assert str_1 == 'foo bar'
-""",
+assert str_1 == 'foo bar'""",
         ),
         (
             ag.MutationAnalysisAssertionGenerator,
@@ -41,8 +39,7 @@ assert str_1 == 'foo bar'
 float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
 assert module_0.static_state == 0
-str_1 = human_0.get_name()
-""",
+str_1 = human_0.get_name()""",
         ),
     ],
 )
@@ -79,5 +76,9 @@ def test_generate_mutation_assertions(generator, expected_result):
 
         visitor = tc_to_ast.TestCaseToAstVisitor()
         test_case.accept(visitor)
-        source = astor.to_source(ast.Module(body=visitor.test_case_asts[0]))
+        source = ast.unparse(
+            ast.fix_missing_locations(
+                ast.Module(body=visitor.test_case_asts[0], type_ignores=[])
+            )
+        )
         assert source == expected_result

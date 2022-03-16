@@ -4,9 +4,9 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 from ast import Module
 
-import astor
 import pytest
 
 import pynguin.assertion.assertion as ass
@@ -33,8 +33,12 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     simple_test_case.accept(visitor)
     assert (
-        astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
+        ast.unparse(
+            ast.fix_missing_locations(
+                Module(body=visitor.test_case_asts[0], type_ignores=[])
+            )
+        )
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
 
 
@@ -43,12 +47,20 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     simple_test_case.accept(visitor)
     assert (
-        astor.to_source(Module(body=visitor.test_case_asts[0]))
-        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
+        ast.unparse(
+            ast.fix_missing_locations(
+                Module(body=visitor.test_case_asts[0], type_ignores=[])
+            )
+        )
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
     assert (
-        astor.to_source(Module(body=visitor.test_case_asts[1]))
-        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3\n"
+        ast.unparse(
+            ast.fix_missing_locations(
+                Module(body=visitor.test_case_asts[1], type_ignores=[])
+            )
+        )
+        == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
 
 

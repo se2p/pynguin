@@ -21,7 +21,6 @@ from queue import Empty, Queue
 from types import CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable
 
-import astor
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
@@ -1114,13 +1113,13 @@ class TestCaseExecutor:
     ) -> Exception | None:
         ast_node = exec_ctx.executable_node_for(statement)
         if self._logger.isEnabledFor(logging.DEBUG):
-            self._logger.debug("Executing %s", astor.to_source(ast_node))
+            self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
         except Exception as err:  # pylint: disable=broad-except
-            failed_stmt = astor.to_source(ast_node)
+            failed_stmt = ast.unparse(ast_node)
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )
