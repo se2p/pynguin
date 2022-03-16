@@ -59,7 +59,7 @@ In particular, we want to point to Sec. 2.14 of Google's style guide, regarding
 
 Import from ``__future__`` are not permitted except for the ``from __future__ import
 annotations`` feature that allows more concise type hints.  Pynguin requires at least
-Python 3.8—there is not need to support older versions here!
+Python 3.10—there is not need to support older versions here!
 
 Checks
 ^^^^^^

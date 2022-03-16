@@ -418,7 +418,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
 
     executor_mock.tracer = tracer
-    trace_mock.covered_lines = {}
+    trace_mock.covered_line_ids = {}
 
     chromosome = _get_empty_test()
     _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
@@ -458,7 +458,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
             bg.LineCoverageTestFitness, "_run_test_case_chromosome"
         ) as run_suite_mock:
             result = ExecutionResult()
-            trace_mock.covered_lines = {0, 1, 5, 6, 7}
+            trace_mock.covered_line_ids = {0, 1, 5, 6, 7}
             result.execution_trace = trace_mock
             run_suite_mock.return_value = result
 

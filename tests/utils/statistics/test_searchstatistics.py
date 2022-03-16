@@ -100,7 +100,7 @@ def test_get_output_variables(chromosome, search_statistics):
         RuntimeVariable.ConfigurationId,
         RuntimeVariable.ProjectName,
     ]
-    config.configuration.stopping.budget = 0.25
+    config.configuration.stopping.maximum_search_time = 0.25
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )

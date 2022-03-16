@@ -7,7 +7,7 @@
 """Provides a configuration interface for the test generator."""
 import dataclasses
 import enum
-from typing import List, Optional
+import time
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -63,8 +63,8 @@ class Algorithm(str, enum.Enum):
     This algorithm can be modified to use an archive (cf. Rojas, José Miguel, et al.
     "A detailed investigation of the effectiveness of whole test suite generation."
     Empirical Software Engineering 22.2 (2017): 852-893.), by using the
-    following options: --use-archive True, --seed_from_archive True and
-    --filter_covered_targets_from_test_cluster True.
+    following options: --use-archive True, --seed-from-archive True and
+    --filter-covered-targets-from-test-cluster True.
     """
 
 
@@ -107,22 +107,6 @@ class MutationStrategy(str, enum.Enum):
     """Higher order mutation strategy EachChoice.
     (cf. Mateo et al. Validating Second-Order Mutation at System Level. Article.
     IEEE Transactions on SE 39.4 2013)"""
-
-
-class StoppingCondition(str, enum.Enum):
-    """The different stopping conditions for the algorithms."""
-
-    MAX_TIME = "MAX_TIME"
-    """Stop after a maximum time limit has been reached."""
-
-    MAX_ITERATIONS = "MAX_ITERATIONS"
-    """Stop after a maximum number of algorithm iterations."""
-
-    MAX_TEST_EXECUTIONS = "MAX_TEST_EXECUTIONS"
-    """Stop as soon as a maximum number of tests were executed."""
-
-    MAX_STATEMENT_EXECUTIONS = "MAX_STATEMENT_EXECUTIONS"
-    """Stop as soon as a maximum number of statements were executed."""
 
 
 class TypeInferenceStrategy(str, enum.Enum):
@@ -195,14 +179,14 @@ class StatisticsOutputConfiguration:
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    coverage_metrics: List[CoverageMetric] = dataclasses.field(
+    coverage_metrics: list[CoverageMetric] = dataclasses.field(
         default_factory=lambda: [
             CoverageMetric.BRANCH,
         ]
     )
     """List of coverage metrics that are optimised during the search"""
 
-    output_variables: List[RuntimeVariable] = dataclasses.field(
+    output_variables: list[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
@@ -267,7 +251,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: Optional[int] = None
+    seed: int = time.time_ns()
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True
@@ -384,7 +368,7 @@ class TypeInferenceConfiguration:
     """The maximum level of recursion when calculating the dependencies in the test
     cluster."""
 
-    stub_dir: Optional[str] = None
+    stub_dir: str = ""
     """Path to the pyi-stub files for the StubInferenceStrategy"""
 
 
@@ -504,24 +488,24 @@ class SearchAlgorithmConfiguration:
 
 @dataclasses.dataclass
 class StoppingConfiguration:
-    """Configuration related to when Pynguin should stop."""
+    """Configuration related to when Pynguin should stop.
+    Note that these are mostly soft-limits rather than hard limits, because
+    the search algorithms only check the condition at the start of each algorithm
+    iteration."""
 
-    stopping_condition: StoppingCondition = StoppingCondition.MAX_TIME
-    """What condition should be checked to end the search/test generation."""
+    maximum_search_time: int = -1
+    """Time (in seconds) that can be used for generating tests."""
 
-    budget: int = 600
-    """Time budget (in seconds) that can be used for generating tests."""
-
-    maximum_test_executions: int = 60
+    maximum_test_executions: int = -1
     """Maximum number of test cases to be executed."""
 
-    maximum_statement_executions: int = 600
+    maximum_statement_executions: int = -1
     """Maximum number of test cases to be executed."""
 
     maximum_slicing_time: int = 600
     """Time budget (in seconds) that can be used for slicing."""
 
-    maximum_iterations: int = 60
+    maximum_iterations: int = -1
     """Maximum iterations"""
 
 

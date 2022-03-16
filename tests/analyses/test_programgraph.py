@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import BasicBlock
 
-from pynguin.analyses.controlflow.programgraph import ProgramGraph, ProgramGraphNode
+from pynguin.analyses.controlflow import ProgramGraph, ProgramGraphNode
 
 
 @pytest.fixture

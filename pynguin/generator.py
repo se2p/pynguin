@@ -28,7 +28,7 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pynguin.analyses.seeding.initialpopulationseeding as initpopseeding
+import pynguin.analyses.seeding as seeding  # pylint: disable=consider-using-from-import
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -40,7 +40,6 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.seeding.constantseeding import static_constant_seeding
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.setup.testclustergenerator import TestClusterGenerator
@@ -169,26 +168,25 @@ def _setup_report_dir() -> bool:
 
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
-    if config.configuration.seeding.seed is None:
-        _LOGGER.info("No seed given. Using %d", randomness.RNG.get_seed())
-    else:
-        _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
-        randomness.RNG.seed(config.configuration.seeding.seed)
+    _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
+    randomness.RNG.seed(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding_collection() -> None:
     """Collect constants from SUT, if enabled."""
     if config.configuration.seeding.constant_seeding:
         _LOGGER.info("Collecting constants from SUT.")
-        static_constant_seeding.collect_constants(config.configuration.project_path)
+        seeding.static_constant_seeding.collect_constants(
+            config.configuration.project_path
+        )
 
 
 def _setup_initial_population_seeding(test_cluster: TestCluster):
     """Collect and parse tests for seeding the initial population"""
     if config.configuration.seeding.initial_population_seeding:
         _LOGGER.info("Collecting and parsing provided testcases.")
-        initpopseeding.initialpopulationseeding.test_cluster = test_cluster
-        initpopseeding.initialpopulationseeding.collect_testcases(
+        seeding.initialpopulationseeding.test_cluster = test_cluster
+        seeding.initialpopulationseeding.collect_testcases(
             config.configuration.seeding.initial_population_data
         )
 
@@ -294,10 +292,12 @@ def _run() -> ReturnCode:
     )
     _LOGGER.info("Start generating test cases")
     generation_result = algorithm.generate_tests()
-    if algorithm.stopping_condition.is_fulfilled():
-        _LOGGER.info("Used up all resources (%s).", algorithm.stopping_condition)
-    else:
+    if algorithm.resources_left():
         _LOGGER.info("Algorithm stopped before using all resources.")
+    else:
+        _LOGGER.info("Stopping condition reached")
+        for stop in algorithm.stopping_conditions:
+            _LOGGER.info("%s", stop)
     _LOGGER.info("Stop generating test cases")
 
     # Executions that happen after this point should not influence the
@@ -349,7 +349,11 @@ def _run() -> ReturnCode:
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
-            get_coverage_report(generation_result, executor),
+            get_coverage_report(
+                generation_result,
+                executor,
+                config.configuration.statistics_output.coverage_metrics,
+            ),
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
             datetime.datetime.now(),
         )

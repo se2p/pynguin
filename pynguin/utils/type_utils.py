@@ -320,12 +320,12 @@ def wrap_var_param_type(type_: type | None, param_kind) -> type | None:
     """
     if param_kind == inspect.Parameter.VAR_POSITIONAL:
         if type_ is None:
-            return typing.List[typing.Any]
-        return typing.List[type_]  # type: ignore
+            return list[typing.Any]
+        return list[type_]  # type: ignore
     if param_kind == inspect.Parameter.VAR_KEYWORD:
         if type_ is None:
-            return typing.Dict[str, typing.Any]
-        return typing.Dict[str, type_]  # type: ignore
+            return dict[str, typing.Any]
+        return dict[str, type_]  # type: ignore
     return type_
 
 

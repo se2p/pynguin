@@ -144,7 +144,7 @@ def test_statement_coverage_half_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.covered_lines = {0}
+    trace_mock.covered_line_ids = {0}
     assert ff.compute_line_coverage(trace_mock, known_data_mock) == 0.5
 
 
@@ -153,7 +153,7 @@ def test_statement_coverage_fully_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.covered_lines = {0, 1}
+    trace_mock.covered_line_ids = {0, 1}
     assert ff.compute_line_coverage(trace_mock, known_data_mock) == 1.0
 
 
@@ -162,7 +162,7 @@ def test_statement_coverage_is_not_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.covered_lines = {0}
+    trace_mock.covered_line_ids = {0}
     assert not ff.compute_line_coverage_fitness_is_covered(trace_mock, known_data_mock)
 
 
@@ -171,7 +171,7 @@ def test_statement_coverage_is_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.covered_lines = {0, 1}
+    trace_mock.covered_line_ids = {0, 1}
     assert ff.compute_line_coverage_fitness_is_covered(trace_mock, known_data_mock)
 
 
@@ -188,7 +188,7 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[1] = 2
     trace_mock.executed_predicates[0] = 1
     trace_mock.executed_code_objects.add(0)
-    trace_mock.covered_lines = {0, 1}
+    trace_mock.covered_line_ids = {0, 1}
     result.execution_trace = trace_mock
     results.append(result)
     trace = ff.analyze_results(results)

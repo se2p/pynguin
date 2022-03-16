@@ -22,18 +22,15 @@ from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
 
-import astor
 from bytecode import CellVar, Compare, FreeVar, Instr
 from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
 
-import pynguin.analyses.controlflow.programgraph as pg
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
+from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -323,7 +320,7 @@ class ExecutionTrace:
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
-    covered_lines: OrderedSet[int] = field(default_factory=OrderedSet)
+    covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     # TODO(SiL) add all attributes below to _merge
     executed_instructions: OrderedSet[ExecutedInstruction] = field(
         default_factory=OrderedSet
@@ -346,7 +343,7 @@ class ExecutionTrace:
             self.executed_predicates[key] = self.executed_predicates.get(key, 0) + value
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
-        self.covered_lines.update(other.covered_lines)
+        self.covered_line_ids.update(other.covered_line_ids)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -557,7 +554,7 @@ class PredicateMetaData:
     code_object_id: int
 
     # The node in the program graph, that defines this predicate.
-    node: pg.ProgramGraphNode
+    node: ProgramGraphNode
 
 
 @dataclass
@@ -971,7 +968,7 @@ class ExecutionTracer:
         Args:
             line_id: the if of the line that was visited
         """
-        self._trace.covered_lines.add(line_id)
+        self._trace.covered_line_ids.add(line_id)
 
     def register_line(
         self, code_object_id: int, file_name: str, line_number: int
@@ -1219,6 +1216,22 @@ class ExecutionTracer:
 
     def __repr__(self) -> str:
         return "ExecutionTracer"
+
+    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
+        """Convenience method to translate line ids to line numbers.
+
+        Args:
+            line_ids: The ids that should be translated.
+
+        Returns:
+            The line numbers.
+        """
+        return OrderedSet(
+            [
+                self._known_data.existing_lines[line_id].line_number
+                for line_id in line_ids
+            ]
+        )
 
 
 @dataclass
@@ -1726,13 +1739,13 @@ class TestCaseExecutor:
     ) -> Exception | None:
         ast_node = exec_ctx.executable_node_for(statement)
         if self._logger.isEnabledFor(logging.DEBUG):
-            self._logger.debug("Executing %s", astor.to_source(ast_node))
+            self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
         except Exception as err:  # pylint: disable=broad-except
-            failed_stmt = astor.to_source(ast_node)
+            failed_stmt = ast.unparse(ast_node)
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )

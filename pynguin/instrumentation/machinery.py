@@ -19,7 +19,7 @@ from types import CodeType
 from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
-from pynguin.analyses.seeding.constantseeding import dynamic_constant_seeding
+from pynguin.analyses.seeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,

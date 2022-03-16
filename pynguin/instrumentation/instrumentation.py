@@ -15,10 +15,8 @@ from typing import TYPE_CHECKING, Union, Tuple
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
-import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.controlflow.controldependencegraph import ControlDependenceGraph
-from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
+from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
+from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.slicer.instruction import UniqueInstruction
 from pynguin.testcase.execution import (
     CodeObjectMetaData,
@@ -27,7 +25,7 @@ from pynguin.testcase.execution import (
 )
 
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow.programgraph import ProgramGraphNode
+    from pynguin.analyses.controlflow import ProgramGraphNode
 
 CODE_OBJECT_ID_KEY = "code_object_id"
 
@@ -245,13 +243,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances and thus
     branch coverage."""
 
-    # As of CPython 3.8, there are a few compare ops for which we can't really
-    # compute a sensible branch distance. So for now, we just ignore those
-    # comparisons and just track their boolean value.
-    # As of CPython 3.9, this is no longer a compare op but instead
-    # a JUMP_IF_NOT_EXC_MATCH, which we also handle as boolean based jump.
-    _IGNORED_COMPARE_OPS: set[Compare] = {Compare.EXC_MATCH}
-
     # Conditional jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
 
@@ -339,20 +330,11 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
-            and (
-                (
-                    maybe_compare.name == "COMPARE_OP"
-                    and maybe_compare.arg not in self._IGNORED_COMPARE_OPS
-                )
-                or maybe_compare.name in ("IS_OP", "CONTAINS_OP")
-            )
+            and maybe_compare.name in ("COMPARE_OP", "IS_OP", "CONTAINS_OP")
         ):
             return self._instrument_compare_based_conditional_jump(
                 block, code_object_id, node
             )
-        # Up to 3.9, there was COMPARE_OP EXC_MATCH which was handled below
-        # Beginning with 3.9, there is a combined compare+jump op, which is handled
-        # here.
         if jump.name == "JUMP_IF_NOT_EXC_MATCH":
             return self._instrument_exception_based_conditional_jump(
                 block, code_object_id, node
@@ -423,15 +405,18 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         )
         operation = block[self._COMPARE_OP_POS]
 
-        if operation.name == "COMPARE_OP":
-            compare = operation.arg
-        elif operation.name == "IS_OP":
-            # Beginning with 3.9, there are separate OPs for various comparisons.
-            compare = Compare.IS_NOT if operation.arg else Compare.IS
-        elif operation.name == "CONTAINS_OP":
-            compare = Compare.NOT_IN if operation.arg else Compare.IN
-        else:
-            raise RuntimeError(f"Unknown comparison OP {operation}")
+        match operation.name:
+            case "COMPARE_OP":
+                compare = operation.arg
+            case "IS_OP":
+                # Beginning with 3.9, there are separate OPs for various comparisons.
+                # Map them back to the old operations, so we can use the enum from the
+                # bytecode library.
+                compare = Compare.IS_NOT if operation.arg else Compare.IS
+            case "CONTAINS_OP":
+                compare = Compare.NOT_IN if operation.arg else Compare.IN
+            case _:
+                raise RuntimeError(f"Unknown comparison OP {operation}")
 
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
@@ -624,22 +609,19 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         basic_block: BasicBlock,
         offset: int,
     ) -> int:
-        if not is_return_none_basic_block(basic_block):
-            #  iterate over instructions after the fist one in BB,
-            #  put new instructions in the block for each line
-            file_name = cfg.bytecode_cfg().filename
-            lineno = -1
-            instr_index = 0
-            while instr_index < len(basic_block):
-                if basic_block[instr_index].lineno != lineno:
-                    lineno = basic_block[instr_index].lineno
-                    line_id = self._tracer.register_line(
-                        code_object_id, file_name, lineno
-                    )
-                    instr_index += (  # increment by the amount of instructions inserted
-                        self.instrument_line(basic_block, instr_index, line_id, lineno)
-                    )
-                instr_index += 1
+        #  iterate over instructions after the fist one in BB,
+        #  put new instructions in the block for each line
+        file_name = cfg.bytecode_cfg().filename
+        lineno = None
+        instr_index = 0
+        while instr_index < len(basic_block):
+            if basic_block[instr_index].lineno != lineno:
+                lineno = basic_block[instr_index].lineno
+                line_id = self._tracer.register_line(code_object_id, file_name, lineno)
+                instr_index += (  # increment by the amount of instructions inserted
+                    self.instrument_line(basic_block, instr_index, line_id, lineno)
+                )
+            instr_index += 1
         return offset
 
     def instrument_line(
@@ -1794,24 +1776,6 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             Instr("POP_TOP", lineno=lineno),
         ]
         self._logger.debug("Instrumented compare_op")
-
-
-def is_return_none_basic_block(basic_block: BasicBlock) -> bool:
-    """Checks if a node is a "return None" line.
-
-    Args:
-        basic_block: The basic block that needs to be checked
-
-    Returns:
-        True, if the node is a "return None" line, false otherwise.
-    """
-    # TODO(fk) there seem to be cases where this check is not sufficient.
-    # Not sure how to detect those.
-    return (
-        len(basic_block) == 2
-        and basic_block[0] == Instr("LOAD_CONST", None, lineno=basic_block[0].lineno)
-        and basic_block[1].opcode == op.RETURN_VALUE
-    )
 
 
 def is_traced_instruction(instr: Union[Instr, UniqueInstruction]) -> bool:

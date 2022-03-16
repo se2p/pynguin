@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Callable, Dict, Iterable, List, Union
+from typing import Callable, Iterable, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,8 +58,8 @@ def test_naming_scope_known_indices_has_name(naming_scope):
         (int, "int_0"),
         (str, "str_0"),
         (Callable[[int, str], bool], "callable_0"),
-        (Dict[int, str], "dict_0"),
-        (List[str], "list_0"),
+        (dict[int, str], "dict_0"),
+        (list[str], "list_0"),
         (list, "list_0"),
         (Union[int, str, bool], "var_0"),  # For union we get var0
         (Iterable[int], "iterable_0"),
@@ -77,7 +77,7 @@ def test_variable_type_conversion(variable_type_naming_scope, tp, name):
         (int, "int_0", "int_1"),
         (str, "str_0", "str_1"),
         (Callable[[int, str], bool], "callable_0", "callable_1"),
-        (Dict[int, str], "dict_0", "dict_1"),
+        (dict[int, str], "dict_0", "dict_1"),
     ],
 )
 def test_variable_type_counter(variable_type_naming_scope, tp, name0, name1):

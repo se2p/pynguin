@@ -4,12 +4,10 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-
 import pytest
 from bytecode import Bytecode
 
-from pynguin.analyses.controlflow.cfg import CFG
-from tests.conftest import python38and39, python310plus
+from pynguin.analyses.controlflow import CFG
 from tests.fixtures.programgraph.whileloop import Foo
 
 
@@ -189,152 +187,6 @@ POP_JUMP_IF_TRUE ProgramGraphNode";
 LOAD_GLOBAL 'print'
 LOAD_CONST 'foo'
 CALL_FUNCTION 1
-POP_TOP";
-"ProgramGraphNode(9)
-LOAD_CONST None
-RETURN_VALUE";
-"ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)";
-"ProgramGraphNode(0)
-LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(1)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'a'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_FORWARD ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(0)
-LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(2)
-LOAD_FAST 'foo'
-LOAD_CONST 42
-COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode"  [branch_value=False, label=False];
-"ProgramGraphNode(1)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'a'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_FORWARD ProgramGraphNode" -> "ProgramGraphNode(4)
-LOAD_FAST 'foo'
-GET_ITER";
-"ProgramGraphNode(2)
-LOAD_FAST 'foo'
-LOAD_CONST 42
-COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(3)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'bar'
-CALL_FUNCTION 1
-POP_TOP"  [branch_value=True, label=True];
-"ProgramGraphNode(2)
-LOAD_FAST 'foo'
-LOAD_CONST 42
-COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(4)
-LOAD_FAST 'foo'
-GET_ITER"  [branch_value=False, label=False];
-"ProgramGraphNode(3)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'bar'
-CALL_FUNCTION 1
-POP_TOP" -> "ProgramGraphNode(4)
-LOAD_FAST 'foo'
-GET_ITER";
-"ProgramGraphNode(4)
-LOAD_FAST 'foo'
-GET_ITER" -> "ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode" -> "ProgramGraphNode(6)
-STORE_FAST 'f'
-LOAD_GLOBAL 'print'
-LOAD_FAST 'f'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode" -> "ProgramGraphNode(7)
-LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode"  [branch_value=False, label=False];
-"ProgramGraphNode(6)
-STORE_FAST 'f'
-LOAD_GLOBAL 'print'
-LOAD_FAST 'f'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode" -> "ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(7)
-LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode" -> "ProgramGraphNode(9)
-LOAD_CONST None
-RETURN_VALUE"  [branch_value=True, label=True];
-"ProgramGraphNode(7)
-LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode" -> "ProgramGraphNode(8)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'foo'
-CALL_FUNCTION 1
-POP_TOP"  [branch_value=False, label=False];
-"ProgramGraphNode(8)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'foo'
-CALL_FUNCTION 1
-POP_TOP" -> "ProgramGraphNode(9)
-LOAD_CONST None
-RETURN_VALUE";
-"ProgramGraphNode(9)
-LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)" -> "ProgramGraphNode(0)
-LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode";
-}
-""",
-            marks=python38and39,
-            id="Python 3.8 and 3.9, return None is duplicated.",
-        ),
-        pytest.param(
-            """strict digraph  {
-"ProgramGraphNode(0)
-LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(1)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'a'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_FORWARD ProgramGraphNode";
-"ProgramGraphNode(2)
-LOAD_FAST 'foo'
-LOAD_CONST 42
-COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(3)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'bar'
-CALL_FUNCTION 1
-POP_TOP";
-"ProgramGraphNode(4)
-LOAD_FAST 'foo'
-GET_ITER";
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(6)
-STORE_FAST 'f'
-LOAD_GLOBAL 'print'
-LOAD_FAST 'f'
-CALL_FUNCTION 1
-POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode";
-"ProgramGraphNode(7)
-LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode";
-"ProgramGraphNode(8)
-LOAD_GLOBAL 'print'
-LOAD_CONST 'foo'
-CALL_FUNCTION 1
 POP_TOP
 LOAD_CONST None
 RETURN_VALUE";
@@ -442,7 +294,6 @@ LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE ProgramGraphNode";
 }
 """,
-            marks=python310plus,
             id="Python 3.10+, extract return None into separate node",
         ),
     ],

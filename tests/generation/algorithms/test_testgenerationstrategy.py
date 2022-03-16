@@ -20,10 +20,10 @@ class DummyTestStrategy(TestGenerationStrategy):
 
 def test_progress():
     strategy = DummyTestStrategy()
-    stopping = MaxStatementExecutionsStoppingCondition()
+    stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
     stopping.after_statement_execution(None, None)
-    strategy.stopping_condition = stopping
+    strategy.stopping_conditions = [stopping]
     assert strategy.progress() == 0.1
 
 

@@ -23,6 +23,9 @@ class DummyStopping(StoppingCondition):
     def set_limit(self, limit: int) -> None:
         pass  # pragma: no cover
 
+    def __str__(self):
+        return ""  # pragma: no cover
+
 
 def test_nothing_on_after_test_case_execution():
     stopping = DummyStopping()

@@ -234,7 +234,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         existing_lines = self._executor.tracer.get_known_data().existing_lines
-        return len(existing_lines) - len(merged_trace.covered_lines)
+        return len(existing_lines) - len(merged_trace.covered_line_ids)
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -754,7 +754,7 @@ def compute_line_coverage_fitness_is_covered(
     Returns:
         True, if all lines were covered, false otherwise
     """
-    return len(trace.covered_lines) == len(known_data.existing_lines)
+    return len(trace.covered_line_ids) == len(known_data.existing_lines)
 
 
 def compute_checked_coverage_fitness_is_covered(
@@ -823,7 +823,7 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
-        covered = len(trace.covered_lines)
+        covered = len(trace.covered_line_ids)
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

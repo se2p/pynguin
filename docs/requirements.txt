@@ -1,6 +1,5 @@
 sphinx==4.4.0
 sphinx-autodoc-typehints==1.16.0
-astor==0.8.1
 simple-parsing==0.0.18
 bytecode==0.13.0
 typing_inspect==0.7.1

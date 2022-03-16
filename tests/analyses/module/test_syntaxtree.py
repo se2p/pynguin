@@ -10,7 +10,7 @@ Reilly under MIT license."""
 import ast
 import importlib
 import inspect
-from typing import Iterable, Set, Union
+from typing import Iterable
 
 import pytest
 
@@ -46,8 +46,8 @@ def function_analysis() -> FunctionAnalysisVisitor:
 
 
 def __get_names_from_function_definitions(
-    definitions: Iterable[Union[ast.FunctionDef, ast.AsyncFunctionDef]]
-) -> Set[str]:
+    definitions: Iterable[ast.FunctionDef | ast.AsyncFunctionDef],
+) -> set[str]:
     return {func.name for func in definitions}
 
 

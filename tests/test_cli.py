@@ -260,7 +260,7 @@ def test_load_configuration_from_file(tmp_path):
             str(tmp_path),
             "--output_path",
             str(tmp_path),
-            "--budget",
+            "--maximum_search_time",
             "50",
         ]
     )
@@ -272,6 +272,6 @@ def test_load_configuration_from_file(tmp_path):
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
     )
     expected.seeding.seed = 42
-    expected.stopping.budget = 50
+    expected.stopping.maximum_search_time = 50
     expected.statistics_output.configuration_id = "merge checker"
     assert configuration == expected

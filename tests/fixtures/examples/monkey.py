@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Any, List, Union
+from typing import Any
 
 
 class Monkey:
@@ -30,12 +30,12 @@ class Monkey:
         return monkey
 
     @staticmethod
-    def eat_bananas(number_bananas: Union[int, float]) -> Union[int, float]:
+    def eat_bananas(number_bananas: int | float) -> int | float:
         print("I ate " + str(number_bananas) + " bananas")
         return number_bananas
 
     @staticmethod
-    def all_my_stuff(items: List[Any]) -> None:
+    def all_my_stuff(items: list[Any]) -> None:
         items.append(" whoopsie daisy")
         for item in items:
             print("I own " + str(item))

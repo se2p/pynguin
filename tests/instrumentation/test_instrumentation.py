@@ -15,7 +15,7 @@ from bytecode import Bytecode
 from bytecode import Compare
 
 from pynguin.analyses.controlflow.cfg import CFG
-from pynguin.analyses.seeding.constantseeding import DynamicConstantSeeding
+from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -25,12 +25,18 @@ from pynguin.instrumentation.instrumentation import (
     basic_block_is_assertion_error,
 )
 from pynguin.testcase.execution import ExecutionTracer
-from tests.conftest import python38, python39plus
 
 
 @pytest.fixture()
 def simple_module():
     simple = importlib.import_module("tests.fixtures.instrumentation.simple")
+    simple = importlib.reload(simple)
+    return simple
+
+
+@pytest.fixture()
+def artificial_none_module():
+    simple = importlib.import_module("tests.fixtures.linecoverage.artificial_none")
     simple = importlib.reload(simple)
     return simple
 
@@ -219,16 +225,16 @@ def test_avoid_duplicate_instrumentation(simple_module):
 @pytest.mark.parametrize(
     "function_name, branchless_function_count, branches_count",
     [
-        pytest.param("simple_function", 1, 0),
-        pytest.param("cmp_predicate", 0, 1),
-        pytest.param("bool_predicate", 0, 1),
-        pytest.param("for_loop", 0, 1),
-        pytest.param("full_for_loop", 0, 1),
-        pytest.param("multi_loop", 0, 3),
-        pytest.param("comprehension", 1, 2),
-        pytest.param("lambda_func", 1, 1),
-        pytest.param("conditional_assignment", 0, 1),
-        pytest.param("conditionally_nested_class", 2, 1),
+        ("simple_function", 1, 0),
+        ("cmp_predicate", 0, 1),
+        ("bool_predicate", 0, 1),
+        ("for_loop", 0, 1),
+        ("full_for_loop", 0, 1),
+        ("multi_loop", 0, 3),
+        ("comprehension", 1, 2),
+        ("lambda_func", 1, 1),
+        ("conditional_assignment", 0, 1),
+        ("conditionally_nested_class", 2, 1),
     ],
 )
 def test_integrate_branch_distance_instrumentation(
@@ -267,7 +273,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
 
 @pytest.mark.parametrize(
     "op",
-    [pytest.param(op) for op in Compare if op != Compare.EXC_MATCH],
+    [op for op in Compare if op != Compare.EXC_MATCH],
 )
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
@@ -282,45 +288,7 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
-@python38
 def test_exception():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise ValueError()
-        except ValueError:
-            pass
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        func()
-        trace_mock.assert_called_with(True, 0)
-
-
-@python38
-def test_exception_no_match():
-    tracer = ExecutionTracer()
-
-    def func():
-        try:
-            raise RuntimeError()
-        except ValueError:
-            pass  # pragma: no cover
-
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_bool_predicate") as trace_mock:
-        with pytest.raises(RuntimeError):
-            func()
-        trace_mock.assert_called_with(False, 0)
-
-
-@python39plus
-def test_exception_39plus():
     tracer = ExecutionTracer()
 
     def func():
@@ -337,15 +305,14 @@ def test_exception_39plus():
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
-@python39plus
-def test_exception_no_match_39plus():
+def test_exception_no_match():
     tracer = ExecutionTracer()
 
     def func():
         try:
             raise RuntimeError()
         except ValueError:
-            pass
+            pass  # pragma: no cover
 
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
@@ -424,19 +391,19 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.explicit_none_return()
-    assert tracer.get_trace().covered_lines
-    assert {0, 1} == tracer.get_trace().covered_lines
+    assert tracer.get_trace().covered_line_ids
+    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == {77, 78}
 
 
 @pytest.mark.parametrize(
-    "value1, value2, expected_ids",
+    "value1, value2, expected_lines",
     [
-        pytest.param(0, 1, {0, 2}),
-        pytest.param(1, 0, {1, 2}),
+        pytest.param(0, 1, {14, 17}),
+        pytest.param(1, 0, {14, 15}),
     ],
 )
 def test_tracking_covered_statements_cmp_predicate(
-    simple_module, value1, value2, expected_ids
+    simple_module, value1, value2, expected_lines
 ):
     tracer = ExecutionTracer()
 
@@ -447,18 +414,22 @@ def test_tracking_covered_statements_cmp_predicate(
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.cmp_predicate(value1, value2)
-    assert tracer.get_trace().covered_lines
-    assert expected_ids == tracer.get_trace().covered_lines
+    assert tracer.get_trace().covered_line_ids
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
 
 
 @pytest.mark.parametrize(
-    "value, expected_ids",
+    "value, expected_lines",
     [
-        pytest.param(False, {0, 2}),
-        pytest.param(True, {1, 2}),
+        pytest.param(False, {21, 24}),
+        pytest.param(True, {21, 22}),
     ],
 )
-def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_ids):
+def test_tracking_covered_statements_bool_predicate(
+    simple_module, value, expected_lines
+):
     tracer = ExecutionTracer()
 
     adapter = LineCoverageInstrumentation(tracer)
@@ -468,18 +439,20 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.bool_predicate(value)
-    assert tracer.get_trace().covered_lines
-    assert expected_ids == tracer.get_trace().covered_lines
+    assert tracer.get_trace().covered_line_ids
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
 
 
 @pytest.mark.parametrize(
-    "number, expected_ids",
+    "number, expected_lines",
     [
-        pytest.param(0, {0}),
-        pytest.param(1, {0, 1}),
+        pytest.param(0, {33}),
+        pytest.param(1, {33, 34}),
     ],
 )
-def test_tracking_covered_statements_for_loop(simple_module, number, expected_ids):
+def test_tracking_covered_statements_for_loop(simple_module, number, expected_lines):
     tracer = ExecutionTracer()
 
     adapter = LineCoverageInstrumentation(tracer)
@@ -489,18 +462,20 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_id
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.full_for_loop(number)
-    assert tracer.get_trace().covered_lines
-    assert expected_ids == tracer.get_trace().covered_lines
+    assert tracer.get_trace().covered_line_ids
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
 
 
 @pytest.mark.parametrize(
-    "number, expected_ids",
+    "number, expected_lines",
     [
-        pytest.param(0, {2}),
-        pytest.param(1, {0, 1, 2}),
+        pytest.param(0, {48}),
+        pytest.param(1, {48, 49, 50}),
     ],
 )
-def test_tracking_covered_statements_while_loop(simple_module, number, expected_ids):
+def test_tracking_covered_statements_while_loop(simple_module, number, expected_lines):
     tracer = ExecutionTracer()
 
     adapter = LineCoverageInstrumentation(tracer)
@@ -510,8 +485,40 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     )
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.while_loop(number)
-    assert tracer.get_trace().covered_lines
-    assert expected_ids == tracer.get_trace().covered_lines
+    assert tracer.get_trace().covered_line_ids
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
+
+
+@pytest.mark.parametrize(
+    "func,arg,expected_lines",
+    [
+        ("explicit_return_none", None, {8}),
+        ("empty_function", None, {11}),
+        ("pass_function", None, {16}),
+        ("only_return_on_branch", True, {20, 21}),
+        ("only_return_on_branch", False, {20}),
+        ("return_on_both_branches", True, {25, 26}),
+        ("return_on_both_branches", False, {25, 27}),
+        ("pass_on_both", True, {31, 32}),
+        ("pass_on_both", False, {31, 34}),
+        ("for_return", [], {38}),
+        ("for_return", [1], {38, 39}),
+    ],
+)
+def test_expected_covered_lines(func, arg, expected_lines, artificial_none_module):
+    tracer = ExecutionTracer()
+
+    adapter = LineCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func_object = getattr(artificial_none_module, func)
+    func_object.__code__ = transformer.instrument_module(func_object.__code__)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    func_object(arg)
+    assert (
+        tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    )
 
 
 @pytest.fixture()

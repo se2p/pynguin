@@ -13,7 +13,7 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
 
 @pytest.fixture
 def stopping_condition():
-    return MaxIterationsStoppingCondition()
+    return MaxIterationsStoppingCondition(60)
 
 
 def test_set_get_limit(stopping_condition):

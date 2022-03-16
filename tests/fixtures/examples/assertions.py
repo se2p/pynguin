@@ -4,13 +4,11 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Union
-
 static_state = 0
 
 
 class Human:
-    def __init__(self, name: str, number: Union[int, float]) -> None:
+    def __init__(self, name: str, number: int | float) -> None:
         self._name = name
         self._number = number
 
@@ -20,7 +18,7 @@ class Human:
     def get_name(self) -> str:
         return self._name
 
-    def get_number(self) -> Union[int, float]:
+    def get_number(self) -> int | float:
         return self._number
 
     def static_state(self) -> float:

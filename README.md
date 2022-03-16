@@ -61,9 +61,12 @@ your system.
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.8, 3.9, or 3.10 (we have not yet tested with Python
+- You have installed Python 3.10 (we have not yet tested with Python
   3.11, there might be some problems due to changed internals regarding the byte-code
   instrumentation).
+
+  **Attention:** Pynguin now requires Python 3.10!  Older versions are no longer 
+  supported!
 - You have a recent Linux/macOS/Windows machine.
 
 Please consider reading the [online documentation](https://pynguin.readthedocs.io)

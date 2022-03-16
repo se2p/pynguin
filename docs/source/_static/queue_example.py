@@ -33,7 +33,7 @@ class Queue:
             self.tail = 0
         return True
 
-    def dequeue(self) -> Optional[int]:
+    def dequeue(self) -> int | None:
         if self.size == 0:
             return None
         x = self.data[self.head]
