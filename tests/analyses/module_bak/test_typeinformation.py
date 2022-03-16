@@ -10,11 +10,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.module.inheritance import (
+from pynguin.analyses.module_bak.inheritance import (
     ClassInformation,
     build_inheritance_graph,
 )
-from pynguin.analyses.module.typeinformation import (
+from pynguin.analyses.module_bak.typeinformation import (
     ConcreteType,
     Parameter,
     ReturnType,

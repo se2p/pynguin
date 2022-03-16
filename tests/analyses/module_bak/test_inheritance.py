@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.module.inheritance import (
+from pynguin.analyses.module_bak.inheritance import (
     ClassInformation,
     build_class_information,
     build_inheritance_graph,

@@ -14,7 +14,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Iterator, NamedTuple
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
-    from pynguin.analyses.module.inheritance import ClassInformation, InheritanceGraph
+    from pynguin.analyses.module_bak.inheritance import (
+        ClassInformation,
+        InheritanceGraph,
+    )
 
 
 # pylint: disable=too-few-public-methods
