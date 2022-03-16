@@ -174,6 +174,7 @@ clean_build:
 	rm -rf docs/_build
 	find . -name pynguin-report -type d | xargs rm -rf {};
 	find . -name ".coverage*" -type f | xargs rm -rf {};
+	find . -name "*.pyc" -type f | xargs rm -rf {};
 
 .PHONY: clean
 clean: clean_build clean_docker
