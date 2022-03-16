@@ -38,6 +38,7 @@ unit tests for your project
    user/quickstart
    user/assertions
    user/reproducible
+   user/coverage
 
 The Contributor Guide
 ---------------------
