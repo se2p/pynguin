@@ -666,7 +666,6 @@ def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
     Returns:
         Whether the given basic block is the throwing of an assertion error.
     """
-    # TODO(SiL) only works in python 3.9
     return (
         basic_block[0].opcode == op.LOAD_ASSERTION_ERROR
         and basic_block[1].opcode == op.RAISE_VARARGS
@@ -1459,6 +1458,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         block_before_assertion: BasicBlock,
     ) -> None:
         # find the index of the last POP_JUMP_IF_TRUE instruction inside the block
+        # this should normally be the last instruction inside the block, but previous
+        # instrumentations might have added instructions after the pop_jump
         pop_jump_index = next(
             i for i in reversed(range(len(block_before_assertion)))
             if block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE

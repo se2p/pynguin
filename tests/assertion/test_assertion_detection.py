@@ -31,9 +31,9 @@ def test_multiple_assertions():
     trace = _trace_checked_coverage("tests.fixtures.assertion.multiple")
 
     assert len(trace.traced_assertions) == 3
-    assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 15
-    assert trace.traced_assertions[1].traced_assertion_pop_jump.lineno == 16
-    assert trace.traced_assertions[2].traced_assertion_pop_jump.lineno == 17
+    assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 16
+    assert trace.traced_assertions[1].traced_assertion_pop_jump.lineno == 17
+    assert trace.traced_assertions[2].traced_assertion_pop_jump.lineno == 18
 
 
 def test_loop_assertions():
@@ -41,7 +41,7 @@ def test_loop_assertions():
 
     assert len(trace.traced_assertions) == 5
     for assertion in trace.traced_assertions:
-        assert assertion.traced_assertion_pop_jump.lineno == 24
+        assert assertion.traced_assertion_pop_jump.lineno == 13
 
 
 def _trace_checked_coverage(module_name: str) -> ExecutionTrace:

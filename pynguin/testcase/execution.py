@@ -1164,9 +1164,8 @@ class ExecutionTracer:
         offset: int,
     ) -> None:
         """Track the beginning of an assertion in the trace."""
-        if self._current_assertion:
-            # Start of a new assertion, but old not finished -> end old here
-            self._trace.end_assertion()
+        # previous assertion should be finished being tracked
+        assert not self._current_assertion
 
         pop_jump_instr = ExecutedInstruction(module, code_object_id, node_id, opcode, None, lineno, offset)
         self._current_assertion = self._trace.start_assertion(pop_jump_instr)
@@ -1175,6 +1174,7 @@ class ExecutionTracer:
         """Track the end of an assertion in the trace."""
         assert self._current_assertion
         self._trace.end_assertion()
+        self._current_assertion = None
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
