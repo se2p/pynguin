@@ -30,15 +30,15 @@ example_modules_path = (
 
 # TODO(SiL) was marked as 'ExpectedFailure', how to adjust?
 def test_data_dependency_composite():
-    # Composite type dependencies, which are way to broad
+    # Composite type dependencies, which are way too broad
     def func():
         # noinspection PyListCreation
         foo_list = [1, 2, 3]  # the only list operation which should be included
         foo_list.append(
             4
-        )  # should no be included, and is not included (good and limitation at the same time)
-        foo_list += [5]  # should no be included, but is
-        foo_list[2:3] = [0, 0]  # should no be included, but is
+        )  # should not be included, and is not included (good and limitation at the same time)
+        foo_list += [5]  # should not be included, but is
+        foo_list[2:3] = [0, 0]  # should not be included, but is
 
         result = foo_list[0]  # correctly included
         return result  # correctly included
@@ -60,7 +60,7 @@ def test_data_dependency_composite():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -129,9 +129,7 @@ def test_dunder_definition():
     expected_instructions.extend(function_block)
     expected_instructions.extend(nested_class_block)
     expected_instructions.extend(init_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_dunder_definition"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -170,9 +168,7 @@ def test_mod_untraced_object():
 
     expected_instructions = []
     expected_instructions.extend(function_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_mod_untraced_object"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -298,7 +294,7 @@ def test_exception():
     expected_instructions.extend(function_block)
     expected_instructions.extend(try_block)
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 

@@ -43,7 +43,7 @@ def test_data_dependency_1():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -64,7 +64,7 @@ def test_data_dependency_2():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -90,7 +90,7 @@ def test_data_dependency_3():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -326,7 +326,7 @@ def test_simple_control_dependency_1():
     expected_instructions.extend(if_basic_block)
     expected_instructions.extend(return_basic_block)
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -362,7 +362,7 @@ def test_simple_control_dependency_2():
     expected_instructions.extend(init_basic_block)
     expected_instructions.extend(return_basic_block)
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -433,7 +433,7 @@ def test_simple_control_dependency_3():
     expected_instructions.extend(elif_block)
     expected_instructions.extend(return_block)
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -503,7 +503,7 @@ def test_simple_control_dependency_4():
     expected_instructions.extend(else_block)
     expected_instructions.extend(return_block)
 
-    dynamic_slice = slice_function_at_return(func.__code__)
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 

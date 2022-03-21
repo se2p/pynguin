@@ -9,8 +9,9 @@
 
 import importlib.util
 import py_compile
+import threading
 from types import CodeType
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 from bytecode import BasicBlock, Instr
 
@@ -102,7 +103,7 @@ def _contains_name_argtype(
 
 
 def slice_function_at_return(
-    function_code: CodeType, test_name: str = None
+    function: Callable
 ) -> DynamicSlice:
     # Setup
     tracer = ExecutionTracer()
@@ -110,10 +111,10 @@ def slice_function_at_return(
     instrumentation_transformer = InstrumentationTransformer(tracer, [instrumentation])
 
     # Instrument and call example function
-    instr_function = instrumentation_transformer.instrument_module(function_code)
+    function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
     tracer.reset()
-    tracer.current_test = test_name
-    exec(instr_function)
+    tracer.current_thread_identifier = threading.current_thread().ident
+    function()
 
     # Slice
     trace = tracer.get_trace()

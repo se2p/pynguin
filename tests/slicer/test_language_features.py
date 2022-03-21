@@ -80,9 +80,7 @@ def test_simple_loop():
     expected_instructions.extend(loop_block)
     expected_instructions.extend(return_block)
 
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_simple_loop"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -321,9 +319,7 @@ def test_with_extended_arg():
 
     expected_instructions = []
     expected_instructions.extend(module_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_with_extended_arg"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -384,9 +380,7 @@ def test_nested_class():
     expected_instructions = []
     expected_instructions.extend(function_block)
     expected_instructions.extend(nested_class_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_nested_class"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -494,9 +488,7 @@ def test_nested_class_2():
     expected_instructions.extend(function_block)
     expected_instructions.extend(foo_block)
     expected_instructions.extend(bar_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_nested_class_2"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert func() == [1, 2]
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
@@ -543,7 +535,7 @@ def test_lambda():
     expected_instructions = []
     expected_instructions.extend(function_block)
     expected_instructions.extend(lambda_block)
-    dynamic_slice = slice_function_at_return(func.__code__, test_name="test_lambda")
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -581,9 +573,7 @@ def test_builtin_addresses():
 
     expected_instructions = []
     expected_instructions.extend(function_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_builtin_addresses"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -726,9 +716,7 @@ def test_object_modification_call():
     expected_instructions.extend(nested_class_block)
     expected_instructions.extend(init_block)
     expected_instructions.extend(inc_x_block)
-    dynamic_slice = slice_function_at_return(
-        func.__code__, test_name="test_object_modification_call"
-    )
+    dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 

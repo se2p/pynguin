@@ -668,7 +668,6 @@ class ExecutionTracer:
         self._init_trace()
         self._enabled = True
         self._current_thread_identifier: int | None = None
-        self._current_test: str = ""
         self._setup: bool = False
         self._known_object_addresses: Set[int] = set()
         self._current_assertion: Optional[TracedAssertion] = None
@@ -707,24 +706,6 @@ class ExecutionTracer:
         copied = ExecutionTrace()
         copied.merge(self._import_trace)
         return copied
-
-    @property
-    def current_test(self) -> str:
-        """The name of the test currently executed.
-
-        Returns:
-            The name of the test currently executed.
-        """
-        return self._current_test
-
-    @current_test.setter
-    def current_test(self, current_test: str) -> None:
-        """Set the name of the test currently traced.
-
-        Args:
-            current_test: the new test name used for this trace
-        """
-        self._current_test = current_test
 
     @property
     def test_id(self) -> str:
