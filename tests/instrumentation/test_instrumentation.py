@@ -13,7 +13,9 @@ from unittest.mock import MagicMock, call
 import pytest
 from bytecode import Bytecode
 from bytecode import Compare
+from ordered_set import OrderedSet
 
+import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
@@ -21,10 +23,15 @@ from pynguin.instrumentation.instrumentation import (
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
     get_nodes_around_node,
     basic_block_is_assertion_error,
 )
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import (
+    ExecutionTracer,
+    ExecutedMemoryInstruction,
+    ExecutedReturnInstruction
+)
 
 
 @pytest.fixture()
@@ -269,6 +276,70 @@ def test_integrate_line_coverage_instrumentation(simple_module):
     assert tracer.get_known_data().existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
     assert {0, 1, 2, 3, 4, 5, 6} == tracer.get_known_data().existing_lines.keys()
+
+
+def test_offset_calculation_checked_coverage_instrumentation(simple_module):
+    """Checks if the instructions in the checked coverage are traced correctly.
+    The disassembled method 'bool_predicate' looks as such:
+    21          0 LOAD_FAST                0 (a)
+                2 POP_JUMP_IF_FALSE        4 (to 8)
+
+    22          4 LOAD_CONST               1 (1)
+                6 RETURN_VALUE
+
+    24     >>    8 LOAD_CONST               2 (0)
+                10 RETURN_VALUE
+    """
+    expected_executed_instructions = OrderedSet([
+        ExecutedMemoryInstruction(
+            file=simple_module.__file__,
+            code_object_id=0,
+            node_id=0,
+            opcode=op.LOAD_FAST,
+            argument='a',
+            lineno=21,
+            offset=0,
+            arg_address=0,
+            is_mutable_type=True,
+            object_creation=True
+        ),
+        ExecutedReturnInstruction(
+            file=simple_module.__file__,
+            code_object_id=0,
+            node_id=2,
+            opcode=op.RETURN_VALUE,
+            argument=None,
+            lineno=24,
+            offset=10
+        ),
+    ])
+
+    tracer = ExecutionTracer()
+    function_callable = getattr(simple_module, "bool_predicate")
+    adapter = CheckedCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+
+    function_callable.__code__ = transformer.instrument_module(
+        function_callable.__code__
+    )
+    function_callable(False)
+
+    trace = tracer.get_trace()
+    assert trace.executed_instructions
+    assert len(trace.executed_instructions) == 2
+    for i in range(2):
+        expected_instr = expected_executed_instructions[i]
+        actual_instr = trace.executed_instructions[i]
+
+        # can not compare expected and actual with equals, since the attribute
+        # access instruction holds an argument address that changes with each
+        # execution and can not be set in the expected element
+        assert type(expected_instr) == type(actual_instr)
+        assert expected_instr.file == actual_instr.file
+        assert expected_instr.code_object_id == actual_instr.code_object_id
+        assert expected_instr.opcode == actual_instr.opcode
+        assert expected_instr.lineno == actual_instr.lineno
+        assert expected_instr.offset == actual_instr.offset
 
 
 @pytest.mark.parametrize(
