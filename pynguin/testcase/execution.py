@@ -884,7 +884,7 @@ class ExecutionTracer:
         finally:
             self.enable()
 
-    def executed_bool_predicate(self, value, predicate: int):
+    def executed_bool_predicate(self, value, predicate: int) -> None:
         """A predicate that is based on a boolean value was executed.
 
         Args:

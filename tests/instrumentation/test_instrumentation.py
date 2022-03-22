@@ -169,7 +169,8 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     simple_module.comprehension(call_count, 3)
     assert tracer_mock.register_predicate.call_count == 2
     assert tracer_mock.executed_compare_predicate.call_count == call_count
-    tracer_mock.executed_bool_predicate.assert_has_calls([call(True, 1)])
+    # TODO(SiL) does this still test the same as before?
+    tracer_mock.executed_bool_predicate.assert_has_calls([call(False, 0)])
 
 
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):

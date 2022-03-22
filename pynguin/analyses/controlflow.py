@@ -29,10 +29,12 @@ class ProgramGraphNode:
     def __init__(
         self,
         index: int,
+        offset: int = 0,
         basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
     ) -> None:
         self._index = index
+        self._offset = offset
         self._basic_block = basic_block
         self._is_artificial = is_artificial
         self._predicate_id: int | None = None
@@ -45,6 +47,24 @@ class ProgramGraphNode:
             The index of the node
         """
         return self._index
+
+    @property
+    def offset(self) -> int:
+        """Provides the offset of the node the first instruction of the node.
+
+        Returns:
+            The offset of the node
+        """
+        return self._offset
+
+    @offset.setter
+    def offset(self, offset: int) -> None:
+        """Set a new offset.
+
+        Args:
+            offset: The offset
+        """
+        self._offset = offset
 
     @property
     def basic_block(self) -> BasicBlock | None:

@@ -225,8 +225,12 @@ class InstrumentationTransformer:
             cfg: The CFG that overlays the bytecode cfg.
             code_object_id: The id of the code object which contains this CFG.
         """
+        # We need to sort nodes in order to keep track of the correct offset
+        cfg_nodes = list(cfg.nodes)
+        cfg_nodes.sort(key=lambda n: n.index)
+
         offset = 0
-        for node in cfg.nodes:
+        for node in cfg_nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
                 # instrument anything.
@@ -234,6 +238,7 @@ class InstrumentationTransformer:
             assert (
                 node.basic_block is not None
             ), "Non artificial node does not have a basic block."
+            node.offset = offset
             for adapter in self._instrumentation_adapters:
                 offset = adapter.visit_node(
                     cfg, code_object_id, node, node.basic_block, offset
@@ -693,6 +698,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     an assertion, thus checked coverage."""
 
     _logger = logging.getLogger(__name__)
+
+    # the offset between the first instruction of an assertion error block and the
+    # POP_JUMP_IF_TRUE instruction in the block before the assertion error
+    _POP_JUMP_IF_TRUE_POSITION = -2
 
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
@@ -1442,12 +1451,13 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             node: The node containing the assertion throwing.
         """
         node_before, node_after = get_nodes_around_node(cfg, node)
-        # TODO offset counter is off
         self._instrument_start_assert(
-            code_object_id, node_before.index, offset - 4, node_before.basic_block
+            code_object_id,
+            node_before.index,
+            offset + self._POP_JUMP_IF_TRUE_POSITION,
+            node_before.basic_block
         )
 
-        # TODO offset counter is off
         self._instrument_end_assert(node_after.basic_block)
 
     def _instrument_start_assert(
