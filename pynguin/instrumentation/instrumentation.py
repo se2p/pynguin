@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 CODE_OBJECT_ID_KEY = "code_object_id"
 
 
+class ArtificialInstr(Instr):
+    """Marker subclass to distinguish between original instructions
+    and instructions that were inserted by the instrumentation."""
+
+
 # pylint:disable=too-few-public-methods
 class InstrumentationAdapter:
     """Abstract base class for bytecode instrumentation adapters.
@@ -94,7 +99,7 @@ class InstrumentationAdapter:
         current: BasicBlock = first
         nodes: list[BasicBlock] = []
         # Can be any instruction, as it is discarded anyway.
-        dummy_instruction = Instr("POP_TOP")
+        dummy_instruction = ArtificialInstr("POP_TOP")
         for _ in range(amount):
             # Insert dummy instruction, which we can use to split off another block
             current.insert(0, dummy_instruction)
@@ -348,18 +353,18 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # We duplicate the value on top of the stack and report
         # it to the tracer.
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
-            Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
@@ -405,19 +410,19 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("LOAD_CONST", compare, lineno=lineno),
-            Instr("CALL_METHOD", 4, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("LOAD_CONST", compare, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 4, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
@@ -445,18 +450,18 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("CALL_METHOD", 3, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 3, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
@@ -473,15 +478,15 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         lineno = block[0].lineno
         # Insert instructions at the beginning.
         block[0:0] = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", code_object_id, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
 
     def _instrument_for_loop(
@@ -537,37 +542,39 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         entered, not_entered = self._create_consecutive_blocks(
             cfg.bytecode_cfg(), basic_block, 2
         )
+        # TODO(fk) for_instr is not artificial but we changed it
+        #  How to deal with this?
         for_instr.arg = not_entered
 
         entered.extend(
             [
-                Instr("LOAD_CONST", self._tracer, lineno=lineno),
-                Instr(
+                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
                     "LOAD_METHOD",
                     ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
-                Instr("LOAD_CONST", True, lineno=lineno),
-                Instr("LOAD_CONST", predicate_id, lineno=lineno),
-                Instr("CALL_METHOD", 2, lineno=lineno),
-                Instr("POP_TOP", lineno=lineno),
-                Instr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", True, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("POP_TOP", lineno=lineno),
+                ArtificialInstr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
             ]
         )
 
         not_entered.extend(
             [
-                Instr("LOAD_CONST", self._tracer, lineno=lineno),
-                Instr(
+                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
                     "LOAD_METHOD",
                     ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
-                Instr("LOAD_CONST", False, lineno=lineno),
-                Instr("LOAD_CONST", predicate_id, lineno=lineno),
-                Instr("CALL_METHOD", 2, lineno=lineno),
-                Instr("POP_TOP", lineno=lineno),
-                Instr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", False, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("POP_TOP", lineno=lineno),
+                ArtificialInstr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
             ]
         )
 
@@ -622,15 +629,15 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             The number of instructions inserted into the block
         """
         inserted_instructions = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 self._tracer.track_line_visit.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", line_id, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         # Insert instructions at the beginning.
         block[instr_index:instr_index] = inserted_instructions
@@ -734,19 +741,21 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("ROT_TWO", lineno=lineno),
-            Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("ROT_TWO", lineno=lineno),
+            ArtificialInstr("BINARY_ADD", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 self._dynamic_constant_seeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented startswith function")
 
@@ -761,18 +770,20 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("BINARY_ADD", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented endswith function")
 
@@ -788,18 +799,20 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("LOAD_CONST", function_name, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", function_name, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented string function")
 
@@ -827,26 +840,30 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         """
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.debug("Instrumented compare_op")
