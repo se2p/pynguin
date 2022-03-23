@@ -133,19 +133,19 @@ class TraceStack:
                 # course happen all the time, so this is not a problem
                 tos_instr = None
 
-            if tos_instr and tos_instr.in_slice():
+            if tos_instr and tos_instr.in_slice:
                 imp_dependency = True
 
                 # For attribute accesses, instructions preparing TOS to access the
                 # attribute should be included. However, the use data for these will
                 # not be searched for, since this would widen the scope of the search
                 # for complete objects rather than only for the attribute thereof.
-                if tos_instr.opcode in [op.STORE_ATTR, op.STORE_SUBSCR]:
+                if tos_instr.opcode in (op.STORE_ATTR, op.STORE_SUBSCR):
                     if len(curr_block_stack) > 0:
                         tos1_instr = curr_block_stack.peek()
                         if tos1_instr and tos1_instr.opcode == tos_instr.opcode:
                             include_use = False
-                if tos_instr.opcode in [op.LOAD_ATTR, op.DELETE_ATTR, op.IMPORT_FROM]:
+                if tos_instr.opcode in (op.LOAD_ATTR, op.DELETE_ATTR, op.IMPORT_FROM):
                     include_use = False
 
         return imp_dependency, include_use

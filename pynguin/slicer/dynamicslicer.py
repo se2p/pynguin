@@ -23,8 +23,8 @@ from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGra
 from pynguin.instrumentation.instrumentation import is_traced_instruction
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, LastInstrState
 from pynguin.slicer.instruction import UniqueInstruction
-from pynguin.slicer.stack.stack_effect import StackEffect
-from pynguin.slicer.stack.stack_simulation import TraceStack
+from pynguin.slicer.stack.stackeffect import StackEffect
+from pynguin.slicer.stack.stacksimulation import TraceStack
 from pynguin.testcase.execution import (
     CodeObjectMetaData,
     ExecutedAttributeInstruction,
@@ -165,7 +165,7 @@ class DynamicSlicer:
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
-        trace_position: Optional[int] = None,
+        trace_position: int,
     ) -> DynamicSlice:
         """Main routine to perform the dynamic slicing.
 
@@ -303,7 +303,8 @@ class DynamicSlicer:
 
     def _stack_housekeeping(self, last_state, last_unique_instr, slc):
         prev_import_back_call = slc.trace_stack.get_import_frame()
-        assert prev_import_back_call, "Import frame was None"
+        # TODO(SiL) must prev_import_back_call be not none?
+        # assert prev_import_back_call, "Import frame was None"
         slc.trace_stack.set_attribute_uses(slc.context.attribute_variables)
         if last_state.returned:
             # New frame
@@ -332,7 +333,7 @@ class DynamicSlicer:
             )
         # Add current instruction to the stack
         if slc.stack_simulation:
-            slc.trace_stack.update_stack_houskeeping_pop_operations(
+            slc.trace_stack.update_pop_operations(
                 slc.pops, last_unique_instr, criterion_in_slice
             )
 
@@ -364,7 +365,10 @@ class DynamicSlicer:
         slc.new_attribute_object_uses.clear()
         slc.trace_stack.set_import_frame(last_state.import_back_call)
 
-    def _setup_slicing_configuration(self, slicing_criterion, trace, trace_position):
+    def _setup_slicing_configuration(
+        self, slicing_criterion: SlicingCriterion,
+        trace: ExecutionTrace, trace_position: int
+    ):
         # The slicing criterion is in the slice
         criterion_in_slice = True
         # Stack simulation is enabled initially (must be disabled for exceptions)
@@ -372,8 +376,6 @@ class DynamicSlicer:
         code_object_dependent = False
         new_attribute_object_uses: set[str] = set()
         import_back_call = None
-        if not trace_position:
-            trace_position = self.find_trace_position(trace, slicing_criterion)
         # Build slicing criterion
         last_ex_instruction = slicing_criterion.unique_instr
         file = last_ex_instruction.file

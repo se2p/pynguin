@@ -10,7 +10,7 @@ from typing import List, Tuple
 
 import pytest
 
-import pynguin.slicer.stack.stack_effect as se
+import pynguin.slicer.stack.stackeffect as se
 import pynguin.utils.opcodes as opcodes
 
 

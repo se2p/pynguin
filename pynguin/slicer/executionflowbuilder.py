@@ -362,7 +362,7 @@ class ExecutionFlowBuilder:
         assert code_object, "Unknown code object id"
         # Locate basic block in CFG to which instruction belongs
         instr = None
-        for node in code_object.cfg.nodes:
+        for node in code_object.original_cfg.nodes:
             if node.index == basic_block_id and node.basic_block:
                 instr = node.basic_block[-1]
                 break
@@ -381,7 +381,7 @@ class ExecutionFlowBuilder:
         """
         code_object = self.known_code_objects[code_object_id]
         assert code_object, "Unknown code object id"
-        for node in code_object.cfg.nodes:
+        for node in code_object.original_cfg.nodes:
             if node.index == basic_block_id and node.basic_block:
                 return node.basic_block, node.offset
 

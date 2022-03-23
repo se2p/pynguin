@@ -119,9 +119,8 @@ def slice_function_at_return(
     trace = tracer.get_trace()
     known_code_objects = tracer.get_known_data().existing_code_objects
     dynamic_slicer = DynamicSlicer(trace, known_code_objects)
-    checked_trace = ExecutionTrace()
 
-    # Slicing criterion at foo
+    # Slicing criterion at return instruction
     last_traced_instr = trace.executed_instructions[-1]
     slicing_instruction = UniqueInstruction(
         last_traced_instr.file,
@@ -134,7 +133,7 @@ def slice_function_at_return(
     )
     slicing_criterion = SlicingCriterion(slicing_instruction)
     dynamic_slice = dynamic_slicer.slice(
-        checked_trace, slicing_criterion, len(trace.executed_instructions) - 2
+        trace, slicing_criterion, len(trace.executed_instructions) - 2
     )
 
     return dynamic_slice
