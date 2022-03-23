@@ -539,6 +539,9 @@ class CodeObjectMetaData:
     # CFG of this Code Object
     cfg: CFG
 
+    # copy of the CFG of this code object before the instrumentation worked on it
+    original_cfg: CFG
+
     # CDG of this Code Object
     cdg: ControlDependenceGraph
 

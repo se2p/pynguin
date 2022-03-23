@@ -169,12 +169,14 @@ class InstrumentationTransformer:
         """
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
+        original_cfg = CFG.from_bytecode(Bytecode.from_code(code))
         cdg = ControlDependenceGraph.compute(cfg)
         code_object_id = self._tracer.register_code_object(
             CodeObjectMetaData(
                 code_object=code,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
+                original_cfg=original_cfg,
                 cdg=cdg,
             )
         )
@@ -187,7 +189,7 @@ class InstrumentationTransformer:
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
         for adapter in self._instrumentation_adapters:
             adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
-        self._instrument_cfg(cfg, code_object_id)
+        self._instrument_cfg(cfg, original_cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
         )
@@ -217,7 +219,7 @@ class InstrumentationTransformer:
                 new_consts.append(const)
         return code.replace(co_consts=tuple(new_consts))
 
-    def _instrument_cfg(self, cfg: CFG, code_object_id: int) -> None:
+    def _instrument_cfg(self, cfg: CFG, original_cfg: CFG, code_object_id: int) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:

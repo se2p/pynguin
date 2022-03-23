@@ -469,7 +469,7 @@ class DynamicSlicer:
         bb_offset = -1
         code_object = self._known_code_objects.get(code_object_id)
         assert code_object, "Unknown code object id"
-        for node in code_object.cfg.nodes:
+        for node in code_object.original_cfg.nodes:
             if node.index == basic_block_id:
                 basic_block = node.basic_block
                 bb_offset = node.offset

@@ -112,7 +112,6 @@ def slice_function_at_return(
 
     # Instrument and call example function
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
-    tracer.reset()
     tracer.current_thread_identifier = threading.current_thread().ident
     function()
 
