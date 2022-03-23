@@ -66,8 +66,7 @@ class InstrumentationAdapter:
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-        offset: int,
-    ) -> int:
+    ) -> None:
         """Called for each non-artificial node, i.e., nodes that have a basic block
 
         Args:
@@ -229,7 +228,6 @@ class InstrumentationTransformer:
         cfg_nodes = list(cfg.nodes)
         cfg_nodes.sort(key=lambda n: n.index)
 
-        offset = 0
         for node in cfg_nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
@@ -238,10 +236,9 @@ class InstrumentationTransformer:
             assert (
                 node.basic_block is not None
             ), "Non artificial node does not have a basic block."
-            node.offset = offset
             for adapter in self._instrumentation_adapters:
-                offset = adapter.visit_node(
-                    cfg, code_object_id, node, node.basic_block, offset
+                adapter.visit_node(
+                    cfg, code_object_id, node, node.basic_block
                 )
 
 
@@ -267,8 +264,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-        offset: int,
-    ) -> int:
+    ) -> None:
         """Instrument a single node in the CFG.
 
         Currently, we only instrument conditional jumps and for loops.
@@ -305,8 +301,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
-
-        return offset
 
     def _instrument_cond_jump(
         self,
@@ -613,8 +607,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-        offset: int,
-    ) -> int:
+    ) -> None:
         #  iterate over instructions after the fist one in BB,
         #  put new instructions in the block for each line
         file_name = cfg.bytecode_cfg().filename
@@ -628,7 +621,6 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
                     self.instrument_line(basic_block, instr_index, line_id, lineno)
                 )
             instr_index += 1
-        return offset
 
     def instrument_line(
         self, block: BasicBlock, instr_index: int, line_id: int, lineno: int
@@ -712,8 +704,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-        offset: int,
-    ) -> int:
+    ) -> None:
         """Instrument a single node in the CFG.
         We instrument memory accesses, control flow instruction and
         attribute access instructions.
@@ -735,8 +726,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         """
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
-        if not offset:
-            offset = 0
+        offset = node.offset
 
         new_block_instructions: list[Instr] = []
 
@@ -847,8 +837,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         basic_block.clear()
         basic_block.extend(new_block_instructions)
-
-        return offset
 
     def _instrument_generic(
         self,
@@ -1630,8 +1618,7 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         code_object_id: int,
         node: ProgramGraphNode,
         basic_block: BasicBlock,
-        offset: int,
-    ) -> int:
+    ) -> None:
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_compare: Instr | None = (
             basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
@@ -1658,8 +1645,6 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
         ):
             self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
-
-        return offset
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
