@@ -74,7 +74,6 @@ class InstrumentationAdapter:
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
-            offset: The offset at which the node starts with at its first instruction.
 
         Returns:
             The offset the next node will start at as int.
@@ -189,7 +188,7 @@ class InstrumentationTransformer:
         assert real_entry_node.basic_block is not None, "Basic block cannot be None."
         for adapter in self._instrumentation_adapters:
             adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
-        self._instrument_cfg(cfg, original_cfg, code_object_id)
+        self._instrument_cfg(cfg, code_object_id)
         return self._instrument_inner_code_objects(
             cfg.bytecode_cfg().to_code(), code_object_id
         )
@@ -219,7 +218,7 @@ class InstrumentationTransformer:
                 new_consts.append(const)
         return code.replace(co_consts=tuple(new_consts))
 
-    def _instrument_cfg(self, cfg: CFG, original_cfg: CFG, code_object_id: int) -> None:
+    def _instrument_cfg(self, cfg: CFG, code_object_id: int) -> None:
         """Instrument the bytecode cfg associated with the given CFG.
 
         Args:
@@ -239,9 +238,7 @@ class InstrumentationTransformer:
                 node.basic_block is not None
             ), "Non artificial node does not have a basic block."
             for adapter in self._instrumentation_adapters:
-                adapter.visit_node(
-                    cfg, code_object_id, node, node.basic_block
-                )
+                adapter.visit_node(cfg, code_object_id, node, node.basic_block)
 
 
 class BranchCoverageInstrumentation(InstrumentationAdapter):
@@ -671,7 +668,9 @@ def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
     )
 
 
-def get_nodes_around_node(cfg: CFG, assertion_node: ProgramGraphNode) -> tuple[ProgramGraphNode, ProgramGraphNode]:
+def get_nodes_around_node(
+    cfg: CFG, assertion_node: ProgramGraphNode
+) -> tuple[ProgramGraphNode, ProgramGraphNode]:
     """Retrieve the nodes before and after a given node inside the cfg."""
     index_of_assertion = assertion_node.index
     node_before_assertion = None
@@ -682,6 +681,8 @@ def get_nodes_around_node(cfg: CFG, assertion_node: ProgramGraphNode) -> tuple[P
             continue  # if a node has a smaller index, the index can not also be bigger
         if node.index == index_of_assertion + 1:
             node_after_assertion = node
+    assert node_before_assertion, "Node is not an assertion error"
+    assert node_after_assertion, "Node is not an assertion error"
     return node_before_assertion, node_after_assertion
 
 
@@ -905,7 +906,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(code_object_id, node_id, offset, instr.arg, instr)
         )
@@ -973,7 +974,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args_with_prop(code_object_id, node_id, offset, instr.arg, instr)
         )
@@ -1081,7 +1082,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args_with_prop(code_object_id, node_id, offset, "None", instr)
         )
@@ -1129,7 +1130,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(code_object_id, node_id, offset, instr.arg, instr)
         )
@@ -1179,7 +1180,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args_with_prop(code_object_id, node_id, offset, instr.arg, instr)
         )
@@ -1226,7 +1227,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(code_object_id, node_id, offset, instr.arg, instr)
         )
@@ -1282,7 +1283,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(code_object_id, node_id, offset, instr.arg.name, instr)
         )
@@ -1327,7 +1328,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(
                 code_object_id,
@@ -1373,7 +1374,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        # Load static arguments
+        # Load arguments
         new_block_instructions.extend(
             self._load_args(code_object_id, node_id, offset, argument, instr)
         )
@@ -1445,7 +1446,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             code_object_id,
             node_before.index,
             offset + self._POP_JUMP_IF_TRUE_POSITION,
-            node_before.basic_block
+            node_before.basic_block,
         )
 
         self._instrument_end_assert(node_after.basic_block)
@@ -1461,13 +1462,14 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # this should normally be the last instruction inside the block, but previous
         # instrumentations might have added instructions after the pop_jump
         pop_jump_index = next(
-            i for i in reversed(range(len(block_before_assertion)))
+            i
+            for i in reversed(range(len(block_before_assertion)))
             if block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
         )
 
         lineno = block_before_assertion[pop_jump_index].lineno
         # enter the instrumentation before the pop_jump operation
-        block_before_assertion[pop_jump_index: pop_jump_index] = [
+        block_before_assertion[pop_jump_index:pop_jump_index] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(
                 "LOAD_METHOD",
@@ -1489,10 +1491,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             Instr("POP_TOP", lineno=lineno),
         ]
 
-    def _instrument_end_assert(
-        self,
-        block_after_assertion: BasicBlock
-    ) -> None:
+    def _instrument_end_assert(self, block_after_assertion: BasicBlock) -> None:
         lineno = block_after_assertion[0].lineno
 
         # enter instrumentation that assertion ended before first instruction of next block is executed

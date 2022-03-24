@@ -231,7 +231,8 @@ class DynamicSlicer:
                 slc.context, last_unique_instr, slc.code_object_id
             )
 
-            assert last_traced_instr, "Working on set of untracked instructions"
+            # TODO(SiL) must last_traced_instr be not None?
+            # assert last_traced_instr, "Working on set of untracked instructions"
             # Data dependencies
             # Explicit data dependency
             (

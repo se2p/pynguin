@@ -441,7 +441,7 @@ class ExecutionTrace:
     ) -> None:
         """Creates a new ExecutedControlInstruction object and adds it to the trace."""
         executed_instr = ExecutedControlInstruction(
-            module, code_object_id, node_id, opcode, lineno, offset, target_id
+            module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
         self.executed_instructions.append(executed_instr)
 
@@ -457,7 +457,7 @@ class ExecutionTrace:
     ) -> None:
         """Creates a new ExecutedCallInstruction object and adds it to the trace."""
         executed_instr = ExecutedCallInstruction(
-            module, code_object_id, node_id, opcode, lineno, offset, arg
+            module, code_object_id, node_id, opcode, arg, lineno, offset
         )
 
         self.executed_instructions.append(executed_instr)
