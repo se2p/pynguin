@@ -273,7 +273,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
             basic_block: The basic block of the node that should be instrumented.
-            offset: The offset at which the node starts with at its first instruction.
 
         Returns:
             The offset the next node will start at as int.
@@ -286,7 +285,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         )
         if isinstance(maybe_jump, Instr):
             predicate_id: int | None = None
-            if maybe_jump.name == "FOR_ITER":
+            if maybe_jump.opcode == op.FOR_ITER:
                 predicate_id = self._instrument_for_loop(
                     cfg, node, basic_block, code_object_id
                 )
@@ -329,12 +328,12 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
-            and maybe_compare.name in ("COMPARE_OP", "IS_OP", "CONTAINS_OP")
+            and maybe_compare.opcode in op.OP_COMPARE
         ):
             return self._instrument_compare_based_conditional_jump(
                 block, code_object_id, node
             )
-        if jump.name == "JUMP_IF_NOT_EXC_MATCH":
+        if jump.opcode == op.JUMP_IF_NOT_EXEC_MATCH:
             return self._instrument_exception_based_conditional_jump(
                 block, code_object_id, node
             )
@@ -541,7 +540,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             The ID of the instrumented predicate
         """
         for_instr = basic_block[self._JUMP_OP_POS]
-        assert for_instr.name == "FOR_ITER"
+        assert for_instr.opcode == op.FOR_ITER
         lineno = for_instr.lineno
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
@@ -722,7 +721,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
-            offset: The offset at which the node starts with at its first instruction.
 
         Returns:
             The offset the next node will start at as int.
@@ -739,10 +737,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         for instr in basic_block:
             # Perform the actual instrumentation
             if instr.opcode in (
-                op.OP_UNARY,
-                op.OP_BINARY,
-                op.OP_INPLACE,
-                op.OP_COMPARE,
+                op.OP_UNARY +
+                op.OP_BINARY +
+                op.OP_INPLACE +
+                op.OP_COMPARE
             ):
                 self._instrument_generic(
                     new_block_instructions,
@@ -799,7 +797,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     instr,
                     offset,
                 )
-            elif instr.opcode in (op.OP_ABSOLUTE_JUMP, op.OP_RELATIVE_JUMP):
+            elif instr.opcode in op.OP_ABSOLUTE_JUMP + op.OP_RELATIVE_JUMP:
                 self._instrument_jump(
                     code_object_id,
                     node.index,
@@ -1632,17 +1630,17 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             if len(basic_block) > 3
             else None
         )
-        if isinstance(maybe_compare, Instr) and maybe_compare.name == "COMPARE_OP":
+        if isinstance(maybe_compare, Instr) and maybe_compare.opcode == op.COMPARE_OP:
             self._instrument_compare_op(basic_block)
         if (
             isinstance(maybe_string_func, Instr)
-            and maybe_string_func.name == "LOAD_METHOD"
+            and maybe_string_func.opcode == op.LOAD_METHOD
             and maybe_string_func.arg in self._STRING_FUNCTION_NAMES
         ):
             self._instrument_string_func(basic_block, maybe_string_func.arg)
         if (
             isinstance(maybe_string_func_with_arg, Instr)
-            and maybe_string_func_with_arg.name == "LOAD_METHOD"
+            and maybe_string_func_with_arg.opcode == op.LOAD_METHOD
             and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
         ):
             self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
