@@ -18,13 +18,13 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
+from opcode import opname
 from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Callable, Union
 
-from bytecode import CellVar, Compare, FreeVar, Instr
+from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -322,15 +322,13 @@ class ExecutionTrace:
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     # TODO(SiL) add all attributes below to _merge
-    executed_instructions: OrderedSet[ExecutedInstruction] = field(
-        default_factory=OrderedSet
-    )
+    executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
     test_id: str = ""
     module_name: str = ""
     module: bool = False
-    traced_assertions: List[TracedAssertion] = field(default_factory=list)
-    unique_assertions: Set[UniqueAssertion] = field(default_factory=set)
-    current_assertion: Optional[TracedAssertion] = None
+    traced_assertions: list[TracedAssertion] = field(default_factory=list)
+    unique_assertions: set[UniqueAssertion] = field(default_factory=set)
+    current_assertion: TracedAssertion | None = None
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other trace.
@@ -372,7 +370,7 @@ class ExecutionTrace:
         executed_instr = ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
     def add_memory_instruction(
         self,
@@ -400,7 +398,7 @@ class ExecutionTrace:
             is_mutable_type,
             object_creation,
         )
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
     def add_attribute_instruction(
         self,
@@ -429,7 +427,7 @@ class ExecutionTrace:
             arg_address,
             is_mutable_type,
         )
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
     def add_jump_instruction(
         self,
@@ -445,7 +443,7 @@ class ExecutionTrace:
         executed_instr = ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
     def add_call_instruction(
         self,
@@ -462,7 +460,7 @@ class ExecutionTrace:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
     def add_return_instruction(
         self,
@@ -478,11 +476,9 @@ class ExecutionTrace:
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
 
-        self.executed_instructions.add(executed_instr)
+        self.executed_instructions.append(executed_instr)
 
-    def start_assertion(
-        self, traced_pop_jump: ExecutedInstruction
-    ) -> TracedAssertion:
+    def start_assertion(self, traced_pop_jump: ExecutedInstruction) -> TracedAssertion:
         """Initialise a new TracedAssertion object and store it as current assertion.
         This is used to know where an assertion started and keep track of all following
         instructions until end_assertion() is called.
@@ -491,8 +487,11 @@ class ExecutionTrace:
             the newly created TracedAssertion object stored in current_assertion.
         """
         self.current_assertion = TracedAssertion(
-            traced_pop_jump.code_object_id, traced_pop_jump.node_id, traced_pop_jump.lineno,
-            len(self.executed_instructions) - 1, traced_pop_jump
+            traced_pop_jump.code_object_id,
+            traced_pop_jump.node_id,
+            traced_pop_jump.lineno,
+            len(self.executed_instructions) - 1,
+            traced_pop_jump,
         )
         return self.current_assertion
 
@@ -504,7 +503,10 @@ class ExecutionTrace:
         """
         assert self.current_assertion
         assert self.current_assertion.traced_assertion_pop_jump
-        assert self.current_assertion.traced_assertion_pop_jump.opcode == op.POP_JUMP_IF_TRUE
+        assert (
+            self.current_assertion.traced_assertion_pop_jump.opcode
+            == op.POP_JUMP_IF_TRUE
+        )
 
         # TODO(SiL) is this the correct calculation
         self.current_assertion.trace_position_end = len(self.executed_instructions) - 1
@@ -672,13 +674,13 @@ class ExecutionTracer:
         self._enabled = True
         self._current_thread_identifier: int | None = None
         self._setup: bool = False
-        self._known_object_addresses: Set[int] = set()
-        self._current_assertion: Optional[TracedAssertion] = None
+        self._known_object_addresses: set[int] = set()
+        self._current_assertion: TracedAssertion | None = None
         self._assertion_stack_counter = 0
         self._test_id = ""
         self._module_name = ""
-        self._traced_assertions: List[TracedAssertion] = []
-        self._unique_assertions: Set[UniqueAssertion] = set()
+        self._traced_assertions: list[TracedAssertion] = []
+        self._unique_assertions: set[UniqueAssertion] = set()
 
     @property
     def current_thread_identifier(self) -> int | None:
@@ -1151,7 +1153,9 @@ class ExecutionTracer:
         # previous assertion should be finished being tracked
         assert not self._current_assertion
 
-        pop_jump_instr = ExecutedInstruction(module, code_object_id, node_id, opcode, None, lineno, offset)
+        pop_jump_instr = ExecutedInstruction(
+            module, code_object_id, node_id, opcode, None, lineno, offset
+        )
         self._current_assertion = self._trace.start_assertion(pop_jump_instr)
 
     def track_assert_end(self) -> None:
@@ -1277,7 +1281,7 @@ class ExecutedInstruction:
     code_object_id: int
     node_id: int
     opcode: int
-    argument: Optional[int | str]
+    argument: int | str | None
     lineno: int
     offset: int
 

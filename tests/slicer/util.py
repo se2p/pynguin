@@ -11,7 +11,6 @@ import importlib.util
 import py_compile
 import threading
 from types import CodeType
-from typing import List, Optional, Callable
 
 from bytecode import BasicBlock, Instr
 
@@ -27,7 +26,7 @@ from pynguin.utils.pyc import Pyc
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, bytes(), (), (), (), "", "", 0, bytes())
 
 
-def compare(dynamic_slice: List[UniqueInstruction], expected_slice: List[Instr]):
+def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr]):
     expected_copy = expected_slice.copy()
     slice_copy = dynamic_slice.copy()
 
@@ -73,8 +72,8 @@ def compare(dynamic_slice: List[UniqueInstruction], expected_slice: List[Instr])
 
 
 def _contains_name_arg(
-    instr_list: List[Instr], unique_instr: UniqueInstruction
-) -> Optional[Instr]:
+    instr_list: list[Instr], unique_instr: UniqueInstruction
+) -> Instr | None:
     for instr in instr_list:
         if instr.name == unique_instr.name:
             if isinstance(unique_instr.arg, BasicBlock) or isinstance(
@@ -93,8 +92,8 @@ def _contains_name_arg(
 
 
 def _contains_name_argtype(
-    instr_list: List[Instr], unique_instr: UniqueInstruction
-) -> Optional[Instr]:
+    instr_list: list[Instr], unique_instr: UniqueInstruction
+) -> Instr | None:
     for instr in instr_list:
         if instr.name == unique_instr.name:
             if isinstance(instr.arg, type(unique_instr.arg)):
@@ -102,9 +101,7 @@ def _contains_name_argtype(
     return None
 
 
-def slice_function_at_return(
-    function: Callable
-) -> DynamicSlice:
+def slice_function_at_return(function: callable) -> DynamicSlice:
     # Setup
     tracer = ExecutionTracer()
     instrumentation = CheckedCoverageInstrumentation(tracer)

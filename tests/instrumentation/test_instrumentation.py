@@ -11,8 +11,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from bytecode import Bytecode
-from bytecode import Compare
+from bytecode import Bytecode, Compare
 from ordered_set import OrderedSet
 
 import pynguin.utils.opcodes as op
@@ -20,17 +19,17 @@ from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
-    CheckedCoverageInstrumentation,
-    get_nodes_around_node,
     basic_block_is_assertion_error,
+    get_nodes_around_node,
 )
 from pynguin.testcase.execution import (
-    ExecutionTracer,
     ExecutedMemoryInstruction,
-    ExecutedReturnInstruction
+    ExecutedReturnInstruction,
+    ExecutionTracer,
 )
 
 
@@ -291,29 +290,31 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     24     >>    8 LOAD_CONST               2 (0)
                 10 RETURN_VALUE
     """
-    expected_executed_instructions = OrderedSet([
-        ExecutedMemoryInstruction(
-            file=simple_module.__file__,
-            code_object_id=0,
-            node_id=0,
-            opcode=op.LOAD_FAST,
-            argument='a',
-            lineno=21,
-            offset=0,
-            arg_address=0,
-            is_mutable_type=True,
-            object_creation=True
-        ),
-        ExecutedReturnInstruction(
-            file=simple_module.__file__,
-            code_object_id=0,
-            node_id=2,
-            opcode=op.RETURN_VALUE,
-            argument=None,
-            lineno=24,
-            offset=10
-        ),
-    ])
+    expected_executed_instructions = OrderedSet(
+        [
+            ExecutedMemoryInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=op.LOAD_FAST,
+                argument="a",
+                lineno=21,
+                offset=0,
+                arg_address=0,
+                is_mutable_type=True,
+                object_creation=True,
+            ),
+            ExecutedReturnInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=2,
+                opcode=op.RETURN_VALUE,
+                argument=None,
+                lineno=24,
+                offset=10,
+            ),
+        ]
+    )
 
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, "bool_predicate")
@@ -978,7 +979,9 @@ def test_istitle_function_false(dynamic_instr, dummy_module):
         pytest.param(7, 1, 2),  # assertion on line 18
     ],
 )
-def test_get_nodes_around_assertion(assertion_index, expected_before_index, expected_after_index):
+def test_get_nodes_around_assertion(
+    assertion_index, expected_before_index, expected_after_index
+):
     module_name = "tests.fixtures.assertion.multiple"
     module = importlib.import_module(module_name)
     module = importlib.reload(module)
@@ -992,4 +995,3 @@ def test_get_nodes_around_assertion(assertion_index, expected_before_index, expe
 
     assert nodes[expected_before_index] == before
     assert nodes[expected_after_index] == after
-

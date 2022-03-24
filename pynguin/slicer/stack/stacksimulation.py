@@ -8,8 +8,6 @@
 # https://github.com/ipsw1/pychecco
 """Provides classes to simulate the stack during dynamic slicing."""
 
-from typing import List, Optional, Set, Tuple
-
 import pynguin.utils.opcodes as op
 from pynguin.slicer.instruction import UniqueInstruction
 
@@ -24,7 +22,7 @@ class BlockStack(list):
         """Push an instruction onto the stack."""
         self.append(instr)
 
-    def peek(self) -> Optional[UniqueInstruction]:
+    def peek(self) -> UniqueInstruction | None:
         """Return the instruction on top of the stack without removing it.
 
         Returns:
@@ -44,7 +42,7 @@ class FrameStack:
         self.code_object_id = code_object_id
         self.block_stacks: list[BlockStack] = block_stacks
         self.attribute_uses: set[str] = set()
-        self.import_name_instr: Optional[UniqueInstruction] = None
+        self.import_name_instr: UniqueInstruction | None = None
         super().__init__()
 
 
@@ -52,7 +50,7 @@ class TraceStack:
     """Simulates the tracing on the stack."""
 
     def __init__(self):
-        self.frame_stacks: List[FrameStack] = []
+        self.frame_stacks: list[FrameStack] = []
         self._reset()
         self._prepare_stack()
 
@@ -95,7 +93,7 @@ class TraceStack:
 
     def update_push_operations(
         self, num_pushes: int, returned: bool
-    ) -> Tuple[bool, bool]:
+    ) -> tuple[bool, bool]:
         """
         Simulate the push operations on the stack and return whether
         implicit dependencies occur or uses are included.
@@ -177,18 +175,18 @@ class TraceStack:
         None if frame stacks are empty."""
         return self.frame_stacks[-1].attribute_uses
 
-    def set_attribute_uses(self, attribute_uses: Set[str]) -> None:
+    def set_attribute_uses(self, attribute_uses: set[str]) -> None:
         """Set attribute uses of frame stack on top of stack."""
         # TODO(SiL) handle empty stack
         self.frame_stacks[-1].attribute_uses.clear()
         self.frame_stacks[-1].attribute_uses.update(attribute_uses)
 
-    def get_import_frame(self) -> Optional[UniqueInstruction]:
+    def get_import_frame(self) -> UniqueInstruction | None:
         """Get the import frame instruction, None if frame stacks are empty."""
         # TODO(SiL) handle empty stack
         return self.frame_stacks[-1].import_name_instr
 
-    def set_import_frame(self, import_name_instr: Optional[UniqueInstruction]):
+    def set_import_frame(self, import_name_instr: UniqueInstruction | None):
         """Set import name instruction of frame stack on top of stack."""
         # TODO(SiL) handle empty stack
         self.frame_stacks[-1].import_name_instr = import_name_instr

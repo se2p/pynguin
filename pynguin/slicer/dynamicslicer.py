@@ -13,7 +13,7 @@ import logging
 import operator
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Union
 
 from bytecode import Instr
 
@@ -44,7 +44,7 @@ class DynamicSlice:
 
     origin_name: str
 
-    sliced_instructions: List[UniqueInstruction]
+    sliced_instructions: list[UniqueInstruction]
 
 
 @dataclass
@@ -56,9 +56,9 @@ class SlicingCriterion:
 
     occurrence: int = 1
 
-    local_variables: Optional[Set] = None
+    local_variables: set | None = None
 
-    global_variables: Optional[Set] = None
+    global_variables: set | None = None
 
 
 @dataclass
@@ -67,23 +67,23 @@ class SlicingContext:
     used at one point during the slicing."""
 
     # Instructions included in the slice
-    instr_in_slice: List[UniqueInstruction] = field(default_factory=list)
+    instr_in_slice: list[UniqueInstruction] = field(default_factory=list)
 
     # Instructions for which to compute control dependencies
-    instr_ctrl_deps: Set[UniqueInstruction] = field(default_factory=set)
+    instr_ctrl_deps: set[UniqueInstruction] = field(default_factory=set)
 
     # Variable uses for which a definition is needed
-    var_uses_local: Set[Tuple[int, int]] = field(default_factory=set)
-    var_uses_global: Set[Tuple[int, str]] = field(default_factory=set)
-    var_uses_nonlocal: Set[Tuple] = field(default_factory=set)
-    var_uses_addresses: Set[str] = field(default_factory=set)
+    var_uses_local: set[tuple[int, int]] = field(default_factory=set)
+    var_uses_global: set[tuple[int, str]] = field(default_factory=set)
+    var_uses_nonlocal: set[tuple] = field(default_factory=set)
+    var_uses_addresses: set[str] = field(default_factory=set)
 
     # Attribute uses for which a definition is needed
-    attr_uses: Set[str] = field(default_factory=set)
+    attr_uses: set[str] = field(default_factory=set)
 
     # Variable uses, which normally are attribute uses
     # (used when encompassing object is created)
-    attribute_variables: Set[str] = field(default_factory=set)
+    attribute_variables: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -98,8 +98,8 @@ class SlicingState:
     curr_instr: Instr
     execution_flow_builder: ExecutionFlowBuilder
     file: str
-    import_back_call: Optional[UniqueInstruction]
-    new_attribute_object_uses: Set[str]
+    import_back_call: UniqueInstruction | None
+    new_attribute_object_uses: set[str]
     offset: int
     pops: int
     pushes: int
@@ -138,7 +138,7 @@ class DynamicSlicer:
     def __init__(
         self,
         trace: ExecutionTrace,
-        known_code_objects: Dict[int, CodeObjectMetaData],
+        known_code_objects: dict[int, CodeObjectMetaData],
     ):
         self._known_code_objects = known_code_objects
         self._trace = trace
@@ -366,8 +366,10 @@ class DynamicSlicer:
         slc.trace_stack.set_import_frame(last_state.import_back_call)
 
     def _setup_slicing_configuration(
-        self, slicing_criterion: SlicingCriterion,
-        trace: ExecutionTrace, trace_position: int
+        self,
+        slicing_criterion: SlicingCriterion,
+        trace: ExecutionTrace,
+        trace_position: int,
     ):
         # The slicing criterion is in the slice
         criterion_in_slice = True
@@ -413,7 +415,7 @@ class DynamicSlicer:
         )
 
     @staticmethod
-    def _init_stack(in_slice, last_ex_instruction) -> Tuple[int, int, TraceStack]:
+    def _init_stack(in_slice, last_ex_instruction) -> tuple[int, int, TraceStack]:
         trace_stack = TraceStack()
         pops, pushes = StackEffect.stack_effect(
             last_ex_instruction.opcode, last_ex_instruction.dis_arg, False
@@ -574,8 +576,8 @@ class DynamicSlicer:
 
     @staticmethod
     def organize_by_code_object(
-        instructions: List[UniqueInstruction],
-    ) -> Dict[int, List[UniqueInstruction]]:
+        instructions: list[UniqueInstruction],
+    ) -> dict[int, list[UniqueInstruction]]:
         """Sort a list of instructions into a dictionary, where each instruction is
         stored in a list accessible through the if of the code object containing the
         instruction.
@@ -587,7 +589,7 @@ class DynamicSlicer:
             A dictionary where each id of a code object contains a list of
             instructions of the code object belonging to the id.
         """
-        code_object_instructions: Dict[int, List[UniqueInstruction]] = {}
+        code_object_instructions: dict[int, list[UniqueInstruction]] = {}
 
         for instruction in instructions:
             if instruction.code_object_id not in code_object_instructions:
@@ -599,7 +601,7 @@ class DynamicSlicer:
     @staticmethod
     def organize_by_module(
         dynamic_slice: DynamicSlice,
-    ) -> Dict[str, List[UniqueInstruction]]:
+    ) -> dict[str, list[UniqueInstruction]]:
         """Sort all instructions of a dynamic slice by their module name.
 
         Args:
@@ -609,7 +611,7 @@ class DynamicSlicer:
             A dictionary where each module name contains a list of instructions of the
             slice that belong to the module with that name.
         """
-        module_instructions: Dict[str, List[UniqueInstruction]] = {}
+        module_instructions: dict[str, list[UniqueInstruction]] = {}
 
         for instruction in dynamic_slice.sliced_instructions:
             if instruction.file not in module_instructions:
@@ -636,8 +638,8 @@ class DynamicSlicer:
         self,
         context: SlicingContext,
         unique_instr: UniqueInstruction,
-        traced_instr: ExecutedInstruction,
-    ) -> Tuple[bool, Set[str]]:
+        traced_instr: ExecutedInstruction | None,
+    ) -> tuple[bool, set[str]]:
         """Analyses the explicit data dependencies from one instruction to another
         instruction.
 
@@ -695,7 +697,7 @@ class DynamicSlicer:
             # (explained in the previous construct)
             if traced_instr.argument in context.attribute_variables:
                 complete_cover = True
-                context.attribute_variables.remove(traced_instr.argument)
+                context.attribute_variables.remove(str(traced_instr.argument))
 
         if isinstance(traced_instr, ExecutedAttributeInstruction):
             # check attribute defs
@@ -783,9 +785,9 @@ class DynamicSlicer:
 
     @staticmethod
     def _check_scope_for_def(
-        context_scope: Set,
+        context_scope: set,
         argument: str,
-        scope_id: Optional[Union[int, str, Tuple]],
+        scope_id: Union[int, str, tuple] | None,
         comp_op,
     ) -> bool:
         complete_cover = False
