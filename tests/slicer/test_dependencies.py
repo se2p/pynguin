@@ -382,19 +382,19 @@ def test_simple_control_dependency_3():
 
         return result
 
-    return_block = BasicBlock(
-        [
-            # return result
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
     elif_block = BasicBlock(
         [
             # result = 2
             Instr("LOAD_CONST", arg=2),
             Instr("STORE_FAST", arg="result"),
-            Instr("JUMP_FORWARD", arg=return_block),
+            Instr("LOAD_FAST", arg="result"),
+            Instr("RETURN_VALUE"),
+        ]
+    )
+    else_block = BasicBlock(
+        [
+            Instr("LOAD_CONST", arg=3),
+            Instr("STORE_FAST", arg="result"),
         ]
     )
     elif_cond = BasicBlock(
@@ -403,7 +403,7 @@ def test_simple_control_dependency_3():
             Instr("LOAD_FAST", arg="foo"),
             Instr("LOAD_CONST", arg=1),
             Instr("COMPARE_OP", arg=Compare.EQ),
-            Instr("POP_JUMP_IF_FALSE", arg=elif_block),
+            Instr("POP_JUMP_IF_FALSE", arg=else_block),
         ]
     )
     if_cond = BasicBlock(
@@ -431,7 +431,6 @@ def test_simple_control_dependency_3():
     expected_instructions.extend(if_cond)
     expected_instructions.extend(elif_cond)
     expected_instructions.extend(elif_block)
-    expected_instructions.extend(return_block)
 
     dynamic_slice = slice_function_at_return(func)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
