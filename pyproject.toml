@@ -38,7 +38,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-simple-parsing = "^0.0.18"
+simple-parsing = "^0.0.19"
 bytecode = "^0"
 typing_inspect = "^0"
 jellyfish = "^0"
@@ -62,7 +62,7 @@ pytest-picked = "^0.4"
 pytest-xdist = "^2.5"
 hypothesis = "^6.36"
 pytest-mock = "^3.7"
-mypy = "^0.940"
+mypy = "^0.941"
 isort = {extras = ["pyproject"], version = "^5.10"}
 pre-commit = "^2.17"
 darglint = "^1.8"
