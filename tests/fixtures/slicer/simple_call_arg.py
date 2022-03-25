@@ -14,6 +14,8 @@ def callee(a: int, b: int):
     return a
 
 
-foo = 1  # must be included, is used by callee() and influences the result
-bar = 2  # currently included (I.D.D.); but a bit imprecise: used as parameter, but not in actual function
-result = callee(foo, bar)
+def func():
+    foo = 1  # must be included, is used by callee() and influences the result
+    bar = 2  # currently included (I.D.D.); but a bit imprecise: used as parameter, but not in actual function
+    result = callee(foo, bar)
+    return result

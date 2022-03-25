@@ -80,21 +80,21 @@ def test_simple_loop():
 def test_call_without_arguments():
     module_block = BasicBlock(
         [
-            # def callee():
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="callee"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="callee"),
             # result = callee()
-            Instr("LOAD_NAME", arg="callee"),
+            Instr("LOAD_GLOBAL", arg="callee"),
             Instr("CALL_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             # return result
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
-    callee_block = BasicBlock([Instr("LOAD_CONST", arg=0), Instr("RETURN_VALUE")])
+    callee_block = BasicBlock(
+        [
+            Instr("LOAD_CONST", arg=0),
+            Instr("RETURN_VALUE")
+        ]
+    )
 
     expected_instructions = []
     expected_instructions.extend(module_block)
@@ -111,29 +111,20 @@ def test_call_with_arguments():
 
     module_block = BasicBlock(
         [
-            # def callee():
-            Instr("LOAD_NAME", arg="int"),
-            Instr("LOAD_NAME", arg="int"),
-            Instr("LOAD_CONST", arg=("a", "b")),
-            Instr("BUILD_CONST_KEY_MAP", arg=2),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="callee"),
-            Instr("MAKE_FUNCTION", arg=4),
-            Instr("STORE_NAME", arg="callee"),
             # foo = 1
             Instr("LOAD_CONST", arg=1),
-            Instr("STORE_NAME", arg="foo"),
+            Instr("STORE_FAST", arg="foo"),
             # bar = 2
             Instr("LOAD_CONST", arg=2),
-            Instr("STORE_NAME", arg="bar"),
+            Instr("STORE_FAST", arg="bar"),
             # result = callee()
-            Instr("LOAD_NAME", arg="callee"),
-            Instr("LOAD_NAME", arg="foo"),
-            Instr("LOAD_NAME", arg="bar"),
+            Instr("LOAD_GLOBAL", arg="callee"),
+            Instr("LOAD_FAST", arg="foo"),
+            Instr("LOAD_FAST", arg="bar"),
             Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             # return result
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -188,13 +179,8 @@ def test_generators():
     end_block = BasicBlock(
         [
             # return result
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
-        ]
-    )
-    loop_block = BasicBlock(
-        [
-            Instr("STORE_NAME", arg="letter"),
         ]
     )
     loop_header = BasicBlock(
@@ -204,16 +190,16 @@ def test_generators():
     )
     loop_if_true_block = BasicBlock(
         [
-            Instr("LOAD_NAME", arg="result"),
-            Instr("LOAD_NAME", arg="letter"),
+            Instr("LOAD_FAST", arg="result"),
+            Instr("LOAD_FAST", arg="letter"),
             Instr("INPLACE_ADD"),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             Instr("JUMP_ABSOLUTE", arg=loop_header),
         ]
     )
     loop_if_x_block = BasicBlock(
         [
-            Instr("LOAD_NAME", arg="letter"),
+            Instr("LOAD_FAST", arg="letter"),
             Instr("LOAD_CONST", arg="x"),
             Instr("COMPARE_OP", arg=Compare.EQ),
             Instr("POP_JUMP_IF_TRUE", arg=loop_if_true_block),
@@ -221,7 +207,7 @@ def test_generators():
     )
     loop_if_a_block = BasicBlock(
         [
-            Instr("LOAD_NAME", arg="letter"),
+            Instr("LOAD_FAST", arg="letter"),
             Instr("LOAD_CONST", arg="a"),
             Instr("COMPARE_OP", arg=Compare.EQ),
             Instr("POP_JUMP_IF_FALSE", arg=loop_header),
@@ -229,25 +215,15 @@ def test_generators():
     )
     module_block = BasicBlock(
         [
-            # def abc_generator():
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="abc_generator"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="abc_generator"),
-            # def abc_xyz_generator():
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="abc_xyz_generator"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="abc_xyz_generator"),
             # generator = abc_xyz_generator()
-            Instr("LOAD_NAME", arg="abc_xyz_generator"),
+            Instr("LOAD_GLOBAL", arg="abc_xyz_generator"),
             Instr("CALL_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="generator"),
+            Instr("STORE_FAST", arg="generator"),
             # result = ""
             Instr("LOAD_CONST", arg=""),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             # for letter in generator:
-            Instr("LOAD_NAME", arg="generator"),
+            Instr("LOAD_FAST", arg="generator"),
             Instr("GET_ITER"),
         ]
     )
@@ -255,7 +231,6 @@ def test_generators():
     expected_instructions = []
     expected_instructions.extend(module_block)
     expected_instructions.extend(loop_header)
-    expected_instructions.extend(loop_block)
     expected_instructions.extend(loop_if_x_block)
     expected_instructions.extend(loop_if_a_block)
     expected_instructions.extend(loop_if_true_block)

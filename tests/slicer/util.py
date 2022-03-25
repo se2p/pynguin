@@ -143,11 +143,14 @@ def slice_module_at_return(module_name: str) -> DynamicSlice:
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)
+        module.func()
 
         trace = tracer.get_trace()
         known_code_objects = tracer.get_known_data().existing_code_objects
+        assert known_code_objects
         dynamic_slicer = DynamicSlicer(trace, known_code_objects)
 
+        assert trace.executed_instructions
         last_traced_instr = trace.executed_instructions[-1]
         slicing_instruction = UniqueInstruction(
             last_traced_instr.file,
@@ -159,7 +162,7 @@ def slice_module_at_return(module_name: str) -> DynamicSlice:
             offset=last_traced_instr.offset,
         )
         slicing_criterion = SlicingCriterion(
-            slicing_instruction, global_variables={("result", last_traced_instr.file)}
+            slicing_instruction, local_variables={("result", last_traced_instr.file)}
         )
         dynamic_slice = dynamic_slicer.slice(
             trace, slicing_criterion, len(trace.executed_instructions) - 2

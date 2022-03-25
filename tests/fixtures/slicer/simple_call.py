@@ -12,4 +12,6 @@ def callee():
     return 0
 
 
-result = callee()
+def func():
+    result = callee()
+    return result
