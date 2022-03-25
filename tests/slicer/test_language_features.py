@@ -8,8 +8,6 @@
 # https://github.com/ipsw1/pychecco
 
 
-import os
-
 from bytecode import BasicBlock, CellVar, Compare, FreeVar, Instr
 
 from tests.slicer.util import (
@@ -102,15 +100,19 @@ def test_call_without_arguments():
             Instr("RETURN_VALUE"),
         ]
     )
-    callee_block = BasicBlock([Instr("LOAD_CONST", arg=0), Instr("RETURN_VALUE")])
+    callee_block = BasicBlock(
+        [
+            Instr("LOAD_CONST", arg=0),
+            Instr("RETURN_VALUE")
+        ]
+    )
 
     expected_instructions = []
     expected_instructions.extend(module_block)
     expected_instructions.extend(callee_block)
 
-    module_file = "simple_call.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.simple_call"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -158,9 +160,8 @@ def test_call_with_arguments():
     expected_instructions.extend(module_block)
     expected_instructions.extend(callee_block)
 
-    module_file = "simple_call_arg.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.simple_call_arg"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -273,9 +274,8 @@ def test_generators():
     expected_instructions.extend(abc_xyz_generator)
     expected_instructions.extend(abc_generator)
 
-    module_file = "generator.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.generator"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -612,10 +612,9 @@ def test_data_dependency_immutable_attribute():
     expected_instructions.extend(module_block)
     expected_instructions.extend(class_attr_block)
 
-    module_file = "immutable_attribute_dependency.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
-    assert len(expected_instructions) == len(dynamic_slice.sliced_instructions)
+    module = "tests.fixtures.slicer.immutable_attribute_dependency"
+    dynamic_slice = slice_module_at_return(module)
+    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
 
@@ -776,8 +775,7 @@ def test_closures():
     expected_instructions.extend(outer_function_block)
     expected_instructions.extend(inner_function_block)
 
-    module_file = "closure.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
-    assert len(expected_instructions) == len(dynamic_slice.sliced_instructions)
+    module = "tests.fixtures.slicer.closure"
+    dynamic_slice = slice_module_at_return(module)
+    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

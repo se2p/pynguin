@@ -8,23 +8,14 @@
 # https://github.com/ipsw1/pychecco
 
 
-import os
-
 from bytecode import BasicBlock, Compare, Instr
 
 from tests.slicer.util import (
     compare,
-    compile_module,
     dummy_code_object,
     instrument_module,
     slice_function_at_return,
     slice_module_at_return,
-)
-
-path_sep = os.path.sep
-example_modules_directory = "../fixtures/slicer"
-example_modules_path = (
-    path_sep.join(__file__.split(path_sep)[:-1]) + path_sep + example_modules_directory
 )
 
 
@@ -147,9 +138,8 @@ def test_data_dependency_4():
     expected_instructions.extend(module_block)
     expected_instructions.extend(class_attr_block)
 
-    module_file = "attribute_dependencies.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.attribute_dependencies"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -190,9 +180,8 @@ def test_data_dependency_5():
     expected_instructions.extend(module_block)
     expected_instructions.extend(class_attr_block)
 
-    module_file = "partial_cover_dependency.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.partial_cover_depenency"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -270,15 +259,12 @@ def test_data_dependency_6():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    module_dependency_file = "module_dependency_def.py"
-    module_dependency_path = example_modules_path + module_dependency_file
-    instrument_module(module_dependency_path)
+    # TODO(SiL) how to handle dependency instrumentation?
+    module_dependency = "tests.fixtures.slicer.module_dependency_def"
+    instrument_module(module_dependency)
 
-    module_file = "module_dependency_main.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
-
-    compile_module(module_dependency_path)
+    module = "tests.fixtures.slicer.module_dependency_main"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -554,14 +540,11 @@ def test_equal_variable_names():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    module_dependency_file = "equal_variable_names_def.py"
-    module_dependency_path = example_modules_path + module_dependency_file
-    instrument_module(module_dependency_path)
+    # TODO(SiL) how to handle dependency instrumentation?
+    module_dependency = "tests.fixtures.slicer.equal_variable_names_def"
+    instrument_module(module_dependency)
 
-    module_file = "equal_variable_names_main.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
-
-    compile_module(module_dependency_path)
+    module = "tests.fixtures.slicer.equal_variable_names_main"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

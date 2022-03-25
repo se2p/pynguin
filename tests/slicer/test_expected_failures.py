@@ -7,24 +7,14 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-import os
-
 from bytecode import BasicBlock, Compare, Instr
 
 from tests.slicer.util import (
     compare,
-    compile_module,
     dummy_code_object,
     instrument_module,
     slice_function_at_return,
     slice_module_at_return,
-)
-
-# TODO(SiL) adjust paths
-path_sep = os.path.sep
-example_modules_directory = "example_modules/"
-example_modules_path = (
-    path_sep.join(__file__.split(path_sep)[:-1]) + path_sep + example_modules_directory
 )
 
 
@@ -219,10 +209,8 @@ def test_call_unused_argument():
     expected_instructions.extend(module_block)
     expected_instructions.extend(callee_block)
 
-    # TODO(SiL) adjust paths
-    module_file = "simple_call_arg.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
+    module = "tests.fixtures.slicer.simple_call_arg"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -301,12 +289,13 @@ def test_exception():
 
 # TODO(SiL) was marked as 'ExpectedFailure', how to adjust?
 def test_import_star():
+    module_dependency = "tests.fixtures.slicer.import_star_def"
     # IMPORT_STAR with access to immutable variable
     main_module_block = BasicBlock(
         [
             # TODO(SiL) adjust paths
             # from tests.slicer.example_modules.import_star_def import *
-            Instr("IMPORT_NAME", "tests.slicer.example_modules.import_star_def"),
+            Instr("IMPORT_NAME", module_dependency),
             Instr("IMPORT_STAR"),
             # result = Foo.test
             Instr("LOAD_NAME", arg="star_imported"),
@@ -329,16 +318,10 @@ def test_import_star():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    # TODO(SiL) adjust paths
-    module_dependency_file = "import_star_def.py"
-    module_dependency_path = example_modules_path + module_dependency_file
-    instrument_module(module_dependency_path)
+    # TODO(SiL) how to handle dependency instrumentation?
+    instrument_module(module_dependency)
 
-    # TODO(SiL) adjust paths
-    module_file = "import_star_main.py"
-    module_path = example_modules_path + module_file
-    dynamic_slice = slice_module_at_return(module_path)
-
-    compile_module(module_dependency_path)
+    module = "tests.fixtures.slicer.import_star_main"
+    dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

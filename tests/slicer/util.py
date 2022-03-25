@@ -14,13 +14,15 @@ from types import CodeType
 
 from bytecode import BasicBlock, Instr
 
+import pynguin.configuration as config
 from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,
     InstrumentationTransformer,
 )
+from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import DynamicSlice, DynamicSlicer, SlicingCriterion
 from pynguin.slicer.instruction import UniqueInstruction
-from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
+from pynguin.testcase.execution import ExecutionTracer
 from pynguin.utils.pyc import Pyc
 
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, bytes(), (), (), (), "", "", 0, bytes())
@@ -102,22 +104,18 @@ def _contains_name_argtype(
 
 
 def slice_function_at_return(function: callable) -> DynamicSlice:
-    # Setup
     tracer = ExecutionTracer()
     instrumentation = CheckedCoverageInstrumentation(tracer)
     instrumentation_transformer = InstrumentationTransformer(tracer, [instrumentation])
 
-    # Instrument and call example function
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     function()
 
-    # Slice
     trace = tracer.get_trace()
     known_code_objects = tracer.get_known_data().existing_code_objects
     dynamic_slicer = DynamicSlicer(trace, known_code_objects)
 
-    # Slicing criterion at return instruction
     last_traced_instr = trace.executed_instructions[-1]
     slicing_instruction = UniqueInstruction(
         last_traced_instr.file,
@@ -136,56 +134,36 @@ def slice_function_at_return(function: callable) -> DynamicSlice:
     return dynamic_slice
 
 
-def slice_module_at_return(module_file: str) -> DynamicSlice:
-    compiled_file = py_compile.compile(module_file)
+def slice_module_at_return(module_name: str) -> DynamicSlice:
 
-    pyc_file = Pyc(compiled_file)
-    module_code = pyc_file.get_code_object()
-
-    # Setup
+    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
     tracer = ExecutionTracer()
-    instrumentation = CheckedCoverageInstrumentation(tracer)
-    instrumentation_transformer = InstrumentationTransformer(tracer, [instrumentation])
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
 
-    # Instrument and call module
-    instr_module = instrumentation_transformer.instrument_module(module_code)
-    pyc_file.set_code_object(instr_module)
-    pyc_file.overwrite()
-    tracer.reset()
-    tracer.current_test = instr_module.co_name
+        trace = tracer.get_trace()
+        known_code_objects = tracer.get_known_data().existing_code_objects
+        dynamic_slicer = DynamicSlicer(trace, known_code_objects)
 
-    spec = importlib.util.spec_from_file_location(module_file[:-3], module_file)
-    example_module = importlib.util.module_from_spec(spec)
-    # noinspection PyUnresolvedReferences
-    spec.loader.exec_module(example_module)
+        last_traced_instr = trace.executed_instructions[-1]
+        slicing_instruction = UniqueInstruction(
+            last_traced_instr.file,
+            last_traced_instr.name,
+            lineno=last_traced_instr.lineno,
+            code_object_id=last_traced_instr.code_object_id,
+            node_id=last_traced_instr.node_id,
+            code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+            offset=last_traced_instr.offset,
+        )
+        slicing_criterion = SlicingCriterion(
+            slicing_instruction, global_variables={("result", last_traced_instr.file)}
+        )
+        dynamic_slice = dynamic_slicer.slice(
+            trace, slicing_criterion, len(trace.executed_instructions) - 2
+        )
 
-    # Slice
-    trace = tracer.get_trace()
-    known_code_objects = tracer.get_known_data().existing_code_objects
-    dynamic_slicer = DynamicSlicer(trace, known_code_objects)
-    checked_trace = ExecutionTrace()
-
-    # Slicing criterion at foo
-    last_traced_instr = trace.executed_instructions[-1]
-    slicing_instruction = UniqueInstruction(
-        last_traced_instr.file,
-        last_traced_instr.name,
-        lineno=last_traced_instr.lineno,
-        code_object_id=last_traced_instr.code_object_id,
-        node_id=last_traced_instr.node_id,
-        code_meta=known_code_objects.get(last_traced_instr.code_object_id),
-        offset=last_traced_instr.offset,
-    )
-    slicing_criterion = SlicingCriterion(
-        slicing_instruction, global_variables={("result", last_traced_instr.file)}
-    )
-    dynamic_slice = dynamic_slicer.slice(
-        checked_trace, slicing_criterion, len(trace.executed_instructions) - 2
-    )
-
-    py_compile.compile(module_file, cfile=compiled_file)
-
-    return dynamic_slice
+        return dynamic_slice
 
 
 def instrument_module(module_file: str):
@@ -203,7 +181,3 @@ def instrument_module(module_file: str):
     instr_module = instrumentation_transformer.instrument_module(module_code)
     pyc_file.set_code_object(instr_module)
     pyc_file.overwrite()
-
-
-def compile_module(module_file: str) -> str:
-    return py_compile.compile(module_file)
