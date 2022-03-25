@@ -14,7 +14,7 @@ from typing import Iterable
 
 import pytest
 
-from pynguin.analyses.module_bak.syntaxtree import (
+from pynguin.analyses.syntaxtree import (
     FunctionAnalysisVisitor,
     FunctionAndMethodVisitor,
     get_all_classes,

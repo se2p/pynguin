@@ -33,7 +33,7 @@ def has_decorator(
         decorators: The name or a list of names of decorators to check
 
     Returns:
-        Whether or not the function has the decorators
+        Whether the function has the decorators
     """
     if isinstance(decorators, str):
         decorators = (decorators,)
@@ -143,17 +143,29 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
 
     @property
     def functions(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
-        """Provides all traced functions."""
+        """Provides all traced functions.
+
+        Returns:
+            A list of all traced functions
+        """
         return list(self.__callables - self.__methods - self.__properties)
 
     @property
     def methods(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
-        """Provides all traced methods."""
+        """Provides all traced methods.
+
+        Returns:
+            A list of all traced methods
+        """
         return list(self.__methods)
 
     @property
     def properties(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
-        """Provides all traced properties."""
+        """Provides all traced properties.
+
+        Returns:
+            A list of all traced properties
+        """
         return list(self.__properties)
 
     # pylint: disable=invalid-name, missing-docstring
@@ -509,12 +521,20 @@ class _RaiseVisitor(ast.NodeVisitor):
 
     @property
     def exceptions(self) -> set[str]:
-        """Provides the set of exceptions that are not handled."""
+        """Provides the set of exceptions that are not handled.
+
+        Returns:
+            Provides the set of exceptions that are not handled
+        """
         return self.contexts[0].exceptions
 
     @property
     def context(self) -> _Context:
-        """Provides the outermost context."""
+        """Provides the outermost context.
+
+        Returns:
+            The outermost context
+        """
         return self.contexts[-1]
 
     # pylint: disable=invalid-name, missing-docstring
@@ -691,7 +711,7 @@ class FunctionAnalysisVisitor(
 
 
 class FunctionType(enum.Enum):
-    """Specifies the type of a function."""
+    """Specifies the kind of function."""
 
     FUNCTION = enum.auto()
     """Denotes a function, i.e., a callable on the top level of the module."""
