@@ -188,9 +188,8 @@ class ProgramGraph(Generic[N]):
         Returns:
             The set of all nodes in the graph
         """
-        return {
-            node
-            for node in self._graph.nodes  # pylint: disable=unnecessary-comprehension
+        return {  # pylint: disable=unnecessary-comprehension
+            node for node in self._graph.nodes
         }
 
     @property
