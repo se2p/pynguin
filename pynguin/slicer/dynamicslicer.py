@@ -858,9 +858,10 @@ class DynamicSlicer:
                 while True:
                     current_code_meta = self._known_code_objects[current_code_object_id]
                     variable_scope.add(current_code_object_id)
-                    assert (
-                        current_code_meta.parent_code_object_id
-                    ), "Code object was not a child object"
+                    # TODO must parent_code_object_id be set?
+                    # assert (
+                    #     current_code_meta.parent_code_object_id
+                    # ), "Code object was not a child object"
                     current_code_object_id = current_code_meta.parent_code_object_id
 
                     if (

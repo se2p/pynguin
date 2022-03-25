@@ -313,6 +313,7 @@ def test_nested_class():
             Instr("MAKE_FUNCTION", arg=8),
             Instr("LOAD_CONST", arg="NestedClass"),
             Instr("CALL_FUNCTION", arg=2),
+            # TODO(SiL) hier sind noch ein LOAD_CONST None und ein Return Value im slice
             Instr("STORE_FAST", arg="NestedClass"),
             # class_attr = NestedClass.y
             Instr("LOAD_FAST", arg="NestedClass"),
@@ -684,22 +685,17 @@ def test_closures():
     cellvar_foo = CellVar("foo")
     module_block = BasicBlock(
         [
-            # def outer_function(foo):
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="outer_function"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="outer_function"),
             # inner = outer_function('a')
-            Instr("LOAD_NAME", arg="outer_function"),
+            Instr("LOAD_GLOBAL", arg="outer_function"),
             Instr("LOAD_CONST", arg="a"),
             Instr("CALL_FUNCTION", arg=1),
-            Instr("STORE_NAME", arg="inner"),
+            Instr("STORE_FAST", arg="inner"),
             # result = inner("abc")
-            Instr("LOAD_NAME", arg="inner"),
+            Instr("LOAD_FAST", arg="inner"),
             Instr("LOAD_CONST", arg="abc"),
             Instr("CALL_FUNCTION", arg=1),
-            Instr("STORE_NAME", arg="result"),
-            Instr("LOAD_CONST", arg=None),
+            Instr("STORE_FAST", arg="result"),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -722,7 +718,7 @@ def test_closures():
             # return foo in bar
             Instr("LOAD_DEREF", arg=freevar_foo),
             Instr("LOAD_FAST", arg="bar"),
-            Instr("COMPARE_OP", arg=Compare.IN),
+            Instr("CONTAINS_OP", arg=0),
             Instr("RETURN_VALUE"),
         ]
     )

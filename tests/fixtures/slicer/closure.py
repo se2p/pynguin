@@ -13,5 +13,7 @@ def outer_function(foo):
     return inner_function
 
 
-inner = outer_function("a")
-result = inner("abc")
+def func():
+    inner = outer_function("a")
+    result = inner("abc")
+    return result
