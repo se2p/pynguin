@@ -73,6 +73,15 @@ def test_add_graph(graph, node):
     assert len(graph.nodes) == 1
 
 
+def test_graph_nodes_set(graph, node, second_node, third_node, fourth_node):
+    graph.add_node(node)
+    graph.add_node(second_node)
+    graph.add_node(third_node)
+    graph.add_node(fourth_node)
+    nodes = graph.nodes
+    assert nodes == {node, second_node, third_node, fourth_node}
+
+
 def test_add_edge(graph, node, second_node):
     graph.add_node(node)
     graph.add_node(second_node)
