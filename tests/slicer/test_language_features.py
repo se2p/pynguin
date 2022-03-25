@@ -465,10 +465,7 @@ def test_lambda():
         [
             # x = lambda a: a + 10
             Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr(
-                "LOAD_CONST",
-                arg="IntegrationTestLanguageFeatures.test_lambda.<locals>.func.<locals>.<lambda>",
-            ),
+            Instr("LOAD_CONST", arg="test_lambda.<locals>.func.<locals>.<lambda>"),
             Instr("MAKE_FUNCTION", arg=0),
             Instr("STORE_FAST", arg="x"),
             # result = x(1)
