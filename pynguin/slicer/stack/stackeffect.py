@@ -120,6 +120,10 @@ def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
         op.RERAISE: (3, 0),
         op.GEN_START: (1, 0),
         op.MATCH_CLASS: (2, 1),
+        op.LIST_EXTEND: (2, 1),
+        op.SET_UPDATE: (2, 1),
+        op.DICT_MERGE: (2, 1),
+        op.DICT_UPDATE: (2, 1),
     }
 
 

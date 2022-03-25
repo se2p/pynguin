@@ -256,13 +256,9 @@ def test_with_extended_arg():
     module_block = BasicBlock(
         [
             # p = [1, 2, 3, 4, 5, 6]
-            Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_CONST", arg=2),
-            Instr("LOAD_CONST", arg=3),
-            Instr("LOAD_CONST", arg=4),
-            Instr("LOAD_CONST", arg=5),
-            Instr("LOAD_CONST", arg=6),
-            Instr("BUILD_LIST", arg=6),
+            Instr("BUILD_LIST", arg=0),
+            Instr("LOAD_CONST", arg=(1, 2, 3, 4, 5, 6)),
+            Instr("LIST_EXTEND", arg=1),
             Instr("STORE_FAST", arg="p"),
             # q, r, *s, t = p
             Instr("LOAD_FAST", arg="p"),
