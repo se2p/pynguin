@@ -24,7 +24,7 @@ from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
-    LineCoverageInstrumentation,
+    LineCoverageInstrumentation, CheckedCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:
@@ -62,6 +62,8 @@ class InstrumentationLoader(SourceFileLoader):
             adapters.append(BranchCoverageInstrumentation(self._tracer))
         if config.CoverageMetric.LINE in coverage_metrics:
             adapters.append(LineCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            adapters.append(CheckedCoverageInstrumentation(self._tracer))
 
         if config.configuration.seeding.dynamic_constant_seeding:
             adapters.append(DynamicSeedingInstrumentation(dynamic_constant_seeding))
