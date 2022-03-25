@@ -136,7 +136,9 @@ def slice_function_at_return(function: callable) -> DynamicSlice:
 
 def slice_module_at_return(module_name: str) -> DynamicSlice:
 
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED
+    ]
     tracer = ExecutionTracer()
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)

@@ -18,13 +18,13 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
-from opcode import opname
 from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Union
 
 from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
+from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.testcase.statement_to_ast as stmt_to_ast

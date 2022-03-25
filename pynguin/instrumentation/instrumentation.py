@@ -737,10 +737,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         for instr in basic_block:
             # Perform the actual instrumentation
             if instr.opcode in (
-                op.OP_UNARY +
-                op.OP_BINARY +
-                op.OP_INPLACE +
-                op.OP_COMPARE
+                op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
             ):
                 self._instrument_generic(
                     new_block_instructions,

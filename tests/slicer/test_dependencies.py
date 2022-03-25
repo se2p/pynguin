@@ -180,7 +180,7 @@ def test_data_dependency_5():
     expected_instructions.extend(module_block)
     expected_instructions.extend(class_attr_block)
 
-    module = "tests.fixtures.slicer.partial_cover_depenency"
+    module = "tests.fixtures.slicer.partial_cover_dependency"
     dynamic_slice = slice_module_at_return(module)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

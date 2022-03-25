@@ -17,12 +17,6 @@ from tests.slicer.util import (
     slice_module_at_return,
 )
 
-path_sep = os.path.sep
-example_modules_directory = "example_modules/"
-example_modules_path = (
-    path_sep.join(__file__.split(path_sep)[:-1]) + path_sep + example_modules_directory
-)
-
 
 def test_simple_loop():
     def func():
@@ -100,12 +94,7 @@ def test_call_without_arguments():
             Instr("RETURN_VALUE"),
         ]
     )
-    callee_block = BasicBlock(
-        [
-            Instr("LOAD_CONST", arg=0),
-            Instr("RETURN_VALUE")
-        ]
-    )
+    callee_block = BasicBlock([Instr("LOAD_CONST", arg=0), Instr("RETURN_VALUE")])
 
     expected_instructions = []
     expected_instructions.extend(module_block)
