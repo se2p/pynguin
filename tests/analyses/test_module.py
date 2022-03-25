@@ -4,6 +4,10 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from logging import Logger
+from unittest.mock import MagicMock
+
+from pynguin.analyses import module
 from pynguin.analyses.module import parse_module
 
 
@@ -17,12 +21,14 @@ def test_parse_module():
 
 
 def test_parse_c_module():
+    module.LOGGER = MagicMock(Logger)
     module_name = "jellyfish.cjellyfish"
     parse_result = parse_module(module_name)
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
     assert parse_result.contains_type_information
+    module.LOGGER.warning.assert_called_once()
 
 
 def test_parse_module_check_for_type_hint():

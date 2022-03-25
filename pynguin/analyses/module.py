@@ -67,7 +67,8 @@ def parse_module(module_name: str, extract_types: bool = True) -> _ParseResult:
             annotation_remover.visit(syntax_tree)
     except OSError as error:
         LOGGER.warning(
-            f"Could not retrieve source code for module {module_name} ({error})."
+            f"Could not retrieve source code for module {module_name} ({error}). "
+            f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
         syntax_tree = None
     return _ParseResult(
