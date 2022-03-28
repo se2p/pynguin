@@ -20,6 +20,7 @@ from pynguin.testcase.execution import ExecutionContext
 from pynguin.utils.type_utils import (
     is_assertable,
     is_collection_type,
+    is_ignorable_type,
     is_primitive_type,
 )
 
@@ -114,7 +115,11 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         for seen_type in [
             type(exec_ctx.get_reference_value(ref)) for ref in self._watch_list
         ]:
-            if is_primitive_type(seen_type) or is_collection_type(seen_type):
+            if (
+                is_primitive_type(seen_type)
+                or is_collection_type(seen_type)
+                or is_ignorable_type(seen_type)
+            ):
                 continue
 
             if not hasattr(seen_type, "__dict__"):

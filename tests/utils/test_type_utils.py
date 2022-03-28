@@ -22,6 +22,7 @@ from pynguin.utils.type_utils import (
     is_collection_type,
     is_dict,
     is_enum,
+    is_ignorable_type,
     is_list,
     is_none_type,
     is_numeric,
@@ -234,6 +235,18 @@ def test_wrap_var_param_type(kind, type_, result):
 )
 def test_is_collection_type(type_, result):
     assert is_collection_type(type_) == result
+
+
+def test_is_ignorable_type():
+    def generator():  # pragma: no cover
+        yield from range(10)
+
+    generator_type = type(generator())
+    assert is_ignorable_type(generator_type)
+
+
+def test_is_ignorable_type_false():
+    assert not is_ignorable_type(str)
 
 
 @pytest.mark.parametrize(
