@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])
-IGNORABLE_TYPES = OrderedSet(["builtins.generator"])
+IGNORABLE_TYPES = OrderedSet(["builtins.generator", "builtins.async_generator"])
 
 
 def is_primitive_type(type_: type | None) -> bool:

@@ -245,6 +245,14 @@ def test_is_ignorable_type():
     assert is_ignorable_type(generator_type)
 
 
+def test_is_ignorable_type_async():
+    async def async_generator():  # pragma: no cover
+        yield "foo"
+
+    generator_type = type(async_generator())
+    assert is_ignorable_type(generator_type)
+
+
 def test_is_ignorable_type_false():
     assert not is_ignorable_type(str)
 
