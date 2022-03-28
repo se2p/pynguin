@@ -39,13 +39,13 @@ from pynguin.utils.type_utils import (
 @pytest.mark.parametrize(
     "type_, result",
     [
-        pytest.param(int, True),
-        pytest.param(float, True),
-        pytest.param(str, True),
-        pytest.param(bool, True),
-        pytest.param(complex, True),
-        pytest.param(type, False),
-        pytest.param(None, False),
+        (int, True),
+        (float, True),
+        (str, True),
+        (bool, True),
+        (complex, True),
+        (type, False),
+        (None, False),
     ],
 )
 def test_is_primitive_type(type_, result):
@@ -55,9 +55,9 @@ def test_is_primitive_type(type_, result):
 @pytest.mark.parametrize(
     "type_, result",
     [
-        pytest.param(type(None), True),
-        pytest.param(None, False),
-        pytest.param(str, False),
+        (type(None), True),
+        (None, False),
+        (str, False),
     ],
 )
 def test_is_none_type(type_, result):
@@ -66,7 +66,7 @@ def test_is_none_type(type_, result):
 
 @pytest.mark.parametrize(
     "type_,result",
-    [pytest.param(None, True), pytest.param(MagicMock, False)],
+    [(None, True), (MagicMock, False)],
 )
 def test_is_type_unknown(type_, result):
     assert is_type_unknown(type_) == result
@@ -74,7 +74,7 @@ def test_is_type_unknown(type_, result):
 
 @pytest.mark.parametrize(
     "module, result",
-    [pytest.param("wrong_module", False), pytest.param("unittest.mock", True)],
+    [("wrong_module", False), ("unittest.mock", True)],
 )
 def test_class_in_module(module, result):
     predicate = class_in_module(module)
@@ -83,7 +83,7 @@ def test_class_in_module(module, result):
 
 @pytest.mark.parametrize(
     "module, result",
-    [pytest.param("wrong_module", False), pytest.param("unittest.mock", True)],
+    [("wrong_module", False), ("unittest.mock", True)],
 )
 def test_function_in_module(module, result):
     predicate = function_in_module(module)
@@ -93,12 +93,12 @@ def test_function_in_module(module, result):
 @pytest.mark.parametrize(
     "from_type,to_type,result",
     [
-        pytest.param(int, int, True),
-        pytest.param(float, Union[int, float], True),
-        pytest.param(float, int, False),
-        pytest.param(float, Union[str, int], False),
-        pytest.param(float, Any, True),
-        pytest.param(int, Any, True),
+        (int, int, True),
+        (float, Union[int, float], True),
+        (float, int, False),
+        (float, Union[str, int], False),
+        (float, Any, True),
+        (int, Any, True),
     ],
 )
 def test_is_assignable_to(from_type, to_type, result):
@@ -191,10 +191,10 @@ def test_is_enum():
 @pytest.mark.parametrize(
     "param_name,result",
     [
-        pytest.param("normal", False),
-        pytest.param("args", True),
-        pytest.param("kwargs", True),
-        pytest.param("default", True),
+        ("normal", False),
+        ("args", True),
+        ("kwargs", True),
+        ("default", True),
     ],
 )
 def test_should_skip_parameter(param_name, result):
@@ -208,11 +208,11 @@ def test_should_skip_parameter(param_name, result):
 @pytest.mark.parametrize(
     "kind,type_,result",
     [
-        pytest.param(inspect.Parameter.VAR_POSITIONAL, None, list[Any]),
-        pytest.param(inspect.Parameter.VAR_POSITIONAL, str, list[str]),
-        pytest.param(inspect.Parameter.VAR_KEYWORD, None, dict[str, Any]),
-        pytest.param(inspect.Parameter.VAR_KEYWORD, str, dict[str, str]),
-        pytest.param(inspect.Parameter.POSITIONAL_OR_KEYWORD, dict, dict),
+        (inspect.Parameter.VAR_POSITIONAL, None, list[Any]),
+        (inspect.Parameter.VAR_POSITIONAL, str, list[str]),
+        (inspect.Parameter.VAR_KEYWORD, None, dict[str, Any]),
+        (inspect.Parameter.VAR_KEYWORD, str, dict[str, str]),
+        (inspect.Parameter.POSITIONAL_OR_KEYWORD, dict, dict),
     ],
 )
 def test_wrap_var_param_type(kind, type_, result):
@@ -222,15 +222,15 @@ def test_wrap_var_param_type(kind, type_, result):
 @pytest.mark.parametrize(
     "type_,result",
     [
-        pytest.param(list, True),
-        pytest.param(set, True),
-        pytest.param(dict, True),
-        pytest.param(tuple, True),
-        pytest.param(list[str], True),
-        pytest.param(set[str], True),
-        pytest.param(tuple[str], True),
-        pytest.param(dict[str, str], True),
-        pytest.param(str, False),
+        (list, True),
+        (set, True),
+        (dict, True),
+        (tuple, True),
+        (list[str], True),
+        (set[str], True),
+        (tuple[str], True),
+        (dict[str, str], True),
+        (str, False),
     ],
 )
 def test_is_collection_type(type_, result):
@@ -260,11 +260,11 @@ def test_is_ignorable_type_false():
 @pytest.mark.parametrize(
     "exception,ex_match,result",
     [
-        pytest.param(ValueError, ValueError, True),
-        pytest.param(ValueError(), ValueError, True),
-        pytest.param(ValueError(), Exception, True),
-        pytest.param(ValueError(), NameError, False),
-        pytest.param(None, None, False),
+        (ValueError, ValueError, True),
+        (ValueError(), ValueError, True),
+        (ValueError(), Exception, True),
+        (ValueError(), NameError, False),
+        (None, None, False),
     ],
 )
 def test_given_exception_matches(exception, ex_match, result):
