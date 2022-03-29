@@ -13,6 +13,8 @@ class Foo:
     pass
 
 
-ob = Foo()
+def func():
+    ob = Foo()
 
-result = ob.attr2
+    result = ob.attr2
+    return result

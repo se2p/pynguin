@@ -14,4 +14,6 @@ class Foo:
     test = duplicate_var
 
 
-result = Foo.test
+def func():
+    result = Foo.test
+    return result

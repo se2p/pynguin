@@ -13,9 +13,9 @@ from bytecode import BasicBlock, Compare, Instr
 from tests.slicer.util import (
     compare,
     dummy_code_object,
-    instrument_module,
     slice_function_at_return,
     slice_module_at_return,
+    slice_two_modules_with_same_tracer,
 )
 
 
@@ -91,35 +91,32 @@ def test_data_dependency_4():
     module_block = BasicBlock(
         [
             # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
+            Instr("LOAD_GLOBAL", arg="Foo"),  # TODO MISSING
+            Instr("CALL_FUNCTION", arg=2),  # TODO MISSING
+            Instr("STORE_FAST", arg="ob"),  # TODO MISSING
             # ob.attr1 = 1
             Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("STORE_ATTR", arg="attr1"),
             # ob.attr2 = ob.attr2.append(ob.attr1)
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr2"),
             Instr("LOAD_METHOD", arg="append"),
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr1"),
             Instr("CALL_METHOD", arg=1),
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("STORE_ATTR", arg="attr2"),
             # result = ob.attr2
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr2"),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             # return
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_CONST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
+    # TODO this entire block is missing
     class_attr_block = BasicBlock(
         [
             # attr2 = [1, 2, 3]
@@ -147,32 +144,28 @@ def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
     module_block = BasicBlock(
         [
-            # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
             # ob = Foo()
-            Instr("LOAD_NAME", arg="Foo"),
+            Instr("LOAD_GLOBAL", arg="Foo"),
             Instr("CALL_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="ob"),
+            Instr("STORE_FAST", arg="ob"),
             # ob.attr1 = 1
             Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("STORE_ATTR", arg="attr1"),
             # result = ob
-            Instr("LOAD_NAME", arg="ob"),
-            Instr("STORE_NAME", arg="result"),
+            Instr("LOAD_FAST", arg="ob"),
+            Instr("STORE_FAST", arg="result"),
             # return
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
+    # TODO(SiL) entire block is missing
     class_attr_block = BasicBlock(
-        [Instr("LOAD_CONST", arg=None), Instr("RETURN_VALUE")]
+        [
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE")
+        ]
     )
 
     expected_instructions = []
@@ -207,9 +200,9 @@ def test_data_dependency_6():
             Instr("LOAD_METHOD", arg="get_class_list"),
             Instr("CALL_METHOD", arg=0),
             Instr("BINARY_ADD"),
-            Instr("STORE_NAME", arg="result"),
+            Instr("STORE_FAST", arg="result"),
             # return
-            Instr("LOAD_CONST", arg=None),
+            Instr("LOAD_CONST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -256,12 +249,9 @@ def test_data_dependency_6():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    # TODO(SiL) how to handle dependency instrumentation?
     module_dependency = "tests.fixtures.slicer.module_dependency_def"
-    instrument_module(module_dependency)
-
     module = "tests.fixtures.slicer.module_dependency_main"
-    dynamic_slice = slice_module_at_return(module)
+    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -518,8 +508,8 @@ def test_equal_variable_names():
             # result = Foo.test
             Instr("LOAD_NAME", arg="Foo"),
             Instr("LOAD_ATTR", arg="test"),
-            Instr("STORE_NAME", arg="result"),
-            Instr("LOAD_CONST", arg=None),
+            Instr("STORE_FAST", arg="result"),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -537,11 +527,8 @@ def test_equal_variable_names():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    # TODO(SiL) how to handle dependency instrumentation?
     module_dependency = "tests.fixtures.slicer.equal_variable_names_def"
-    instrument_module(module_dependency)
-
     module = "tests.fixtures.slicer.equal_variable_names_main"
-    dynamic_slice = slice_module_at_return(module)
+    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

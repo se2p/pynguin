@@ -433,7 +433,7 @@ def test_nested_class_2():
             Instr("LOAD_CONST", arg="Foo"),
             Instr("CALL_FUNCTION", arg=2),
             Instr("STORE_NAME", arg="Foo"),
-            # foo = x1
+            # foo = x1  # TODO(SiL) This block is falsely missing from the slice
             Instr("LOAD_CLASSDEREF", arg=freevar_x1),
             Instr("STORE_NAME", arg="foo"),
             Instr("LOAD_CONST", arg=None),
@@ -547,18 +547,14 @@ def test_data_dependency_immutable_attribute():
     module_block = BasicBlock(
         [
             # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
+            Instr("LOAD_GLOBAL", arg="Foo"),
+            Instr("CALL_FUNCTION", arg=0),
+            Instr("STORE_FAST", arg="ob"),
             # result = ob.attr2
-            Instr("LOAD_NAME", arg="ob"),
+            Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr2"),
-            Instr("STORE_NAME", arg="result"),
-            Instr("LOAD_CONST", arg=None),
+            Instr("STORE_FAST", arg="result"),
+            Instr("LOAD_CONST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -630,19 +626,19 @@ def test_object_modification_call():
             # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
             # def __init__(self):
             # Instr("LOAD_CONST", arg=dummy_code_object),
-            # Instr("LOAD_CONST", arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
+            # Instr("LOAD_CONST", arg="test_object_modification_call.<locals>."
             #                         "func.<locals>.NestedClass.__init__"),
             # Instr("MAKE_FUNCTION", arg=0),
             # Instr("STORE_NAME", arg="__init__"),
+
             # def inc_x(self):
-            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg=dummy_code_object),  # TODO(SiL) MISSING
             Instr(
-                "LOAD_CONST",
-                arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
+                "LOAD_CONST", arg="test_object_modification_call.<locals>."
                 "func.<locals>.NestedClass.inc_x",
-            ),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("STORE_NAME", arg="inc_x"),
+            ),  # TODO(SiL) MISSING
+            Instr("MAKE_FUNCTION", arg=0),  # TODO(SiL) MISSING
+            Instr("STORE_NAME", arg="inc_x"),  # TODO(SiL) MISSING
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]

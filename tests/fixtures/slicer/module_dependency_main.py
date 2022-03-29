@@ -9,4 +9,7 @@
 
 from tests.fixtures.slicer.module_dependency_def import Foo, module_list
 
-result = module_list + Foo.get_class_list()
+
+def func():
+    result = module_list + Foo.get_class_list()
+    return result

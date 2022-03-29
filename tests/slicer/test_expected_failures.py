@@ -13,9 +13,9 @@ from bytecode import BasicBlock, Compare, Instr
 from tests.slicer.util import (
     compare,
     dummy_code_object,
-    instrument_module,
     slice_function_at_return,
     slice_module_at_return,
+    slice_two_modules_with_same_tracer,
 )
 
 
@@ -319,10 +319,7 @@ def test_import_star():
     expected_instructions.extend(main_module_block)
     expected_instructions.extend(dependency_module_block)
 
-    # TODO(SiL) how to handle dependency instrumentation?
-    instrument_module(module_dependency)
-
     module = "tests.fixtures.slicer.import_star_main"
-    dynamic_slice = slice_module_at_return(module)
+    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

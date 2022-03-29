@@ -9,4 +9,7 @@
 
 from tests.fixtures.slicer.import_star_def import *  # noqa
 
-result = star_imported  # noqa
+
+def func():
+    result = star_imported  # noqa
+    return result
