@@ -29,8 +29,8 @@ from pynguin.utils.type_utils import (
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses.types import InferredSignature
     from pynguin.setup.testcluster import TestCluster
-    from pynguin.typeinference.strategy import InferredSignature
 
 
 # TODO(fk) find better name for this?

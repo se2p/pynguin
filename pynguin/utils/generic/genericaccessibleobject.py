@@ -16,7 +16,7 @@ import typing
 from typing import Callable, cast
 
 if typing.TYPE_CHECKING:
-    from pynguin.typeinference.strategy import InferredSignature
+    from pynguin.analyses.types import InferredSignature
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):

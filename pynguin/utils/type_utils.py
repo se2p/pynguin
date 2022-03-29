@@ -19,7 +19,7 @@ from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
 
 if typing.TYPE_CHECKING:
-    from pynguin.typeinference.strategy import InferredSignature
+    from pynguin.analyses.types import InferredSignature
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])
