@@ -117,6 +117,9 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     Returns:
         The inference result
     """
+    if inspect.isclass(method) and hasattr(method, "__init__"):
+        return infer_type_info_no_types(getattr(method, "__init__"))
+
     method_signature = signature(method)
     parameters: dict[str, type | None] = {}
     for param_name in method_signature.parameters:

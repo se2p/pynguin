@@ -108,6 +108,8 @@ def test_update_non_existing_parameter(inferred_signature):
         pytest.param(__return_tuple_no_annotation, True, {}, None),
         pytest.param(__TypedDummy, True, {"a": Any}, type(None)),
         pytest.param(__UntypedDummy, True, {"a": None}, None),
+        pytest.param(__TypedDummy, False, {"a": None}, None),
+        pytest.param(__UntypedDummy, False, {"a": None}, None),
     ],
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
