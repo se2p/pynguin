@@ -4,18 +4,12 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import os
 from typing import cast
 
-import pytest
 from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 from pynguin.setup.testclustergenerator import TestClusterGenerator
-from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.stubstrategy import StubInferenceStrategy
-from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,
@@ -109,37 +103,6 @@ def test_private_method_not_added():
     assert isinstance(
         next(iter(cluster.accessible_objects_under_test)), GenericConstructor
     )
-
-
-@pytest.mark.parametrize(
-    "inference_strategy, obj",
-    [
-        pytest.param(config.TypeInferenceStrategy.NONE, NoTypeInferenceStrategy),
-        pytest.param(config.TypeInferenceStrategy.STUB_FILES, StubInferenceStrategy),
-        pytest.param(
-            config.TypeInferenceStrategy.TYPE_HINTS, TypeHintsInferenceStrategy
-        ),
-    ],
-)
-def test_initialise_type_inference_strategies(inference_strategy, obj):
-    config.configuration.type_inference.type_inference_strategy = inference_strategy
-    config.configuration.type_inference.stub_dir = os.devnull
-    generator = TestClusterGenerator("")
-    assert isinstance(generator._inference._strategies[0], obj)
-
-
-def test_initialise_stub_inference_strategy_exception():
-    config.configuration.type_inference.type_inference_strategy = (
-        config.TypeInferenceStrategy.STUB_FILES
-    )
-    with pytest.raises(ConfigurationException):
-        TestClusterGenerator("")
-
-
-def test_initialise_unknown_type_inference_strategies():
-    config.configuration.type_inference.type_inference_strategy = "foo"
-    with pytest.raises(ConfigurationException):
-        TestClusterGenerator("")
 
 
 def test_overridden_inherited_methods():

@@ -14,7 +14,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
-from pynguin.typeinference.strategy import InferredSignature
+from pynguin.analyses.types import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 
 

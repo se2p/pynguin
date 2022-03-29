@@ -19,8 +19,8 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses.types import InferredSignature
 from pynguin.setup.testcluster import FullTestCluster
-from pynguin.typeinference.strategy import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
 from tests.fixtures.examples.monkey import Monkey
 

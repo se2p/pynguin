@@ -17,13 +17,8 @@ import typing
 from typing_inspect import get_args, is_union_type
 
 import pynguin.configuration as config
+from pynguin.analyses.types import infer_type_info
 from pynguin.setup.testcluster import FullTestCluster, TestCluster
-from pynguin.typeinference import typeinference
-from pynguin.typeinference.nonstrategy import NoTypeInferenceStrategy
-from pynguin.typeinference.strategy import TypeInferenceStrategy
-from pynguin.typeinference.stubstrategy import StubInferenceStrategy
-from pynguin.typeinference.typehintsstrategy import TypeHintsInferenceStrategy
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
@@ -63,9 +58,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         self._analyzed_classes: set[type] = set()
         self._dependencies_to_solve: set[DependencyPair] = set()
         self._test_cluster: FullTestCluster = FullTestCluster()
-        self._inference = typeinference.TypeInference(
-            strategies=self._initialise_type_inference_strategies()
-        )
         self._enable_conditional_typing_imports()
 
     @staticmethod
@@ -73,21 +65,6 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         """Enable imports that are conditional on the typing.TYPE_CHECKING variable.
         See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING"""
         typing.TYPE_CHECKING = True
-
-    @staticmethod
-    def _initialise_type_inference_strategies() -> list[TypeInferenceStrategy]:
-        strategy = config.configuration.type_inference.type_inference_strategy
-        if strategy == config.TypeInferenceStrategy.NONE:
-            return [NoTypeInferenceStrategy()]
-        if strategy == config.TypeInferenceStrategy.STUB_FILES:
-            if config.configuration.type_inference.stub_dir == "":
-                raise ConfigurationException(
-                    "Missing configuration value `stub_dir' for StubInferenceStrategy"
-                )
-            return [StubInferenceStrategy(config.configuration.type_inference.stub_dir)]
-        if strategy == config.TypeInferenceStrategy.TYPE_HINTS:
-            return [TypeHintsInferenceStrategy()]
-        raise ConfigurationException("Invalid type-inference strategy")
 
     def generate_cluster(self) -> TestCluster:
         """Generate new test cluster from the configured module.
@@ -106,7 +83,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
         ):
 
             generic_function = GenericFunction(
-                funktion, self._inference.infer_type_info(funktion)[0], function_name
+                funktion, infer_type_info(funktion), function_name
             )
             if self._is_protected(
                 function_name
@@ -173,7 +150,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             generic: GenericEnum | GenericConstructor = GenericEnum(klass)
         else:
             generic = generic_constructor = GenericConstructor(
-                klass, self._inference.infer_type_info(klass.__init__)[0]
+                klass, infer_type_info(klass.__init__)
             )
             if self._discard_accessible_with_missing_type_hints(generic_constructor):
                 return
@@ -190,7 +167,7 @@ class TestClusterGenerator:  # pylint: disable=too-few-public-methods
             self._logger.debug("Analyzing method %s", method_name)
 
             generic_method = GenericMethod(
-                klass, method, self._inference.infer_type_info(method)[0], method_name
+                klass, method, infer_type_info(method), method_name
             )
 
             if (
