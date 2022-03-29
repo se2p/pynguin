@@ -183,6 +183,11 @@ def test_generators():
             Instr("RETURN_VALUE"),
         ]
     )
+    loop_block = BasicBlock(
+        [
+            Instr("STORE_FAST", arg="letter"),
+        ]
+    )
     loop_header = BasicBlock(
         [
             Instr("FOR_ITER", arg=end_block),
@@ -231,6 +236,7 @@ def test_generators():
     expected_instructions = []
     expected_instructions.extend(module_block)
     expected_instructions.extend(loop_header)
+    expected_instructions.extend(loop_block)
     expected_instructions.extend(loop_if_x_block)
     expected_instructions.extend(loop_if_a_block)
     expected_instructions.extend(loop_if_true_block)
