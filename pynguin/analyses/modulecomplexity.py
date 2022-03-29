@@ -44,6 +44,7 @@ from abc import ABCMeta
 from ast import iter_child_nodes
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Sequence
 
 
 class _ASTVisitor(metaclass=ABCMeta):
@@ -55,10 +56,23 @@ class _ASTVisitor(metaclass=ABCMeta):
         self._cache = {}
 
     def default(self, node: ast.AST) -> None:
+        """Default handling of the AST node.
+
+        Args:
+            node: The AST node
+        """
         for child in iter_child_nodes(node):
             self.dispatch(child)
 
     def dispatch(self, node: ast.AST):
+        """Dispatch to the proper handling method.
+
+        Args:
+            node: The AST node
+
+        Returns:
+            The handling method's result
+        """
         self.node = node
         klass = node.__class__
         meth = self._cache.get(klass)
@@ -69,7 +83,12 @@ class _ASTVisitor(metaclass=ABCMeta):
         return meth(node)  # type: ignore
 
     def preorder(self, tree: ast.AST, visitor: _ASTVisitor):
-        """Do preorder walk of tree using visitor"""
+        """Do preorder walk of tree using visitor.
+
+        Args:
+            tree: The AST
+            visitor: The traversing visitor
+        """
         self.visitor = visitor
         self.dispatch(tree)
 
@@ -89,14 +108,22 @@ class _PathGraph:
         self.column = column
         self.nodes = defaultdict(list)
 
-    def connect(self, n1, n2):
-        self.nodes[n1].append(n2)
-        # Ensure that the destination node is always counted.
-        self.nodes[n2] = []
+    def connect(self, node_1: _PathNode, node_2: _PathNode) -> None:
+        """Connects two path nodes.
 
-    def complexity(self):
-        """Return the McCabe complexity for the graph.
-        V-E+2
+        Args:
+            node_1: The first node
+            node_2: The second node
+        """
+        self.nodes[node_1].append(node_2)
+        # Ensure that the destination node is always counted.
+        self.nodes[node_2] = []
+
+    def complexity(self) -> int:
+        """Computes the McCabe cyclomatic complexity.
+
+        Returns:
+            The cyclomatic complexity
         """
         num_edges = sum(len(n) for n in self.nodes.values())
         num_nodes = len(self.nodes)
@@ -104,27 +131,38 @@ class _PathGraph:
 
 
 class _PathGraphingAstVisitor(_ASTVisitor):
-    """A visitor for a parsed Abstract Syntax Tree which finds executable
-    statements.
-    """
+    """A visitor for a parsed Abstract Syntax Tree which finds executable statements."""
 
     def __init__(self):
         super().__init__()
         self.class_name = ""
         self.graphs = {}
-        self.reset()
-
-    def reset(self):
         self.graph = None
         self.tail = None
 
-    def dispatch_list(self, node_list):
+    def reset(self):
+        """Reset the current graph and tail element"""
+        self.graph = None
+        self.tail = None
+
+    def dispatch_list(self, node_list: Sequence[ast.AST]) -> None:
+        """Dispatches on a list of AST nodes.
+
+        Args:
+            node_list: the list of AST nodes
+        """
         for node in node_list:
             self.dispatch(node)
 
-    def visitFunctionDef(self, node):
+    # pylint: disable=invalid-name
+    def visitFunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        """Visits a function-definition node.
+
+        Args:
+            node: the function-definition node
+        """
         entity = node.name
-        name = "%d:%d: %r" % (node.lineno, node.col_offset, entity)
+        name = f"{node.lineno}:{node.col_offset}: {entity}"
 
         if self.graph is not None:
             # closure
@@ -145,50 +183,86 @@ class _PathGraphingAstVisitor(_ASTVisitor):
 
     visitAsyncFunctionDef = visitFunctionDef
 
-    def __append_path_node(self, name):
+    def __append_path_node(self, name: str) -> _PathNode | None:
         if not self.tail:
-            return
+            return None
         assert self.graph is not None
         path_node = _PathNode(name)
         self.graph.connect(self.tail, path_node)
         self.tail = path_node
         return path_node
 
-    def visitSimpleStatement(self, node):
+    # pylint: disable=invalid-name
+    def visitSimpleStatement(self, node: ast.stmt) -> None:
+        """Visits a simple statement node of the AST.
+
+        Args:
+            node: the simple statement node
+        """
         name = f"Stmt {node.lineno}"
         self.__append_path_node(name)
 
-    def default(self, node, *args):
+    def default(self, node: ast.AST, *args) -> None:
+        """Default handling of AST nodes.
+
+        Args:
+            node: the nodes
+            *args: optional further arguments
+        """
         if isinstance(node, ast.stmt):
             self.visitSimpleStatement(node)
         else:
             super().default(node, *args)
 
-    def visitLoop(self, node):
+    # pylint: disable=invalid-name
+    def visitLoop(self, node: ast.AsyncFor | ast.For | ast.While) -> None:
+        """Visits a loop node.
+
+        Args:
+            node: the loop node
+        """
         name = f"Loop {node.lineno}"
-        self._subgraph(node, name)
+        self.__subgraph(node, name)
 
     visitAsyncFor = visitFor = visitWhile = visitLoop
 
-    def visitIf(self, node):
-        name = f"If {node.lineno}"
-        self._subgraph(node, name)
+    # pylint: disable=invalid-name
+    def visitIf(self, node: ast.If) -> None:
+        """Visits an if expression node.
 
-    def _subgraph(self, node, name, extra_blocks=()):
-        """create the subgraphs representing any `if` and `for` statements"""
+        Args:
+            node: the if expression node
+        """
+        name = f"If {node.lineno}"
+        self.__subgraph(node, name)
+
+    def __subgraph(self, node, name, extra_blocks=()):
+        """Create the subgraphs representing any `if` and `for` statements.
+
+        Args:
+            node: the AST node
+            name: the node name
+            extra_blocks: a tuple of extra blocks
+        """
         if self.graph is None:
             # global loop
             self.graph = _PathGraph(name, name, node.lineno, node.col_offset)
-            path_node = _PathNode(name)
-            self._subgraph_parse(node, path_node, extra_blocks)
+            path_node: _PathNode | None = _PathNode(name)
+            self.__subgraph_parse(node, path_node, extra_blocks)
             self.graphs[f"{self.class_name}{name}"] = self.graph
             self.reset()
         else:
             path_node = self.__append_path_node(name)
-            self._subgraph_parse(node, path_node, extra_blocks)
+            self.__subgraph_parse(node, path_node, extra_blocks)
 
-    def _subgraph_parse(self, node, path_node, extra_blocks):
-        """parse the body and any `else` block of `if` and `for` statements"""
+    def __subgraph_parse(self, node, path_node, extra_blocks):
+        """Parse the body and any `else` block of `if` and `for` statements.
+
+        Args:
+            node: the AST node
+            path_node: the path node
+            extra_blocks: a tuple of extra blocks
+        """
         loose_ends = []
         self.tail = path_node
         self.dispatch_list(node.body)
@@ -206,18 +280,30 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         if path_node:
             bottom = _PathNode("")
             assert self.graph is not None
-            for le in loose_ends:
-                self.graph.connect(le, bottom)
+            for loose_end in loose_ends:
+                self.graph.connect(loose_end, bottom)
             self.tail = bottom
 
-    def visitTryExcept(self, node):
-        name = "TryExcept %d" % node.lineno
-        self._subgraph(node, name, extra_blocks=node.handlers)
+    # pylint: disable=invalid-name
+    def visitTryExcept(self, node: ast.Try) -> None:
+        """Visits a try-except AST node.
+
+        Args:
+            node: the try-except node
+        """
+        name = f"TryExcept {node.lineno}"
+        self.__subgraph(node, name, extra_blocks=node.handlers)
 
     visitTry = visitTryExcept
 
-    def visitWith(self, node):
-        name = "With %d" % node.lineno
+    # pylint: disable=invalid-name
+    def visitWith(self, node: ast.With | ast.AsyncWith) -> None:
+        """Visits a with-block AST node
+
+        Args:
+            node: the with-block AST node
+        """
+        name = f"With {node.lineno}"
         self.__append_path_node(name)
         self.dispatch_list(node.body)
 
