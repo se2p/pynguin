@@ -123,11 +123,10 @@ def test_data_dependency_4():
     class_attr_block = BasicBlock(
         [
             # attr2 = [1, 2, 3]
-            Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_CONST", arg=2),
-            Instr("LOAD_CONST", arg=3),
-            Instr("BUILD_LIST", arg=3),
-            Instr("STORE_NAME", arg="attr2"),
+            Instr("BUILD_LIST", arg=0),
+            Instr("LOAD_CONST", arg=(1, 2, 3)),
+            Instr("LIST_EXTEND", arg=1),
+            Instr("STORE_FAST", arg="attr2"),
             # return
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
@@ -217,10 +216,9 @@ def test_data_dependency_6():
     dependency_module_block = BasicBlock(
         [
             # module_list = [1, 2, 3]
-            Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_CONST", arg=2),
-            Instr("LOAD_CONST", arg=3),
-            Instr("BUILD_LIST", arg=3),
+            Instr("BUILD_LIST", arg=0),
+            Instr("LOAD_CONST", arg=(1, 2, 3)),
+            Instr("LIST_EXTEND", arg=1),
             Instr("STORE_NAME", arg="module_list"),
             # class Foo:
             Instr("LOAD_BUILD_CLASS"),
@@ -230,11 +228,10 @@ def test_data_dependency_6():
             Instr("LOAD_CONST", arg="Foo"),
             Instr("CALL_FUNCTION", arg=2),
             Instr("STORE_NAME", arg="Foo"),
-            # class_list = [4, 5, 6]
-            Instr("LOAD_CONST", arg=7),
-            Instr("LOAD_CONST", arg=8),
-            Instr("LOAD_CONST", arg=9),
-            Instr("BUILD_LIST", arg=3),
+            # class_list = [7, 8, 9]
+            Instr("BUILD_LIST", arg=0),
+            Instr("LOAD_CONST", arg=(7, 8, 9)),
+            Instr("LIST_EXTEND", arg=1),
             Instr("STORE_NAME", arg="class_list"),
             # @staticmethod
             Instr("LOAD_NAME", arg="staticmethod"),
