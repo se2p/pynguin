@@ -9,7 +9,11 @@ from typing import Any, Union
 
 import pytest
 
-from pynguin.analyses.types import InferredSignature, infer_type_info
+from pynguin.analyses.types import (
+    InferredSignature,
+    TypeInferenceStrategy,
+    infer_type_info,
+)
 
 
 def __dummy(x: int, y: int) -> int:
@@ -94,22 +98,40 @@ def test_update_non_existing_parameter(inferred_signature):
 @pytest.mark.parametrize(
     "func, infer_types, expected_parameters, expected_return",
     [
-        pytest.param(__func_1, True, {"x": int}, int),
-        pytest.param(__func_1, False, {"x": None}, None),
-        pytest.param(__typed_dummy, True, {"a": int, "b": float, "c": None}, str),
-        pytest.param(__untyped_dummy, True, {"a": None, "b": None, "c": None}, None),
+        pytest.param(__func_1, TypeInferenceStrategy.TYPE_HINTS, {"x": int}, int),
+        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": None}, None),
+        pytest.param(
+            __typed_dummy,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {"a": int, "b": float, "c": None},
+            str,
+        ),
+        pytest.param(
+            __untyped_dummy,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {"a": None, "b": None, "c": None},
+            None,
+        ),
         pytest.param(
             __union_dummy,
-            True,
+            TypeInferenceStrategy.TYPE_HINTS,
             {"a": Union[int, float], "b": Union[int, float]},
             Union[int, float],
         ),
-        pytest.param(__return_tuple, True, {}, tuple[int, int]),
-        pytest.param(__return_tuple_no_annotation, True, {}, None),
-        pytest.param(__TypedDummy, True, {"a": Any}, type(None)),
-        pytest.param(__UntypedDummy, True, {"a": None}, None),
-        pytest.param(__TypedDummy, False, {"a": None}, None),
-        pytest.param(__UntypedDummy, False, {"a": None}, None),
+        pytest.param(
+            __return_tuple, TypeInferenceStrategy.TYPE_HINTS, {}, tuple[int, int]
+        ),
+        pytest.param(
+            __return_tuple_no_annotation, TypeInferenceStrategy.TYPE_HINTS, {}, None
+        ),
+        pytest.param(
+            __TypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": Any}, type(None)
+        ),
+        pytest.param(
+            __UntypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": None}, None
+        ),
+        pytest.param(__TypedDummy, TypeInferenceStrategy.NONE, {"a": None}, None),
+        pytest.param(__UntypedDummy, TypeInferenceStrategy.NONE, {"a": None}, None),
     ],
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):

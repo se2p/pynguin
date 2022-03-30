@@ -14,6 +14,7 @@ from ordered_set import OrderedSet
 from pynguin.analyses import module
 from pynguin.analyses.module import (
     ModuleTestCluster,
+    TypeInferenceStrategy,
     _ParseResult,
     analyse_module,
     parse_module,
@@ -39,7 +40,6 @@ def test_parse_module(parsed_module_no_dependencies):
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is not None
-    assert parse_result.contains_type_information
 
 
 def test_parse_c_module():
@@ -49,7 +49,6 @@ def test_parse_c_module():
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
-    assert parse_result.contains_type_information
     module.LOGGER.warning.assert_called_once()
 
 
@@ -58,15 +57,18 @@ def test_parse_module_check_for_type_hint(parsed_module_no_dependencies):
         parsed_module_no_dependencies.syntax_tree.body[1].args.args[0].annotation.id
     )
     assert annotated_type == "float"
-    assert parsed_module_no_dependencies.contains_type_information
+    assert (
+        parsed_module_no_dependencies.type_inference_strategy
+        is TypeInferenceStrategy.TYPE_HINTS
+    )
 
 
 def test_parse_module_check_for_no_type_hint():
     module_name = "tests.fixtures.cluster.no_dependencies"
-    parse_result = parse_module(module_name, extract_types=False)
+    parse_result = parse_module(module_name, type_inference=TypeInferenceStrategy.NONE)
     annotated_type = parse_result.syntax_tree.body[1].args.args[0].annotation
     assert annotated_type is None
-    assert not parse_result.contains_type_information
+    assert parse_result.type_inference_strategy is TypeInferenceStrategy.NONE
 
 
 def test_analyse_module(parsed_module_no_dependencies):

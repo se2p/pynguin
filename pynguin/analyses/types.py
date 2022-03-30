@@ -7,11 +7,13 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
+import enum
 import inspect
 from dataclasses import dataclass, field
 from inspect import Parameter, Signature, signature
 from typing import Callable, get_type_hints
 
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import wrap_var_param_type
 
 
@@ -91,21 +93,38 @@ class InferredSignature:
         self.signature = new_signature
 
 
-def infer_type_info(method: Callable, infer_types: bool = True) -> InferredSignature:
+class TypeInferenceStrategy(enum.Enum):
+    """The type-inference strategy."""
+
+    NONE = enum.auto()
+    TYPE_HINTS = enum.auto()
+
+
+def infer_type_info(
+    method: Callable,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+) -> InferredSignature:
     """Infers the type information for a callable.
 
     Args:
         method: The callable we try to infer type information for
-        infer_types: Whether to incorporate type annotations
+        type_inference_strategy: Whether to incorporate type annotations
 
     Returns:
         The inference result
+
+    Raises:
+        ConfigurationException: in case an unknown type-inference strategy was selected
     """
-    return (
-        infer_type_info_with_types(method)
-        if infer_types
-        else infer_type_info_no_types(method)
-    )
+    match type_inference_strategy:
+        case TypeInferenceStrategy.TYPE_HINTS:
+            return infer_type_info_with_types(method)
+        case TypeInferenceStrategy.NONE:
+            return infer_type_info_no_types(method)
+        case _:
+            raise ConfigurationException(
+                f"Unknown type-inference strategy {type_inference_strategy}"
+            )
 
 
 def infer_type_info_no_types(method: Callable) -> InferredSignature:

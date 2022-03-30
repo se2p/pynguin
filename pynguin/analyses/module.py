@@ -27,7 +27,7 @@ from pynguin.analyses.syntaxtree import (
     get_all_functions,
     get_function_descriptions,
 )
-from pynguin.analyses.types import InferredSignature, infer_type_info
+from pynguin.analyses.types import TypeInferenceStrategy, infer_type_info
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -40,6 +40,7 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, function_in_module
 if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
+    from pynguin.analyses.types import InferredSignature
     from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -53,7 +54,7 @@ class _ParseResult(NamedTuple):
     module_name: str
     module: ModuleType
     syntax_tree: ast.AST | None
-    contains_type_information: bool
+    type_inference_strategy: TypeInferenceStrategy
 
 
 class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
@@ -65,7 +66,10 @@ class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
         return node
 
 
-def parse_module(module_name: str, extract_types: bool = True) -> _ParseResult:
+def parse_module(
+    module_name: str,
+    type_inference: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+) -> _ParseResult:
     """Parses a module and extracts its module-type and AST.
 
     If the source code is not available it is not possible to build an AST.  In this
@@ -75,12 +79,12 @@ def parse_module(module_name: str, extract_types: bool = True) -> _ParseResult:
 
     Args:
         module_name: The fully-qualified name of the module
-        extract_types: Whether to extract type information into the AST
+        type_inference: The type-inference strategy to use
 
     Returns:
         A tuple of the imported module type and its optional AST
     """
-    if extract_types:
+    if type_inference is not TypeInferenceStrategy.NONE:
         # Enable imports that are conditional on the typing.TYPE_CHECKING variable.
         # See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING
         typing.TYPE_CHECKING = True
@@ -91,10 +95,10 @@ def parse_module(module_name: str, extract_types: bool = True) -> _ParseResult:
         syntax_tree = ast.parse(
             inspect.getsource(module),
             filename=module_name.split(".")[-1] + ".py",
-            type_comments=extract_types,
+            type_comments=type_inference is not TypeInferenceStrategy.NONE,
             feature_version=sys.version_info[1],
         )
-        if not extract_types:
+        if type_inference is TypeInferenceStrategy.NONE:
             # The parameter type_comments of the AST library's parse function does not
             # prevent that the annotation is present in the AST.  Thus, we explicitly
             # remove it if we do not want the types to be extracted.
@@ -111,7 +115,7 @@ def parse_module(module_name: str, extract_types: bool = True) -> _ParseResult:
         module_name=module_name,
         module=module,
         syntax_tree=syntax_tree,
-        contains_type_information=extract_types,
+        type_inference_strategy=type_inference,
     )
 
 
@@ -451,8 +455,10 @@ def __get_function_description_from_ast(
     return description[0]
 
 
-def __infer_type_info(func: Callable, infer_types: bool = True) -> InferredSignature:
-    return infer_type_info(func, infer_types)
+def __infer_type_info(
+    func: Callable, type_inference_strategy: TypeInferenceStrategy
+) -> InferredSignature:
+    return infer_type_info(func, type_inference_strategy)
 
 
 def __get_mccabe_complexity(tree: ast.AST | None) -> int:
@@ -484,7 +490,7 @@ class _FunctionData:
 def __analyse_function(
     func_name: str,
     func: Callable,
-    infer_types: bool,
+    type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
 ) -> None:
@@ -496,7 +502,7 @@ def __analyse_function(
         return
 
     LOGGER.debug("Analysing function %s", func_name)
-    inferred_signature = __infer_type_info(func, infer_types)
+    inferred_signature = __infer_type_info(func, type_inference_strategy)
     generic_function = GenericFunction(func, inferred_signature, func_name)
     func_ast = __get_function_node_from_ast(syntax_tree, func_name)
     description = __get_function_description_from_ast(func_ast)
@@ -528,7 +534,7 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
         __analyse_function(
             func_name,
             func,
-            parsed_module.contains_type_information,
+            parsed_module.type_inference_strategy,
             parsed_module.syntax_tree,
             test_cluster,
         )
