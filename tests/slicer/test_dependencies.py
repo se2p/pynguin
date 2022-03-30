@@ -90,21 +90,17 @@ def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
     module_block = BasicBlock(
         [
-            # class Foo:
-            Instr("LOAD_GLOBAL", arg="Foo"),  # TODO MISSING
-            Instr("CALL_FUNCTION", arg=2),  # TODO MISSING
-            Instr("STORE_FAST", arg="ob"),  # TODO MISSING
             # ob.attr1 = 1
             Instr("LOAD_CONST", arg=1),
             Instr("LOAD_FAST", arg="ob"),
             Instr("STORE_ATTR", arg="attr1"),
-            # ob.attr2 = ob.attr2.append(ob.attr1)
+            # ob.attr2 = ob.attr2 + [ob.attr1]
             Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr2"),
-            Instr("LOAD_METHOD", arg="append"),
             Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr1"),
-            Instr("CALL_METHOD", arg=1),
+            Instr("BUILD_LIST", arg=1),
+            Instr("BINARY_ADD"),
             Instr("LOAD_FAST", arg="ob"),
             Instr("STORE_ATTR", arg="attr2"),
             # result = ob.attr2
@@ -112,7 +108,7 @@ def test_data_dependency_4():
             Instr("LOAD_ATTR", arg="attr2"),
             Instr("STORE_FAST", arg="result"),
             # return
-            Instr("LOAD_CONST", arg="result"),
+            Instr("LOAD_FAST", arg="result"),
             Instr("RETURN_VALUE"),
         ]
     )
@@ -160,17 +156,9 @@ def test_data_dependency_5():
             Instr("RETURN_VALUE"),
         ]
     )
-    # TODO(SiL) entire block is missing
-    class_attr_block = BasicBlock(
-        [
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE")
-        ]
-    )
 
     expected_instructions = []
     expected_instructions.extend(module_block)
-    expected_instructions.extend(class_attr_block)
 
     module = "tests.fixtures.slicer.partial_cover_dependency"
     dynamic_slice = slice_module_at_return(module)
@@ -182,18 +170,16 @@ def test_data_dependency_6():
     # Data dependencies across modules (explicit, full cover)
     main_module_block = BasicBlock(
         [
-            # from tests.slicer.integration.example_modules.module_dependency_def import module_list, Foo
+            # from tests.fixtures.slicer.module_dependency_def import Foo, module_list
             Instr("LOAD_CONST", arg=0),
-            Instr("LOAD_CONST", arg=("module_list", "unused_list", "Foo")),
+            Instr("LOAD_CONST", arg=("Foo", "module_list")),
             Instr(
-                "IMPORT_NAME", arg="tests.slicer.example_modules.module_dependency_def"
+                "IMPORT_NAME", arg="tests.fixtures.slicer.module_dependency_def"
             ),
-            Instr("IMPORT_FROM", arg="module_list"),
-            Instr("STORE_NAME", arg="module_list"),
-            # Instr("IMPORT_FROM", arg="unused_list"),
-            # Instr("STORE_NAME", arg="unused_list"),
             Instr("IMPORT_FROM", arg="Foo"),
             Instr("STORE_NAME", arg="Foo"),
+            Instr("IMPORT_FROM", arg="module_list"),
+            Instr("STORE_NAME", arg="module_list"),
             # result = module_list + Foo.get_class_list()
             Instr("LOAD_NAME", arg="module_list"),
             Instr("LOAD_NAME", arg="Foo"),

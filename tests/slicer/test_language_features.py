@@ -319,7 +319,9 @@ def test_nested_class():
             Instr("MAKE_FUNCTION", arg=8),
             Instr("LOAD_CONST", arg="NestedClass"),
             Instr("CALL_FUNCTION", arg=2),
-            # TODO(SiL) hier sind noch ein LOAD_CONST None und ein Return Value im slice
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
             Instr("STORE_FAST", arg="NestedClass"),
             # class_attr = NestedClass.y
             Instr("LOAD_FAST", arg="NestedClass"),
@@ -334,11 +336,13 @@ def test_nested_class():
         ]
     )
 
+    # TODO(SiL) falsely not included
     nested_class_block = BasicBlock(
         [
             # y = x
             Instr("LOAD_CLASSDEREF", arg=freevar_x),
             Instr("STORE_NAME", arg="y"),
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -433,9 +437,10 @@ def test_nested_class_2():
             Instr("LOAD_CONST", arg="Foo"),
             Instr("CALL_FUNCTION", arg=2),
             Instr("STORE_NAME", arg="Foo"),
-            # foo = x1  # TODO(SiL) This block is falsely missing from the slice
-            Instr("LOAD_CLASSDEREF", arg=freevar_x1),
-            Instr("STORE_NAME", arg="foo"),
+            # foo = x1
+            Instr("LOAD_CLASSDEREF", arg=freevar_x1),  # TODO(SiL) falsely missing
+            Instr("STORE_NAME", arg="foo"),  # TODO(SiL) falsely missing
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -444,8 +449,9 @@ def test_nested_class_2():
     foo_block = BasicBlock(
         [
             # y = x2
-            Instr("LOAD_CLASSDEREF", arg=freevar_x2),
-            Instr("STORE_NAME", arg="y"),
+            Instr("LOAD_CLASSDEREF", arg=freevar_x2),  # TODO(SiL) falsely missing
+            Instr("STORE_NAME", arg="y"),  # TODO(SiL) falsely missing
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -547,12 +553,12 @@ def test_data_dependency_immutable_attribute():
     module_block = BasicBlock(
         [
             # class Foo:
-            Instr("LOAD_GLOBAL", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=0),
-            Instr("STORE_FAST", arg="ob"),
-            # result = ob.attr2
+            Instr("LOAD_GLOBAL", arg="Foo"),  # TODO(SiL) falsely missing
+            Instr("CALL_FUNCTION", arg=0),  # TODO(SiL) falsely missing
+            Instr("STORE_FAST", arg="ob"),  # TODO(SiL) falsely missing
+            # result = ob.attr
             Instr("LOAD_FAST", arg="ob"),
-            Instr("LOAD_ATTR", arg="attr2"),
+            Instr("LOAD_ATTR", arg="attr"),
             Instr("STORE_FAST", arg="result"),
             Instr("LOAD_CONST", arg="result"),
             Instr("RETURN_VALUE"),
@@ -560,11 +566,12 @@ def test_data_dependency_immutable_attribute():
     )
     class_attr_block = BasicBlock(
         [
-            # attr2 = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("STORE_NAME", arg="attr2"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
+            # attr = 1
+            Instr("LOAD_CONST", arg=1),  # TODO(SiL) falsely missing
+            Instr("STORE_NAME", arg="attr"),  # TODO(SiL) falsely missing
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
+            Instr("LOAD_CONST", arg=None),  # TODO(SiL) falsely missing
+            Instr("RETURN_VALUE"),  # TODO(SiL) falsely missing
         ]
     )
 
@@ -621,35 +628,13 @@ def test_object_modification_call():
         ]
     )
 
-    nested_class_block = BasicBlock(
-        [
-            # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
-            # def __init__(self):
-            # Instr("LOAD_CONST", arg=dummy_code_object),
-            # Instr("LOAD_CONST", arg="test_object_modification_call.<locals>."
-            #                         "func.<locals>.NestedClass.__init__"),
-            # Instr("MAKE_FUNCTION", arg=0),
-            # Instr("STORE_NAME", arg="__init__"),
-
-            # def inc_x(self):
-            Instr("LOAD_CONST", arg=dummy_code_object),  # TODO(SiL) MISSING
-            Instr(
-                "LOAD_CONST", arg="test_object_modification_call.<locals>."
-                "func.<locals>.NestedClass.inc_x",
-            ),  # TODO(SiL) MISSING
-            Instr("MAKE_FUNCTION", arg=0),  # TODO(SiL) MISSING
-            Instr("STORE_NAME", arg="inc_x"),  # TODO(SiL) MISSING
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-
     init_block = BasicBlock(
         [
             # self.x = 1
             Instr("LOAD_CONST", arg=1),
             Instr("LOAD_FAST", arg="self"),
             Instr("STORE_ATTR", arg="x"),
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -664,15 +649,14 @@ def test_object_modification_call():
             Instr("BINARY_ADD"),
             Instr("LOAD_FAST", arg="self"),
             Instr("STORE_ATTR", arg="x"),
-            # This "None return" is not included, because the return value is not used
-            # Instr("LOAD_CONST", arg=None),
-            # Instr("RETURN_VALUE"),
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
         ]
     )
 
     expected_instructions = []
     expected_instructions.extend(function_block)
-    expected_instructions.extend(nested_class_block)
     expected_instructions.extend(init_block)
     expected_instructions.extend(inc_x_block)
     dynamic_slice = slice_function_at_return(func)

@@ -100,7 +100,7 @@ def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
         op.STORE_DEREF: (1, 0),
         op.DELETE_DEREF: (0, 0),
         op.LIST_APPEND: (1, 0),
-        op.SET_ADD: (1, 0),  # TODO(SiL) needs to be 2, 1 instead?
+        op.SET_ADD: (1, 0),
         op.MAP_ADD: (2, 0),
         op.LOAD_CLASSDEREF: (0, 1),
         op.EXTENDED_ARG: (0, 0),

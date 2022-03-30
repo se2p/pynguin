@@ -9,12 +9,10 @@
 
 
 class Foo:
-    attr2 = 1
-    pass
+    attr = 1
 
 
 def func():
     ob = Foo()
-
-    result = ob.attr2
+    result = ob.attr
     return result
