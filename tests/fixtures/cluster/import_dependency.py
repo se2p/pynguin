@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import inspect
+
 import tests.fixtures.cluster.dependency as dep
 
 
@@ -13,3 +15,7 @@ def identity(obj: dep.SomeArgumentType) -> dep.SomeArgumentType:
 
 def bar(p: int) -> dep.SomeArgumentType:
     return dep.SomeArgumentType(p)
+
+
+def insights() -> inspect.Signature:
+    return inspect.signature(bar)

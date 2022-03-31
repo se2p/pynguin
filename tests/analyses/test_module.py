@@ -316,7 +316,12 @@ def test_enums():
     }
 
 
-# @pytest.mark.skip
 def test_import_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.import_dependency")
-    assert len(cluster.accessible_objects_under_test) == 2
+    assert len(cluster.accessible_objects_under_test) == 3
+    # The numbers of the following values change depending on whether we run the test
+    # from PyCharm or from the command line.  Thus, use a very weak assertion to only
+    # ensures that the analysis of the included modules has found at least something.
+    # TODO Improve this test
+    assert len(cluster.generators) > 2
+    assert len(cluster.modifiers) > 0
