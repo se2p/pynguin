@@ -627,10 +627,11 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
 
 def __resolve_dependencies(
-    parsed_module: _ParseResult, test_cluster: ModuleTestCluster
+    module: ModuleType,
+    module_name: str,
+    type_inference_strategy: TypeInferenceStrategy,
+    test_cluster: ModuleTestCluster,
 ) -> None:
-    module = parsed_module.module
-    module_name = parsed_module.module_name
     elements = vars(module).values()
 
     def is_candidate_class_or_function(value):
@@ -650,7 +651,7 @@ def __resolve_dependencies(
         __analyse_class(
             current.__qualname__,
             current,
-            parsed_module.type_inference_strategy,
+            type_inference_strategy,
             syntax_tree=None,
             test_cluster=test_cluster,
             add_to_test=False,
@@ -692,7 +693,12 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
             add_to_test=True,
         )
 
-    __resolve_dependencies(parsed_module, test_cluster)
+    __resolve_dependencies(
+        parsed_module.module,
+        parsed_module.module_name,
+        parsed_module.type_inference_strategy,
+        test_cluster,
+    )
 
     return test_cluster
 
