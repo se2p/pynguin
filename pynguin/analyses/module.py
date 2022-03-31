@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import enum
 import importlib
 import inspect
 import json
 import logging
+import queue
 import sys
 import typing
 from types import ModuleType
@@ -24,6 +26,7 @@ from typing_inspect import is_union_type
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
+    get_all_classes,
     get_all_functions,
     get_function_descriptions,
 )
@@ -33,9 +36,17 @@ from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericEnum,
     GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, function_in_module
+from pynguin.utils.type_utils import (
+    COLLECTIONS,
+    PRIMITIVES,
+    class_in_module,
+    function_in_module,
+)
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
@@ -445,6 +456,15 @@ def __get_function_node_from_ast(
     return None
 
 
+def __get_class_node_from_ast(tree: ast.AST | None, name: str) -> ast.ClassDef | None:
+    if tree is None:
+        return None
+    for class_ in get_all_classes(tree):
+        if class_.name == name:
+            return class_
+    return None
+
+
 def __get_function_description_from_ast(
     tree: ast.AST | None,
 ) -> FunctionDescription | None:
@@ -481,7 +501,7 @@ def __is_private(method_name: str) -> bool:
 
 @dataclasses.dataclass
 class _FunctionData:
-    generic_function: GenericFunction
+    accessible: GenericAccessibleObject
     tree: ast.AST | None
     description: FunctionDescription | None
     cyclomatic_complexity: int
@@ -508,7 +528,7 @@ def __analyse_function(
     description = __get_function_description_from_ast(func_ast)
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     function_data = _FunctionData(
-        generic_function=generic_function,
+        accessible=generic_function,
         tree=func_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
@@ -517,8 +537,119 @@ def __analyse_function(
     test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
+def __analyse_class(  # pylint: disable=too-many-arguments
+    class_name: str,
+    class_: type,
+    type_inference_strategy: TypeInferenceStrategy,
+    syntax_tree: ast.AST | None,
+    test_cluster: ModuleTestCluster,
+    add_to_test: bool,
+) -> None:
+    assert inspect.isclass(class_)
+    LOGGER.debug("Analysing class %s", class_name)
+    if issubclass(class_, enum.Enum):
+        generic: GenericEnum | GenericConstructor = GenericEnum(class_)
+    else:
+        generic = GenericConstructor(
+            class_, __infer_type_info(class_, type_inference_strategy)
+        )
+
+    class_ast = __get_class_node_from_ast(syntax_tree, class_name)
+    constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
+    description = __get_function_description_from_ast(constructor_ast)
+    cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
+    method_data = _FunctionData(
+        accessible=generic,
+        tree=constructor_ast,
+        description=description,
+        cyclomatic_complexity=cyclomatic_complexity,
+    )
+    test_cluster.add_generator(generic)
+    if add_to_test:
+        test_cluster.add_accessible_object_under_test(generic, method_data)
+
+    for method_name, method in inspect.getmembers(class_, inspect.isfunction):
+        __analyse_method(
+            class_name,
+            class_,
+            method_name,
+            method,
+            type_inference_strategy,
+            class_ast,
+            test_cluster,
+            add_to_test,
+        )
+
+
+def __analyse_method(  # pylint: disable=too-many-arguments
+    class_name: str,
+    class_: type,
+    method_name: str,
+    method: Callable,
+    type_inference_strategy: TypeInferenceStrategy,
+    syntax_tree: ast.AST | None,
+    test_cluster: ModuleTestCluster,
+    add_to_test: bool,
+) -> None:
+    if __is_private(method_name) or __is_protected(method_name):
+        LOGGER.debug("Skipping method %s from analysis", method_name)
+        return
+    if inspect.isasyncgenfunction(method):
+        LOGGER.debug("Skipping async method %s from analysis", method_name)
+        return
+
+    LOGGER.debug("Analysing method %s.%s", class_name, method_name)
+    inferred_signature = __infer_type_info(method, type_inference_strategy)
+    generic_method = GenericMethod(class_, method, inferred_signature, method_name)
+    method_ast = __get_function_node_from_ast(syntax_tree, method_name)
+    description = __get_function_description_from_ast(method_ast)
+    cyclomatic_complexity = __get_mccabe_complexity(method_ast)
+    method_data = _FunctionData(
+        accessible=generic_method,
+        tree=method_ast,
+        description=description,
+        cyclomatic_complexity=cyclomatic_complexity,
+    )
+    test_cluster.add_generator(generic_method)
+    test_cluster.add_modifier(class_, generic_method)
+    if add_to_test:
+        test_cluster.add_accessible_object_under_test(generic_method, method_data)
+
+
+def __resolve_dependencies(
+    parsed_module: _ParseResult, test_cluster: ModuleTestCluster
+) -> None:
+    module = parsed_module.module
+    module_name = parsed_module.module_name
+    elements = vars(module).values()
+
+    def is_candidate_class_or_function(value):
+        return (
+            inspect.isclass(value) or inspect.isfunction(value)
+        ) and value.__module__ != module_name
+
+    seen_types: set[str] = set()
+    wait_list: queue.SimpleQueue = queue.SimpleQueue()
+    for element in filter(is_candidate_class_or_function, elements):
+        wait_list.put(element)
+
+    while not wait_list.empty():
+        current = wait_list.get()
+        if current.__qualname__ in seen_types:
+            continue
+        __analyse_class(
+            current.__qualname__,
+            current,
+            parsed_module.type_inference_strategy,
+            syntax_tree=None,
+            test_cluster=test_cluster,
+            add_to_test=False,
+        )
+        seen_types.add(current.__qualname__)
+
+
 def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
-    """Analyses a module.
+    """Analyses a module to build a test cluster.
 
     Args:
         parsed_module: The parsed module
@@ -538,5 +669,19 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
             parsed_module.syntax_tree,
             test_cluster,
         )
+
+    for class_name, class_ in inspect.getmembers(
+        parsed_module.module, class_in_module(parsed_module.module_name)
+    ):
+        __analyse_class(
+            class_name,
+            class_,
+            parsed_module.type_inference_strategy,
+            parsed_module.syntax_tree,
+            test_cluster,
+            add_to_test=True,
+        )
+
+    __resolve_dependencies(parsed_module, test_cluster)
 
     return test_cluster

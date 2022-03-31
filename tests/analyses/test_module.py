@@ -29,6 +29,11 @@ def parsed_module_no_dependencies() -> _ParseResult:
     return parse_module("tests.fixtures.cluster.no_dependencies")
 
 
+@pytest.fixture(scope="module")
+def parsed_module_complex_dependencies() -> _ParseResult:
+    return parse_module("tests.fixtures.cluster.complex_dependencies")
+
+
 @pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster()
@@ -72,8 +77,15 @@ def test_parse_module_check_for_no_type_hint():
 
 
 def test_analyse_module(parsed_module_no_dependencies):
-    analyse_module(parsed_module_no_dependencies)
-    # TODO
+    test_cluster = analyse_module(parsed_module_no_dependencies)
+    assert test_cluster.num_accessible_objects_under_test() == 5
+
+
+def test_analyse_module_dependencies(parsed_module_complex_dependencies):
+    test_cluster = analyse_module(parsed_module_complex_dependencies)
+    assert test_cluster.num_accessible_objects_under_test() == 2
+    assert len(test_cluster.generators) == 2
+    assert len(test_cluster.modifiers) == 2
 
 
 def test_add_generator_primitive(module_test_cluster):
