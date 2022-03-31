@@ -24,13 +24,13 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.generation.searchobserver as so
     import pynguin.testcase.testfactory as tf
+    from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.ga.operators.selection.selection import SelectionFunction
     from pynguin.generation.stoppingconditions.stoppingcondition import (
         StoppingCondition,
     )
-    from pynguin.setup.testcluster import TestCluster
     from pynguin.testcase.execution import TestCaseExecutor
 
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
@@ -45,7 +45,7 @@ class TestGenerationStrategy(
         self._archive: A
         self._chromosome_factory: cf.ChromosomeFactory
         self._executor: TestCaseExecutor
-        self._test_cluster: TestCluster
+        self._test_cluster: ModuleTestCluster
         self._test_factory: tf.TestFactory
         self._selection_function: SelectionFunction
         self._stopping_conditions: list[StoppingCondition]
@@ -90,7 +90,7 @@ class TestGenerationStrategy(
         self._executor = executor
 
     @property
-    def test_cluster(self) -> TestCluster:
+    def test_cluster(self) -> ModuleTestCluster:
         """Provide the test cluster.
 
         Returns:
@@ -99,7 +99,7 @@ class TestGenerationStrategy(
         return self._test_cluster
 
     @test_cluster.setter
-    def test_cluster(self, test_cluster: TestCluster) -> None:
+    def test_cluster(self, test_cluster: ModuleTestCluster) -> None:
         self._test_cluster = test_cluster
 
     @property

@@ -29,8 +29,8 @@ from pynguin.utils.type_utils import (
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.types import InferredSignature
-    from pynguin.setup.testcluster import TestCluster
 
 
 # TODO(fk) find better name for this?
@@ -42,7 +42,7 @@ class TestFactory:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_cluster: TestCluster):
+    def __init__(self, test_cluster: ModuleTestCluster):
         self._test_cluster = test_cluster
 
     def append_statement(

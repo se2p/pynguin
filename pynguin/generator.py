@@ -40,19 +40,20 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.types import TypeInferenceStrategy
 from pynguin.generation.export.exportprovider import ExportProvider
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    from pynguin.analyses.module import ModuleTestCluster
     from pynguin.generation.algorithms.testgenerationstrategy import (
         TestGenerationStrategy,
     )
-    from pynguin.setup.testcluster import TestCluster
 
 
 @enum.unique
@@ -99,10 +100,16 @@ def run_pynguin() -> ReturnCode:
         _LOGGER.info("Stop Pynguin Test Generation…")
 
 
-def _setup_test_cluster() -> TestCluster | None:
-    test_cluster = TestClusterGenerator(
-        config.configuration.module_name
-    ).generate_cluster()
+def _setup_test_cluster() -> ModuleTestCluster | None:
+    # TODO this is ugly and needs to be reworked...
+    match config.configuration.type_inference:
+        case config.TypeInferenceStrategy.TYPE_HINTS:
+            strategy = TypeInferenceStrategy.TYPE_HINTS
+        case config.TypeInferenceStrategy.NONE:
+            strategy = TypeInferenceStrategy.NONE
+        case _:
+            strategy = TypeInferenceStrategy.TYPE_HINTS
+    test_cluster = generate_test_cluster(config.configuration.module_name, strategy)
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
@@ -181,7 +188,7 @@ def _setup_constant_seeding_collection() -> None:
         )
 
 
-def _setup_initial_population_seeding(test_cluster: TestCluster):
+def _setup_initial_population_seeding(test_cluster: ModuleTestCluster):
     """Collect and parse tests for seeding the initial population"""
     if config.configuration.seeding.initial_population_seeding:
         _LOGGER.info("Collecting and parsing provided testcases.")
@@ -191,7 +198,7 @@ def _setup_initial_population_seeding(test_cluster: TestCluster):
         )
 
 
-def _setup_and_check() -> tuple[TestCaseExecutor, TestCluster] | None:
+def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
     Perform setup and some sanity checks.
@@ -222,7 +229,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, TestCluster] | None:
     return executor, test_cluster
 
 
-def _track_sut_data(tracer: ExecutionTracer, test_cluster: TestCluster) -> None:
+def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
     """Track data from the SUT.
 
     Args:
@@ -401,7 +408,7 @@ def _track_coverage_metrics(
 
 
 def _instantiate_test_generation_strategy(
-    executor: TestCaseExecutor, test_cluster: TestCluster
+    executor: TestCaseExecutor, test_cluster: ModuleTestCluster
 ) -> TestGenerationStrategy:
     factory = gaf.TestSuiteGenerationAlgorithmFactory(executor, test_cluster)
     return factory.get_search_algorithm()
