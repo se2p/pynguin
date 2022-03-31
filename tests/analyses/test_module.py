@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from logging import Logger
-from typing import Any, Union
+from typing import Any, Union, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,10 +17,16 @@ from pynguin.analyses.module import (
     TypeInferenceStrategy,
     _ParseResult,
     analyse_module,
+    generate_test_cluster,
     parse_module,
 )
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
+    GenericConstructor,
+    GenericEnum,
+    GenericMethod,
+)
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
@@ -78,14 +84,14 @@ def test_parse_module_check_for_no_type_hint():
 
 def test_analyse_module(parsed_module_no_dependencies):
     test_cluster = analyse_module(parsed_module_no_dependencies)
-    assert test_cluster.num_accessible_objects_under_test() == 5
+    assert test_cluster.num_accessible_objects_under_test() == 4
 
 
 def test_analyse_module_dependencies(parsed_module_complex_dependencies):
     test_cluster = analyse_module(parsed_module_complex_dependencies)
-    assert test_cluster.num_accessible_objects_under_test() == 2
+    assert test_cluster.num_accessible_objects_under_test() == 1
     assert len(test_cluster.generators) == 2
-    assert len(test_cluster.modifiers) == 2
+    assert len(test_cluster.modifiers) == 1
 
 
 def test_add_generator_primitive(module_test_cluster):
@@ -207,3 +213,104 @@ def test_get_all_generatable_types(module_test_cluster):
     assert module_test_cluster.get_all_generatable_types() == [MagicMock] + list(
         PRIMITIVES
     ) + list(COLLECTIONS)
+
+
+def __convert_to_str_count_dict(dic: dict[type, OrderedSet]) -> dict[str, int]:
+    return {k.__name__: len(v) for k, v in dic.items()}
+
+
+def __extract_method_names(
+    accessible_objects: OrderedSet[GenericAccessibleObject],
+) -> set[str]:
+    return {
+        f"{elem.owner.__name__}.{elem.callable.__name__}"
+        if isinstance(elem, GenericMethod)
+        else f"{elem.owner.__name__}.__init__"
+        for elem in accessible_objects
+    }
+
+
+def test_accessible():
+    cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
+    assert len(cluster.accessible_objects_under_test) == 4
+
+
+def test_generators():
+    cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
+    assert len(cluster.get_generators_for(int)) == 0
+    assert len(cluster.get_generators_for(float)) == 0
+    assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1}
+
+
+def test_simple_dependencies():
+    cluster = generate_test_cluster("tests.fixtures.cluster.simple_dependencies")
+    assert __convert_to_str_count_dict(cluster.generators) == {
+        "SomeArgumentType": 1,
+        "ConstructMeWithDependency": 1,
+    }
+
+
+def test_complex_dependencies():
+    cluster = generate_test_cluster("tests.fixtures.cluster.complex_dependencies")
+    assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_modifier():
+    cluster = generate_test_cluster("tests.fixtures.cluster.complex_dependencies")
+    assert len(cluster.modifiers) == 1
+
+
+def test_simple_dependencies_only_own_classes():
+    cluster = generate_test_cluster("tests.fixtures.cluster.simple_dependencies")
+    assert len(cluster.accessible_objects_under_test) == 1
+
+
+def test_resolve_dependencies():
+    cluster = generate_test_cluster("tests.fixtures.cluster.typing_parameters")
+    assert len(cluster.accessible_objects_under_test) == 3
+    assert len(cluster.generators) == 3
+
+
+def test_resolve_optional():
+    cluster = generate_test_cluster("tests.fixtures.cluster.typing_parameters")
+    assert type(None) not in cluster.generators
+
+
+def test_private_method_not_added():
+    cluster = generate_test_cluster("tests.fixtures.examples.private_methods")
+    assert len(cluster.accessible_objects_under_test) == 1
+    assert isinstance(
+        next(iter(cluster.accessible_objects_under_test)), GenericConstructor
+    )
+
+
+def test_overridden_inherited_methods():
+    cluster = generate_test_cluster(
+        "tests.fixtures.cluster.overridden_inherited_methods"
+    )
+    accessible_objects = cluster.accessible_objects_under_test
+    methods = __extract_method_names(accessible_objects)
+    expected = {"Foo.__init__", "Foo.foo", "Foo.__iter__", "Bar.__init__", "Bar.foo"}
+    assert methods == expected
+
+
+def test_conditional_import_forward_ref():
+    cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
+    accessible_objects = list(cluster.accessible_objects_under_test)
+    constructor = cast(GenericConstructor, accessible_objects[0])
+    assert (
+        str(constructor.inferred_signature.parameters["arg0"])
+        == "<class 'tests.fixtures.cluster.complex_dependency.SomeOtherType'>"
+    )
+
+
+def test_enums():
+    cluster = generate_test_cluster("tests.fixtures.cluster.enums")
+    accessible_objects = cast(
+        list[GenericEnum], list(cluster.accessible_objects_under_test)
+    )
+    assert {enum.owner.__name__: set(enum.names) for enum in accessible_objects} == {
+        "Color": {"RED", "BLUE", "GREEN"},
+        "Foo": {"FOO", "BAR"},
+        "Inline": {"MAYBE", "YES", "NO"},
+    }

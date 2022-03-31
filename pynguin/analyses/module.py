@@ -46,6 +46,7 @@ from pynguin.utils.type_utils import (
     PRIMITIVES,
     class_in_module,
     function_in_module,
+    get_class_that_defined_method,
 )
 
 if typing.TYPE_CHECKING:
@@ -499,6 +500,10 @@ def __is_private(method_name: str) -> bool:
     return method_name.startswith("__") and not method_name.endswith("__")
 
 
+def __is_method_defined_in_class(class_: type, method: object) -> bool:
+    return class_ == get_class_that_defined_method(method)
+
+
 @dataclasses.dataclass
 class _FunctionData:
     accessible: GenericAccessibleObject
@@ -591,7 +596,12 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
-    if __is_private(method_name) or __is_protected(method_name):
+    if (
+        __is_private(method_name)
+        or __is_protected(method_name)
+        or __is_constructor(method_name)
+        or not __is_method_defined_in_class(class_, method)
+    ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
     if inspect.isasyncgenfunction(method):
@@ -685,3 +695,19 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
     __resolve_dependencies(parsed_module, test_cluster)
 
     return test_cluster
+
+
+def generate_test_cluster(
+    module_name: str,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+) -> ModuleTestCluster:
+    """Generates a new test cluster from the given module.
+
+    Args:
+        module_name: The name of the module
+        type_inference_strategy: Which type-inference strategy to use
+
+    Returns:
+        A new test cluster for the given module
+    """
+    return analyse_module(parse_module(module_name, type_inference_strategy))
