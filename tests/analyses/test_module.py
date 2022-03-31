@@ -314,3 +314,9 @@ def test_enums():
         "Foo": {"FOO", "BAR"},
         "Inline": {"MAYBE", "YES", "NO"},
     }
+
+
+# @pytest.mark.skip
+def test_import_dependency():
+    cluster = generate_test_cluster("tests.fixtures.cluster.import_dependency")
+    assert len(cluster.accessible_objects_under_test) == 2

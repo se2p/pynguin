@@ -632,16 +632,70 @@ def __resolve_dependencies(
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
 ) -> None:
-    elements = vars(module).values()
+    def filter_for_classes_from_module(value: object, module_name: str) -> bool:
+        return inspect.isclass(value) and value.__module__ == module_name
 
-    def is_candidate_class_or_function(value):
-        return (
-            inspect.isclass(value) or inspect.isfunction(value)
-        ) and value.__module__ != module_name
+    def filter_for_classes_not_from_module(value: object, module_name: str) -> bool:
+        return inspect.isclass(value) and value.__module__ != module_name
 
+    # Resolve the dependencies that are directly included in the module
+    __analyse_included_classes(
+        module,
+        module_name,
+        type_inference_strategy,
+        test_cluster,
+        filter_for_classes_not_from_module,
+    )
+
+    # Provide a set of seen modules for fixed-point iteration and add the module
+    # under test as it has already been analysed before
+    seen_modules: set[ModuleType] = set()
+    seen_modules.add(module)
+
+    # Extract all imported modules and transitively analyse them
+    wait_list: queue.SimpleQueue = queue.SimpleQueue()
+    for included_module in filter(inspect.ismodule, vars(module).values()):
+        assert included_module not in seen_modules
+        wait_list.put(included_module)
+
+    while not wait_list.empty():
+        current_module = wait_list.get()
+        if current_module in seen_modules:
+            # Skip the module, we have already analysed it before
+            continue
+
+        # Collect the classes from this module
+        __analyse_included_classes(
+            current_module,
+            current_module.__name__,
+            type_inference_strategy,
+            test_cluster,
+            filter_for_classes_from_module,
+        )
+
+        # Collect the modules that are included by this module
+        for included_module in filter(inspect.ismodule, vars(current_module).values()):
+            if included_module not in seen_modules:
+                # Put in wait list if we have not yet analysed this module
+                wait_list.put(included_module)
+
+        # Take care that we know for future iterations that we have already analysed
+        # this module before
+        seen_modules.add(current_module)
+
+
+def __analyse_included_classes(
+    module: ModuleType,
+    module_name: str,
+    type_inference_strategy: TypeInferenceStrategy,
+    test_cluster: ModuleTestCluster,
+    filtering_function: Callable[[object, str], bool],
+) -> None:
     seen_types: set[str] = set()
     wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for element in filter(is_candidate_class_or_function, elements):
+    for element in [
+        elem for elem in vars(module).values() if filtering_function(elem, module_name)
+    ]:
         wait_list.put(element)
 
     while not wait_list.empty():
