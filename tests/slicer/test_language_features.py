@@ -80,6 +80,11 @@ def test_simple_loop():
 def test_call_without_arguments():
     module_block = BasicBlock(
         [
+            # def callee():
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="callee"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("STORE_NAME", arg="callee"),
             # result = callee()
             Instr("LOAD_GLOBAL", arg="callee"),
             Instr("CALL_FUNCTION", arg=0),
@@ -111,6 +116,16 @@ def test_call_with_arguments():
 
     module_block = BasicBlock(
         [
+            # def callee():
+            Instr("LOAD_CONST", arg="a"),
+            Instr("LOAD_NAME", arg="int"),
+            Instr("LOAD_CONST", arg="b"),
+            Instr("LOAD_NAME", arg="int"),
+            Instr("BUILD_TUPLE", arg=4),
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="callee"),
+            Instr("MAKE_FUNCTION", arg=4),
+            Instr("STORE_NAME", arg="callee"),
             # foo = 1
             Instr("LOAD_CONST", arg=1),
             Instr("STORE_FAST", arg="foo"),
@@ -220,6 +235,16 @@ def test_generators():
     )
     module_block = BasicBlock(
         [
+            # def abc_generator():
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="abc_generator"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("STORE_NAME", arg="abc_generator"),
+            # def abc_xyz_generator():
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="abc_xyz_generator"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("STORE_NAME", arg="abc_xyz_generator"),
             # generator = abc_xyz_generator()
             Instr("LOAD_GLOBAL", arg="abc_xyz_generator"),
             Instr("CALL_FUNCTION", arg=0),
@@ -553,9 +578,13 @@ def test_data_dependency_immutable_attribute():
     module_block = BasicBlock(
         [
             # class Foo:
-            Instr("LOAD_GLOBAL", arg="Foo"),  # TODO(SiL) falsely missing
-            Instr("CALL_FUNCTION", arg=0),  # TODO(SiL) falsely missing
-            Instr("STORE_FAST", arg="ob"),  # TODO(SiL) falsely missing
+            Instr("LOAD_BUILD_CLASS"),
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("CALL_FUNCTION", arg=2),
+            Instr("STORE_NAME", arg="Foo"),
             # result = ob.attr
             Instr("LOAD_FAST", arg="ob"),
             Instr("LOAD_ATTR", arg="attr"),
@@ -570,8 +599,8 @@ def test_data_dependency_immutable_attribute():
             Instr("LOAD_CONST", arg=1),  # TODO(SiL) falsely missing
             Instr("STORE_NAME", arg="attr"),  # TODO(SiL) falsely missing
             # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
-            Instr("LOAD_CONST", arg=None),  # TODO(SiL) falsely missing
-            Instr("RETURN_VALUE"),  # TODO(SiL) falsely missing
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
         ]
     )
 
@@ -671,6 +700,11 @@ def test_closures():
     cellvar_foo = CellVar("foo")
     module_block = BasicBlock(
         [
+            # def outer_function(foo):
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="outer_function"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("STORE_NAME", arg="outer_function"),
             # inner = outer_function('a')
             Instr("LOAD_GLOBAL", arg="outer_function"),
             Instr("LOAD_CONST", arg="a"),

@@ -321,7 +321,6 @@ class ExecutionTrace:
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
-    # TODO(SiL) add all attributes below to _merge
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
     test_id: str = ""
     module_name: str = ""
@@ -342,6 +341,10 @@ class ExecutionTrace:
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
+        self.executed_instructions.extend(other.executed_instructions)
+        self.traced_assertions.extend(other.traced_assertions)
+        self.unique_assertions = self.unique_assertions.union(other.unique_assertions)
+        self.current_assertion = other.current_assertion
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -1037,8 +1040,7 @@ class ExecutionTracer:
         if arg_type in immutable_types:
             mutable_type = False
 
-        # Determine if this is a definition of a completely new object
-        # (required later during slicing).
+        # Determine if this is a definition of a completely new object (required later during slicing)
         object_creation = False
         if arg_address and arg_address not in self._known_object_addresses:
             object_creation = True

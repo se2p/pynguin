@@ -21,8 +21,7 @@ from pynguin.instrumentation.instrumentation import (
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import DynamicSlice, DynamicSlicer, SlicingCriterion
 from pynguin.slicer.instruction import UniqueInstruction
-from pynguin.testcase.execution import ExecutionTracer
-from pynguin.utils.pyc import Pyc
+from pynguin.testcase.execution import ExecutionTracer, ExecutionTrace
 
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, bytes(), (), (), (), "", "", 0, bytes())
 
@@ -134,7 +133,6 @@ def slice_function_at_return(function: callable) -> DynamicSlice:
 
 
 def slice_module_at_return(module_name: str) -> DynamicSlice:
-
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
@@ -146,28 +144,7 @@ def slice_module_at_return(module_name: str) -> DynamicSlice:
 
         trace = tracer.get_trace()
         known_code_objects = tracer.get_known_data().existing_code_objects
-        assert known_code_objects
-        dynamic_slicer = DynamicSlicer(trace, known_code_objects)
-
-        assert trace.executed_instructions
-        last_traced_instr = trace.executed_instructions[-1]
-        slicing_instruction = UniqueInstruction(
-            last_traced_instr.file,
-            last_traced_instr.name,
-            lineno=last_traced_instr.lineno,
-            code_object_id=last_traced_instr.code_object_id,
-            node_id=last_traced_instr.node_id,
-            code_meta=known_code_objects.get(last_traced_instr.code_object_id),
-            offset=last_traced_instr.offset,
-        )
-        slicing_criterion = SlicingCriterion(
-            slicing_instruction, local_variables={("result", last_traced_instr.file)}
-        )
-        dynamic_slice = dynamic_slicer.slice(
-            trace, slicing_criterion, len(trace.executed_instructions) - 2
-        )
-
-        return dynamic_slice
+        return _slice_trace_at_return_result(known_code_objects, trace)
 
 
 def slice_two_modules_with_same_tracer(main_module: str, dependency_module: str):
@@ -175,38 +152,48 @@ def slice_two_modules_with_same_tracer(main_module: str, dependency_module: str)
         config.CoverageMetric.CHECKED
     ]
     tracer = ExecutionTracer()
+    merged_trace = ExecutionTrace()
+    merged_known_data = tracer.get_known_data()
+
+    with install_import_hook(dependency_module, tracer):
+        dep_module = importlib.import_module(dependency_module)
+        importlib.reload(dep_module)
+
+        merged_trace.merge(tracer.get_trace())
+        merged_known_data.existing_code_objects.update(tracer.get_known_data().existing_code_objects)
+
     with install_import_hook(main_module, tracer):
-        with install_import_hook(dependency_module, tracer):
-            module = importlib.import_module(main_module)
-            importlib.reload(module)
+        module = importlib.import_module(main_module)
+        importlib.reload(module)
 
-            dep_module = importlib.import_module(dependency_module)
-            importlib.reload(dep_module)
+        module.func()
+        trace = tracer.get_trace()
 
-            module.func()
+        merged_trace.merge(trace)
+        merged_known_data.existing_code_objects.update(tracer.get_known_data().existing_code_objects)
 
-            trace = tracer.get_trace()
-            known_code_objects = tracer.get_known_data().existing_code_objects
-            assert known_code_objects
-            dynamic_slicer = DynamicSlicer(trace, known_code_objects)
+    known_code_objects = merged_known_data.existing_code_objects
+    return _slice_trace_at_return_result(known_code_objects, merged_trace)
 
-            assert trace.executed_instructions
-            last_traced_instr = trace.executed_instructions[-1]
-            slicing_instruction = UniqueInstruction(
-                last_traced_instr.file,
-                last_traced_instr.name,
-                lineno=last_traced_instr.lineno,
-                code_object_id=last_traced_instr.code_object_id,
-                node_id=last_traced_instr.node_id,
-                code_meta=known_code_objects.get(last_traced_instr.code_object_id),
-                offset=last_traced_instr.offset,
-            )
-            slicing_criterion = SlicingCriterion(
-                slicing_instruction, local_variables={("result", last_traced_instr.file)}
-            )
-            dynamic_slice = dynamic_slicer.slice(
-                trace, slicing_criterion, len(trace.executed_instructions) - 2
-            )
 
-            return dynamic_slice
-
+def _slice_trace_at_return_result(known_code_objects, trace):
+    assert known_code_objects
+    dynamic_slicer = DynamicSlicer(trace, known_code_objects)
+    assert trace.executed_instructions
+    last_traced_instr = trace.executed_instructions[-1]
+    slicing_instruction = UniqueInstruction(
+        last_traced_instr.file,
+        last_traced_instr.name,
+        lineno=last_traced_instr.lineno,
+        code_object_id=last_traced_instr.code_object_id,
+        node_id=last_traced_instr.node_id,
+        code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+        offset=last_traced_instr.offset,
+    )
+    slicing_criterion = SlicingCriterion(
+        slicing_instruction, local_variables={("result", last_traced_instr.file)}
+    )
+    dynamic_slice = dynamic_slicer.slice(
+        trace, slicing_criterion, len(trace.executed_instructions) - 2
+    )
+    return dynamic_slice

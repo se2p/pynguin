@@ -90,6 +90,14 @@ def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
     module_block = BasicBlock(
         [
+            # class Foo:
+            Instr("LOAD_BUILD_CLASS"),
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("CALL_FUNCTION", arg=2),
+            Instr("STORE_NAME", arg="Foo"),
             # ob.attr1 = 1
             Instr("LOAD_CONST", arg=1),
             Instr("LOAD_FAST", arg="ob"),
@@ -112,14 +120,13 @@ def test_data_dependency_4():
             Instr("RETURN_VALUE"),
         ]
     )
-    # TODO this entire block is missing
     class_attr_block = BasicBlock(
         [
             # attr2 = [1, 2, 3]
             Instr("BUILD_LIST", arg=0),
             Instr("LOAD_CONST", arg=(1, 2, 3)),
             Instr("LIST_EXTEND", arg=1),
-            Instr("STORE_FAST", arg="attr2"),
+            Instr("STORE_NAME", arg="attr2"),
             # return
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
@@ -140,6 +147,17 @@ def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
     module_block = BasicBlock(
         [
+            # class Foo:
+            Instr("LOAD_BUILD_CLASS"),
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("LOAD_CONST", arg="Foo"),
+            Instr("CALL_FUNCTION", arg=2),
+            Instr("STORE_NAME", arg="Foo"),
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
             # ob = Foo()
             Instr("LOAD_GLOBAL", arg="Foo"),
             Instr("CALL_FUNCTION", arg=0),
