@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 from logging import Logger
 from typing import Any, Union, cast
 from unittest.mock import MagicMock
@@ -97,9 +98,12 @@ def test_parse_module_replace_no_annotation_by_any_return():
     foo_func_return = parse_result.syntax_tree.body[1].returns.id
     bar_func_return = parse_result.syntax_tree.body[2].returns.id
     baz_func_return = parse_result.syntax_tree.body[3].returns.id
+    faz_func_return = parse_result.syntax_tree.body[4].returns
     assert foo_func_return == "Any"
     assert bar_func_return == "Any"
     assert baz_func_return == "Any"
+    assert isinstance(faz_func_return, ast.Constant)
+    assert faz_func_return.value is None
 
 
 def test_analyse_module(parsed_module_no_dependencies):

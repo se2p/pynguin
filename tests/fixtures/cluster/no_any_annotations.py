@@ -17,3 +17,7 @@ def bar() -> Any:
 
 def baz() -> object:
     return bar
+
+
+def faz() -> None:
+    pass
