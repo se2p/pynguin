@@ -15,7 +15,6 @@ from tests.slicer.util import (
     dummy_code_object,
     slice_function_at_return,
     slice_module_at_return,
-    slice_two_modules_with_same_tracer,
 )
 
 
@@ -180,82 +179,6 @@ def test_data_dependency_5():
 
     module = "tests.fixtures.slicer.partial_cover_dependency"
     dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
-
-
-def test_data_dependency_6():
-    # Data dependencies across modules (explicit, full cover)
-    main_module_block = BasicBlock(
-        [
-            # from tests.fixtures.slicer.module_dependency_def import Foo, module_list
-            Instr("LOAD_CONST", arg=0),
-            Instr("LOAD_CONST", arg=("Foo", "module_list")),
-            Instr(
-                "IMPORT_NAME", arg="tests.fixtures.slicer.module_dependency_def"
-            ),
-            Instr("IMPORT_FROM", arg="Foo"),
-            Instr("STORE_NAME", arg="Foo"),
-            Instr("IMPORT_FROM", arg="module_list"),
-            Instr("STORE_NAME", arg="module_list"),
-            # result = module_list + Foo.get_class_list()
-            Instr("LOAD_NAME", arg="module_list"),
-            Instr("LOAD_NAME", arg="Foo"),
-            Instr("LOAD_METHOD", arg="get_class_list"),
-            Instr("CALL_METHOD", arg=0),
-            Instr("BINARY_ADD"),
-            Instr("STORE_FAST", arg="result"),
-            # return
-            Instr("LOAD_CONST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    dependency_module_block = BasicBlock(
-        [
-            # module_list = [1, 2, 3]
-            Instr("BUILD_LIST", arg=0),
-            Instr("LOAD_CONST", arg=(1, 2, 3)),
-            Instr("LIST_EXTEND", arg=1),
-            Instr("STORE_NAME", arg="module_list"),
-            # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
-            # class_list = [7, 8, 9]
-            Instr("BUILD_LIST", arg=0),
-            Instr("LOAD_CONST", arg=(7, 8, 9)),
-            Instr("LIST_EXTEND", arg=1),
-            Instr("STORE_NAME", arg="class_list"),
-            # @staticmethod
-            Instr("LOAD_NAME", arg="staticmethod"),
-            # def get_class_list():
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo.get_class_list"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("CALL_FUNCTION", arg=1),
-            Instr("STORE_NAME", arg="get_class_list"),
-            # return Foo.class_list
-            Instr("LOAD_GLOBAL", arg="Foo"),
-            Instr("LOAD_ATTR", arg="class_list"),
-            Instr("RETURN_VALUE"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-
-    expected_instructions = []
-    expected_instructions.extend(main_module_block)
-    expected_instructions.extend(dependency_module_block)
-
-    module_dependency = "tests.fixtures.slicer.module_dependency_def"
-    module = "tests.fixtures.slicer.module_dependency_main"
-    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
 
@@ -480,59 +403,5 @@ def test_simple_control_dependency_4():
     expected_instructions.extend(return_block)
 
     dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
-
-
-def test_equal_variable_names():
-    # Data dependencies across modules (explicit, full cover)
-    main_module_block = BasicBlock(
-        [
-            # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
-            # duplicate_var = "foo_dup"
-            Instr("LOAD_CONST", arg="foo_dup"),
-            Instr("STORE_NAME", arg="duplicate_var"),
-            # import tests.slicer.integration.example_modules.equal_variable_names_def
-            # Instr("LOAD_CONST", arg=0),
-            # Instr("LOAD_CONST", arg=None),
-            # Instr("IMPORT_NAME", arg="tests.slicer.integration.example_modules.equal_variable_names_def"),
-            # Instr("STORE_NAME", arg="tests"),
-            # test = duplicate_var
-            Instr("LOAD_NAME", arg="duplicate_var"),
-            Instr("STORE_NAME", arg="test"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-            # result = Foo.test
-            Instr("LOAD_NAME", arg="Foo"),
-            Instr("LOAD_ATTR", arg="test"),
-            Instr("STORE_FAST", arg="result"),
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    dependency_module_block = BasicBlock(
-        [
-            # duplicate_var = "bar_dup"
-            # Instr("LOAD_CONST", arg="bar_dup"),
-            # Instr("STORE_NAME", arg="duplicate_var"),
-            # Instr("LOAD_CONST", arg=None),
-            # Instr("RETURN_VALUE")
-        ]
-    )
-
-    expected_instructions = []
-    expected_instructions.extend(main_module_block)
-    expected_instructions.extend(dependency_module_block)
-
-    module_dependency = "tests.fixtures.slicer.equal_variable_names_def"
-    module = "tests.fixtures.slicer.equal_variable_names_main"
-    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)

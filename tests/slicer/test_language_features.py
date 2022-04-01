@@ -344,9 +344,6 @@ def test_nested_class():
             Instr("MAKE_FUNCTION", arg=8),
             Instr("LOAD_CONST", arg="NestedClass"),
             Instr("CALL_FUNCTION", arg=2),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
             Instr("STORE_FAST", arg="NestedClass"),
             # class_attr = NestedClass.y
             Instr("LOAD_FAST", arg="NestedClass"),
@@ -584,6 +581,9 @@ def test_data_dependency_immutable_attribute():
             Instr("MAKE_FUNCTION", arg=0),
             Instr("LOAD_CONST", arg="Foo"),
             Instr("CALL_FUNCTION", arg=2),
+            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
             Instr("STORE_NAME", arg="Foo"),
             # result = ob.attr
             Instr("LOAD_FAST", arg="ob"),

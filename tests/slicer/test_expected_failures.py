@@ -15,7 +15,6 @@ from tests.slicer.util import (
     dummy_code_object,
     slice_function_at_return,
     slice_module_at_return,
-    slice_two_modules_with_same_tracer,
 )
 
 
@@ -285,41 +284,5 @@ def test_exception():
     expected_instructions.extend(try_block)
 
     dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
-
-
-@pytest.mark.xfail
-def test_import_star():
-    module_dependency = "tests.fixtures.slicer.import_star_def"
-    # IMPORT_STAR with access to immutable variable
-    main_module_block = BasicBlock(
-        [
-            # from tests.slicer.example_modules.import_star_def import *
-            Instr("IMPORT_NAME", module_dependency),
-            Instr("IMPORT_STAR"),
-            # result = Foo.test
-            Instr("LOAD_NAME", arg="star_imported"),
-            Instr("STORE_NAME", arg="result"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    dependency_module_block = BasicBlock(
-        [
-            # star_imported = "test"
-            Instr("LOAD_CONST", arg="test"),
-            Instr("STORE_NAME", arg="star_imported"),
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-
-    expected_instructions = []
-    expected_instructions.extend(main_module_block)
-    expected_instructions.extend(dependency_module_block)
-
-    module = "tests.fixtures.slicer.import_star_main"
-    dynamic_slice = slice_two_modules_with_same_tracer(module, module_dependency)
     assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
     assert compare(dynamic_slice.sliced_instructions, expected_instructions)
