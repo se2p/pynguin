@@ -74,7 +74,25 @@ class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
 
     # pylint: disable=missing-function-docstring, no-self-use
     def visit_arg(self, node: ast.arg) -> Any:
-        node.annotation = None
+        node.annotation = ast.Name(id="Any", ctx=ast.Load())
+        return node
+
+
+class _ArgumentAnnotationReplacementVisitor(ast.NodeTransformer):
+    """Replaces type-annotations by typing.Any.
+
+    The types `object` and unannotated are the same as `Any` hence, we replace these
+    type annotations by the `Any` value.
+    """
+
+    # pylint: disable=missing-function-docstring, no-self-use
+    def visit_arg(self, node: ast.arg) -> Any:
+        if (
+            node.annotation is None
+            or isinstance(node.annotation, ast.Name)
+            and node.annotation.id == "object"
+        ):
+            node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return node
 
 
@@ -117,6 +135,10 @@ def parse_module(
             # This is a hack, maybe I do not understand how to use ast.parse properly...
             annotation_remover = _ArgumentAnnotationRemovalVisitor()
             annotation_remover.visit(syntax_tree)
+        # Replace all occurrences of `object` or no type annotation by `Any`
+        annotation_replacer = _ArgumentAnnotationReplacementVisitor()
+        annotation_replacer.visit(syntax_tree)
+        syntax_tree = ast.fix_missing_locations(syntax_tree)
     except OSError as error:
         LOGGER.warning(
             f"Could not retrieve source code for module {module_name} ({error}). "

@@ -78,8 +78,17 @@ def test_parse_module_check_for_no_type_hint():
     module_name = "tests.fixtures.cluster.no_dependencies"
     parse_result = parse_module(module_name, type_inference=TypeInferenceStrategy.NONE)
     annotated_type = parse_result.syntax_tree.body[1].args.args[0].annotation
-    assert annotated_type is None
+    assert annotated_type.id == "Any"
     assert parse_result.type_inference_strategy is TypeInferenceStrategy.NONE
+
+
+def test_parse_module_replace_no_annotation_by_any():
+    module_name = "tests.fixtures.cluster.no_any_annotations"
+    parse_result = parse_module(module_name)
+    function_args = parse_result.syntax_tree.body[1].args
+    assert function_args.args[0].annotation.id == "Any"
+    assert function_args.args[1].annotation.id == "Any"
+    assert function_args.args[2].annotation.id == "Any"
 
 
 def test_analyse_module(parsed_module_no_dependencies):
