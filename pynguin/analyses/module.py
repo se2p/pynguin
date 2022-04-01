@@ -78,7 +78,7 @@ class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
         return node
 
 
-class _ArgumentAnnotationReplacementVisitor(ast.NodeTransformer):
+class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
     """Replaces type-annotations by typing.Any.
 
     The types `object` and unannotated are the same as `Any` hence, we replace these
@@ -93,7 +93,17 @@ class _ArgumentAnnotationReplacementVisitor(ast.NodeTransformer):
             and node.annotation.id == "object"
         ):
             node.annotation = ast.Name(id="Any", ctx=ast.Load())
-        return node
+        return self.generic_visit(node)
+
+    # pylint: disable=missing-function-docstring, no-self-use, invalid-name
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        if (
+            node.returns is None
+            or isinstance(node.returns, ast.Name)
+            and node.returns.id == "object"
+        ):
+            node.returns = ast.Name(id="Any", ctx=ast.Load())
+        return self.generic_visit(node)
 
 
 def parse_module(
@@ -136,7 +146,7 @@ def parse_module(
             annotation_remover = _ArgumentAnnotationRemovalVisitor()
             annotation_remover.visit(syntax_tree)
         # Replace all occurrences of `object` or no type annotation by `Any`
-        annotation_replacer = _ArgumentAnnotationReplacementVisitor()
+        annotation_replacer = _ArgumentReturnAnnotationReplacementVisitor()
         annotation_replacer.visit(syntax_tree)
         syntax_tree = ast.fix_missing_locations(syntax_tree)
     except OSError as error:

@@ -9,3 +9,11 @@ from typing import Any
 
 def foo(a, b: object, c: Any):
     return a, b, c
+
+
+def bar() -> Any:
+    return foo
+
+
+def baz() -> object:
+    return bar
