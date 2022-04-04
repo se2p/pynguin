@@ -11,7 +11,7 @@ import enum
 import inspect
 from dataclasses import dataclass, field
 from inspect import Parameter, Signature, signature
-from typing import Callable, get_type_hints
+from typing import Any, Callable, get_type_hints
 
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import wrap_var_param_type
@@ -49,7 +49,7 @@ class InferredSignature:
 
     signature: Signature
     parameters: dict[str, type | None] = field(default_factory=dict)
-    return_type: type | None = None
+    return_type: type | None = Any  # type: ignore
 
     def update_parameter_type(
         self, parameter_name: str, parameter_type: type | None
@@ -144,8 +144,8 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        parameters[param_name] = None
-    return_type: type | None = None
+        parameters[param_name] = Any  # type: ignore
+    return_type: type | None = Any  # type: ignore
 
     return InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
@@ -170,11 +170,11 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        hint = hints.get(param_name, None)
+        hint = hints.get(param_name, Any)
         hint = wrap_var_param_type(hint, method_signature.parameters[param_name].kind)
         parameters[param_name] = hint
 
-    return_type: type | None = hints.get("return", None)
+    return_type: type | None = hints.get("return", Any)
 
     return InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type

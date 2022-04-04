@@ -99,18 +99,18 @@ def test_update_non_existing_parameter(inferred_signature):
     "func, infer_types, expected_parameters, expected_return",
     [
         pytest.param(__func_1, TypeInferenceStrategy.TYPE_HINTS, {"x": int}, int),
-        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": None}, None),
+        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": Any}, Any),
         pytest.param(
             __typed_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
-            {"a": int, "b": float, "c": None},
+            {"a": int, "b": float, "c": Any},
             str,
         ),
         pytest.param(
             __untyped_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
-            {"a": None, "b": None, "c": None},
-            None,
+            {"a": Any, "b": Any, "c": Any},
+            Any,
         ),
         pytest.param(
             __union_dummy,
@@ -122,16 +122,14 @@ def test_update_non_existing_parameter(inferred_signature):
             __return_tuple, TypeInferenceStrategy.TYPE_HINTS, {}, tuple[int, int]
         ),
         pytest.param(
-            __return_tuple_no_annotation, TypeInferenceStrategy.TYPE_HINTS, {}, None
+            __return_tuple_no_annotation, TypeInferenceStrategy.TYPE_HINTS, {}, Any
         ),
         pytest.param(
             __TypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": Any}, type(None)
         ),
-        pytest.param(
-            __UntypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": None}, None
-        ),
-        pytest.param(__TypedDummy, TypeInferenceStrategy.NONE, {"a": None}, None),
-        pytest.param(__UntypedDummy, TypeInferenceStrategy.NONE, {"a": None}, None),
+        pytest.param(__UntypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": Any}, Any),
+        pytest.param(__TypedDummy, TypeInferenceStrategy.NONE, {"a": Any}, Any),
+        pytest.param(__UntypedDummy, TypeInferenceStrategy.NONE, {"a": Any}, Any),
     ],
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
