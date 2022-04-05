@@ -205,7 +205,7 @@ class ModuleTestCluster:
             GenericAccessibleObject
         ] = OrderedSet()
         self.__function_data_for_accessibles: dict[
-            GenericAccessibleObject, _FunctionData
+            GenericAccessibleObject, _CallableData
         ] = {}
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
@@ -227,7 +227,7 @@ class ModuleTestCluster:
             self.__generators[generated_type] = OrderedSet([generator])
 
     def add_accessible_object_under_test(
-        self, objc: GenericAccessibleObject, data: _FunctionData
+        self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
         """Add accessible object to the objects under test.
 
@@ -265,7 +265,7 @@ class ModuleTestCluster:
     @property
     def function_data_for_accessibles(
         self,
-    ) -> dict[GenericAccessibleObject, _FunctionData]:
+    ) -> dict[GenericAccessibleObject, _CallableData]:
         """Provides all function data for all accessibles.
 
         Returns:
@@ -559,7 +559,7 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 
 
 @dataclasses.dataclass
-class _FunctionData:
+class _CallableData:
     accessible: GenericAccessibleObject
     tree: ast.AST | None
     description: FunctionDescription | None
@@ -586,7 +586,7 @@ def __analyse_function(
     func_ast = __get_function_node_from_ast(syntax_tree, func_name)
     description = __get_function_description_from_ast(func_ast)
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
-    function_data = _FunctionData(
+    function_data = _CallableData(
         accessible=generic_function,
         tree=func_ast,
         description=description,
@@ -618,7 +618,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
     description = __get_function_description_from_ast(constructor_ast)
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
-    method_data = _FunctionData(
+    method_data = _CallableData(
         accessible=generic,
         tree=constructor_ast,
         description=description,
@@ -669,7 +669,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     method_ast = __get_function_node_from_ast(syntax_tree, method_name)
     description = __get_function_description_from_ast(method_ast)
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
-    method_data = _FunctionData(
+    method_data = _CallableData(
         accessible=generic_method,
         tree=method_ast,
         description=description,
