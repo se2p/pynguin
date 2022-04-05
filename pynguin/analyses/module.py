@@ -537,12 +537,6 @@ def __get_function_description_from_ast(
     return description[0]
 
 
-def __infer_type_info(
-    func: Callable, type_inference_strategy: TypeInferenceStrategy
-) -> InferredSignature:
-    return infer_type_info(func, type_inference_strategy)
-
-
 def __get_mccabe_complexity(tree: ast.AST | None) -> int:
     if tree is None:
         return -1
@@ -588,7 +582,7 @@ def __analyse_function(
         return
 
     LOGGER.debug("Analysing function %s", func_name)
-    inferred_signature = __infer_type_info(func, type_inference_strategy)
+    inferred_signature = infer_type_info(func, type_inference_strategy)
     generic_function = GenericFunction(func, inferred_signature, func_name)
     func_ast = __get_function_node_from_ast(syntax_tree, func_name)
     description = __get_function_description_from_ast(func_ast)
@@ -617,7 +611,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         generic: GenericEnum | GenericConstructor = GenericEnum(class_)
     else:
         generic = GenericConstructor(
-            class_, __infer_type_info(class_, type_inference_strategy)
+            class_, infer_type_info(class_, type_inference_strategy)
         )
 
     class_ast = __get_class_node_from_ast(syntax_tree, class_name)
@@ -670,7 +664,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         return
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
-    inferred_signature = __infer_type_info(method, type_inference_strategy)
+    inferred_signature = infer_type_info(method, type_inference_strategy)
     generic_method = GenericMethod(class_, method, inferred_signature, method_name)
     method_ast = __get_function_node_from_ast(syntax_tree, method_name)
     description = __get_function_description_from_ast(method_ast)
