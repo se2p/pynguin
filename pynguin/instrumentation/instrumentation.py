@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from itertools import count
 from types import CodeType
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,11 @@ if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ProgramGraphNode
 
 CODE_OBJECT_ID_KEY = "code_object_id"
+
+
+class ArtificialInstr(Instr):
+    """Marker subclass to distinguish between original instructions
+    and instructions that were inserted by the instrumentation."""
 
 
 # pylint:disable=too-few-public-methods
@@ -49,11 +55,11 @@ class InstrumentationAdapter:
     # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
     #  Or use sub visitors?
 
-    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
         """Called when we visit the entry node of a code object.
 
         Args:
-            block: The basic block of the entry node.
+            basic_block: The basic block of the entry node.
             code_object_id: The code object id of the containing code object.
         """
 
@@ -94,7 +100,7 @@ class InstrumentationAdapter:
         current: BasicBlock = first
         nodes: list[BasicBlock] = []
         # Can be any instruction, as it is discarded anyway.
-        dummy_instruction = Instr("POP_TOP")
+        dummy_instruction = ArtificialInstr("POP_TOP")
         for _ in range(amount):
             # Insert dummy instruction, which we can use to split off another block
             current.insert(0, dummy_instruction)
@@ -233,12 +239,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances and thus
     branch coverage."""
 
-    # Conditional jump operations are the last operation within a basic block
+    # Jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
-
-    # If a conditional jump is based on a comparison, it has to be the second-to-last
-    # instruction within the basic block.
-    _COMPARE_OP_POS = -2
 
     _logger = logging.getLogger(__name__)
 
@@ -265,30 +267,59 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]
-        maybe_compare: Instr | None = (
-            basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
+        maybe_compare_idx: int | None = self._find_index_of_potential_compare_instr(
+            basic_block
         )
         if isinstance(maybe_jump, Instr):
             predicate_id: int | None = None
             if maybe_jump.name == "FOR_ITER":
                 predicate_id = self._instrument_for_loop(
-                    cfg, node, basic_block, code_object_id
+                    cfg=cfg,
+                    node=node,
+                    basic_block=basic_block,
+                    code_object_id=code_object_id,
                 )
             elif maybe_jump.is_cond_jump():
                 predicate_id = self._instrument_cond_jump(
-                    code_object_id,
-                    maybe_compare,
-                    maybe_jump,
-                    basic_block,
-                    node,
+                    code_object_id=code_object_id,
+                    maybe_compare_idx=maybe_compare_idx,
+                    jump=maybe_jump,
+                    block=basic_block,
+                    node=node,
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
 
+    @staticmethod
+    def _find_index_of_potential_compare_instr(basic_block: BasicBlock) -> int | None:
+        """It may happen that another instrumentation added artificial instructions
+        between the conditional jump and the preceding comparison. Find the index of the
+        first non-artificial instruction that precedes the jump at the end of a basic
+        block.
+
+        Args:
+            basic_block: The block to search
+
+        Returns:
+            The index of the first non-artificial instruction that precedes the jump.
+            The index is negative, i.e., it indexes from the end.
+        """
+        block_without_jump = basic_block[: BranchCoverageInstrumentation._JUMP_OP_POS]
+        for idx, instr in zip(
+            count(BranchCoverageInstrumentation._JUMP_OP_POS - 1, -1),
+            reversed(block_without_jump),
+        ):
+            if isinstance(instr, ArtificialInstr):
+                # Skip over artificial instructions
+                continue
+            # Return first result
+            return idx
+        return None
+
     def _instrument_cond_jump(
         self,
         code_object_id: int,
-        maybe_compare: Instr | None,
+        maybe_compare_idx: int | None,
         jump: Instr,
         block: BasicBlock,
         node: ProgramGraphNode,
@@ -302,7 +333,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         Args:
             code_object_id: The id of the containing Code Object.
-            maybe_compare: The comparison operation, if any.
+            maybe_compare_idx: The index of the comparison operation, if any.
             jump: The jump operation.
             block: The containing basic block.
             node: The associated node from the CFG.
@@ -310,19 +341,26 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id that was assigned to the predicate.
         """
+        maybe_compare = block[maybe_compare_idx]
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
             and maybe_compare.name in ("COMPARE_OP", "IS_OP", "CONTAINS_OP")
         ):
+            assert maybe_compare_idx is not None
             return self._instrument_compare_based_conditional_jump(
-                block, code_object_id, node
+                block=block,
+                code_object_id=code_object_id,
+                compare_idx=maybe_compare_idx,
+                node=node,
             )
         if jump.name == "JUMP_IF_NOT_EXC_MATCH":
             return self._instrument_exception_based_conditional_jump(
-                block, code_object_id, node
+                basic_block=block, code_object_id=code_object_id, node=node
             )
-        return self._instrument_bool_based_conditional_jump(block, code_object_id, node)
+        return self._instrument_bool_based_conditional_jump(
+            block=block, code_object_id=code_object_id, node=node
+        )
 
     def _instrument_bool_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
@@ -348,23 +386,27 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # We duplicate the value on top of the stack and report
         # it to the tracer.
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
-            Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self,
+        block: BasicBlock,
+        compare_idx: int,
+        code_object_id: int,
+        node: ProgramGraphNode,
     ) -> int:
         """Instrument compare-based conditional jumps.
 
@@ -373,6 +415,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         Args:
             block: The containing basic block.
+            compare_idx: The index of the comparison index
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
 
@@ -386,7 +429,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
-        operation = block[self._COMPARE_OP_POS]
+        operation = block[compare_idx]
 
         match operation.name:
             case "COMPARE_OP":
@@ -404,25 +447,25 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+        block[compare_idx:compare_idx] = [
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("LOAD_CONST", compare, lineno=lineno),
-            Instr("CALL_METHOD", 4, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("LOAD_CONST", compare, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 4, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
     def _instrument_exception_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self, basic_block: BasicBlock, code_object_id: int, node: ProgramGraphNode
     ) -> int:
         """Instrument exception-based conditional jumps.
 
@@ -430,58 +473,59 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         in the following exception matching case.
 
         Args:
-            block: The containing basic block.
+            basic_block: The containing basic block.
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
 
         Returns:
             The id assigned to the predicate.
         """
-        lineno = block[self._JUMP_OP_POS].lineno
+        lineno = basic_block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+        basic_block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("ROT_FOUR", lineno=lineno),
-            Instr("LOAD_CONST", predicate_id, lineno=lineno),
-            Instr("CALL_METHOD", 3, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("ROT_FOUR", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 3, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         return predicate_id
 
-    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
 
         Args:
-            block: The entry basic block of a code object, i.e. the first basic block.
+            basic_block: The entry basic block of a code object, i.e. the first basic
+                block.
             code_object_id: The id that the tracer has assigned to the code object
                 which contains the given basic block.
         """
         # Use line number of first instruction
-        lineno = block[0].lineno
+        lineno = basic_block[0].lineno
         # Insert instructions at the beginning.
-        block[0:0] = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+        basic_block[0:0] = [
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 ExecutionTracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", code_object_id, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
 
     def _instrument_for_loop(
@@ -537,37 +581,39 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         entered, not_entered = self._create_consecutive_blocks(
             cfg.bytecode_cfg(), basic_block, 2
         )
+        # TODO(fk) for_instr is not artificial but we changed it
+        #  How to deal with this?
         for_instr.arg = not_entered
 
         entered.extend(
             [
-                Instr("LOAD_CONST", self._tracer, lineno=lineno),
-                Instr(
+                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
                     "LOAD_METHOD",
                     ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
-                Instr("LOAD_CONST", True, lineno=lineno),
-                Instr("LOAD_CONST", predicate_id, lineno=lineno),
-                Instr("CALL_METHOD", 2, lineno=lineno),
-                Instr("POP_TOP", lineno=lineno),
-                Instr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", True, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("POP_TOP", lineno=lineno),
+                ArtificialInstr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
             ]
         )
 
         not_entered.extend(
             [
-                Instr("LOAD_CONST", self._tracer, lineno=lineno),
-                Instr(
+                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
                     "LOAD_METHOD",
                     ExecutionTracer.executed_bool_predicate.__name__,
                     lineno=lineno,
                 ),
-                Instr("LOAD_CONST", False, lineno=lineno),
-                Instr("LOAD_CONST", predicate_id, lineno=lineno),
-                Instr("CALL_METHOD", 2, lineno=lineno),
-                Instr("POP_TOP", lineno=lineno),
-                Instr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", False, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("POP_TOP", lineno=lineno),
+                ArtificialInstr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
             ]
         )
 
@@ -622,15 +668,15 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             The number of instructions inserted into the block
         """
         inserted_instructions = [
-            Instr("LOAD_CONST", self._tracer, lineno=lineno),
-            Instr(
+            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 self._tracer.track_line_visit.__name__,
                 lineno=lineno,
             ),
-            Instr("LOAD_CONST", line_id, lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         # Insert instructions at the beginning.
         block[instr_index:instr_index] = inserted_instructions
@@ -734,19 +780,21 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("ROT_TWO", lineno=lineno),
-            Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("ROT_TWO", lineno=lineno),
+            ArtificialInstr("BINARY_ADD", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 self._dynamic_constant_seeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented startswith function")
 
@@ -761,18 +809,20 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("BINARY_ADD", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr("BINARY_ADD", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented endswith function")
 
@@ -788,18 +838,20 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
         lineno = block[insert_pos].lineno
         block[insert_pos:insert_pos] = [
-            Instr("DUP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("LOAD_CONST", function_name, lineno=lineno),
-            Instr("CALL_METHOD", 2, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", function_name, lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.info("Instrumented string function")
 
@@ -827,26 +879,30 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         """
         lineno = block[self._COMPARE_OP_POS].lineno
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
-            Instr("DUP_TOP_TWO", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
-            Instr("LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno),
-            Instr(
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+            ),
+            ArtificialInstr(
                 "LOAD_METHOD",
                 DynamicConstantSeeding.add_value.__name__,
                 lineno=lineno,
             ),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("ROT_THREE", lineno=lineno),
-            Instr("CALL_METHOD", 1, lineno=lineno),
-            Instr("POP_TOP", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("ROT_THREE", lineno=lineno),
+            ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
+            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.debug("Instrumented compare_op")
