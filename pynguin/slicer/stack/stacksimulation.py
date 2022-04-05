@@ -8,6 +8,7 @@
 # https://github.com/ipsw1/pychecco
 """Provides classes to simulate the stack during dynamic slicing."""
 
+from dataclasses import dataclass, field
 import pynguin.utils.opcodes as op
 from pynguin.slicer.instruction import UniqueInstruction
 
@@ -34,16 +35,13 @@ class BlockStack(list):
             return None
 
 
-# pylint:disable=too-few-public-methods.
+@dataclass
 class FrameStack:
     """Represents the stack for a frame in the frame stack of frames."""
-
-    def __init__(self, code_object_id: int, block_stacks: list[BlockStack]):
-        self.code_object_id = code_object_id
-        self.block_stacks: list[BlockStack] = block_stacks
-        self.attribute_uses: set[str] = set()
-        self.import_name_instr: UniqueInstruction | None = None
-        super().__init__()
+    code_object_id: int
+    block_stacks: list[BlockStack]
+    attribute_uses: set[str] = field(default_factory=set)
+    import_name_instr: UniqueInstruction | None = None
 
 
 class TraceStack:
@@ -78,7 +76,7 @@ class TraceStack:
         signaling, this stack is artificial and not part of the byte code."""
         self.push_stack(code_object_id=-1)
 
-    def pop_stack(self) -> FrameStack:
+    def pop_stack(self) -> None:
         """Return the frame stack on top of the stack of FrameStacks."""
         # TOS from the frame stack is popped
         frame = self.frame_stacks.pop()
@@ -89,7 +87,6 @@ class TraceStack:
             # # Last block stack in the non-dummy frame must be empty
             # block = frame.block_stacks.pop()
             # assert len(block) == 0, "Remaining instructions in a popped block"
-        return frame
 
     def update_push_operations(
         self, num_pushes: int, returned: bool
@@ -115,10 +112,9 @@ class TraceStack:
 
         if returned:
             prev_frame_stack = self.frame_stacks[-2]
-            prev_block_stack_instr = prev_frame_stack.block_stacks[-1].peek()
-            imp_dependency = (
-                prev_block_stack_instr is not None and prev_block_stack_instr.in_slice
-            )
+            prev_block_stack = prev_frame_stack.block_stacks[-1]
+            if prev_block_stack.peek() and prev_block_stack.peek().in_slice:
+                imp_dependency = True
 
         # Handle push operations
         for _ in range(0, num_pushes):
@@ -160,11 +156,11 @@ class TraceStack:
             unique_instr: the instruction for which the stack is updated
             in_slice: whether the instruction is part of the slice
         """
-        # TODO(SiL) handle empty stack
         curr_frame_stack = self.frame_stacks[-1]
         curr_block_stack = curr_frame_stack.block_stacks[-1]
 
-        unique_instr.in_slice = in_slice
+        if in_slice:
+            unique_instr.in_slice = True
 
         # Handle pop operations
         for _ in range(0, num_pops):
@@ -177,16 +173,15 @@ class TraceStack:
 
     def set_attribute_uses(self, attribute_uses: set[str]) -> None:
         """Set attribute uses of frame stack on top of stack."""
-        # TODO(SiL) handle empty stack
-        self.frame_stacks[-1].attribute_uses.clear()
-        self.frame_stacks[-1].attribute_uses.update(attribute_uses)
+        self.frame_stacks[-1].attribute_uses = set()
+        for attr in attribute_uses:
+            self.frame_stacks[-1].attribute_uses.add(attr)
 
     def get_import_frame(self) -> UniqueInstruction | None:
         """Get the import frame instruction, None if frame stacks are empty."""
-        # TODO(SiL) handle empty stack
         return self.frame_stacks[-1].import_name_instr
 
     def set_import_frame(self, import_name_instr: UniqueInstruction | None):
         """Set import name instruction of frame stack on top of stack."""
-        # TODO(SiL) handle empty stack
         self.frame_stacks[-1].import_name_instr = import_name_instr
+
