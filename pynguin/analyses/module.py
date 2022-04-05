@@ -85,6 +85,34 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
     type annotations by the `Any` value.
     """
 
+    class FindTypingAnyImportVisitor(ast.NodeVisitor):
+        """A visitor checking for the existence of an ``from typing import Any``."""
+
+        is_any_imported = False
+
+        # pylint: disable=missing-function-docstring, invalid-name
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+            if node.module == "typing":
+                for alias in node.names:
+                    assert isinstance(alias, ast.alias)
+                    if alias.name == "Any":
+                        self.is_any_imported = True
+            return node
+
+    # pylint: disable=missing-function-docstring, invalid-name
+    def visit_Module(self, node: ast.Module) -> Any:
+        # Check whether there is an `from typing import Any` somewhere
+        visitor = self.FindTypingAnyImportVisitor()
+        visitor.visit(node)
+        # Insert an `from typing import Any` to the module if there is not yet one
+        if not visitor.is_any_imported:
+            import_node = ast.ImportFrom(module="typing", names=[ast.alias(name="Any")])
+            ast.copy_location(import_node, node)
+            ast.fix_missing_locations(import_node)
+            node.body.insert(0, import_node)
+
+        return self.generic_visit(node)
+
     # pylint: disable=missing-function-docstring, no-self-use
     def visit_arg(self, node: ast.arg) -> Any:
         if (
