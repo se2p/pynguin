@@ -52,7 +52,6 @@ from pynguin.utils.type_utils import (
 if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
-    from pynguin.analyses.types import InferredSignature
     from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
@@ -578,8 +577,7 @@ def __analyse_function(
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
     if inspect.isasyncgenfunction(func):
-        LOGGER.debug("Skipping async function %s from analysis", func_name)
-        return
+        raise ValueError("Pynguin cannot handle async functions. Stopping.")
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
@@ -660,8 +658,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
     if inspect.isasyncgenfunction(method):
-        LOGGER.debug("Skipping async method %s from analysis", method_name)
-        return
+        raise ValueError("Pynguin cannot handle async functions. Stopping.")
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
