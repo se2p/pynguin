@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import inspect
+import ast
 
 import tests.fixtures.cluster.dependency as dep
 
@@ -17,5 +17,5 @@ def bar(p: int) -> dep.SomeArgumentType:
     return dep.SomeArgumentType(p)
 
 
-def insights() -> inspect.Signature:
-    return inspect.signature(bar)
+def ast_node() -> ast.Constant:
+    return ast.Constant(value=42, kind=int)
