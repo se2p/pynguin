@@ -94,12 +94,7 @@ def test_call_without_arguments():
             Instr("RETURN_VALUE"),
         ]
     )
-    callee_block = BasicBlock(
-        [
-            Instr("LOAD_CONST", arg=0),
-            Instr("RETURN_VALUE")
-        ]
-    )
+    callee_block = BasicBlock([Instr("LOAD_CONST", arg=0), Instr("RETURN_VALUE")])
 
     expected_instructions = []
     expected_instructions.extend(module_block)
@@ -653,25 +648,28 @@ def test_object_modification_call():
         ]
     )
 
-    nested_class_block = BasicBlock([
-        # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
-        # def __init__(self):
-        # Instr("LOAD_CONST", arg=dummy_code_object),
-        # Instr("LOAD_CONST", arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
-        #                         "func.<locals>.NestedClass.__init__"),
-        # Instr("MAKE_FUNCTION", arg=0),
-        # Instr("STORE_NAME", arg="__init__"),
-
-        # def inc_x(self):
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="test_object_modification_call.<locals>."
-                                "func.<locals>.NestedClass.inc_x"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="inc_x"),
-
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
+    nested_class_block = BasicBlock(
+        [
+            # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
+            # def __init__(self):
+            # Instr("LOAD_CONST", arg=dummy_code_object),
+            # Instr("LOAD_CONST", arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
+            #                         "func.<locals>.NestedClass.__init__"),
+            # Instr("MAKE_FUNCTION", arg=0),
+            # Instr("STORE_NAME", arg="__init__"),
+            # def inc_x(self):
+            Instr("LOAD_CONST", arg=dummy_code_object),
+            Instr(
+                "LOAD_CONST",
+                arg="test_object_modification_call.<locals>."
+                "func.<locals>.NestedClass.inc_x",
+            ),
+            Instr("MAKE_FUNCTION", arg=0),
+            Instr("STORE_NAME", arg="inc_x"),
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
+        ]
+    )
 
     init_block = BasicBlock(
         [

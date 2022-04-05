@@ -14,7 +14,9 @@ class Foo:  # included in slice
 
 def func():
     ob = Foo()  # included in slice, since this is the full explanation now
-    ob.attr1 = 1  # partial cover (affects results, but not a full explanation for result)
+    ob.attr1 = (
+        1  # partial cover (affects results, but not a full explanation for result)
+    )
 
     result = ob  # included in slice
     return result

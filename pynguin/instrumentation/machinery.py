@@ -22,9 +22,10 @@ import pynguin.configuration as config
 from pynguin.analyses.seeding import dynamic_constant_seeding
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
-    LineCoverageInstrumentation, CheckedCoverageInstrumentation,
+    LineCoverageInstrumentation,
 )
 
 if TYPE_CHECKING:

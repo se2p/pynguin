@@ -5,7 +5,12 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
-from pynguin.testcase.execution import ExecutionTrace, ExecutedInstruction, TracedAssertion, UniqueAssertion
+from pynguin.testcase.execution import (
+    ExecutedInstruction,
+    ExecutionTrace,
+    TracedAssertion,
+    UniqueAssertion,
+)
 
 
 def test_merge():

@@ -26,7 +26,7 @@ class UniqueInstruction(Instr):
     instruction in the disassembly.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         file: str,
         name: str,

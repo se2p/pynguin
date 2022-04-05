@@ -42,8 +42,6 @@ from pynguin.utils.exceptions import (
 class DynamicSlice:
     """The slice containing the list of instructions in the slice and its origin."""
 
-    origin_name: str
-
     sliced_instructions: list[UniqueInstruction]
 
 
@@ -62,7 +60,7 @@ class SlicingCriterion:
 
 
 @dataclass
-class SlicingContext:
+class SlicingContext:  # pylint: disable=too-many-instance-attributes
     """Data class storing all defined and used variables as well as instructions
     used at one point during the slicing."""
 
@@ -73,8 +71,9 @@ class SlicingContext:
     instr_ctrl_deps: set[UniqueInstruction] = field(default_factory=set)
 
     # Variable uses for which a definition is needed
-    var_uses_local: set[tuple[int, int]] = field(default_factory=set)
-    var_uses_global: set[tuple[int, str]] = field(default_factory=set)
+    var_uses_local: set[tuple[Union[int, str, None], int]] = field(default_factory=set)
+    var_uses_global: set[tuple[Union[int, str, None], str]] = field(default_factory=set)
+
     var_uses_nonlocal: set[tuple] = field(default_factory=set)
     var_uses_addresses: set[str] = field(default_factory=set)
 
@@ -87,26 +86,26 @@ class SlicingContext:
 
 
 @dataclass
-class SlicingState:
+class SlicingState:  # pylint: disable=too-many-instance-attributes
     """Holds the configuration and state of the dynamic slicing process
     for each analysed instruction."""
 
     basic_block_id: int
-    code_object_dependent: bool
     code_object_id: int
     context: SlicingContext
     curr_instr: Instr
     execution_flow_builder: ExecutionFlowBuilder
     file: str
-    import_back_call: UniqueInstruction | None
     new_attribute_object_uses: set[str]
     offset: int
     pops: int
     pushes: int
-    stack_simulation: bool
     timeout: float
     trace_position: int
     trace_stack: TraceStack
+    code_object_dependent: bool = False
+    import_back_call: UniqueInstruction | None = None
+    stack_simulation: bool = True  # must be disabled for exceptions
 
     def update_state(self) -> LastInstrState:
         """Updates the slicing state for the next instruction.
@@ -161,7 +160,7 @@ class DynamicSlicer:
         """
         return self._trace
 
-    def slice(
+    def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
@@ -175,7 +174,7 @@ class DynamicSlicer:
             slicing_criterion: Slicing criterion object where slicing is started
                 (must have correct `occurrence` attribute if
                 `trace_position` is not given).
-            trace_position: Optional parameter. The position in the trace where
+            trace_position: The position in the trace where
                 slicing is started. Can be given directly (as in the case of internal
                 traced assertions). In case it is not given it has to be determined
                 based on the occurrence of the instruction of the slicing criterion
@@ -206,7 +205,7 @@ class DynamicSlicer:
                     if i not in instructions:
                         instructions.add(i)
                         slice_instructions.append(i)
-                return DynamicSlice(trace.test_id, slice_instructions)
+                return DynamicSlice(slice_instructions)
 
             last_unique_instr = self.create_unique_instruction(
                 slc.file,
@@ -231,8 +230,6 @@ class DynamicSlicer:
                 slc.context, last_unique_instr, slc.code_object_id
             )
 
-            # TODO(SiL) must last_traced_instr be not None?
-            # assert last_traced_instr, "Working on set of untracked instructions"
             # Data dependencies
             # Explicit data dependency
             (
@@ -304,8 +301,6 @@ class DynamicSlicer:
 
     def _stack_housekeeping(self, last_state, last_unique_instr, slc):
         prev_import_back_call = slc.trace_stack.get_import_frame()
-        # TODO(SiL) must prev_import_back_call be not none?
-        # assert prev_import_back_call, "Import frame was None"
         slc.trace_stack.set_attribute_uses(slc.context.attribute_variables)
         if last_state.returned:
             # New frame
@@ -318,7 +313,7 @@ class DynamicSlicer:
         self._update_stack_effects(last_state, last_unique_instr, slc)
         return prev_import_back_call
 
-    def _trace_housekeeping(
+    def _trace_housekeeping(  # pylint: disable=too-many-arguments
         self, criterion_in_slice, include_use, last_traced_instr, last_unique_instr, slc
     ):
         # Add instruction to slice
@@ -372,25 +367,17 @@ class DynamicSlicer:
         trace: ExecutionTrace,
         trace_position: int,
     ):
-        # The slicing criterion is in the slice
-        criterion_in_slice = True
-        # Stack simulation is enabled initially (must be disabled for exceptions)
-        stack_simulation = True
-        code_object_dependent = False
         new_attribute_object_uses: set[str] = set()
-        import_back_call = None
         # Build slicing criterion
         last_ex_instruction = slicing_criterion.unique_instr
-        file = last_ex_instruction.file
         code_object_id = last_ex_instruction.code_object_id
         basic_block_id = last_ex_instruction.node_id
-        offset = last_ex_instruction.offset
         curr_instr = self._locate_unique_in_bytecode(
             last_ex_instruction, code_object_id, basic_block_id
         )
         execution_flow_builder = ExecutionFlowBuilder(trace, self._known_code_objects)
         pops, pushes, trace_stack = self._init_stack(
-            criterion_in_slice, last_ex_instruction
+            last_ex_instruction,
         )
         context = self._init_context(
             code_object_id, last_ex_instruction, slicing_criterion
@@ -398,31 +385,31 @@ class DynamicSlicer:
         timeout = time.time() + config.configuration.stopping.maximum_slicing_time
         return SlicingState(
             basic_block_id,
-            code_object_dependent,
             code_object_id,
             context,
             curr_instr,
             execution_flow_builder,
-            file,
-            import_back_call,
+            last_ex_instruction.file,
             new_attribute_object_uses,
-            offset,
+            last_ex_instruction.offset,
             pops,
             pushes,
-            stack_simulation,
             timeout,
             trace_position,
             trace_stack,
         )
 
     @staticmethod
-    def _init_stack(in_slice, last_ex_instruction) -> tuple[int, int, TraceStack]:
+    def _init_stack(last_ex_instruction) -> tuple[int, int, TraceStack]:
         trace_stack = TraceStack()
         pops, pushes = StackEffect.stack_effect(
-            last_ex_instruction.opcode, last_ex_instruction.dis_arg, False
+            last_ex_instruction.opcode,
+            last_ex_instruction.dis_arg,
         )
-        trace_stack.update_push_operations(pushes, False)
-        trace_stack.update_pop_operations(pops, last_ex_instruction, in_slice)
+        trace_stack.update_push_operations(pushes, returned=False)
+        trace_stack.update_pop_operations(
+            pops, last_ex_instruction, in_slice=True
+        )  # The slicing criterion is in the slice
         return pops, pushes, trace_stack
 
     def _init_context(
@@ -436,7 +423,7 @@ class DynamicSlicer:
         self.add_control_dependencies(context, last_ex_instruction, code_object_id)
         return context
 
-    def _debug_output(
+    def _debug_output(  # pylint: disable=too-many-arguments
         self,
         context,
         control_dependency,
@@ -493,7 +480,7 @@ class DynamicSlicer:
 
         raise InstructionNotFoundException
 
-    def create_unique_instruction(
+    def create_unique_instruction(  # pylint: disable=too-many-arguments
         self, file: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         """Creates and returns a unique instruction object from an instruction,
@@ -817,82 +804,75 @@ class DynamicSlicer:
             context: The slicing context that gets extended
             traced_instr: The instruction to analyse
         """
-        # Add variable uses
         if isinstance(traced_instr, ExecutedMemoryInstruction):
-            if traced_instr.arg_address and traced_instr.is_mutable_type:
-                context.var_uses_addresses.add(hex(traced_instr.arg_address))
-
-            # Add local variables
-            if traced_instr.opcode in [op.LOAD_FAST]:
-                context.var_uses_local.add(
-                    (traced_instr.argument, traced_instr.code_object_id)
-                )
-            # Add global variables (with *_NAME instructions)
-            elif traced_instr.opcode in [op.LOAD_NAME]:
-                if (
-                    traced_instr.code_object_id in self._known_code_objects
-                    and self._known_code_objects[traced_instr.code_object_id]
-                    and self._known_code_objects[
-                        traced_instr.code_object_id
-                    ].code_object.co_name
-                    == "<module>"
-                ):
-                    context.var_uses_global.add(
-                        (traced_instr.argument, traced_instr.file)
-                    )
-                else:
-                    context.var_uses_local.add(
-                        (traced_instr.argument, traced_instr.code_object_id)
-                    )
-            # Add global variables
-            elif traced_instr.opcode in [op.LOAD_GLOBAL]:
-                context.var_uses_global.add((traced_instr.argument, traced_instr.file))
-            # Add nonlocal variables
-            elif traced_instr.opcode in [
-                op.LOAD_CLOSURE,
-                op.LOAD_DEREF,
-                op.LOAD_CLASSDEREF,
-            ]:
-                variable_scope = set()
-                current_code_object_id = traced_instr.code_object_id
-                while True:
-                    current_code_meta = self._known_code_objects[current_code_object_id]
-                    variable_scope.add(current_code_object_id)
-                    # TODO must parent_code_object_id be set?
-                    # assert (
-                    #     current_code_meta.parent_code_object_id
-                    # ), "Code object was not a child object"
-                    current_code_object_id = current_code_meta.parent_code_object_id
-
-                    if (
-                        traced_instr.argument
-                        in current_code_meta.code_object.co_cellvars
-                    ):
-                        break
-                context.var_uses_nonlocal.add(
-                    (traced_instr.argument, tuple(variable_scope))
-                )
-            else:
-                # There should be no other possible instructions
-                raise ValueError(
-                    "Instruction opcode can not be analyzed for definitions."
-                )
+            self._add_variable_uses(context, traced_instr)
 
         # Add attribute uses
         if isinstance(traced_instr, ExecutedAttributeInstruction):
-            # Memory address of loaded attribute
-            if traced_instr.arg_address and traced_instr.is_mutable_type:
-                context.var_uses_addresses.add(hex(traced_instr.arg_address))
+            self._add_attribute_uses(context, traced_instr)
 
-            # Attribute name in combination with source
-            if traced_instr.arg_address:
-                context.attr_uses.add(traced_instr.combined_attr)
+    def _add_variable_uses(self, context, traced_instr):
+        if traced_instr.arg_address and traced_instr.is_mutable_type:
+            context.var_uses_addresses.add(hex(traced_instr.arg_address))
+        # Add local variables
+        if traced_instr.opcode == op.LOAD_FAST:
+            context.var_uses_local.add(
+                (traced_instr.argument, traced_instr.code_object_id)
+            )
+        # Add global variables (with *_NAME instructions)
+        elif traced_instr.opcode == op.LOAD_NAME:
+            if (
+                traced_instr.code_object_id in self._known_code_objects
+                and self._known_code_objects[traced_instr.code_object_id]
+                and self._known_code_objects[
+                    traced_instr.code_object_id
+                ].code_object.co_name
+                == "<module>"
+            ):
+                context.var_uses_global.add((traced_instr.argument, traced_instr.file))
+            else:
+                context.var_uses_local.add(
+                    (traced_instr.argument, traced_instr.code_object_id)
+                )
+        # Add global variables
+        elif traced_instr.opcode == op.LOAD_GLOBAL:
+            context.var_uses_global.add((traced_instr.argument, traced_instr.file))
+        # Add nonlocal variables
+        elif traced_instr.opcode in [
+            op.LOAD_CLOSURE,
+            op.LOAD_DEREF,
+            op.LOAD_CLASSDEREF,
+        ]:
+            variable_scope = set()
+            current_code_object_id = traced_instr.code_object_id
+            while True:
+                current_code_meta = self._known_code_objects[current_code_object_id]
+                variable_scope.add(current_code_object_id)
+                if traced_instr.argument in current_code_meta.code_object.co_cellvars:
+                    break
 
-            # Special case for access to composite types and imports:
-            # We want the complete definition of composite types and
-            # the imported module, respectively
-            if not traced_instr.arg_address or traced_instr.opcode == op.IMPORT_FROM:
-                context.var_uses_addresses.add(hex(traced_instr.src_address))
+                assert current_code_meta.parent_code_object_id is not None
+                current_code_object_id = current_code_meta.parent_code_object_id
+            context.var_uses_nonlocal.add(
+                (traced_instr.argument, tuple(variable_scope))
+            )
+        else:
+            # There should be no other possible instructions
+            raise ValueError("Instruction opcode can not be analyzed for definitions.")
+
+    @staticmethod
+    def _add_attribute_uses(context, traced_instr):
+        # Memory address of loaded attribute
+        if traced_instr.arg_address and traced_instr.is_mutable_type:
+            context.var_uses_addresses.add(hex(traced_instr.arg_address))
+        # Attribute name in combination with source
+        if traced_instr.arg_address:
+            context.attr_uses.add(traced_instr.combined_attr)
+        # Special case for access to composite types and imports:
+        # We want the complete definition of composite types and
+        # the imported module, respectively
+        if not traced_instr.arg_address or traced_instr.opcode == op.IMPORT_FROM:
+            context.var_uses_addresses.add(hex(traced_instr.src_address))
 
     @staticmethod
     def find_trace_position(

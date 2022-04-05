@@ -700,7 +700,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    def visit_node(
+    def visit_node(  # pylint: disable=too-many-branches
         self,
         cfg: CFG,
         code_object_id: int,
@@ -836,7 +836,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
-    def _instrument_generic(
+    def _instrument_generic(  # pylint: disable=too-many-arguments
         self,
         new_block_instructions: list[Instr],
         code_object_id: int,
@@ -877,7 +877,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_local_access(
+    def _instrument_local_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -927,7 +927,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_attr_access(
+    def _instrument_attr_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1022,7 +1022,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # Original instruction: we need to load the attribute afterwards
             new_block_instructions.append(instr)
 
-    def _instrument_subscr_access(
+    def _instrument_subscr_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1101,7 +1101,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         if instr.opcode == op.BINARY_SUBSCR:
             new_block_instructions.append(instr)
 
-    def _instrument_name_access(
+    def _instrument_name_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1150,7 +1150,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_import_name_access(
+    def _instrument_import_name_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1198,7 +1198,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_global_access(
+    def _instrument_global_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1248,7 +1248,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_deref_access(
+    def _instrument_deref_access(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1304,7 +1304,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_jump(
+    def _instrument_jump(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1344,7 +1344,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_call(
+    def _instrument_call(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1384,7 +1384,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_return(
+    def _instrument_return(  # pylint: disable=too-many-arguments
         self,
         code_object_id: int,
         node_id: int,
@@ -1425,15 +1425,17 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.append(instr)
 
     def _instrument_assertion(self, code_object_id, cfg, node, offset) -> None:
-        """To know where an assertion started and ended, the last comparison instruction of the node
-        before the assertion error must be instrumented to call the tracer that an assertion was started.
+        """To know where an assertion started and ended, the last
+        comparison instruction of the node before the assertion error must
+        be instrumented to call the tracer that an assertion was started.
 
         The tracer must also be called when an assertion ended.
         Therefore, we instrument and end_call before the first instruction of the node
         after the assertion error node to tell the tracer an assertion ended.
 
         Args:
-            cfg: The cfg required to get the nodes before and after the assertion throwing.
+            cfg: The cfg required to get the nodes before and after
+                the assertion throwing.
             node: The node containing the assertion throwing.
         """
         node_before, node_after = get_nodes_around_node(cfg, node)
@@ -1489,7 +1491,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     def _instrument_end_assert(self, block_after_assertion: BasicBlock) -> None:
         lineno = block_after_assertion[0].lineno
 
-        # enter instrumentation that assertion ended before first instruction of next block is executed
+        # enter instrumentation that assertion ended
+        # before first instruction of next block is executed
         block_after_assertion[0:0] = [
             Instr("LOAD_CONST", self._tracer, lineno=lineno),
             Instr(

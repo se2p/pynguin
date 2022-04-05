@@ -17,18 +17,18 @@ from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,
     InstrumentationTransformer,
 )
-from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
+from pynguin.testcase.execution import AssertionTrace, ExecutionTracer
 
 
 def test_single_assertion():
-    trace = _trace_checked_coverage("tests.fixtures.assertion.basic")
+    trace = _get_assertion_trace_for_module("tests.fixtures.assertion.basic")
 
     assert len(trace.traced_assertions) == 1
     assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 16
 
 
 def test_multiple_assertions():
-    trace = _trace_checked_coverage("tests.fixtures.assertion.multiple")
+    trace = _get_assertion_trace_for_module("tests.fixtures.assertion.multiple")
 
     assert len(trace.traced_assertions) == 3
     assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 16
@@ -37,14 +37,14 @@ def test_multiple_assertions():
 
 
 def test_loop_assertions():
-    trace = _trace_checked_coverage("tests.fixtures.assertion.loop")
+    trace = _get_assertion_trace_for_module("tests.fixtures.assertion.loop")
 
     assert len(trace.traced_assertions) == 5
     for assertion in trace.traced_assertions:
         assert assertion.traced_assertion_pop_jump.lineno == 13
 
 
-def _trace_checked_coverage(module_name: str) -> ExecutionTrace:
+def _get_assertion_trace_for_module(module_name: str) -> AssertionTrace:
     """Trace a given module name with the CheckedCoverage Instrumentation.
     The traced module must contain a test called test_foo()."""
     module = importlib.import_module(module_name)
@@ -60,4 +60,4 @@ def _trace_checked_coverage(module_name: str) -> ExecutionTrace:
     tracer.current_thread_identifier = threading.current_thread().ident
     module.test_foo()
 
-    return tracer.get_trace()
+    return tracer.get_trace().assertion_trace

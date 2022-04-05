@@ -311,7 +311,27 @@ class ExecutionResult:
 
 
 @dataclass
-class ExecutionTrace:
+class AssertionTrace:
+    """Stores trace information about assertions of a called testcase."""
+
+    traced_assertions: list[TracedAssertion] = field(default_factory=list)
+    unique_assertions: set[UniqueAssertion] = field(default_factory=set)
+    current_assertion: TracedAssertion | None = None
+
+    def merge(self, other: AssertionTrace) -> None:
+        """Merge the values from the other assertion trace.
+
+
+        Args:
+            other: Merges the other traces into this trace
+        """
+        self.traced_assertions.extend(other.traced_assertions)
+        self.unique_assertions = self.unique_assertions.union(other.unique_assertions)
+        self.current_assertion = other.current_assertion
+
+
+@dataclass
+class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     """Stores trace information about the execution."""
 
     _logger = logging.getLogger(__name__)
@@ -322,15 +342,10 @@ class ExecutionTrace:
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
-    test_id: str = ""
-    module_name: str = ""
-    module: bool = False
-    traced_assertions: list[TracedAssertion] = field(default_factory=list)
-    unique_assertions: set[UniqueAssertion] = field(default_factory=set)
-    current_assertion: TracedAssertion | None = None
+    assertion_trace: AssertionTrace = AssertionTrace()
 
     def merge(self, other: ExecutionTrace) -> None:
-        """Merge the values from the other trace.
+        """Merge the values from the other execution trace.
 
         Args:
             other: Merges the other traces into this trace
@@ -342,9 +357,7 @@ class ExecutionTrace:
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
         self.executed_instructions.extend(other.executed_instructions)
-        self.traced_assertions.extend(other.traced_assertions)
-        self.unique_assertions = self.unique_assertions.union(other.unique_assertions)
-        self.current_assertion = other.current_assertion
+        self.assertion_trace.merge(other.assertion_trace)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -357,7 +370,7 @@ class ExecutionTrace:
         for key, value in source.items():
             target[key] = min(target.get(key, inf), value)
 
-    def add_instruction(
+    def add_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -375,7 +388,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_memory_instruction(
+    def add_memory_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -403,7 +416,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_attribute_instruction(
+    def add_attribute_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -432,7 +445,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_jump_instruction(
+    def add_jump_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -448,7 +461,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_call_instruction(
+    def add_call_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -465,7 +478,7 @@ class ExecutionTrace:
 
         self.executed_instructions.append(executed_instr)
 
-    def add_return_instruction(
+    def add_return_instruction(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -489,14 +502,14 @@ class ExecutionTrace:
         Returns:
             the newly created TracedAssertion object stored in current_assertion.
         """
-        self.current_assertion = TracedAssertion(
+        self.assertion_trace.current_assertion = TracedAssertion(
             traced_pop_jump.code_object_id,
             traced_pop_jump.node_id,
             traced_pop_jump.lineno,
             len(self.executed_instructions) - 1,
             traced_pop_jump,
         )
-        return self.current_assertion
+        return self.assertion_trace.current_assertion
 
     def end_assertion(self):
         """Create a new UniqueAssertion object from _current_assertion's instruction,
@@ -504,26 +517,31 @@ class ExecutionTrace:
         This clears the _current_assertion attribute until start_assertion() is called
         again.
         """
-        assert self.current_assertion
-        assert self.current_assertion.traced_assertion_pop_jump
+        assertion_trace = self.assertion_trace
+        assert assertion_trace
+        assert assertion_trace.current_assertion
+        assert assertion_trace.current_assertion.traced_assertion_pop_jump
         assert (
-            self.current_assertion.traced_assertion_pop_jump.opcode
+            assertion_trace.current_assertion.traced_assertion_pop_jump.opcode
             == op.POP_JUMP_IF_TRUE
         )
 
-        # TODO(SiL) is this the correct calculation
-        self.current_assertion.trace_position_end = len(self.executed_instructions) - 1
-
-        self.traced_assertions.append(self.current_assertion)
-        self.unique_assertions.add(
-            UniqueAssertion(self.current_assertion.traced_assertion_pop_jump)
+        assertion_trace.current_assertion.trace_position_end = (
+            len(self.executed_instructions) - 1
         )
 
-        self.current_assertion = None
+        assertion_trace.traced_assertions.append(assertion_trace.current_assertion)
+        assertion_trace.unique_assertions.add(
+            UniqueAssertion(assertion_trace.current_assertion.traced_assertion_pop_jump)
+        )
+
+        assertion_trace.current_assertion = None
 
     def print_trace_debug(self) -> None:
         """Print debugging infos about the executed assertions and instructions."""
-        self._logger.debug("\n %d assertion calls(s)", len(self.traced_assertions))
+        self._logger.debug(
+            "\n %d assertion calls(s)", len(self.assertion_trace.traced_assertions)
+        )
         self._logger.debug("\n")
         self._logger.debug("------ Execution Trace ------")
         for instr in self.executed_instructions:
@@ -616,6 +634,7 @@ class KnownData:
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
 
+# pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
     """Tracks branch distances and covered statements during execution.
     The results are stored in an execution trace."""
@@ -1002,7 +1021,7 @@ class ExecutionTracer:
             self._trace.false_distances.get(predicate, inf), distance_false
         )
 
-    def track_generic(
+    def track_generic(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1016,7 +1035,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def track_memory_access(
+    def track_memory_access(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1040,7 +1059,8 @@ class ExecutionTracer:
         if arg_type in immutable_types:
             mutable_type = False
 
-        # Determine if this is a definition of a completely new object (required later during slicing)
+        # Determine if this is a definition of a completely new object
+        # (required later during slicing)
         object_creation = False
         if arg_address and arg_address not in self._known_object_addresses:
             object_creation = True
@@ -1059,7 +1079,7 @@ class ExecutionTracer:
             object_creation,
         )
 
-    def track_attribute_access(
+    def track_attribute_access(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1098,7 +1118,7 @@ class ExecutionTracer:
             mutable_type,
         )
 
-    def track_jump(
+    def track_jump(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1113,7 +1133,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
-    def track_call(
+    def track_call(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1128,7 +1148,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-    def track_return(
+    def track_return(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1142,7 +1162,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def track_assert_start(
+    def track_assert_start(  # pylint: disable=too-many-arguments
         self,
         module: str,
         code_object_id: int,
@@ -1347,6 +1367,8 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
 
     @property
     def combined_attr(self):
+        """Format the source address and the argument
+        for an ExecutedAttributeInstruction."""
         return f"{hex(self.src_address)}_{self.argument}"
 
     def __str__(self) -> str:

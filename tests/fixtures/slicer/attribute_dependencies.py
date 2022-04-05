@@ -13,10 +13,11 @@ class Foo:
 
 
 def func():
-    ob = Foo()  # not included in slice, since this has no effect on the result attribute
+    ob = (
+        Foo()
+    )  # not included in slice, since this has no effect on the result attribute
     ob.attr1 = 1
     ob.attr2 = ob.attr2 + [ob.attr1]
 
     result = ob.attr2
     return result
-

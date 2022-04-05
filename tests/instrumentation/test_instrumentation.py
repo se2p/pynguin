@@ -980,7 +980,7 @@ def test_istitle_function_false(dynamic_instr, dummy_module):
     ],
 )
 def test_get_nodes_around_assertion(
-    assertion_index, expected_before_index, expected_after_index
+    assertion_index: int, expected_before_index: int, expected_after_index: int
 ):
     module_name = "tests.fixtures.assertion.multiple"
     module = importlib.import_module(module_name)

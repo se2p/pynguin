@@ -9,6 +9,7 @@
 """Provides classes to simulate the stack during dynamic slicing."""
 
 from dataclasses import dataclass, field
+
 import pynguin.utils.opcodes as op
 from pynguin.slicer.instruction import UniqueInstruction
 
@@ -38,6 +39,7 @@ class BlockStack(list):
 @dataclass
 class FrameStack:
     """Represents the stack for a frame in the frame stack of frames."""
+
     code_object_id: int
     block_stacks: list[BlockStack]
     attribute_uses: set[str] = field(default_factory=set)
@@ -84,10 +86,6 @@ class TraceStack:
             # A non-dummy frame can only have one block_stack at the end of execution
             assert len(frame.block_stacks) == 1, "More than one block on a popped stack"
 
-            # # Last block stack in the non-dummy frame must be empty
-            # block = frame.block_stacks.pop()
-            # assert len(block) == 0, "Remaining instructions in a popped block"
-
     def update_push_operations(
         self, num_pushes: int, returned: bool
     ) -> tuple[bool, bool]:
@@ -112,8 +110,8 @@ class TraceStack:
 
         if returned:
             prev_frame_stack = self.frame_stacks[-2]
-            prev_block_stack = prev_frame_stack.block_stacks[-1]
-            if prev_block_stack.peek() and prev_block_stack.peek().in_slice:
+            prev_block_stack_instr = prev_frame_stack.block_stacks[-1].peek()
+            if prev_block_stack_instr and prev_block_stack_instr.in_slice:
                 imp_dependency = True
 
         # Handle push operations
@@ -184,4 +182,3 @@ class TraceStack:
     def set_import_frame(self, import_name_instr: UniqueInstruction | None):
         """Set import name instruction of frame stack on top of stack."""
         self.frame_stacks[-1].import_name_instr = import_name_instr
-
