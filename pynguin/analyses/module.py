@@ -567,6 +567,7 @@ class _FunctionData:
 
 
 def __analyse_function(
+    *,
     func_name: str,
     func: Callable,
     type_inference_strategy: TypeInferenceStrategy,
@@ -596,6 +597,7 @@ def __analyse_function(
 
 
 def __analyse_class(  # pylint: disable=too-many-arguments
+    *,
     class_name: str,
     class_: type,
     type_inference_strategy: TypeInferenceStrategy,
@@ -628,18 +630,19 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 
     for method_name, method in inspect.getmembers(class_, inspect.isfunction):
         __analyse_method(
-            class_name,
-            class_,
-            method_name,
-            method,
-            type_inference_strategy,
-            class_ast,
-            test_cluster,
-            add_to_test,
+            class_name=class_name,
+            class_=class_,
+            method_name=method_name,
+            method=method,
+            type_inference_strategy=type_inference_strategy,
+            syntax_tree=class_ast,
+            test_cluster=test_cluster,
+            add_to_test=add_to_test,
         )
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments
+    *,
     class_name: str,
     class_: type,
     method_name: str,
@@ -692,11 +695,11 @@ def __resolve_dependencies(
 
     # Resolve the dependencies that are directly included in the module
     __analyse_included_classes(
-        module,
-        module_name,
-        type_inference_strategy,
-        test_cluster,
-        filter_for_classes_not_from_module,
+        module=module,
+        module_name=module_name,
+        type_inference_strategy=type_inference_strategy,
+        test_cluster=test_cluster,
+        filtering_function=filter_for_classes_not_from_module,
     )
 
     # Provide a set of seen modules for fixed-point iteration and add the module
@@ -718,11 +721,11 @@ def __resolve_dependencies(
 
         # Collect the classes from this module
         __analyse_included_classes(
-            current_module,
-            current_module.__name__,
-            type_inference_strategy,
-            test_cluster,
-            filter_for_classes_from_module,
+            module=current_module,
+            module_name=current_module.__name__,
+            type_inference_strategy=type_inference_strategy,
+            test_cluster=test_cluster,
+            filtering_function=filter_for_classes_from_module,
         )
 
         # Collect the modules that are included by this module
@@ -737,6 +740,7 @@ def __resolve_dependencies(
 
 
 def __analyse_included_classes(
+    *,
     module: ModuleType,
     module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
@@ -755,9 +759,9 @@ def __analyse_included_classes(
         if current.__qualname__ in seen_types:
             continue
         __analyse_class(
-            current.__qualname__,
-            current,
-            type_inference_strategy,
+            class_name=current.__qualname__,
+            class_=current,
+            type_inference_strategy=type_inference_strategy,
             syntax_tree=None,
             test_cluster=test_cluster,
             add_to_test=False,
@@ -780,22 +784,22 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
         parsed_module.module, function_in_module(parsed_module.module_name)
     ):
         __analyse_function(
-            func_name,
-            func,
-            parsed_module.type_inference_strategy,
-            parsed_module.syntax_tree,
-            test_cluster,
+            func_name=func_name,
+            func=func,
+            type_inference_strategy=parsed_module.type_inference_strategy,
+            syntax_tree=parsed_module.syntax_tree,
+            test_cluster=test_cluster,
         )
 
     for class_name, class_ in inspect.getmembers(
         parsed_module.module, class_in_module(parsed_module.module_name)
     ):
         __analyse_class(
-            class_name,
-            class_,
-            parsed_module.type_inference_strategy,
-            parsed_module.syntax_tree,
-            test_cluster,
+            class_name=class_name,
+            class_=class_,
+            type_inference_strategy=parsed_module.type_inference_strategy,
+            syntax_tree=parsed_module.syntax_tree,
+            test_cluster=test_cluster,
             add_to_test=True,
         )
 
