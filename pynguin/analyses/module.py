@@ -160,9 +160,10 @@ def parse_module(
     module = importlib.import_module(module_name)
 
     try:
+        source_file = inspect.getsourcefile(module)
         syntax_tree = ast.parse(
             inspect.getsource(module),
-            filename=module_name.split(".")[-1] + ".py",
+            filename=source_file if source_file is not None else "",
             type_comments=type_inference is not TypeInferenceStrategy.NONE,
             feature_version=sys.version_info[1],
         )
