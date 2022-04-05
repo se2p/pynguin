@@ -87,7 +87,8 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
     class FindTypingAnyImportVisitor(ast.NodeVisitor):
         """A visitor checking for the existence of an ``from typing import Any``."""
 
-        is_any_imported = False
+        def __init__(self) -> None:
+            self.__is_any_imported = False
 
         # pylint: disable=missing-function-docstring, invalid-name
         def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
@@ -95,8 +96,17 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
                 for alias in node.names:
                     assert isinstance(alias, ast.alias)
                     if alias.name == "Any":
-                        self.is_any_imported = True
+                        self.__is_any_imported = True
             return node
+
+        @property
+        def is_any_imported(self) -> bool:
+            """Returns, whether ``Any`` is already imported.
+
+            Returns:
+                Whether ``Any`` is already imported
+            """
+            return self.__is_any_imported
 
     # pylint: disable=missing-function-docstring, invalid-name
     def visit_Module(self, node: ast.Module) -> Any:
