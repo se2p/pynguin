@@ -573,6 +573,7 @@ def __analyse_function(
     type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
+    add_to_test: bool,
 ) -> None:
     if __is_private(func_name) or __is_protected(func_name):
         LOGGER.debug("Skipping function %s from analysis", func_name)
@@ -593,7 +594,8 @@ def __analyse_function(
         cyclomatic_complexity=cyclomatic_complexity,
     )
     test_cluster.add_generator(generic_function)
-    test_cluster.add_accessible_object_under_test(generic_function, function_data)
+    if add_to_test:
+        test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
 def __analyse_class(  # pylint: disable=too-many-arguments
@@ -693,6 +695,12 @@ def __resolve_dependencies(
     def filter_for_classes_not_from_module(value: object, module_name: str) -> bool:
         return inspect.isclass(value) and value.__module__ != module_name
 
+    def filter_for_functions_from_module(value: object, module_name: str) -> bool:
+        return inspect.isfunction(value) and value.__module__ == module_name
+
+    def filter_for_functions_not_from_module(value: object, module_name: str) -> bool:
+        return inspect.isfunction(value) and value.__module__ != module_name
+
     # Resolve the dependencies that are directly included in the module
     __analyse_included_classes(
         module=module,
@@ -700,6 +708,13 @@ def __resolve_dependencies(
         type_inference_strategy=type_inference_strategy,
         test_cluster=test_cluster,
         filtering_function=filter_for_classes_not_from_module,
+    )
+    __analyse_included_functions(
+        module=module,
+        module_name=module_name,
+        type_inference_strategy=type_inference_strategy,
+        test_cluster=test_cluster,
+        filtering_function=filter_for_functions_not_from_module,
     )
 
     # Provide a set of seen modules for fixed-point iteration and add the module
@@ -726,6 +741,13 @@ def __resolve_dependencies(
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
             filtering_function=filter_for_classes_from_module,
+        )
+        __analyse_included_functions(
+            module=current_module,
+            module_name=current_module.__name__,
+            type_inference_strategy=type_inference_strategy,
+            test_cluster=test_cluster,
+            filtering_function=filter_for_functions_from_module,
         )
 
         # Collect the modules that are included by this module
@@ -769,6 +791,35 @@ def __analyse_included_classes(
         seen_types.add(current.__qualname__)
 
 
+def __analyse_included_functions(
+    *,
+    module: ModuleType,
+    module_name: str,
+    type_inference_strategy: TypeInferenceStrategy,
+    test_cluster: ModuleTestCluster,
+    filtering_function: Callable[[object, str], bool],
+) -> None:
+    seen_functions: set[str] = set()
+    wait_list: queue.SimpleQueue = queue.SimpleQueue()
+    for element in [
+        elem for elem in vars(module).values() if filtering_function(elem, module_name)
+    ]:
+        wait_list.put(element)
+
+    while not wait_list.empty():
+        current = wait_list.get()
+        if current.__qualname__ in seen_functions:
+            continue
+        __analyse_function(
+            func_name=current.__qualname__,
+            func=current,
+            type_inference_strategy=type_inference_strategy,
+            syntax_tree=None,
+            test_cluster=test_cluster,
+            add_to_test=False,
+        )
+
+
 def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
@@ -789,6 +840,7 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
             type_inference_strategy=parsed_module.type_inference_strategy,
             syntax_tree=parsed_module.syntax_tree,
             test_cluster=test_cluster,
+            add_to_test=True,
         )
 
     for class_name, class_ in inspect.getmembers(
