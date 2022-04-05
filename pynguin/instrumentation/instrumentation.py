@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from itertools import count
 from types import CodeType
 from typing import TYPE_CHECKING
 
@@ -54,11 +55,11 @@ class InstrumentationAdapter:
     # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
     #  Or use sub visitors?
 
-    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
         """Called when we visit the entry node of a code object.
 
         Args:
-            block: The basic block of the entry node.
+            basic_block: The basic block of the entry node.
             code_object_id: The code object id of the containing code object.
         """
 
@@ -238,12 +239,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances and thus
     branch coverage."""
 
-    # Conditional jump operations are the last operation within a basic block
+    # Jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
-
-    # If a conditional jump is based on a comparison, it has to be the second-to-last
-    # instruction within the basic block.
-    _COMPARE_OP_POS = -2
 
     _logger = logging.getLogger(__name__)
 
@@ -270,30 +267,59 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]
-        maybe_compare: Instr | None = (
-            basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
+        maybe_compare_idx: int | None = self._find_index_of_potential_compare_instr(
+            basic_block
         )
         if isinstance(maybe_jump, Instr):
             predicate_id: int | None = None
             if maybe_jump.name == "FOR_ITER":
                 predicate_id = self._instrument_for_loop(
-                    cfg, node, basic_block, code_object_id
+                    cfg=cfg,
+                    node=node,
+                    basic_block=basic_block,
+                    code_object_id=code_object_id,
                 )
             elif maybe_jump.is_cond_jump():
                 predicate_id = self._instrument_cond_jump(
-                    code_object_id,
-                    maybe_compare,
-                    maybe_jump,
-                    basic_block,
-                    node,
+                    code_object_id=code_object_id,
+                    maybe_compare_idx=maybe_compare_idx,
+                    jump=maybe_jump,
+                    block=basic_block,
+                    node=node,
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
 
+    @staticmethod
+    def _find_index_of_potential_compare_instr(basic_block: BasicBlock) -> int | None:
+        """It may happen that another instrumentation added artificial instructions
+        between the conditional jump and the preceding comparison. Find the index of the
+        first non-artificial instruction that precedes the jump at the end of a basic
+        block.
+
+        Args:
+            basic_block: The block to search
+
+        Returns:
+            The index of the first non-artificial instruction that precedes the jump.
+            The index is negative, i.e., it indexes from the end.
+        """
+        block_without_jump = basic_block[: BranchCoverageInstrumentation._JUMP_OP_POS]
+        for idx, instr in zip(
+            count(BranchCoverageInstrumentation._JUMP_OP_POS - 1, -1),
+            reversed(block_without_jump),
+        ):
+            if isinstance(instr, ArtificialInstr):
+                # Skip over artificial instructions
+                continue
+            # Return first result
+            return idx
+        return None
+
     def _instrument_cond_jump(
         self,
         code_object_id: int,
-        maybe_compare: Instr | None,
+        maybe_compare_idx: int | None,
         jump: Instr,
         block: BasicBlock,
         node: ProgramGraphNode,
@@ -307,7 +333,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         Args:
             code_object_id: The id of the containing Code Object.
-            maybe_compare: The comparison operation, if any.
+            maybe_compare_idx: The index of the comparison operation, if any.
             jump: The jump operation.
             block: The containing basic block.
             node: The associated node from the CFG.
@@ -315,19 +341,26 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id that was assigned to the predicate.
         """
+        maybe_compare = block[maybe_compare_idx]
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
             and maybe_compare.name in ("COMPARE_OP", "IS_OP", "CONTAINS_OP")
         ):
+            assert maybe_compare_idx is not None
             return self._instrument_compare_based_conditional_jump(
-                block, code_object_id, node
+                block=block,
+                code_object_id=code_object_id,
+                compare_idx=maybe_compare_idx,
+                node=node,
             )
         if jump.name == "JUMP_IF_NOT_EXC_MATCH":
             return self._instrument_exception_based_conditional_jump(
-                block, code_object_id, node
+                basic_block=block, code_object_id=code_object_id, node=node
             )
-        return self._instrument_bool_based_conditional_jump(block, code_object_id, node)
+        return self._instrument_bool_based_conditional_jump(
+            block=block, code_object_id=code_object_id, node=node
+        )
 
     def _instrument_bool_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
@@ -369,7 +402,11 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         return predicate_id
 
     def _instrument_compare_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self,
+        block: BasicBlock,
+        compare_idx: int,
+        code_object_id: int,
+        node: ProgramGraphNode,
     ) -> int:
         """Instrument compare-based conditional jumps.
 
@@ -378,6 +415,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         Args:
             block: The containing basic block.
+            compare_idx: The index of the comparison index
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
 
@@ -391,7 +429,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
-        operation = block[self._COMPARE_OP_POS]
+        operation = block[compare_idx]
 
         match operation.name:
             case "COMPARE_OP":
@@ -409,7 +447,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
+        block[compare_idx:compare_idx] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
@@ -427,7 +465,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         return predicate_id
 
     def _instrument_exception_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self, basic_block: BasicBlock, code_object_id: int, node: ProgramGraphNode
     ) -> int:
         """Instrument exception-based conditional jumps.
 
@@ -435,21 +473,21 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         in the following exception matching case.
 
         Args:
-            block: The containing basic block.
+            basic_block: The containing basic block.
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
 
         Returns:
             The id assigned to the predicate.
         """
-        lineno = block[self._JUMP_OP_POS].lineno
+        lineno = basic_block[self._JUMP_OP_POS].lineno
         predicate_id = self._tracer.register_predicate(
             PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
+        basic_block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
@@ -465,19 +503,20 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         ]
         return predicate_id
 
-    def visit_entry_node(self, block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block which inform
         the tracer, that the code object with the given id has been entered.
 
         Args:
-            block: The entry basic block of a code object, i.e. the first basic block.
+            basic_block: The entry basic block of a code object, i.e. the first basic
+                block.
             code_object_id: The id that the tracer has assigned to the code object
                 which contains the given basic block.
         """
         # Use line number of first instruction
-        lineno = block[0].lineno
+        lineno = basic_block[0].lineno
         # Insert instructions at the beginning.
-        block[0:0] = [
+        basic_block[0:0] = [
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",

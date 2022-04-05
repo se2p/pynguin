@@ -15,6 +15,7 @@ from bytecode import Compare
 
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
+    ArtificialInstr,
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
@@ -216,6 +217,23 @@ def test_avoid_duplicate_instrumentation(simple_module):
     )
     with pytest.raises(AssertionError):
         transformer.instrument_module(already_instrumented)
+
+
+@pytest.mark.parametrize(
+    "block,expected",
+    [
+        ([], None),
+        ([MagicMock()], None),
+        ([MagicMock(), MagicMock()], -2),
+        ([MagicMock(), ArtificialInstr("POP_TOP"), MagicMock()], -3),
+        ([ArtificialInstr("POP_TOP"), ArtificialInstr("POP_TOP"), MagicMock()], None),
+    ],
+)
+def test__find_index_of_potential_compare_instr(block, expected):
+    assert (
+        BranchCoverageInstrumentation._find_index_of_potential_compare_instr(block)
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
