@@ -58,6 +58,39 @@ if typing.TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
 
+# A tuple of modules that shall be blacklisted from analysis (keep them sorted!!!):
+MODULE_BLACKLIST: tuple[str, ...] = (
+    "_thread",
+    "asyncio",
+    "concurrent",
+    "concurrent.futures",
+    "contextvars",
+    "filecmp",
+    "fileinput",
+    "fnmatch",
+    "glob",
+    "linecache",
+    "mmap",
+    "multiprocessing",
+    "multiprocessing.shared_memory",
+    "os",
+    "os.path",
+    "pathlib",
+    "queue",
+    "sched",
+    "select",
+    "selectors",
+    "shutil",
+    "signal",
+    "socket",
+    "ssl",
+    "stat",
+    "subprocess",
+    "sys",
+    "tempfile",
+    "threading",
+)
+
 
 class _ParseResult(NamedTuple):
     """A data wrapper for an imported and parsed module."""
@@ -711,6 +744,9 @@ def __resolve_dependencies(
     def filter_for_functions_not_from_module(value: object, module_name: str) -> bool:
         return inspect.isfunction(value) and value.__module__ != module_name
 
+    def filter_modules(value: object) -> bool:
+        return inspect.ismodule(value) and module.__name__ not in MODULE_BLACKLIST
+
     # Resolve the dependencies that are directly included in the module
     __analyse_included_classes(
         module=module,
@@ -734,7 +770,7 @@ def __resolve_dependencies(
 
     # Extract all imported modules and transitively analyse them
     wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for included_module in filter(inspect.ismodule, vars(module).values()):
+    for included_module in filter(filter_modules, vars(module).values()):
         assert included_module not in seen_modules
         wait_list.put(included_module)
 
