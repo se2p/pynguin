@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pynguin.typeinference.strategy import InferredSignature
+from pynguin.analyses.types import InferredSignature
 from pynguin.utils.type_utils import (
     class_in_module,
     function_in_module,

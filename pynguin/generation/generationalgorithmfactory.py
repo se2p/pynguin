@@ -25,6 +25,7 @@ import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
+from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
@@ -48,7 +49,6 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
     StoppingCondition,
 )
-from pynguin.setup.testcluster import FilteredTestCluster, TestCluster
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -129,7 +129,7 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Selection.RANK_SELECTION: RankSelection,
     }
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: TestCluster):
+    def __init__(self, executor: TestCaseExecutor, test_cluster: ModuleTestCluster):
         self._executor = executor
         self._test_cluster = test_cluster
 
@@ -359,7 +359,7 @@ class TestSuiteGenerationAlgorithmFactory(
         search_alg = config.configuration.search_algorithm
         if search_alg.filter_covered_targets_from_test_cluster:
             # Wrap test cluster in filter.
-            return FilteredTestCluster(
+            return FilteredModuleTestCluster(
                 self._test_cluster,
                 strategy.archive,
                 self._executor.tracer.get_known_data(),

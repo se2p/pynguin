@@ -10,6 +10,7 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearchstrategy import (
     RandomTestSuiteSearchStrategy,
@@ -22,7 +23,6 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxStatementExecutionsStoppingCondition,
     MaxTestExecutionsStoppingCondition,
 )
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -30,7 +30,7 @@ from pynguin.utils.exceptions import ConfigurationException
 @pytest.fixture
 def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
     return gaf.TestSuiteGenerationAlgorithmFactory(
-        MagicMock(TestCaseExecutor), MagicMock(TestCluster)
+        MagicMock(TestCaseExecutor), MagicMock(ModuleTestCluster)
     )
 
 

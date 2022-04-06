@@ -39,9 +39,7 @@ def test_setup_test_cluster_empty():
             ),
         )
     )
-    with mock.patch(
-        "pynguin.setup.testclustergenerator.TestClusterGenerator.generate_cluster"
-    ) as gen_mock:
+    with mock.patch("pynguin.generator.generate_test_cluster") as gen_mock:
         tc = MagicMock()
         tc.num_accessible_objects_under_test.return_value = 0
         gen_mock.return_value = tc
@@ -56,9 +54,7 @@ def test_setup_test_cluster_not_empty():
             ),
         )
     )
-    with mock.patch(
-        "pynguin.setup.testclustergenerator.TestClusterGenerator.generate_cluster"
-    ) as gen_mock:
+    with mock.patch("pynguin.generator.generate_test_cluster") as gen_mock:
         tc = MagicMock()
         tc.num_accessible_objects_under_test.return_value = 1
         gen_mock.return_value = tc

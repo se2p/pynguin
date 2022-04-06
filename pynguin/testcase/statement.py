@@ -26,7 +26,7 @@ from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.testcase as tc
-    from pynguin.typeinference.strategy import InferredSignature
+    from pynguin.analyses.types import InferredSignature
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 

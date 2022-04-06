@@ -15,8 +15,8 @@ import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.setup.testcluster import TestCluster
 from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -35,7 +35,7 @@ def test_generate_sequences(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, MagicMock(TestCluster)
+        executor, MagicMock(ModuleTestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x  # pragma: no cover
@@ -57,7 +57,7 @@ def test_generate_sequences_exception(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, MagicMock(TestCluster)
+        executor, MagicMock(ModuleTestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x  # pragma: no cover
@@ -71,7 +71,7 @@ def test_random_test_cases_no_bounds(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, MagicMock(TestCluster)
+        executor, MagicMock(ModuleTestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
     config.configuration.random.max_sequences_combined = 0
@@ -89,7 +89,7 @@ def test_random_test_cases_with_bounds(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, MagicMock(TestCluster)
+        executor, MagicMock(ModuleTestCluster)
     ).get_search_algorithm()
     algorithm._logger = logger
     config.configuration.random.max_sequences_combined = 2
@@ -106,7 +106,7 @@ def test_random_test_cases_with_bounds(executor):
 def test_random_public_method(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, MagicMock(TestCluster)
+        executor, MagicMock(ModuleTestCluster)
     ).get_search_algorithm()
     out_0 = MagicMock(GenericCallableAccessibleObject)
     out_1 = MagicMock(GenericAccessibleObject)
@@ -123,7 +123,7 @@ def test_generate_sequence(has_exceptions, executor):
     exec_result = MagicMock(ExecutionResult)
     exec_result.has_test_exceptions.return_value = has_exceptions
     executor.execute.return_value = exec_result
-    test_cluster = MagicMock(TestCluster)
+    test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.accessible_objects_under_test = set()
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
@@ -142,7 +142,7 @@ def test_generate_sequence(has_exceptions, executor):
 
 def test_generate_sequence_duplicate(executor):
     config.configuration.algorithm = config.Algorithm.RANDOM
-    test_cluster = MagicMock(TestCluster)
+    test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.accessible_objects_under_test = set()
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
