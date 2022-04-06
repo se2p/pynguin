@@ -379,8 +379,15 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         lineno: int,
         offset: int,
     ) -> None:
-        """
-        Creates a new ExecutedInstruction object and adds it to the trace.
+        """Creates a new ExecutedInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
         """
         # TODO(SiL) register instructions with ids instead of dataclasses?
         executed_instr = ExecutedInstruction(
@@ -401,7 +408,20 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         is_mutable_type: bool,
         object_creation: bool,
     ) -> None:
-        """Creates a new ExecutedMemoryInstruction object and adds it to the trace."""
+        """Creates a new ExecutedMemoryInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg_name: the name of the argument
+            arg_address: the memory address of the argument
+            is_mutable_type: if the argument is mutable
+            object_creation: if the instruction creates the object used
+        """
         executed_instr = ExecutedMemoryInstruction(
             module,
             code_object_id,
@@ -430,7 +450,20 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         is_mutable_type: bool,
     ) -> None:
         """Creates a new ExecutedAttributeInstruction object and
-        adds it to the trace."""
+        adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            attr_name: the name of the accessed attribute
+            src_address: the memory address of the attribute
+            arg_address: the memory address of the argument
+            is_mutable_type: if the attribute is mutable
+        """
         executed_instr = ExecutedAttributeInstruction(
             module,
             code_object_id,
@@ -455,7 +488,17 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         offset: int,
         target_id: int,
     ) -> None:
-        """Creates a new ExecutedControlInstruction object and adds it to the trace."""
+        """Creates a new ExecutedControlInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            target_id: the target offset to jump to
+        """
         executed_instr = ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
@@ -471,7 +514,17 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         offset: int,
         arg: int,
     ) -> None:
-        """Creates a new ExecutedCallInstruction object and adds it to the trace."""
+        """Creates a new ExecutedCallInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the argument to the instruction
+        """
         executed_instr = ExecutedCallInstruction(
             module, code_object_id, node_id, opcode, arg, lineno, offset
         )
@@ -487,7 +540,16 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         lineno: int,
         offset: int,
     ) -> None:
-        """Creates a new ExecutedReturnInstruction object and adds it to the trace."""
+        """Creates a new ExecutedReturnInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+        """
         executed_instr = ExecutedReturnInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
@@ -498,6 +560,9 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         """Initialise a new TracedAssertion object and store it as current assertion.
         This is used to know where an assertion started and keep track of all following
         instructions until end_assertion() is called.
+
+        Args:
+            traced_pop_jump: the traced jump instruction used in the assertion
 
         Returns:
             the newly created TracedAssertion object stored in current_assertion.
@@ -736,8 +801,8 @@ class ExecutionTracer:
 
     @property
     def test_id(self) -> str:
-        """
-        Returns the id of an executed test as string.
+        """Returns the id of an executed test as string.
+
         Returns:
             The id of the test case or suite that created the trace.
         """
@@ -745,8 +810,8 @@ class ExecutionTracer:
 
     @test_id.setter
     def test_id(self, test_id: str) -> None:
-        """
-        Sets the id of an executed test case or suite inside a trace.
+        """Sets the id of an executed test case or suite inside a trace.
+
         Args:
             test_id: the new test id as string
         """
@@ -754,8 +819,8 @@ class ExecutionTracer:
 
     @property
     def module_name(self) -> str:
-        """
-        Returns the name of the module that was tested during the trace.
+        """Returns the name of the module that was tested during the trace.
+
         Returns:
             The name of the module that was tested during the trace.
         """
@@ -763,8 +828,8 @@ class ExecutionTracer:
 
     @module_name.setter
     def module_name(self, module_name: str) -> None:
-        """
-        Sets the module name for the trace.
+        """Sets the module name for the trace.
+
         Args:
             module_name: the new set module name
         """
@@ -1030,7 +1095,16 @@ class ExecutionTracer:
         lineno: int,
         offset: int,
     ) -> None:
-        """Track a generic instruction inside the trace."""
+        """Track a generic instruction inside the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+        """
         self._trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1047,7 +1121,22 @@ class ExecutionTracer:
         arg_address: int,
         arg_type: type,
     ) -> None:
-        """Track a memory access instruction in the trace."""
+        """Track a memory access instruction in the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the used variable
+            arg_address: the memory address of the variable
+            arg_type: the type of the variable
+
+        Raises:
+            ValueError: when no argument is given
+        """
         if not arg:
             if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
                 raise ValueError("A memory access instruction must have an argument")
@@ -1092,7 +1181,20 @@ class ExecutionTracer:
         arg_address: int,
         arg_type: type,
     ) -> None:
-        """Track an attribute access instruction in the trace."""
+        """Track an attribute access instruction in the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            attr_name: the name of the accessed attribute
+            src_address: the memory address of the attribute
+            arg_address: the memory address of the argument
+            arg_type: the type of argument
+        """
 
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
@@ -1128,7 +1230,17 @@ class ExecutionTracer:
         offset: int,
         target_id: int,
     ) -> None:
-        """Track a jump instruction in the trace."""
+        """Track a jump instruction in the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            target_id: the offset of the target of the jump
+        """
         self._trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
@@ -1143,7 +1255,17 @@ class ExecutionTracer:
         offset: int,
         arg: int,
     ) -> None:
-        """Track a method call instruction in the trace."""
+        """Track a method call instruction in the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the argument used in the method call
+        """
         self._trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
@@ -1157,7 +1279,16 @@ class ExecutionTracer:
         lineno: int,
         offset: int,
     ) -> None:
-        """Track a return instruction in the trace."""
+        """Track a return instruction in the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+        """
         self._trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1171,7 +1302,16 @@ class ExecutionTracer:
         lineno: int,
         offset: int,
     ) -> None:
-        """Track the beginning of an assertion in the trace."""
+        """Track the beginning of an assertion in the trace.
+
+        Args:
+            module: File name of the module containing the assertion
+            code_object_id: code object containing the assertion
+            node_id: the node of the code object containing the assertion
+            opcode: the opcode of the jump instruction
+            lineno: the line number of the assertion
+            offset: the offset of the jump instruction used in the assertion
+        """
         # previous assertion should be finished being tracked
         assert not self._current_assertion
 
@@ -1309,8 +1449,8 @@ class ExecutedInstruction:
 
     @property
     def name(self) -> str:
-        """
-        Returns the name of the executed instruction.
+        """Returns the name of the executed instruction.
+
         Returns:
             The name of the executed instruction.
         """
@@ -1318,8 +1458,8 @@ class ExecutedInstruction:
 
     @staticmethod
     def is_jump() -> bool:
-        """
-        Returns whether the executed instruction is a jump condition.
+        """Returns whether the executed instruction is a jump condition.
+
         Returns:
             True, if the instruction is a jump condition, False otherwise.
         """
@@ -1368,7 +1508,11 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
     @property
     def combined_attr(self):
         """Format the source address and the argument
-        for an ExecutedAttributeInstruction."""
+        for an ExecutedAttributeInstruction.
+
+        Returns:
+            A string representation of the attribute in memory
+        """
         return f"{hex(self.src_address)}_{self.argument}"
 
     def __str__(self) -> str:
@@ -1385,8 +1529,8 @@ class ExecutedControlInstruction(ExecutedInstruction):
 
     @staticmethod
     def is_jump() -> bool:
-        """
-        Returns whether the executed instruction is a jump condition.
+        """Returns whether the executed instruction is a jump condition.
+
         Returns:
             True, if the instruction is a jump condition, False otherwise.
         """

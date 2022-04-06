@@ -27,10 +27,10 @@ from pynguin.instrumentation.instrumentation import (
     get_nodes_around_node,
 )
 from pynguin.testcase.execution import (
+    ExecutedControlInstruction,
     ExecutedMemoryInstruction,
     ExecutedReturnInstruction,
     ExecutionTracer,
-    ExecutedControlInstruction,
 )
 
 
@@ -340,7 +340,9 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     trace = tracer.get_trace()
     assert trace.executed_instructions
     assert len(trace.executed_instructions) == len(expected_executed_instructions)
-    for expected_instr, actual_instr in zip(expected_executed_instructions, trace.executed_instructions):
+    for expected_instr, actual_instr in zip(
+        expected_executed_instructions, trace.executed_instructions
+    ):
         # can not compare expected and actual with equals, since the attribute
         # access instruction holds an argument address that changes with each
         # execution and can not be set in the expected element

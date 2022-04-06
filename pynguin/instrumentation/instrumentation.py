@@ -74,9 +74,6 @@ class InstrumentationAdapter:
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
-
-        Returns:
-            The offset the next node will start at as int.
         """
 
     @staticmethod
@@ -273,9 +270,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
             basic_block: The basic block of the node that should be instrumented.
-
-        Returns:
-            The offset the next node will start at as int.
         """
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
@@ -670,7 +664,18 @@ def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
 def get_nodes_around_node(
     cfg: CFG, assertion_node: ProgramGraphNode
 ) -> tuple[ProgramGraphNode, ProgramGraphNode]:
-    """Retrieve the nodes before and after a given node inside the cfg."""
+    """Retrieve the nodes before and after a given node inside the cfg.
+    The given node must not be the first or the last node inside the cfg.
+    Usually, this is used to determine the nodes wrapping an assertion error.
+
+    Args:
+        cfg: the program's cfg
+        assertion_node: the node, which surrounding nodes need to be found
+
+    Returns:
+        A tuple containing the node before the given node and the
+        node after the given node
+    """
     index_of_assertion = assertion_node.index
     node_before_assertion = None
     node_after_assertion = None
@@ -721,9 +726,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
-
-        Returns:
-            The offset the next node will start at as int.
         """
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
@@ -1424,7 +1426,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
 
-    def _instrument_assertion(self, code_object_id, cfg, node, offset) -> None:
+    def _instrument_assertion(
+        self, code_object_id: int, cfg: CFG, node: ProgramGraphNode, offset: int
+    ) -> None:
         """To know where an assertion started and ended, the last
         comparison instruction of the node before the assertion error must
         be instrumented to call the tracer that an assertion was started.
@@ -1434,9 +1438,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         after the assertion error node to tell the tracer an assertion ended.
 
         Args:
+            code_object_id: the code object containing the assertion
             cfg: The cfg required to get the nodes before and after
                 the assertion throwing.
             node: The node containing the assertion throwing.
+            offset: the offset of the jump instruction used inside the assertion
         """
         node_before, node_after = get_nodes_around_node(cfg, node)
         self._instrument_start_assert(
@@ -1450,9 +1456,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
     def _instrument_start_assert(
         self,
-        code_object_id,
-        node_id,
-        offset,
+        code_object_id: int,
+        node_id: int,
+        offset: int,
         block_before_assertion: BasicBlock,
     ) -> None:
         # find the index of the last POP_JUMP_IF_TRUE instruction inside the block

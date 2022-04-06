@@ -182,6 +182,10 @@ class DynamicSlicer:
 
         Returns:
             A `DynamicSlice` object containing the included instructions.
+
+        Raises:
+            SlicingTimeoutException: when the slicing takes longer than the
+                configured budget
         """
         slc = self._setup_slicing_configuration(
             slicing_criterion, trace, trace_position
@@ -485,6 +489,16 @@ class DynamicSlicer:
     ) -> UniqueInstruction:
         """Creates and returns a unique instruction object from an instruction,
         the code object id, the node id and the offset of the instruction.
+
+        Args:
+            file: the file name which contains the instruction
+            instr: the bytecode instruction
+            code_object_id: the code object producing the instruction
+            node_id: the node inside the code object containing the instruction
+            offset: the offset of the instruction
+
+        Returns:
+            The created UniqueInstruction object
         """
         code_meta = self._known_code_objects[code_object_id]
         return UniqueInstruction(
@@ -613,7 +627,15 @@ class DynamicSlicer:
         node_id: int, graph: Union[ControlDependenceGraph, CFG]
     ) -> ProgramGraphNode:
         """Iterate through all nodes of the graph and return the node
-        with the given id."""
+        with the given id.
+
+        Args:
+            node_id: the node id to find inside the given graph
+            graph: the graph to find the node inside of
+
+        Returns:
+            A ProgramGraphNode object with the given id
+        """
         ret_node = None
         for node in graph.nodes:
             if node.index == node_id:
@@ -888,6 +910,9 @@ class DynamicSlicer:
 
         Returns:
             the index of the slicing criterion instruction withing the trace
+
+        Raises:
+            ValueError: If the slicing criterion is not in the trace
         """
         slice_instr: UniqueInstruction = slicing_criterion.unique_instr
         occurrences = 0

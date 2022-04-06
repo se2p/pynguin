@@ -440,9 +440,17 @@ class ExecutionFlowBuilder:
         """Locates the basic block in CFG to which the current state
         (i.e. the last instruction) belongs.
 
+        Args:
+            code_object_id: the code object to look inside of
+            basic_block_id: the basic block to find inside the code object
+
         Returns:
             Tuple of the current basic block and the offset of the first
             instruction in the basic block
+
+        Raises:
+            InstructionNotFoundException: when the basic block is not found
+                in the given code object
         """
         code_object = self.known_code_objects[code_object_id]
         assert code_object, "Unknown code object id"
@@ -483,6 +491,10 @@ class ExecutionFlowBuilder:
 
         Returns:
             Index of instr in basic_block
+
+        Raises:
+            InstructionNotFoundException: when the given instruction is
+                not in the given basic block
         """
         for index, instruction in enumerate(basic_block):
             if instruction == instr and instr_offset == bb_offset:

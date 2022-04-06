@@ -106,6 +106,10 @@ class UniqueInstruction(Instr):
 
         Returns:
             The instruction from withing the bytecode.
+
+        Raises:
+            InstructionNotFoundException: If the instruction is not
+                located in the code object.
         """
         # EXTENDED_ARG instructions are not counted for instrumented offsets,
         # which has to be compensated here
