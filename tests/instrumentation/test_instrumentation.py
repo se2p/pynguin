@@ -30,6 +30,7 @@ from pynguin.testcase.execution import (
     ExecutedMemoryInstruction,
     ExecutedReturnInstruction,
     ExecutionTracer,
+    ExecutedControlInstruction,
 )
 
 
@@ -304,6 +305,16 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
                 is_mutable_type=True,
                 object_creation=True,
             ),
+            ExecutedControlInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=op.POP_JUMP_IF_FALSE,
+                argument="a",
+                lineno=21,
+                offset=2,
+            ),
+            # the LOAD_CONST instruction is not traced by the slicer
             ExecutedReturnInstruction(
                 file=simple_module.__file__,
                 code_object_id=0,
@@ -328,11 +339,8 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
 
     trace = tracer.get_trace()
     assert trace.executed_instructions
-    assert len(trace.executed_instructions) == 2
-    for i in range(2):
-        expected_instr = expected_executed_instructions[i]
-        actual_instr = trace.executed_instructions[i]
-
+    assert len(trace.executed_instructions) == len(expected_executed_instructions)
+    for expected_instr, actual_instr in zip(expected_executed_instructions, trace.executed_instructions):
         # can not compare expected and actual with equals, since the attribute
         # access instruction holds an argument address that changes with each
         # execution and can not be set in the expected element
