@@ -13,8 +13,8 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 
 
@@ -54,7 +54,7 @@ def test_integrate_mosa(module_name: str, algorithm):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        cluster = TestClusterGenerator(module_name).generate_cluster()
+        cluster = generate_test_cluster(module_name)
         algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
         ).get_search_algorithm()

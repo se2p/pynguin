@@ -7,6 +7,7 @@
 """Provides a naming scope."""
 from __future__ import annotations
 
+import typing
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Callable
@@ -104,6 +105,9 @@ class VariableTypeNamingScope(AbstractNamingScope):
             if isinstance(type_, type):
                 # Regular type
                 tp_name = snake_case(type_.__name__)
+            elif type_ == typing.Any:
+                # In case the type is `Any`, still keep the default prefix
+                tp_name = self._prefix
             elif (name_ := getattr(type_, "_name", None)) is not None:
                 # Some type hint. Not sure if all have "_name"
                 tp_name = snake_case(name_)

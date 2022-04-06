@@ -40,7 +40,7 @@ from pynguin.utils.type_utils import is_assertable
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
-    from pynguin.setup.testcluster import TestCluster
+    from pynguin.analyses.module import ModuleTestCluster
 
 Types = Union[float, int, str]
 logger = logging.getLogger(__name__)
@@ -334,10 +334,10 @@ class _InitialPopulationSeeding:
 
     def __init__(self):
         self._testcases: list[dtc.DefaultTestCase] = []
-        self._test_cluster: TestCluster
+        self._test_cluster: ModuleTestCluster
 
     @property
-    def test_cluster(self) -> TestCluster:
+    def test_cluster(self) -> ModuleTestCluster:
         """Provides the test cluster.
 
         Returns:
@@ -346,7 +346,7 @@ class _InitialPopulationSeeding:
         return self._test_cluster
 
     @test_cluster.setter
-    def test_cluster(self, test_cluster: TestCluster):
+    def test_cluster(self, test_cluster: ModuleTestCluster):
         self._test_cluster = test_cluster
 
     @staticmethod
@@ -448,7 +448,7 @@ def create_assign_stmt(
     assign: ast.Assign,
     testcase: tc.TestCase,
     ref_dict: dict[str, vr.VariableReference],
-    test_cluster: TestCluster,
+    test_cluster: ModuleTestCluster,
 ) -> tuple[str, stmt.VariableCreatingStatement] | None:
     """Creates the corresponding statement from an ast.Assign node.
 
@@ -1030,7 +1030,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     """An AST NodeVisitor that tries to convert an AST into our internal
     test case representation."""
 
-    def __init__(self, test_cluster: TestCluster, create_assertions: bool):
+    def __init__(self, test_cluster: ModuleTestCluster, create_assertions: bool):
         self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
         self._current_parsable: bool = True
         self._var_refs: dict[str, vr.VariableReference] = {}

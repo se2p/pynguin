@@ -14,9 +14,9 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 
 
@@ -53,7 +53,7 @@ def test_generate_mutation_assertions(generator, expected_result):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        cluster = TestClusterGenerator(module_name).generate_cluster()
+        cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(cluster, False)
         transformer.visit(
             ast.parse(

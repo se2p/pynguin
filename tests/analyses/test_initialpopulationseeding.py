@@ -20,12 +20,11 @@ import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
 import pynguin.generator as gen
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.seeding import initialpopulationseeding
 from pynguin.generation.generationalgorithmfactory import (
     TestSuiteGenerationAlgorithmFactory,
 )
-from pynguin.setup.testcluster import FullTestCluster, TestCluster
-from pynguin.setup.testclustergenerator import TestClusterGenerator
 from pynguin.testcase.testfactory import TestFactory
 
 
@@ -46,22 +45,20 @@ def seed_modules_path():
 @pytest.fixture()
 def clear_ips_instance():
     initialpopulationseeding._testcases = []
-    initialpopulationseeding.test_cluster = FullTestCluster()
+    initialpopulationseeding.test_cluster = ModuleTestCluster()
 
 
 @pytest.fixture()
-def triangle_test_cluster() -> TestCluster:
-    test_cluster = TestClusterGenerator(
-        "tests.fixtures.examples.triangle"
-    ).generate_cluster()
+def triangle_test_cluster() -> ModuleTestCluster:
+    test_cluster = generate_test_cluster("tests.fixtures.examples.triangle")
     return test_cluster
 
 
 @pytest.fixture()
-def dummy_test_cluster() -> TestCluster:
-    test_cluster = TestClusterGenerator(
+def dummy_test_cluster() -> ModuleTestCluster:
+    test_cluster = generate_test_cluster(
         "tests.fixtures.seeding.initialpopulationseeding.dummycontainer"
-    ).generate_cluster()
+    )
     return test_cluster
 
 

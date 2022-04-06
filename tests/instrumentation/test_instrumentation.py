@@ -18,9 +18,11 @@ import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
+    ArtificialInstr,
     BranchCoverageInstrumentation,
     CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
+    InstrumentationAdapter,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
     basic_block_is_assertion_error,
@@ -228,6 +230,20 @@ def test_avoid_duplicate_instrumentation(simple_module):
     )
     with pytest.raises(AssertionError):
         transformer.instrument_module(already_instrumented)
+
+
+@pytest.mark.parametrize(
+    "block,expected",
+    [
+        ([], {}),
+        ([MagicMock()], {0: 0}),
+        ([MagicMock(), MagicMock()], {0: 0, 1: 1}),
+        ([MagicMock(), ArtificialInstr("POP_TOP"), MagicMock()], {0: 0, 1: 2}),
+        ([ArtificialInstr("POP_TOP"), ArtificialInstr("POP_TOP"), MagicMock()], {0: 2}),
+    ],
+)
+def test__map_instr_positions(block, expected):
+    assert InstrumentationAdapter._map_instr_positions(block) == expected
 
 
 @pytest.mark.parametrize(

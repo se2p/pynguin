@@ -19,10 +19,11 @@ from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
 
 if typing.TYPE_CHECKING:
-    from pynguin.typeinference.strategy import InferredSignature
+    from pynguin.analyses.types import InferredSignature
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])
+IGNORABLE_TYPES = OrderedSet(["builtins.generator", "builtins.async_generator"])
 
 
 def is_primitive_type(type_: type | None) -> bool:
@@ -32,7 +33,7 @@ def is_primitive_type(type_: type | None) -> bool:
         type_: a given type
 
     Returns:
-        Whether or not the type is a primitive type
+        Whether the type is a primitive type
     """
     return type_ in PRIMITIVES
 
@@ -44,9 +45,38 @@ def is_collection_type(type_: type | None) -> bool:
         type_: a given type
 
     Returns:
-        Whether or not the type is a collection type
+        Whether the type is a collection type
     """
     return type_ in COLLECTIONS or get_origin(type_) in COLLECTIONS
+
+
+def is_ignorable_type(type_: type) -> bool:
+    """Check if the given type is ignorable.
+
+    These are types that are exposed as a runtime type, although they are not
+    directly usable.  Consider the following example:
+    >>> def foo_gen():
+    ...     for i in range(10):
+    ...         yield i
+    ...
+    >>> def test_foo():
+    ...     gen = foo_gen()
+    ...     print(f"{type(gen).__module__}.{type(gen).__name__}")
+    ...
+    >>> test_foo()
+    builtins.generator
+
+    Such a type leads to erroneous behaviour and crashes the assertion generation
+    that tracks all seen types.  Thus, we do not track these types as we cannot
+    reasonably handle them or generate an assertion for them.
+
+    Args:
+        type_: a given type
+
+    Returns:
+        Whether the type is ignorable
+    """
+    return f"{type_.__module__}.{type_.__name__}" in IGNORABLE_TYPES
 
 
 def class_in_module(module_name: str) -> Callable[[Any], bool]:
