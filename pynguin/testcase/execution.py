@@ -342,7 +342,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
-    assertion_trace: AssertionTrace = AssertionTrace()
+    assertion_trace: AssertionTrace = field(default_factory=AssertionTrace)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.

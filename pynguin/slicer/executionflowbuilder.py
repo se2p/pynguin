@@ -343,7 +343,7 @@ class ExecutionFlowBuilder:
 
         elif (
             last_instr
-            and (is_traced_instruction(last_instr))
+            and is_traced_instruction(last_instr)
             and last_instr.opcode != last_traced_instr.opcode
         ):
             # The last instruction that is determined is not in the trace,
