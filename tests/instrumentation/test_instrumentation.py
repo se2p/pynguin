@@ -18,6 +18,7 @@ from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     BranchCoverageInstrumentation,
     DynamicSeedingInstrumentation,
+    InstrumentationAdapter,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
 )
@@ -222,18 +223,15 @@ def test_avoid_duplicate_instrumentation(simple_module):
 @pytest.mark.parametrize(
     "block,expected",
     [
-        ([], None),
-        ([MagicMock()], None),
-        ([MagicMock(), MagicMock()], -2),
-        ([MagicMock(), ArtificialInstr("POP_TOP"), MagicMock()], -3),
-        ([ArtificialInstr("POP_TOP"), ArtificialInstr("POP_TOP"), MagicMock()], None),
+        ([], {}),
+        ([MagicMock()], {0: 0}),
+        ([MagicMock(), MagicMock()], {0: 0, 1: 1}),
+        ([MagicMock(), ArtificialInstr("POP_TOP"), MagicMock()], {0: 0, 1: 2}),
+        ([ArtificialInstr("POP_TOP"), ArtificialInstr("POP_TOP"), MagicMock()], {0: 2}),
     ],
 )
-def test__find_index_of_potential_compare_instr(block, expected):
-    assert (
-        BranchCoverageInstrumentation._find_index_of_potential_compare_instr(block)
-        == expected
-    )
+def test__map_instr_positions(block, expected):
+    assert InstrumentationAdapter._map_instr_positions(block) == expected
 
 
 @pytest.mark.parametrize(

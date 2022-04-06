@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-from itertools import count
 from types import CodeType
 from typing import TYPE_CHECKING
 
@@ -114,6 +113,26 @@ class InstrumentationAdapter:
         for node in nodes:
             node.clear()
         return tuple(nodes)
+
+    @staticmethod
+    def _map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
+        """Other instrumentations may add artificial instructions.
+        Create a mapping that maps original locations to their locations.
+
+        Args:
+            basic_block: The block that should be mapped.
+
+        Returns:
+            A mapping from original instructions positions to their new positions.
+        """
+        orig_idx = 0
+        mapping = {}
+        for idx, instr in enumerate(basic_block):
+            if isinstance(instr, ArtificialInstr):
+                continue
+            mapping[orig_idx] = idx
+            orig_idx += 1
+        return mapping
 
 
 class InstrumentationTransformer:
@@ -242,6 +261,10 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
     # Jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
 
+    # If a conditional jump is based on a comparison, it has to be the second-to-last
+    # instruction within the basic block.
+    _COMPARE_OP_POS = -2
+
     _logger = logging.getLogger(__name__)
 
     def __init__(self, tracer: ExecutionTracer) -> None:
@@ -267,8 +290,11 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]
-        maybe_compare_idx: int | None = self._find_index_of_potential_compare_instr(
+        orig_instructions_positions = InstrumentationAdapter._map_instr_positions(
             basic_block
+        )
+        maybe_compare_idx: int | None = orig_instructions_positions.get(
+            len(orig_instructions_positions) + self._COMPARE_OP_POS
         )
         if isinstance(maybe_jump, Instr):
             predicate_id: int | None = None
@@ -289,32 +315,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
-
-    @staticmethod
-    def _find_index_of_potential_compare_instr(basic_block: BasicBlock) -> int | None:
-        """It may happen that another instrumentation added artificial instructions
-        between the conditional jump and the preceding comparison. Find the index of the
-        first non-artificial instruction that precedes the jump at the end of a basic
-        block.
-
-        Args:
-            basic_block: The block to search
-
-        Returns:
-            The index of the first non-artificial instruction that precedes the jump.
-            The index is negative, i.e., it indexes from the end.
-        """
-        block_without_jump = basic_block[: BranchCoverageInstrumentation._JUMP_OP_POS]
-        for idx, instr in zip(
-            count(BranchCoverageInstrumentation._JUMP_OP_POS - 1, -1),
-            reversed(block_without_jump),
-        ):
-            if isinstance(instr, ArtificialInstr):
-                # Skip over artificial instructions
-                continue
-            # Return first result
-            return idx
-        return None
 
     def _instrument_cond_jump(
         self,
