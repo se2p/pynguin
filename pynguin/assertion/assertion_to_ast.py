@@ -192,7 +192,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
     def visit_exception_assertion(self, assertion: ass.ExceptionAssertion) -> None:
         assert (
             not self._has_seen_exception
-        ), "Cannot assert multiple assertions on same statement"
+        ), "Cannot assert multiple exceptions on same statement"
         self._has_seen_exception = True
         self._common_modules.add("pytest")
         assert len(self._assertion_nodes) == 0
