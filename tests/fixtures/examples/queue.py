@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import array
+from array import array
 
 
 class Queue:
@@ -14,7 +14,7 @@ class Queue:
         self.head = 0
         self.tail = 0
         self.size = 0
-        self.data = array.array("i", range(size_max))
+        self.data = array("i", range(size_max))
 
     def empty(self) -> bool:
         return self.size != 0

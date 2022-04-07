@@ -4,10 +4,10 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import enum
+from enum import Enum
 
 
-class Foo(enum.Enum):
+class Foo(Enum):
     BAR = 1
     BAZ = 2
 

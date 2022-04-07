@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import random
+from random import random
 
 
 def not_flaky(x: int) -> bool:
@@ -16,7 +16,7 @@ def not_flaky(x: int) -> bool:
 
 
 def flaky() -> bool:
-    if random.random() > 0.5:
+    if random() > 0.5:
         return True
     else:
         return False
