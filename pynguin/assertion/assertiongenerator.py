@@ -187,5 +187,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 assertion
                 for assertion in base_assertions
                 if assertion_counter[assertion] < num_mutations
+                or isinstance(
+                    assertion, ass.ExceptionAssertion
+                )  # exceptions are interesting nonetheless
             ]
         )
