@@ -38,13 +38,16 @@ import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
-import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.types import TypeInferenceStrategy
-from pynguin.generation.export.exportprovider import ExportProvider
+from pynguin.generation import export
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.execution import (
+    ExecutionTracer,
+    ReturnTypeObserver,
+    TestCaseExecutor,
+)
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -293,6 +296,8 @@ def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster = setup_result
+    # Observe return types during execution.
+    executor.add_observer(ReturnTypeObserver())
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
         executor, test_cluster
@@ -339,20 +344,12 @@ def _run() -> ReturnCode:
     generation_result.accept(converter)
     failing = converter.failing_test_suite
     passing = converter.passing_test_suite
-    written_to = _export_test_cases(
-        [t.test_case for t in passing.test_case_chromosomes]
-    )
-    _LOGGER.info(
-        "Export %i successful test cases to %s",
-        passing.size(),
-        written_to,
-    )
-    written_to = _export_test_cases(
-        [t.test_case for t in failing.test_case_chromosomes],
-        "_failing",
-        wrap_code=True,
-    )
-    _LOGGER.info("Export %i failing test cases to %s", failing.size(), written_to)
+    if (
+        config.configuration.test_case_output.export_strategy
+        == config.ExportStrategy.PY_TEST
+    ):
+        _export_chromosome(passing)
+        _export_chromosome(failing, file_name_suffix="_failing")
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
@@ -447,24 +444,27 @@ def _track_statistics(
     stat.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
 
-def _export_test_cases(
-    test_cases: list[tc.TestCase], suffix: str = "", wrap_code: bool = False
-) -> str:
-    """Export the given test cases.
+def _export_chromosome(
+    chromosome: chrom.Chromosome,
+    file_name_suffix: str = "",
+) -> None:
+    """Export the given chromosome.
 
     Args:
-        test_cases: A list of test cases to export
-        suffix: Suffix that can be added to the file name to distinguish
+        chromosome: the chromosome to export.
+        file_name_suffix: Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
-        wrap_code: Whether or not the generated code shall be wrapped
-
     Returns:
         The name of the target file
     """
-    exporter = ExportProvider.get_exporter(wrap_code=wrap_code)
     target_file = os.path.join(
         config.configuration.test_case_output.output_path,
-        "test_" + config.configuration.module_name.replace(".", "_") + suffix + ".py",
+        "test_"
+        + config.configuration.module_name.replace(".", "_")
+        + file_name_suffix
+        + ".py",
     )
-    exporter.export_sequences(target_file, test_cases)
-    return target_file
+    export_visitor = export.PyTestChromosomeToAstVisitor()
+    chromosome.accept(export_visitor)
+    export.save_module_to_file(export_visitor.to_module(), target_file)
+    _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)

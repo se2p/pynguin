@@ -17,6 +17,7 @@ from pynguin.testcase.testcasevisitor import TestCaseVisitor
 
 if TYPE_CHECKING:
     import pynguin.testcase.defaulttestcase as dtc
+    import pynguin.testcase.execution as ex
 
 
 class TestCaseToAstVisitor(TestCaseVisitor):
@@ -26,58 +27,62 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     an alias.
     """
 
-    def __init__(self, wrap_code: bool = False) -> None:
+    def __init__(
+        self,
+        module_aliases: ns.NamingScope,
+        common_modules: set[str],
+        exec_result: ex.ExecutionResult | None = None,
+    ) -> None:
         """The module aliases are shared between test cases.
 
         Args:
-            wrap_code: Whether the exported code shall be wrapped
+            module_aliases: The aliases for used modules
+            common_modules: The names of common modules that are not aliased
+            exec_result: An optional execution result for the test case.
         """
-        self._module_aliases = ns.NamingScope("module")
+        self._module_aliases: ns.NamingScope = module_aliases
         # Common modules (e.g. math) are not aliased.
-        self._common_modules: set[str] = set()
-        self._test_case_asts: list[list[stmt]] = []
-        self._wrap_code = wrap_code
+        self._common_modules: set[str] = common_modules
+        self._exec_result = exec_result
+        self._test_case_ast: list[stmt] = []
 
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
-        variables = ns.VariableTypeNamingScope()
-        statement_visitor = stmt_to_ast.StatementToAstVisitor(
-            self._module_aliases, variables, self._wrap_code
+        self._test_case_ast = []
+        return_type_trace = (
+            None if self._exec_result is None else self._exec_result.return_type_trace
         )
-        for statement in test_case.statements:
+        variables = ns.VariableTypeNamingScope(return_type_trace=return_type_trace)
+        for idx, statement in enumerate(test_case.statements):
+            store_call_return = True
+            if (
+                self._exec_result is not None
+                and self._exec_result.get_first_position_of_thrown_exception() == idx
+            ):
+                # If a statement causes an exception and defines a new name, we don't
+                # actually want to create that name, as it will not be stored anyway.
+                store_call_return = False
+            statement_visitor = stmt_to_ast.StatementToAstVisitor(
+                self._module_aliases, variables, store_call_return=store_call_return
+            )
             statement.accept(statement_visitor)
             # TODO(fk) better way. Nest visitors?
-            assertion_visitor = ata.AssertionToAstVisitor(
-                variables, self._module_aliases, self._common_modules
+            assertion_visitor = ata.PyTestAssertionToAstVisitor(
+                variables,
+                self._module_aliases,
+                self._common_modules,
+                statement_node=statement_visitor.ast_node,
             )
             for assertion in statement.assertions:
                 assertion.accept(assertion_visitor)
-            statement_visitor.append_nodes(assertion_visitor.nodes)
-        self._test_case_asts.append(statement_visitor.ast_nodes)
+            # The visitor might wrap the generated statement node,
+            # so append the nodes provided by the assertion visitor
+            self._test_case_ast.extend(assertion_visitor.nodes)
 
     @property
-    def test_case_asts(self) -> list[list[stmt]]:
-        """Provides the generated asts for each test case.
+    def test_case_ast(self) -> list[stmt]:
+        """Provides the generated statement asts for a test case.
 
         Returns:
-            A list of the generated ASTs for each test case
+            A list of the generated statement asts for a test case
         """
-        return self._test_case_asts
-
-    @property
-    def module_aliases(self) -> ns.NamingScope:
-        """Provides the module aliases that were used when transforming all test cases.
-
-        Returns:
-            The module aliases
-        """
-        return self._module_aliases
-
-    @property
-    def common_modules(self) -> set[str]:
-        """Provides the common modules that were used when transforming all test cases.
-        This is used, because common modules (e.g., math) should not be aliased.
-
-        Returns:
-            A set of the modules names
-        """
-        return self._common_modules
+        return self._test_case_ast

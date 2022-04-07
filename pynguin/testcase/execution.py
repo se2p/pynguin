@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -130,10 +130,7 @@ class ExecutionContext:
             self._module_aliases, self._variable_names
         )
         statement.accept(visitor)
-        assert (
-            len(visitor.ast_nodes) == 1
-        ), "Expected statement to produce exactly one ast node"
-        return ExecutionContext._wrap_node_in_module(visitor.ast_nodes[0])
+        return ExecutionContext._wrap_node_in_module(visitor.ast_node)
 
     @staticmethod
     def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
@@ -318,7 +315,7 @@ class ExecutionResult:
         """Returns true if any exceptions were thrown during the execution.
 
         Returns:
-            Whether or not the test has exceptions
+            Whether the test has exceptions
         """
         return bool(self._exceptions)
 
@@ -363,6 +360,35 @@ class ExecutionResult:
         self._exceptions = ExecutionResult.shift_dict(
             self._exceptions, deleted_statements
         )
+
+    T = TypeVar("T")
+
+    @staticmethod
+    def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
+        """Shifts the entries in the given dictionary by computing their new positions
+        after the given statements were deleted.
+
+        Args:
+            to_shift: The dict to shift
+            deleted_indexes: A set of deleted statement indexes.
+
+        Returns:
+            The shifted dict
+        """
+        # Count how many statements were deleted up to a given point
+        shifts = {}
+        delta = 0
+        for idx in range(max(to_shift.keys(), default=0) + 1):
+            if idx in deleted_indexes:
+                delta += 1
+            shifts[idx] = delta
+
+        # Shift all indexes accordingly
+        shifted = {}
+        for stmt_idx, value in to_shift.items():
+            if stmt_idx not in deleted_indexes:
+                shifted[stmt_idx - shifts[stmt_idx]] = value
+        return shifted
 
     def __str__(self) -> str:
         return (
