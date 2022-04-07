@@ -318,9 +318,10 @@ def _run() -> ReturnCode:
 
     _track_coverage_metrics(algorithm, generation_result)
 
+    # Remove statements after exceptions
+    truncation = pp.ExceptionTruncation()
+    generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
-        truncation = pp.ExceptionTruncation()
-        generation_result.accept(truncation)
 
         unused_primitives_removal = pp.TestCasePostProcessor(
             [pp.UnusedStatementsTestCaseVisitor()]
