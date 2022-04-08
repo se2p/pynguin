@@ -56,7 +56,7 @@ def small_fixture(x, y):  # pragma: no cover
     [
         pytest.param(
             ProgramGraphNode(index=5),
-            {ControlDependency(3, True)},
+            {ControlDependency(0, True)},
             id="return True depends on y == 17",
         ),
         pytest.param(ProgramGraphNode(index=0), set(), id="Entry has no dependency"),

@@ -954,11 +954,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Argument address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_FAST", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Argument type
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_FAST", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
@@ -987,7 +991,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             op.LOAD_METHOD,
         ]:
             # Duplicate top of stack to access attribute
-            new_block_instructions.append(ArtificialInstr("DUP_TOP", lineno=instr.lineno))
+            new_block_instructions.append(
+                ArtificialInstr("DUP_TOP", lineno=instr.lineno)
+            )
         elif instr.opcode == op.STORE_ATTR:
             new_block_instructions.extend(
                 [
@@ -1027,7 +1033,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("DUP_TOP", lineno=instr.lineno),
                 # Determine source address
                 #   Load lookup method
-                ArtificialInstr("LOAD_CONST", self._tracer.__class__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST", self._tracer.__class__, lineno=instr.lineno
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     self._tracer.attribute_lookup.__name__,
@@ -1042,14 +1050,18 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Determine argument address
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("LOAD_ATTR", arg=instr.arg, lineno=instr.lineno),
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Determine argument type
                 ArtificialInstr("ROT_THREE", lineno=instr.lineno),
                 ArtificialInstr("ROT_THREE", lineno=instr.lineno),
                 ArtificialInstr("LOAD_ATTR", arg=instr.arg, lineno=instr.lineno),
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
@@ -1130,7 +1142,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Source object address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # No arg address
@@ -1178,11 +1192,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Argument address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_NAME", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Argument type
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_NAME", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
@@ -1229,12 +1247,16 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             [
                 ArtificialInstr("DUP_TOP", lineno=instr.lineno),
                 # Argument address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Argument type
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
@@ -1275,11 +1297,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Argument address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_GLOBAL", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Argument type
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 ArtificialInstr("LOAD_GLOBAL", instr.arg, lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
@@ -1303,7 +1329,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     ) -> None:
         # Load instruction
         if instr.opcode == op.LOAD_CLASSDEREF:
-            load_instr = ArtificialInstr("LOAD_CLASSDEREF", instr.arg, lineno=instr.lineno)
+            load_instr = ArtificialInstr(
+                "LOAD_CLASSDEREF", instr.arg, lineno=instr.lineno
+            )
         else:
             load_instr = ArtificialInstr("LOAD_DEREF", instr.arg, lineno=instr.lineno)
 
@@ -1331,11 +1359,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Argument address
-                ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno
+                ),
                 load_instr,
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Argument type
-                ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno
+                ),
                 load_instr,
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # Call tracing method
