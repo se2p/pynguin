@@ -247,11 +247,8 @@ class InstrumentationTransformer:
             cfg: The CFG that overlays the bytecode cfg.
             code_object_id: The id of the code object which contains this CFG.
         """
-        # We need to sort nodes in order to keep track of the correct offset
-        cfg_nodes = list(cfg.nodes)
-        cfg_nodes.sort(key=lambda n: n.index)
 
-        for node in cfg_nodes:
+        for node in cfg.nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
                 # instrument anything.
