@@ -774,6 +774,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         assert len(basic_block) > 0, "Empty basic block in CFG."
         offset = node.offset
 
+        file_name = cfg.bytecode_cfg().filename
         new_block_instructions: list[Instr] = []
 
         if basic_block_is_assertion_error(basic_block):
@@ -790,6 +791,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     node.index,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_LOCAL_ACCESS:
                 self._instrument_local_access(
@@ -798,6 +800,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_NAME_ACCESS:
                 self._instrument_name_access(
@@ -806,6 +809,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_GLOBAL_ACCESS:
                 self._instrument_global_access(
@@ -814,6 +818,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_DEREF_ACCESS:
                 self._instrument_deref_access(
@@ -822,6 +827,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_ATTR_ACCESS:
                 self._instrument_attr_access(
@@ -830,6 +836,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_SUBSCR_ACCESS:
                 self._instrument_subscr_access(
@@ -838,6 +845,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_ABSOLUTE_JUMP + op.OP_RELATIVE_JUMP:
                 self._instrument_jump(
@@ -847,6 +855,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     instr,
                     offset,
                     cfg,
+                    file_name,
                 )
             elif instr.opcode in op.OP_CALL:
                 self._instrument_call(
@@ -855,6 +864,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_RETURN:
                 self._instrument_return(
@@ -863,6 +873,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             elif instr.opcode in op.OP_IMPORT_NAME:
                 self._instrument_import_name_access(
@@ -871,6 +882,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                     new_block_instructions,
                     instr,
                     offset,
+                    file_name,
                 )
             else:
                 # Un-traced instruction retrieved during analysis
@@ -888,6 +900,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         node_id: int,
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         # Call tracing method
         new_block_instructions.extend(
@@ -901,9 +914,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 # Load arguments
                 # Current module
-                # TODO(SiL) replace with file name from code object,
-                #  similar to LineCoverage?
-                ArtificialInstr("LOAD_GLOBAL", "__file__", lineno=instr.lineno),
+                ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
                 # Code object id
                 ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
                 # Basic block id
@@ -929,6 +940,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         if instr.opcode in (op.LOAD_FAST, op.STORE_FAST):
             # Original instruction before instrumentation
@@ -948,7 +960,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args(code_object_id, node_id, offset, instr.arg, instr)
+            self._load_args(
+                code_object_id, node_id, offset, instr.arg, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -983,6 +997,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         if instr.opcode in [
             op.LOAD_ATTR,
@@ -1022,7 +1037,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args_with_prop(code_object_id, node_id, offset, instr.arg, instr)
+            self._load_args_with_prop(
+                code_object_id, node_id, offset, instr.arg, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1086,6 +1103,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         if instr.opcode == op.STORE_SUBSCR:
             new_block_instructions.extend(
@@ -1136,7 +1154,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args_with_prop(code_object_id, node_id, offset, "None", instr)
+            self._load_args_with_prop(
+                code_object_id, node_id, offset, "None", instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1167,6 +1187,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         if instr.opcode in [op.STORE_NAME, op.LOAD_NAME, op.IMPORT_NAME]:
             # Original instruction at before instrumentation
@@ -1186,7 +1207,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args(code_object_id, node_id, offset, instr.arg, instr)
+            self._load_args(
+                code_object_id, node_id, offset, instr.arg, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1220,6 +1243,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         new_block_instructions.extend(
             [
@@ -1240,7 +1264,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args_with_prop(code_object_id, node_id, offset, instr.arg, instr)
+            self._load_args_with_prop(
+                code_object_id, node_id, offset, instr.arg, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1272,6 +1298,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         if instr.opcode in [op.STORE_GLOBAL, op.LOAD_GLOBAL]:
             # Original instruction before instrumentation
@@ -1291,7 +1318,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args(code_object_id, node_id, offset, instr.arg, instr)
+            self._load_args(
+                code_object_id, node_id, offset, instr.arg, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1326,6 +1355,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         # Load instruction
         if instr.opcode == op.LOAD_CLASSDEREF:
@@ -1353,7 +1383,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args(code_object_id, node_id, offset, instr.arg.name, instr)
+            self._load_args(
+                code_object_id, node_id, offset, instr.arg.name, instr, file_name
+            )
         )
 
         new_block_instructions.extend(
@@ -1389,6 +1421,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         instr: Instr,
         offset: int,
         cfg: CFG,
+        file_name: str,
     ) -> None:
         new_block_instructions.extend(
             [
@@ -1408,6 +1441,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 offset,
                 cfg.bytecode_cfg().get_block_index(instr.arg),
                 instr,
+                file_name,
             )
         )
 
@@ -1428,6 +1462,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         # Trace argument only for calls with integer arguments
         if isinstance(instr.arg, int):
@@ -1448,7 +1483,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         # Load arguments
         new_block_instructions.extend(
-            self._load_args(code_object_id, node_id, offset, argument, instr)
+            self._load_args(code_object_id, node_id, offset, argument, instr, file_name)
         )
 
         new_block_instructions.extend(
@@ -1468,6 +1503,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions: list[Instr],
         instr: Instr,
         offset: int,
+        file_name: str,
     ) -> None:
         new_block_instructions.extend(
             [
@@ -1480,7 +1516,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 # Load arguments
                 # Current module
-                ArtificialInstr("LOAD_GLOBAL", "__file__", lineno=instr.lineno),
+                ArtificialInstr("LOAD_GLOBAL", file_name, lineno=instr.lineno),
                 # Code object id
                 ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
                 # Basic block id
@@ -1502,7 +1538,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.append(instr)
 
     def _instrument_assertion(
-        self, code_object_id: int, cfg: CFG, node: ProgramGraphNode, offset: int
+        self,
+        code_object_id: int,
+        cfg: CFG,
+        node: ProgramGraphNode,
+        offset: int,
     ) -> None:
         """To know where an assertion started and ended, the last
         comparison instruction of the node before the assertion error must
@@ -1519,22 +1559,26 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             node: The node containing the assertion throwing.
             offset: the offset of the jump instruction used inside the assertion
         """
+        file_name = cfg.bytecode_cfg().filename
         node_before, node_after = get_nodes_around_node(cfg, node)
         self._instrument_start_assert(
             code_object_id,
             node_before.index,
             offset + self._POP_JUMP_IF_TRUE_POSITION,
             node_before.basic_block,
+            file_name,
         )
 
         self._instrument_end_assert(node_after.basic_block)
 
+    # pylint: disable=too-many-arguments
     def _instrument_start_assert(
         self,
         code_object_id: int,
         node_id: int,
         offset: int,
         block_before_assertion: BasicBlock,
+        file_name: str,
     ) -> None:
         # find the index of the last POP_JUMP_IF_TRUE instruction inside the block
         # this should normally be the last instruction inside the block, but previous
@@ -1554,7 +1598,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 self._tracer.track_assert_start.__name__,
                 lineno=lineno,
             ),
-            ArtificialInstr("LOAD_GLOBAL", "__file__", lineno=lineno),
+            ArtificialInstr("LOAD_CONST", file_name, lineno=lineno),
             # Code object id
             ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
             # Basic block id
@@ -1585,13 +1629,19 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
 
+    # pylint: disable=too-many-arguments
     @staticmethod
     def _load_args(
-        code_object_id: int, node_id: int, offset: int, arg, instr: Instr
+        code_object_id: int,
+        node_id: int,
+        offset: int,
+        arg,
+        instr: Instr,
+        file_name: str,
     ) -> list[Instr]:
         instructions = [
             # Current module
-            ArtificialInstr("LOAD_GLOBAL", "__file__", lineno=instr.lineno),
+            ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
             # Code object id
             ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
             # Basic block id
@@ -1608,14 +1658,20 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         return instructions
 
+    # pylint: disable=too-many-arguments
     @staticmethod
     def _load_args_with_prop(
-        code_object_id: int, node_id: int, offset: int, arg, instr: Instr
+        code_object_id: int,
+        node_id: int,
+        offset: int,
+        arg,
+        instr: Instr,
+        file_name: str,
     ) -> list[Instr]:
         instructions = [
             # Load arguments
             #   Current module
-            ArtificialInstr("LOAD_GLOBAL", "__file__", lineno=instr.lineno),
+            ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
             ArtificialInstr("ROT_TWO", lineno=instr.lineno),
             #   Code object id
             ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),

@@ -488,4 +488,3 @@ def _get_lines_data_for_plus_module():
 def _get_empty_test() -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
     return tcc.TestCaseChromosome(test_case=test_case)
-

@@ -78,14 +78,9 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
     # assert plus.calculations == 0
     calculation_counter_assertion = ass.ObjectAssertion(
         FieldReference(
-            constructor_call.ret_val,
-            gao.GenericField(
-                Plus,
-                "calculations",
-                int
-            )
+            constructor_call.ret_val, gao.GenericField(Plus, "calculations", int)
         ),
-        0
+        0,
     )
     constructor_call.add_assertion(calculation_counter_assertion)
 
@@ -105,10 +100,7 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
         {"number": int_stmt.ret_val},
     )
     # assert int_1 == 46
-    plus_four_assertion = ass.ObjectAssertion(
-        method_call.ret_val,
-        46
-    )
+    plus_four_assertion = ass.ObjectAssertion(method_call.ret_val, 46)
     method_call.add_assertion(plus_four_assertion)
 
     test_case.add_statement(int_stmt)
