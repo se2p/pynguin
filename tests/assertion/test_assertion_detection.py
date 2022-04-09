@@ -17,7 +17,7 @@ from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,
     InstrumentationTransformer,
 )
-from pynguin.testcase.execution import AssertionTrace, ExecutionTracer
+from pynguin.testcase.execution import AssertionData, ExecutionTracer
 
 
 def test_single_assertion():
@@ -44,7 +44,7 @@ def test_loop_assertions():
         assert assertion.traced_assertion_pop_jump.lineno == 13
 
 
-def _get_assertion_trace_for_module(module_name: str) -> AssertionTrace:
+def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
     """Trace a given module name with the CheckedCoverage Instrumentation.
     The traced module must contain a test called test_foo()."""
     module = importlib.import_module(module_name)

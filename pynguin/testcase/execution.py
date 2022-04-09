@@ -311,14 +311,14 @@ class ExecutionResult:
 
 
 @dataclass
-class AssertionTrace:
+class AssertionData:
     """Stores trace information about assertions of a called testcase."""
 
     traced_assertions: list[TracedAssertion] = field(default_factory=list)
     unique_assertions: set[UniqueAssertion] = field(default_factory=set)
     current_assertion: TracedAssertion | None = None
 
-    def merge(self, other: AssertionTrace) -> None:
+    def merge(self, other: AssertionData) -> None:
         """Merge the values from the other assertion trace.
 
 
@@ -342,7 +342,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
-    assertion_trace: AssertionTrace = field(default_factory=AssertionTrace)
+    assertion_trace: AssertionData = field(default_factory=AssertionData)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
