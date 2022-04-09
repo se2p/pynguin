@@ -465,7 +465,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 elif last_instr.opcode in (
                     op.POP_JUMP_IF_FALSE,
                     op.JUMP_IF_FALSE_OR_POP,
-                    op.JUMP_IF_NOT_EXEC_MATCH,
+                    op.JUMP_IF_NOT_EXC_MATCH,
                     op.FOR_ITER,
                 ):
                     # These jump to arg if ToS is False, is Empty or if Exc does

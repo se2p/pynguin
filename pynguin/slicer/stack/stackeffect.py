@@ -110,7 +110,7 @@ def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
         op.LOAD_ASSERTION_ERROR: (0, 1),
         op.IS_OP: (2, 1),
         op.CONTAINS_OP: (2, 1),
-        op.JUMP_IF_NOT_EXEC_MATCH: (2, 0),
+        op.JUMP_IF_NOT_EXC_MATCH: (2, 0),
         op.GET_LEN: (0, 1),
         op.MATCH_MAPPING: (0, 1),
         op.MATCH_SEQUENCE: (0, 1),

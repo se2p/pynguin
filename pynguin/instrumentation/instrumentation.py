@@ -360,7 +360,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 compare_idx=maybe_compare_idx,
                 node=node,
             )
-        if jump.opcode == op.JUMP_IF_NOT_EXEC_MATCH:
+        if jump.opcode == op.JUMP_IF_NOT_EXC_MATCH:
             return self._instrument_exception_based_conditional_jump(
                 basic_block=block, code_object_id=code_object_id, node=node
             )
