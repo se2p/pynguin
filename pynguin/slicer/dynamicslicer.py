@@ -39,13 +39,6 @@ from pynguin.utils.exceptions import (
 
 
 @dataclass
-class DynamicSlice:
-    """The slice containing the list of instructions in the slice and its origin."""
-
-    sliced_instructions: list[UniqueInstruction]
-
-
-@dataclass
 class SlicingCriterion:
     """Slicing criterion data class holding the instruction
     and variables to slice for."""
@@ -165,7 +158,7 @@ class DynamicSlicer:
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
         trace_position: int,
-    ) -> DynamicSlice:
+    ) -> list[UniqueInstruction]:
         """Main routine to perform the dynamic slicing.
 
         Args:
@@ -209,7 +202,7 @@ class DynamicSlicer:
                     if i not in instructions:
                         instructions.add(i)
                         slice_instructions.append(i)
-                return DynamicSlice(slice_instructions)
+                return slice_instructions
 
             last_unique_instr = self.create_unique_instruction(
                 slc.file,
@@ -602,12 +595,12 @@ class DynamicSlicer:
 
     @staticmethod
     def organize_by_module(
-        dynamic_slice: DynamicSlice,
+        sliced_instructions: list[UniqueInstruction],
     ) -> dict[str, list[UniqueInstruction]]:
         """Sort all instructions of a dynamic slice by their module name.
 
         Args:
-            dynamic_slice: The dynamic slice
+            sliced_instructions: The list of instructions inside the dynamic slice
 
         Returns:
             A dictionary where each module name contains a list of instructions of the
@@ -615,7 +608,7 @@ class DynamicSlicer:
         """
         module_instructions: dict[str, list[UniqueInstruction]] = {}
 
-        for instruction in dynamic_slice.sliced_instructions:
+        for instruction in sliced_instructions:
             if instruction.file not in module_instructions:
                 module_instructions[instruction.file] = []
             module_instructions[instruction.file].append(instruction)

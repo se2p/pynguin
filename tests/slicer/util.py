@@ -19,7 +19,7 @@ from pynguin.instrumentation.instrumentation import (
     InstrumentationTransformer,
 )
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.dynamicslicer import DynamicSlice, DynamicSlicer, SlicingCriterion
+from pynguin.slicer.dynamicslicer import DynamicSlicer, SlicingCriterion
 from pynguin.slicer.instruction import UniqueInstruction
 from pynguin.testcase.execution import ExecutionTracer
 
@@ -101,7 +101,7 @@ def _contains_name_argtype(
     return None
 
 
-def slice_function_at_return(function: callable) -> DynamicSlice:
+def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
     tracer = ExecutionTracer()
     instrumentation = CheckedCoverageInstrumentation(tracer)
     instrumentation_transformer = InstrumentationTransformer(tracer, [instrumentation])
@@ -125,14 +125,12 @@ def slice_function_at_return(function: callable) -> DynamicSlice:
         lineno=last_traced_instr.lineno,
     )
     slicing_criterion = SlicingCriterion(slicing_instruction)
-    dynamic_slice = dynamic_slicer.slice(
+    return dynamic_slicer.slice(
         trace, slicing_criterion, len(trace.executed_instructions) - 2
     )
 
-    return dynamic_slice
 
-
-def slice_module_at_return(module_name: str) -> DynamicSlice:
+def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
@@ -161,7 +159,6 @@ def slice_module_at_return(module_name: str) -> DynamicSlice:
         slicing_criterion = SlicingCriterion(
             slicing_instruction, local_variables={("result", last_traced_instr.file)}
         )
-        dynamic_slice = dynamic_slicer.slice(
+        return dynamic_slicer.slice(
             trace, slicing_criterion, len(trace.executed_instructions) - 2
         )
-        return dynamic_slice

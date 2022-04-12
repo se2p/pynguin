@@ -50,9 +50,9 @@ def test_data_dependency_composite():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 @pytest.mark.xfail
@@ -119,9 +119,9 @@ def test_dunder_definition():
     expected_instructions.extend(function_block)
     expected_instructions.extend(nested_class_block)
     expected_instructions.extend(init_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 # TODO(SiL) was marked as 'ExpectedFailure', how to adjust?
@@ -159,9 +159,9 @@ def test_mod_untraced_object():
 
     expected_instructions = []
     expected_instructions.extend(function_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 @pytest.mark.xfail
@@ -211,9 +211,9 @@ def test_call_unused_argument():
     expected_instructions.extend(callee_block)
 
     module = "tests.fixtures.slicer.simple_call_arg"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 @pytest.mark.xfail
@@ -283,6 +283,6 @@ def test_exception():
     expected_instructions.extend(function_block)
     expected_instructions.extend(try_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)

@@ -33,9 +33,9 @@ def test_data_dependency_1():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_2():
@@ -54,9 +54,9 @@ def test_data_dependency_2():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_3():
@@ -80,9 +80,9 @@ def test_data_dependency_3():
         Instr("RETURN_VALUE"),
     ]
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_4():
@@ -137,9 +137,9 @@ def test_data_dependency_4():
     expected_instructions.extend(class_attr_block)
 
     module = "tests.fixtures.slicer.attribute_dependencies"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_5():
@@ -178,9 +178,9 @@ def test_data_dependency_5():
     expected_instructions.extend(module_block)
 
     module = "tests.fixtures.slicer.partial_cover_dependency"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_1():
@@ -226,9 +226,9 @@ def test_simple_control_dependency_1():
     expected_instructions.extend(if_basic_block)
     expected_instructions.extend(return_basic_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_2():
@@ -262,9 +262,9 @@ def test_simple_control_dependency_2():
     expected_instructions.extend(init_basic_block)
     expected_instructions.extend(return_basic_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_3():
@@ -332,9 +332,9 @@ def test_simple_control_dependency_3():
     expected_instructions.extend(elif_cond)
     expected_instructions.extend(elif_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_4():
@@ -402,6 +402,6 @@ def test_simple_control_dependency_4():
     expected_instructions.extend(else_block)
     expected_instructions.extend(return_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)

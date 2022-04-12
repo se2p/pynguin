@@ -72,9 +72,9 @@ def test_simple_loop():
     expected_instructions.extend(loop_block)
     expected_instructions.extend(return_block)
 
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_call_without_arguments():
@@ -101,9 +101,9 @@ def test_call_without_arguments():
     expected_instructions.extend(callee_block)
 
     module = "tests.fixtures.slicer.simple_call"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_call_with_arguments():
@@ -151,9 +151,9 @@ def test_call_with_arguments():
     expected_instructions.extend(callee_block)
 
     module = "tests.fixtures.slicer.simple_call_arg"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_generators():
@@ -265,9 +265,9 @@ def test_generators():
     expected_instructions.extend(abc_generator)
 
     module = "tests.fixtures.slicer.generator"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_with_extended_arg():
@@ -305,9 +305,9 @@ def test_with_extended_arg():
 
     expected_instructions = []
     expected_instructions.extend(module_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_nested_class():
@@ -367,9 +367,9 @@ def test_nested_class():
     expected_instructions = []
     expected_instructions.extend(function_block)
     expected_instructions.extend(nested_class_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_nested_class_2():
@@ -477,10 +477,10 @@ def test_nested_class_2():
     expected_instructions.extend(function_block)
     expected_instructions.extend(foo_block)
     expected_instructions.extend(bar_block)
-    dynamic_slice = slice_function_at_return(func)
+    sliced_instructions = slice_function_at_return(func)
     assert func() == [1, 2]
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_lambda():
@@ -521,9 +521,9 @@ def test_lambda():
     expected_instructions = []
     expected_instructions.extend(function_block)
     expected_instructions.extend(lambda_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_builtin_addresses():
@@ -559,9 +559,9 @@ def test_builtin_addresses():
 
     expected_instructions = []
     expected_instructions.extend(function_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_immutable_attribute():
@@ -600,9 +600,9 @@ def test_data_dependency_immutable_attribute():
     expected_instructions.extend(class_attr_block)
 
     module = "tests.fixtures.slicer.immutable_attribute_dependency"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_object_modification_call():
@@ -700,9 +700,9 @@ def test_object_modification_call():
     expected_instructions.extend(nested_class_block)
     expected_instructions.extend(init_block)
     expected_instructions.extend(inc_x_block)
-    dynamic_slice = slice_function_at_return(func)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_function_at_return(func)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
 
 
 def test_closures():
@@ -761,6 +761,6 @@ def test_closures():
     expected_instructions.extend(inner_function_block)
 
     module = "tests.fixtures.slicer.closure"
-    dynamic_slice = slice_module_at_return(module)
-    assert len(dynamic_slice.sliced_instructions) == len(expected_instructions)
-    assert compare(dynamic_slice.sliced_instructions, expected_instructions)
+    sliced_instructions = slice_module_at_return(module)
+    assert len(sliced_instructions) == len(expected_instructions)
+    assert compare(sliced_instructions, expected_instructions)
