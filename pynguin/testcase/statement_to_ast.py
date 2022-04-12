@@ -56,8 +56,10 @@ class StatementToAstVisitor(StatementVisitor):
         Args:
             module_aliases: A naming scope for module alias names.
             variable_names: A naming scope for variable names.
-            store_call_return: Should the resul of a call be stored in a variable?
-                exception we don't need to assign the result to a variable.
+            store_call_return: Should the result of a call be stored in a variable?
+                For example, if we know that a call raises an exception, then we don't
+                need to assign the result to a variable, as it will never be assigned
+                anyway
         """
         self._ast_node: ast.stmt | None = None
         self._variable_names = variable_names
