@@ -39,7 +39,7 @@ def test_slicing_after_test_execution():
 
         executor.execute(chromosome.test_case)
 
-        assertion_slicer = AssertionSlicer(tracer)
+        assertion_slicer = AssertionSlicer(tracer, tracer.get_known_data().existing_code_objects)
 
         instruction_in_slice = []
         for assertion in chromosome.test_case.get_assertions():

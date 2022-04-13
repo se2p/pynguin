@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Union, TYPE_CHECKING
 
 import pynguin.configuration as config
+import pynguin.testcase.execution as ex
 import pynguin.utils.opcodes as op
 from pynguin.slicer.executionflowbuilder import UniqueInstruction, ExecutionFlowBuilder
 from pynguin.slicer.stack.stackeffect import StackEffect
@@ -29,7 +30,6 @@ from pynguin.utils.exceptions import (
 if TYPE_CHECKING:
     from bytecode import Instr
     from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
-    import pynguin.testcase.execution as ex
     from pynguin.slicer.executionflowbuilder import LastInstrState
 
 

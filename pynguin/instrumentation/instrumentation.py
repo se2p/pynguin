@@ -1517,7 +1517,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 # Load arguments
                 # Current module
-                ArtificialInstr("LOAD_GLOBAL", file_name, lineno=instr.lineno),
+                ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
                 # Code object id
                 ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
                 # Basic block id
