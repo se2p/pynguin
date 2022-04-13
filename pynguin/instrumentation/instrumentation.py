@@ -11,14 +11,13 @@ import builtins
 import json
 import logging
 from types import CodeType
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
 from pynguin.analyses.seeding import DynamicConstantSeeding
-from pynguin.slicer.instruction import UniqueInstruction
 from pynguin.testcase.execution import (
     CodeObjectMetaData,
     ExecutionTracer,
@@ -777,6 +776,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         file_name = cfg.bytecode_cfg().filename
         new_block_instructions: list[Instr] = []
 
+        # TODO(SiL) do not detect assertions, but propagate
+        #  assertion information from test execution
         if basic_block_is_assertion_error(basic_block):
             self._instrument_assertion(code_object_id, cfg, node, offset)
 
@@ -1919,15 +1920,3 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
         self._logger.debug("Instrumented compare_op")
-
-
-def is_traced_instruction(instr: Union[Instr, UniqueInstruction]) -> bool:
-    """Determine if the given instruction is traced.
-
-    Args:
-        instr: Instruction to be checked if it is traced.
-
-    Returns:
-        True if `instr` is traced, False otherwise.
-    """
-    return instr.opcode in op.TRACED_INSTRUCTIONS

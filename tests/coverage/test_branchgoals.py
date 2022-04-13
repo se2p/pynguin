@@ -452,7 +452,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        chromosome = get_plus_test_with_assertions(module)
+        chromosome = get_plus_test_with_assertions()
         _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock)
 
         with mock.patch.object(

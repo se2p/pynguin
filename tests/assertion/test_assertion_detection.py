@@ -17,7 +17,8 @@ from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,
     InstrumentationTransformer,
 )
-from pynguin.testcase.execution import AssertionData, ExecutionTracer
+from pynguin.testcase.execution import AssertionData
+from pynguin.testcase.execution import ExecutionTracer
 
 
 def test_single_assertion():

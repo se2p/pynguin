@@ -8,34 +8,29 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes and logic for dynamic slicing."""
+from __future__ import annotations
 
 import logging
 import operator
 import time
 from dataclasses import dataclass, field
-from typing import Union
-
-from bytecode import Instr
+from typing import Union, TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
-from pynguin.instrumentation.instrumentation import is_traced_instruction
-from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, LastInstrState
-from pynguin.slicer.instruction import UniqueInstruction
+from pynguin.slicer.executionflowbuilder import UniqueInstruction, ExecutionFlowBuilder
 from pynguin.slicer.stack.stackeffect import StackEffect
 from pynguin.slicer.stack.stacksimulation import TraceStack
-from pynguin.testcase.execution import (
-    CodeObjectMetaData,
-    ExecutedAttributeInstruction,
-    ExecutedInstruction,
-    ExecutedMemoryInstruction,
-    ExecutionTrace,
-)
 from pynguin.utils.exceptions import (
     InstructionNotFoundException,
     SlicingTimeoutException,
 )
+
+if TYPE_CHECKING:
+    from bytecode import Instr
+    from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
+    import pynguin.testcase.execution as ex
+    from pynguin.slicer.executionflowbuilder import LastInstrState
 
 
 @dataclass
@@ -129,8 +124,8 @@ class DynamicSlicer:
 
     def __init__(
         self,
-        trace: ExecutionTrace,
-        known_code_objects: dict[int, CodeObjectMetaData],
+        trace: ex.ExecutionTrace,
+        known_code_objects: dict[int, ex.CodeObjectMetaData],
     ):
         self._known_code_objects = known_code_objects
         self._trace = trace
@@ -155,7 +150,7 @@ class DynamicSlicer:
 
     def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
         self,
-        trace: ExecutionTrace,
+        trace: ex.ExecutionTrace,
         slicing_criterion: SlicingCriterion,
         trace_position: int,
     ) -> list[UniqueInstruction]:
@@ -213,7 +208,7 @@ class DynamicSlicer:
             )
             # Adjust trace position
             last_traced_instr = None
-            if is_traced_instruction(last_state.last_instr):
+            if last_state.last_instr.opcode in op.TRACED_INSTRUCTIONS:
                 last_traced_instr = trace.executed_instructions[slc.trace_position]
                 slc.trace_position -= 1
 
@@ -361,7 +356,7 @@ class DynamicSlicer:
     def _setup_slicing_configuration(
         self,
         slicing_criterion: SlicingCriterion,
-        trace: ExecutionTrace,
+        trace: ex.ExecutionTrace,
         trace_position: int,
     ):
         new_attribute_object_uses: set[str] = set()
@@ -528,7 +523,7 @@ class DynamicSlicer:
         if not unique_instr.is_cond_branch():
             return False
 
-        code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
+        code_object: ex.CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
         successors = cdg.get_successors(curr_node)
@@ -560,7 +555,7 @@ class DynamicSlicer:
             unique_instr: The instruction to check for control dependencies
             code_object_id: the id of the code object containing the instruction
         """
-        code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
+        code_object: ex.CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
         predecessors = cdg.get_predecessors(curr_node)
@@ -641,7 +636,7 @@ class DynamicSlicer:
         self,
         context: SlicingContext,
         unique_instr: UniqueInstruction,
-        traced_instr: ExecutedInstruction | None,
+        traced_instr: ex.ExecutedInstruction | None,
     ) -> tuple[bool, set[str]]:
         """Analyses the explicit data dependencies from one instruction to another
         instruction.
@@ -664,7 +659,7 @@ class DynamicSlicer:
             return False, set()
 
         # Check variable definitions
-        if isinstance(traced_instr, ExecutedMemoryInstruction):
+        if isinstance(traced_instr, ex.ExecutedMemoryInstruction):
             complete_cover = self._check_variables(context, traced_instr)
 
             # When an object, of which certain used attributes are taken from,
@@ -702,7 +697,7 @@ class DynamicSlicer:
                 complete_cover = True
                 context.attribute_variables.remove(str(traced_instr.argument))
 
-        if isinstance(traced_instr, ExecutedAttributeInstruction):
+        if isinstance(traced_instr, ex.ExecutedAttributeInstruction):
             # check attribute defs
             if traced_instr.combined_attr in context.attr_uses:
                 complete_cover = True
@@ -732,8 +727,8 @@ class DynamicSlicer:
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id]
                 and self._known_code_objects[
-                    traced_instr.code_object_id
-                ].code_object.co_name
+                traced_instr.code_object_id
+            ].code_object.co_name
                 == "<module>"
             ):
                 complete_cover = self._check_scope_for_def(
@@ -811,7 +806,7 @@ class DynamicSlicer:
         return complete_cover
 
     def add_uses(
-        self, context: SlicingContext, traced_instr: ExecutedInstruction
+        self, context: SlicingContext, traced_instr: ex.ExecutedInstruction
     ) -> None:
         """Add all uses found in the executed instruction into the slicing context.
 
@@ -819,11 +814,11 @@ class DynamicSlicer:
             context: The slicing context that gets extended
             traced_instr: The instruction to analyse
         """
-        if isinstance(traced_instr, ExecutedMemoryInstruction):
+        if isinstance(traced_instr, ex.ExecutedMemoryInstruction):
             self._add_variable_uses(context, traced_instr)
 
         # Add attribute uses
-        if isinstance(traced_instr, ExecutedAttributeInstruction):
+        if isinstance(traced_instr, ex.ExecutedAttributeInstruction):
             self._add_attribute_uses(context, traced_instr)
 
     def _add_variable_uses(self, context, traced_instr):
@@ -840,8 +835,8 @@ class DynamicSlicer:
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id]
                 and self._known_code_objects[
-                    traced_instr.code_object_id
-                ].code_object.co_name
+                traced_instr.code_object_id
+            ].code_object.co_name
                 == "<module>"
             ):
                 context.var_uses_global.add((traced_instr.argument, traced_instr.file))
@@ -891,7 +886,7 @@ class DynamicSlicer:
 
     @staticmethod
     def find_trace_position(
-        trace: ExecutionTrace, slicing_criterion: SlicingCriterion
+        trace: ex.ExecutionTrace, slicing_criterion: SlicingCriterion
     ) -> int:
         """
         Find the position of the slicing criterion in the executed instructions
@@ -924,3 +919,56 @@ class DynamicSlicer:
             position += 1
 
         raise ValueError("Slicing criterion could not be found in trace")
+
+
+# pylint:disable=too-few-public-methods
+class AssertionSlicer:
+    """Holds all logic of slicing traced assertions to generate the
+    dynamic slice produced by a test."""
+
+    def __init__(self, tracer, known_code_objects: dict[int, ex.CodeObjectMetaData]):
+        self._tracer: ex.ExecutionTracer = tracer
+        self._known_code_objects: dict[int, ex.CodeObjectMetaData] | None = known_code_objects
+
+    def _slicing_criterion_from_assertion(
+        self, trace: ex.ExecutionTrace, assertion: ex.TracedAssertion
+    ) -> tuple[SlicingCriterion, int]:
+        trace_position = assertion.trace_position_end
+        traced_instr = trace.executed_instructions[trace_position]
+
+        assert self._known_code_objects
+        code_meta = self._known_code_objects.get(traced_instr.code_object_id)
+        unique_instr = UniqueInstruction(
+            traced_instr.file,
+            traced_instr.name,
+            traced_instr.code_object_id,
+            traced_instr.node_id,
+            code_meta,
+            traced_instr.offset,
+            traced_instr.argument,
+            traced_instr.lineno,
+        )
+
+        # We know the exact trace position and the slicer
+        # can handle this without having the occurrence.
+        return SlicingCriterion(unique_instr, occurrence=-1), trace_position
+
+    def slice_assertion(self, assertion: ex.TracedAssertion) -> list[UniqueInstruction]:
+        """Calculate the dynamic slice for an assertion inside a test case
+
+        Args:
+            assertion: The assertion, for which to calculate the slice.
+
+        Returns:
+            The list of executed instructions contained in the slice of the assertion.
+        """
+
+        trace = self._tracer.get_trace()
+        known_code_objects = self._tracer.get_known_data().existing_code_objects
+
+        slicing_criterion, trace_position = self._slicing_criterion_from_assertion(
+            trace, assertion
+        )
+        slicer = DynamicSlicer(trace, known_code_objects)
+
+        return slicer.slice(trace, slicing_criterion, trace_position - 1)

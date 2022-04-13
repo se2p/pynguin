@@ -7,11 +7,15 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes to simulate the stack during dynamic slicing."""
+from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import pynguin.utils.opcodes as op
-from pynguin.slicer.instruction import UniqueInstruction
+
+if TYPE_CHECKING:
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 DEFAULT_STACK_HEIGHT = 40
 DEFAULT_FRAME_HEIGHT = 40

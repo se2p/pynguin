@@ -16,7 +16,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.types import InferredSignature
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.assertionslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.variablereference import FieldReference
 from tests.fixtures.linecoverage.plus import Plus
