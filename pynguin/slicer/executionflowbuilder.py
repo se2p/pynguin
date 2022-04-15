@@ -138,6 +138,7 @@ class UniqueInstruction(Instr):
     def __hash__(self):
         return hash((self.name, self.code_object_id, self.node_id, self.offset))
 
+
 @dataclass
 class LastInstrState:  # pylint: disable=too-many-instance-attributes
     """

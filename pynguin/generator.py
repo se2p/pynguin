@@ -289,6 +289,26 @@ def _get_coverage_ff_from_algorithm(
     return test_suite_coverage_func
 
 
+def _track_resulting_checked_coverage(
+    algorithm: TestGenerationStrategy,
+    generation_result: tsc.TestSuiteChromosome,
+):
+    """Now that we have assertions generated, we execute the testsuite statement for
+    statement, while also instrumenting the executed test-statements before execution.
+
+    Args:
+        algorithm: the test generation strategy used to generate the result
+        generation_result: the generated testsuite containing assertions
+    """
+    checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+        algorithm, ff.TestSuiteCheckedCoverageFunction
+    )
+    stat.track_output_variable(
+        RuntimeVariable.CheckedCoverage,
+        generation_result.get_coverage_for(checked_coverage_ff),
+    )
+
+
 def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
@@ -333,6 +353,13 @@ def _run() -> ReturnCode:
         else:
             generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)
+
+    # only call checked coverage calculation after assertion generation
+    if (
+        config.CoverageMetric.CHECKED
+        in config.configuration.statistics_output.coverage_metrics
+    ):
+        _track_resulting_checked_coverage(algorithm, generation_result)
 
     # Export the generated test suites
     converter = cc.ChromosomeConverter()
@@ -404,14 +431,6 @@ def _track_coverage_metrics(
         stat.track_output_variable(
             RuntimeVariable.BranchCoverage,
             generation_result.get_coverage_for(branch_coverage_ff),
-        )
-    if config.CoverageMetric.CHECKED in coverage_metrics:
-        checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteCheckedCoverageFunction
-        )
-        stat.track_output_variable(
-            RuntimeVariable.CheckedCoverage,
-            generation_result.get_coverage_for(checked_coverage_ff),
         )
 
 

@@ -14,12 +14,12 @@ import logging
 import operator
 import time
 from dataclasses import dataclass, field
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 import pynguin.utils.opcodes as op
-from pynguin.slicer.executionflowbuilder import UniqueInstruction, ExecutionFlowBuilder
+from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
 from pynguin.slicer.stack.stackeffect import StackEffect
 from pynguin.slicer.stack.stacksimulation import TraceStack
 from pynguin.utils.exceptions import (
@@ -29,7 +29,12 @@ from pynguin.utils.exceptions import (
 
 if TYPE_CHECKING:
     from bytecode import Instr
-    from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
+
+    from pynguin.analyses.controlflow import (
+        CFG,
+        ControlDependenceGraph,
+        ProgramGraphNode,
+    )
     from pynguin.slicer.executionflowbuilder import LastInstrState
 
 
@@ -727,8 +732,8 @@ class DynamicSlicer:
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id]
                 and self._known_code_objects[
-                traced_instr.code_object_id
-            ].code_object.co_name
+                    traced_instr.code_object_id
+                ].code_object.co_name
                 == "<module>"
             ):
                 complete_cover = self._check_scope_for_def(
@@ -835,8 +840,8 @@ class DynamicSlicer:
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id]
                 and self._known_code_objects[
-                traced_instr.code_object_id
-            ].code_object.co_name
+                    traced_instr.code_object_id
+                ].code_object.co_name
                 == "<module>"
             ):
                 context.var_uses_global.add((traced_instr.argument, traced_instr.file))
@@ -928,7 +933,9 @@ class AssertionSlicer:
 
     def __init__(self, tracer, known_code_objects: dict[int, ex.CodeObjectMetaData]):
         self._tracer: ex.ExecutionTracer = tracer
-        self._known_code_objects: dict[int, ex.CodeObjectMetaData] | None = known_code_objects
+        self._known_code_objects: dict[
+            int, ex.CodeObjectMetaData
+        ] | None = known_code_objects
 
     def _slicing_criterion_from_assertion(
         self, trace: ex.ExecutionTrace, assertion: ex.TracedAssertion
@@ -938,6 +945,7 @@ class AssertionSlicer:
 
         assert self._known_code_objects
         code_meta = self._known_code_objects.get(traced_instr.code_object_id)
+        assert code_meta
         unique_instr = UniqueInstruction(
             traced_instr.file,
             traced_instr.name,

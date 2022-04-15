@@ -63,6 +63,8 @@ class InstrumentationLoader(SourceFileLoader):
             adapters.append(BranchCoverageInstrumentation(self._tracer))
         if config.CoverageMetric.LINE in coverage_metrics:
             adapters.append(LineCoverageInstrumentation(self._tracer))
+        # TODO(SiL) causes major overhead and is only needed
+        #  after the tests were generated, so only instrument afterwards?
         if config.CoverageMetric.CHECKED in coverage_metrics:
             adapters.append(CheckedCoverageInstrumentation(self._tracer))
 

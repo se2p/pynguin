@@ -14,6 +14,7 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
+from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
@@ -264,20 +265,23 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on lines checked and entered code objects."""
 
     def compute_fitness(self, individual) -> float:
-        # results = self._run_test_suite_chromosome(individual)
+        # results = self._run_test_suite_chromosome(individual, True)
         # merged_trace = analyze_results(results)
-        # TODO(SiL) how to calculate fitness of checked lines?
-        return 1
+        # TODO(SiL) how to calculate fitness of test suite for checked lines?
+        return 0
 
     def compute_is_covered(self, individual) -> bool:
-        # results = self._run_test_suite_chromosome(individual)
+        # results = self._run_test_suite_chromosome(
+        #     individual,
+        #     instrument_test_suite=True
+        # )
         # merged_trace = analyze_results(results)
         # tracer = self._executor.tracer
-        # return compute_checked_coverage_fitness_is_covered(
-        #     merged_trace,
-        #     tracer.get_known_data(),
-        # )
-        return True
+
+        return compute_checked_coverage_fitness_is_covered(
+            # merged_trace,
+            # tracer.get_known_data(),
+        )
 
     def is_maximisation_function(self) -> bool:
         return False
@@ -355,22 +359,22 @@ class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes branch coverage on test suites."""
 
     def compute_coverage(self, individual) -> float:
-        # results = self._run_test_suite_chromosome(individual)
-        # merged_trace = analyze_results(results)
-        # tracer = self._executor.tracer
-        # return compute_checked_coverage(merged_trace, tracer.get_known_data())
-        return 1.0
+        results = self._run_test_suite_chromosome(
+            individual, instrument_test_suite=True
+        )
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
 
 
 class TestCaseCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes branch coverage on test suites."""
 
     def compute_coverage(self, individual) -> float:
-        # result = self._run_test_case_chromosome(individual)
-        # merged_trace = analyze_results([result])
-        # tracer = self._executor.tracer
-        # return compute_checked_coverage(merged_trace, tracer.get_known_data())
-        return 1.0
+        result = self._run_test_case_chromosome(individual, instrument_test=True)
+        merged_trace = analyze_results([result])
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -781,7 +785,7 @@ def compute_checked_coverage_fitness_is_covered(
         True, if all lines were covered, false otherwise
     """
     # TODO(SiL) how to check covered status of checked lines?
-    return True
+    return False
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
@@ -840,16 +844,47 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
     return coverage
 
 
-def compute_checked_coverage() -> float:
+def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
     """Computes checked coverage on bytecode instructions.
+    Each assertion can be sliced, returning a list of instructions
+    that are checked by an assertion.
+    If we combine all lists of instructions returned by slicing all assertions,
+    we get the combined dynamic slice of the test execution's assertions.
+    We then can map all instructions inside the slice to lines
+    that are checked covered of the module under test.
+    To calculate the coverage we can then divide the amount of lines checked
+    covered through the test execution by the lines overall available in the
+    module under test.
 
     Args:
+        trace: The execution trace
+        known_data: All known data
 
     Returns:
         The computed coverage value
     """
-    # TODO(SiL) call sclicer here to calculate checked coverage
-    return 1
+    # TODO(SiL) currently line coverage must be tracked for checked coverage
+    existing = len(known_data.existing_lines)
+
+    if existing == 0:
+        # Nothing to cover => everything is covered.
+        coverage = 1.0
+    else:
+        assertion_slicer = AssertionSlicer(trace, known_data.existing_code_objects)
+        checked_instructions = []
+        for assertion in trace.assertion_trace.traced_assertions:
+            checked_instructions.extend(assertion_slicer.slice_assertion(assertion))
+
+        # reduce coverage to lines instead of instructions
+        checked_lines = set()
+        for checked_instruction in checked_instructions:
+            if checked_instruction.lineno not in checked_lines:
+                checked_lines.add(checked_instruction.lineno)
+
+        covered = len(checked_lines)
+        coverage = covered / existing
+    assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+    return coverage
 
 
 def compare(fitness_1: float, fitness_2: float) -> int:

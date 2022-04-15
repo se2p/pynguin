@@ -27,6 +27,9 @@ def test_slicing_after_test_execution():
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
+
+    expected_instructions = []  # TODO(SiL) add expected instr
+
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
 
@@ -37,32 +40,36 @@ def test_slicing_after_test_execution():
         executor = TestCaseExecutor(tracer)
         chromosome = get_plus_test_with_assertions()
 
-        executor.execute(chromosome.test_case)
+        executor.execute(chromosome.test_case, instrument_test=True)
 
-        assertion_slicer = AssertionSlicer(tracer, tracer.get_known_data().existing_code_objects)
+        assert tracer.get_trace().assertion_trace.traced_assertions
+
+        assertion_slicer = AssertionSlicer(
+            tracer, tracer.get_known_data().existing_code_objects
+        )
 
         instruction_in_slice = []
-        for assertion in chromosome.test_case.get_assertions():
+        for assertion in tracer.get_trace().assertion_trace.traced_assertions:
             instruction_in_slice.extend(assertion_slicer.slice_assertion(assertion))
 
-        # TODO(SiL) add possibility to map from covered instructions to covered lines
-        # TODO(SiL) assert that the correct line os the Plus module were included in the slice
+        assert len(expected_instructions) == len(instruction_in_slice)
+        assert expected_instructions == instruction_in_slice
 
 
 def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
     """
     Generated testcase:
-        number = 42
-        plus = Plus()
-        assert plus.calculation == 0
-        assert plus.plus_four(number) == 46
+        var_0 = 42
+        var_1 = module_0.Plus()
+        assert var_1.calculation == 0
+        assert var_1.plus_four(var_0) == 46
     """
     test_case = dtc.DefaultTestCase()
 
-    # int_0 = 42
+    # var_0 = 42
     int_stmt = stmt.IntPrimitiveStatement(test_case, 42)
 
-    # plus_0 = module_0.Plus()
+    # var_1 = module_0.Plus()
     constructor_call = stmt.ConstructorStatement(
         test_case,
         gao.GenericConstructor(
@@ -75,7 +82,7 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
         ),
     )
 
-    # assert plus.calculations == 0
+    # assert var_1.calculation == 0
     calculation_counter_assertion = ass.ObjectAssertion(
         FieldReference(
             constructor_call.ret_val, gao.GenericField(Plus, "calculations", int)
@@ -84,7 +91,7 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
     )
     constructor_call.add_assertion(calculation_counter_assertion)
 
-    # int_1 = plus.plus_four(int_0)
+    # assert var_1.plus_four(var_0) == 46
     method_call = stmt.MethodStatement(
         test_case,
         gao.GenericMethod(

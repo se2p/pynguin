@@ -13,12 +13,14 @@ to calculate the checked coverage metric."""
 import importlib.util
 import threading
 
+import pynguin.configuration as config
 from pynguin.instrumentation.instrumentation import (
     CheckedCoverageInstrumentation,
     InstrumentationTransformer,
 )
-from pynguin.testcase.execution import AssertionData
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.testcase.execution import AssertionData, ExecutionTracer, TestCaseExecutor
+from tests.slicer.test_assertionslicer import get_plus_test_with_assertions
 
 
 def test_single_assertion():
@@ -43,6 +45,26 @@ def test_loop_assertions():
     assert len(trace.traced_assertions) == 5
     for assertion in trace.traced_assertions:
         assert assertion.traced_assertion_pop_jump.lineno == 13
+
+
+def test_assertion_detection_of_generated_tests():
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED
+    ]
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = get_plus_test_with_assertions()
+
+        executor.execute(chromosome.test_case, instrument_test=True)
+        assertion_trace = tracer.get_trace().assertion_trace
+        assert len(assertion_trace.traced_assertions) == 2
 
 
 def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
