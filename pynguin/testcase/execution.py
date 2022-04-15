@@ -1802,11 +1802,17 @@ class TestCaseExecutor:
         """
         return self._tracer
 
-    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+    def execute(
+        self,
+        test_case: tc.TestCase,
+        instrument_test: bool = False,
+    ) -> ExecutionResult:
         """Executes all statements of the given test case.
 
         Args:
             test_case: the test case that should be executed.
+            instrument_test: if the test case itself needs to be
+                instrumented before execution
 
         Raises:
             RuntimeError: If something goes wrong inside Pynguin during execution.
@@ -1820,7 +1826,8 @@ class TestCaseExecutor:
                 self._before_test_case_execution(test_case)
                 return_queue: Queue = Queue()
                 thread = threading.Thread(
-                    target=self._execute_test_case, args=(test_case, return_queue)
+                    target=self._execute_test_case,
+                    args=(test_case, return_queue, instrument_test),
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))
@@ -1842,16 +1849,14 @@ class TestCaseExecutor:
             observer.before_test_case_execution(test_case)
 
     def _execute_test_case(
-        self,
-        test_case: tc.TestCase,
-        result_queue: Queue,
+        self, test_case: tc.TestCase, result_queue: Queue, instrument_test: bool
     ) -> None:
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
         self.tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
-            exception = self._execute_statement(statement, exec_ctx)
+            exception = self._execute_statement(statement, exec_ctx, instrument_test)
             self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
@@ -1891,12 +1896,27 @@ class TestCaseExecutor:
             self._tracer.enable()
 
     def _execute_statement(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        instrument_test: bool,
     ) -> Exception | None:
         ast_node = exec_ctx.executable_node_for(statement)
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
+        if instrument_test:
+            # TODO(SiL) rework module structure to avoid circular dependencies
+            #  if this is imported at the top of the file
+            # pylint: disable=import-outside-toplevel
+            from pynguin.instrumentation.instrumentation import (
+                CheckedCoverageInstrumentation,
+                InstrumentationTransformer,
+            )
+
+            checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+            transformer = InstrumentationTransformer(self._tracer, [checked_adapter])
+            code = transformer.instrument_module(code)
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec

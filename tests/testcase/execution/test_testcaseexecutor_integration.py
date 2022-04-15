@@ -54,6 +54,18 @@ def test_no_exceptions(short_test_case):
         assert not result.has_test_exceptions()
 
 
+def test_instrumentation(short_test_case):
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+    tracer = ExecutionTracer()
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+        executor = TestCaseExecutor(tracer)
+        result = executor.execute(short_test_case, instrument_test=True)
+        assert not result.has_test_exceptions()
+        assert tracer.get_trace().executed_instructions
+
+
 def test_observers(short_test_case):
     tracer = ExecutionTracer()
     executor = TestCaseExecutor(tracer)

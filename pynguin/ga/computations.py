@@ -33,19 +33,23 @@ class TestCaseChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test case chromosome."""
 
-    def _run_test_case_chromosome(self, individual) -> ExecutionResult:
+    def _run_test_case_chromosome(
+        self, individual, instrument_test: bool = False
+    ) -> ExecutionResult:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
+            instrument_test: whether the test needs to be
+                instrumented before the execution
 
         Returns:
             A list of execution results
         """
         if individual.has_changed() or individual.get_last_execution_result() is None:
             individual.set_last_execution_result(
-                self._executor.execute(individual.test_case)
+                self._executor.execute(individual.test_case, instrument_test)
             )
             individual.set_changed(False)
         result = individual.get_last_execution_result()
@@ -58,12 +62,16 @@ class TestSuiteChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
+    def _run_test_suite_chromosome(
+        self, individual, instrument_test_suite: bool = False
+    ) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
+            instrument_test_suite: whether the test suite needs to be
+                instrumented before the execution
 
         Returns:
             A list of execution results
@@ -75,7 +83,9 @@ class TestSuiteChromosomeComputation(
                 or test_case_chromosome.get_last_execution_result() is None
             ):
                 test_case_chromosome.set_last_execution_result(
-                    self._executor.execute(test_case_chromosome.test_case)
+                    self._executor.execute(
+                        test_case_chromosome.test_case, instrument_test_suite
+                    )
                 )
                 test_case_chromosome.set_changed(False)
                 # If we execute a suite which in turn executes it's test cases,
