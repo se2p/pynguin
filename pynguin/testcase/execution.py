@@ -27,6 +27,7 @@ from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
 
+import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
@@ -122,36 +123,49 @@ class ExecutionContext:
     def executable_node_for(
         self,
         statement: stmt.Statement,
+        add_assertions: bool = False,
     ) -> ast.Module:
         """Transforms the given statement in an executable ast node.
 
         Args:
             statement: The statement that should be converted.
+            add_assertions: Whether to also write assertions attached
+                to the statement into the node
 
         Returns:
             An executable ast node.
         """
-        visitor = stmt_to_ast.StatementToAstVisitor(
+        stmt_visitor = stmt_to_ast.StatementToAstVisitor(
             self._module_aliases, self._variable_names
         )
-        statement.accept(visitor)
+        statement.accept(stmt_visitor)
         assert (
-            len(visitor.ast_nodes) == 1
+            len(stmt_visitor.ast_nodes) == 1
         ), "Expected statement to produce exactly one ast node"
-        return ExecutionContext._wrap_node_in_module(visitor.ast_nodes[0])
+        if add_assertions:
+            common_modules: set[str] = set()
+            ass_visitor = ass_to_ast.AssertionToAstVisitor(
+                self._variable_names, self._module_aliases, common_modules
+            )
+            for assertion in statement.assertions:
+                assertion.accept(ass_visitor)
+            stmt_visitor.append_nodes(ass_visitor.nodes)
+
+        return ExecutionContext._wrap_node_in_module(stmt_visitor.ast_nodes)
 
     @staticmethod
-    def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
+    def _wrap_node_in_module(nodes: list[ast.stmt]) -> ast.Module:
         """Wraps the given node in a module, such that it can be executed.
 
         Args:
-            node: The node to wrap
+            nodes: The nodes to wrap
 
         Returns:
-            The module wrapping the node
+            The module wrapping the nodes
         """
-        ast.fix_missing_locations(node)
-        return ast.Module(body=[node], type_ignores=[])
+        for node in nodes:
+            ast.fix_missing_locations(node)
+        return ast.Module(body=nodes, type_ignores=[])
 
     def _add_new_module_alias(self, module_name: str, alias: str) -> None:
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
@@ -1901,7 +1915,10 @@ class TestCaseExecutor:
         exec_ctx: ExecutionContext,
         instrument_test: bool,
     ) -> Exception | None:
-        ast_node = exec_ctx.executable_node_for(statement)
+        ast_node = exec_ctx.executable_node_for(
+            statement,
+            add_assertions=instrument_test,
+        )
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
