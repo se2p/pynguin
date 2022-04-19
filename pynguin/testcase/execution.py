@@ -328,7 +328,7 @@ class ExecutionResult:
 class AssertionData:
     """Stores trace information about assertions of a called testcase."""
 
-    traced_assertions: list[TracedAssertion] = field(default_factory=list)
+    assertions: list[TracedAssertion] = field(default_factory=list)
     unique_assertions: set[UniqueAssertion] = field(default_factory=set)
     current_assertion: TracedAssertion | None = None
 
@@ -339,7 +339,7 @@ class AssertionData:
         Args:
             other: Merges the other traces into this trace
         """
-        self.traced_assertions.extend(other.traced_assertions)
+        self.assertions.extend(other.assertions)
         self.unique_assertions = self.unique_assertions.union(other.unique_assertions)
         self.current_assertion = other.current_assertion
 
@@ -609,7 +609,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             len(self.executed_instructions) - 1
         )
 
-        assertion_trace.traced_assertions.append(assertion_trace.current_assertion)
+        assertion_trace.assertions.append(assertion_trace.current_assertion)
         assertion_trace.unique_assertions.add(
             UniqueAssertion(assertion_trace.current_assertion.traced_assertion_pop_jump)
         )
@@ -619,7 +619,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     def print_trace_debug(self) -> None:
         """Print debugging infos about the executed assertions and instructions."""
         self._logger.debug(
-            "\n %d assertion calls(s)", len(self.assertion_trace.traced_assertions)
+            "\n %d assertion calls(s)", len(self.assertion_trace.assertions)
         )
         self._logger.debug("\n")
         self._logger.debug("------ Execution Trace ------")
@@ -1315,6 +1315,7 @@ class ExecutionTracer:
         opcode: int,
         lineno: int,
         offset: int,
+        target_id: int,
     ) -> None:
         """Track the beginning of an assertion in the trace.
 
@@ -1325,12 +1326,13 @@ class ExecutionTracer:
             opcode: the opcode of the jump instruction
             lineno: the line number of the assertion
             offset: the offset of the jump instruction used in the assertion
+            target_id: the target offset to jump to
         """
         # previous assertion should be finished being tracked
         assert not self._current_assertion
 
-        pop_jump_instr = ExecutedInstruction(
-            module, code_object_id, node_id, opcode, None, lineno, offset
+        pop_jump_instr = ExecutedControlInstruction(
+            module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
         self._current_assertion = self._trace.start_assertion(pop_jump_instr)
 

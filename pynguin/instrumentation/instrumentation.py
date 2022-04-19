@@ -1560,14 +1560,13 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             node: The node containing the assertion throwing.
             offset: the offset of the jump instruction used inside the assertion
         """
-        file_name = cfg.bytecode_cfg().filename
         node_before, node_after = get_nodes_around_node(cfg, node)
         self._instrument_start_assert(
             code_object_id,
             node_before.index,
             offset + self._POP_JUMP_IF_TRUE_POSITION,
             node_before.basic_block,
-            file_name,
+            cfg,
         )
 
         self._instrument_end_assert(node_after.basic_block)
@@ -1579,40 +1578,47 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         node_id: int,
         offset: int,
         block_before_assertion: BasicBlock,
-        file_name: str,
+        cfg: CFG,
     ) -> None:
-        # find the index of the last POP_JUMP_IF_TRUE instruction inside the block
+        # find the index and the last POP_JUMP_IF_TRUE instruction inside the block
         # this should normally be the last instruction inside the block, but previous
         # instrumentations might have added instructions after the pop_jump
-        pop_jump_index = next(
-            i
-            for i in reversed(range(len(block_before_assertion)))
-            if block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
+        pop_jump_index, instr = next(
+            (i, instr)
+            for (i, instr) in reversed(list(enumerate(block_before_assertion)))
+            if type(block_before_assertion[i]) is Instr
+            and block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
         )
 
-        lineno = block_before_assertion[pop_jump_index].lineno
-        # enter the instrumentation before the pop_jump operation
-        block_before_assertion[pop_jump_index:pop_jump_index] = [
+        file_name = cfg.bytecode_cfg().filename
+
+        lineno = instr.lineno
+        new_instrs = [
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
                 self._tracer.track_assert_start.__name__,
                 lineno=lineno,
             ),
-            ArtificialInstr("LOAD_CONST", file_name, lineno=lineno),
-            # Code object id
-            ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
-            # Basic block id
-            ArtificialInstr("LOAD_CONST", node_id, lineno=lineno),
-            # Instruction opcode
-            ArtificialInstr("LOAD_CONST", op.POP_JUMP_IF_TRUE, lineno=lineno),
-            # Line number of access
-            ArtificialInstr("LOAD_CONST", lineno, lineno=lineno),
-            # Instruction number of access
-            ArtificialInstr("LOAD_CONST", offset, lineno=lineno),
-            ArtificialInstr("CALL_METHOD", 6, lineno=lineno),
-            ArtificialInstr("POP_TOP", lineno=lineno),
         ]
+        new_instrs.extend(
+            self._load_args(
+                code_object_id,
+                node_id,
+                offset,
+                cfg.bytecode_cfg().get_block_index(instr.arg),
+                instr,
+                file_name,
+            )
+        )
+        new_instrs.extend(
+            [
+                ArtificialInstr("CALL_METHOD", 7, lineno=lineno),
+                ArtificialInstr("POP_TOP", lineno=lineno),
+            ]
+        )
+        # enter the instrumentation before the pop_jump operation
+        block_before_assertion[pop_jump_index:pop_jump_index] = new_instrs
 
     def _instrument_end_assert(self, block_after_assertion: BasicBlock) -> None:
         lineno = block_after_assertion[0].lineno
@@ -1639,7 +1645,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         arg,
         instr: Instr,
         file_name: str,
-    ) -> list[Instr]:
+    ) -> list[ArtificialInstr]:
         instructions = [
             # Current module
             ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
@@ -1668,7 +1674,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         arg,
         instr: Instr,
         file_name: str,
-    ) -> list[Instr]:
+    ) -> list[ArtificialInstr]:
         instructions = [
             # Load arguments
             #   Current module

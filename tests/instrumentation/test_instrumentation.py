@@ -11,7 +11,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from bytecode import Bytecode, Compare
+from bytecode import Bytecode, Compare, BasicBlock, Instr
 from ordered_set import OrderedSet
 
 import pynguin.utils.opcodes as op

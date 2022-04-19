@@ -26,24 +26,24 @@ from tests.slicer.test_assertionslicer import get_plus_test_with_assertions
 def test_single_assertion():
     trace = _get_assertion_trace_for_module("tests.fixtures.assertion.basic")
 
-    assert len(trace.traced_assertions) == 1
-    assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 16
+    assert len(trace.assertions) == 1
+    assert trace.assertions[0].traced_assertion_pop_jump.lineno == 16
 
 
 def test_multiple_assertions():
     trace = _get_assertion_trace_for_module("tests.fixtures.assertion.multiple")
 
-    assert len(trace.traced_assertions) == 3
-    assert trace.traced_assertions[0].traced_assertion_pop_jump.lineno == 16
-    assert trace.traced_assertions[1].traced_assertion_pop_jump.lineno == 17
-    assert trace.traced_assertions[2].traced_assertion_pop_jump.lineno == 18
+    assert len(trace.assertions) == 3
+    assert trace.assertions[0].traced_assertion_pop_jump.lineno == 16
+    assert trace.assertions[1].traced_assertion_pop_jump.lineno == 17
+    assert trace.assertions[2].traced_assertion_pop_jump.lineno == 18
 
 
 def test_loop_assertions():
     trace = _get_assertion_trace_for_module("tests.fixtures.assertion.loop")
 
-    assert len(trace.traced_assertions) == 5
-    for assertion in trace.traced_assertions:
+    assert len(trace.assertions) == 5
+    for assertion in trace.assertions:
         assert assertion.traced_assertion_pop_jump.lineno == 13
 
 
@@ -64,7 +64,7 @@ def test_assertion_detection_of_generated_tests():
 
         executor.execute(chromosome.test_case, instrument_test=True)
         assertion_trace = tracer.get_trace().assertion_trace
-        assert len(assertion_trace.traced_assertions) == 2
+        assert len(assertion_trace.assertions) == 2
 
 
 def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
