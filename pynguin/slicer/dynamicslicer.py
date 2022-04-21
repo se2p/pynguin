@@ -946,6 +946,20 @@ class AssertionSlicer:
         assert self._known_code_objects
         code_meta = self._known_code_objects.get(traced_instr.code_object_id)
         assert code_meta
+
+        # find out the basic block of the assertion
+        basic_block = None
+        node_offset = -1
+        for node in code_meta.original_cfg.nodes:
+            if node.index == traced_instr.node_id and node.basic_block:
+                basic_block, node_offset = node.basic_block, node.offset
+        assert basic_block
+        assert node_offset != -1
+
+        # the traced instruction is always the jump at the end of the bb
+        original_instr: Instr = basic_block[-1]
+        # TODO(SiL) offset of executed instructions in trace is wrong?
+
         unique_instr = UniqueInstruction(
             traced_instr.file,
             traced_instr.name,
@@ -953,7 +967,7 @@ class AssertionSlicer:
             traced_instr.node_id,
             code_meta,
             traced_instr.offset,
-            traced_instr.argument,
+            original_instr.arg,  # UniqueInstruction calls Instr.__init__ which requires the original argument
             traced_instr.lineno,
         )
 
