@@ -303,9 +303,13 @@ def _track_resulting_checked_coverage(
     checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
         algorithm, ff.TestSuiteCheckedCoverageFunction
     )
+    # force new execution after new instrumentation
+    for test_case in generation_result.test_case_chromosomes:
+        test_case.set_changed(True)
     stat.track_output_variable(
         RuntimeVariable.CheckedCoverage,
-        generation_result.get_coverage_for(checked_coverage_ff),
+        # skip computation cache
+        checked_coverage_ff.compute_coverage(generation_result)
     )
 
 
@@ -359,8 +363,6 @@ def _run() -> ReturnCode:
         config.CoverageMetric.CHECKED
         in config.configuration.statistics_output.coverage_metrics
     ):
-        for test_case in generation_result.test_case_chromosomes:
-            test_case.set_changed(True)
         _track_resulting_checked_coverage(algorithm, generation_result)
 
     # Export the generated test suites
