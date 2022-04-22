@@ -991,3 +991,21 @@ class AssertionSlicer:
         slicer = DynamicSlicer(trace, known_code_objects)
 
         return slicer.slice(trace, slicing_criterion, trace_position - 1)
+
+    @staticmethod
+    def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
+        """Map the list of instructions in a slice to a set of lines of the module
+        under test. Instructions of the test case statements are ignored.
+
+        Args:
+            instructions: list of unique instructions
+
+        Returns:
+            a set of line numbers used in the given list of instructions
+        """
+        lines = set()
+        for instruction in instructions:
+            if instruction.file != "<ast>":  # do not include test statements
+                lines.add(instruction.lineno)
+
+        return lines

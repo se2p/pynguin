@@ -27,7 +27,7 @@ def test_slicing_after_test_execution():
         config.CoverageMetric.CHECKED
     ]
 
-    expected_instructions = []  # TODO(SiL) add expected instr
+    expected_lines = {9, 16, 18}
 
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -47,13 +47,20 @@ def test_slicing_after_test_execution():
             tracer, tracer.get_known_data().existing_code_objects
         )
 
-        instruction_in_slice = []
+        instructions_in_slice = []
         for assertion in assertions:
-            instructions_checked_by_assertion = assertion_slicer.slice_assertion(assertion)
-            instruction_in_slice.extend(instructions_checked_by_assertion)
+            instructions_checked_by_assertion = assertion_slicer.slice_assertion(
+                assertion
+            )
+            instructions_in_slice.extend(instructions_checked_by_assertion)
 
-        assert len(expected_instructions) == len(instruction_in_slice)
-        assert expected_instructions == instruction_in_slice
+        assert instructions_in_slice
+
+        checked_lines = assertion_slicer.map_instructions_to_lines(
+            instructions_in_slice
+        )
+        assert checked_lines
+        assert checked_lines == expected_lines
 
 
 def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:

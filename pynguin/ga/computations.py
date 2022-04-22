@@ -876,10 +876,7 @@ def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> fl
             checked_instructions.extend(assertion_slicer.slice_assertion(assertion))
 
         # reduce coverage to lines instead of instructions
-        checked_lines = set()
-        for checked_instruction in checked_instructions:
-            if checked_instruction.lineno not in checked_lines:
-                checked_lines.add(checked_instruction.lineno)
+        checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)
 
         covered = len(checked_lines)
         coverage = covered / existing
