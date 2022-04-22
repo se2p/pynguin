@@ -40,11 +40,12 @@ def test_slicing_after_test_execution():
         chromosome = get_plus_test_with_assertions()
 
         executor.execute(chromosome.test_case, instrument_test=True)
-        assertions = tracer.get_trace().assertion_trace.assertions
+        trace = tracer.get_trace()
+        assertions = trace.assertion_trace.assertions
         assert assertions
 
         assertion_slicer = AssertionSlicer(
-            tracer, tracer.get_known_data().existing_code_objects
+            trace, tracer.get_known_data().existing_code_objects
         )
 
         instructions_in_slice = []

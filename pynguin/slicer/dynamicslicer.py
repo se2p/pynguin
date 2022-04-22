@@ -931,17 +931,19 @@ class AssertionSlicer:
     """Holds all logic of slicing traced assertions to generate the
     dynamic slice produced by a test."""
 
-    def __init__(self, tracer, known_code_objects: dict[int, ex.CodeObjectMetaData]):
-        self._tracer: ex.ExecutionTracer = tracer
-        self._known_code_objects: dict[
-            int, ex.CodeObjectMetaData
-        ] | None = known_code_objects
+    def __init__(
+        self,
+        trace: ex.ExecutionTrace,
+        known_code_objects: dict[int, ex.CodeObjectMetaData],
+    ):
+        self._trace = trace
+        self._known_code_objects: dict[int, ex.CodeObjectMetaData] = known_code_objects
 
     def _slicing_criterion_from_assertion(
-        self, trace: ex.ExecutionTrace, assertion: ex.TracedAssertion
+        self, assertion: ex.TracedAssertion
     ) -> tuple[SlicingCriterion, int]:
         trace_position = assertion.trace_position_end
-        traced_instr = trace.executed_instructions[trace_position]
+        traced_instr = self._trace.executed_instructions[trace_position]
 
         assert self._known_code_objects
         code_meta = self._known_code_objects.get(traced_instr.code_object_id)
@@ -982,15 +984,12 @@ class AssertionSlicer:
             The list of executed instructions contained in the slice of the assertion.
         """
 
-        trace = self._tracer.get_trace()
-        known_code_objects = self._tracer.get_known_data().existing_code_objects
-
         slicing_criterion, trace_position = self._slicing_criterion_from_assertion(
-            trace, assertion
+            assertion
         )
-        slicer = DynamicSlicer(trace, known_code_objects)
+        slicer = DynamicSlicer(self._trace, self._known_code_objects)
 
-        return slicer.slice(trace, slicing_criterion, trace_position - 1)
+        return slicer.slice(self._trace, slicing_criterion, trace_position - 1)
 
     @staticmethod
     def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
