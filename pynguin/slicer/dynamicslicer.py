@@ -949,16 +949,13 @@ class AssertionSlicer:
 
         # find out the basic block of the assertion
         basic_block = None
-        node_offset = -1
         for node in code_meta.original_cfg.nodes:
             if node.index == traced_instr.node_id and node.basic_block:
-                basic_block, node_offset = node.basic_block, node.offset
+                basic_block = node.basic_block
         assert basic_block
-        assert node_offset != -1
 
         # the traced instruction is always the jump at the end of the bb
         original_instr: Instr = basic_block[-1]
-        # TODO(SiL) offset of executed instructions in trace is wrong?
 
         unique_instr = UniqueInstruction(
             traced_instr.file,
@@ -967,7 +964,7 @@ class AssertionSlicer:
             traced_instr.node_id,
             code_meta,
             traced_instr.offset,
-            original_instr.arg,  # UniqueInstruction calls Instr.__init__ which requires the original argument
+            original_instr.arg,  # UniqueInstruction requires the original argument
             traced_instr.lineno,
         )
 

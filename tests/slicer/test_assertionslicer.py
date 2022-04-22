@@ -18,7 +18,6 @@ from pynguin.analyses.types import InferredSignature
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
-from pynguin.testcase.variablereference import FieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
 
@@ -62,7 +61,6 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
     Generated testcase:
         var_0 = 42
         var_1 = module_0.Plus()
-        assert var_1.calculation == 0
         assert var_1.plus_four(var_0) == 46
     """
     test_case = dtc.DefaultTestCase()
@@ -83,15 +81,6 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
         ),
     )
 
-    # assert var_1.calculation == 0
-    calculation_counter_assertion = ass.ObjectAssertion(
-        FieldReference(
-            constructor_call.ret_val, gao.GenericField(Plus, "calculations", int)
-        ),
-        0,
-    )
-    constructor_call.add_assertion(calculation_counter_assertion)
-
     # assert var_1.plus_four(var_0) == 46
     method_call = stmt.MethodStatement(
         test_case,
@@ -107,7 +96,6 @@ def get_plus_test_with_assertions() -> tcc.TestCaseChromosome:
         constructor_call.ret_val,
         {"number": int_stmt.ret_val},
     )
-    # assert int_1 == 46
     plus_four_assertion = ass.ObjectAssertion(method_call.ret_val, 46)
     method_call.add_assertion(plus_four_assertion)
 

@@ -782,6 +782,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             self._instrument_assertion(code_object_id, cfg, node, offset)
 
         for instr in basic_block:
+            # do not instrument instructions that were added by the instrumentation
+            if isinstance(instr, ArtificialInstr):
+                new_block_instructions.append(instr)
+                continue
             # Perform the actual instrumentation
             if instr.opcode in (
                 op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
@@ -1586,7 +1590,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         pop_jump_index, instr = next(
             (i, instr)
             for (i, instr) in reversed(list(enumerate(block_before_assertion)))
-            if type(block_before_assertion[i]) is Instr
+            if isinstance(block_before_assertion[i], Instr)
             and block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
         )
 

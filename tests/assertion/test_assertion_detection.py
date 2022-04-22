@@ -64,7 +64,7 @@ def test_assertion_detection_of_generated_tests():
 
         executor.execute(chromosome.test_case, instrument_test=True)
         assertion_trace = tracer.get_trace().assertion_trace
-        assert len(assertion_trace.assertions) == 2
+        assert len(assertion_trace.assertions) == 1
 
 
 def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
