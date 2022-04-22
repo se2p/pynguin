@@ -359,6 +359,8 @@ def _run() -> ReturnCode:
         config.CoverageMetric.CHECKED
         in config.configuration.statistics_output.coverage_metrics
     ):
+        for test_case in generation_result.test_case_chromosomes:
+            test_case.set_changed(True)
         _track_resulting_checked_coverage(algorithm, generation_result)
 
     # Export the generated test suites
