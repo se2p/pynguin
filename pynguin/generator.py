@@ -309,7 +309,7 @@ def _track_resulting_checked_coverage(
     stat.track_output_variable(
         RuntimeVariable.CheckedCoverage,
         # skip computation cache
-        checked_coverage_ff.compute_coverage(generation_result)
+        checked_coverage_ff.compute_coverage(generation_result),
     )
 
 
