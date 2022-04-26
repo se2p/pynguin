@@ -208,8 +208,8 @@ def test_should_skip_parameter(param_name, result):
 @pytest.mark.parametrize(
     "kind,type_,result",
     [
-        (inspect.Parameter.VAR_POSITIONAL, None, tuple[Any]),
-        (inspect.Parameter.VAR_POSITIONAL, str, tuple[str]),
+        (inspect.Parameter.VAR_POSITIONAL, None, list[Any]),
+        (inspect.Parameter.VAR_POSITIONAL, str, list[str]),
         (inspect.Parameter.VAR_KEYWORD, None, dict[str, Any]),
         (inspect.Parameter.VAR_KEYWORD, str, dict[str, str]),
         (inspect.Parameter.POSITIONAL_OR_KEYWORD, dict, dict),
