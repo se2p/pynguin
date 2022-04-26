@@ -8,9 +8,10 @@ import ast
 
 import pytest
 
+import pynguin.ga.testcasechromosome as tcc
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.generation.export.exportprovider import ExportProvider
+from pynguin.generation import export
 
 
 # TODO(fk) this is not correct, i.e. in the second example str3 should be dict0 and var0
@@ -48,7 +49,10 @@ def test_case_0():
     transformer = AstToTestCaseTransformer(test_cluster, False)
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
-    ExportProvider.get_exporter().export_sequences(export_path, transformer.testcases)
+    chromosome = tcc.TestCaseChromosome(transformer.testcases[0])
+    exporter = export.PyTestChromosomeToAstVisitor()
+    chromosome.accept(exporter)
+    export.save_module_to_file(exporter.to_module(), export_path)
     with open(export_path) as f:
         content = f.read()
         assert content == testcase_seed

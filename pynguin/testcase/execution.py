@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -130,10 +130,7 @@ class ExecutionContext:
             self._module_aliases, self._variable_names
         )
         statement.accept(visitor)
-        assert (
-            len(visitor.ast_nodes) == 1
-        ), "Expected statement to produce exactly one ast node"
-        return ExecutionContext._wrap_node_in_module(visitor.ast_nodes[0])
+        return ExecutionContext._wrap_node_in_module(visitor.ast_node)
 
     @staticmethod
     def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
@@ -202,6 +199,41 @@ class ExecutionObserver:
         """
 
 
+class ReturnTypeObserver(ExecutionObserver):
+    """Observes the runtime types seen during execution."""
+
+    def __init__(self):
+        self._return_type_trace: dict[int, type] = {}
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        self._return_type_trace.clear()
+
+    def after_test_case_execution(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ):
+        result.store_return_types(dict(self._return_type_trace))
+
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ):
+        pass  # not relevant
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Exception | None = None,
+    ) -> None:
+        if (
+            exception is None
+            and (ret_val := statement.ret_val) is not None
+            and not ret_val.is_none_type()
+        ):
+            self._return_type_trace[statement.get_position()] = type(
+                exec_ctx.get_reference_value(ret_val)
+            )
+
+
 class ExecutionResult:
     """Result of an execution."""
 
@@ -210,6 +242,7 @@ class ExecutionResult:
         self._assertion_traces: dict[type, at.AssertionTrace] = {}
         self._execution_trace: ExecutionTrace | None = None
         self._timeout = timeout
+        self._return_type_trace: dict[int, type] = {}
 
     @property
     def timeout(self) -> bool:
@@ -219,6 +252,16 @@ class ExecutionResult:
             True, if a timeout occurred.
         """
         return self._timeout
+
+    @property
+    def return_type_trace(self) -> dict[int, type]:
+        """Provide the stored type trace.
+
+        Returns:
+            The observed return types per statement.
+            Not every statement index may have an entry.
+        """
+        return self._return_type_trace
 
     @property
     def exceptions(self) -> dict[int, Exception]:
@@ -272,7 +315,7 @@ class ExecutionResult:
         """Returns true if any exceptions were thrown during the execution.
 
         Returns:
-            Whether or not the test has exceptions
+            Whether the test has exceptions
         """
         return bool(self._exceptions)
 
@@ -294,6 +337,58 @@ class ExecutionResult:
         if self.has_test_exceptions():
             return min(self._exceptions.keys())
         return None
+
+    def store_return_types(self, return_types: dict[int, type]) -> None:
+        """Report that the statement with the given stmt_idx has type tp_.
+
+        Args:
+            return_types: The observed types for each statement index.
+        """
+        self._return_type_trace = return_types
+
+    def delete_statement_data(self, deleted_statements: set[int]) -> None:
+        """It may happen that the test case is modified after execution, for example,
+        by removing unused primitives. We have to update the execution result to reflect
+        this, otherwise the indexes maybe wrong.
+
+        Args:
+            deleted_statements: The indexes of the deleted statements
+        """
+        self._return_type_trace = ExecutionResult.shift_dict(
+            self._return_type_trace, deleted_statements
+        )
+        self._exceptions = ExecutionResult.shift_dict(
+            self._exceptions, deleted_statements
+        )
+
+    T = TypeVar("T")
+
+    @staticmethod
+    def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
+        """Shifts the entries in the given dictionary by computing their new positions
+        after the given statements were deleted.
+
+        Args:
+            to_shift: The dict to shift
+            deleted_indexes: A set of deleted statement indexes.
+
+        Returns:
+            The shifted dict
+        """
+        # Count how many statements were deleted up to a given point
+        shifts = {}
+        delta = 0
+        for idx in range(max(to_shift.keys(), default=0) + 1):
+            if idx in deleted_indexes:
+                delta += 1
+            shifts[idx] = delta
+
+        # Shift all indexes accordingly
+        shifted = {}
+        for stmt_idx, value in to_shift.items():
+            if stmt_idx not in deleted_indexes:
+                shifted[stmt_idx - shifts[stmt_idx]] = value
+        return shifted
 
     def __str__(self) -> str:
         return (

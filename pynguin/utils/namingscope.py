@@ -91,15 +91,33 @@ class NamingScope(AbstractNamingScope):
 class VariableTypeNamingScope(AbstractNamingScope):
     """Names variables according to their type."""
 
-    def __init__(self, prefix: str = "var"):
+    def __init__(
+        self, *, return_type_trace: dict[int, type] | None = None, prefix: str = "var"
+    ):
         self._known_variable_names: dict[vr.VariableReference, str] = {}
         self._type_counter: dict[str, int] = defaultdict(int)
         self._prefix = prefix
+        self._return_type_trace = return_type_trace
 
     def get_name(self, obj: vr.VariableReference) -> str:
         if (name := self._known_variable_names.get(obj)) is not None:
             return name
+
+        # Statically annotated type
         type_ = obj.type
+
+        # Lookup runtime type if available from trace:
+        if (
+            self._return_type_trace is not None
+            and (
+                runtime_type := self._return_type_trace.get(
+                    obj.get_statement_position()
+                )
+            )
+            is not None
+        ):
+            type_ = runtime_type
+
         tp_name = self._prefix
         if type_ is not None:
             if isinstance(type_, type):
@@ -128,13 +146,13 @@ class VariableTypeNamingScope(AbstractNamingScope):
 
 
 def snake_case(name: str) -> str:
-    """We assume that we only have to lowercase the first char.
+    """Create a snake case representation from the given string.
 
     Args:
         name: the string to camel case
 
     Returns:
-        The cheaply camel cased string.
+        The snake-cased string.
     """
     assert len(name) > 0, "Cannot snake_case empty string"
     return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")

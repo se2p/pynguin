@@ -87,6 +87,20 @@ def test_variable_type_counter(variable_type_naming_scope, tp, name0, name1):
     assert variable_type_naming_scope.get_name(var) == name1
 
 
+def test_variable_type_runtime():
+    scope = ns.VariableTypeNamingScope(return_type_trace={0: int})
+    var = MagicMock(type=None)
+    var.get_statement_position.return_value = 1
+    assert scope.get_name(var) == "var_0"
+
+
+def test_variable_type_runtime_2():
+    scope = ns.VariableTypeNamingScope(return_type_trace={0: MagicMock})
+    var = MagicMock(type=None)
+    var.get_statement_position.return_value = 0
+    assert scope.get_name(var) == "magic_mock_0"
+
+
 def test_variable_type_empty(variable_type_naming_scope):
     assert len(variable_type_naming_scope) == 0
 

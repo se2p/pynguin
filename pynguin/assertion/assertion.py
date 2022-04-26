@@ -212,6 +212,59 @@ class CollectionLengthAssertion(ReferenceAssertion):
         return hash((self._source, self._length))
 
 
+class ExceptionAssertion(Assertion):
+    """An exception that indicates that a statement raised an exception."""
+
+    def __init__(self, module: str, exception_type_name: str):
+        """Create a new exception assertion.
+
+        Args:
+            module: The module of the raised exception.
+            exception_type_name: The name of the raised exception.
+        """
+        self._module: str = module
+        # We use the name here because the type may be defined multiple times,
+        # for example during mutation analysis, however, equality on such types does not
+        # hold
+        self._exception_type_name: str = exception_type_name
+
+    def accept(self, visitor: AssertionVisitor) -> None:
+        visitor.visit_exception_assertion(self)
+
+    def clone(
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> Assertion:
+        return ExceptionAssertion(self._module, self._exception_type_name)
+
+    @property
+    def exception_type_name(self) -> str:
+        """Provides the name of the raised exception.
+
+        Returns:
+            the name of the raised exception.
+        """
+        return self._exception_type_name
+
+    @property
+    def module(self) -> str:
+        """Provides the module of the raised exception.
+
+        Returns:
+            the module of the raised exception
+        """
+        return self._module
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, ExceptionAssertion)
+            and self._exception_type_name == other._exception_type_name
+            and self._module == other._module
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._module, self._exception_type_name))
+
+
 class AssertionVisitor:
     """Abstract visitor for assertions."""
 
@@ -247,6 +300,15 @@ class AssertionVisitor:
         self, assertion: CollectionLengthAssertion
     ) -> None:
         """Visit a collection length assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_exception_assertion(self, assertion: ExceptionAssertion) -> None:
+        """Visit an exception assertion.
 
         Args:
             assertion: the visited assertion

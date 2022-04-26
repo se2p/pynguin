@@ -50,3 +50,15 @@ def test_output_traces(execution_result):
     trace = MagicMock(at.AssertionTrace)
     execution_result.add_assertion_trace(str, trace)
     assert execution_result.assertion_traces == {str: trace}
+
+
+@pytest.mark.parametrize(
+    "before,deleted,after",
+    [
+        ({0: "foo", 1: "bar"}, set(), {0: "foo", 1: "bar"}),
+        ({0: "foo", 1: "bar"}, {0}, {0: "bar"}),
+        ({0: "foo", 1: "bar", 5: "baz"}, {4}, {0: "foo", 1: "bar", 4: "baz"}),
+    ],
+)
+def test_shift(before, deleted, after):
+    assert ExecutionResult.shift_dict(before, deleted) == after

@@ -8,6 +8,7 @@
 import pytest
 
 import pynguin.assertion.assertion as ass
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 from pynguin.testcase.statement import (
     ConstructorStatement,
@@ -34,4 +35,4 @@ def exportable_test_case(constructor_mock, function_mock):
     test_case.add_statement(constructor_stmt)
     test_case.add_statement(float_stmt)
     test_case.add_statement(function_stmt)
-    return test_case
+    return tcc.TestCaseChromosome(test_case)
