@@ -1309,30 +1309,13 @@ class ExecutionTracer:
 
     def track_assert_start(  # pylint: disable=too-many-arguments
         self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        target_id: int,
     ) -> None:
-        """Track the beginning of an assertion in the trace.
-
-        Args:
-            module: File name of the module containing the assertion
-            code_object_id: code object containing the assertion
-            node_id: the node of the code object containing the assertion
-            opcode: the opcode of the jump instruction
-            lineno: the line number of the assertion
-            offset: the offset of the jump instruction used in the assertion
-            target_id: the target offset to jump to
-        """
+        """Track the beginning of an assertion in the trace."""
         # previous assertion should be finished being tracked
         assert not self._current_assertion
 
         pop_jump_instr = ExecutedControlInstruction(
-            module, code_object_id, node_id, opcode, target_id, lineno, offset
+            "<ast>", 0, 0, op.POP_JUMP_IF_TRUE, 1, -1, -1
         )
         self._current_assertion = self._trace.start_assertion(pop_jump_instr)
 
@@ -1871,9 +1854,11 @@ class TestCaseExecutor:
         exec_ctx = ExecutionContext(self._module_provider)
         self.tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
-            self._before_statement_execution(statement, exec_ctx)
+            self._before_statement_execution(statement, exec_ctx, instrument_test)
             exception = self._execute_statement(statement, exec_ctx, instrument_test)
-            self._after_statement_execution(statement, exec_ctx, exception)
+            self._after_statement_execution(
+                statement, exec_ctx, exception, instrument_test
+            )
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
                 break
@@ -1893,7 +1878,10 @@ class TestCaseExecutor:
             observer.after_test_case_execution(test_case, result)
 
     def _before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        trace_assertions: bool,
     ) -> None:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
@@ -1910,6 +1898,10 @@ class TestCaseExecutor:
                 observer.before_statement_execution(statement, exec_ctx)
         finally:
             self._tracer.enable()
+
+        # TODO(SiL) how to handle multiple assertions on one statement
+        if trace_assertions and statement.assertions:
+            self._tracer.track_assert_start()
 
     def _execute_statement(
         self,
@@ -1952,11 +1944,15 @@ class TestCaseExecutor:
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
         exception: Exception | None,
+        trace_assertions: bool,
     ):
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
             raise RuntimeError()
+
+        if trace_assertions and statement.assertions:
+            self._tracer.track_assert_end()
 
         self._tracer.disable()
         try:

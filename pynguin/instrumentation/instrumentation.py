@@ -688,50 +688,6 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         return len(inserted_instructions)
 
 
-def basic_block_is_assertion_error(basic_block: BasicBlock) -> bool:
-    """Checks if a basic block is the throwing of an assertion error.
-
-    Args:
-        basic_block: The basic block to check.
-
-    Returns:
-        Whether the given basic block is the throwing of an assertion error.
-    """
-    return (
-        basic_block[0].opcode == op.LOAD_ASSERTION_ERROR
-        and basic_block[1].opcode == op.RAISE_VARARGS
-    )
-
-
-def get_nodes_around_node(
-    cfg: CFG, assertion_node: ProgramGraphNode
-) -> tuple[ProgramGraphNode, ProgramGraphNode]:
-    """Retrieve the nodes before and after a given node inside the cfg.
-    The given node must not be the first or the last node inside the cfg.
-    Usually, this is used to determine the nodes wrapping an assertion error.
-
-    Args:
-        cfg: the program's cfg
-        assertion_node: the node, which surrounding nodes need to be found
-
-    Returns:
-        A tuple containing the node before the given node and the
-        node after the given node
-    """
-    index_of_assertion = assertion_node.index
-    node_before_assertion = None
-    node_after_assertion = None
-    for node in cfg.nodes:
-        if node.index == index_of_assertion - 1:
-            node_before_assertion = node
-            continue  # if a node has a smaller index, the index can not also be bigger
-        if node.index == index_of_assertion + 1:
-            node_after_assertion = node
-    assert node_before_assertion, "Node is not an assertion error"
-    assert node_after_assertion, "Node is not an assertion error"
-    return node_before_assertion, node_after_assertion
-
-
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed instructions.
     Special instructions get instrumented differently to track information
@@ -739,10 +695,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     an assertion, thus checked coverage."""
 
     _logger = logging.getLogger(__name__)
-
-    # the offset between the first instruction of an assertion error block and the
-    # POP_JUMP_IF_TRUE instruction in the block before the assertion error
-    _POP_JUMP_IF_TRUE_POSITION = -2
 
     def __init__(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
@@ -775,11 +727,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         file_name = cfg.bytecode_cfg().filename
         new_block_instructions: list[Instr] = []
-
-        # TODO(SiL) do not detect assertions, but propagate
-        #  assertion information from test execution
-        if basic_block_is_assertion_error(basic_block):
-            self._instrument_assertion(code_object_id, cfg, node, offset)
 
         for instr in basic_block:
             # do not instrument instructions that were added by the instrumentation
@@ -1541,104 +1488,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # Original instruction after instrumentation
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
-
-    def _instrument_assertion(
-        self,
-        code_object_id: int,
-        cfg: CFG,
-        node: ProgramGraphNode,
-        offset: int,
-    ) -> None:
-        """To know where an assertion started and ended, the last
-        comparison instruction of the node before the assertion error must
-        be instrumented to call the tracer that an assertion was started.
-
-        The tracer must also be called when an assertion ended.
-        Therefore, we instrument and end_call before the first instruction of the node
-        after the assertion error node to tell the tracer an assertion ended.
-
-        Args:
-            code_object_id: the code object containing the assertion
-            cfg: The cfg required to get the nodes before and after
-                the assertion throwing.
-            node: The node containing the assertion throwing.
-            offset: the offset of the jump instruction used inside the assertion
-        """
-        node_before, node_after = get_nodes_around_node(cfg, node)
-        self._instrument_start_assert(
-            code_object_id,
-            node_before.index,
-            offset + self._POP_JUMP_IF_TRUE_POSITION,
-            node_before.basic_block,
-            cfg,
-        )
-
-        self._instrument_end_assert(node_after.basic_block)
-
-    # pylint: disable=too-many-arguments
-    def _instrument_start_assert(
-        self,
-        code_object_id: int,
-        node_id: int,
-        offset: int,
-        block_before_assertion: BasicBlock,
-        cfg: CFG,
-    ) -> None:
-        # find the index and the last POP_JUMP_IF_TRUE instruction inside the block
-        # this should normally be the last instruction inside the block, but previous
-        # instrumentations might have added instructions after the pop_jump
-        pop_jump_index, instr = next(
-            (i, instr)
-            for (i, instr) in reversed(list(enumerate(block_before_assertion)))
-            if isinstance(block_before_assertion[i], Instr)
-            and block_before_assertion[i].opcode == op.POP_JUMP_IF_TRUE
-        )
-
-        file_name = cfg.bytecode_cfg().filename
-
-        lineno = instr.lineno
-        new_instrs = [
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
-            ArtificialInstr(
-                "LOAD_METHOD",
-                self._tracer.track_assert_start.__name__,
-                lineno=lineno,
-            ),
-        ]
-        new_instrs.extend(
-            self._load_args(
-                code_object_id,
-                node_id,
-                offset,
-                cfg.bytecode_cfg().get_block_index(instr.arg),
-                instr,
-                file_name,
-            )
-        )
-        new_instrs.extend(
-            [
-                ArtificialInstr("CALL_METHOD", 7, lineno=lineno),
-                ArtificialInstr("POP_TOP", lineno=lineno),
-            ]
-        )
-        # enter the instrumentation before the pop_jump operation
-        block_before_assertion[pop_jump_index:pop_jump_index] = new_instrs
-
-    def _instrument_end_assert(self, block_after_assertion: BasicBlock) -> None:
-        lineno = block_after_assertion[0].lineno
-
-        # enter instrumentation that assertion ended
-        # before first instruction of next block is executed
-        block_after_assertion[0:0] = [
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
-            ArtificialInstr(
-                "LOAD_METHOD",
-                self._tracer.track_assert_end.__name__,
-                lineno=lineno,
-            ),
-            ArtificialInstr("CALL_METHOD", 0, lineno=lineno),
-            ArtificialInstr("POP_TOP", lineno=lineno),
-        ]
 
     # pylint: disable=too-many-arguments
     @staticmethod
