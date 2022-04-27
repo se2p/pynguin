@@ -12,16 +12,23 @@ import pytest
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
-import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.types import InferredSignature
-from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation, InstrumentationTransformer
+from pynguin.instrumentation.instrumentation import (
+    CheckedCoverageInstrumentation,
+    InstrumentationTransformer,
+)
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor, AssertionData
+from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.testcase import TestCase
 from tests.fixtures.linecoverage.plus import Plus
+
+
+class ListTest:
+    attribute = [1, 2, 3]
 
 
 def _get_default_plus_test():
@@ -43,7 +50,7 @@ def _get_default_plus_test():
         ),
     )
 
-    # var_0 = plus0.plus_four(var_0)
+    # int_1 = plus0.plus_four(var_0)
     method_call = stmt.MethodStatement(
         test_case,
         gao.GenericMethod(
@@ -65,49 +72,109 @@ def _get_default_plus_test():
     return test_case
 
 
-def get_plus_test_with_direct_assertions() -> tcc.TestCaseChromosome:
+def _get_default_list_test():
+    test_case = dtc.DefaultTestCase()
+
+    # listtest_0 = module_0.ListTest()
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            ListTest,
+            InferredSignature(
+                signature=inspect.signature(ListTest.__init__),
+                parameters={},
+                return_type=ListTest,
+            ),
+        ),
+    )
+
+    # attribute_0 = listtest_0.attribute
+    list_attribute_call = stmt.FieldStatement(
+        test_case,
+        gao.GenericField(owner=ListTest, field="attribute", field_type=list),
+        constructor_call.ret_val,
+    )
+
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(list_attribute_call)
+    return test_case
+
+
+def get_plus_test_with_object_assertion() -> TestCase:
     """
     Generated testcase:
         int_0 = 42
         plus_0 = module_0.Plus()
-        assert plus_0.plus_four(var_0) == 46
+        int_1 = plus_0.plus_four(var_0)
+        assert int_1 == 46
     """
     test_case = _get_default_plus_test()
-    plus_four_assertion = ass.ObjectAssertion(test_case.statements[2].ret_val, 46)
-    test_case.statements[2].add_assertion(plus_four_assertion)
-    return tcc.TestCaseChromosome(test_case=test_case)
+    test_case.statements[-1].add_assertion(
+        ass.ObjectAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    return test_case
 
 
-def _get_plus_test_with_indirect_assertions() -> tcc.TestCaseChromosome:
+def _get_plus_test_with_float_assertion() -> TestCase:
     """
     Generated testcase:
         int_0 = 42
         plus_0 = module_0.Plus()
-        var_0 = plus_0.plus_four(int_0)
-        assert var_0 == pytest.approx(46, rel=0.01, abs=0.01)
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
     """
     test_case = _get_default_plus_test()
-    var_0_assertion = ass.FloatAssertion(test_case.statements[2].ret_val, 46)
-    test_case.statements[2].add_assertion(var_0_assertion)
-    return tcc.TestCaseChromosome(test_case=test_case)
+    test_case.statements[-1].add_assertion(
+        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    return test_case
+
+
+def _get_plus_test_with_not_none_assertion() -> TestCase:
+    """
+    Generated testcase:
+        int_0 = 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 is not None
+    """
+    test_case = _get_default_plus_test()
+    test_case.statements[-1].add_assertion(
+        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
+    )
+    return test_case
+
+
+def _get_list_test_with_len_assertion() -> TestCase:
+    """
+    Generated testcase:
+        list_test_0 = module_0.ListTest()
+        list_0 = list_test_0.attribute
+        assert len(list_0) == 3
+    """
+    test_case = _get_default_list_test()
+    test_case.statements[-1].add_assertion(
+        ass.CollectionLengthAssertion(test_case.statements[-1].ret_val, 3)
+    )
+    return test_case
 
 
 @pytest.mark.parametrize(
-    "module_name, chromosome, expected_lines",
+    "module_name, test_case, expected_lines",
     [
         (
             "tests.fixtures.linecoverage.plus",
-            get_plus_test_with_direct_assertions(),
+            get_plus_test_with_object_assertion(),
             {9, 16, 18},
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            _get_plus_test_with_indirect_assertions(),
+            _get_plus_test_with_float_assertion(),
             {9, 16, 18},
         ),
     ],
 )
-def test_slicing_after_test_execution(module_name, chromosome, expected_lines):
+def test_slicing_after_test_execution(module_name, test_case, expected_lines):
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
@@ -120,7 +187,7 @@ def test_slicing_after_test_execution(module_name, chromosome, expected_lines):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.execute(chromosome.test_case, instrument_test=True)
+        executor.execute(test_case, instrument_test=True)
 
         trace = tracer.get_trace()
         assertions = trace.assertion_trace.assertions
@@ -152,40 +219,6 @@ def test_slicing_after_test_execution(module_name, chromosome, expected_lines):
 def test_assertion_detection_on_module(
     module_name, expected_assertions, expected_lines
 ):
-    trace = _get_assertion_trace_for_module(module_name)
-
-    assert len(trace.assertions) == expected_assertions
-    for index in range(expected_assertions):
-        assert (
-            trace.assertions[index].traced_assertion_pop_jump.lineno
-            == expected_lines[index]
-        )
-
-
-@pytest.mark.parametrize(
-    "chromosome, expected_assertions",
-    [
-        (get_plus_test_with_direct_assertions(), 1),
-        (_get_plus_test_with_indirect_assertions(), 1),
-    ],
-)
-def test_assertion_detection_on_chromosome(chromosome, expected_assertions):
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED
-    ]
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    executor = TestCaseExecutor(tracer)
-
-    executor.execute(chromosome.test_case, instrument_test=True)
-    assertion_trace = tracer.get_trace().assertion_trace
-    assert len(assertion_trace.assertions) == expected_assertions
-
-
-def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
-    """Trace a given module name with the CheckedCoverage Instrumentation.
-    The traced module must contain a test called test_foo()."""
     module = importlib.import_module(module_name)
     module = importlib.reload(module)
 
@@ -198,5 +231,34 @@ def _get_assertion_trace_for_module(module_name: str) -> AssertionData:
     module.test_foo.__code__ = transformer.instrument_module(module.test_foo.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     module.test_foo()
+    assertion_trace = tracer.get_trace().assertion_trace
 
-    return tracer.get_trace().assertion_trace
+    assert len(assertion_trace.assertions) == expected_assertions
+    for index in range(expected_assertions):
+        assert (
+            assertion_trace.assertions[index].traced_assertion_pop_jump.lineno
+            == expected_lines[index]
+        )
+
+
+@pytest.mark.parametrize(
+    "test_case, expected_assertions",
+    [
+        (get_plus_test_with_object_assertion(), 1),
+        (_get_plus_test_with_float_assertion(), 1),
+        (_get_plus_test_with_not_none_assertion(), 1),
+        (_get_list_test_with_len_assertion(), 1),
+    ],
+)
+def test_assertion_detection_on_test_case(test_case, expected_assertions):
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED
+    ]
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    executor = TestCaseExecutor(tracer)
+
+    executor.execute(test_case, instrument_test=True)
+    assertion_trace = tracer.get_trace().assertion_trace
+    assert len(assertion_trace.assertions) == expected_assertions

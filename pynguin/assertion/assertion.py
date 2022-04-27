@@ -177,7 +177,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
     less precise.
 
     For example:
-        assert len(var_0) = 42
+        assert len(var_0) == 42
     """
 
     def __init__(self, source: vr.Reference, length: int):
