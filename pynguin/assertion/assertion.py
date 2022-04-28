@@ -177,7 +177,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
     less precise.
 
     For example:
-        assert len(var_0) = 42
+        assert len(var_0) == 42
     """
 
     def __init__(self, source: vr.Reference, length: int):
@@ -185,7 +185,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         self._length = length
 
     @property
-    def length(self) -> Any:
+    def length(self) -> int:
         """The expected length.
 
         Returns:
@@ -213,7 +213,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
 
 
 class ExceptionAssertion(Assertion):
-    """An exception that indicates that a statement raised an exception."""
+    """An assertion that indicates that a statement raised an exception."""
 
     def __init__(self, module: str, exception_type_name: str):
         """Create a new exception assertion.
