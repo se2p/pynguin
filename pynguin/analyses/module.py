@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import dataclasses
 import enum
 import importlib
@@ -23,6 +24,7 @@ from typing import Any, Callable, NamedTuple, get_args
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
+import pynguin.configuration as config
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
@@ -250,6 +252,9 @@ class ModuleTestCluster:
         self.__function_data_for_accessibles: dict[
             GenericAccessibleObject, _CallableData
         ] = {}
+        self.__predicted_signatures: dict[
+            GenericAccessibleObject, list[GenericCallableAccessibleObject]
+        ] = {}
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
@@ -280,6 +285,19 @@ class ModuleTestCluster:
         """
         self.__accessible_objects_under_test.add(objc)
         self.__function_data_for_accessibles[objc] = data
+
+    def add_predicted_signatures(
+        self,
+        objc: GenericAccessibleObject,
+        predictions: list[GenericCallableAccessibleObject],
+    ) -> None:
+        """Add predicted_signatures for a specific function.
+
+        Args:
+            objc: The accessible object
+            prediction: The list including predictions
+        """
+        self.__predicted_signatures[objc] = predictions
 
     def add_modifier(self, type_: type, obj: GenericAccessibleObject) -> None:
         """Add a modifier.
@@ -376,7 +394,42 @@ class ModuleTestCluster:
         """
         if self.num_accessible_objects_under_test() == 0:
             return None
-        return randomness.choice(self.__accessible_objects_under_test)
+        accessible = randomness.choice(self.__accessible_objects_under_test)
+        if config.configuration.deeptyper.deeptyper:
+            # get according deeptyper predictions
+            predicted_signatures = self.__predicted_signatures.get(accessible)
+            modified_accessible = copy.deepcopy(accessible)
+            if predicted_signatures is not None:
+                for (
+                    parameter_name,
+                    parameter_type,
+                ) in accessible.inferred_signature.parameters.items():
+                    if (
+                        randomness.next_float()
+                        >= config.configuration.deeptyper.random_type_probability
+                    ):
+                        # check if parameter type is specified
+                        if parameter_type in (None, typing.Any):
+                            # get predictions for parameter type
+                            type_predictions = [
+                                predicted_signatures[
+                                    i
+                                ].inferred_signature.parameters.get(parameter_name)
+                                for i in range(len(predicted_signatures))
+                            ]
+                            # intersect generatable and predicted types
+                            type_intersection = sorted(
+                                set(type_predictions)
+                                & set(self.get_all_generatable_types()),
+                                key=type_predictions.index,
+                            )
+                            if type_intersection:
+                                # update parameter type with the most likely deeptyper prediction
+                                modified_accessible.inferred_signature.update_parameter_type(
+                                    parameter_name, type_intersection[0]
+                                )
+            return modified_accessible
+        return accessible
 
     def get_random_call_for(self, type_: type) -> GenericAccessibleObject:
         """Get a random modifier for the given type.
@@ -617,6 +670,7 @@ def __analyse_function(
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    predictions: list[Any] | None = None,
 ) -> None:
     if __is_private(func_name) or __is_protected(func_name):
         LOGGER.debug("Skipping function %s from analysis", func_name)
@@ -636,6 +690,14 @@ def __analyse_function(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
+    if predictions is not None:
+        predicted_signatures = [
+            GenericFunction(
+                func, infer_type_info(prediction, type_inference_strategy), func_name
+            )
+            for prediction in predictions
+        ]
+        test_cluster.add_predicted_signatures(generic_function, predicted_signatures)
     test_cluster.add_generator(generic_function)
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
@@ -649,6 +711,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    predictions: list[Any] | None = None,
 ) -> None:
     assert inspect.isclass(class_)
     LOGGER.debug("Analysing class %s", class_name)
@@ -673,7 +736,20 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic, method_data)
 
-    for method_name, method in inspect.getmembers(class_, inspect.isfunction):
+    predicted_methods = None
+    if predictions is not None:
+        predicted_methods = [
+            inspect.getmembers(prediction, inspect.isfunction)
+            for prediction in predictions
+        ]
+
+    for i, (method_name, method) in enumerate(
+        inspect.getmembers(class_, inspect.isfunction)
+    ):
+        # extract according predictions
+        method_predictions = None
+        if predicted_methods is not None:
+            method_predictions = [predicted_methods[j][i][1] for j in range(5)]
         __analyse_method(
             class_name=class_name,
             class_=class_,
@@ -683,6 +759,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             syntax_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
+            predictions=method_predictions,
         )
 
 
@@ -696,6 +773,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    predictions: list[Any] | None = None,
 ) -> None:
     if (
         __is_private(method_name)
@@ -720,6 +798,18 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
+    if predictions is not None:
+        predicted_signatures = [
+            GenericMethod(
+                class_,
+                method,
+                infer_type_info(prediction, type_inference_strategy),
+                method_name,
+            )
+            for prediction in predictions
+        ]
+        test_cluster.add_predicted_signatures(generic_method, predicted_signatures)
+
     test_cluster.add_generator(generic_method)
     test_cluster.add_modifier(class_, generic_method)
     if add_to_test:
@@ -866,7 +956,7 @@ def __analyse_included_functions(
         )
 
 
-def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
+def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
@@ -876,10 +966,35 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
         A test cluster for the module
     """
     test_cluster = ModuleTestCluster()
+    # select original module as general one
+    parsed_module = parsed_modules[0]
+    predicted_functions = predicted_classes = None
+    if len(parsed_modules) > 1 and config.configuration.deeptyper.deeptyper:
+        # get all predicted functions
+        predicted_functions = [
+            inspect.getmembers(
+                parsed_modules[i].module,
+                function_in_module(parsed_modules[i].module_name),
+            )
+            for i in range(1, 6)
+        ]
+        # get all predicted classes
+        predicted_classes = [
+            inspect.getmembers(
+                parsed_modules[i].module, class_in_module(parsed_modules[i].module_name)
+            )
+            for i in range(1, 6)
+        ]
 
-    for func_name, func in inspect.getmembers(
-        parsed_module.module, function_in_module(parsed_module.module_name)
+    for i, (func_name, func) in enumerate(
+        inspect.getmembers(
+            parsed_module.module, function_in_module(parsed_module.module_name)
+        )
     ):
+        # extract according predictions
+        func_predictions = None
+        if predicted_functions is not None:
+            func_predictions = [predicted_functions[j][i][1] for j in range(5)]
         __analyse_function(
             func_name=func_name,
             func=func,
@@ -887,11 +1002,18 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
             syntax_tree=parsed_module.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=True,
+            predictions=func_predictions,
         )
 
-    for class_name, class_ in inspect.getmembers(
-        parsed_module.module, class_in_module(parsed_module.module_name)
+    for i, (class_name, class_) in enumerate(
+        inspect.getmembers(
+            parsed_module.module, class_in_module(parsed_module.module_name)
+        )
     ):
+        # extract according predictions
+        class_predictions = None
+        if predicted_functions is not None:
+            class_predictions = [predicted_classes[j][i][1] for j in range(5)]
         __analyse_class(
             class_name=class_name,
             class_=class_,
@@ -899,6 +1021,7 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
             syntax_tree=parsed_module.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=True,
+            predictions=class_predictions,
         )
 
     __resolve_dependencies(
@@ -924,4 +1047,14 @@ def generate_test_cluster(
     Returns:
         A new test cluster for the given module
     """
-    return analyse_module(parse_module(module_name, type_inference_strategy))
+    # parse original file and all deeptyper predictions files
+    parsed_results = [parse_module(module_name, type_inference_strategy)]
+    if config.configuration.deeptyper.deeptyper:
+        parsed_results.extend(
+            [
+                parse_module(module_name + "_" + str(i), type_inference_strategy)
+                for i in range(5)
+            ]
+        )
+
+    return analyse_module(parsed_results)
