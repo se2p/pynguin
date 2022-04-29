@@ -502,6 +502,18 @@ class StoppingConfiguration:
     """Maximum iterations"""
 
 
+@dataclasses.dataclass
+class DeepTyperConfiguration:
+    """Configuration for the use of DeepTyper."""
+
+    deeptyper: bool = False
+    """Enables the use of DeepTyper. Default value is False."""
+
+    random_type_probability: float = 0.1
+    """Probability of using a random chosen type for a parameter when DeepTyper
+    is enabled. Default value is 0.1. Expects values in [0,1]"""
+
+
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
 class Configuration:
@@ -554,6 +566,11 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    deeptyper: DeepTyperConfiguration = dataclasses.field(
+        default_factory=DeepTyperConfiguration
+    )
+    """Configuration used for DeepTyper."""
 
 
 # Singleton instance of the configuration.
