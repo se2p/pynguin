@@ -63,6 +63,13 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         exception: Exception | None = None,
     ) -> None:
         if exception is not None:
+            self._trace.add_entry(
+                statement.get_position(),
+                ass.ExceptionAssertion(
+                    module=type(exception).__module__,
+                    exception_type_name=type(exception).__name__,
+                ),
+            )
             return
         if statement.affects_assertions:
             stmt = cast(st.VariableCreatingStatement, statement)

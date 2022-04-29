@@ -13,14 +13,28 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.variablereference as vr
+import pynguin.utils.ast_util as au
 from pynguin.utils.namingscope import NamingScope
 
 
 @pytest.fixture
-def assertion_to_ast() -> ata.AssertionToAstVisitor:
+def assertion_to_ast_ref() -> tuple[
+    ata.PyTestAssertionToAstVisitor, vr.VariableReference
+]:
     scope = NamingScope()
     module_aliases = NamingScope(prefix="module")
-    return ata.AssertionToAstVisitor(scope, module_aliases, set())
+    var = vr.VariableReference(MagicMock(), None)
+    return (
+        ata.PyTestAssertionToAstVisitor(
+            scope,
+            module_aliases,
+            set(),
+            statement_node=au.create_ast_assign(
+                au.create_ast_name(scope.get_name(var)), au.create_ast_constant(5)
+            ),
+        ),
+        var,
+    )
 
 
 def __create_source_from_ast(module_body: list[ast.stmt]) -> str:
@@ -29,11 +43,13 @@ def __create_source_from_ast(module_body: list[ast.stmt]) -> str:
     )
 
 
-def test_none(assertion_to_ast):
-    assertion = ass.NotNoneAssertion(source=vr.VariableReference(MagicMock(), None))
+def test_none(assertion_to_ast_ref):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion = ass.NotNoneAssertion(source=ref)
     assertion.accept(assertion_to_ast)
     assert (
-        __create_source_from_ast(assertion_to_ast.nodes) == "assert var_0 is not None"
+        __create_source_from_ast(assertion_to_ast.nodes)
+        == "var_0 = 5\nassert var_0 is not None"
     )
 
 
@@ -59,22 +75,20 @@ def test_none(assertion_to_ast):
         ),
     ],
 )
-def test_object_assertion(assertion_to_ast, obj, output):
-    assertion = ass.ObjectAssertion(
-        source=vr.VariableReference(MagicMock(), None), value=obj
-    )
+def test_object_assertion(assertion_to_ast_ref, obj, output):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion = ass.ObjectAssertion(source=ref, value=obj)
     assertion.accept(assertion_to_ast)
-    assert __create_source_from_ast(assertion_to_ast.nodes) == output
+    assert __create_source_from_ast(assertion_to_ast.nodes) == "var_0 = 5\n" + output
 
 
-def test_float_assertion(assertion_to_ast):
-    assertion = ass.FloatAssertion(
-        source=vr.VariableReference(MagicMock(), None), value=1.5
-    )
+def test_float_assertion(assertion_to_ast_ref):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion = ass.FloatAssertion(source=ref, value=1.5)
     assertion.accept(assertion_to_ast)
     assert (
         __create_source_from_ast(assertion_to_ast.nodes)
-        == "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"
+        == "var_0 = 5\nassert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"
     )
 
 
@@ -82,9 +96,20 @@ def test_float_assertion(assertion_to_ast):
     "length, output",
     [(0, "assert len(var_0) == 0"), (42, "assert len(var_0) == 42")],
 )
-def test_collection_length(assertion_to_ast, length, output):
-    assertion = ass.CollectionLengthAssertion(
-        source=vr.VariableReference(MagicMock(), None), length=length
+def test_collection_length(assertion_to_ast_ref, length, output):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion = ass.CollectionLengthAssertion(source=ref, length=length)
+    assertion.accept(assertion_to_ast)
+    assert __create_source_from_ast(assertion_to_ast.nodes) == "var_0 = 5\n" + output
+
+
+def test_raises_exception(assertion_to_ast_ref):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion = ass.ExceptionAssertion(
+        module="builtins", exception_type_name="AssertionError"
     )
     assertion.accept(assertion_to_ast)
-    assert __create_source_from_ast(assertion_to_ast.nodes) == output
+    assert (
+        __create_source_from_ast(assertion_to_ast.nodes)
+        == "with pytest.raises(AssertionError):\n    var_0 = 5"
+    )

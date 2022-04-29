@@ -14,6 +14,7 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
+import pynguin.utils.namingscope as ns
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
@@ -74,11 +75,11 @@ def test_generate_mutation_assertions(generator, expected_result):
         gen = generator(executor)
         suite.accept(gen)
 
-        visitor = tc_to_ast.TestCaseToAstVisitor()
+        visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(
             ast.fix_missing_locations(
-                ast.Module(body=visitor.test_case_asts[0], type_ignores=[])
+                ast.Module(body=visitor.test_case_ast, type_ignores=[])
             )
         )
         assert source == expected_result
