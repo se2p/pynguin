@@ -18,18 +18,18 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
-from opcode import opname
 from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Union
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
+import pytest
 from bytecode import CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
+from opcode import opname
 from ordered_set import OrderedSet
 
-import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.assertion.assertion_to_ast as ass_to_ast
+import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
@@ -43,6 +43,7 @@ from pynguin.utils.type_utils import (
 immutable_types = [int, float, complex, str, tuple, frozenset, bytes]
 
 if TYPE_CHECKING:
+    import pynguin.assertion.assertion as ass
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
@@ -121,17 +122,14 @@ class ExecutionContext:
         """
         return self._global_namespace
 
-    def executable_node_for(
+    def executable_statement_node(
         self,
         statement: stmt.Statement,
-        add_assertions: bool = False,
-    ) -> ast.Module:
+    ) -> tuple[ast.stmt, ast.Module]:
         """Transforms the given statement in an executable ast node.
 
         Args:
             statement: The statement that should be converted.
-            add_assertions: Whether to also write assertions attached
-                to the statement into the node
 
         Returns:
             An executable ast node.
@@ -140,32 +138,40 @@ class ExecutionContext:
             self._module_aliases, self._variable_names
         )
         statement.accept(stmt_visitor)
-        module_nodes = [stmt_visitor.ast_node]
-        if add_assertions:
-            common_modules: set[str] = set()
-            ass_visitor = ass_to_ast.PyTestAssertionToAstVisitor(
-                self._variable_names, self._module_aliases,
-                common_modules, stmt_visitor.ast_node
-            )
-            for assertion in statement.assertions:
-                assertion.accept(ass_visitor)
-            module_nodes = ass_visitor.nodes
+        ast_stmt = stmt_visitor.ast_node
+        return ast_stmt, ExecutionContext._wrap_node_in_module(ast_stmt)
 
-        return ExecutionContext._wrap_node_in_module(module_nodes)
+    def executable_assertion_node(
+        self, assertion: ass.Assertion, statement_node: ast.stmt
+    ) -> ast.Module:
+        """Transforms the given assertion in an executable ast node.
+
+        Args:
+            assertion: The assertion that should be converted.
+            statement_node: The ast node of the statement for the assertion.
+
+        Returns:
+            An executable ast node.
+        """
+        common_modules: set[str] = set()
+        ass_visitor = ass_to_ast.PyTestAssertionToAstVisitor(
+            self._variable_names, self._module_aliases, common_modules, statement_node
+        )
+        assertion.accept(ass_visitor)
+        return ExecutionContext._wrap_node_in_module(ass_visitor.nodes[1])
 
     @staticmethod
-    def _wrap_node_in_module(nodes: list[ast.stmt]) -> ast.Module:
+    def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
         """Wraps the given node in a module, such that it can be executed.
 
         Args:
-            nodes: The nodes to wrap
+            node: The node to wrap
 
         Returns:
             The module wrapping the nodes
         """
-        for node in nodes:
-            ast.fix_missing_locations(node)
-        return ast.Module(body=nodes, type_ignores=[])
+        ast.fix_missing_locations(node)
+        return ast.Module(body=[node], type_ignores=[])
 
     def _add_new_module_alias(self, module_name: str, alias: str) -> None:
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
@@ -1405,6 +1411,14 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
+    def currently_tracks_assertion(self) -> bool:
+        """Whether the trace currently is in the execution of an assertion.
+
+        Returns:
+            Whether the trace currently is in the execution of an assertion.
+        """
+        return self._current_assertion is not None
+
     def track_assert_start(  # pylint: disable=too-many-arguments
         self,
     ) -> None:
@@ -1952,11 +1966,9 @@ class TestCaseExecutor:
         exec_ctx = ExecutionContext(self._module_provider)
         self.tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
-            self._before_statement_execution(statement, exec_ctx, instrument_test)
+            self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx, instrument_test)
-            self._after_statement_execution(
-                statement, exec_ctx, exception, instrument_test
-            )
+            self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
                 break
@@ -1979,7 +1991,6 @@ class TestCaseExecutor:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        trace_assertions: bool,
     ) -> None:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
@@ -1997,35 +2008,22 @@ class TestCaseExecutor:
         finally:
             self._tracer.enable()
 
-        # TODO(SiL) how to handle multiple assertions on one statement
-        if trace_assertions and statement.assertions:
-            self._tracer.track_assert_start()
-
     def _execute_statement(
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
         instrument_test: bool,
     ) -> Exception | None:
-        ast_node = exec_ctx.executable_node_for(
-            statement,
-            add_assertions=instrument_test,
-        )
+        ast_stmt, ast_node = exec_ctx.executable_statement_node(statement)
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
-        if instrument_test:
-            # TODO(SiL) rework module structure to avoid circular dependencies
-            #  if this is imported at the top of the file
-            # pylint: disable=import-outside-toplevel
-            from pynguin.instrumentation.instrumentation import (
-                CheckedCoverageInstrumentation,
-                InstrumentationTransformer,
-            )
 
-            checked_adapter = CheckedCoverageInstrumentation(self._tracer)
-            transformer = InstrumentationTransformer(self._tracer, [checked_adapter])
-            code = transformer.instrument_module(code)
+        if instrument_test:
+            code = self._instrument_code_for_checked(code)
+            if statement.assertions:
+                self._tracer.track_assert_start()
+
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
@@ -2034,7 +2032,13 @@ class TestCaseExecutor:
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )
+            if self._tracer.currently_tracks_assertion():
+                self._tracer.track_assert_end()
             return err
+
+        if instrument_test and statement.assertions:
+            self._execute_assertions(ast_stmt, exec_ctx, statement)
+
         return None
 
     def _after_statement_execution(
@@ -2042,15 +2046,11 @@ class TestCaseExecutor:
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
         exception: Exception | None,
-        trace_assertions: bool,
     ):
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
             raise RuntimeError()
-
-        if trace_assertions and statement.assertions:
-            self._tracer.track_assert_end()
 
         self._tracer.disable()
         try:
@@ -2058,3 +2058,38 @@ class TestCaseExecutor:
                 observer.after_statement_execution(statement, exec_ctx, exception)
         finally:
             self._tracer.enable()
+
+    def _execute_assertions(
+        self, ast_stmt: ast.stmt, exec_ctx: ExecutionContext, statement: stmt.Statement
+    ):
+        # TODO(SiL) move into visitor and only set when needed?
+        exec_ctx.global_namespace["pytest"] = pytest
+
+        for i, assertion in enumerate(statement.assertions):
+            assertion_node = exec_ctx.executable_assertion_node(assertion, ast_stmt)
+
+            if self._logger.isEnabledFor(logging.DEBUG):
+                self._logger.debug("Executing %s", ast.unparse(assertion_node))
+
+            code = compile(assertion_node, "<ast>", "exec")
+            code = self._instrument_code_for_checked(code)
+
+            # pylint: disable=exec-used
+            exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
+            self._tracer.track_assert_end()
+            if i < len(statement.assertions) - 1:
+                self._tracer.track_assert_start()
+
+    def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
+        # TODO(SiL) rework module structure to avoid circular dependencies
+        #  if this is imported at the top of the file
+        # pylint: disable=import-outside-toplevel
+        from pynguin.instrumentation.instrumentation import (
+            CheckedCoverageInstrumentation,
+            InstrumentationTransformer,
+        )
+
+        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+        transformer = InstrumentationTransformer(self._tracer, [checked_adapter])
+        code = transformer.instrument_module(code)
+        return code

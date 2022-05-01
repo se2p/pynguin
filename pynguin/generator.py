@@ -316,6 +316,7 @@ def _track_resulting_checked_coverage(
     )
 
 
+# pylint: disable=too-many-branches
 def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
