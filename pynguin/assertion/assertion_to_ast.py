@@ -179,7 +179,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
                     self._variable_names, self._module_aliases, assertion.source, True
                 )
             ],
-            {},
+            [],
         )
         self._assertion_nodes.append(
             au.create_ast_assert(
