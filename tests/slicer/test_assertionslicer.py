@@ -20,11 +20,17 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.testcase import TestCase
+from pynguin.testcase.variablereference import FieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
 
 class ListTest:
     attribute = [1, 2, 3]
+
+
+class ExceptionTest:
+    def throw(self):
+        raise RuntimeError
 
 
 def _get_default_plus_test():
@@ -96,6 +102,43 @@ def _get_default_list_test():
     return test_case
 
 
+def _get_default_exception_test() -> TestCase:
+    test_case = dtc.DefaultTestCase()
+
+    # exception_test_0 = module_0.ExceptionTest()
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            ExceptionTest,
+            InferredSignature(
+                signature=inspect.signature(ExceptionTest.__init__),
+                parameters={},
+                return_type=ExceptionTest,
+            ),
+        ),
+    )
+
+    # exception_test_0.throw()
+    method_call = stmt.MethodStatement(
+        test_case,
+        gao.GenericMethod(
+            ExceptionTest,
+            ExceptionTest.throw,
+            InferredSignature(
+                signature=inspect.signature(ExceptionTest.throw),
+                parameters={},
+                return_type=None,
+            ),
+        ),
+        constructor_call.ret_val,
+        {},
+    )
+
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(method_call)
+    return test_case
+
+
 def get_plus_test_with_object_assertion() -> TestCase:
     """
     Generated testcase:
@@ -141,25 +184,19 @@ def _get_plus_test_with_not_none_assertion() -> TestCase:
     return test_case
 
 
-def _get_plus_test_with_multiple_assertions():
+def _get_exception_test_with_except_assertion() -> TestCase:
     """
     Generated testcase:
-        int_0 = 42
-        assert int_0 == 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 is not None
-        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+        exception_test_0 = module_0.ExceptionTest()
+        with pytest.raises(RuntimeError):
+            exception_test_0.throw()
     """
-    test_case = _get_default_plus_test()
-    test_case.statements[0].add_assertion(
-        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
-    )
+    test_case = _get_default_exception_test()
     test_case.statements[-1].add_assertion(
-        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
-    )
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
+        ass.ExceptionAssertion(
+            module=RuntimeError.__module__,
+            exception_type_name=RuntimeError.__name__,
+        ),
     )
     return test_case
 
@@ -178,12 +215,42 @@ def _get_list_test_with_len_assertion() -> TestCase:
     return test_case
 
 
+def _get_plus_test_with_multiple_assertions():
+    """
+    Generated testcase:
+        int_0 = 42
+        assert int_0 == 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+        assert plus_0.calculations == 1
+    """
+    test_case = _get_default_plus_test()
+    test_case.statements[0].add_assertion(
+        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
+    )
+    test_case.statements[-1].add_assertion(
+        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    test_case.statements[-1].add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                test_case.statements[1].ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            1,
+        )
+    )
+    return test_case
+
+
 @pytest.mark.parametrize(
     "test_case, expected_assertions",
     [
         (get_plus_test_with_object_assertion(), 1),
         (_get_plus_test_with_float_assertion(), 1),
         (_get_plus_test_with_not_none_assertion(), 1),
+        (_get_exception_test_with_except_assertion(), 1),
         (_get_list_test_with_len_assertion(), 1),
         (_get_plus_test_with_multiple_assertions(), 3),
     ],
@@ -214,6 +281,11 @@ def test_assertion_detection_on_test_case(test_case, expected_assertions):
             "tests.fixtures.linecoverage.plus",
             _get_plus_test_with_float_assertion(),
             {9, 16, 18},
+        ),
+        (
+            "tests.fixtures.linecoverage.plus",
+            _get_plus_test_with_multiple_assertions(),
+            {9, 10, 16, 17, 18},
         ),
     ],
 )
