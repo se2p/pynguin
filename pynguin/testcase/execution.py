@@ -689,7 +689,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             traced_pop_jump.code_object_id,
             traced_pop_jump.node_id,
             traced_pop_jump.lineno,
-            len(self.executed_instructions) - 1,
             traced_pop_jump,
         )
         return self.assertion_trace.current_assertion
@@ -709,7 +708,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             == op.POP_JUMP_IF_TRUE
         )
 
-        assertion_trace.current_assertion.trace_position_end = (
+        assertion_trace.current_assertion.trace_position = (
             len(self.executed_instructions) - 1
         )
 
@@ -1502,9 +1501,8 @@ class TracedAssertion:
     code_object_id: int
     node_id: int
     lineno: int
-    trace_position_start: int
     traced_assertion_pop_jump: ExecutedInstruction
-    trace_position_end: int = -1
+    trace_position: int = -1
 
 
 class UniqueAssertion:

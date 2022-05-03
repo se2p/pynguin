@@ -942,7 +942,7 @@ class AssertionSlicer:
     def _slicing_criterion_from_assertion(
         self, assertion: ex.TracedAssertion
     ) -> tuple[SlicingCriterion, int]:
-        trace_position = assertion.trace_position_end
+        trace_position = assertion.trace_position
         traced_instr = self._trace.executed_instructions[trace_position]
 
         assert self._known_code_objects

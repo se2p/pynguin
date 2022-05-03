@@ -23,7 +23,7 @@ def test_merge():
 def test_merge_full():
 
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
-    assert0 = TracedAssertion(0, 1, 2, 3, instr0)
+    assert0 = TracedAssertion(0, 1, 2, instr0)
     unique_assert = UniqueAssertion(instr0)
 
     trace0 = ExecutionTrace()
@@ -41,7 +41,7 @@ def test_merge_full():
     trace0.unique_assertions = {unique_assert}
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
-    assert1 = TracedAssertion(1, 2, 3, 4, instr1)
+    assert1 = TracedAssertion(1, 2, 3, instr1)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
