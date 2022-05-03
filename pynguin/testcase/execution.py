@@ -1933,11 +1933,15 @@ class TestCaseExecutor:
             code = compile(assertion_node, "<ast>", "exec")
             code = self._instrument_code_for_checked(code)
 
-            # pylint: disable=exec-used
-            exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
-            self._tracer.track_assert_end()
-            if i < len(statement.assertions) - 1:
-                self._tracer.track_assert_start()
+            try:
+                # pylint: disable=exec-used
+                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
+            except Exception as err:  # pylint: disable=broad-except
+                failed_stmt = ast.unparse(assertion_node)
+                TestCaseExecutor._logger.debug(
+                    "Failed to execute statement:\n%s%s", failed_stmt, err.args
+                )
+            self._tracer.register_assertion_position()
 
     def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
         # TODO(SiL) rework module structure to avoid circular dependencies
