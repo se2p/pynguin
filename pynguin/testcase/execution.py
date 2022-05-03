@@ -429,26 +429,6 @@ class ExecutionResult:
 
 
 @dataclass
-class AssertionData:
-    """Stores trace information about assertions of a called testcase."""
-
-    assertions: list[TracedAssertion] = field(default_factory=list)
-    unique_assertions: set[UniqueAssertion] = field(default_factory=set)
-    current_assertion: TracedAssertion | None = None
-
-    def merge(self, other: AssertionData) -> None:
-        """Merge the values from the other assertion trace.
-
-
-        Args:
-            other: Merges the other traces into this trace
-        """
-        self.assertions.extend(other.assertions)
-        self.unique_assertions = self.unique_assertions.union(other.unique_assertions)
-        self.current_assertion = other.current_assertion
-
-
-@dataclass
 class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     """Stores trace information about the execution."""
 
@@ -460,7 +440,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
-    assertion_trace: AssertionData = field(default_factory=AssertionData)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -475,7 +454,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
         self.executed_instructions.extend(other.executed_instructions)
-        self.assertion_trace.merge(other.assertion_trace)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -674,57 +652,8 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
 
         self.executed_instructions.append(executed_instr)
 
-    def start_assertion(self, traced_pop_jump: ExecutedInstruction) -> TracedAssertion:
-        """Initialise a new TracedAssertion object and store it as current assertion.
-        This is used to know where an assertion started and keep track of all following
-        instructions until end_assertion() is called.
-
-        Args:
-            traced_pop_jump: the traced jump instruction used in the assertion
-
-        Returns:
-            the newly created TracedAssertion object stored in current_assertion.
-        """
-        self.assertion_trace.current_assertion = TracedAssertion(
-            traced_pop_jump.code_object_id,
-            traced_pop_jump.node_id,
-            traced_pop_jump.lineno,
-            traced_pop_jump,
-        )
-        return self.assertion_trace.current_assertion
-
-    def end_assertion(self):
-        """Create a new UniqueAssertion object from _current_assertion's instruction,
-        which started the assertion to the current position.
-        This clears the _current_assertion attribute until start_assertion() is called
-        again.
-        """
-        assertion_trace = self.assertion_trace
-        assert assertion_trace
-        assert assertion_trace.current_assertion
-        assert assertion_trace.current_assertion.traced_assertion_pop_jump
-        assert (
-            assertion_trace.current_assertion.traced_assertion_pop_jump.opcode
-            == op.POP_JUMP_IF_TRUE
-        )
-
-        assertion_trace.current_assertion.trace_position = (
-            len(self.executed_instructions) - 1
-        )
-
-        assertion_trace.assertions.append(assertion_trace.current_assertion)
-        assertion_trace.unique_assertions.add(
-            UniqueAssertion(assertion_trace.current_assertion.traced_assertion_pop_jump)
-        )
-
-        assertion_trace.current_assertion = None
-
     def print_trace_debug(self) -> None:
         """Print debugging infos about the executed assertions and instructions."""
-        self._logger.debug(
-            "\n %d assertion calls(s)", len(self.assertion_trace.assertions)
-        )
-        self._logger.debug("\n")
         self._logger.debug("------ Execution Trace ------")
         for instr in self.executed_instructions:
             self._logger.debug(instr)
@@ -815,6 +744,9 @@ class KnownData:
     # stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
+    # stores assertions during test execution after assertion generation
+    existing_assertions: list[TracedAssertion] = field(default_factory=list)
+
 
 # pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
@@ -879,12 +811,10 @@ class ExecutionTracer:
         self._current_thread_identifier: int | None = None
         self._setup: bool = False
         self._known_object_addresses: set[int] = set()
-        self._current_assertion: TracedAssertion | None = None
         self._assertion_stack_counter = 0
         self._test_id = ""
         self._module_name = ""
         self._traced_assertions: list[TracedAssertion] = []
-        self._unique_assertions: set[UniqueAssertion] = set()
 
     @property
     def current_thread_identifier(self) -> int | None:
@@ -915,24 +845,6 @@ class ExecutionTracer:
         copied = ExecutionTrace()
         copied.merge(self._import_trace)
         return copied
-
-    @property
-    def test_id(self) -> str:
-        """Returns the id of an executed test as string.
-
-        Returns:
-            The id of the test case or suite that created the trace.
-        """
-        return self._test_id
-
-    @test_id.setter
-    def test_id(self, test_id: str) -> None:
-        """Sets the id of an executed test case or suite inside a trace.
-
-        Args:
-            test_id: the new test id as string
-        """
-        self.test_id = test_id
 
     @property
     def module_name(self) -> str:
@@ -1410,31 +1322,20 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def currently_tracks_assertion(self) -> bool:
-        """Whether the trace currently is in the execution of an assertion.
+    def register_assertion_position(self) -> None:
+        """Track the end of an assertion in the trace."""
 
-        Returns:
-            Whether the trace currently is in the execution of an assertion.
-        """
-        return self._current_assertion is not None
-
-    def track_assert_start(  # pylint: disable=too-many-arguments
-        self,
-    ) -> None:
-        """Track the beginning of an assertion in the trace."""
-        # previous assertion should be finished being tracked
-        assert not self._current_assertion
-
-        pop_jump_instr = ExecutedControlInstruction(
+        traced_pop_jump = ExecutedControlInstruction(
             "<ast>", 0, 0, op.POP_JUMP_IF_TRUE, 1, -1, -1
         )
-        self._current_assertion = self._trace.start_assertion(pop_jump_instr)
-
-    def track_assert_end(self) -> None:
-        """Track the end of an assertion in the trace."""
-        assert self._current_assertion
-        self._trace.end_assertion()
-        self._current_assertion = None
+        new_assertion = TracedAssertion(
+            traced_pop_jump.code_object_id,
+            traced_pop_jump.node_id,
+            traced_pop_jump.lineno,
+            traced_pop_jump,
+            len(self.get_trace().executed_instructions) - 1,
+        )
+        self._known_data.existing_assertions.append(new_assertion)
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
@@ -1502,46 +1403,7 @@ class TracedAssertion:
     node_id: int
     lineno: int
     traced_assertion_pop_jump: ExecutedInstruction
-    trace_position: int = -1
-
-
-class UniqueAssertion:
-    """Data class for an assertion uniquely identifiable by its instruction"""
-
-    def __init__(self, assertion_pop_jump_instruction: ExecutedInstruction):
-        self.assertion_pop_jump_instruction = assertion_pop_jump_instruction
-
-    def __eq__(self, other):
-        if not isinstance(other, UniqueAssertion):
-            return False
-
-        return (
-            self.assertion_pop_jump_instruction.code_object_id
-            == other.assertion_pop_jump_instruction.code_object_id
-            and self.assertion_pop_jump_instruction.node_id
-            == other.assertion_pop_jump_instruction.node_id
-            and self.assertion_pop_jump_instruction.lineno
-            == other.assertion_pop_jump_instruction.lineno
-            and self.assertion_pop_jump_instruction.offset
-            == other.assertion_pop_jump_instruction.offset
-        )
-
-    def __hash__(self):
-        hash_string = (
-            str(self.assertion_pop_jump_instruction.code_object_id)
-            + "_"
-            + str(self.assertion_pop_jump_instruction.node_id)
-            + "_"
-            + str(self.assertion_pop_jump_instruction.lineno)
-            + "_"
-            + str(self.assertion_pop_jump_instruction.offset)
-            + "_"
-        )
-
-        return hash(hash_string)
-
-    def __str__(self):
-        return str(self.assertion_pop_jump_instruction.lineno)
+    trace_position: int
 
 
 @dataclass(frozen=True)
@@ -2019,8 +1881,6 @@ class TestCaseExecutor:
 
         if instrument_test:
             code = self._instrument_code_for_checked(code)
-            if statement.assertions:
-                self._tracer.track_assert_start()
 
         try:
             # pylint: disable=exec-used
@@ -2030,8 +1890,9 @@ class TestCaseExecutor:
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )
-            if self._tracer.currently_tracks_assertion():
-                self._tracer.track_assert_end()
+            if instrument_test and statement.assertions:
+                # exception assertions must be registered
+                self._tracer.register_assertion_position()
             return err
 
         if instrument_test and statement.assertions:
@@ -2063,7 +1924,7 @@ class TestCaseExecutor:
         # TODO(SiL) move into visitor and only set when needed?
         exec_ctx.global_namespace["pytest"] = pytest
 
-        for i, assertion in enumerate(statement.assertions):
+        for assertion in statement.assertions:
             assertion_node = exec_ctx.executable_assertion_node(assertion, ast_stmt)
 
             if self._logger.isEnabledFor(logging.DEBUG):

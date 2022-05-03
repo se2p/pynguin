@@ -9,7 +9,6 @@ from pynguin.testcase.execution import (
     ExecutedInstruction,
     ExecutionTrace,
     TracedAssertion,
-    UniqueAssertion,
 )
 
 
@@ -23,8 +22,7 @@ def test_merge():
 def test_merge_full():
 
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
-    assert0 = TracedAssertion(0, 1, 2, instr0)
-    unique_assert = UniqueAssertion(instr0)
+    assert0 = TracedAssertion(0, 1, 2, instr0, 0)
 
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
@@ -38,10 +36,9 @@ def test_merge_full():
     trace0.covered_line_ids = {0}
     trace0.executed_instructions = [instr0]
     trace0.traced_assertions = [assert0]
-    trace0.unique_assertions = {unique_assert}
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
-    assert1 = TracedAssertion(1, 2, 3, instr1)
+    assert1 = TracedAssertion(1, 2, 3, instr1, 0)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -54,7 +51,6 @@ def test_merge_full():
     trace1.covered_line_ids = {1}
     trace1.executed_instructions = [instr1]
     trace1.traced_assertions = [assert1]
-    trace1.unique_assertions = {unique_assert}
     trace1.current_assertion = assert1
 
     result = ExecutionTrace()
@@ -73,7 +69,6 @@ def test_merge_full():
     result.covered_line_ids = {0, 1}
     result.executed_instructions = [instr0, instr1]
     result.traced_assertions = [assert0, assert1]
-    result.unique_assertions = {unique_assert}
     result.current_assertion = assert1
 
     trace0.merge(trace1)
