@@ -7,7 +7,7 @@
 """Provides an abstract observer that can be used to generate assertions."""
 import copy
 from types import ModuleType
-from typing import cast
+from typing import Sized, cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
@@ -169,7 +169,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             self._trace.add_entry(
                 position, ass.ObjectAssertion(ref, copy.deepcopy(value))
             )
-        elif hasattr(value, "__len__"):
+        elif isinstance(value, Sized):
             self._trace.add_entry(
                 position, ass.CollectionLengthAssertion(ref, len(value))
             )
