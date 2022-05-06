@@ -23,7 +23,7 @@ from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 import pytest
-from bytecode import CellVar, Compare, FreeVar
+from bytecode import CellVar, Compare, FreeVar, Instr
 from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
@@ -1322,17 +1322,11 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def register_assertion_position(self) -> None:
-        """Track the end of an assertion in the trace."""
-
-        traced_pop_jump = ExecutedControlInstruction(
-            "<ast>", 0, 0, op.POP_JUMP_IF_TRUE, 1, -1, -1
-        )
+    def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
+        """Track the position of an assertion in the trace."""
         new_assertion = TracedAssertion(
-            traced_pop_jump.code_object_id,
-            traced_pop_jump.node_id,
-            traced_pop_jump.lineno,
-            traced_pop_jump,
+            code_object_id,
+            node_id,
             len(self.get_trace().executed_instructions) - 1,
         )
         self._known_data.existing_assertions.append(new_assertion)
@@ -1401,8 +1395,6 @@ class TracedAssertion:
 
     code_object_id: int
     node_id: int
-    lineno: int
-    traced_assertion_pop_jump: ExecutedInstruction
     trace_position: int
 
 
@@ -1892,7 +1884,18 @@ class TestCaseExecutor:
             )
             if instrument_test and statement.assertions:
                 # exception assertions must be registered
-                self._tracer.register_assertion_position()
+                # FIXME(SiL) get actual node and code_object ids of the executed statement
+                code_object_id = len(self._tracer.get_known_data().existing_code_objects) - 1
+                code_object = self._tracer.get_known_data().existing_code_objects[code_object_id]
+                # FIXME(SiL) get actual node and code_object ids of the executed statement
+                assert_node = None
+                for node in code_object.cfg.nodes:
+                    if node.is_artificial:
+                        continue
+                    if isinstance(node.basic_block[-1], Instr) and node.basic_block[-1].opcode == op.POP_JUMP_IF_TRUE:
+                        assert_node = node
+                assert assert_node
+                self._tracer.register_assertion_position(code_object_id, assert_node.index)
             return err
 
         if instrument_test and statement.assertions:
@@ -1941,7 +1944,16 @@ class TestCaseExecutor:
                 TestCaseExecutor._logger.debug(
                     "Failed to execute statement:\n%s%s", failed_stmt, err.args
                 )
-            self._tracer.register_assertion_position()
+            code_object_id = len(self._tracer.get_known_data().existing_code_objects) - 1
+            code_object = self._tracer.get_known_data().existing_code_objects[code_object_id]
+            # FIXME(SiL) get actual node and code_object ids of the executed statement
+            assert_node = None
+            for node in code_object.cfg.nodes:
+                if node.is_artificial:
+                    continue
+                if isinstance(node.basic_block[-1], Instr) and node.basic_block[-1].opcode == op.POP_JUMP_IF_TRUE:
+                    assert_node = node
+            self._tracer.register_assertion_position(code_object_id, assert_node.index)
 
     def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
         # TODO(SiL) rework module structure to avoid circular dependencies

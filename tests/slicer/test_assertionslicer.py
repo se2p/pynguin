@@ -12,10 +12,13 @@ import pytest
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.types import InferredSignature
+from pynguin.ga.computations import TestSuiteCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
@@ -319,3 +322,28 @@ def test_slicing_after_test_execution(module_name, test_case, expected_lines):
         )
         assert checked_lines
         assert checked_lines == expected_lines
+
+
+def test_trace_merge_of_multiple_test_cases():
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.LINE,
+        config.CoverageMetric.CHECKED,
+    ]
+    test_case_1 = tcc.TestCaseChromosome(_get_plus_test_with_float_assertion())
+    test_case_2 = tcc.TestCaseChromosome(_get_plus_test_with_multiple_assertions())
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(test_case_1)
+    test_suite.add_test_case_chromosome(test_case_2)
+
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    module_name = "tests.fixtures.linecoverage.plus"
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+
+        ff = TestSuiteCheckedCoverageFunction(executor)
+        assert ff.compute_coverage(test_suite) == pytest.approx(5 / 8, 0.1, 0.1)

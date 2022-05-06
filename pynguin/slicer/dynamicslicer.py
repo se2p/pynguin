@@ -954,7 +954,7 @@ class AssertionSlicer:
         for node in code_meta.original_cfg.nodes:
             if node.index == traced_instr.node_id and node.basic_block:
                 basic_block = node.basic_block
-        assert basic_block
+        assert basic_block, "node id or code object id were off"
 
         # the traced instruction is always the jump at the end of the bb
         original_instr: Instr = basic_block[-1]
