@@ -45,8 +45,6 @@ class SlicingCriterion:
 
     unique_instr: UniqueInstruction
 
-    occurrence: int = 1
-
     local_variables: set | None = None
 
     global_variables: set | None = None
@@ -889,42 +887,6 @@ class DynamicSlicer:
         if not traced_instr.arg_address or traced_instr.opcode == op.IMPORT_FROM:
             context.var_uses_addresses.add(hex(traced_instr.src_address))
 
-    @staticmethod
-    def find_trace_position(
-        trace: ex.ExecutionTrace, slicing_criterion: SlicingCriterion
-    ) -> int:
-        """
-        Find the position of the slicing criterion in the executed instructions
-        of the trace.
-
-        Args:
-            trace: Execution trace
-            slicing_criterion: slicing criterion to slice for
-
-        Returns:
-            the index of the slicing criterion instruction withing the trace
-
-        Raises:
-            ValueError: If the slicing criterion is not in the trace
-        """
-        slice_instr: UniqueInstruction = slicing_criterion.unique_instr
-        occurrences = 0
-        position = 0
-        for ex_instr in trace.executed_instructions:
-            if (
-                ex_instr.file == slice_instr.file
-                and ex_instr.opcode == slice_instr.opcode
-                and ex_instr.lineno == ex_instr.lineno
-                and ex_instr.offset == slice_instr.offset
-            ):
-                occurrences += 1
-
-                if occurrences == slicing_criterion.occurrence:
-                    return position
-            position += 1
-
-        raise ValueError("Slicing criterion could not be found in trace")
-
 
 # pylint:disable=too-few-public-methods
 class AssertionSlicer:
@@ -941,23 +903,24 @@ class AssertionSlicer:
 
     def _slicing_criterion_from_assertion(
         self, assertion: ex.TracedAssertion
-    ) -> tuple[SlicingCriterion, int]:
-        trace_position = assertion.trace_position
-        traced_instr = self._trace.executed_instructions[trace_position]
-
+    ) -> SlicingCriterion:
         assert self._known_code_objects
-        code_meta = self._known_code_objects.get(traced_instr.code_object_id)
+        code_meta = self._known_code_objects.get(assertion.code_object_id)
         assert code_meta
+
+        traced_instr = self._trace.executed_instructions[assertion.trace_position]
+        assert traced_instr.opcode == op.POP_JUMP_IF_TRUE
 
         # find out the basic block of the assertion
         basic_block = None
         for node in code_meta.original_cfg.nodes:
             if node.index == traced_instr.node_id and node.basic_block:
                 basic_block = node.basic_block
-        assert basic_block
+        assert basic_block, "node id or code object id were off"
 
         # the traced instruction is always the jump at the end of the bb
         original_instr: Instr = basic_block[-1]
+        assert original_instr.opcode == op.POP_JUMP_IF_TRUE
 
         unique_instr = UniqueInstruction(
             traced_instr.file,
@@ -970,9 +933,7 @@ class AssertionSlicer:
             traced_instr.lineno,
         )
 
-        # We know the exact trace position and the slicer
-        # can handle this without having the occurrence.
-        return SlicingCriterion(unique_instr, occurrence=-1), trace_position
+        return SlicingCriterion(unique_instr)
 
     def slice_assertion(self, assertion: ex.TracedAssertion) -> list[UniqueInstruction]:
         """Calculate the dynamic slice for an assertion inside a test case
@@ -984,12 +945,11 @@ class AssertionSlicer:
             The list of executed instructions contained in the slice of the assertion.
         """
 
-        slicing_criterion, trace_position = self._slicing_criterion_from_assertion(
-            assertion
-        )
+        slicing_criterion = self._slicing_criterion_from_assertion(assertion)
         slicer = DynamicSlicer(self._trace, self._known_code_objects)
-
-        return slicer.slice(self._trace, slicing_criterion, trace_position - 1)
+        return slicer.slice(
+            self._trace, slicing_criterion, assertion.trace_position - 1
+        )
 
     @staticmethod
     def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:

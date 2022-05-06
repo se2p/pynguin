@@ -19,6 +19,7 @@ import pynguin.utils.opcodes as op
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.testcase.execution import (
+    ArtificialInstr,
     CodeObjectMetaData,
     ExecutionTracer,
     PredicateMetaData,
@@ -28,11 +29,6 @@ if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ProgramGraphNode
 
 CODE_OBJECT_ID_KEY = "code_object_id"
-
-
-class ArtificialInstr(Instr):
-    """Marker subclass to distinguish between original instructions
-    and instructions that were inserted by the instrumentation."""
 
 
 # pylint:disable=too-few-public-methods

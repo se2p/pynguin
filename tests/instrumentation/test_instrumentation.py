@@ -17,7 +17,6 @@ from ordered_set import OrderedSet
 import pynguin.utils.opcodes as op
 from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.instrumentation.instrumentation import (
-    ArtificialInstr,
     BranchCoverageInstrumentation,
     CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -26,6 +25,7 @@ from pynguin.instrumentation.instrumentation import (
     LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import (
+    ArtificialInstr,
     ExecutedControlInstruction,
     ExecutedMemoryInstruction,
     ExecutedReturnInstruction,

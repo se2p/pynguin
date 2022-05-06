@@ -23,7 +23,7 @@ from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 import pytest
-from bytecode import CellVar, Compare, FreeVar
+from bytecode import BasicBlock, CellVar, Compare, FreeVar, Instr
 from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
@@ -48,6 +48,11 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+
+
+class ArtificialInstr(Instr):
+    """Marker subclass to distinguish between original instructions
+    and instructions that were inserted by the instrumentation."""
 
 
 class ExecutionContext:
@@ -440,6 +445,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
+    existing_assertions: list[TracedAssertion] = field(default_factory=list)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -453,7 +459,8 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
-        self.executed_instructions.extend(other.executed_instructions)
+        self.executed_instructions = other.executed_instructions
+        self.existing_assertions.extend(other.existing_assertions)
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -743,9 +750,6 @@ class KnownData:
 
     # stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
-
-    # stores assertions during test execution after assertion generation
-    existing_assertions: list[TracedAssertion] = field(default_factory=list)
 
 
 # pylint: disable=too-many-public-methods, too-many-instance-attributes
@@ -1322,20 +1326,20 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def register_assertion_position(self) -> None:
-        """Track the end of an assertion in the trace."""
-
-        traced_pop_jump = ExecutedControlInstruction(
-            "<ast>", 0, 0, op.POP_JUMP_IF_TRUE, 1, -1, -1
-        )
+    def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
+        """Track the position of an assertion in the trace."""
+        exec_instr = self.get_trace().executed_instructions
+        pop_jump_if_true_position = len(exec_instr) - 1
+        for instr in reversed(exec_instr):
+            if instr.opcode == op.POP_JUMP_IF_TRUE:
+                break
+            pop_jump_if_true_position -= 1
         new_assertion = TracedAssertion(
-            traced_pop_jump.code_object_id,
-            traced_pop_jump.node_id,
-            traced_pop_jump.lineno,
-            traced_pop_jump,
-            len(self.get_trace().executed_instructions) - 1,
+            code_object_id,
+            node_id,
+            pop_jump_if_true_position,
         )
-        self._known_data.existing_assertions.append(new_assertion)
+        self._trace.existing_assertions.append(new_assertion)
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
@@ -1401,8 +1405,6 @@ class TracedAssertion:
 
     code_object_id: int
     node_id: int
-    lineno: int
-    traced_assertion_pop_jump: ExecutedInstruction
     trace_position: int
 
 
@@ -1892,7 +1894,10 @@ class TestCaseExecutor:
             )
             if instrument_test and statement.assertions:
                 # exception assertions must be registered
-                self._tracer.register_assertion_position()
+                # TODO(SiL) how to track exception assertion without
+                #  POP_JUMP_IF_TRUE in code object
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
+                self._tracer.register_assertion_position(code_object_id, node_id)
             return err
 
         if instrument_test and statement.assertions:
@@ -1918,6 +1923,23 @@ class TestCaseExecutor:
         finally:
             self._tracer.enable()
 
+    def _get_assertion_node_and_code_object_ids(self) -> tuple[int, int]:
+        existing_code_objects = self._tracer.get_known_data().existing_code_objects
+        code_object_id = len(existing_code_objects) - 1
+        code_object = existing_code_objects[code_object_id]
+        assert_node = None
+        for node in code_object.cfg.nodes:
+            if node.is_artificial:
+                continue
+            bb_node: BasicBlock = node.basic_block
+            if (
+                not isinstance(bb_node[-1], ArtificialInstr)
+                and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE
+            ):
+                assert_node = node
+        assert assert_node
+        return code_object_id, assert_node.index
+
     def _execute_assertions(
         self, ast_stmt: ast.stmt, exec_ctx: ExecutionContext, statement: stmt.Statement
     ):
@@ -1941,7 +1963,8 @@ class TestCaseExecutor:
                 TestCaseExecutor._logger.debug(
                     "Failed to execute statement:\n%s%s", failed_stmt, err.args
                 )
-            self._tracer.register_assertion_position()
+            code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
+            self._tracer.register_assertion_position(code_object_id, node_id)
 
     def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
         # TODO(SiL) rework module structure to avoid circular dependencies
