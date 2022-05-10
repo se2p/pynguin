@@ -909,7 +909,6 @@ class AssertionSlicer:
         assert code_meta
 
         traced_instr = self._trace.executed_instructions[assertion.trace_position]
-        assert traced_instr.opcode == op.POP_JUMP_IF_TRUE
 
         # find out the basic block of the assertion
         basic_block = None
@@ -919,8 +918,12 @@ class AssertionSlicer:
         assert basic_block, "node id or code object id were off"
 
         # the traced instruction is always the jump at the end of the bb
-        original_instr: Instr = basic_block[-1]
-        assert original_instr.opcode == op.POP_JUMP_IF_TRUE
+        original_instr = None
+        for instr in reversed(list(basic_block)):
+            if instr.opcode == traced_instr.opcode:
+                original_instr = instr
+                break
+        assert original_instr
 
         unique_instr = UniqueInstruction(
             traced_instr.file,

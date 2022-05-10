@@ -28,6 +28,7 @@ from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
 
+import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
@@ -43,7 +44,6 @@ from pynguin.utils.type_utils import (
 immutable_types = [int, float, complex, str, tuple, frozenset, bytes]
 
 if TYPE_CHECKING:
-    import pynguin.assertion.assertion as ass
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
@@ -1326,6 +1326,22 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
+    def register_exception_assertion(self) -> None:
+        """Track the position of an exception assertion in the trace.
+        TODO(SiL) describe how this handled differently from the other assertion
+         types
+        """
+        # TODO(SiL) currently only tracks the raising of the exception
+        #  not e.g. the building of the object raising an error
+        trace = self.get_trace()
+        error_call_position = len(trace.executed_instructions) - 1
+        error_causing_instr = trace.executmodule_nameed_instructions[error_call_position]
+        code_object_id = error_causing_instr.code_object_id
+        node_id = error_causing_instr.node_id
+        trace.existing_assertions.append(
+            TracedAssertion(code_object_id, node_id, error_call_position)
+        )
+
     def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
         """Track the position of an assertion in the trace.
 
@@ -1901,15 +1917,11 @@ class TestCaseExecutor:
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )
 
-            if any(
+            if instrument_test and any(
                 isinstance(assertion, ass.ExceptionAssertion)
                 for assertion in statement.assertions
-            ):
-                # TODO(SiL) track the existence of an exception assertion
-                #  problem: code objects do not hold POP_JUMP_IF_TRUE
-                #  solution: track failed call position instead?
-                pass
-
+            ):  # assumes only one exception assertion per statement
+                self.tracer.register_exception_assertion()
             return err
 
         if instrument_test and statement.assertions:
@@ -1966,6 +1978,8 @@ class TestCaseExecutor:
             code = compile(assertion_node, "<ast>", "exec")
             code = self._instrument_code_for_checked(code)
 
+            # TODO(SiL) shouldn't the assertions never throw an error?
+            #  therefore, we would not need a 'try-except'
             try:
                 # pylint: disable=exec-used
                 exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec

@@ -24,16 +24,12 @@ from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.variablereference import FieldReference
+from tests.fixtures.linecoverage.exception import ExceptionTest
 from tests.fixtures.linecoverage.plus import Plus
 
 
 class ListTest:
     attribute = [1, 2, 3]
-
-
-class ExceptionTest:
-    def throw(self):
-        raise RuntimeError
 
 
 def _get_default_plus_test():
@@ -142,7 +138,7 @@ def _get_default_exception_test() -> TestCase:
     return test_case
 
 
-def _get_test_1():
+def _get_full_cover_plus_three_test():
     """
     Produces the following testcase:
         def test_case_0():
@@ -211,7 +207,7 @@ def _get_test_1():
     return test_case
 
 
-def _get_test_2():
+def _get_full_cover_plus_four_test():
     """
     Produces the following testcase:
         def test_case_1():
@@ -387,8 +383,8 @@ def _get_plus_test_with_multiple_assertions():
 
 
 def _get_full_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
-    test_case_1 = tcc.TestCaseChromosome(_get_test_1())
-    test_case_2 = tcc.TestCaseChromosome(_get_test_2())
+    test_case_1 = tcc.TestCaseChromosome(_get_full_cover_plus_three_test())
+    test_case_2 = tcc.TestCaseChromosome(_get_full_cover_plus_four_test())
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_1)
     test_suite.add_test_case_chromosome(test_case_2)
@@ -452,6 +448,11 @@ def test_assertion_detection_on_test_case(test_case, expected_assertions):
             "tests.fixtures.linecoverage.plus",
             _get_plus_test_with_multiple_assertions(),
             {9, 10, 16, 17, 18},
+        ),
+        (
+            "tests.fixtures.linecoverage.exception",
+            _get_exception_test_with_except_assertion(),
+            {8, 9, 10},
         ),
     ],
 )
