@@ -22,7 +22,7 @@ def test_merge():
 def test_merge_full():
 
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
-    assert0 = TracedAssertion(0, 1, 2, instr0, 0)
+    assert0 = TracedAssertion(0, 1, 2)
 
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
@@ -38,7 +38,7 @@ def test_merge_full():
     trace0.traced_assertions = [assert0]
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
-    assert1 = TracedAssertion(1, 2, 3, instr1, 0)
+    assert1 = TracedAssertion(1, 2, 3)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -49,7 +49,7 @@ def test_merge_full():
     trace1.false_distances[1] = 234
     trace1.false_distances[2] = 0
     trace1.covered_line_ids = {1}
-    trace1.executed_instructions = [instr1]
+    trace1.executed_instructions = [instr0, instr1]
     trace1.traced_assertions = [assert1]
     trace1.current_assertion = assert1
 

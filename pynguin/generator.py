@@ -303,6 +303,7 @@ def _track_resulting_checked_coverage(
         algorithm: the test generation strategy used to generate the result
         generation_result: the generated testsuite containing assertions
     """
+    _LOGGER.info("Calculating resulting checked coverage")
     checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
         algorithm, ff.TestSuiteCheckedCoverageFunction
     )

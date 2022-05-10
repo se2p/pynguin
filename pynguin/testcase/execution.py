@@ -1327,13 +1327,21 @@ class ExecutionTracer:
         )
 
     def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
-        """Track the position of an assertion in the trace."""
+        """Track the position of an assertion in the trace.
+
+        Args:
+            code_object_id: code object containing the assertion to register
+            node_id: the id of the node containing the assertion to register
+        """
         exec_instr = self.get_trace().executed_instructions
         pop_jump_if_true_position = len(exec_instr) - 1
         for instr in reversed(exec_instr):
             if instr.opcode == op.POP_JUMP_IF_TRUE:
                 break
             pop_jump_if_true_position -= 1
+        assert (
+            pop_jump_if_true_position != -1
+        ), "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
         new_assertion = TracedAssertion(
             code_object_id,
             node_id,
