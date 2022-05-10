@@ -330,7 +330,7 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
 
 
 class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
-    """Computes branch coverage on test suites."""
+    """Computes checked coverage on test suites."""
 
     def compute_coverage(self, individual) -> float:
         results = self._run_test_suite_chromosome(
@@ -342,7 +342,7 @@ class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
 
 
 class TestCaseCheckedCoverageFunction(TestCaseCoverageFunction):
-    """Computes branch coverage on test suites."""
+    """Computes checked coverage on test suites."""
 
     def compute_coverage(self, individual) -> float:
         result = self._run_test_case_chromosome(individual, instrument_test=True)

@@ -142,6 +142,145 @@ def _get_default_exception_test() -> TestCase:
     return test_case
 
 
+def _get_test_1():
+    """
+    Produces the following testcase:
+        def test_case_0():
+            int_0 = 3360
+            plus_0 = module_0.Plus()
+            assert plus_0.calculations == 0
+            var_0 = plus_0.plus_three(int_0)
+            assert var_0 == 3363
+            assert plus_0.calculations == 1
+    """
+    test_case = dtc.DefaultTestCase()
+
+    # int_0 = 42
+    int_stmt = stmt.IntPrimitiveStatement(test_case, 3360)
+    # plus_0 = module_0.Plus()
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            Plus,
+            InferredSignature(
+                signature=inspect.signature(Plus.__init__),
+                parameters={},
+                return_type=Plus,
+            ),
+        ),
+    )
+    constructor_call.add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                constructor_call.ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            0,
+        )
+    )
+
+    # var_1 = plus0.plus_three(var_0)
+    method_call = stmt.MethodStatement(
+        test_case,
+        gao.GenericMethod(
+            Plus,
+            Plus.plus_three,
+            InferredSignature(
+                signature=inspect.signature(Plus.plus_three),
+                parameters={"number": int},
+                return_type=int,
+            ),
+        ),
+        constructor_call.ret_val,
+        {"number": int_stmt.ret_val},
+    )
+    method_call.add_assertion(ass.ObjectAssertion(method_call.ret_val, 3363))
+    method_call.add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                constructor_call.ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            1,
+        )
+    )
+
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(method_call)
+    return test_case
+
+
+def _get_test_2():
+    """
+    Produces the following testcase:
+        def test_case_1():
+            int_0 = -3559
+            plus_0 = module_0.Plus()
+            assert plus_0.calculations == 0
+            var_0 = plus_0.plus_four(int_0)
+            assert var_0 == -3555
+            assert plus_0.calculations == 1
+    """
+
+    test_case = dtc.DefaultTestCase()
+
+    # int_0 = 42
+    int_stmt = stmt.IntPrimitiveStatement(test_case, -3559)
+    # plus_0 = module_0.Plus()
+    constructor_call = stmt.ConstructorStatement(
+        test_case,
+        gao.GenericConstructor(
+            Plus,
+            InferredSignature(
+                signature=inspect.signature(Plus.__init__),
+                parameters={},
+                return_type=Plus,
+            ),
+        ),
+    )
+    constructor_call.add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                constructor_call.ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            0,
+        )
+    )
+
+    # var_1 = plus0.plus_three(var_0)
+    method_call = stmt.MethodStatement(
+        test_case,
+        gao.GenericMethod(
+            Plus,
+            Plus.plus_four,
+            InferredSignature(
+                signature=inspect.signature(Plus.plus_four),
+                parameters={"number": int},
+                return_type=int,
+            ),
+        ),
+        constructor_call.ret_val,
+        {"number": int_stmt.ret_val},
+    )
+    method_call.add_assertion(ass.ObjectAssertion(method_call.ret_val, -3555))
+    method_call.add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                constructor_call.ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            1,
+        )
+    )
+
+    test_case.add_statement(int_stmt)
+    test_case.add_statement(constructor_call)
+    test_case.add_statement(method_call)
+    return test_case
+
+
 def get_plus_test_with_object_assertion() -> TestCase:
     """
     Generated testcase:
@@ -247,6 +386,30 @@ def _get_plus_test_with_multiple_assertions():
     return test_case
 
 
+def _get_full_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+    test_case_1 = tcc.TestCaseChromosome(_get_test_1())
+    test_case_2 = tcc.TestCaseChromosome(_get_test_2())
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(test_case_1)
+    test_suite.add_test_case_chromosome(test_case_2)
+    return test_suite
+
+
+def _get_partial_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+    test_case_1 = tcc.TestCaseChromosome(_get_plus_test_with_float_assertion())
+    test_case_2 = tcc.TestCaseChromosome(_get_plus_test_with_multiple_assertions())
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(test_case_1)
+    test_suite.add_test_case_chromosome(test_case_2)
+    return test_suite
+
+
+def _get_no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
+    return test_suite
+
+
 @pytest.mark.parametrize(
     "test_case, expected_assertions",
     [
@@ -324,20 +487,36 @@ def test_slicing_after_test_execution(module_name, test_case, expected_lines):
         assert checked_lines == expected_lines
 
 
-def test_trace_merge_of_multiple_test_cases():
+@pytest.mark.parametrize(
+    "module_name, test_suite, expected_coverage",
+    [
+        (
+            "tests.fixtures.linecoverage.plus",
+            _get_no_cover_plus_testsuite(),
+            0,
+        ),
+        (
+            "tests.fixtures.linecoverage.plus",
+            _get_partial_cover_plus_testsuite(),
+            5 / 8,
+        ),
+        (
+            "tests.fixtures.linecoverage.plus",
+            _get_full_cover_plus_testsuite(),
+            1,
+        ),
+    ],
+)
+def test_testsuite_checked_execution_and_calculation(
+    module_name, test_suite, expected_coverage
+):
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.LINE,
         config.CoverageMetric.CHECKED,
     ]
-    test_case_1 = tcc.TestCaseChromosome(_get_plus_test_with_float_assertion())
-    test_case_2 = tcc.TestCaseChromosome(_get_plus_test_with_multiple_assertions())
-    test_suite = tsc.TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(test_case_1)
-    test_suite.add_test_case_chromosome(test_case_2)
 
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    module_name = "tests.fixtures.linecoverage.plus"
 
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
@@ -346,4 +525,6 @@ def test_trace_merge_of_multiple_test_cases():
         executor = TestCaseExecutor(tracer)
 
         ff = TestSuiteCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_suite) == pytest.approx(5 / 8, 0.1, 0.1)
+        assert ff.compute_coverage(test_suite) == pytest.approx(
+            expected_coverage, 0.1, 0.1
+        )

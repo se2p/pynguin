@@ -1900,12 +1900,16 @@ class TestCaseExecutor:
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
             )
-            if instrument_test and statement.assertions:
-                # exception assertions must be registered
-                # TODO(SiL) how to track exception assertion without
-                #  POP_JUMP_IF_TRUE in code object
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
-                self._tracer.register_assertion_position(code_object_id, node_id)
+
+            if any(
+                isinstance(assertion, ass.ExceptionAssertion)
+                for assertion in statement.assertions
+            ):
+                # TODO(SiL) track the existence of an exception assertion
+                #  problem: code objects do not hold POP_JUMP_IF_TRUE
+                #  solution: track failed call position instead?
+                pass
+
             return err
 
         if instrument_test and statement.assertions:
@@ -1951,8 +1955,7 @@ class TestCaseExecutor:
     def _execute_assertions(
         self, ast_stmt: ast.stmt, exec_ctx: ExecutionContext, statement: stmt.Statement
     ):
-        # TODO(SiL) move into visitor and only set when needed?
-        exec_ctx.global_namespace["pytest"] = pytest
+        exec_ctx.global_namespace["pytest"] = pytest  # import pytest for assertions
 
         for assertion in statement.assertions:
             assertion_node = exec_ctx.executable_assertion_node(assertion, ast_stmt)
