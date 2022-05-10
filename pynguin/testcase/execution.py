@@ -1335,7 +1335,7 @@ class ExecutionTracer:
         #  not e.g. the building of the object raising an error
         trace = self.get_trace()
         error_call_position = len(trace.executed_instructions) - 1
-        error_causing_instr = trace.executmodule_nameed_instructions[error_call_position]
+        error_causing_instr = trace.executed_instructions[error_call_position]
         code_object_id = error_causing_instr.code_object_id
         node_id = error_causing_instr.node_id
         trace.existing_assertions.append(
