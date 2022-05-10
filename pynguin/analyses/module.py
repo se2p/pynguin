@@ -17,7 +17,13 @@ import logging
 import queue
 import sys
 import typing
-from types import ModuleType
+from types import (
+    BuiltinFunctionType,
+    FunctionType,
+    MethodDescriptorType,
+    ModuleType,
+    WrapperDescriptorType,
+)
 from typing import Any, Callable, NamedTuple, get_args
 
 from ordered_set import OrderedSet
@@ -451,7 +457,9 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         self.__code_object_id_to_accessible_objects: dict[
             int, GenericCallableAccessibleObject
         ] = {
-            json.loads(acc.callable.__code__.co_consts[0])[CODE_OBJECT_ID_KEY]: acc
+            json.loads(acc.callable.__code__.co_consts[0])[  # type: ignore
+                CODE_OBJECT_ID_KEY
+            ]: acc
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")
@@ -612,7 +620,7 @@ class _CallableData:
 def __analyse_function(
     *,
     func_name: str,
-    func: Callable,
+    func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
@@ -691,7 +699,12 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     class_name: str,
     class_: type,
     method_name: str,
-    method: Callable,
+    method: (
+        FunctionType
+        | BuiltinFunctionType
+        | WrapperDescriptorType
+        | MethodDescriptorType
+    ),
     type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
