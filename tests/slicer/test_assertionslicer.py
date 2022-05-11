@@ -4,8 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 import importlib
-import inspect
 import threading
 
 import pytest
@@ -15,127 +15,59 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.ga.computations import TestSuiteCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.variablereference import FieldReference
-from tests.fixtures.linecoverage.exception import ExceptionTest
+from tests.fixtures.linecoverage.listtest import ListTest
 from tests.fixtures.linecoverage.plus import Plus
 
 
-class ListTest:
-    attribute = [1, 2, 3]
-
-
 def _get_default_plus_test():
-    test_case = dtc.DefaultTestCase()
-
-    # int_0 = 42
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 42)
-
-    # plus_0 = module_0.Plus()
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            Plus,
-            InferredSignature(
-                signature=inspect.signature(Plus.__init__),
-                parameters={},
-                return_type=Plus,
-            ),
-        ),
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False)
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
     )
-
-    # int_1 = plus0.plus_four(var_0)
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            Plus,
-            Plus.plus_four,
-            InferredSignature(
-                signature=inspect.signature(Plus.plus_four),
-                parameters={"number": int},
-                return_type=int,
-            ),
-        ),
-        constructor_call.ret_val,
-        {"number": int_stmt.ret_val},
-    )
-
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
-    return test_case
+    return transformer.testcases[0]
 
 
 def _get_default_list_test():
-    test_case = dtc.DefaultTestCase()
-
-    # listtest_0 = module_0.ListTest()
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            ListTest,
-            InferredSignature(
-                signature=inspect.signature(ListTest.__init__),
-                parameters={},
-                return_type=ListTest,
-            ),
-        ),
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.listtest")
+    transformer = AstToTestCaseTransformer(cluster, False)
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    list_test_0 = module_0.ListTest()
+"""
+        )
     )
-
-    # attribute_0 = listtest_0.attribute
-    list_attribute_call = stmt.FieldStatement(
-        test_case,
-        gao.GenericField(owner=ListTest, field="attribute", field_type=list),
-        constructor_call.ret_val,
-    )
-
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(list_attribute_call)
-    return test_case
+    return transformer.testcases[0]
 
 
 def _get_default_exception_test() -> TestCase:
-    test_case = dtc.DefaultTestCase()
-
-    # exception_test_0 = module_0.ExceptionTest()
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            ExceptionTest,
-            InferredSignature(
-                signature=inspect.signature(ExceptionTest.__init__),
-                parameters={},
-                return_type=ExceptionTest,
-            ),
-        ),
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.exceptiontest")
+    transformer = AstToTestCaseTransformer(cluster, False)
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    exception_test_0 = module_0.ExceptionTest()
+    var_0 = exception_test_0.throw()
+"""
+        )
     )
-
-    # exception_test_0.throw()
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            ExceptionTest,
-            ExceptionTest.throw,
-            InferredSignature(
-                signature=inspect.signature(ExceptionTest.throw),
-                parameters={},
-                return_type=None,
-            ),
-        ),
-        constructor_call.ret_val,
-        {},
-    )
-
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
-    return test_case
+    return transformer.testcases[0]
 
 
 def _get_full_cover_plus_three_test():
@@ -149,22 +81,19 @@ def _get_full_cover_plus_three_test():
             assert var_0 == 3363
             assert plus_0.calculations == 1
     """
-    test_case = dtc.DefaultTestCase()
-
-    # int_0 = 42
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 3360)
-    # plus_0 = module_0.Plus()
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            Plus,
-            InferredSignature(
-                signature=inspect.signature(Plus.__init__),
-                parameters={},
-                return_type=Plus,
-            ),
-        ),
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False)
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 3360
+    plus_0 = module_0.Plus()
+    var_0 = plus_0.plus_three(int_0)
+"""
+        )
     )
+    test_case = transformer.testcases[0]
+    constructor_call = test_case.statements[1]
     constructor_call.add_assertion(
         ass.ObjectAssertion(
             FieldReference(
@@ -174,22 +103,7 @@ def _get_full_cover_plus_three_test():
             0,
         )
     )
-
-    # var_1 = plus0.plus_three(var_0)
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            Plus,
-            Plus.plus_three,
-            InferredSignature(
-                signature=inspect.signature(Plus.plus_three),
-                parameters={"number": int},
-                return_type=int,
-            ),
-        ),
-        constructor_call.ret_val,
-        {"number": int_stmt.ret_val},
-    )
+    method_call = test_case.statements[2]
     method_call.add_assertion(ass.ObjectAssertion(method_call.ret_val, 3363))
     method_call.add_assertion(
         ass.ObjectAssertion(
@@ -200,10 +114,6 @@ def _get_full_cover_plus_three_test():
             1,
         )
     )
-
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
     return test_case
 
 
@@ -219,22 +129,19 @@ def _get_full_cover_plus_four_test():
             assert plus_0.calculations == 1
     """
 
-    test_case = dtc.DefaultTestCase()
-
-    # int_0 = 42
-    int_stmt = stmt.IntPrimitiveStatement(test_case, -3559)
-    # plus_0 = module_0.Plus()
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            Plus,
-            InferredSignature(
-                signature=inspect.signature(Plus.__init__),
-                parameters={},
-                return_type=Plus,
-            ),
-        ),
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False)
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = -3559
+    plus_0 = module_0.Plus()
+    var_0 = plus_0.plus_four(int_0)
+"""
+        )
     )
+    test_case = transformer.testcases[0]
+    constructor_call = test_case.statements[1]
     constructor_call.add_assertion(
         ass.ObjectAssertion(
             FieldReference(
@@ -244,22 +151,7 @@ def _get_full_cover_plus_four_test():
             0,
         )
     )
-
-    # var_1 = plus0.plus_three(var_0)
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            Plus,
-            Plus.plus_four,
-            InferredSignature(
-                signature=inspect.signature(Plus.plus_four),
-                parameters={"number": int},
-                return_type=int,
-            ),
-        ),
-        constructor_call.ret_val,
-        {"number": int_stmt.ret_val},
-    )
+    method_call = test_case.statements[2]
     method_call.add_assertion(ass.ObjectAssertion(method_call.ret_val, -3555))
     method_call.add_assertion(
         ass.ObjectAssertion(
@@ -270,10 +162,6 @@ def _get_full_cover_plus_four_test():
             1,
         )
     )
-
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
     return test_case
 
 
@@ -327,7 +215,7 @@ def _get_exception_test_with_except_assertion() -> TestCase:
     Generated testcase:
         exception_test_0 = module_0.ExceptionTest()
         with pytest.raises(RuntimeError):
-            exception_test_0.throw()
+            var_0 = exception_test_0.throw()
     """
     test_case = _get_default_exception_test()
     test_case.statements[-1].add_assertion(
@@ -343,12 +231,17 @@ def _get_list_test_with_len_assertion() -> TestCase:
     """
     Generated testcase:
         list_test_0 = module_0.ListTest()
-        list_0 = list_test_0.attribute
-        assert len(list_0) == 3
+        assert len(list_test_0.attribute) == 3
     """
     test_case = _get_default_list_test()
     test_case.statements[-1].add_assertion(
-        ass.CollectionLengthAssertion(test_case.statements[-1].ret_val, 3)
+        ass.CollectionLengthAssertion(
+            FieldReference(
+                test_case.statements[-1].ret_val,
+                gao.GenericField(ListTest, "attribute", list),
+            ),
+            3,
+        )
     )
     return test_case
 
@@ -450,9 +343,9 @@ def test_assertion_detection_on_test_case(test_case, expected_assertions):
             {9, 10, 16, 17, 18},
         ),
         (
-            "tests.fixtures.linecoverage.exception",
+            "tests.fixtures.linecoverage.exceptiontest",
             _get_exception_test_with_except_assertion(),
-            {8, 9, 10},
+            {9, 10, 11},
         ),
     ],
 )

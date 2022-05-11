@@ -492,7 +492,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
-        # TODO(SiL) register instructions with ids instead of dataclasses?
         executed_instr = ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
