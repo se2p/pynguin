@@ -13,10 +13,25 @@ from __future__ import annotations
 import abc
 import enum
 import typing
-from typing import Callable, cast
+from types import (
+    BuiltinFunctionType,
+    ClassMethodDescriptorType,
+    FunctionType,
+    MethodDescriptorType,
+    WrapperDescriptorType,
+)
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.types import InferredSignature
+
+
+TypesOfCallables = typing.Union[
+    FunctionType,
+    BuiltinFunctionType,
+    WrapperDescriptorType,
+    MethodDescriptorType,
+    ClassMethodDescriptorType,
+]
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):
@@ -119,7 +134,9 @@ class GenericEnum(GenericAccessibleObject):
 
     def __init__(self, owner: type[enum.Enum]):
         super().__init__(owner)
-        self._names = list(map(lambda e: e.name, cast(list[enum.Enum], list(owner))))
+        self._names = list(
+            map(lambda e: e.name, typing.cast(list[enum.Enum], list(owner)))
+        )
 
     def generated_type(self) -> type | None:
         return self._owner
@@ -160,7 +177,7 @@ class GenericCallableAccessibleObject(
     def __init__(
         self,
         owner: type | None,
-        callable_: Callable,
+        callable_: TypesOfCallables,
         inferred_signature: InferredSignature,
     ) -> None:
         super().__init__(owner)
@@ -180,7 +197,9 @@ class GenericCallableAccessibleObject(
         return self._inferred_signature
 
     @property
-    def callable(self) -> Callable:
+    def callable(
+        self,
+    ) -> TypesOfCallables:
         """Provides the callable.
 
         Returns:
@@ -233,7 +252,7 @@ class GenericMethod(GenericCallableAccessibleObject):
     def __init__(
         self,
         owner: type,
-        method: Callable,
+        method: TypesOfCallables,
         inferred_signature: InferredSignature,
         method_name: str | None = None,
     ) -> None:
@@ -281,7 +300,7 @@ class GenericFunction(GenericCallableAccessibleObject):
 
     def __init__(
         self,
-        function: Callable,
+        function: FunctionType,
         inferred_signature: InferredSignature,
         function_name: str | None = None,
     ) -> None:
