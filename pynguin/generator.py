@@ -309,9 +309,10 @@ def _track_resulting_checked_coverage(
     )
     # force new execution after new instrumentation
     for test_case in generation_result.test_case_chromosomes:
-        test_case.set_changed(True)
+        test_case.invalidate_cache()
     stat.track_output_variable(
         RuntimeVariable.CheckedCoverage,
+        # generation_result.get_coverage_for(checked_coverage_ff),
         # skip computation cache
         checked_coverage_ff.compute_coverage(generation_result),
     )
