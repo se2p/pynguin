@@ -256,7 +256,7 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._last_execution_result
 
-    def set_last_execution_result(self, result: ExecutionResult) -> None:
+    def set_last_execution_result(self, result: ExecutionResult | None) -> None:
         """Set the last execution result.
 
         Args:
