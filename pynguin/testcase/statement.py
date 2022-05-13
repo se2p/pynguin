@@ -15,10 +15,10 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_args
 
 from ordered_set import OrderedSet
 
-import pynguin.analyses.seeding as seeding  # pylint: disable=consider-using-from-import
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses import constants
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
@@ -1370,9 +1370,11 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
         test_case: tc.TestCase,
         variable_type: type | None,
         value: T | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
         super().__init__(test_case, vr.VariableReference(test_case, variable_type))
         self._value = value
+        self._constant_provider: constants.ConstantProvider | None = constant_provider
         if value is None:
             self.randomize_value()
 
@@ -1447,29 +1449,23 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
 class IntPrimitiveStatement(PrimitiveStatement[int]):
     """Primitive Statement that creates an int."""
 
-    def __init__(self, test_case: tc.TestCase, value: int | None = None) -> None:
-        super().__init__(test_case, int, value)
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        value: int | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(test_case, int, value, constant_provider=constant_provider)
 
     def randomize_value(self) -> None:
-        use_seed = (
-            randomness.next_float()
-            <= config.configuration.seeding.seeded_primitives_reuse_probability
-        )
         if (
-            config.configuration.seeding.dynamic_constant_seeding
-            and seeding.dynamic_constant_seeding.has_ints
-            and use_seed
-            and config.configuration.seeding.constant_seeding
+            self._constant_provider
             and randomness.next_float()
-            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(int))
+            is not None
         ):
-            self._value = seeding.dynamic_constant_seeding.random_int
-        elif (
-            config.configuration.seeding.constant_seeding
-            and seeding.static_constant_seeding.has_ints
-            and use_seed
-        ):
-            self._value = seeding.static_constant_seeding.random_int
+            self._value = seeded_value
         else:
             self._value = int(
                 randomness.next_gaussian() * config.configuration.test_creation.max_int
@@ -1487,7 +1483,9 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> IntPrimitiveStatement:
-        return IntPrimitiveStatement(test_case, self._value)
+        return IntPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
 
     def __repr__(self) -> str:
         return f"IntPrimitiveStatement({self._test_case}, {self._value})"
@@ -1502,29 +1500,23 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
 class FloatPrimitiveStatement(PrimitiveStatement[float]):
     """Primitive Statement that creates a float."""
 
-    def __init__(self, test_case: tc.TestCase, value: float | None = None) -> None:
-        super().__init__(test_case, float, value)
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        value: float | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(test_case, float, value, constant_provider=constant_provider)
 
     def randomize_value(self) -> None:
-        use_seed = (
-            randomness.next_float()
-            <= config.configuration.seeding.seeded_primitives_reuse_probability
-        )
         if (
-            config.configuration.seeding.dynamic_constant_seeding
-            and seeding.dynamic_constant_seeding.has_floats
-            and use_seed
-            and config.configuration.seeding.constant_seeding
+            self._constant_provider
             and randomness.next_float()
-            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(float))
+            is not None
         ):
-            self._value = seeding.dynamic_constant_seeding.random_float
-        elif (
-            config.configuration.seeding.constant_seeding
-            and seeding.static_constant_seeding.has_floats
-            and use_seed
-        ):
-            self._value = seeding.static_constant_seeding.random_float
+            self._value = seeded_value
         else:
             val = (
                 randomness.next_gaussian() * config.configuration.test_creation.max_int
@@ -1550,7 +1542,9 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> FloatPrimitiveStatement:
-        return FloatPrimitiveStatement(test_case, self._value)
+        return FloatPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
 
     def __repr__(self) -> str:
         return f"FloatPrimitiveStatement({self._test_case}, {self._value})"
@@ -1565,29 +1559,23 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
 class StringPrimitiveStatement(PrimitiveStatement[str]):
     """Primitive Statement that creates a String."""
 
-    def __init__(self, test_case: tc.TestCase, value: str | None = None) -> None:
-        super().__init__(test_case, str, value)
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        value: str | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(test_case, str, value, constant_provider=constant_provider)
 
     def randomize_value(self) -> None:
-        use_seed = (
-            randomness.next_float()
-            <= config.configuration.seeding.seeded_primitives_reuse_probability
-        )
         if (
-            config.configuration.seeding.dynamic_constant_seeding
-            and seeding.dynamic_constant_seeding.has_strings
-            and use_seed
-            and config.configuration.seeding.constant_seeding
+            self._constant_provider
             and randomness.next_float()
-            <= config.configuration.seeding.seeded_dynamic_values_reuse_probability
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(str))
+            is not None
         ):
-            self._value = seeding.dynamic_constant_seeding.random_string
-        elif (
-            config.configuration.seeding.constant_seeding
-            and seeding.static_constant_seeding.has_strings
-            and use_seed
-        ):
-            self._value = seeding.static_constant_seeding.random_string
+            self._value = seeded_value
         else:
             length = randomness.next_int(
                 0, config.configuration.test_creation.string_length + 1
@@ -1642,7 +1630,9 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> StringPrimitiveStatement:
-        return StringPrimitiveStatement(test_case, self._value)
+        return StringPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
 
     def __repr__(self) -> str:
         return f"StringPrimitiveStatement({self._test_case}, {self._value})"
@@ -1657,8 +1647,13 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
 class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
     """Primitive Statement that creates bytes."""
 
-    def __init__(self, test_case: tc.TestCase, value: bytes | None = None) -> None:
-        super().__init__(test_case, bytes, value)
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        value: bytes | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(test_case, bytes, value, constant_provider=constant_provider)
 
     def randomize_value(self) -> None:
         length = randomness.next_int(
@@ -1714,7 +1709,9 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> BytesPrimitiveStatement:
-        return BytesPrimitiveStatement(test_case, self._value)
+        return BytesPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
 
     def __repr__(self) -> str:
         return f"BytesPrimitiveStatement({self._test_case}, {self._value!r})"

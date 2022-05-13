@@ -18,14 +18,14 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
-import pynguin.generator as gen
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.testfactory as tf
+from pynguin.analyses import seeding
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
-from pynguin.analyses.seeding import initialpopulationseeding
 from pynguin.generation.generationalgorithmfactory import (
     TestSuiteGenerationAlgorithmFactory,
 )
-from pynguin.testcase.testfactory import TestFactory
 
 
 @pytest.fixture()
@@ -43,12 +43,6 @@ def seed_modules_path():
 
 
 @pytest.fixture()
-def clear_ips_instance():
-    initialpopulationseeding._testcases = []
-    initialpopulationseeding.test_cluster = ModuleTestCluster()
-
-
-@pytest.fixture()
 def triangle_test_cluster() -> ModuleTestCluster:
     test_cluster = generate_test_cluster("tests.fixtures.examples.triangle")
     return test_cluster
@@ -62,23 +56,35 @@ def dummy_test_cluster() -> ModuleTestCluster:
     return test_cluster
 
 
-def test_get_testcases(clear_ips_instance, seed_modules_path, triangle_test_cluster):
-    config.configuration.module_name = "triangle"
-    initialpopulationseeding.test_cluster = triangle_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
+@pytest.fixture()
+def constant_provider():
+    return EmptyConstantProvider()
 
-    assert initialpopulationseeding.has_tests
-    assert len(initialpopulationseeding._testcases) == 2
+
+def test_get_testcases(constant_provider, seed_modules_path, triangle_test_cluster):
+    config.configuration.module_name = "triangle"
+    provider = seeding.InitialPopulationProvider(
+        triangle_test_cluster,
+        tf.TestFactory(triangle_test_cluster, constant_provider),
+        constant_provider,
+    )
+    provider.collect_testcases(seed_modules_path)
+
+    assert len(provider) == 2
 
 
 def test_get_seeded_testcase(
-    clear_ips_instance, seed_modules_path, triangle_test_cluster
+    constant_provider, seed_modules_path, triangle_test_cluster
 ):
     config.configuration.module_name = "triangle"
-    initialpopulationseeding.test_cluster = triangle_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
+    provider = seeding.InitialPopulationProvider(
+        triangle_test_cluster,
+        tf.TestFactory(triangle_test_cluster, constant_provider),
+        constant_provider,
+    )
+    provider.collect_testcases(seed_modules_path)
 
-    seeded_testcase = initialpopulationseeding.seeded_testcase
+    seeded_testcase = provider.random_testcase()
     assert isinstance(seeded_testcase, dtc.DefaultTestCase)
 
 
@@ -105,10 +111,10 @@ def test_get_seeded_testcase(
         pytest.param("classseed", 6, "not empty!", 0),
     ],
 )
-@mock.patch("pynguin.utils.randomness.next_int")
+@mock.patch("pynguin.utils.randomness.choice")
 def test_collect_different_types(
     rand_mock,
-    clear_ips_instance,
+    constant_provider,
     seed_modules_path,
     dummy_test_cluster,
     module_name,
@@ -117,13 +123,18 @@ def test_collect_different_types(
     testcase_pos,
 ):
     config.configuration.module_name = module_name
-    initialpopulationseeding.test_cluster = dummy_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
-    rand_mock.return_value = testcase_pos
 
-    seeded_testcase = initialpopulationseeding.seeded_testcase
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster,
+        tf.TestFactory(dummy_test_cluster, constant_provider),
+        constant_provider,
+    )
+    provider.collect_testcases(seed_modules_path)
+    rand_mock.side_effect = lambda x: x[testcase_pos]
+
+    seeded_testcase = provider.random_testcase()
     assert seeded_testcase is not None
-    assert next(iter(seeded_testcase.statements[position].assertions)).object == result
+    assert seeded_testcase.statements[position].assertions[0].object == result
 
 
 @pytest.mark.parametrize(
@@ -135,10 +146,10 @@ def test_collect_different_types(
         pytest.param(0, 1, 3),
     ],
 )
-@mock.patch("pynguin.utils.randomness.next_int")
+@mock.patch("pynguin.utils.randomness.choice")
 def test_create_assertion(
     rand_mock,
-    clear_ips_instance,
+    constant_provider,
     seed_modules_path,
     dummy_test_cluster,
     num_assertions,
@@ -146,11 +157,15 @@ def test_create_assertion(
     testcase_pos,
 ):
     config.configuration.module_name = "assertseed"
-    initialpopulationseeding.test_cluster = dummy_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
-    rand_mock.return_value = testcase_pos
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster,
+        tf.TestFactory(dummy_test_cluster, constant_provider),
+        constant_provider,
+    )
+    provider.collect_testcases(seed_modules_path)
+    rand_mock.side_effect = lambda x: x[testcase_pos]
 
-    seeded_testcase = initialpopulationseeding.seeded_testcase
+    seeded_testcase = provider.random_testcase()
     assert len(seeded_testcase.statements[position].assertions) == num_assertions
 
 
@@ -164,65 +179,57 @@ def test_create_assertion(
     ],
 )
 def test_not_working_cases(
-    clear_ips_instance, seed_modules_path, dummy_test_cluster, module_name
+    constant_provider, seed_modules_path, dummy_test_cluster, module_name
 ):
     config.configuration.module_name = module_name
-    initialpopulationseeding.test_cluster = dummy_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster,
+        tf.TestFactory(dummy_test_cluster, constant_provider),
+        constant_provider,
+    )
+    provider.collect_testcases(seed_modules_path)
 
-    assert not initialpopulationseeding._testcases
-
-
-@mock.patch("pynguin.utils.randomness.next_int")
-def test_generator_with_init_pop_seeding(
-    rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
-):
-    rand_mock.return_value = 2
-    initialpopulationseeding.test_cluster = dummy_test_cluster
-    config.configuration.module_name = "primitiveseed"
-    config.configuration.seeding.initial_population_seeding = True
-    config.configuration.seeding.initial_population_data = seed_modules_path
-    gen.set_configuration(config.configuration)
-    gen._setup_initial_population_seeding(dummy_test_cluster)
-    seeded_testcase = initialpopulationseeding.seeded_testcase
-    assert initialpopulationseeding.has_tests
-    assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
+    assert len(provider) == 0
 
 
-@mock.patch("pynguin.utils.randomness.next_int")
+@mock.patch("pynguin.utils.randomness.choice")
 def test_seeded_test_case_factory_no_delegation(
-    rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
+    rand_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
-    rand_mock.return_value = 2
-    initialpopulationseeding.test_cluster = dummy_test_cluster
+    rand_mock.side_effect = lambda x: x[2]
+    test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster, test_factory, constant_provider
+    )
     config.configuration.module_name = "primitiveseed"
     config.configuration.seeding.initial_population_seeding = True
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 1.0
-    initialpopulationseeding.collect_testcases(seed_modules_path)
-    test_factory = TestFactory(dummy_test_cluster)
+    provider.collect_testcases(seed_modules_path)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
-    test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
+    test_case_factory = tcf.SeededTestCaseFactory(delegate, provider)
 
     seeded_testcase = test_case_factory.get_test_case()
     assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
 
 
-@mock.patch("pynguin.utils.randomness.next_int")
+@mock.patch("pynguin.utils.randomness.choice")
 def test_seeded_test_case_factory_with_delegation(
-    rand_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
+    rand_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
-    rand_mock.return_value = 2
-    initialpopulationseeding.test_cluster = dummy_test_cluster
+    rand_mock.side_effect = lambda x: x[2]
+    test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster, test_factory, constant_provider
+    )
     config.configuration.module_name = "primitiveseed"
     config.configuration.seeding.initial_population_seeding = True
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 0.0
-    initialpopulationseeding.collect_testcases(seed_modules_path)
-    test_factory = TestFactory(dummy_test_cluster)
+    provider.collect_testcases(seed_modules_path)
     delegate = tcf.RandomLengthTestCaseFactory(test_factory)
     delegate.get_test_case = MagicMock()
-    test_case_factory = tcf.SeededTestCaseFactory(delegate, test_factory)
+    test_case_factory = tcf.SeededTestCaseFactory(delegate, provider)
     test_case_factory.get_test_case()
     delegate.get_test_case.assert_called_once()
 
@@ -236,34 +243,47 @@ def test_seeded_test_case_factory_with_delegation(
 )
 @mock.patch("pynguin.testcase.execution.TestCaseExecutor")
 def test_algorithm_generation_factory(
-    mock_class, dummy_test_cluster, enabled, fac_type
+    mock_class, constant_provider, dummy_test_cluster, enabled, fac_type
 ):
     config.configuration.seeding.initial_population_seeding = enabled
     config.configuration.algorithm = config.Algorithm.MIO
     tsfactory = TestSuiteGenerationAlgorithmFactory(
-        mock_class.return_value, dummy_test_cluster
+        mock_class.return_value, dummy_test_cluster, constant_provider
     )
-    chromosome_factory = tsfactory._get_chromosome_factory(
-        MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
-    )
+    with mock.patch(
+        "pynguin.analyses.seeding.InitialPopulationProvider.__len__"
+    ) as len_mock:
+        len_mock.return_value = 1
+        chromosome_factory = tsfactory._get_chromosome_factory(
+            MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
+        )
     test_case_factory = chromosome_factory._test_case_factory
     assert type(test_case_factory) == fac_type
 
 
 @mock.patch("ast.parse")
-def test_module_not_readable(parse_mock, clear_ips_instance, seed_modules_path):
+def test_module_not_readable(
+    parse_mock, constant_provider, seed_modules_path, dummy_test_cluster
+):
+    test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster, test_factory, constant_provider
+    )
     parse_mock.side_effect = BaseException
-    initialpopulationseeding.collect_testcases(seed_modules_path)
+    provider.collect_testcases(seed_modules_path)
 
-    assert not initialpopulationseeding._testcases
+    assert len(provider) == 0
 
 
 @mock.patch("pynguin.ga.testcasechromosome.TestCaseChromosome.mutate")
 def test_initial_mutation(
-    mutate_mock, clear_ips_instance, seed_modules_path, dummy_test_cluster
+    mutate_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
     config.configuration.seeding.initial_population_mutations = 2
     config.configuration.module_name = "primitiveseed"
-    initialpopulationseeding.test_cluster = dummy_test_cluster
-    initialpopulationseeding.collect_testcases(seed_modules_path)
+    test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
+    provider = seeding.InitialPopulationProvider(
+        dummy_test_cluster, test_factory, constant_provider
+    )
+    provider.collect_testcases(seed_modules_path)
     mutate_mock.assert_called()
