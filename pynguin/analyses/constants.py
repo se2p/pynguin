@@ -179,7 +179,6 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         Args:
             value: The observed
         """
-        print(value)
         if isinstance(value, bool):
             return
         if not isinstance(value, (str, int, float)):
