@@ -1656,10 +1656,19 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         super().__init__(test_case, bytes, value, constant_provider=constant_provider)
 
     def randomize_value(self) -> None:
-        length = randomness.next_int(
-            0, config.configuration.test_creation.bytes_length + 1
-        )
-        self._value = randomness.next_bytes(length)
+        if (
+            self._constant_provider
+            and randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(bytes))
+            is not None
+        ):
+            self._value = seeded_value
+        else:
+            length = randomness.next_int(
+                0, config.configuration.test_creation.bytes_length + 1
+            )
+            self._value = randomness.next_bytes(length)
 
     def delta(self) -> None:
         assert self._value is not None

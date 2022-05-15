@@ -23,10 +23,11 @@ from setuptools import find_packages
 
 from pynguin.utils import randomness
 
-ConstantTypes = typing.Union[float, int, str]
+# Used for type hinting and for restricting stored types
+ConstantTypes = float | int | str | bytes
 
-
-T = typing.TypeVar("T", float, int, str)
+# Used for generic type hinting
+T = typing.TypeVar("T", float, int, str, bytes)
 
 
 logger = logging.getLogger(__name__)
@@ -38,9 +39,7 @@ class ConstantPool:
 
     def __init__(self):
         self._constants: dict[type[ConstantTypes], OrderedSet[ConstantTypes]] = {
-            int: OrderedSet(),
-            float: OrderedSet(),
-            str: OrderedSet(),
+            tp_: OrderedSet() for tp_ in typing.get_args(ConstantTypes)
         }
 
     def add_constant(self, constant: ConstantTypes) -> None:
@@ -179,11 +178,8 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         Args:
             value: The observed
         """
-        if isinstance(value, bool):
-            return
-        if not isinstance(value, (str, int, float)):
-            return
-        self._pool.add_constant(value)
+        if type(value) in typing.get_args(ConstantTypes):
+            self._pool.add_constant(value)
 
     def add_value_for_strings(self, value: str, name: str):
         """Entry point for the instrumented code. Add a value of a string.
@@ -192,10 +188,9 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The value
             name: The string
         """
-        if not isinstance(value, str):
-            return
-        self._pool.add_constant(value)
-        self._pool.add_constant(self.STRING_FUNCTION_LOOKUP[name](value))
+        if type(value) is str:  # pylint:disable=unidiomatic-typecheck
+            self._pool.add_constant(value)
+            self._pool.add_constant(self.STRING_FUNCTION_LOOKUP[name](value))
 
 
 def _find_modules_with_constants(project_path: str | os.PathLike) -> OrderedSet[str]:
@@ -249,12 +244,14 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
 
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
+    """AST visitor that collects constants"""
+
     def __init__(self) -> None:
         self._pool = ConstantPool()
         self._string_expressions: OrderedSet[str] = OrderedSet()
 
     def visit_Constant(self, node: ast.Constant):
-        if isinstance(node.value, (str, float, int)):
+        if type(node.value) in typing.get_args(ConstantTypes):
             self._pool.add_constant(node.value)
         return self.generic_visit(node)
 
