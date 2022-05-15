@@ -12,7 +12,7 @@ def dummy():
     foo = "bar"  # noqa
     bar = 23  # noqa
     baz = 42.23  # noqa
-    bart = b'42'  # noqa
+    bart = b"42"  # noqa
 
 
 class Dummy:
@@ -21,4 +21,4 @@ class Dummy:
     _foo = "foo"
     _bar = 42
     _baz = 42.23
-    _bart = b'42.5'
+    _bart = b"42.5"
