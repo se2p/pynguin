@@ -16,6 +16,7 @@ from typing_inspect import get_args, get_origin
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.type_utils import (
@@ -42,8 +43,15 @@ class TestFactory:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_cluster: ModuleTestCluster):
+    def __init__(
+        self,
+        test_cluster: ModuleTestCluster,
+        constant_provider: ConstantProvider | None = None,
+    ):
         self._test_cluster = test_cluster
+        if constant_provider is None:
+            constant_provider = EmptyConstantProvider()
+        self._constant_provider: ConstantProvider = constant_provider
 
     def append_statement(
         self,
@@ -1130,6 +1138,7 @@ class TestFactory:
                 parameter_type,
                 position,
                 recursion_depth,
+                constant_provider=self._constant_provider,
             )
         if is_collection_type(parameter_type):
             return self._create_collection(
@@ -1196,17 +1205,26 @@ class TestFactory:
         parameter_type: type,
         position: int,
         recursion_depth: int,
+        constant_provider: ConstantProvider,
     ) -> vr.VariableReference:
         if parameter_type == int:
-            statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(test_case)
+            statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(
+                test_case, constant_provider=constant_provider
+            )
         elif parameter_type == float:
-            statement = stmt.FloatPrimitiveStatement(test_case)
+            statement = stmt.FloatPrimitiveStatement(
+                test_case, constant_provider=constant_provider
+            )
         elif parameter_type == bool:
             statement = stmt.BooleanPrimitiveStatement(test_case)
         elif parameter_type == bytes:
-            statement = stmt.BytesPrimitiveStatement(test_case)
+            statement = stmt.BytesPrimitiveStatement(
+                test_case, constant_provider=constant_provider
+            )
         else:
-            statement = stmt.StringPrimitiveStatement(test_case)
+            statement = stmt.StringPrimitiveStatement(
+                test_case, constant_provider=constant_provider
+            )
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
         return ret

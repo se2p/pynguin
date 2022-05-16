@@ -11,22 +11,15 @@ import ast
 import inspect
 import logging
 import os
-from abc import abstractmethod
-from pathlib import Path
-from pkgutil import iter_modules
-from typing import TYPE_CHECKING, Any, AnyStr, Union, cast
-
-from _py_abc import ABCMeta
-from ordered_set import OrderedSet
-from setuptools import find_packages
+from typing import TYPE_CHECKING, Any, AnyStr, cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.constants import ConstantProvider
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -39,318 +32,37 @@ from pynguin.utils.type_utils import is_assertable
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
+    import pynguin.testcase.testfactory as tf
     import pynguin.testcase.variablereference as vr
     from pynguin.analyses.module import ModuleTestCluster
 
-Types = Union[float, int, str]
+
 logger = logging.getLogger(__name__)
 
 
-class _ConstantSeeding(metaclass=ABCMeta):
-    """An abstract base class for constant seeding strategies."""
-
-    @property
-    def has_strings(self) -> bool:
-        """Whether we have some strings collected.
-
-        Returns:
-            Whether we have some strings collected
-        """
-        return self.has_constants(str)
-
-    @property
-    def has_ints(self) -> bool:
-        """Whether we have some ints collected.
-
-        Returns:
-            Whether we have some ints collected
-        """
-        return self.has_constants(int)
-
-    @property
-    def has_floats(self) -> bool:
-        """Whether we have some floats collected.
-
-        Returns:
-            Whether we have some floats collected
-        """
-        return self.has_constants(float)
-
-    @abstractmethod
-    def has_constants(self, type_: type[Types]) -> bool:
-        """Returns whether a constant of a given type exists in the pool.
-
-        Args:
-            type_: The type of the constant
-
-        Returns:
-            Whether a constant of the given type exists  # noqa: DAR202
-        """
-
-    @property
-    def random_string(self) -> str:
-        """Provides a random string from the set of collected strings.
-
-        Returns:
-            A random string
-        """
-        return cast(str, self.random_element(str))
-
-    @property
-    def random_int(self) -> int:
-        """Provides a random int from the set of collected ints.
-
-        Returns:
-            A random int
-        """
-        return cast(int, self.random_element(int))
-
-    @property
-    def random_float(self) -> float:
-        """Provides a random float from the set of collected floats.
-
-        Returns:
-            A random float
-        """
-        return cast(float, self.random_element(float))
-
-    @abstractmethod
-    def random_element(self, type_: type[Types]) -> Types:
-        """Provides a random element of the given type
-
-        Args:
-            type_: The given type
-
-        Returns:
-            A random element of the given type
-        """
-
-
-class _StaticConstantSeeding(_ConstantSeeding):
-    """A simple static constant seeding strategy.
-
-    Extracts all constants from a set of modules by using an AST visitor.
-    """
-
-    def __init__(self) -> None:
-        self._constants: dict[type[Types], OrderedSet[Types]] = {
-            int: OrderedSet(),
-            float: OrderedSet(),
-            str: OrderedSet(),
-        }
-
-    @staticmethod
-    def _find_modules(project_path: str | os.PathLike) -> OrderedSet[str]:
-        modules: OrderedSet[str] = OrderedSet()
-        for package in find_packages(
-            project_path,
-            exclude=[
-                "*.tests",
-                "*.tests.*",
-                "tests.*",
-                "tests",
-                "test",
-                "test.*",
-                "*.test.*",
-                "*.test",
-            ],
-        ):
-            package_name = package.replace(".", "/")
-            pkg_path = f"{project_path}/{package_name}"
-            for info in iter_modules([pkg_path]):
-                if not info.ispkg:
-                    name = info.name.replace(".", "/")
-                    module = f"{package_name}/{name}.py"
-                    module_path = Path(project_path) / Path(module)
-                    if module_path.exists() and module_path.is_file():
-                        # Consider only Python files for constant seeding, as the
-                        # seeding relies on the availability of an AST.
-                        modules.add(module)
-        return modules
-
-    def collect_constants(
-        self, project_path: str | os.PathLike
-    ) -> dict[type[Types], OrderedSet[Types]]:
-        """Collect all constants for a given project.
-
-        Args:
-            project_path: The path to the project's root
-
-        Returns:
-            A dict of type to set of constants
-        """
-        assert self._constants is not None
-        collector = _ConstantCollector()
-        for module in self._find_modules(project_path):
-            with open(
-                os.path.join(project_path, module), encoding="utf-8"
-            ) as module_file:
-                try:
-                    tree = ast.parse(module_file.read())
-                    collector.visit(tree)
-                except BaseException as exception:  # pylint: disable=broad-except
-                    logger.exception("Cannot collect constants: %s", exception)
-        self._constants = collector.constants
-        return self._constants
-
-    def has_constants(self, type_: type[Types]) -> bool:
-        assert self._constants is not None
-        return len(self._constants[type_]) > 0
-
-    def random_element(self, type_: type[Types]) -> Types:
-        assert self._constants is not None
-        return randomness.choice(tuple(self._constants[type_]))
-
-
-# pylint: disable=invalid-name, missing-function-docstring
-class _ConstantCollector(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self._constants: dict[type[Types], OrderedSet[Types]] = {
-            float: OrderedSet(),
-            int: OrderedSet(),
-            str: OrderedSet(),
-        }
-        self._string_expressions: OrderedSet[str] = OrderedSet()
-
-    def visit_Constant(self, node: ast.Constant) -> Any:
-        if isinstance(node.value, str):
-            self._constants[str].add(node.value)
-        elif isinstance(node.value, float):
-            self._constants[float].add(node.value)
-        elif isinstance(node.value, int):
-            self._constants[int].add(node.value)
-        return self.generic_visit(node)
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        return self._visit_doc_string(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        return self._visit_doc_string(node)
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        return self._visit_doc_string(node)
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Any:
-        return self._visit_doc_string(node)
-
-    def _visit_doc_string(self, node: ast.AST) -> Any:
-        if docstring := ast.get_docstring(node):
-            self._string_expressions.add(docstring)
-        return self.generic_visit(node)
-
-    @property
-    def constants(self) -> dict[type[Types], OrderedSet[Types]]:
-        """Provides the collected constants.
-
-        Returns:
-            The collected constants
-        """
-        self._remove_docstrings()
-        return self._constants
-
-    def _remove_docstrings(self) -> None:
-        self._constants[str] -= self._string_expressions  # type: ignore
-
-
-class DynamicConstantSeeding(_ConstantSeeding):
-    """Provides a dynamic pool and methods to add and retrieve values.
-
-    The methods in this class are added to the module under test during an instruction
-    phase before the main algorithm is executed. During this instruction phase,
-    bytecode is added to the module under test which executes the methods adding
-    values to the dynamic pool. The instrumentation is implemented in the module
-    dynamicseedinginstrumentation.py.
-
-    During the test generation process when a new value of one of the supported types
-    is needed, this module provides methods to get values from the dynamic pool
-    instead of randomly generating a new one.
-    """
-
-    _string_functions_lookup = {
-        "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
-        "islower": lambda value: value.upper() if value.islower() else value.lower(),
-        "isupper": lambda value: value.lower() if value.isupper() else value.upper(),
-        "isdecimal": lambda value: "non_decimal" if value.isdecimal() else "0123456789",
-        "isalpha": lambda value: f"{value}1" if value.isalpha() else "isalpha",
-        "isdigit": lambda value: f"{value}_" if value.isdigit() else "0",
-        "isidentifier": lambda value: f"{value}!"
-        if value.isidentifier()
-        else "is_Identifier",
-        "isnumeric": lambda value: f"{value}A" if value.isnumeric() else "012345",
-        "isprintable": lambda value: f"{value}{os.linesep}"
-        if value.isprintable()
-        else "is_printable",
-        "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
-        "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
-    }
-
-    def __init__(self):
-        self._dynamic_pool: dict[type[Types], OrderedSet[Types]] = {
-            int: OrderedSet(),
-            float: OrderedSet(),
-            str: OrderedSet(),
-        }
-
-    def reset(self) -> None:
-        """Delete all currently stored dynamic constants"""
-        for elem in self._dynamic_pool.values():
-            elem.clear()
-
-    def has_constants(self, type_: type[Types]) -> bool:
-        assert type_ in self._dynamic_pool
-        return len(self._dynamic_pool[type_]) > 0
-
-    def random_element(self, type_: type[Types]) -> Types:
-        return randomness.choice(tuple(self._dynamic_pool[type_]))
-
-    def add_value(self, value: Types):
-        """Adds the given value to the corresponding set of the dynamic pool.
-
-        Args:
-            value: The value to add.
-        """
-        if isinstance(
-            value, bool
-        ):  # needed because True and False are accepted as ints otherwise
-            return
-        if type(value) in self._dynamic_pool:
-            self._dynamic_pool[type(value)].add(value)
-
-    def add_value_for_strings(self, value: str, name: str):
-        """Add a value of a string.
-
-        Args:
-            value: The value
-            name: The string
-        """
-        if not isinstance(value, str):
-            return
-        self._dynamic_pool[str].add(value)
-        self._dynamic_pool[str].add(self._string_functions_lookup[name](value))
-
-
-class _InitialPopulationSeeding:
+class InitialPopulationProvider:
     """Class for seeding the initial population with previously existing testcases."""
 
-    def __init__(self):
-        self._testcases: list[dtc.DefaultTestCase] = []
-        self._test_cluster: ModuleTestCluster
+    def __init__(
+        self,
+        test_cluster: ModuleTestCluster,
+        test_factory: tf.TestFactory,
+        constant_provider: ConstantProvider,
+    ):
+        """Create new population provider
 
-    @property
-    def test_cluster(self) -> ModuleTestCluster:
-        """Provides the test cluster.
-
-        Returns:
-            The test cluster
+        Args:
+            test_cluster: Test cluster used to construct test cases
+            test_factory: Test factory used to construct test cases
+            constant_provider: Constant provider for primitives
         """
-        return self._test_cluster
-
-    @test_cluster.setter
-    def test_cluster(self, test_cluster: ModuleTestCluster):
-        self._test_cluster = test_cluster
+        self._testcases: list[dtc.DefaultTestCase] = []
+        self._test_cluster: ModuleTestCluster = test_cluster
+        self._test_factory: tf.TestFactory = test_factory
+        self._constant_provider: ConstantProvider = constant_provider
 
     @staticmethod
-    def get_ast_tree(module_path: AnyStr | os.PathLike[AnyStr]) -> ast.Module | None:
+    def _get_ast_tree(module_path: AnyStr | os.PathLike[AnyStr]) -> ast.Module | None:
 
         """Returns the ast tree from a module
 
@@ -390,26 +102,19 @@ class _InitialPopulationSeeding:
         Args:
             module_path: Path to the module to collect the test cases from
         """
-        tree = self.get_ast_tree(module_path)
+        tree = self._get_ast_tree(module_path)
         if tree is None:
-            config.configuration.seeding.initial_population_seeding = False
             logger.info("Provided testcases are not used.")
             return
         transformer = AstToTestCaseTransformer(
             self._test_cluster,
             config.configuration.test_case_output.assertion_generation
             != config.AssertionGenerator.NONE,
+            constant_provider=self._constant_provider,
         )
         transformer.visit(tree)
         self._testcases = transformer.testcases
         stat.track_output_variable(RuntimeVariable.FoundTestCases, len(self._testcases))
-        if not self._testcases:
-            config.configuration.seeding.initial_population_seeding = False
-            logger.info("None of the provided test cases can be parsed.")
-        else:
-            logger.info(
-                "Number successfully collected test cases: %s", len(self._testcases)
-            )
         stat.track_output_variable(
             RuntimeVariable.CollectedTestCases, len(self._testcases)
         )
@@ -417,31 +122,28 @@ class _InitialPopulationSeeding:
 
     def _mutate_testcases_initially(self):
         """Mutates the initial population."""
-        test_factory = tf.TestFactory(self.test_cluster)
         for _ in range(0, config.configuration.seeding.initial_population_mutations):
             for testcase in self._testcases:
-                testcase_wrapper = tcc.TestCaseChromosome(testcase, test_factory)
+                testcase_wrapper = tcc.TestCaseChromosome(testcase, self._test_factory)
                 testcase_wrapper.mutate()
                 if not testcase_wrapper.test_case.statements:
                     self._testcases.remove(testcase)
 
-    @property
-    def seeded_testcase(self) -> dtc.DefaultTestCase:
+    def random_testcase(self) -> tc.TestCase:
         """Provides a random seeded test case.
 
         Returns:
             A random test case
         """
-        return self._testcases[randomness.next_int(0, len(self._testcases))]
+        return randomness.choice(self._testcases)
 
-    @property
-    def has_tests(self) -> bool:
-        """Whether or not test cases have been found.
+    def __len__(self) -> int:
+        """Number of parsed test cases.
 
         Returns:
-            Whether or not test cases have been found
+            Number of parsed test cases
         """
-        return len(self._testcases) > 0
+        return len(self._testcases)
 
 
 def create_assign_stmt(
@@ -449,6 +151,7 @@ def create_assign_stmt(
     testcase: tc.TestCase,
     ref_dict: dict[str, vr.VariableReference],
     test_cluster: ModuleTestCluster,
+    constant_provider: ConstantProvider,
 ) -> tuple[str, stmt.VariableCreatingStatement] | None:
     """Creates the corresponding statement from an ast.Assign node.
 
@@ -458,6 +161,7 @@ def create_assign_stmt(
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references.
         test_cluster: The test cluster that is used to resolve classes, methods, etc.
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding statement or None if no statement type matches.
@@ -469,16 +173,28 @@ def create_assign_stmt(
         o for o in objs_under_test if isinstance(o, GenericCallableAccessibleObject)
     }
     if isinstance(value, ast.Constant):
-        new_stmt = create_stmt_from_constant(value, testcase)
+        new_stmt = create_stmt_from_constant(
+            value, testcase, constant_provider=constant_provider
+        )
     elif isinstance(value, ast.UnaryOp):
-        new_stmt = create_stmt_from_unaryop(value, testcase)
+        new_stmt = create_stmt_from_unaryop(
+            value, testcase, constant_provider=constant_provider
+        )
     elif isinstance(value, ast.Call):
         new_stmt = create_stmt_from_call(
-            value, testcase, callable_objects_under_test, ref_dict
+            value,
+            testcase,
+            callable_objects_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
         new_stmt = create_stmt_from_collection(
-            value, testcase, callable_objects_under_test, ref_dict
+            value,
+            testcase,
+            callable_objects_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     else:
         logger.info("Assign statement could not be parsed.")
@@ -612,13 +328,14 @@ def create_variable_references_from_call_args(
 
 # pylint: disable=too-many-return-statements
 def create_stmt_from_constant(
-    constant: ast.Constant, testcase: tc.TestCase
+    constant: ast.Constant, testcase: tc.TestCase, constant_provider: ConstantProvider
 ) -> stmt.VariableCreatingStatement | None:
     """Creates a statement from an ast.constant node.
 
     Args:
         constant: the ast.Constant statement
         testcase: the testcase containing the statement
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding statement.
@@ -630,25 +347,34 @@ def create_stmt_from_constant(
     if isinstance(val, bool):
         return stmt.BooleanPrimitiveStatement(testcase, val)
     if isinstance(val, int):
-        return stmt.IntPrimitiveStatement(testcase, val)
+        return stmt.IntPrimitiveStatement(
+            testcase, val, constant_provider=constant_provider
+        )
     if isinstance(val, float):
-        return stmt.FloatPrimitiveStatement(testcase, val)
+        return stmt.FloatPrimitiveStatement(
+            testcase, val, constant_provider=constant_provider
+        )
     if isinstance(val, str):
-        return stmt.StringPrimitiveStatement(testcase, val)
+        return stmt.StringPrimitiveStatement(
+            testcase, val, constant_provider=constant_provider
+        )
     if isinstance(val, bytes):
-        return stmt.BytesPrimitiveStatement(testcase, val)
+        return stmt.BytesPrimitiveStatement(
+            testcase, val, constant_provider=constant_provider
+        )
     logger.info("Could not find case for constant while handling assign statement.")
     return None
 
 
 def create_stmt_from_unaryop(
-    unaryop: ast.UnaryOp, testcase: tc.TestCase
+    unaryop: ast.UnaryOp, testcase: tc.TestCase, constant_provider: ConstantProvider
 ) -> stmt.VariableCreatingStatement | None:
     """Creates a statement from an ast.unaryop node.
 
     Args:
         unaryop: the ast.UnaryOp statement
         testcase: the testcase containing the statement
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding statement.
@@ -657,9 +383,13 @@ def create_stmt_from_unaryop(
     if isinstance(val, bool):
         return stmt.BooleanPrimitiveStatement(testcase, not val)
     if isinstance(val, float):
-        return stmt.FloatPrimitiveStatement(testcase, (-1) * val)
+        return stmt.FloatPrimitiveStatement(
+            testcase, (-1) * val, constant_provider=constant_provider
+        )
     if isinstance(val, int):
-        return stmt.IntPrimitiveStatement(testcase, (-1) * val)
+        return stmt.IntPrimitiveStatement(
+            testcase, (-1) * val, constant_provider=constant_provider
+        )
     logger.info(
         "Could not find case for unary operator while handling assign statement."
     )
@@ -671,6 +401,7 @@ def create_stmt_from_call(
     testcase: tc.TestCase,
     objs_under_test: set[GenericCallableAccessibleObject],
     ref_dict: dict[str, vr.VariableReference],
+    constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
     """Creates the corresponding statement from an ast.call node. Depending on the call,
     this can be a GenericConstructor, GenericMethod or GenericFunction statement.
@@ -681,6 +412,7 @@ def create_stmt_from_call(
         objs_under_test: the accessible objects under test
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references.
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding statement.
@@ -689,7 +421,11 @@ def create_stmt_from_call(
         call.func.attr  # type: ignore
     except AttributeError:
         return try_generating_specific_function(
-            call, testcase, objs_under_test, ref_dict
+            call,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     gen_callable = find_gen_callable(call, objs_under_test, ref_dict)
     if gen_callable is None:
@@ -805,6 +541,7 @@ def create_stmt_from_collection(
     testcase: tc.TestCase,
     objs_under_test: set[GenericCallableAccessibleObject],
     ref_dict: dict[str, vr.VariableReference],
+    constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
     """Creates the corresponding statement from an ast.List node. Lists contain other
     statements.
@@ -818,6 +555,7 @@ def create_stmt_from_collection(
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references. Not needed for the collection statement, but
                   lists can contain other statements (e.g. call) needing this.
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding list statement.
@@ -827,15 +565,33 @@ def create_stmt_from_collection(
         | list[tuple[vr.VariableReference, vr.VariableReference]]
     )
     if isinstance(coll_node, ast.Dict):
-        keys = create_elements(coll_node.keys, testcase, objs_under_test, ref_dict)
-        values = create_elements(coll_node.values, testcase, objs_under_test, ref_dict)
+        keys = create_elements(
+            coll_node.keys,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
+        )
+        values = create_elements(
+            coll_node.values,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
+        )
         if keys is None or values is None:
             return None
         coll_elems_type = get_collection_type(values)
         coll_elems = list(zip(keys, values))
     else:
         elements = coll_node.elts
-        coll_elems = create_elements(elements, testcase, objs_under_test, ref_dict)
+        coll_elems = create_elements(
+            elements,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
+        )
         if coll_elems is None:
             return None
         coll_elems_type = get_collection_type(coll_elems)
@@ -849,6 +605,7 @@ def create_elements(
     testcase: tc.TestCase,
     objs_under_test: set[GenericCallableAccessibleObject],
     ref_dict: dict[str, vr.VariableReference],
+    constant_provider: ConstantProvider,
 ) -> list[vr.VariableReference] | None:
     """Creates the elements of a collection by calling the corresponding methods for
     creation. This can be recursive.
@@ -859,6 +616,7 @@ def create_elements(
         objs_under_test: A set of generic accessible objects under test
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references
+        constant_provider: Constant provider for primitives
 
     Returns:
         A list of variable references or None if something goes wrong while creating the
@@ -868,23 +626,37 @@ def create_elements(
     for elem in elements:
         statement: stmt.VariableCreatingStatement | None
         if isinstance(elem, ast.Constant):
-            statement = create_stmt_from_constant(elem, testcase)
+            statement = create_stmt_from_constant(
+                elem, testcase, constant_provider=constant_provider
+            )
             if not statement:
                 return None
             coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, ast.UnaryOp):
-            statement = create_stmt_from_unaryop(elem, testcase)
+            statement = create_stmt_from_unaryop(
+                elem, testcase, constant_provider=constant_provider
+            )
             if not statement:
                 return None
             coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, ast.Call):
-            statement = create_stmt_from_call(elem, testcase, objs_under_test, ref_dict)
+            statement = create_stmt_from_call(
+                elem,
+                testcase,
+                objs_under_test,
+                ref_dict,
+                constant_provider=constant_provider,
+            )
             if not statement:
                 return None
             coll_elems.append(testcase.add_variable_creating_statement(statement))
         elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
             statement = create_stmt_from_collection(
-                elem, testcase, objs_under_test, ref_dict
+                elem,
+                testcase,
+                objs_under_test,
+                ref_dict,
+                constant_provider=constant_provider,
             )
             if not statement:
                 return None
@@ -955,6 +727,7 @@ def try_generating_specific_function(
     testcase: tc.TestCase,
     objs_under_test: set[GenericCallableAccessibleObject],
     ref_dict: dict[str, vr.VariableReference],
+    constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
     """Calls to creating a collection (list, set, tuple, dict) via their keywords and
     not via literal syntax are considered as ast.Call statements. But for these calls,
@@ -968,6 +741,7 @@ def try_generating_specific_function(
         objs_under_test: the accessible objects under test
         ref_dict: a dictionary containing key value pairs of variable ids and
                   variable references.
+        constant_provider: Constant provider for primitives
 
     Returns:
         The corresponding statement.
@@ -986,7 +760,11 @@ def try_generating_specific_function(
         except AttributeError:
             return None
         return create_stmt_from_collection(
-            set_node, testcase, objs_under_test, ref_dict
+            set_node,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     if func_id == "list":
         try:
@@ -997,7 +775,11 @@ def try_generating_specific_function(
         except AttributeError:
             return None
         return create_stmt_from_collection(
-            list_node, testcase, objs_under_test, ref_dict
+            list_node,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     if func_id == "tuple":
         try:
@@ -1008,7 +790,11 @@ def try_generating_specific_function(
         except AttributeError:
             return None
         return create_stmt_from_collection(
-            tuple_node, testcase, objs_under_test, ref_dict
+            tuple_node,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     if func_id == "dict":
         try:
@@ -1020,17 +806,26 @@ def try_generating_specific_function(
         except AttributeError:
             return None
         return create_stmt_from_collection(
-            dict_node, testcase, objs_under_test, ref_dict
+            dict_node,
+            testcase,
+            objs_under_test,
+            ref_dict,
+            constant_provider=constant_provider,
         )
     return None
 
 
-# pylint: disable=invalid-name, missing-function-docstring
+# pylint: disable=invalid-name, missing-function-docstring, too-many-instance-attributes
 class AstToTestCaseTransformer(ast.NodeVisitor):
     """An AST NodeVisitor that tries to convert an AST into our internal
     test case representation."""
 
-    def __init__(self, test_cluster: ModuleTestCluster, create_assertions: bool):
+    def __init__(
+        self,
+        test_cluster: ModuleTestCluster,
+        create_assertions: bool,
+        constant_provider: ConstantProvider,
+    ):
         self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
         self._current_parsable: bool = True
         self._var_refs: dict[str, vr.VariableReference] = {}
@@ -1038,6 +833,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         self._number_found_testcases: int = 0
         self._test_cluster = test_cluster
         self._create_assertions = create_assertions
+        self._constant_provider = constant_provider
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._number_found_testcases += 1
@@ -1052,7 +848,11 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         if self._current_parsable:
             if (
                 result := create_assign_stmt(
-                    node, self._current_testcase, self._var_refs, self._test_cluster
+                    node,
+                    self._current_testcase,
+                    self._var_refs,
+                    self._test_cluster,
+                    self._constant_provider,
                 )
             ) is None:
                 self._current_parsable = False
@@ -1079,8 +879,3 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
             The generated testcases.
         """
         return self._testcases
-
-
-initialpopulationseeding = _InitialPopulationSeeding()
-static_constant_seeding = _StaticConstantSeeding()
-dynamic_constant_seeding = DynamicConstantSeeding()

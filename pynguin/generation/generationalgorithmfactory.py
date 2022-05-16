@@ -25,7 +25,9 @@ import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
+from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
+from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
@@ -129,9 +131,17 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Selection.RANK_SELECTION: RankSelection,
     }
 
-    def __init__(self, executor: TestCaseExecutor, test_cluster: ModuleTestCluster):
+    def __init__(
+        self,
+        executor: TestCaseExecutor,
+        test_cluster: ModuleTestCluster,
+        constant_provider: ConstantProvider | None = None,
+    ):
         self._executor = executor
         self._test_cluster = test_cluster
+        if constant_provider is None:
+            constant_provider = EmptyConstantProvider()
+        self._constant_provider: ConstantProvider = constant_provider
 
     def _get_chromosome_factory(
         self, strategy: TestGenerationStrategy
@@ -150,9 +160,22 @@ class TestSuiteGenerationAlgorithmFactory(
         )
         if config.configuration.seeding.initial_population_seeding:
             self._logger.info("Using population seeding")
-            test_case_factory = tcf.SeededTestCaseFactory(
-                test_case_factory, strategy.test_factory
+            population_provider = InitialPopulationProvider(
+                test_cluster=self._test_cluster,
+                test_factory=strategy.test_factory,
+                constant_provider=self._constant_provider,
             )
+            self._logger.info("Collecting and parsing provided testcases.")
+            population_provider.collect_testcases(
+                config.configuration.seeding.initial_population_data
+            )
+            if len(population_provider) == 0:
+                self._logger.info("Could not parse any test case")
+            else:
+                self._logger.info("Parsed testcases: %s", len(population_provider))
+                test_case_factory = tcf.SeededTestCaseFactory(
+                    test_case_factory, population_provider
+                )
         test_case_chromosome_factory: cf.ChromosomeFactory = (
             tccf.TestCaseChromosomeFactory(
                 strategy.test_factory,
@@ -199,7 +222,9 @@ class TestSuiteGenerationAlgorithmFactory(
 
         strategy.executor = self._executor
         strategy.test_cluster = self._get_test_cluster(strategy)
-        strategy.test_factory = self._get_test_factory(strategy)
+        strategy.test_factory = self._get_test_factory(
+            strategy, self._constant_provider
+        )
         chromosome_factory = self._get_chromosome_factory(strategy)
         strategy.chromosome_factory = chromosome_factory
 
@@ -368,5 +393,9 @@ class TestSuiteGenerationAlgorithmFactory(
         return self._test_cluster
 
     @staticmethod
-    def _get_test_factory(strategy: TestGenerationStrategy):
-        return tf.TestFactory(strategy.test_cluster)
+    def _get_test_factory(
+        strategy: TestGenerationStrategy, constant_provider: ConstantProvider
+    ):
+        return tf.TestFactory(
+            strategy.test_cluster, constant_provider=constant_provider
+        )
