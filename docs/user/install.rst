@@ -8,16 +8,17 @@ proper installation of a software package is the first step to use it.
 
 Using PIP
 ---------
+.. warning::
+  We highly recommend that you *do not* install Pynguin in your system's or user's
+  Python package store; instead we recommend to use a `virtual environment <https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#installing-virtualenv>`_.
+
+  This prevents issues between your system's package store and Pynguin's dependencies -
+  which can easily cause version conflicts with other Python packages.
 
 The easiest way to obtain Pynguin is by running this command in your terminal of
 choice::
 
    $ pip install pynguin
-
-We highly recommend that you *do not* install Pynguin in your system's or user's
-Python package store; instead we recommend to use a virtual environment.
-This prevents that you spoil your system package store with Pynguin's dependencies,
-which can easily cause version conflicts with other Python packages.
 
 Get the Source Code
 -------------------

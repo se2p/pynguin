@@ -28,7 +28,6 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pynguin.analyses.seeding as seeding  # pylint: disable=consider-using-from-import
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -39,6 +38,14 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.constants import (
+    ConstantPool,
+    ConstantProvider,
+    DelegatingConstantProvider,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+    collect_static_constants,
+)
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.types import TypeInferenceStrategy
 from pynguin.generation import export
@@ -136,10 +143,17 @@ def _setup_path() -> bool:
     return True
 
 
-def _setup_import_hook() -> ExecutionTracer:
+def _setup_import_hook(
+    dynamic_constant_provider: DynamicConstantProvider | None,
+) -> ExecutionTracer:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
     tracer = ExecutionTracer()
-    install_import_hook(config.configuration.module_name, tracer)
+
+    install_import_hook(
+        config.configuration.module_name,
+        tracer,
+        dynamic_constant_provider=dynamic_constant_provider,
+    )
     return tracer
 
 
@@ -182,26 +196,42 @@ def _setup_random_number_generator() -> None:
     randomness.RNG.seed(config.configuration.seeding.seed)
 
 
-def _setup_constant_seeding_collection() -> None:
+def _setup_constant_seeding() -> tuple[
+    ConstantProvider, DynamicConstantProvider | None
+]:
     """Collect constants from SUT, if enabled."""
+    # Use empty provider by default.
+    wrapped_provider: ConstantProvider = EmptyConstantProvider()
+    # We need to return the provider used for dynamic values separately,
+    # because it is later on used to hook up the instrumentation calls.
+    dynamic_constant_provider: DynamicConstantProvider | None = None
     if config.configuration.seeding.constant_seeding:
-        _LOGGER.info("Collecting constants from SUT.")
-        seeding.static_constant_seeding.collect_constants(
-            config.configuration.project_path
+        _LOGGER.info("Collecting static constants from module under test")
+        constant_pool = collect_static_constants(config.configuration.project_path)
+        if len(constant_pool) == 0:
+            _LOGGER.info("No constants found")
+        else:
+            _LOGGER.info("Constants found: %s", len(constant_pool))
+            # Probability of 1.0 -> if a value is requested and available -> return it.
+            wrapped_provider = DelegatingConstantProvider(
+                constant_pool, wrapped_provider, 1.0
+            )
+
+    if config.configuration.seeding.dynamic_constant_seeding:
+        _LOGGER.info("Setting up runtime collection of constants")
+        dynamic_constant_provider = DynamicConstantProvider(
+            ConstantPool(),
+            wrapped_provider,
+            config.configuration.seeding.seeded_dynamic_values_reuse_probability,
         )
+        wrapped_provider = dynamic_constant_provider
+
+    return wrapped_provider, dynamic_constant_provider
 
 
-def _setup_initial_population_seeding(test_cluster: ModuleTestCluster):
-    """Collect and parse tests for seeding the initial population"""
-    if config.configuration.seeding.initial_population_seeding:
-        _LOGGER.info("Collecting and parsing provided testcases.")
-        seeding.initialpopulationseeding.test_cluster = test_cluster
-        seeding.initialpopulationseeding.collect_testcases(
-            config.configuration.seeding.initial_population_data
-        )
-
-
-def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster] | None:
+def _setup_and_check() -> tuple[
+    TestCaseExecutor, ModuleTestCluster, ConstantProvider
+] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
     Perform setup and some sanity checks.
@@ -212,7 +242,8 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster] | None:
 
     if not _setup_path():
         return None
-    tracer = _setup_import_hook()
+    wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
+    tracer = _setup_import_hook(dynamic_constant_provider)
     if not _load_sut(tracer):
         return None
     if not _setup_report_dir():
@@ -227,9 +258,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster] | None:
     executor = TestCaseExecutor(tracer)
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
-    _setup_constant_seeding_collection()
-    _setup_initial_population_seeding(test_cluster)
-    return executor, test_cluster
+    return executor, test_cluster, wrapped_constant_provider
 
 
 def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
@@ -324,12 +353,12 @@ def _track_resulting_checked_coverage(
 def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
-    executor, test_cluster = setup_result
+    executor, test_cluster, constant_provider = setup_result
     # Observe return types during execution.
     executor.add_observer(ReturnTypeObserver())
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
-        executor, test_cluster
+        executor, test_cluster, constant_provider
     )
     _LOGGER.info("Start generating test cases")
     generation_result = algorithm.generate_tests()
@@ -443,9 +472,13 @@ def _track_coverage_metrics(
 
 
 def _instantiate_test_generation_strategy(
-    executor: TestCaseExecutor, test_cluster: ModuleTestCluster
+    executor: TestCaseExecutor,
+    test_cluster: ModuleTestCluster,
+    constant_provider: ConstantProvider,
 ) -> TestGenerationStrategy:
-    factory = gaf.TestSuiteGenerationAlgorithmFactory(executor, test_cluster)
+    factory = gaf.TestSuiteGenerationAlgorithmFactory(
+        executor, test_cluster, constant_provider
+    )
     return factory.get_search_algorithm()
 
 

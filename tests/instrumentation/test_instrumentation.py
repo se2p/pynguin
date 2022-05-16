@@ -15,7 +15,11 @@ from bytecode import Compare
 from ordered_set import OrderedSet
 
 import pynguin.utils.opcodes as op
-from pynguin.analyses.seeding import DynamicConstantSeeding
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+)
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     CheckedCoverageInstrumentation,
@@ -618,10 +622,13 @@ def test_expected_covered_lines(func, arg, expected_lines, artificial_none_modul
 
 @pytest.fixture()
 def dynamic_instr():
-    dynamic_constants = DynamicConstantSeeding()
-    adapter = DynamicSeedingInstrumentation(dynamic_constants)
+    constant_pool = ConstantPool()
+    constant_provider = DynamicConstantProvider(
+        pool=constant_pool, delegate=EmptyConstantProvider(), probability=1.0
+    )
+    adapter = DynamicSeedingInstrumentation(constant_provider)
     transformer = InstrumentationTransformer(ExecutionTracer(), [adapter])
-    return dynamic_constants, transformer
+    return constant_pool, transformer
 
 
 @pytest.fixture()
@@ -641,8 +648,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy(10, 11)
 
     assert res == 1
-    assert 10 in dynamic._dynamic_pool[int]
-    assert 11 in dynamic._dynamic_pool[int]
+    assert dynamic.get_all_constants_for(int) == {10, 11}
 
 
 def test_compare_op_float(dynamic_instr, dummy_module):
@@ -653,8 +659,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy(1.0, 2.5)
 
     assert res == 1
-    assert 1.0 in dynamic._dynamic_pool[float]
-    assert 2.5 in dynamic._dynamic_pool[float]
+    assert dynamic.get_all_constants_for(float) == {1.0, 2.5}
 
 
 def test_compare_op_string(dynamic_instr, dummy_module):
@@ -665,8 +670,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy("abc", "def")
 
     assert res == 1
-    assert "abc" in dynamic._dynamic_pool[str]
-    assert "def" in dynamic._dynamic_pool[str]
+    assert dynamic.get_all_constants_for(str) == {"abc", "def"}
 
 
 def test_compare_op_other_type(dynamic_instr, dummy_module):
@@ -677,317 +681,85 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy(True, "def")
 
     assert res == 1
-    assert not dynamic.has_ints
-    assert not dynamic.has_floats
-    assert dynamic.has_strings
-    assert "def" in dynamic._dynamic_pool[str]
+    assert not dynamic.has_constant_for(int)
+    assert not dynamic.has_constant_for(float)
+    assert dynamic.has_constant_for(str)
+    assert dynamic.get_all_constants_for(str) == {"def"}
 
 
-def test_startswith_function(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.startswith_dummy.__code__ = instr.instrument_module(
-        dummy_module.startswith_dummy.__code__
+@pytest.mark.parametrize(
+    "func_name,inp,tracked,result",
+    [
+        ("isalnum", "alnumtest", "alnumtest!", 0),
+        ("isalnum", "alnum_test", "isalnum", 1),
+        ("islower", "lower", "LOWER", 0),
+        ("islower", "NotLower", "notlower", 1),
+        ("isupper", "UPPER", "upper", 0),
+        ("isupper", "NotUpper", "NOTUPPER", 1),
+        ("isdecimal", "012345", "non_decimal", 0),
+        ("isdecimal", "not_decimal", "0123456789", 1),
+        ("isalpha", "alpha", "alpha1", 0),
+        ("isalpha", "not_alpha", "isalpha", 1),
+        ("isdigit", "012345", "012345_", 0),
+        ("isdigit", "not_digit", "0", 1),
+        ("isidentifier", "is_identifier", "is_identifier!", 0),
+        ("isidentifier", "not_identifier!", "is_Identifier", 1),
+        ("isnumeric", "44444", "44444A", 0),
+        ("isnumeric", "not_numeric", "012345", 1),
+        ("isprintable", "printable", f"printable{os.linesep}", 0),
+        ("isprintable", f"not_printable{os.linesep}", "is_printable", 1),
+        ("isspace", " ", " a", 0),
+        ("isspace", "no_space", "   ", 1),
+        ("istitle", "Title", "Title AAA", 0),
+        ("istitle", "no Title", "Is Title", 1),
+    ],
+)
+def test_string_functions(dynamic_instr, func_name, inp, tracked, result):
+    # Some evil trickery
+    glob = {}
+    loc = {}
+    exec(
+        f"""def dummy(s):
+    if s.{func_name}():
+        return 0
+    else:
+        return 1""",
+        glob,
+        loc,
     )
-    res = dummy_module.startswith_dummy("abc", "ab")
+    func = loc["dummy"]
 
-    assert res == 0
-    assert dynamic.has_strings
-    assert "ababc" in dynamic._dynamic_pool[str]
-
-
-def test_endswith_function(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.endswith_dummy.__code__ = instr.instrument_module(
-        dummy_module.endswith_dummy.__code__
+    func.__code__ = instr.instrument_module(func.__code__)
+    assert func(inp) == result
+    assert dynamic.has_constant_for(str)
+    assert dynamic.get_all_constants_for(str) == {inp, tracked}
+
+
+@pytest.mark.parametrize(
+    "func_name,inp1,inp2,tracked,result",
+    [
+        ("startswith", "abc", "ab", "ababc", 0),
+        ("endswith", "abc", "bc", "abcbc", 0),
+    ],
+)
+def test_binary_string_functions(dynamic_instr, func_name, inp1, inp2, tracked, result):
+    # Some evil trickery
+    glob = {}
+    loc = {}
+    exec(
+        f"""def dummy(s1,s2):
+    if s1.{func_name}(s2):
+        return 0
+    else:
+        return 1""",
+        glob,
+        loc,
     )
-    res = dummy_module.endswith_dummy("abc", "bc")
+    func = loc["dummy"]
 
-    assert res == 0
-    assert dynamic.has_strings
-    assert "abcbc" in dynamic._dynamic_pool[str]
-
-
-def test_isalnum_function_true(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
-        dummy_module.isalnum_dummy.__code__
-    )
-    res = dummy_module.isalnum_dummy("alnumtest")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "alnumtest" in dynamic._dynamic_pool[str]
-    assert "alnumtest!" in dynamic._dynamic_pool[str]
-
-
-def test_isalnum_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isalnum_dummy.__code__ = instr.instrument_module(
-        dummy_module.isalnum_dummy.__code__
-    )
-    res = dummy_module.isalnum_dummy("alnum_test")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "alnum_test" in dynamic._dynamic_pool[str]
-    assert "isalnum" in dynamic._dynamic_pool[str]
-
-
-def test_islower_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr.instrument_module(
-        dummy_module.islower_dummy.__code__
-    )
-    res = dummy_module.islower_dummy("lower")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "lower" in dynamic._dynamic_pool[str]
-    assert "LOWER" in dynamic._dynamic_pool[str]
-
-
-def test_islower_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.islower_dummy.__code__ = instr.instrument_module(
-        dummy_module.islower_dummy.__code__
-    )
-    res = dummy_module.islower_dummy("NotLower")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "NotLower" in dynamic._dynamic_pool[str]
-    assert "notlower" in dynamic._dynamic_pool[str]
-
-
-def test_isupper_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
-        dummy_module.isupper_dummy.__code__
-    )
-    res = dummy_module.isupper_dummy("UPPER")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "UPPER" in dynamic._dynamic_pool[str]
-    assert "upper" in dynamic._dynamic_pool[str]
-
-
-def test_isupper_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isupper_dummy.__code__ = instr.instrument_module(
-        dummy_module.isupper_dummy.__code__
-    )
-    res = dummy_module.isupper_dummy("NotUpper")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "NotUpper" in dynamic._dynamic_pool[str]
-    assert "NOTUPPER" in dynamic._dynamic_pool[str]
-
-
-def test_isdecimal_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
-        dummy_module.isdecimal_dummy.__code__
-    )
-    res = dummy_module.isdecimal_dummy("012345")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "012345" in dynamic._dynamic_pool[str]
-    assert "non_decimal" in dynamic._dynamic_pool[str]
-
-
-def test_isdecimal_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isdecimal_dummy.__code__ = instr.instrument_module(
-        dummy_module.isdecimal_dummy.__code__
-    )
-    res = dummy_module.isdecimal_dummy("not_decimal")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "not_decimal" in dynamic._dynamic_pool[str]
-    assert "0123456789" in dynamic._dynamic_pool[str]
-
-
-def test_isalpha_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
-        dummy_module.isalpha_dummy.__code__
-    )
-    res = dummy_module.isalpha_dummy("alpha")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "alpha" in dynamic._dynamic_pool[str]
-    assert "alpha1" in dynamic._dynamic_pool[str]
-
-
-def test_isalpha_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isalpha_dummy.__code__ = instr.instrument_module(
-        dummy_module.isalpha_dummy.__code__
-    )
-    res = dummy_module.isalpha_dummy("not_alpha")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "not_alpha" in dynamic._dynamic_pool[str]
-    assert "isalpha" in dynamic._dynamic_pool[str]
-
-
-def test_isdigit_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
-        dummy_module.isdigit_dummy.__code__
-    )
-    res = dummy_module.isdigit_dummy("012345")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "012345" in dynamic._dynamic_pool[str]
-    assert "012345_" in dynamic._dynamic_pool[str]
-
-
-def test_isdigit_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isdigit_dummy.__code__ = instr.instrument_module(
-        dummy_module.isdigit_dummy.__code__
-    )
-    res = dummy_module.isdigit_dummy("not_digit")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "not_digit" in dynamic._dynamic_pool[str]
-    assert "0" in dynamic._dynamic_pool[str]
-
-
-def test_isidentifier_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
-        dummy_module.isidentifier_dummy.__code__
-    )
-    res = dummy_module.isidentifier_dummy("is_identifier")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "is_identifier" in dynamic._dynamic_pool[str]
-    assert "is_identifier!" in dynamic._dynamic_pool[str]
-
-
-def test_isidentifier_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isidentifier_dummy.__code__ = instr.instrument_module(
-        dummy_module.isidentifier_dummy.__code__
-    )
-    res = dummy_module.isidentifier_dummy("not_identifier!")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "not_identifier!" in dynamic._dynamic_pool[str]
-    assert "is_Identifier" in dynamic._dynamic_pool[str]
-
-
-def test_isnumeric_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
-        dummy_module.isnumeric_dummy.__code__
-    )
-    res = dummy_module.isnumeric_dummy("44444")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "44444" in dynamic._dynamic_pool[str]
-    assert "44444A" in dynamic._dynamic_pool[str]
-
-
-def test_isnumeric_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isnumeric_dummy.__code__ = instr.instrument_module(
-        dummy_module.isnumeric_dummy.__code__
-    )
-    res = dummy_module.isnumeric_dummy("not_numeric")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "not_numeric" in dynamic._dynamic_pool[str]
-    assert "012345" in dynamic._dynamic_pool[str]
-
-
-def test_isprintable_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
-        dummy_module.isprintable_dummy.__code__
-    )
-    res = dummy_module.isprintable_dummy("printable")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "printable" in dynamic._dynamic_pool[str]
-    assert f"printable{os.linesep}" in dynamic._dynamic_pool[str]
-
-
-def test_isprintable_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isprintable_dummy.__code__ = instr.instrument_module(
-        dummy_module.isprintable_dummy.__code__
-    )
-    res = dummy_module.isprintable_dummy(f"not_printable{os.linesep}")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert f"not_printable{os.linesep}" in dynamic._dynamic_pool[str]
-    assert "is_printable" in dynamic._dynamic_pool[str]
-
-
-def test_isspace_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
-        dummy_module.isspace_dummy.__code__
-    )
-    res = dummy_module.isspace_dummy(" ")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert " " in dynamic._dynamic_pool[str]
-    assert " a" in dynamic._dynamic_pool[str]
-
-
-def test_isspace_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.isspace_dummy.__code__ = instr.instrument_module(
-        dummy_module.isspace_dummy.__code__
-    )
-    res = dummy_module.isspace_dummy("no_space")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "no_space" in dynamic._dynamic_pool[str]
-    assert "   " in dynamic._dynamic_pool[str]
-
-
-def test_istitle_function_true(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
-        dummy_module.istitle_dummy.__code__
-    )
-    res = dummy_module.istitle_dummy("Title")
-
-    assert res == 0
-    assert dynamic.has_strings
-    assert "Title" in dynamic._dynamic_pool[str]
-    assert "Title AAA" in dynamic._dynamic_pool[str]
-
-
-def test_istitle_function_false(dynamic_instr, dummy_module):
-    dynamic, instr = dynamic_instr
-    dummy_module.istitle_dummy.__code__ = instr.instrument_module(
-        dummy_module.istitle_dummy.__code__
-    )
-    res = dummy_module.istitle_dummy("no Title")
-
-    assert res == 1
-    assert dynamic.has_strings
-    assert "no Title" in dynamic._dynamic_pool[str]
-    assert "Is Title" in dynamic._dynamic_pool[str]
+    func.__code__ = instr.instrument_module(func.__code__)
+    assert func(inp1, inp2) == result
+    assert dynamic.has_constant_for(str)
+    assert dynamic.get_all_constants_for(str) == {tracked}

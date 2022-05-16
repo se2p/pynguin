@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 import pynguin.utils.opcodes as op
+from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
-from pynguin.analyses.seeding import DynamicConstantSeeding
 from pynguin.testcase.execution import (
     ArtificialInstr,
     CodeObjectMetaData,
@@ -1582,27 +1582,10 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
     # operation.
     _STRING_FUNC_POS_WITH_ARG = -4
 
-    # A list containing the names of all string functions which are instrumented.
-    _STRING_FUNCTION_NAMES = [
-        "startswith",
-        "endswith",
-        "isalnum",
-        "isalpha",
-        "isdecimal",
-        "isdigit",
-        "isidentifier",
-        "islower",
-        "isnumeric",
-        "isprintable",
-        "isspace",
-        "istitle",
-        "isupper",
-    ]
-
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, dynamic_constant_seeding: DynamicConstantSeeding):
-        self._dynamic_constant_seeding = dynamic_constant_seeding
+    def __init__(self, dynamic_constant_provider: DynamicConstantProvider):
+        self._dynamic_constant_provider = dynamic_constant_provider
 
     def visit_node(
         self,
@@ -1628,13 +1611,13 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         if (
             isinstance(maybe_string_func, Instr)
             and maybe_string_func.opcode == op.LOAD_METHOD
-            and maybe_string_func.arg in self._STRING_FUNCTION_NAMES
+            and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
             self._instrument_string_func(basic_block, maybe_string_func.arg)
         if (
             isinstance(maybe_string_func_with_arg, Instr)
             and maybe_string_func_with_arg.opcode == op.LOAD_METHOD
-            and maybe_string_func_with_arg.arg in self._STRING_FUNCTION_NAMES
+            and maybe_string_func_with_arg.arg in {"startswith", "endswith"}
         ):
             self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
 
@@ -1653,11 +1636,11 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             ArtificialInstr("ROT_TWO", lineno=lineno),
             ArtificialInstr("BINARY_ADD", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                self._dynamic_constant_seeding.add_value.__name__,
+                DynamicConstantProvider.add_value.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -1681,11 +1664,11 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr("BINARY_ADD", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantProvider.add_value.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -1709,11 +1692,11 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         block[insert_pos:insert_pos] = [
             ArtificialInstr("DUP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                DynamicConstantSeeding.add_value_for_strings.__name__,
+                DynamicConstantProvider.add_value_for_strings.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -1750,11 +1733,11 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantProvider.add_value.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -1762,11 +1745,11 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
             ArtificialInstr("POP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_seeding, lineno=lineno
+                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                DynamicConstantSeeding.add_value.__name__,
+                DynamicConstantProvider.add_value.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),

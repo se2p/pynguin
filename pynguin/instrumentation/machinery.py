@@ -19,7 +19,11 @@ from types import CodeType
 from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
-from pynguin.analyses.seeding import dynamic_constant_seeding
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+)
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
     CheckedCoverageInstrumentation,
@@ -36,9 +40,16 @@ if TYPE_CHECKING:
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
-    def __init__(self, fullname, path, tracer: ExecutionTracer):
+    def __init__(
+        self,
+        fullname,
+        path,
+        tracer: ExecutionTracer,
+        dynamic_constant_provider: DynamicConstantProvider | None,
+    ):
         super().__init__(fullname, path)
         self._tracer = tracer
+        self._dynamic_constant_provider = dynamic_constant_provider
 
     def exec_module(self, module):
         self._tracer.reset()
@@ -69,7 +80,10 @@ class InstrumentationLoader(SourceFileLoader):
             adapters.append(CheckedCoverageInstrumentation(self._tracer))
 
         if config.configuration.seeding.dynamic_constant_seeding:
-            adapters.append(DynamicSeedingInstrumentation(dynamic_constant_seeding))
+            assert self._dynamic_constant_provider is not None
+            adapters.append(
+                DynamicSeedingInstrumentation(self._dynamic_constant_provider)
+            )
 
         transformer = InstrumentationTransformer(self._tracer, adapters)
         return transformer.instrument_module(to_instrument)
@@ -85,7 +99,11 @@ class InstrumentationFinder(MetaPathFinder):
     _logger = logging.getLogger(__name__)
 
     def __init__(
-        self, original_pathfinder, module_to_instrument: str, tracer: ExecutionTracer
+        self,
+        original_pathfinder,
+        module_to_instrument: str,
+        tracer: ExecutionTracer,
+        dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
         """Wraps the given path finder.
 
@@ -93,10 +111,12 @@ class InstrumentationFinder(MetaPathFinder):
             original_pathfinder: the original pathfinder that is wrapped.
             module_to_instrument: the name of the module, that should be instrumented.
             tracer: the execution tracer
+            dynamic_constant_provider: Used for dynamic constant seeding
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
         self._tracer = tracer
+        self._dynamic_constant_provider = dynamic_constant_provider
 
     def _should_instrument(self, module_name: str):
         return module_name == self._module_to_instrument
@@ -122,7 +142,10 @@ class InstrumentationFinder(MetaPathFinder):
             if spec is not None:
                 if isinstance(spec.loader, FileLoader):
                     spec.loader = InstrumentationLoader(
-                        spec.loader.name, spec.loader.path, self._tracer
+                        spec.loader.name,
+                        spec.loader.path,
+                        self._tracer,
+                        self._dynamic_constant_provider,
                     )
                     return spec
                 self._logger.error(
@@ -154,13 +177,16 @@ class ImportHookContextManager:
 
 
 def install_import_hook(
-    module_to_instrument: str, tracer: ExecutionTracer
+    module_to_instrument: str,
+    tracer: ExecutionTracer,
+    dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
 
     Args:
         module_to_instrument: The module that shall be instrumented.
         tracer: The tracer where the instrumentation should report its data.
+        dynamic_constant_provider: Used for dynamic constant seeding
 
     Returns:
         a context manager which can be used to uninstall the hook.
@@ -168,6 +194,11 @@ def install_import_hook(
     Raises:
         RuntimeError: In case a PathFinder could not be found
     """
+    if dynamic_constant_provider is None:
+        dynamic_constant_provider = DynamicConstantProvider(
+            ConstantPool(), EmptyConstantProvider(), 0
+        )
+
     to_wrap = None
     for finder in sys.meta_path:
         if (
@@ -181,6 +212,11 @@ def install_import_hook(
     if not to_wrap:
         raise RuntimeError("Cannot find a PathFinder in sys.meta_path")
 
-    hook = InstrumentationFinder(to_wrap, module_to_instrument, tracer)
+    hook = InstrumentationFinder(
+        to_wrap,
+        module_to_instrument,
+        tracer,
+        dynamic_constant_provider=dynamic_constant_provider,
+    )
     sys.meta_path.insert(0, hook)
     return ImportHookContextManager(hook)

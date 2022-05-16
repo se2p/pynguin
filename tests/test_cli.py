@@ -62,22 +62,10 @@ def test__create_argument_parser():
     assert isinstance(parser, argparse.ArgumentParser)
 
 
-def test__setup_logging_standard_with_log_file(tmp_path):
-    logging.shutdown()
-    importlib.reload(logging)
-    _setup_logging(log_file=str(tmp_path / "pynguin-test.log"), verbosity=0)
-    logger = logging.getLogger("")
-    assert isinstance(logger, logging.Logger)
-    assert logger.level == logging.WARNING
-    assert len(logger.handlers) == 2
-    logging.shutdown()
-    importlib.reload(logging)
-
-
 def test__setup_logging_single_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    _setup_logging(1)
+    _setup_logging(1, False)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     assert logger.level == logging.INFO
@@ -88,7 +76,7 @@ def test__setup_logging_single_verbose_without_log_file():
 def test__setup_logging_double_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    _setup_logging(2)
+    _setup_logging(2, False)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     assert logger.level == logging.DEBUG
