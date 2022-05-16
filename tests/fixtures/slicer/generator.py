@@ -10,22 +10,22 @@
 
 def abc_generator():  # included in slice
     a = "a"  # included in slice
-    b = "b"  # TODO(SiL) currently falsely included
-    c = "c"  # TODO(SiL) currently falsely included
+    b = "b"
+    c = "c"
     yield a  # included in slice
-    yield b  # TODO(SiL) currently falsely included
-    yield c  # TODO(SiL) currently falsely included
+    yield b
+    yield c
 
 
 def abc_xyz_generator():  # included in slice
     x = "x"  # included in slice
-    y = "y"  # TODO(SiL) currently falsely included
-    z = "z"  # TODO(SiL) currently falsely included
+    y = "y"
+    z = "z"
 
     yield from abc_generator()  # included in slice
     yield x  # included in slice
-    yield y  # TODO(SiL) currently falsely included
-    yield z  # TODO(SiL) currently falsely included
+    yield y
+    yield z
 
 
 def func():

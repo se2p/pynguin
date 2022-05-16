@@ -124,7 +124,6 @@ def test_dunder_definition():
     assert compare(sliced_instructions, expected_instructions)
 
 
-# TODO(SiL) was marked as 'ExpectedFailure', how to adjust?
 @pytest.mark.xfail
 def test_mod_untraced_object():
     def func():
