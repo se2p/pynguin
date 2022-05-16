@@ -659,13 +659,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
 
         self.executed_instructions.append(executed_instr)
 
-    def print_trace_debug(self) -> None:
-        """Print debugging infos about the executed assertions and instructions."""
-        self._logger.debug("------ Execution Trace ------")
-        for instr in self.executed_instructions:
-            self._logger.debug(instr)
-        self._logger.debug("\n")
-
 
 @dataclass
 class LineMetaData:
