@@ -11,7 +11,8 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Compare
 
-from pynguin.testcase.execution import CodeObjectMetaData, ExecutionTracer, _le, _lt
+from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+from pynguin.testcase.execution import ExecutionTracer, _le, _lt
 
 
 def test_functions_exists():

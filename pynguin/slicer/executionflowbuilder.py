@@ -21,11 +21,8 @@ from pynguin.utils.exceptions import InstructionNotFoundException
 UNSET = object()
 
 if TYPE_CHECKING:
-    from pynguin.testcase.execution import (
-        CodeObjectMetaData,
-        ExecutedInstruction,
-        ExecutionTrace,
-    )
+    from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+    from pynguin.testcase.execution import ExecutedInstruction, ExecutionTrace
 
 
 class UniqueInstruction(Instr):

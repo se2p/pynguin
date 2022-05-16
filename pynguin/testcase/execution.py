@@ -23,7 +23,7 @@ from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 import pytest
-from bytecode import BasicBlock, CellVar, Compare, FreeVar, Instr
+from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
 from opcode import opname
 from ordered_set import OrderedSet
@@ -33,7 +33,13 @@ import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
-from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
+from pynguin.instrumentation.instrumentation import (
+    ArtificialInstr,
+    CodeObjectMetaData,
+    PredicateMetaData,
+    CheckedCoverageInstrumentation,
+    InstrumentationTransformer,
+)
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -48,11 +54,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
-
-
-class ArtificialInstr(Instr):
-    """Marker subclass to distinguish between original instructions
-    and instructions that were inserted by the instrumentation."""
 
 
 class ExecutionContext:
@@ -665,40 +666,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         for instr in self.executed_instructions:
             self._logger.debug(instr)
         self._logger.debug("\n")
-
-
-@dataclass
-class CodeObjectMetaData:
-    """Stores meta data of a code object."""
-
-    # The raw code object.
-    code_object: CodeType
-
-    # Id of the parent code object, if any
-    parent_code_object_id: int | None
-
-    # CFG of this Code Object
-    cfg: CFG
-
-    # copy of the CFG of this code object before the instrumentation worked on it
-    original_cfg: CFG
-
-    # CDG of this Code Object
-    cdg: ControlDependenceGraph
-
-
-@dataclass
-class PredicateMetaData:
-    """Stores meta data of a predicate."""
-
-    # Line number where the predicate is defined.
-    line_no: int
-
-    # Id of the code object where the predicate was defined.
-    code_object_id: int
-
-    # The node in the program graph, that defines this predicate.
-    node: ProgramGraphNode
 
 
 @dataclass
@@ -1992,14 +1959,6 @@ class TestCaseExecutor:
             self._tracer.register_assertion_position(code_object_id, node_id)
 
     def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
-        # TODO(SiL) rework module structure to avoid circular dependencies
-        #  if this is imported at the top of the file
-        # pylint: disable=import-outside-toplevel
-        from pynguin.instrumentation.instrumentation import (
-            CheckedCoverageInstrumentation,
-            InstrumentationTransformer,
-        )
-
         checked_adapter = CheckedCoverageInstrumentation(self._tracer)
         transformer = InstrumentationTransformer(self._tracer, [checked_adapter])
         code = transformer.instrument_module(code)

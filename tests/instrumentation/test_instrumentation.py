@@ -21,6 +21,7 @@ from pynguin.analyses.constants import (
     EmptyConstantProvider,
 )
 from pynguin.instrumentation.instrumentation import (
+    ArtificialInstr,
     BranchCoverageInstrumentation,
     CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
@@ -29,7 +30,6 @@ from pynguin.instrumentation.instrumentation import (
     LineCoverageInstrumentation,
 )
 from pynguin.testcase.execution import (
-    ArtificialInstr,
     ExecutedControlInstruction,
     ExecutedMemoryInstruction,
     ExecutedReturnInstruction,

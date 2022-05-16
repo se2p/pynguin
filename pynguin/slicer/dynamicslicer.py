@@ -17,11 +17,14 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
 import pynguin.configuration as config
-import pynguin.testcase.execution as ex
 import pynguin.utils.opcodes as op
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
 from pynguin.slicer.stack.stackeffect import StackEffect
 from pynguin.slicer.stack.stacksimulation import TraceStack
+from pynguin.testcase.execution import (
+    ExecutedAttributeInstruction,
+    ExecutedMemoryInstruction,
+)
 from pynguin.utils.exceptions import (
     InstructionNotFoundException,
     SlicingTimeoutException,
@@ -35,7 +38,13 @@ if TYPE_CHECKING:
         ControlDependenceGraph,
         ProgramGraphNode,
     )
+    from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executionflowbuilder import LastInstrState
+    from pynguin.testcase.execution import (
+        ExecutedInstruction,
+        ExecutionTrace,
+        TracedAssertion,
+    )
 
 
 @dataclass
@@ -127,8 +136,8 @@ class DynamicSlicer:
 
     def __init__(
         self,
-        trace: ex.ExecutionTrace,
-        known_code_objects: dict[int, ex.CodeObjectMetaData],
+        trace: ExecutionTrace,
+        known_code_objects: dict[int, CodeObjectMetaData],
     ):
         self._known_code_objects = known_code_objects
         self._trace = trace
@@ -153,7 +162,7 @@ class DynamicSlicer:
 
     def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
         self,
-        trace: ex.ExecutionTrace,
+        trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
         trace_position: int,
     ) -> list[UniqueInstruction]:
@@ -359,7 +368,7 @@ class DynamicSlicer:
     def _setup_slicing_configuration(
         self,
         slicing_criterion: SlicingCriterion,
-        trace: ex.ExecutionTrace,
+        trace: ExecutionTrace,
         trace_position: int,
     ):
         new_attribute_object_uses: set[str] = set()
@@ -526,7 +535,7 @@ class DynamicSlicer:
         if not unique_instr.is_cond_branch():
             return False
 
-        code_object: ex.CodeObjectMetaData = self._known_code_objects[code_object_id]
+        code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
         successors = cdg.get_successors(curr_node)
@@ -558,7 +567,7 @@ class DynamicSlicer:
             unique_instr: The instruction to check for control dependencies
             code_object_id: the id of the code object containing the instruction
         """
-        code_object: ex.CodeObjectMetaData = self._known_code_objects[code_object_id]
+        code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
         predecessors = cdg.get_predecessors(curr_node)
@@ -639,7 +648,7 @@ class DynamicSlicer:
         self,
         context: SlicingContext,
         unique_instr: UniqueInstruction,
-        traced_instr: ex.ExecutedInstruction | None,
+        traced_instr: ExecutedInstruction | None,
     ) -> tuple[bool, set[str]]:
         """Analyses the explicit data dependencies from one instruction to another
         instruction.
@@ -662,7 +671,7 @@ class DynamicSlicer:
             return False, set()
 
         # Check variable definitions
-        if isinstance(traced_instr, ex.ExecutedMemoryInstruction):
+        if isinstance(traced_instr, ExecutedMemoryInstruction):
             complete_cover = self._check_variables(context, traced_instr)
 
             # When an object, of which certain used attributes are taken from,
@@ -700,7 +709,7 @@ class DynamicSlicer:
                 complete_cover = True
                 context.attribute_variables.remove(str(traced_instr.argument))
 
-        if isinstance(traced_instr, ex.ExecutedAttributeInstruction):
+        if isinstance(traced_instr, ExecutedAttributeInstruction):
             # check attribute defs
             if traced_instr.combined_attr in context.attr_uses:
                 complete_cover = True
@@ -809,7 +818,7 @@ class DynamicSlicer:
         return complete_cover
 
     def add_uses(
-        self, context: SlicingContext, traced_instr: ex.ExecutedInstruction
+        self, context: SlicingContext, traced_instr: ExecutedInstruction
     ) -> None:
         """Add all uses found in the executed instruction into the slicing context.
 
@@ -817,11 +826,11 @@ class DynamicSlicer:
             context: The slicing context that gets extended
             traced_instr: The instruction to analyse
         """
-        if isinstance(traced_instr, ex.ExecutedMemoryInstruction):
+        if isinstance(traced_instr, ExecutedMemoryInstruction):
             self._add_variable_uses(context, traced_instr)
 
         # Add attribute uses
-        if isinstance(traced_instr, ex.ExecutedAttributeInstruction):
+        if isinstance(traced_instr, ExecutedAttributeInstruction):
             self._add_attribute_uses(context, traced_instr)
 
     def _add_variable_uses(self, context, traced_instr):
@@ -895,14 +904,14 @@ class AssertionSlicer:
 
     def __init__(
         self,
-        trace: ex.ExecutionTrace,
-        known_code_objects: dict[int, ex.CodeObjectMetaData],
+        trace: ExecutionTrace,
+        known_code_objects: dict[int, CodeObjectMetaData],
     ):
         self._trace = trace
-        self._known_code_objects: dict[int, ex.CodeObjectMetaData] = known_code_objects
+        self._known_code_objects: dict[int, CodeObjectMetaData] = known_code_objects
 
     def _slicing_criterion_from_assertion(
-        self, assertion: ex.TracedAssertion
+        self, assertion: TracedAssertion
     ) -> SlicingCriterion:
         assert self._known_code_objects
         code_meta = self._known_code_objects.get(assertion.code_object_id)
@@ -938,7 +947,7 @@ class AssertionSlicer:
 
         return SlicingCriterion(unique_instr)
 
-    def slice_assertion(self, assertion: ex.TracedAssertion) -> list[UniqueInstruction]:
+    def slice_assertion(self, assertion: TracedAssertion) -> list[UniqueInstruction]:
         """Calculate the dynamic slice for an assertion inside a test case
 
         Args:

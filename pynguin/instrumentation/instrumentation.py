@@ -10,6 +10,7 @@ from __future__ import annotations
 import builtins
 import json
 import logging
+from dataclasses import dataclass
 from types import CodeType
 from typing import TYPE_CHECKING
 
@@ -18,17 +19,51 @@ from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 import pynguin.utils.opcodes as op
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
-from pynguin.testcase.execution import (
-    ArtificialInstr,
-    CodeObjectMetaData,
-    ExecutionTracer,
-    PredicateMetaData,
-)
 
 if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ProgramGraphNode
+    from pynguin.testcase.execution import ExecutionTracer
 
 CODE_OBJECT_ID_KEY = "code_object_id"
+
+
+@dataclass
+class CodeObjectMetaData:
+    """Stores meta data of a code object."""
+
+    # The raw code object.
+    code_object: CodeType
+
+    # Id of the parent code object, if any
+    parent_code_object_id: int | None
+
+    # CFG of this Code Object
+    cfg: CFG
+
+    # copy of the CFG of this code object before the instrumentation worked on it
+    original_cfg: CFG
+
+    # CDG of this Code Object
+    cdg: ControlDependenceGraph
+
+
+@dataclass
+class PredicateMetaData:
+    """Stores meta data of a predicate."""
+
+    # Line number where the predicate is defined.
+    line_no: int
+
+    # Id of the code object where the predicate was defined.
+    code_object_id: int
+
+    # The node in the program graph, that defines this predicate.
+    node: ProgramGraphNode
+
+
+class ArtificialInstr(Instr):
+    """Marker subclass to distinguish between original instructions
+    and instructions that were inserted by the instrumentation."""
 
 
 # pylint:disable=too-few-public-methods
@@ -163,7 +198,7 @@ class InstrumentationTransformer:
             The instrumented code object of the module
         """
         for const in module_code.co_consts:
-            if isinstance(const, ExecutionTracer):
+            if isinstance(const, str) and CODE_OBJECT_ID_KEY in const:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
                 assert False, "Tried to instrument already instrumented module."
@@ -391,7 +426,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_bool_predicate.__name__,
+                "executed_bool_predicate",
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -453,7 +488,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_compare_predicate.__name__,
+                "executed_compare_predicate",
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -493,7 +528,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_exception_match.__name__,
+                "executed_exception_match",
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -521,7 +556,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
-                ExecutionTracer.executed_code_object.__name__,
+                "executed_code_object",
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
@@ -591,7 +626,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    ExecutionTracer.executed_bool_predicate.__name__,
+                    "executed_bool_predicate",
                     lineno=lineno,
                 ),
                 ArtificialInstr("LOAD_CONST", True, lineno=lineno),
@@ -607,7 +642,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    ExecutionTracer.executed_bool_predicate.__name__,
+                    "executed_bool_predicate",
                     lineno=lineno,
                 ),
                 ArtificialInstr("LOAD_CONST", False, lineno=lineno),
@@ -672,7 +707,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
-                self._tracer.track_line_visit.__name__,
+                "track_line_visit",
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
@@ -857,7 +892,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_generic.__name__,
+                    "track_generic",
                     lineno=instr.lineno,
                 ),
                 # Load arguments
@@ -900,7 +935,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_memory_access.__name__,
+                    "track_memory_access",
                     lineno=instr.lineno,
                 ),
             ]
@@ -973,7 +1008,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_attribute_access.__name__,
+                    "track_attribute_access",
                     lineno=instr.lineno,
                 ),
                 # A method occupies two slots on top of the stack
@@ -1003,7 +1038,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.attribute_lookup.__name__,
+                    "attribute_lookup",
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1090,7 +1125,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_attribute_access.__name__,
+                    "track_attribute_access",
                     lineno=instr.lineno,
                 ),
                 # A method occupies two slots on top of the stack
@@ -1147,7 +1182,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_memory_access.__name__,
+                    "track_memory_access",
                     lineno=instr.lineno,
                 ),
             ]
@@ -1202,7 +1237,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_memory_access.__name__,
+                    "track_memory_access",
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1258,7 +1293,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_memory_access.__name__,
+                    "track_memory_access",
                     lineno=instr.lineno,
                 ),
             ]
@@ -1323,7 +1358,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_memory_access.__name__,
+                    "track_memory_access",
                     lineno=instr.lineno,
                 ),
             ]
@@ -1375,9 +1410,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             [
                 # Load tracing method
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
-                ArtificialInstr(
-                    "LOAD_METHOD", self._tracer.track_jump.__name__, lineno=instr.lineno
-                ),
+                ArtificialInstr("LOAD_METHOD", "track_jump", lineno=instr.lineno),
             ]
         )
 
@@ -1423,9 +1456,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             [
                 # Load tracing method
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
-                ArtificialInstr(
-                    "LOAD_METHOD", self._tracer.track_call.__name__, lineno=instr.lineno
-                ),
+                ArtificialInstr("LOAD_METHOD", "track_call", lineno=instr.lineno),
             ]
         )
 
@@ -1459,7 +1490,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
-                    self._tracer.track_return.__name__,
+                    "track_return",
                     lineno=instr.lineno,
                 ),
                 # Load arguments
