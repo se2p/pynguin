@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 import importlib
 import inspect
 import sys
@@ -13,13 +14,17 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Bytecode, Instr, Label
 
+import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.analyses.types import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
@@ -280,6 +285,33 @@ def larger_control_flow_graph() -> CFG:
     graph.add_edge(n_110, n_300, label="false")
     graph.add_edge(n_300, n_exit)
     return graph
+
+
+@pytest.fixture()
+def plus_test_with_object_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        int_0 = 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(var_0)
+        assert int_1 == 46
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    test_case.statements[-1].add_assertion(
+        ass.ObjectAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    return test_case
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

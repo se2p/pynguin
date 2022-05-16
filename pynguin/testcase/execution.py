@@ -35,10 +35,10 @@ import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
-    CodeObjectMetaData,
-    PredicateMetaData,
     CheckedCoverageInstrumentation,
+    CodeObjectMetaData,
     InstrumentationTransformer,
+    PredicateMetaData,
 )
 from pynguin.utils.type_utils import (
     given_exception_matches,

@@ -31,7 +31,6 @@ from pynguin.testcase.execution import (
     LineMetaData,
     TestCaseExecutor,
 )
-from tests.slicer.test_assertionslicer import get_plus_test_with_object_assertion
 
 
 @pytest.fixture
@@ -429,7 +428,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    known_data_mock, executor_mock, trace_mock
+    known_data_mock, executor_mock, trace_mock, plus_test_with_object_assertion
 ):
     """
     Test for a testcase for the plus module, which should cover 5 out of 8 goals,
@@ -452,7 +451,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        test_case = get_plus_test_with_object_assertion()
+        test_case = plus_test_with_object_assertion
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
         _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock)
 

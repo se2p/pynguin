@@ -29,49 +29,8 @@ from tests.fixtures.linecoverage.list import ListTest
 from tests.fixtures.linecoverage.plus import Plus
 
 
-def _get_default_plus_test():
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 42
-    plus_0 = module_0.Plus()
-    int_1 = plus_0.plus_four(int_0)
-"""
-        )
-    )
-    return transformer.testcases[0]
-
-
-def _get_default_list_test():
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    list_test_0 = module_0.ListTest()
-"""
-        )
-    )
-    return transformer.testcases[0]
-
-
-def _get_default_exception_test() -> TestCase:
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    exception_test_0 = module_0.ExceptionTest()
-    var_0 = exception_test_0.throw()
-"""
-        )
-    )
-    return transformer.testcases[0]
-
-
-def _get_full_cover_plus_three_test():
+@pytest.fixture
+def full_cover_plus_three_test():
     """
     Produces the following testcase:
         def test_case_0():
@@ -118,7 +77,8 @@ def _get_full_cover_plus_three_test():
     return test_case
 
 
-def _get_full_cover_plus_four_test():
+@pytest.fixture
+def full_cover_plus_four_test():
     """
     Produces the following testcase:
         def test_case_1():
@@ -166,22 +126,8 @@ def _get_full_cover_plus_four_test():
     return test_case
 
 
-def get_plus_test_with_object_assertion() -> TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(var_0)
-        assert int_1 == 46
-    """
-    test_case = _get_default_plus_test()
-    test_case.statements[-1].add_assertion(
-        ass.ObjectAssertion(test_case.statements[-1].ret_val, 46)
-    )
-    return test_case
-
-
-def _get_plus_test_with_float_assertion() -> TestCase:
+@pytest.fixture
+def plus_test_with_float_assertion() -> TestCase:
     """
     Generated testcase:
         int_0 = 42
@@ -189,14 +135,26 @@ def _get_plus_test_with_float_assertion() -> TestCase:
         int_1 = plus_0.plus_four(int_0)
         assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
     """
-    test_case = _get_default_plus_test()
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
     test_case.statements[-1].add_assertion(
         ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
     )
     return test_case
 
 
-def _get_plus_test_with_not_none_assertion() -> TestCase:
+@pytest.fixture
+def plus_test_with_not_none_assertion() -> TestCase:
     """
     Generated testcase:
         int_0 = 42
@@ -204,21 +162,45 @@ def _get_plus_test_with_not_none_assertion() -> TestCase:
         int_1 = plus_0.plus_four(int_0)
         assert int_1 is not None
     """
-    test_case = _get_default_plus_test()
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
     test_case.statements[-1].add_assertion(
         ass.NotNoneAssertion(test_case.statements[-1].ret_val)
     )
     return test_case
 
 
-def _get_exception_test_with_except_assertion() -> TestCase:
+@pytest.fixture
+def exception_test_with_except_assertion() -> TestCase:
     """
     Generated testcase:
         exception_test_0 = module_0.ExceptionTest()
         with pytest.raises(RuntimeError):
             var_0 = exception_test_0.throw()
     """
-    test_case = _get_default_exception_test()
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    exception_test_0 = module_0.ExceptionTest()
+    var_0 = exception_test_0.throw()
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
     test_case.statements[-1].add_assertion(
         ass.ExceptionAssertion(
             module=RuntimeError.__module__,
@@ -228,13 +210,23 @@ def _get_exception_test_with_except_assertion() -> TestCase:
     return test_case
 
 
-def _get_list_test_with_len_assertion() -> TestCase:
+@pytest.fixture
+def list_test_with_len_assertion() -> TestCase:
     """
     Generated testcase:
         list_test_0 = module_0.ListTest()
         assert len(list_test_0.attribute) == 3
     """
-    test_case = _get_default_list_test()
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    list_test_0 = module_0.ListTest()
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
     test_case.statements[-1].add_assertion(
         ass.CollectionLengthAssertion(
             FieldReference(
@@ -247,7 +239,8 @@ def _get_list_test_with_len_assertion() -> TestCase:
     return test_case
 
 
-def _get_plus_test_with_multiple_assertions():
+@pytest.fixture
+def plus_test_with_multiple_assertions():
     """
     Generated testcase:
         int_0 = 42
@@ -257,7 +250,19 @@ def _get_plus_test_with_multiple_assertions():
         assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
         assert plus_0.calculations == 1
     """
-    test_case = _get_default_plus_test()
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
     test_case.statements[0].add_assertion(
         ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
     )
@@ -276,42 +281,50 @@ def _get_plus_test_with_multiple_assertions():
     return test_case
 
 
-def _get_full_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
-    test_case_1 = tcc.TestCaseChromosome(_get_full_cover_plus_three_test())
-    test_case_2 = tcc.TestCaseChromosome(_get_full_cover_plus_four_test())
+@pytest.fixture
+def full_cover_plus_testsuite(
+    full_cover_plus_three_test, full_cover_plus_four_test
+) -> tsc.TestSuiteChromosome:
+    test_case_1 = tcc.TestCaseChromosome(full_cover_plus_three_test)
+    test_case_2 = tcc.TestCaseChromosome(full_cover_plus_four_test)
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_1)
     test_suite.add_test_case_chromosome(test_case_2)
     return test_suite
 
 
-def _get_partial_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
-    test_case_1 = tcc.TestCaseChromosome(_get_plus_test_with_float_assertion())
-    test_case_2 = tcc.TestCaseChromosome(_get_plus_test_with_multiple_assertions())
+@pytest.fixture
+def partial_cover_plus_testsuite(
+    plus_test_with_float_assertion, plus_test_with_multiple_assertions
+) -> tsc.TestSuiteChromosome:
+    test_case_1 = tcc.TestCaseChromosome(plus_test_with_float_assertion)
+    test_case_2 = tcc.TestCaseChromosome(plus_test_with_multiple_assertions)
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_1)
     test_suite.add_test_case_chromosome(test_case_2)
     return test_suite
 
 
-def _get_no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+@pytest.fixture
+def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
     return test_suite
 
 
 @pytest.mark.parametrize(
-    "test_case, expected_assertions",
+    "test_case_name, expected_assertions",
     [
-        (get_plus_test_with_object_assertion(), 1),
-        (_get_plus_test_with_float_assertion(), 1),
-        (_get_plus_test_with_not_none_assertion(), 1),
-        (_get_exception_test_with_except_assertion(), 1),
-        (_get_list_test_with_len_assertion(), 1),
-        (_get_plus_test_with_multiple_assertions(), 3),
+        ("plus_test_with_object_assertion", 1),
+        ("plus_test_with_float_assertion", 1),
+        ("plus_test_with_not_none_assertion", 1),
+        ("exception_test_with_except_assertion", 1),
+        ("list_test_with_len_assertion", 1),
+        ("plus_test_with_multiple_assertions", 3),
     ],
 )
-def test_assertion_detection_on_test_case(test_case, expected_assertions):
+def test_assertion_detection_on_test_case(test_case_name, expected_assertions, request):
+    test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
@@ -326,31 +339,34 @@ def test_assertion_detection_on_test_case(test_case, expected_assertions):
 
 
 @pytest.mark.parametrize(
-    "module_name, test_case, expected_lines",
+    "module_name, test_case_name, expected_lines",
     [
         (
             "tests.fixtures.linecoverage.plus",
-            get_plus_test_with_object_assertion(),
+            "plus_test_with_object_assertion",
             {9, 16, 18},
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            _get_plus_test_with_float_assertion(),
+            "plus_test_with_float_assertion",
             {9, 16, 18},
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            _get_plus_test_with_multiple_assertions(),
+            "plus_test_with_multiple_assertions",
             {9, 10, 16, 17, 18},
         ),
-        # (
-        #    "tests.fixtures.linecoverage.exception",
-        #    _get_exception_test_with_except_assertion(),
-        #    {9, 10, 11},
-        # ,
+        (
+            "tests.fixtures.linecoverage.exception",
+            "exception_test_with_except_assertion",
+            {9, 10, 11},
+        ),
     ],
 )
-def test_slicing_after_test_execution(module_name, test_case, expected_lines):
+def test_slicing_after_test_execution(
+    module_name, test_case_name, expected_lines, request
+):
+    test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
@@ -383,28 +399,29 @@ def test_slicing_after_test_execution(module_name, test_case, expected_lines):
 
 
 @pytest.mark.parametrize(
-    "module_name, test_suite, expected_coverage",
+    "module_name, test_suite_name, expected_coverage",
     [
         (
             "tests.fixtures.linecoverage.plus",
-            _get_no_cover_plus_testsuite(),
+            "no_cover_plus_testsuite",
             0,
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            _get_partial_cover_plus_testsuite(),
+            "partial_cover_plus_testsuite",
             5 / 8,
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            _get_full_cover_plus_testsuite(),
+            "full_cover_plus_testsuite",
             1,
         ),
     ],
 )
 def test_testsuite_checked_execution_and_calculation(
-    module_name, test_suite, expected_coverage
+    module_name, test_suite_name, expected_coverage, request
 ):
+    test_suite = request.getfixturevalue(test_suite_name)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.LINE,
         config.CoverageMetric.CHECKED,
