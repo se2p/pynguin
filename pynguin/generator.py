@@ -293,30 +293,30 @@ def _get_coverage_ff_from_algorithm(
 
 
 def _track_resulting_checked_coverage(
-    algorithm: TestGenerationStrategy,
+    executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
 ):
     """Now that we have assertions generated, we execute the testsuite statement for
     statement, while also instrumenting the executed test-statements before execution.
 
     Args:
-        algorithm: the test generation strategy used to generate the result
+        executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
     """
     _LOGGER.info("Calculating resulting checked coverage")
-    checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-        algorithm, ff.TestSuiteCheckedCoverageFunction
-    )
-    # force new execution after new instrumentation
+
+    checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
+    generation_result.add_coverage_function(checked_coverage_ff)
+
+    # force new execution of the test cases after new instrumentation
+    generation_result.invalidate_cache()
     for test_case in generation_result.test_case_chromosomes:
-        # TODO(SiL) test this behavior
         test_case.invalidate_cache()
         test_case.set_last_execution_result(None)
+
     stat.track_output_variable(
         RuntimeVariable.CheckedCoverage,
-        # generation_result.get_coverage_for(checked_coverage_ff),
-        # skip computation cache
-        checked_coverage_ff.compute_coverage(generation_result),
+        generation_result.get_coverage_for(checked_coverage_ff),
     )
 
 
@@ -374,7 +374,8 @@ def _run() -> ReturnCode:
         config.CoverageMetric.CHECKED
         in config.configuration.statistics_output.coverage_metrics
     ):
-        _track_resulting_checked_coverage(algorithm, generation_result)
+        generation_result.invalidate_cache()
+        _track_resulting_checked_coverage(executor, generation_result)
 
     # Export the generated test suites
     converter = cc.ChromosomeConverter()

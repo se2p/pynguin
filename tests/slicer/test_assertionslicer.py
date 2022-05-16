@@ -452,7 +452,7 @@ def test_assertion_detection_on_test_case(test_case, expected_assertions):
         (
             "tests.fixtures.linecoverage.exception",
             _get_exception_test_with_except_assertion(),
-            {8, 9, 10},
+            {9, 10, 11},
         ),
     ],
 )
