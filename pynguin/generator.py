@@ -370,7 +370,6 @@ def _track_resulting_checked_coverage(
     _LOGGER.info("Calculating resulting checked coverage")
 
     _add_checked_coverage_instrumentation(constant_provider, executor)
-    _load_sut(executor.tracer)
     importlib.reload(module)
 
     checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
