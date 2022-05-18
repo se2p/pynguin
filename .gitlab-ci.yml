@@ -86,6 +86,19 @@ nightly-tests:python-3.10:
 #  variables:
 #    PYTHON_VERSION: '3.11-rc-bullseye'
 
+memory-profile:
+  only:
+    - schedules
+  stage: test
+  before_script:
+    - pip install poetry
+    - poetry config virtualenvs.in-project true
+    - poetry install
+    - poetry add --dev memray pytest-memray
+  script:
+    - poetry run pytest --memray tests/
+  needs: ["build"]
+
 lint:
   stage: lint
   image: python:3.10-bullseye
