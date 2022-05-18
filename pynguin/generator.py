@@ -26,6 +26,7 @@ import os
 import sys
 import threading
 from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertiongenerator as ag
@@ -157,17 +158,17 @@ def _setup_import_hook(
     return tracer
 
 
-def _load_sut(tracer: ExecutionTracer) -> bool:
+def _load_sut(tracer: ExecutionTracer) -> ModuleType | None:
     try:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
-        importlib.import_module(config.configuration.module_name)
+        module = importlib.import_module(config.configuration.module_name)
     except ImportError as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed
         _LOGGER.exception("Failed to load SUT: %s", ex)
-        return False
-    return True
+        return None
+    return module
 
 
 def _setup_report_dir() -> bool:
@@ -230,7 +231,7 @@ def _setup_constant_seeding() -> tuple[
 
 
 def _setup_and_check() -> tuple[
-    TestCaseExecutor, ModuleTestCluster, ConstantProvider
+    TestCaseExecutor, ModuleTestCluster, ConstantProvider, ModuleType
 ] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -244,7 +245,8 @@ def _setup_and_check() -> tuple[
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
     tracer = _setup_import_hook(dynamic_constant_provider)
-    if not _load_sut(tracer):
+    module = _load_sut(tracer)
+    if not module:
         return None
     if not _setup_report_dir():
         return None
@@ -258,7 +260,7 @@ def _setup_and_check() -> tuple[
     executor = TestCaseExecutor(tracer)
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
-    return executor, test_cluster, wrapped_constant_provider
+    return executor, test_cluster, wrapped_constant_provider, module
 
 
 def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
@@ -324,6 +326,8 @@ def _get_coverage_ff_from_algorithm(
 def _track_resulting_checked_coverage(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
+    constant_provider: ConstantProvider,
+    module: ModuleType,
 ):
     """Now that we have assertions generated, we execute the testsuite statement for
     statement, while also instrumenting the executed test-statements before execution.
@@ -334,14 +338,15 @@ def _track_resulting_checked_coverage(
     """
     _LOGGER.info("Calculating resulting checked coverage")
 
+    _add_checked_coverage_instrumentation(constant_provider, executor)
+    _load_sut(executor.tracer)
+    importlib.reload(module)
+
     checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
     generation_result.add_coverage_function(checked_coverage_ff)
 
     # force new execution of the test cases after new instrumentation
-    generation_result.invalidate_cache()
-    for test_case in generation_result.test_case_chromosomes:
-        test_case.invalidate_cache()
-        test_case.set_last_execution_result(None)
+    _reset_cache_for_result(generation_result)
 
     stat.track_output_variable(
         RuntimeVariable.CheckedCoverage,
@@ -349,11 +354,56 @@ def _track_resulting_checked_coverage(
     )
 
 
-# pylint: disable=too-many-branches
+def _add_checked_coverage_instrumentation(constant_provider, executor):
+    if (
+        config.CoverageMetric.LINE
+        in config.configuration.statistics_output.coverage_metrics
+    ):
+        # if LINE was already set, no need to re-instrument for LINE
+        config.configuration.statistics_output.coverage_metrics = [
+            config.CoverageMetric.CHECKED,
+        ]
+    else:
+        # LINE is required for CHECKED to discover all available lines
+        config.configuration.statistics_output.coverage_metrics = [
+            config.CoverageMetric.CHECKED,
+            config.CoverageMetric.LINE,
+        ]
+
+    tracer = executor.tracer
+    install_import_hook(
+        config.configuration.module_name,
+        tracer,
+        dynamic_constant_provider=constant_provider,
+    )
+
+
+def _reset_cache_for_result(generation_result):
+    generation_result.invalidate_cache()
+    for test_case in generation_result.test_case_chromosomes:
+        test_case.invalidate_cache()
+        test_case.set_last_execution_result(None)
+
+
+def _disable_checked_coverage():
+    require_checked = False
+    if (
+        config.CoverageMetric.CHECKED
+        in config.configuration.statistics_output.coverage_metrics
+    ):
+        require_checked = True
+        config.configuration.statistics_output.coverage_metrics.remove(
+            config.CoverageMetric.CHECKED
+        )
+
+    return require_checked
+
+
 def _run() -> ReturnCode:
+    enable_checked_after_search = _disable_checked_coverage()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
-    executor, test_cluster, constant_provider = setup_result
+    executor, test_cluster, constant_provider, module = setup_result
     # Observe return types during execution.
     executor.add_observer(ReturnTypeObserver())
 
@@ -375,48 +425,16 @@ def _run() -> ReturnCode:
     executor.clear_observers()
 
     _track_coverage_metrics(algorithm, generation_result)
-
-    # Remove statements after exceptions
-    truncation = pp.ExceptionTruncation()
-    generation_result.accept(truncation)
-    if config.configuration.test_case_output.post_process:
-
-        unused_primitives_removal = pp.TestCasePostProcessor(
-            [pp.UnusedStatementsTestCaseVisitor()]
-        )
-        generation_result.accept(unused_primitives_removal)
-        # TODO(fk) add more postprocessing stuff.
-
-    ass_gen = config.configuration.test_case_output.assertion_generation
-    if ass_gen != config.AssertionGenerator.NONE:
-        _LOGGER.info("Start generating assertions")
-        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
-                executor
-            )
-        else:
-            generator = ag.AssertionGenerator(executor)
-        generation_result.accept(generator)
+    _remove_statements_after_exceptions(generation_result)
+    _generate_assertions(executor, generation_result)
 
     # only call checked coverage calculation after assertion generation
-    if (
-        config.CoverageMetric.CHECKED
-        in config.configuration.statistics_output.coverage_metrics
-    ):
-        generation_result.invalidate_cache()
-        _track_resulting_checked_coverage(executor, generation_result)
+    if enable_checked_after_search:
+        _track_resulting_checked_coverage(
+            executor, generation_result, constant_provider, module
+        )
 
-    # Export the generated test suites
-    converter = cc.ChromosomeConverter()
-    generation_result.accept(converter)
-    failing = converter.failing_test_suite
-    passing = converter.passing_test_suite
-    if (
-        config.configuration.test_case_output.export_strategy
-        == config.ExportStrategy.PY_TEST
-    ):
-        _export_chromosome(passing)
-        _export_chromosome(failing, file_name_suffix="_failing")
+    failing, passing = _export_generated_test_suites(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
@@ -436,6 +454,44 @@ def _run() -> ReturnCode:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
     return ReturnCode.OK
+
+
+def _remove_statements_after_exceptions(generation_result):
+    truncation = pp.ExceptionTruncation()
+    generation_result.accept(truncation)
+    if config.configuration.test_case_output.post_process:
+        unused_primitives_removal = pp.TestCasePostProcessor(
+            [pp.UnusedStatementsTestCaseVisitor()]
+        )
+        generation_result.accept(unused_primitives_removal)
+        # TODO(fk) add more postprocessing stuff.
+
+
+def _export_generated_test_suites(generation_result):
+    converter = cc.ChromosomeConverter()
+    generation_result.accept(converter)
+    failing = converter.failing_test_suite
+    passing = converter.passing_test_suite
+    if (
+        config.configuration.test_case_output.export_strategy
+        == config.ExportStrategy.PY_TEST
+    ):
+        _export_chromosome(passing)
+        _export_chromosome(failing, file_name_suffix="_failing")
+    return failing, passing
+
+
+def _generate_assertions(executor, generation_result):
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if ass_gen != config.AssertionGenerator.NONE:
+        _LOGGER.info("Start generating assertions")
+        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
+                executor
+            )
+        else:
+            generator = ag.AssertionGenerator(executor)
+        generation_result.accept(generator)
 
 
 def _track_coverage_metrics(

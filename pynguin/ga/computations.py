@@ -823,7 +823,6 @@ def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> fl
     Returns:
         The computed coverage value
     """
-    # TODO(SiL) currently line coverage must be tracked for checked coverage
     existing = len(known_data.existing_lines)
 
     if existing == 0:
