@@ -1089,6 +1089,11 @@ class ExecutionTracer:
     ) -> None:
         """Track a generic instruction inside the trace.
 
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -1114,6 +1119,11 @@ class ExecutionTracer:
         arg_type: type,
     ) -> None:
         """Track a memory access instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -1175,6 +1185,11 @@ class ExecutionTracer:
     ) -> None:
         """Track an attribute access instruction in the trace.
 
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -1224,6 +1239,11 @@ class ExecutionTracer:
     ) -> None:
         """Track a jump instruction in the trace.
 
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -1249,6 +1269,11 @@ class ExecutionTracer:
     ) -> None:
         """Track a method call instruction in the trace.
 
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -1272,6 +1297,11 @@ class ExecutionTracer:
         offset: int,
     ) -> None:
         """Track a return instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
