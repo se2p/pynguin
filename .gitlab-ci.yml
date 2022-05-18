@@ -90,6 +90,7 @@ memory-profile:
   only:
     - schedules
   stage: test
+  image: python:3.10-bullseye
   before_script:
     - pip install poetry
     - poetry config virtualenvs.in-project true
@@ -98,6 +99,7 @@ memory-profile:
   script:
     - poetry run pytest --memray tests/
   needs: ["build"]
+  <<: *python-cache
 
 lint:
   stage: lint
