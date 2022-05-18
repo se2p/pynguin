@@ -323,37 +323,6 @@ def _get_coverage_ff_from_algorithm(
     return test_suite_coverage_func
 
 
-def _track_resulting_checked_coverage(
-    executor: TestCaseExecutor,
-    generation_result: tsc.TestSuiteChromosome,
-    constant_provider: ConstantProvider,
-    module: ModuleType,
-):
-    """Now that we have assertions generated, we execute the testsuite statement for
-    statement, while also instrumenting the executed test-statements before execution.
-
-    Args:
-        executor: the testcase executor of the run
-        generation_result: the generated testsuite containing assertions
-    """
-    _LOGGER.info("Calculating resulting checked coverage")
-
-    _add_checked_coverage_instrumentation(constant_provider, executor)
-    _load_sut(executor.tracer)
-    importlib.reload(module)
-
-    checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
-    generation_result.add_coverage_function(checked_coverage_ff)
-
-    # force new execution of the test cases after new instrumentation
-    _reset_cache_for_result(generation_result)
-
-    stat.track_output_variable(
-        RuntimeVariable.CheckedCoverage,
-        generation_result.get_coverage_for(checked_coverage_ff),
-    )
-
-
 def _add_checked_coverage_instrumentation(constant_provider, executor):
     if (
         config.CoverageMetric.LINE
@@ -385,22 +354,38 @@ def _reset_cache_for_result(generation_result):
         test_case.set_last_execution_result(None)
 
 
-def _disable_checked_coverage():
-    require_checked = False
-    if (
-        config.CoverageMetric.CHECKED
-        in config.configuration.statistics_output.coverage_metrics
-    ):
-        require_checked = True
-        config.configuration.statistics_output.coverage_metrics.remove(
-            config.CoverageMetric.CHECKED
-        )
+def _track_resulting_checked_coverage(
+    executor: TestCaseExecutor,
+    generation_result: tsc.TestSuiteChromosome,
+    constant_provider: ConstantProvider,
+    module: ModuleType,
+):
+    """Now that we have assertions generated, we execute the testsuite statement for
+    statement, while also instrumenting the executed test-statements before execution.
 
-    return require_checked
+    Args:
+        executor: the testcase executor of the run
+        generation_result: the generated testsuite containing assertions
+    """
+    _LOGGER.info("Calculating resulting checked coverage")
+
+    _add_checked_coverage_instrumentation(constant_provider, executor)
+    _load_sut(executor.tracer)
+    importlib.reload(module)
+
+    checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
+    generation_result.add_coverage_function(checked_coverage_ff)
+
+    # force new execution of the test cases after new instrumentation
+    _reset_cache_for_result(generation_result)
+
+    stat.track_output_variable(
+        RuntimeVariable.CheckedCoverage,
+        generation_result.get_coverage_for(checked_coverage_ff),
+    )
 
 
 def _run() -> ReturnCode:
-    enable_checked_after_search = _disable_checked_coverage()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider, module = setup_result
@@ -429,7 +414,7 @@ def _run() -> ReturnCode:
     _generate_assertions(executor, generation_result)
 
     # only call checked coverage calculation after assertion generation
-    if enable_checked_after_search:
+    if RuntimeVariable.CheckedCoverage in config.configuration.statistics_output.output_variables:
         _track_resulting_checked_coverage(
             executor, generation_result, constant_provider, module
         )

@@ -49,7 +49,7 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained line coverage
     LineCoverage = "LineCoverage"
 
-    # Obtained line coverage
+    # Obtained checked coverage
     CheckedCoverage = "CheckedCoverage"
 
     # The random seed used during the search.
