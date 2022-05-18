@@ -1317,11 +1317,13 @@ class ExecutionTracer:
 
     def register_exception_assertion(self) -> None:
         """Track the position of an exception assertion in the trace.
-        TODO(SiL) describe how this handled differently from the other assertion
-         types
+
+         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
+         contained by each assertion. The pytest exception assertion does not use
+         an assertion containing this instruction.
+         Therefore, we trace the instruction that was last executed before
+         the exception.
         """
-        # TODO(SiL) currently only tracks the raising of the exception
-        #  not e.g. the building of the object raising an error
         trace = self.get_trace()
         error_call_position = len(trace.executed_instructions) - 1
         error_causing_instr = trace.executed_instructions[error_call_position]

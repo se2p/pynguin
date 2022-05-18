@@ -356,11 +356,6 @@ def test_assertion_detection_on_test_case(test_case_name, expected_assertions, r
             "plus_test_with_multiple_assertions",
             {9, 10, 16, 17, 18},
         ),
-        (
-            "tests.fixtures.linecoverage.exception",
-            "exception_test_with_except_assertion",
-            {9, 10, 11},
-        ),
     ],
 )
 def test_slicing_after_test_execution(
