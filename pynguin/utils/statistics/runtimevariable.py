@@ -80,20 +80,8 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of statements in the final test suite
     Length = "Length"
 
-    # Total number of statements in the final passing test suite
-    PassingLength = "PassingLength"
-
-    # Total number of statements in the final failing test suite
-    FailingLength = "FailingLength"
-
     # Number of tests in the resulting test suite
     Size = "Size"
-
-    # Number of tests in the resulting failing test suite
-    FailingSize = "FailingSize"
-
-    # Number of tests in the resulting passing test suite
-    PassingSize = "PassingSize"
 
     # Fitness value of the best individual
     Fitness = "Fitness"

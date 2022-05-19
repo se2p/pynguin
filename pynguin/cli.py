@@ -47,6 +47,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-rich",
         "--no_rich",
+        "--poor",  # hehe
         dest="no_rich",
         action="store_true",
         default=False,
