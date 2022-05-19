@@ -24,6 +24,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = set()
         self._test_case_asts: list[list[ast.stmt]] = []
+        self._test_case_status: list[bool] = []
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -56,6 +57,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         )
         chromosome.test_case.accept(visitor)
         self._test_case_asts.append(visitor.test_case_ast)
+        self._test_case_status.append(visitor.is_failing_test)
 
     @staticmethod
     def __create_ast_imports(
@@ -78,24 +80,26 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             )
         return imports
 
-    @staticmethod
     def __create_functions(
-        asts: list[list[ast.stmt]], with_self_arg: bool
+        self, asts: list[list[ast.stmt]], with_self_arg: bool
     ) -> list[ast.stmt]:
         functions: list[ast.stmt] = []
         for i, nodes in enumerate(asts):
             function_name = f"case_{i}"
             if len(nodes) == 0:
                 nodes = [ast.Pass()]
-            function_node = PyTestChromosomeToAstVisitor.__create_function_node(
-                function_name, nodes, with_self_arg
+            function_node = self.__create_function_node(
+                function_name, nodes, with_self_arg, self._test_case_status[i]
             )
             functions.append(function_node)
         return functions
 
-    @staticmethod
     def __create_function_node(
-        function_name: str, nodes: list[ast.stmt], with_self_arg: bool
+        self,
+        function_name: str,
+        nodes: list[ast.stmt],
+        with_self_arg: bool,
+        is_failing: bool,
     ) -> ast.FunctionDef:
         function_node = ast.FunctionDef(
             name=f"test_{function_name}",
@@ -109,10 +113,26 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 kw_defaults=[],
             ),
             body=nodes,
-            decorator_list=[],
+            decorator_list=self.__create_decorator_list(is_failing),
             returns=None,
         )
         return function_node
+
+    @staticmethod
+    def __create_decorator_list(is_failing: bool) -> list[ast.expr]:
+        if not is_failing:
+            return []
+        return [
+            ast.Attribute(
+                attr="xfail",
+                ctx=ast.Load(),
+                value=ast.Attribute(
+                    attr="mark",
+                    ctx=ast.Load(),
+                    value=ast.Name(id="pytest", ctx=ast.Load()),
+                ),
+            )
+        ]
 
     def to_module(self) -> ast.Module:
         """Provides a module in PyTest style that contains all visited test cases.
@@ -123,9 +143,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
             self._module_aliases, self._common_modules
         )
-        functions = PyTestChromosomeToAstVisitor.__create_functions(
-            self._test_case_asts, False
-        )
+        functions = self.__create_functions(self._test_case_asts, False)
         return ast.Module(body=import_nodes + functions, type_ignores=[])
 
 

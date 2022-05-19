@@ -179,10 +179,12 @@ class GenericCallableAccessibleObject(
         owner: type | None,
         callable_: TypesOfCallables,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
     ) -> None:
         super().__init__(owner)
         self._callable = callable_
         self._inferred_signature = inferred_signature
+        self._raised_exceptions = raised_exceptions
 
     def generated_type(self) -> type | None:
         return self._inferred_signature.return_type
@@ -195,6 +197,15 @@ class GenericCallableAccessibleObject(
             The inferred type signature
         """
         return self._inferred_signature
+
+    @property
+    def raised_exceptions(self) -> set[str]:
+        """Provides the set of exceptions that is expected to be raised by this callable
+
+        Returns:
+            The set of exceptions that is expected to be raised by this callable
+        """
+        return self._raised_exceptions
 
     @property
     def callable(
@@ -221,9 +232,16 @@ class GenericCallableAccessibleObject(
 class GenericConstructor(GenericCallableAccessibleObject):
     """A constructor."""
 
-    def __init__(self, owner: type, inferred_signature: InferredSignature) -> None:
+    def __init__(
+        self,
+        owner: type,
+        inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
+    ) -> None:
         # super().__init__(owner, owner.__init__, inferred_signature)  # type: ignore
-        super().__init__(owner, getattr(owner, "__init__"), inferred_signature)
+        super().__init__(
+            owner, getattr(owner, "__init__"), inferred_signature, raised_exceptions
+        )
         assert owner
 
     def generated_type(self) -> type | None:
@@ -249,14 +267,16 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         owner: type,
         method: TypesOfCallables,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
         method_name: str | None = None,
     ) -> None:
-        super().__init__(owner, method, inferred_signature)
+        super().__init__(owner, method, inferred_signature, raised_exceptions)
         assert owner
         self._method_name = method_name
 
@@ -302,10 +322,11 @@ class GenericFunction(GenericCallableAccessibleObject):
         self,
         function: FunctionType,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
         function_name: str | None = None,
     ) -> None:
         self._function_name = function_name
-        super().__init__(None, function, inferred_signature)
+        super().__init__(None, function, inferred_signature, raised_exceptions)
 
     def is_function(self) -> bool:
         return True
