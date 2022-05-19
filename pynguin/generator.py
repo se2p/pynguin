@@ -356,6 +356,8 @@ def _track_resulting_checked_coverage(
     Args:
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
+        constant_provider: the constant required for the instrumentation
+        module: the loaded module under test
     """
     _LOGGER.info("Calculating resulting checked coverage")
 

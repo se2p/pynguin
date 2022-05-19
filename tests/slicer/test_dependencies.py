@@ -154,9 +154,6 @@ def test_data_dependency_5():
             Instr("LOAD_CONST", arg="Foo"),
             Instr("CALL_FUNCTION", arg=2),
             Instr("STORE_NAME", arg="Foo"),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
             # ob = Foo()
             Instr("LOAD_GLOBAL", arg="Foo"),
             Instr("CALL_FUNCTION", arg=0),
@@ -173,9 +170,13 @@ def test_data_dependency_5():
             Instr("RETURN_VALUE"),
         ]
     )
+    class_attr_block = BasicBlock(
+        [Instr("LOAD_CONST", arg=None), Instr("RETURN_VALUE")]
+    )
 
     expected_instructions = []
     expected_instructions.extend(module_block)
+    expected_instructions.extend(class_attr_block)
 
     module = "tests.fixtures.slicer.partial_cover_dependency"
     sliced_instructions = slice_module_at_return(module)

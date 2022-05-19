@@ -358,7 +358,6 @@ def test_nested_class():
             # y = x
             Instr("LOAD_CLASSDEREF", arg=freevar_x),
             Instr("STORE_NAME", arg="y"),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -456,7 +455,6 @@ def test_nested_class_2():
             # foo = x1
             Instr("LOAD_CLASSDEREF", arg=freevar_x1),
             Instr("STORE_NAME", arg="foo"),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -467,7 +465,6 @@ def test_nested_class_2():
             # y = x2
             Instr("LOAD_CLASSDEREF", arg=freevar_x2),
             Instr("STORE_NAME", arg="y"),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -589,7 +586,6 @@ def test_data_dependency_immutable_attribute():
             # attr = 1
             Instr("LOAD_CONST", arg=1),
             Instr("STORE_NAME", arg="attr"),
-            # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
@@ -677,7 +673,6 @@ def test_object_modification_call():
             Instr("LOAD_CONST", arg=1),
             Instr("LOAD_FAST", arg="self"),
             Instr("STORE_ATTR", arg="x"),
-            # # TODO(SiL) should implicit 'return None's after void functions be included in the slice?
             Instr("LOAD_CONST", arg=None),
             Instr("RETURN_VALUE"),
         ]
