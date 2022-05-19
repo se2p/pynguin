@@ -31,7 +31,6 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.chromosomeconverter as cc
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
@@ -370,16 +369,11 @@ def _run() -> ReturnCode:
         generation_result.accept(generator)
 
     # Export the generated test suites
-    converter = cc.ChromosomeConverter()
-    generation_result.accept(converter)
-    failing = converter.failing_test_suite
-    passing = converter.passing_test_suite
     if (
         config.configuration.test_case_output.export_strategy
         == config.ExportStrategy.PY_TEST
     ):
-        _export_chromosome(passing)
-        _export_chromosome(failing, file_name_suffix="_failing")
+        _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
         render_coverage_report(
@@ -391,7 +385,7 @@ def _run() -> ReturnCode:
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
             datetime.datetime.now(),
         )
-    _track_statistics(passing, failing, generation_result)
+    _track_statistics(generation_result)
     _collect_statistics()
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
@@ -461,21 +455,10 @@ def _collect_statistics() -> None:
         stat.set_output_variable_for_runtime_variable(runtime_variable, value)
 
 
-def _track_statistics(
-    passing: chrom.Chromosome,
-    failing: chrom.Chromosome,
-    result: chrom.Chromosome,
-) -> None:
+def _track_statistics(result: chrom.Chromosome) -> None:
     stat.current_individual(result)
     stat.track_output_variable(RuntimeVariable.Size, result.size())
     stat.track_output_variable(RuntimeVariable.Length, result.length())
-    stat.track_output_variable(RuntimeVariable.FailingSize, failing.size())
-    stat.track_output_variable(
-        RuntimeVariable.FailingLength,
-        failing.length(),
-    )
-    stat.track_output_variable(RuntimeVariable.PassingSize, passing.size())
-    stat.track_output_variable(RuntimeVariable.PassingLength, passing.length())
 
 
 def _export_chromosome(
