@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
 from queue import Empty, Queue
-from types import BuiltinFunctionType, BuiltinMethodType, CodeType, ModuleType
+from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 import pytest
@@ -1318,11 +1318,11 @@ class ExecutionTracer:
     def register_exception_assertion(self) -> None:
         """Track the position of an exception assertion in the trace.
 
-         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
-         contained by each assertion. The pytest exception assertion does not use
-         an assertion containing this instruction.
-         Therefore, we trace the instruction that was last executed before
-         the exception.
+        Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
+        contained by each assertion. The pytest exception assertion does not use
+        an assertion containing this instruction.
+        Therefore, we trace the instruction that was last executed before
+        the exception.
         """
         trace = self.get_trace()
         error_call_position = len(trace.executed_instructions) - 1
@@ -1759,6 +1759,10 @@ class TestCaseExecutor:
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
+        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+        self._checked_transformer = InstrumentationTransformer(
+            self._tracer, [checked_adapter]
+        )
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -1895,9 +1899,8 @@ class TestCaseExecutor:
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
-
         if instrument_test:
-            code = self._instrument_code_for_checked(code)
+            code = self._checked_transformer.instrument_module(code)
 
         try:
             # pylint: disable=exec-used
@@ -1967,7 +1970,7 @@ class TestCaseExecutor:
                 self._logger.debug("Executing %s", ast.unparse(assertion_node))
 
             code = compile(assertion_node, "<ast>", "exec")
-            code = self._instrument_code_for_checked(code)
+            code = self._checked_transformer.instrument_module(code)
 
             # TODO(SiL) shouldn't the assertions never throw an error?
             #  therefore, we would not need a 'try-except'
@@ -1981,9 +1984,3 @@ class TestCaseExecutor:
                 )
             code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
             self._tracer.register_assertion_position(code_object_id, node_id)
-
-    def _instrument_code_for_checked(self, code: CodeType) -> CodeType:
-        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
-        transformer = InstrumentationTransformer(self._tracer, [checked_adapter])
-        code = transformer.instrument_module(code)
-        return code

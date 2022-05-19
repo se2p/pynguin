@@ -404,7 +404,10 @@ def _run() -> ReturnCode:
     _generate_assertions(executor, generation_result)
 
     # only call checked coverage calculation after assertion generation
-    if RuntimeVariable.CheckedCoverage in config.configuration.statistics_output.output_variables:
+    if (
+        RuntimeVariable.CheckedCoverage
+        in config.configuration.statistics_output.output_variables
+    ):
         _track_resulting_checked_coverage(
             executor, generation_result, constant_provider, module
         )
