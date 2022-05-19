@@ -7,12 +7,25 @@
 """Provides capabilities to export chromosomes"""
 
 import ast
+import dataclasses
 import os
 from pathlib import Path
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
+
+
+@dataclasses.dataclass
+class _AstConversionResult:
+    """Result of converting a test case and its assertions to AST."""
+
+    test_case_ast_stmts: list[ast.stmt]
+    """List of AST statement representing the converted test case"""
+
+    exception_status: bool
+    """Does the test case fail by default, i.e., raises an undeclared exception
+    on execution?"""
 
 
 class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
@@ -23,8 +36,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = set()
-        self._test_case_asts: list[list[ast.stmt]] = []
-        self._test_case_status: list[bool] = []
+        self._conversion_results: list[_AstConversionResult] = []
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -56,8 +68,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             exec_result=chromosome.get_last_execution_result(),
         )
         chromosome.test_case.accept(visitor)
-        self._test_case_asts.append(visitor.test_case_ast)
-        self._test_case_status.append(visitor.is_failing_test)
+        self._conversion_results.append(
+            _AstConversionResult(visitor.test_case_ast, visitor.is_failing_test)
+        )
 
     @staticmethod
     def __create_ast_imports(
@@ -80,22 +93,24 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             )
         return imports
 
+    @staticmethod
     def __create_functions(
-        self, asts: list[list[ast.stmt]], with_self_arg: bool
+        results: list[_AstConversionResult], with_self_arg: bool
     ) -> list[ast.stmt]:
         functions: list[ast.stmt] = []
-        for i, nodes in enumerate(asts):
+        for i, result in enumerate(results):
+            nodes = result.test_case_ast_stmts
             function_name = f"case_{i}"
             if len(nodes) == 0:
                 nodes = [ast.Pass()]
-            function_node = self.__create_function_node(
-                function_name, nodes, with_self_arg, self._test_case_status[i]
+            function_node = PyTestChromosomeToAstVisitor.__create_function_node(
+                function_name, nodes, with_self_arg, result.exception_status
             )
             functions.append(function_node)
         return functions
 
+    @staticmethod
     def __create_function_node(
-        self,
         function_name: str,
         nodes: list[ast.stmt],
         with_self_arg: bool,
@@ -113,7 +128,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 kw_defaults=[],
             ),
             body=nodes,
-            decorator_list=self.__create_decorator_list(is_failing),
+            decorator_list=PyTestChromosomeToAstVisitor.__create_decorator_list(
+                is_failing
+            ),
             returns=None,
         )
         return function_node
@@ -143,7 +160,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
             self._module_aliases, self._common_modules
         )
-        functions = self.__create_functions(self._test_case_asts, False)
+        functions = self.__create_functions(self._conversion_results, False)
         return ast.Module(body=import_nodes + functions, type_ignores=[])
 
 
