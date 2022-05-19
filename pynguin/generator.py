@@ -324,20 +324,11 @@ def _get_coverage_ff_from_algorithm(
 
 
 def _add_checked_coverage_instrumentation(constant_provider, executor):
-    if (
-        config.CoverageMetric.LINE
-        in config.configuration.statistics_output.coverage_metrics
-    ):
-        # if LINE was already set, no need to re-instrument for LINE
-        config.configuration.statistics_output.coverage_metrics = [
-            config.CoverageMetric.CHECKED,
-        ]
-    else:
-        # LINE is required for CHECKED to discover all available lines
-        config.configuration.statistics_output.coverage_metrics = [
-            config.CoverageMetric.CHECKED,
-            config.CoverageMetric.LINE,
-        ]
+    # LINE is required for CHECKED to discover all available lines
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED,
+        config.CoverageMetric.LINE,
+    ]
 
     tracer = executor.tracer
     install_import_hook(
