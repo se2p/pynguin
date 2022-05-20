@@ -24,7 +24,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.testcase import TestCase
-from pynguin.testcase.variablereference import FieldReference
+from pynguin.testcase.variablereference import FieldReference, StaticFieldReference
 from tests.fixtures.linecoverage.list import ListTest
 from tests.fixtures.linecoverage.plus import Plus
 
@@ -282,6 +282,66 @@ def plus_test_with_multiple_assertions():
 
 
 @pytest.fixture
+def partial_cover_use_bool_as_int():
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    bool_0 = False
+    plus_0 = module_0.Plus()
+    var_0 = plus_0.plus_four(bool_0)
+
+def test_case_1():
+     int_0 = 1001
+     plus_0 = module_0.Plus()
+     var_0 = plus_0.plus_three(int_0)
+     """
+        )
+    )
+
+    tc_0 = transformer.testcases[0]
+    tc_0.statements[1].add_assertion(
+        ass.ObjectAssertion(
+            StaticFieldReference(
+                gao.GenericStaticField(Plus, "calculations", int),
+            ),
+            0,
+        )
+    )
+    tc_0.statements[2].add_assertion(
+        ass.ObjectAssertion(tc_0.statements[2].ret_val, 4)
+    )
+    tc_0.statements[2].add_assertion(
+        ass.ObjectAssertion(
+            FieldReference(
+                tc_0.statements[2].ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            1,
+        )
+    )
+
+    tc_1 = transformer.testcases[1]
+    tc_1.statements[1].add_assertion(
+        ass.ObjectAssertion(
+            StaticFieldReference(
+                gao.GenericStaticField(Plus, "calculations", int),
+            ),
+            0,
+        )
+    )
+    tc_1.statements[2].add_assertion(
+        ass.ObjectAssertion(tc_0.statements[2].ret_val, 1004)
+    )
+
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_0))
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_1))
+    return test_suite
+
+
+@pytest.fixture
 def full_cover_plus_testsuite(
     full_cover_plus_three_test, full_cover_plus_four_test
 ) -> tsc.TestSuiteChromosome:
@@ -404,12 +464,19 @@ def test_slicing_after_test_execution(
         (
             "tests.fixtures.linecoverage.plus",
             "partial_cover_plus_testsuite",
+            # covers only one method
             5 / 8,
         ),
         (
             "tests.fixtures.linecoverage.plus",
             "full_cover_plus_testsuite",
             1,
+        ),
+        (
+            "tests.fixtures.linecoverage.plus",
+            "partial_cover_use_bool_as_int",
+            # covers all but one line
+            7 / 8,
         ),
     ],
 )
