@@ -10,7 +10,9 @@ from __future__ import annotations
 from ast import stmt
 from typing import TYPE_CHECKING
 
+import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
+import pynguin.testcase.statement as statmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.testcase.testcasevisitor import TestCaseVisitor
@@ -45,6 +47,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._common_modules: set[str] = common_modules
         self._exec_result = exec_result
         self._test_case_ast: list[stmt] = []
+        self._is_failing_test: bool = False
 
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
         self._test_case_ast = []
@@ -73,7 +76,11 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 statement_node=statement_visitor.ast_node,
             )
             for assertion in statement.assertions:
-                assertion.accept(assertion_visitor)
+                if self.__should_assertion_be_generated(assertion, statement):
+                    assertion.accept(assertion_visitor)
+                else:
+                    self._common_modules.add("pytest")
+                    self._is_failing_test = True
             # The visitor might wrap the generated statement node,
             # so append the nodes provided by the assertion visitor
             self._test_case_ast.extend(assertion_visitor.nodes)
@@ -86,3 +93,35 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             A list of the generated statement asts for a test case
         """
         return self._test_case_ast
+
+    @property
+    def is_failing_test(self) -> bool:
+        """Whether this test is a failing test.
+
+        A failing test is defined as a test that raised an exception during execution
+        which was not expected, i.e., declared by its implementation.
+
+        Returns:
+            Whether this test is a failing test
+        """
+        return self._is_failing_test
+
+    @staticmethod
+    def __should_assertion_be_generated(assertion, statement) -> bool:
+        """Decide whether the assertion shall be generated.
+
+        All assertion shall be generated, EXCEPT exception assertions that are not part
+        of the set of explicitly raised exceptions to the statement.
+
+        Args:
+            assertion: The current assertion
+            statement: The current statement
+
+        Returns:
+            Whether the assertion shall be generated for this statement
+        """
+        if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
+            statement, statmt.ParametrizedStatement
+        ):
+            return assertion.exception_type_name in statement.raised_exceptions
+        return True

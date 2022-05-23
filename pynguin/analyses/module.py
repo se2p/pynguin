@@ -634,10 +634,13 @@ def __analyse_function(
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
-    generic_function = GenericFunction(func, inferred_signature, func_name)
     func_ast = __get_function_node_from_ast(syntax_tree, func_name)
     description = __get_function_description_from_ast(func_ast)
+    raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
+    generic_function = GenericFunction(
+        func, inferred_signature, raised_exceptions, func_name
+    )
     function_data = _CallableData(
         accessible=generic_function,
         tree=func_ast,
@@ -660,17 +663,19 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 ) -> None:
     assert inspect.isclass(class_)
     LOGGER.debug("Analysing class %s", class_name)
+    class_ast = __get_class_node_from_ast(syntax_tree, class_name)
+    constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
+    description = __get_function_description_from_ast(constructor_ast)
+    raised_exceptions = description.raises if description is not None else set()
+    cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
+
     if issubclass(class_, enum.Enum):
         generic: GenericEnum | GenericConstructor = GenericEnum(class_)
     else:
         generic = GenericConstructor(
-            class_, infer_type_info(class_, type_inference_strategy)
+            class_, infer_type_info(class_, type_inference_strategy), raised_exceptions
         )
 
-    class_ast = __get_class_node_from_ast(syntax_tree, class_name)
-    constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
-    description = __get_function_description_from_ast(constructor_ast)
-    cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
     method_data = _CallableData(
         accessible=generic,
         tree=constructor_ast,
@@ -723,10 +728,13 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
-    generic_method = GenericMethod(class_, method, inferred_signature, method_name)
     method_ast = __get_function_node_from_ast(syntax_tree, method_name)
     description = __get_function_description_from_ast(method_ast)
+    raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
+    generic_method = GenericMethod(
+        class_, method, inferred_signature, raised_exceptions, method_name
+    )
     method_data = _CallableData(
         accessible=generic_method,
         tree=method_ast,

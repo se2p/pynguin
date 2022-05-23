@@ -964,6 +964,15 @@ class ParametrizedStatement(
     def args(self, args: dict[str, vr.VariableReference]):
         self._args = args
 
+    @property
+    def raised_exceptions(self) -> set[str]:
+        """Provides the set of exceptions raised by this call.
+
+        Returns:
+            The set of exceptions that can be raised by this call
+        """
+        return self._generic_callable.raised_exceptions
+
     def get_variable_references(self) -> set[vr.VariableReference]:
         references = set()
         references.add(self.ret_val)
