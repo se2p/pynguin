@@ -333,22 +333,20 @@ def _add_checked_coverage_instrumentation(
 
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
-    spec = find_spec(module_name)
-    if spec is not None:
-        old_loader = spec.loader
-        if isinstance(old_loader, FileLoader):
-            new_loader = InstrumentationLoader(
-                old_loader.name,
-                old_loader.path,
-                tracer,
-                constant_provider,
-            )
-            spec.loader = new_loader
-            module.__loader__ = new_loader
-            importlib.reload(module)
-        else:
-            assert False, "Loader for module under test is not " \
-                      "a FileLoader cageneratornnot instrument."
+    spec = module.__spec__
+    if spec is not None and isinstance(spec.loader, FileLoader):
+        new_loader = InstrumentationLoader(
+            spec.loader.name,
+            spec.loader.path,
+            tracer,
+            constant_provider,
+        )
+        spec.loader = new_loader
+        module.__loader__ = new_loader
+        importlib.reload(module)
+    else:
+        assert False, "Loader for module under test is not " \
+                  "a FileLoader can not instrument."
 
 
 def _reset_cache_for_result(generation_result):
