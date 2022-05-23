@@ -22,7 +22,7 @@ def test__load_sut_failed():
     gen.set_configuration(
         configuration=MagicMock(log_file=None, module_name="this.does.not.exist")
     )
-    assert gen._load_sut(MagicMock()) is None
+    assert gen._load_sut(MagicMock()) is False
 
 
 def test__load_sut_success():

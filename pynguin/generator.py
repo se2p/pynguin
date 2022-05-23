@@ -25,8 +25,9 @@ import logging
 import os
 import sys
 import threading
+from importlib.abc import FileLoader
+from importlib.util import find_spec
 from pathlib import Path
-from types import ModuleType
 from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertiongenerator as ag
@@ -49,7 +50,7 @@ from pynguin.analyses.constants import (
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.types import TypeInferenceStrategy
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.machinery import install_import_hook, InstrumentationLoader
 from pynguin.testcase.execution import (
     ExecutionTracer,
     ReturnTypeObserver,
@@ -157,7 +158,7 @@ def _setup_import_hook(
     return tracer
 
 
-def _load_sut(tracer: ExecutionTracer) -> ModuleType | None:
+def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
@@ -166,8 +167,8 @@ def _load_sut(tracer: ExecutionTracer) -> ModuleType | None:
         # A module could not be imported because some dependencies
         # are missing or it is malformed
         _LOGGER.exception("Failed to load SUT: %s", ex)
-        return None
-    return module
+        return False
+    return True
 
 
 def _setup_report_dir() -> bool:
@@ -230,7 +231,7 @@ def _setup_constant_seeding() -> tuple[
 
 
 def _setup_and_check() -> tuple[
-    TestCaseExecutor, ModuleTestCluster, ConstantProvider, ModuleType
+    TestCaseExecutor, ModuleTestCluster, ConstantProvider
 ] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -244,8 +245,7 @@ def _setup_and_check() -> tuple[
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
     tracer = _setup_import_hook(dynamic_constant_provider)
-    module = _load_sut(tracer)
-    if not module:
+    if not _load_sut(tracer):
         return None
     if not _setup_report_dir():
         return None
@@ -259,7 +259,7 @@ def _setup_and_check() -> tuple[
     executor = TestCaseExecutor(tracer)
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
-    return executor, test_cluster, wrapped_constant_provider, module
+    return executor, test_cluster, wrapped_constant_provider
 
 
 def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
@@ -322,19 +322,33 @@ def _get_coverage_ff_from_algorithm(
     return test_suite_coverage_func
 
 
-def _add_checked_coverage_instrumentation(constant_provider, executor):
+def _add_checked_coverage_instrumentation(
+    constant_provider: DynamicConstantProvider, tracer: ExecutionTracer
+):
     # LINE is required for CHECKED to discover all available lines
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
         config.CoverageMetric.LINE,
     ]
 
-    tracer = executor.tracer
-    install_import_hook(
-        config.configuration.module_name,
-        tracer,
-        dynamic_constant_provider=constant_provider,
-    )
+    module_name = config.configuration.module_name
+    module = importlib.import_module(module_name)
+    spec = find_spec(module_name)
+    if spec is not None:
+        old_loader = spec.loader
+        if isinstance(old_loader, FileLoader):
+            new_loader = InstrumentationLoader(
+                old_loader.name,
+                old_loader.path,
+                tracer,
+                constant_provider,
+            )
+            spec.loader = new_loader
+            module.__loader__ = new_loader
+            importlib.reload(module)
+        else:
+            assert False, "Loader for module under test is not " \
+                      "a FileLoader cageneratornnot instrument."
 
 
 def _reset_cache_for_result(generation_result):
@@ -347,8 +361,7 @@ def _reset_cache_for_result(generation_result):
 def _track_resulting_checked_coverage(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
-    constant_provider: ConstantProvider,
-    module: ModuleType,
+    constant_provider: DynamicConstantProvider,
 ):
     """Now that we have assertions generated, we execute the testsuite statement for
     statement, while also instrumenting the executed test-statements before execution.
@@ -357,12 +370,10 @@ def _track_resulting_checked_coverage(
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
         constant_provider: the constant required for the instrumentation
-        module: the loaded module under test
     """
     _LOGGER.info("Calculating resulting checked coverage")
 
-    _add_checked_coverage_instrumentation(constant_provider, executor)
-    importlib.reload(module)
+    _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
 
     checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
     generation_result.add_coverage_function(checked_coverage_ff)
@@ -379,7 +390,7 @@ def _track_resulting_checked_coverage(
 def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
-    executor, test_cluster, constant_provider, module = setup_result
+    executor, test_cluster, constant_provider = setup_result
     # Observe return types during execution.
     executor.add_observer(ReturnTypeObserver())
 
@@ -410,7 +421,7 @@ def _run() -> ReturnCode:
         in config.configuration.statistics_output.output_variables
     ):
         _track_resulting_checked_coverage(
-            executor, generation_result, constant_provider, module
+            executor, generation_result, constant_provider
         )
 
     # Export the generated test suites

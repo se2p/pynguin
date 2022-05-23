@@ -51,6 +51,21 @@ class InstrumentationLoader(SourceFileLoader):
         self._tracer = tracer
         self._dynamic_constant_provider = dynamic_constant_provider
 
+        self._adapters: list[InstrumentationAdapter] = []
+        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        if config.CoverageMetric.BRANCH in coverage_metrics:
+            self._adapters.append(BranchCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.LINE in coverage_metrics:
+            self._adapters.append(LineCoverageInstrumentation(self._tracer))
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            self._adapters.append(CheckedCoverageInstrumentation(self._tracer))
+
+        if config.configuration.seeding.dynamic_constant_seeding:
+            assert self._dynamic_constant_provider is not None
+            self._adapters.append(
+                DynamicSeedingInstrumentation(self._dynamic_constant_provider)
+            )
+
     def exec_module(self, module):
         self._tracer.reset()
         super().exec_module(module)
@@ -68,22 +83,7 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        adapters: list[InstrumentationAdapter] = []
-        coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.BRANCH in coverage_metrics:
-            adapters.append(BranchCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.LINE in coverage_metrics:
-            adapters.append(LineCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.CHECKED in coverage_metrics:
-            adapters.append(CheckedCoverageInstrumentation(self._tracer))
-
-        if config.configuration.seeding.dynamic_constant_seeding:
-            assert self._dynamic_constant_provider is not None
-            adapters.append(
-                DynamicSeedingInstrumentation(self._dynamic_constant_provider)
-            )
-
-        transformer = InstrumentationTransformer(self._tracer, adapters)
+        transformer = InstrumentationTransformer(self._tracer, self._adapters)
         return transformer.instrument_module(to_instrument)
 
 
@@ -148,7 +148,7 @@ class InstrumentationFinder(MetaPathFinder):
                     return spec
                 self._logger.error(
                     "Loader for module under test is not a FileLoader,"
-                    " cannot instrument."
+                    " cageneratornnot instrument."
                 )
 
         return None
