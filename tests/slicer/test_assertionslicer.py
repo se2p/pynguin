@@ -332,7 +332,7 @@ def test_case_1():
         )
     )
     tc_1.statements[2].add_assertion(
-        ass.ObjectAssertion(tc_0.statements[2].ret_val, 1004)
+        ass.ObjectAssertion(tc_1.statements[2].ret_val, 1004)
     )
 
     test_suite = tsc.TestSuiteChromosome()
@@ -456,22 +456,22 @@ def test_slicing_after_test_execution(
 @pytest.mark.parametrize(
     "module_name, test_suite_name, expected_coverage",
     [
-        (
-            "tests.fixtures.linecoverage.plus",
-            "no_cover_plus_testsuite",
-            0,
-        ),
-        (
-            "tests.fixtures.linecoverage.plus",
-            "partial_cover_plus_testsuite",
-            # covers only one method
-            5 / 8,
-        ),
-        (
-            "tests.fixtures.linecoverage.plus",
-            "full_cover_plus_testsuite",
-            1,
-        ),
+        # (
+        #     "tests.fixtures.linecoverage.plus",
+        #     "no_cover_plus_testsuite",
+        #     0,
+        # ),
+        # (
+        #     "tests.fixtures.linecoverage.plus",
+        #     "partial_cover_plus_testsuite",
+        #     # covers only one method
+        #     5 / 8,
+        # ),
+        # (
+        #     "tests.fixtures.linecoverage.plus",
+        #     "full_cover_plus_testsuite",
+        #     1,
+        # ),
         (
             "tests.fixtures.linecoverage.plus",
             "partial_cover_use_bool_as_int",
