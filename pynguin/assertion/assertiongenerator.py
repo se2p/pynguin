@@ -163,6 +163,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             )
             for test, results in tests_and_results:
                 results.append(self._executor.execute(test))
+            self._executor.module_provider.clear_mutated_modules()
 
         return tests_and_results
 
