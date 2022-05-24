@@ -588,3 +588,4 @@ def test_visit_assert(function_analysis):
     tree = __parse_ast(program)
     function_analysis.visit(tree.body[0])
     assert len(function_analysis.asserts) == 1
+    assert function_analysis.exceptions.pop() == "AssertionError"
