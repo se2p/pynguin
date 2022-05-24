@@ -594,6 +594,21 @@ class _RaiseVisitor(ast.NodeVisitor):
         context = self.contexts.pop()
         self.context.extend(context)
 
+    # pylint: disable=invalid-name, missing-docstring
+    def visit_Assert(self, node: ast.Assert) -> ast.AST:
+        # If we see an assert statement in the subject under test we expect that the
+        # assertion can also be failing, thus it is legitimate to raise an
+        # AssertionError.  Hence, we add the AssertionError to the set of raised
+        # exceptions.
+        self.visit_Raise(
+            ast.Raise(
+                exc=ast.Call(func=ast.Name(id="AssertionError", ctx=ast.Load())),
+            )
+        )
+        # Make sure that we also execute a visit_Assert method in another analysis
+        # visitor class.
+        return getattr(super(), "visit_Assert", super().generic_visit)(node)
+
 
 class _YieldVisitor(ast.NodeVisitor):
     """A visitor checking for ``yield`` nodes."""
@@ -689,7 +704,9 @@ class _AssertVisitor(ast.NodeVisitor):
     # pylint: disable=invalid-name, missing-docstring
     def visit_Assert(self, node: ast.Assert) -> ast.AST:
         self.asserts.append(node)
-        return self.generic_visit(node)
+        # Make sure that we also execute a visit_Assert method in another analysis
+        # visitor class.
+        return getattr(super(), "visit_Assert", super().generic_visit)(node)
 
 
 # pylint: disable=too-many-ancestors

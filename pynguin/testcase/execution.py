@@ -1033,6 +1033,12 @@ class ExecutionTracer:
         Args:
             line_id: the if of the line that was visited
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        if self._is_disabled():
+            return
+
         self._trace.covered_line_ids.add(line_id)
 
     def register_line(
@@ -1820,6 +1826,7 @@ class TestCaseExecutor:
                 thread = threading.Thread(
                     target=self._execute_test_case,
                     args=(test_case, return_queue, instrument_test),
+                    daemon=True,
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))

@@ -162,7 +162,7 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
-        module = importlib.import_module(config.configuration.module_name)
+        importlib.import_module(config.configuration.module_name)
     except ImportError as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed

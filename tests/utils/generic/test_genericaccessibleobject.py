@@ -140,3 +140,8 @@ def test_generic_field_is_field(field_mock):
 
 def test_generic_field_dependencies(field_mock):
     assert field_mock.get_dependencies() == {SomeType}
+
+
+def test_generic_function_raised_exceptions():
+    func = GenericFunction(MagicMock(), MagicMock(), {"FooError"})
+    assert func.raised_exceptions == {"FooError"}
