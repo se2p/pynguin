@@ -94,7 +94,7 @@ the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
 Pynguin created assertions using :ref:`Mutation Analysis <mutation_analysis>`.
 The output then concludes with its results:
-Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+Four test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -146,27 +146,14 @@ The command yields the following output:
 
 .. literalinclude:: ../source/_static/queue-example-stdout.txt
 
-We can see that the *DYNAMOSA* algorithm had to perform nine iterations to fully cover
+We can see that the *DYNAMOSA* algorithm had to perform eight iterations to fully cover
 the ``Queue`` example with the given seed.
-We can also see that Pynguin generated three successful testcases:
+We can also see that Pynguin generated seven test cases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:
     :language: python
     :lines: 8-
-
-
-And that it also generated four failing test cases, one of which looks this:
-
-.. literalinclude:: ../source/_static/test_queue_example_failing.py
-    :linenos:
-    :language: python
-    :lines: 20-34
-
-Failing test cases hereby are test cases that raised an exception during their execution.
-For now, Pynguin cannot know if an exception is expected program behavior,
-caused by an invalid input or an actual fault.
-Thus, these test cases are wrapped in ``try-except`` blocks and should be manually inspected.
 
 .. note::
   Generated test cases may contain a lot of superfluous statements.

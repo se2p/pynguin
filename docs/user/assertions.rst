@@ -76,3 +76,63 @@ Such an assertion can still be relevant, e.g., when we want to assert that a val
 but they also clutter the test cases quite a bit.
 By default, both approaches remove such stale assertions. This can be changed using the option ``--allow-stale-assertions``.
 This option is turned off by default, such that Pynguin only generates assertions for things that change between statement executions.
+
+Expected vs Unexpected Exceptions
+---------------------------------
+
+Python, similar to many other programming languages, does not have a concept to declare
+expected or unexpected exceptions, as it is known from the Java world (called *checked*
+and *unchecked* there).
+Still the problem is highly relevant when generating assertions that check for an
+exception.
+
+We decided to define expected and unexpected exceptions in the context of Pynguin as
+follows (for simplicity, we talk about functions here, but this also includes methods
+inside classes among others):
+
+* An *expected exception* is an exception that is explicitly raised in a function but
+  not caught.
+  This can be done by the ``raise`` keyword without having a surrounding
+  ``try``-``finally`` block.
+
+  We furthermore call an exception expected if it is mentioned in the docstring of
+  the function that the function raises such an exception.
+* An *unexpected exception* is an exception that is not explicitly raised in a function.
+  This can happen, for example, because the exception is raised in another function that
+  is called by the original function.
+
+We use the above definitions to generate specific assertions in case an exception is
+raised during test-case execution.
+For an expected exception of type ``ExampleException`` that is raised during
+execution of a function ``example``, Pynguin will generate the following statements
+in the resulting test case:
+
+.. code-block:: python
+
+  with pytest.raises(ExampleException):
+      example()
+
+For an unexpected exception that is raised during execution of a function
+``example``, Pynguin will annotate the test function like follows:
+
+.. code-block:: python
+
+  @pytest.mark.xfail
+  def test_case_0():
+      example()
+
+Both variants use functionality from the `PyTest <https://pytest.org>`_ framework:
+The ``pytest.raises`` function is used by PyTest to assert for an
+`expected exception <https://docs.pytest.org/en/latest/how-to/assert.html#assertions-about-expected-exceptions>`_;
+the ``pytest.mark.xfail`` decorator is used by PyTest to mark test functions as
+`expected to fail <https://docs.pytest.org/en/latest/how-to/assert.html#assertions-about-expected-exceptions>`_.
+
+For a user of Pynguin the latter is a clear hint to manually inspect the generated
+test case.
+If in the user's opinion the exception is something that is actually expected it is
+now the user's responsibility to change the code to a similar code that checks for an
+expected exception if they want to use the test case in their code base.
+
+One further type of expected assertion can be an ``AssertionError``.
+This exception type is expected if the source code of the tested function contains an
+``assert`` statement.
