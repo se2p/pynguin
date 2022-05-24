@@ -11,6 +11,63 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.20.0
 
+### Breaking Changes
+
+- Remove splitting into passing and failing test suite.
+
+  Previously, we consider a test case passing if it did not raise any exception 
+  during its execution; it was considered failing otherwise.  Pynguin did a split of 
+  the test cases into two test suites before exporting them.  This was mainly an 
+  artefact from implementing the random algorithm in the very beginning of the 
+  project.  Due to the improved assertion export for exception assertions we can now 
+  get rid of the split and export only one test module containing all generated test 
+  cases.
+- Remove the option to use a log file (`--log_file` or `--log-file`).
+
+  Pynguin writes its output to STDOUT/STDERR now, if requested by the `-v`/`-vv` switch.
+  This output is formatted by @willmcgugan's amazing
+  [rich](https://github.com/Textualize/rich) library.  A user can disable the output
+  formatting by setting the `--no-rich` flag.  Of course, because we believe that `rich`
+  is such an awesome library, we also provide an alias for this flag, called `--poor`😉
+
+### Further Changes
+
+- Distinguish between expected and unexpected exceptions.
+
+  We consider an exception to be expected if it is explicitly raised in the code 
+  under test or is documented in the code's docstring.  For those exceptions we 
+  build an `with pytest.raises` block around the exception-raising statement.  All 
+  other exceptions are considered to be unexpected.  We decorate the test method 
+  with the `@pytest.mark.xfail` decorator and let the exception happen.  It is up to 
+  the user to decide whether such an exception is expected.  An exception here is 
+  the `AssertionError`: it is considered to be expected as soon as there is an 
+  `assert` statement in the code under test.
+- Improve installation description to explicitly point to using a virtual environment
+  (see GitHub issue #23, thanks to @tuckcodes).
+- Improve variable names and exception assertions
+
+  The assertion generation got an improved handling for asserting on exceptions, 
+  which creates more meaningful and (hopefully) better understandable assertions for 
+  exceptions.
+- Enhance the module analysis
+
+  This is basically a rewrite of our previously existing test cluster, which keeps 
+  track of all the callables from the subject under test as well as the subject's 
+  dependencies.  It also incorporates an analysis of the subject's AST (if present) 
+  and allows for more and more precise information about the subject which can then 
+  improve the quality of the generated tests.
+- To distinguish bytecode instructions during instrumentation we add an 
+  `ArtificialInstr` for our own added instructions.
+- Fix a bug in the tracing of runtime types.
+  
+  During assertion generation Pynguin tracks the variable types to decide for which 
+  values it actually is able to generate assertions.  Creating an assertion on a 
+  generator function does not work, as the type is not exposed by Python but only 
+  present during runtime—thus generating an object of this type always fail.  We 
+  mitigate this by ignoring objects of type `builtins.generator` from the assertion 
+  generation.
+- Improve documentation regarding coverage measurement and the coverage report
+
 ## Pynguin 0.19.0
 
 ### Breaking Change

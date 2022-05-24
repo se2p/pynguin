@@ -16,7 +16,7 @@ ExportStrategy = config.ExportStrategy
 StatisticsBackend = config.StatisticsBackend
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
-__version__ = "0.20.0.dev"
+__version__ = "0.20.0"
 __all__ = [
     "set_configuration",
     "run_pynguin",
