@@ -47,6 +47,7 @@ def test_line_registration():
 
 def test_line_visit():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
