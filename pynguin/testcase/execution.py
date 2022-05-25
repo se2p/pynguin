@@ -1979,15 +1979,6 @@ class TestCaseExecutor:
             code = compile(assertion_node, "<ast>", "exec")
             code = self._checked_transformer.instrument_module(code)
 
-            try:
-                # pylint: disable=exec-used
-                exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
-            except Exception as err:  # pylint: disable=broad-except
-                # TODO(SiL) why do the assertions of 3 integrations dont throw an error,
-                #  but the new integration test does? namespace or parsing of assertions wrong?
-                failed_stmt = ast.unparse(assertion_node)
-                TestCaseExecutor._logger.debug(
-                    "Failed to execute statement:\n%s%s", failed_stmt, err.args
-                )
+            exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
             code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
             self._tracer.register_assertion_position(code_object_id, node_id)
