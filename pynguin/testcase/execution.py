@@ -809,24 +809,6 @@ class ExecutionTracer:
         copied.merge(self._import_trace)
         return copied
 
-    @property
-    def module_name(self) -> str:
-        """Returns the name of the module that was tested during the trace.
-
-        Returns:
-            The name of the module that was tested during the trace.
-        """
-        return self._module_name
-
-    @module_name.setter
-    def module_name(self, module_name: str) -> None:
-        """Sets the module name for the trace.
-
-        Args:
-            module_name: the new set module name
-        """
-        self._module_name = module_name
-
     def get_known_data(self) -> KnownData:
         """Provide known data.
 
@@ -1108,6 +1090,8 @@ class ExecutionTracer:
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
+        if self._is_disabled():
+            return
         self._trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1145,6 +1129,8 @@ class ExecutionTracer:
         Raises:
             ValueError: when no argument is given
         """
+        if self._is_disabled():
+            return
         if not arg:
             if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
                 raise ValueError("A memory access instruction must have an argument")
@@ -1208,6 +1194,8 @@ class ExecutionTracer:
             arg_address: the memory address of the argument
             arg_type: the type of argument
         """
+        if self._is_disabled():
+            return
 
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
@@ -1259,6 +1247,8 @@ class ExecutionTracer:
             offset: the offset of the instruction
             target_id: the offset of the target of the jump
         """
+        if self._is_disabled():
+            return
         self._trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
@@ -1289,6 +1279,8 @@ class ExecutionTracer:
             offset: the offset of the instruction
             arg: the argument used in the method call
         """
+        if self._is_disabled():
+            return
         self._trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
@@ -1317,6 +1309,8 @@ class ExecutionTracer:
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
+        if self._is_disabled():
+            return
         self._trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1330,6 +1324,8 @@ class ExecutionTracer:
         Therefore, we trace the instruction that was last executed before
         the exception.
         """
+        if self._is_disabled():
+            return
         trace = self.get_trace()
         error_call_position = len(trace.executed_instructions) - 1
         error_causing_instr = trace.executed_instructions[error_call_position]
@@ -1346,6 +1342,8 @@ class ExecutionTracer:
             code_object_id: code object containing the assertion to register
             node_id: the id of the node containing the assertion to register
         """
+        if self._is_disabled():
+            return
         exec_instr = self.get_trace().executed_instructions
         pop_jump_if_true_position = len(exec_instr) - 1
         for instr in reversed(exec_instr):
@@ -1976,6 +1974,7 @@ class TestCaseExecutor:
             if self._logger.isEnabledFor(logging.DEBUG):
                 self._logger.debug("Executing %s", ast.unparse(assertion_node))
 
+            # pylint: disable=exec-used
             code = compile(assertion_node, "<ast>", "exec")
             code = self._checked_transformer.instrument_module(code)
 

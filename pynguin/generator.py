@@ -26,7 +26,6 @@ import os
 import sys
 import threading
 from importlib.abc import FileLoader
-from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -50,7 +49,7 @@ from pynguin.analyses.constants import (
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.types import TypeInferenceStrategy
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import install_import_hook, InstrumentationLoader
+from pynguin.instrumentation.machinery import InstrumentationLoader, install_import_hook
 from pynguin.testcase.execution import (
     ExecutionTracer,
     ReturnTypeObserver,
@@ -323,7 +322,7 @@ def _get_coverage_ff_from_algorithm(
 
 
 def _add_checked_coverage_instrumentation(
-    constant_provider: DynamicConstantProvider, tracer: ExecutionTracer
+    constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
 ):
     # LINE is required for CHECKED to discover all available lines
     config.configuration.statistics_output.coverage_metrics = [
@@ -345,8 +344,9 @@ def _add_checked_coverage_instrumentation(
         module.__loader__ = new_loader
         importlib.reload(module)
     else:
-        assert False, "Loader for module under test is not " \
-                  "a FileLoader can not instrument."
+        assert (
+            False
+        ), "Loader for module under test is not a FileLoader can not instrument."
 
 
 def _reset_cache_for_result(generation_result):
@@ -359,7 +359,7 @@ def _reset_cache_for_result(generation_result):
 def _track_resulting_checked_coverage(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
-    constant_provider: DynamicConstantProvider,
+    constant_provider: DynamicConstantProvider | None,
 ):
     """Now that we have assertions generated, we execute the testsuite statement for
     statement, while also instrumenting the executed test-statements before execution.
@@ -418,8 +418,11 @@ def _run() -> ReturnCode:
         RuntimeVariable.CheckedCoverage
         in config.configuration.statistics_output.output_variables
     ):
+        dynamic_constant_provider = None
+        if isinstance(constant_provider, DynamicConstantProvider):
+            dynamic_constant_provider = constant_provider
         _track_resulting_checked_coverage(
-            executor, generation_result, constant_provider
+            executor, generation_result, dynamic_constant_provider
         )
 
     # Export the generated test suites

@@ -142,24 +142,6 @@ class DynamicSlicer:
         self._known_code_objects = known_code_objects
         self._trace = trace
 
-    @property
-    def known_code_objects(self):
-        """Provide known code objects.
-
-        Returns:
-            The known code objects of the execution
-        """
-        return self._known_code_objects
-
-    @property
-    def trace(self):
-        """Get the trace with the current information.
-
-        Returns:
-            The current execution trace
-        """
-        return self._trace
-
     def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
         self,
         trace: ExecutionTrace,
@@ -575,52 +557,6 @@ class DynamicSlicer:
         for predecessor in predecessors:
             if not predecessor.is_artificial:
                 context.instr_ctrl_deps.add(unique_instr)
-
-    @staticmethod
-    def organize_by_code_object(
-        instructions: list[UniqueInstruction],
-    ) -> dict[int, list[UniqueInstruction]]:
-        """Sort a list of instructions into a dictionary, where each instruction is
-        stored in a list accessible through the if of the code object containing the
-        instruction.
-
-        Args:
-            instructions: The instructions to sort as list
-
-        Returns:
-            A dictionary where each id of a code object contains a list of
-            instructions of the code object belonging to the id.
-        """
-        code_object_instructions: dict[int, list[UniqueInstruction]] = {}
-
-        for instruction in instructions:
-            if instruction.code_object_id not in code_object_instructions:
-                code_object_instructions[instruction.code_object_id] = []
-            code_object_instructions[instruction.code_object_id].append(instruction)
-
-        return code_object_instructions
-
-    @staticmethod
-    def organize_by_module(
-        sliced_instructions: list[UniqueInstruction],
-    ) -> dict[str, list[UniqueInstruction]]:
-        """Sort all instructions of a dynamic slice by their module name.
-
-        Args:
-            sliced_instructions: The list of instructions inside the dynamic slice
-
-        Returns:
-            A dictionary where each module name contains a list of instructions of the
-            slice that belong to the module with that name.
-        """
-        module_instructions: dict[str, list[UniqueInstruction]] = {}
-
-        for instruction in sliced_instructions:
-            if instruction.file not in module_instructions:
-                module_instructions[instruction.file] = []
-            module_instructions[instruction.file].append(instruction)
-
-        return module_instructions
 
     @staticmethod
     def get_node(
