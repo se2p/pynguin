@@ -293,10 +293,10 @@ def partial_cover_use_bool_as_int():
     var_0 = plus_0.plus_four(bool_0)
 
 def test_case_1():
-     int_0 = 1001
-     plus_0 = module_0.Plus()
-     var_0 = plus_0.plus_three(int_0)
-     """
+    int_0 = 1001
+    plus_0 = module_0.Plus()
+    var_0 = plus_0.plus_three(int_0)
+    """
         )
     )
 
@@ -309,13 +309,11 @@ def test_case_1():
             0,
         )
     )
-    tc_0.statements[2].add_assertion(
-        ass.ObjectAssertion(tc_0.statements[2].ret_val, 4)
-    )
+    tc_0.statements[2].add_assertion(ass.ObjectAssertion(tc_0.statements[2].ret_val, 4))
     tc_0.statements[2].add_assertion(
         ass.ObjectAssertion(
             FieldReference(
-                tc_0.statements[2].ret_val,
+                tc_0.statements[1].ret_val,
                 gao.GenericField(Plus, "calculations", int),
             ),
             1,
