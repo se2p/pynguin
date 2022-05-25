@@ -292,7 +292,7 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock):
             type_generators, gao.GenericAccessibleObject
         )  # pragma: no cover
 
-    cluster = ModuleTestCluster()
+    cluster = ModuleTestCluster(linenos=-1)
     cluster.get_generators_for = lambda t: MagicMock(
         gao.GenericAccessibleObject
     )  # pragma: no cover

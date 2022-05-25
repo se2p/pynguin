@@ -48,7 +48,7 @@ def parsed_module_no_any_annotation() -> _ParseResult:
 
 @pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
-    return ModuleTestCluster()
+    return ModuleTestCluster(linenos=-1)
 
 
 def test_parse_module(parsed_module_no_dependencies):

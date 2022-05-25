@@ -104,6 +104,7 @@ MODULE_BLACKLIST: tuple[str, ...] = (
 class _ParseResult(NamedTuple):
     """A data wrapper for an imported and parsed module."""
 
+    linenos: int
     module_name: str
     module: ModuleType
     syntax_tree: ast.AST | None
@@ -212,8 +213,9 @@ def parse_module(
 
     try:
         source_file = inspect.getsourcefile(module)
+        source_code = inspect.getsource(module)
         syntax_tree = ast.parse(
-            inspect.getsource(module),
+            source_code,
             filename=source_file if source_file is not None else "",
             type_comments=type_inference is not TypeInferenceStrategy.NONE,
             feature_version=sys.version_info[1],
@@ -229,13 +231,16 @@ def parse_module(
         annotation_replacer = _ArgumentReturnAnnotationReplacementVisitor()
         annotation_replacer.visit(syntax_tree)
         syntax_tree = ast.fix_missing_locations(syntax_tree)
+        linenos = len(source_code.splitlines())
     except OSError as error:
         LOGGER.warning(
             f"Could not retrieve source code for module {module_name} ({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
         syntax_tree = None
+        linenos = -1
     return _ParseResult(
+        linenos=linenos,
         module_name=module_name,
         module=module,
         syntax_tree=syntax_tree,
@@ -250,7 +255,8 @@ class ModuleTestCluster:
     dependencies.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, linenos: int) -> None:
+        self.__linenos = linenos
         self.__generators: dict[type, OrderedSet[GenericAccessibleObject]] = {}
         self.__modifiers: dict[type, OrderedSet[GenericAccessibleObject]] = {}
         self.__accessible_objects_under_test: OrderedSet[
@@ -259,6 +265,15 @@ class ModuleTestCluster:
         self.__function_data_for_accessibles: dict[
             GenericAccessibleObject, _CallableData
         ] = {}
+
+    @property
+    def linenos(self) -> int:
+        """Provide the number of source code lines.
+
+        Returns:
+            The number of source code lines
+        """
+        return self.__linenos
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
@@ -461,6 +476,7 @@ class ModuleTestCluster:
         tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
         tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
         tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+        tracking_fun(RuntimeVariable.LineNos, self.__linenos)
 
     CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
 
@@ -492,7 +508,7 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         known_data: KnownData,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
-        super().__init__()
+        super().__init__(linenos=delegate.linenos)
         self.__delegate = delegate
         self.__known_data = known_data
         self.__code_object_id_to_accessible_objects: dict[
@@ -937,7 +953,7 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
     Returns:
         A test cluster for the module
     """
-    test_cluster = ModuleTestCluster()
+    test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
 
     for func_name, func in inspect.getmembers(
         parsed_module.module, function_in_module(parsed_module.module_name)

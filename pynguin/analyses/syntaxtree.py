@@ -226,6 +226,8 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         super().__init__()
         self.is_abstract: bool | None = None
         self.is_static: bool = False
+        self.start_line_no: int = -1
+        self.end_line_no: int = -1
 
     @staticmethod
     def __is_docstring(node: ast.AST) -> bool:
@@ -295,13 +297,19 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
         self.is_abstract = self.__analyse_pure_abstract(node)
         self.is_static = self.__analyse_static(node)
+        self.__capture_line_nos(node)
         return self.generic_visit(node)
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         self.is_abstract = self.__analyse_pure_abstract(node)
         self.is_static = self.__analyse_static(node)
+        self.__capture_line_nos(node)
         return self.generic_visit(node)
+
+    def __capture_line_nos(self, node: FunctionDef) -> None:
+        self.start_line_no = get_line_number_for_function(node)
+        self.end_line_no = node.end_lineno if node.end_lineno is not None else -1
 
 
 class _Context:
@@ -747,6 +755,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
         argument_names: The (potentially empty) list of arguments of the function
         argument_types: The list of arguments and their annotated type (or ``None``)
         docstring: The optional docstring of the function
+        end_line_no: The last line number of the function (or -1)
         func: The AST node of the function
         has_empty_return: Whether the function has an empty ``return`` statement
         has_return: Whether the function has a ``return`` statement
@@ -761,12 +770,14 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
         raises_assert: Whether the function raises any exceptions
         return_type: The annotated type the function returns (if any)
         return_value: The return node from the AST (if any)
+        start_line_no: The first line number of the function
         variables: A list of variables that get defined inside the function
     """
 
     argument_names: list[str]
     argument_types: list[tuple[str, str | None]]
     docstring: str | None
+    end_line_no: int
     func: FunctionDef
     has_empty_return: bool
     has_return: bool
@@ -781,6 +792,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
     raises_assert: bool
     return_type: str | None
     return_value: ast.Return | None
+    start_line_no: int
     variables: list[ast.Name]
 
 
@@ -837,6 +849,7 @@ def __build_function_description(
         argument_names=arguments,
         argument_types=argument_types,
         docstring=get_docstring(func),
+        end_line_no=function_analysis.end_line_no,
         func=func,
         has_empty_return=has_empty_return,
         has_return=has_return,
@@ -851,5 +864,6 @@ def __build_function_description(
         raises_assert=bool(function_analysis.asserts),
         return_type=get_return_type(func),
         return_value=return_value,
+        start_line_no=function_analysis.start_line_no,
         variables=function_analysis.variables,
     )
