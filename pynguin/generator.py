@@ -280,14 +280,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
         RuntimeVariable.Lines,
         len(tracer.get_known_data().existing_lines),
     )
-    stat.track_output_variable(
-        RuntimeVariable.AccessibleObjectsUnderTest,
-        test_cluster.num_accessible_objects_under_test(),
-    )
-    stat.track_output_variable(
-        RuntimeVariable.GeneratableTypes,
-        len(test_cluster.get_all_generatable_types()),
-    )
+    test_cluster.track_statistics_values(stat.track_output_variable)
     # TODO(fk) make this work for other criteria beyond branch coverage.
     stat.track_output_variable(
         RuntimeVariable.ImportBranchCoverage,

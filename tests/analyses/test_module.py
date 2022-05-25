@@ -26,6 +26,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,
     GenericEnum,
+    GenericFunction,
     GenericMethod,
 )
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
@@ -46,9 +47,14 @@ def parsed_module_no_any_annotation() -> _ParseResult:
     return parse_module("tests.fixtures.cluster.no_any_annotations")
 
 
+@pytest.fixture(scope="module")
+def parsed_module_nested_functions() -> _ParseResult:
+    return parse_module("tests.fixtures.cluster.nested_functions")
+
+
 @pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
-    return ModuleTestCluster()
+    return ModuleTestCluster(linenos=-1)
 
 
 def test_parse_module(parsed_module_no_dependencies):
@@ -385,3 +391,11 @@ def test_import_dependency():
     # TODO Improve this test
     assert len(cluster.generators) > 2
     assert len(cluster.modifiers) > 0
+
+
+def test_analyse_nested_functions(parsed_module_nested_functions):
+    test_cluster = analyse_module(parsed_module_nested_functions)
+    assert test_cluster.num_accessible_objects_under_test() == 1
+    func = test_cluster.accessible_objects_under_test.pop()
+    assert isinstance(func, GenericFunction)
+    assert func.function_name == "table_row"

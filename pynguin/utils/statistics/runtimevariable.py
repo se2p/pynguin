@@ -120,5 +120,20 @@ class RuntimeVariable(str, enum.Enum):
     # Indicates if a suitable test module was found to seed initial testcases
     SuitableTestModule = "SuitableTestModule"
 
+    # The minimum cyclomatic complexity as defined by McCabe of the SUT
+    McCabeMin = "McCabeMin"
+
+    # The mean cyclomatic complexity as defined by McCabe of the SUT
+    McCabeMean = "McCabeMean"
+
+    # The median cyclomatic complexity as defined by McCabe of the SUT
+    McCabeMedian = "McCabeMedian"
+
+    # The maximum cyclomatic complexity as defined by McCabe of the SUT
+    McCabeMax = "McCabeMax"
+
+    # The number of lines in the source file
+    LineNos = "LineNos"
+
     def __repr__(self):
         return f"{self.name}"
