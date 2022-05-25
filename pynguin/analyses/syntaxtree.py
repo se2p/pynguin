@@ -20,10 +20,11 @@ from collections import deque
 from typing import Any, Iterable, Iterator
 
 _LOGGER = logging.getLogger(__name__)
+FunctionDef = ast.AsyncFunctionDef | ast.FunctionDef
 
 
 def has_decorator(
-    func: ast.FunctionDef | ast.AsyncFunctionDef,
+    func: FunctionDef,
     decorators: str | Iterable[str],
 ) -> bool:
     """Checks whether a function has one or more decorators.
@@ -60,7 +61,7 @@ def get_docstring(node: ast.AST) -> str | None:
 
 def get_all_functions(
     tree: ast.AST,
-) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+) -> Iterator[FunctionDef]:
     """Yields all functions from an AST.
 
     Args:
@@ -90,7 +91,7 @@ def get_all_classes(tree: ast.AST) -> Iterator[ast.ClassDef]:
 
 def get_all_methods(
     tree: ast.AST,
-) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+) -> Iterator[FunctionDef]:
     """Yields all methods from an AST.
 
     Args:
@@ -103,7 +104,7 @@ def get_all_methods(
         yield from get_all_functions(class_)
 
 
-def get_return_type(func: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+def get_return_type(func: FunctionDef) -> str | None:
     """Retrieves the return type of a function from the AST.
 
     Args:
@@ -117,7 +118,7 @@ def get_return_type(func: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     return None
 
 
-def get_line_number_for_function(func: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+def get_line_number_for_function(func: FunctionDef) -> int:
     """Retrieves the line number for a function from the AST.
 
     Args:
@@ -137,12 +138,12 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
     """Extracts all functions, methods, and properties from an AST."""
 
     def __init__(self) -> None:
-        self.__callables: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
-        self.__methods: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
-        self.__properties: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
+        self.__callables: set[FunctionDef] = set()
+        self.__methods: set[FunctionDef] = set()
+        self.__properties: set[FunctionDef] = set()
 
     @property
-    def functions(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def functions(self) -> list[FunctionDef]:
         """Provides all traced functions.
 
         Returns:
@@ -151,7 +152,7 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
         return list(self.__callables - self.__methods - self.__properties)
 
     @property
-    def methods(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def methods(self) -> list[FunctionDef]:
         """Provides all traced methods.
 
         Returns:
@@ -160,7 +161,7 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
         return list(self.__methods)
 
     @property
-    def properties(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def properties(self) -> list[FunctionDef]:
         """Provides all traced properties.
 
         Returns:
@@ -263,9 +264,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
             and node.value.id == "NotImplemented"
         )
 
-    def __analyse_pure_abstract(
-        self, node: ast.AsyncFunctionDef | ast.FunctionDef
-    ) -> bool:
+    def __analyse_pure_abstract(self, node: FunctionDef) -> bool:
         if not has_decorator(node, "abstractmethod"):
             return False
 
@@ -289,7 +288,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         )
 
     @staticmethod
-    def __analyse_static(node: ast.AsyncFunctionDef | ast.FunctionDef) -> bool:
+    def __analyse_static(node: FunctionDef) -> bool:
         return has_decorator(node, "staticmethod")
 
     # pylint: disable=invalid-name, missing-docstring
@@ -768,7 +767,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
     argument_names: list[str]
     argument_types: list[tuple[str, str | None]]
     docstring: str | None
-    func: ast.AsyncFunctionDef | ast.FunctionDef
+    func: FunctionDef
     has_empty_return: bool
     has_return: bool
     has_yield: bool
@@ -815,7 +814,7 @@ def get_function_descriptions(program: ast.AST) -> list[FunctionDescription]:
 
 
 def __build_function_description(
-    function_type: FunctionType, func: ast.AsyncFunctionDef | ast.FunctionDef
+    function_type: FunctionType, func: FunctionDef
 ) -> FunctionDescription:
     function_analysis = FunctionAnalysisVisitor()
     function_analysis.visit(func)
