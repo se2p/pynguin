@@ -635,11 +635,21 @@ def __get_class_node_from_ast(tree: ast.AST | None, name: str) -> ast.ClassDef |
 
 
 def __get_function_description_from_ast(
-    tree: ast.AST | None,
+    tree: ASTFunctionNodes | None,
 ) -> FunctionDescription | None:
     if tree is None:
         return None
-    description = get_function_descriptions(tree)
+
+    def filter_for_tree_defining_function_name(desc: FunctionDescription) -> bool:
+        return getattr(tree, "name", None) == desc.name
+
+    # Filter the resulting function descriptions for the one represented by the `tree`
+    # AST node.  There might be more than one function description, e.g., for nested
+    # functions, where we are still only interested in the top-level functions and
+    # not in the closures.
+    description = list(
+        filter(filter_for_tree_defining_function_name, get_function_descriptions(tree))
+    )
     assert len(description) == 1
     return description[0]
 
