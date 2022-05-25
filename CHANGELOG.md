@@ -11,6 +11,14 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.21.0
 
+- Fix a bug in the module analysis regarding nested functions
+
+  Nested functions/closures caused Pynguin's module analysis to crash with an 
+  failing assertion.
+- Improve the branch-distance computation for `bool` values
+- Allow for more statistics variables regarding number of lines and cyclomatic 
+  complexity
+
 ## Pynguin 0.20.1
 
 - Fix a bug in terminating Pynguin due to threading
