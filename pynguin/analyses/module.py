@@ -17,6 +17,8 @@ import logging
 import queue
 import sys
 import typing
+from collections import namedtuple
+from statistics import mean, median
 from types import (
     BuiltinFunctionType,
     FunctionType,
@@ -47,6 +49,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
@@ -434,6 +437,44 @@ class ModuleTestCluster:
                 return randomness.choice(candidates)
             return None
         return select_from
+
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
+        """Track statistics values from the test cluster and its items.
+
+        Args:
+            tracking_fun: The tracking function as a callback.
+        """
+        tracking_fun(
+            RuntimeVariable.AccessibleObjectsUnderTest,
+            self.num_accessible_objects_under_test(),
+        )
+        tracking_fun(
+            RuntimeVariable.GeneratableTypes, len(self.get_all_generatable_types())
+        )
+
+        cyclomatic_complexity = self.__compute_cyclomatic_complexities(
+            self.function_data_for_accessibles.values()
+        )
+        tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
+        tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
+        tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
+        tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+
+    CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
+
+    @staticmethod
+    def __compute_cyclomatic_complexities(
+        callable_data: typing.Iterable[_CallableData],
+    ) -> CyclomaticComplexity:
+        complexities = [item.cyclomatic_complexity for item in callable_data]
+        return ModuleTestCluster.CyclomaticComplexity(
+            min=min(complexities),
+            mean=mean(complexities),
+            median=median(complexities),
+            max=max(complexities),
+        )
 
 
 class FilteredModuleTestCluster(ModuleTestCluster):
