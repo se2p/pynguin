@@ -128,13 +128,13 @@ def test__reset_cache_for_result():
     result = MagicMock(test_case_chromosomes=[test_case])
     with mock.patch.object(test_case, "invalidate_cache") as test_case_cache_mock:
         with mock.patch.object(
-            test_case, "set_last_execution_result"
+            test_case, "remove_last_execution_result"
         ) as test_case_result_mock:
             with mock.patch.object(result, "invalidate_cache") as result_cache_mock:
                 gen._reset_cache_for_result(result)
                 result_cache_mock.assert_called_once()
                 test_case_cache_mock.assert_called_once()
-                test_case_result_mock.assert_called_once_with(None)
+                test_case_result_mock.assert_called_once()
 
 
 def test__setup_report_dir(tmp_path: Path):

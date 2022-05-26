@@ -56,6 +56,7 @@ from pynguin.testcase.execution import (
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -337,16 +338,16 @@ def _add_checked_coverage_instrumentation(
         module.__loader__ = new_loader
         importlib.reload(module)
     else:
-        assert (
-            False
-        ), "Loader for module under test is not a FileLoader can not instrument."
+        raise ConfigurationException(
+            "Loader for module under test is not a FileLoader can not instrument."
+        )
 
 
 def _reset_cache_for_result(generation_result):
     generation_result.invalidate_cache()
     for test_case in generation_result.test_case_chromosomes:
         test_case.invalidate_cache()
-        test_case.set_last_execution_result(None)
+        test_case.remove_last_execution_result()
 
 
 def _track_resulting_checked_coverage(

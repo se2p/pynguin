@@ -446,7 +446,11 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         offset = 0
         for node_index, block in enumerate(blocks):
             node = ProgramGraphNode(index=node_index, basic_block=block, offset=offset)
+            # each instruction increases the offset by 2, therefore the offset at the
+            # beginning of the next block is the current offset plus twice the length
+            # of the current block
             offset += len(block) * 2
+
             nodes[node_index] = node
             if node_index not in edges:
                 edges[node_index] = []

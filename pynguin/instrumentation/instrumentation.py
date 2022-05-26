@@ -426,6 +426,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 "executed_bool_predicate",
                 lineno=lineno,
             ),
@@ -488,6 +490,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 "executed_compare_predicate",
                 lineno=lineno,
             ),
@@ -528,6 +532,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 "executed_exception_match",
                 lineno=lineno,
             ),
@@ -556,6 +562,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 "executed_code_object",
                 lineno=lineno,
             ),
@@ -626,6 +634,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "executed_bool_predicate",
                     lineno=lineno,
                 ),
@@ -642,6 +652,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "executed_bool_predicate",
                     lineno=lineno,
                 ),
@@ -707,6 +719,8 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
             ArtificialInstr(
                 "LOAD_METHOD",
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 "track_line_visit",
                 lineno=lineno,
             ),
@@ -765,111 +779,112 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 new_block_instructions.append(instr)
                 continue
             # Perform the actual instrumentation
-            if instr.opcode in (
-                op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
-            ):
-                self._instrument_generic(
-                    new_block_instructions,
-                    code_object_id,
-                    node.index,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_LOCAL_ACCESS:
-                self._instrument_local_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_NAME_ACCESS:
-                self._instrument_name_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_GLOBAL_ACCESS:
-                self._instrument_global_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_DEREF_ACCESS:
-                self._instrument_deref_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_ATTR_ACCESS:
-                self._instrument_attr_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_SUBSCR_ACCESS:
-                self._instrument_subscr_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_ABSOLUTE_JUMP + op.OP_RELATIVE_JUMP:
-                self._instrument_jump(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    cfg,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_CALL:
-                self._instrument_call(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_RETURN:
-                self._instrument_return(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            elif instr.opcode in op.OP_IMPORT_NAME:
-                self._instrument_import_name_access(
-                    code_object_id,
-                    node.index,
-                    new_block_instructions,
-                    instr,
-                    offset,
-                    file_name,
-                )
-            else:
-                # Un-traced instruction retrieved during analysis
-                new_block_instructions.append(instr)
+            match instr.opcode:
+                case opcode if opcode in (
+                    op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
+                ):
+                    self._instrument_generic(
+                        new_block_instructions,
+                        code_object_id,
+                        node.index,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_LOCAL_ACCESS:
+                    self._instrument_local_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_NAME_ACCESS:
+                    self._instrument_name_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_GLOBAL_ACCESS:
+                    self._instrument_global_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_DEREF_ACCESS:
+                    self._instrument_deref_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_ATTR_ACCESS:
+                    self._instrument_attr_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_SUBSCR_ACCESS:
+                    self._instrument_subscr_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_ABSOLUTE_JUMP + op.OP_RELATIVE_JUMP:
+                    self._instrument_jump(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        cfg,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_CALL:
+                    self._instrument_call(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_RETURN:
+                    self._instrument_return(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case opcode if opcode in op.OP_IMPORT_NAME:
+                    self._instrument_import_name_access(
+                        code_object_id,
+                        node.index,
+                        new_block_instructions,
+                        instr,
+                        offset,
+                        file_name,
+                    )
+                case _:
+                    # Un-traced instruction retrieved during analysis
+                    new_block_instructions.append(instr)
 
             offset += 2
 
@@ -892,6 +907,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_generic",
                     lineno=instr.lineno,
                 ),
@@ -935,6 +952,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_memory_access",
                     lineno=instr.lineno,
                 ),
@@ -982,12 +1001,12 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset: int,
         file_name: str,
     ) -> None:
-        if instr.opcode in [
+        if instr.opcode in (
             op.LOAD_ATTR,
             op.DELETE_ATTR,
             op.IMPORT_FROM,
             op.LOAD_METHOD,
-        ]:
+        ):
             # Duplicate top of stack to access attribute
             new_block_instructions.append(
                 ArtificialInstr("DUP_TOP", lineno=instr.lineno)
@@ -1008,6 +1027,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_attribute_access",
                     lineno=instr.lineno,
                 ),
@@ -1038,6 +1059,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "attribute_lookup",
                     lineno=instr.lineno,
                 ),
@@ -1070,12 +1093,12 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        if instr.opcode in [
+        if instr.opcode in (
             op.LOAD_ATTR,
             op.DELETE_ATTR,
             op.IMPORT_FROM,
             op.LOAD_METHOD,
-        ]:
+        ):
             # Original instruction: we need to load the attribute afterwards
             new_block_instructions.append(instr)
 
@@ -1125,6 +1148,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_attribute_access",
                     lineno=instr.lineno,
                 ),
@@ -1182,6 +1207,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_memory_access",
                     lineno=instr.lineno,
                 ),
@@ -1237,6 +1264,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_memory_access",
                     lineno=instr.lineno,
                 ),
@@ -1293,6 +1322,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_memory_access",
                     lineno=instr.lineno,
                 ),
@@ -1358,6 +1389,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_memory_access",
                     lineno=instr.lineno,
                 ),
@@ -1410,6 +1443,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             [
                 # Load tracing method
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 ArtificialInstr("LOAD_METHOD", "track_jump", lineno=instr.lineno),
             ]
         )
@@ -1456,6 +1491,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             [
                 # Load tracing method
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                # references method in the ExecutionTracer by name
+                # to avoid circular import
                 ArtificialInstr("LOAD_METHOD", "track_call", lineno=instr.lineno),
             ]
         )
@@ -1490,6 +1527,8 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
                 ArtificialInstr(
                     "LOAD_METHOD",
+                    # references method in the ExecutionTracer by name
+                    # to avoid circular import
                     "track_return",
                     lineno=instr.lineno,
                 ),

@@ -256,13 +256,17 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._last_execution_result
 
-    def set_last_execution_result(self, result: ExecutionResult | None) -> None:
+    def set_last_execution_result(self, result: ExecutionResult) -> None:
         """Set the last execution result.
 
         Args:
             result: The last execution result
         """
         self._last_execution_result = result
+
+    def remove_last_execution_result(self) -> None:
+        """Removes the last execution result."""
+        self._last_execution_result = None
 
     def is_failing(self) -> bool:
         """Returns whether or not the encapsulated test case is a failing test.

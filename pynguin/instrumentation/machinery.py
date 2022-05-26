@@ -148,7 +148,7 @@ class InstrumentationFinder(MetaPathFinder):
                     return spec
                 self._logger.error(
                     "Loader for module under test is not a FileLoader,"
-                    " cageneratornnot instrument."
+                    " can not instrument."
                 )
 
         return None

@@ -47,7 +47,7 @@ from pynguin.utils.type_utils import (
     is_string,
 )
 
-immutable_types = [int, float, complex, str, tuple, frozenset, bytes]
+immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at

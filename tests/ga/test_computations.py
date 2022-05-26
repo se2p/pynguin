@@ -57,7 +57,7 @@ def test_resetting_test_case_chromosome_forces_execution():
     func = DummyTestCaseChromosomeComputation(executor)
     test_case = tcc.TestCaseChromosome(MagicMock())
     test_case.set_changed(True)
-    test_case.set_last_execution_result(None)
+    test_case.remove_last_execution_result()
     assert func._run_test_case_chromosome(test_case) == result
     assert test_case.get_last_execution_result() == result
 
