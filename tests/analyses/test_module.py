@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import ast
+import itertools
 from logging import Logger
 from typing import Any, Union, cast
 from unittest.mock import MagicMock
@@ -399,3 +400,17 @@ def test_analyse_nested_functions(parsed_module_nested_functions):
     func = test_cluster.accessible_objects_under_test.pop()
     assert isinstance(func, GenericFunction)
     assert func.function_name == "table_row"
+
+
+def test_analyse_empty_enum_module():
+    def extract_enum_without_fields(enum: GenericAccessibleObject) -> bool:
+        return isinstance(enum, GenericEnum) and len(enum.names) == 0
+
+    cluster = generate_test_cluster("enum")
+    enums_without_fields = list(
+        filter(
+            extract_enum_without_fields,
+            itertools.chain.from_iterable(cluster.generators.values()),
+        )
+    )
+    assert len(enums_without_fields) == 0
