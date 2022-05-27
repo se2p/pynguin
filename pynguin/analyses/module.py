@@ -738,6 +738,12 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 
     if issubclass(class_, enum.Enum):
         generic: GenericEnum | GenericConstructor = GenericEnum(class_)
+        if isinstance(generic, GenericEnum) and len(generic.names) == 0:
+            LOGGER.debug(
+                "Skipping enum %s from test cluster, it has no fields.",
+                class_name,
+            )
+            return
     else:
         generic = GenericConstructor(
             class_, infer_type_info(class_, type_inference_strategy), raised_exceptions
