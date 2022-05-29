@@ -47,6 +47,7 @@ def test_line_registration():
 
 def test_line_visit():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
@@ -185,22 +186,43 @@ def test_passed_bool_predicate():
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
-def test_bool_distance_true():
+@pytest.mark.parametrize(
+    "val,true_dist,false_dist",
+    [
+        (True, 0.0, 1.0),
+        (object(), 0.0, inf),
+        (ExecutionTracer(), 0.0, inf),
+        (False, 1.0, 0),
+        ([], 1.0, 0),
+        (set(), 1.0, 0),
+        ({}, 1.0, 0),
+        ((), 1.0, 0),
+        ("", 1.0, 0),
+        (b"", 1.0, 0),
+        (0, 1.0, 0),
+        (["something"], 0.0, 1.0),
+        ({"something"}, 0.0, 1.0),
+        ({"a": "something"}, 0.0, 1.0),
+        (("something",), 0.0, 1.0),
+        ("a", 0.0, 1.0),
+        (["something", "another", "bla"], 0.0, 3.0),
+        ({"something", "another", "bla"}, 0.0, 3.0),
+        ({"a": "something", "b": "another", "c": "bla"}, 0.0, 3.0),
+        (("something", "another", "bla"), 0.0, 3.0),
+        ("abcdef", 0.0, 6.0),
+        (b"abcdef", 0.0, 6.0),
+        (42, 0.0, 42.0),
+        (3 + 4j, 0.0, 5.0),
+        (7.5, 0.0, 7.5),
+    ],
+)
+def test_bool_distances(val, true_dist, false_dist):
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
-    tracer.executed_bool_predicate(True, 0)
-    assert (0, 0.0) in tracer.get_trace().true_distances.items()
-    assert (0, 1.0) in tracer.get_trace().false_distances.items()
-
-
-def test_bool_distance_false():
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_predicate(MagicMock(code_object_id=0))
-    tracer.executed_bool_predicate(False, 0)
-    assert (0, 1.0) in tracer.get_trace().true_distances.items()
-    assert (0, 0.0) in tracer.get_trace().false_distances.items()
+    tracer.executed_bool_predicate(val, 0)
+    assert tracer.get_trace().true_distances.get(0) == true_dist
+    assert tracer.get_trace().false_distances.get(0) == false_dist
 
 
 def test_clear():

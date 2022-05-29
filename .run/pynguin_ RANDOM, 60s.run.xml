@@ -23,7 +23,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pynguin/__main__.py" />
-    <option name="PARAMETERS" value="--algorithm RANDOM --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --maximum_search_time 60 --seed 42 --statistics-backend CONSOLE --log-file /tmp/pynguin-results/log.txt -v" />
+    <option name="PARAMETERS" value="--algorithm RANDOM --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --maximum_search_time 60 --seed 42 --statistics-backend CONSOLE -v" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="true" />
     <option name="MODULE_MODE" value="false" />

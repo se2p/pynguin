@@ -9,6 +9,7 @@ import ast
 import pytest
 
 import pynguin.ga.testcasechromosome as tcc
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.generation import export
@@ -46,7 +47,7 @@ def test_case_0():
         + testcase_seed
     )
     test_cluster = generate_test_cluster("tests.fixtures.grammar.parameters")
-    transformer = AstToTestCaseTransformer(test_cluster, False)
+    transformer = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
     chromosome = tcc.TestCaseChromosome(transformer.testcases[0])

@@ -20,10 +20,11 @@ from collections import deque
 from typing import Any, Iterable, Iterator
 
 _LOGGER = logging.getLogger(__name__)
+FunctionDef = ast.AsyncFunctionDef | ast.FunctionDef
 
 
 def has_decorator(
-    func: ast.FunctionDef | ast.AsyncFunctionDef,
+    func: FunctionDef,
     decorators: str | Iterable[str],
 ) -> bool:
     """Checks whether a function has one or more decorators.
@@ -60,7 +61,7 @@ def get_docstring(node: ast.AST) -> str | None:
 
 def get_all_functions(
     tree: ast.AST,
-) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+) -> Iterator[FunctionDef]:
     """Yields all functions from an AST.
 
     Args:
@@ -90,7 +91,7 @@ def get_all_classes(tree: ast.AST) -> Iterator[ast.ClassDef]:
 
 def get_all_methods(
     tree: ast.AST,
-) -> Iterator[ast.FunctionDef | ast.AsyncFunctionDef]:
+) -> Iterator[FunctionDef]:
     """Yields all methods from an AST.
 
     Args:
@@ -103,7 +104,7 @@ def get_all_methods(
         yield from get_all_functions(class_)
 
 
-def get_return_type(func: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+def get_return_type(func: FunctionDef) -> str | None:
     """Retrieves the return type of a function from the AST.
 
     Args:
@@ -117,7 +118,7 @@ def get_return_type(func: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     return None
 
 
-def get_line_number_for_function(func: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+def get_line_number_for_function(func: FunctionDef) -> int:
     """Retrieves the line number for a function from the AST.
 
     Args:
@@ -137,12 +138,12 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
     """Extracts all functions, methods, and properties from an AST."""
 
     def __init__(self) -> None:
-        self.__callables: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
-        self.__methods: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
-        self.__properties: set[ast.FunctionDef | ast.AsyncFunctionDef] = set()
+        self.__callables: set[FunctionDef] = set()
+        self.__methods: set[FunctionDef] = set()
+        self.__properties: set[FunctionDef] = set()
 
     @property
-    def functions(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def functions(self) -> list[FunctionDef]:
         """Provides all traced functions.
 
         Returns:
@@ -151,7 +152,7 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
         return list(self.__callables - self.__methods - self.__properties)
 
     @property
-    def methods(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def methods(self) -> list[FunctionDef]:
         """Provides all traced methods.
 
         Returns:
@@ -160,7 +161,7 @@ class FunctionAndMethodVisitor(ast.NodeVisitor):
         return list(self.__methods)
 
     @property
-    def properties(self) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    def properties(self) -> list[FunctionDef]:
         """Provides all traced properties.
 
         Returns:
@@ -225,6 +226,8 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         super().__init__()
         self.is_abstract: bool | None = None
         self.is_static: bool = False
+        self.start_line_no: int = -1
+        self.end_line_no: int = -1
 
     @staticmethod
     def __is_docstring(node: ast.AST) -> bool:
@@ -263,9 +266,7 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
             and node.value.id == "NotImplemented"
         )
 
-    def __analyse_pure_abstract(
-        self, node: ast.AsyncFunctionDef | ast.FunctionDef
-    ) -> bool:
+    def __analyse_pure_abstract(self, node: FunctionDef) -> bool:
         if not has_decorator(node, "abstractmethod"):
             return False
 
@@ -289,20 +290,26 @@ class _AbstractStaticCallableVisitor(ast.NodeVisitor):
         )
 
     @staticmethod
-    def __analyse_static(node: ast.AsyncFunctionDef | ast.FunctionDef) -> bool:
+    def __analyse_static(node: FunctionDef) -> bool:
         return has_decorator(node, "staticmethod")
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
         self.is_abstract = self.__analyse_pure_abstract(node)
         self.is_static = self.__analyse_static(node)
+        self.__capture_line_nos(node)
         return self.generic_visit(node)
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         self.is_abstract = self.__analyse_pure_abstract(node)
         self.is_static = self.__analyse_static(node)
+        self.__capture_line_nos(node)
         return self.generic_visit(node)
+
+    def __capture_line_nos(self, node: FunctionDef) -> None:
+        self.start_line_no = get_line_number_for_function(node)
+        self.end_line_no = node.end_lineno if node.end_lineno is not None else -1
 
 
 class _Context:
@@ -594,6 +601,21 @@ class _RaiseVisitor(ast.NodeVisitor):
         context = self.contexts.pop()
         self.context.extend(context)
 
+    # pylint: disable=invalid-name, missing-docstring
+    def visit_Assert(self, node: ast.Assert) -> ast.AST:
+        # If we see an assert statement in the subject under test we expect that the
+        # assertion can also be failing, thus it is legitimate to raise an
+        # AssertionError.  Hence, we add the AssertionError to the set of raised
+        # exceptions.
+        self.visit_Raise(
+            ast.Raise(
+                exc=ast.Call(func=ast.Name(id="AssertionError", ctx=ast.Load())),
+            )
+        )
+        # Make sure that we also execute a visit_Assert method in another analysis
+        # visitor class.
+        return getattr(super(), "visit_Assert", super().generic_visit)(node)
+
 
 class _YieldVisitor(ast.NodeVisitor):
     """A visitor checking for ``yield`` nodes."""
@@ -689,7 +711,9 @@ class _AssertVisitor(ast.NodeVisitor):
     # pylint: disable=invalid-name, missing-docstring
     def visit_Assert(self, node: ast.Assert) -> ast.AST:
         self.asserts.append(node)
-        return self.generic_visit(node)
+        # Make sure that we also execute a visit_Assert method in another analysis
+        # visitor class.
+        return getattr(super(), "visit_Assert", super().generic_visit)(node)
 
 
 # pylint: disable=too-many-ancestors
@@ -731,6 +755,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
         argument_names: The (potentially empty) list of arguments of the function
         argument_types: The list of arguments and their annotated type (or ``None``)
         docstring: The optional docstring of the function
+        end_line_no: The last line number of the function (or -1)
         func: The AST node of the function
         has_empty_return: Whether the function has an empty ``return`` statement
         has_return: Whether the function has a ``return`` statement
@@ -745,13 +770,15 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
         raises_assert: Whether the function raises any exceptions
         return_type: The annotated type the function returns (if any)
         return_value: The return node from the AST (if any)
+        start_line_no: The first line number of the function
         variables: A list of variables that get defined inside the function
     """
 
     argument_names: list[str]
     argument_types: list[tuple[str, str | None]]
     docstring: str | None
-    func: ast.AsyncFunctionDef | ast.FunctionDef
+    end_line_no: int
+    func: FunctionDef
     has_empty_return: bool
     has_return: bool
     has_yield: bool
@@ -765,6 +792,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
     raises_assert: bool
     return_type: str | None
     return_value: ast.Return | None
+    start_line_no: int
     variables: list[ast.Name]
 
 
@@ -798,7 +826,7 @@ def get_function_descriptions(program: ast.AST) -> list[FunctionDescription]:
 
 
 def __build_function_description(
-    function_type: FunctionType, func: ast.AsyncFunctionDef | ast.FunctionDef
+    function_type: FunctionType, func: FunctionDef
 ) -> FunctionDescription:
     function_analysis = FunctionAnalysisVisitor()
     function_analysis.visit(func)
@@ -821,6 +849,7 @@ def __build_function_description(
         argument_names=arguments,
         argument_types=argument_types,
         docstring=get_docstring(func),
+        end_line_no=function_analysis.end_line_no,
         func=func,
         has_empty_return=has_empty_return,
         has_return=has_return,
@@ -835,5 +864,6 @@ def __build_function_description(
         raises_assert=bool(function_analysis.asserts),
         return_type=get_return_type(func),
         return_value=return_value,
+        start_line_no=function_analysis.start_line_no,
         variables=function_analysis.variables,
     )

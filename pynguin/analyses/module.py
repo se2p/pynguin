@@ -18,7 +18,15 @@ import logging
 import queue
 import sys
 import typing
-from types import ModuleType
+from collections import namedtuple
+from statistics import mean, median
+from types import (
+    BuiltinFunctionType,
+    FunctionType,
+    MethodDescriptorType,
+    ModuleType,
+    WrapperDescriptorType,
+)
 from typing import Any, Callable, NamedTuple, get_args
 
 from ordered_set import OrderedSet
@@ -43,6 +51,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
@@ -97,6 +106,7 @@ MODULE_BLACKLIST: tuple[str, ...] = (
 class _ParseResult(NamedTuple):
     """A data wrapper for an imported and parsed module."""
 
+    linenos: int
     module_name: str
     module: ModuleType
     syntax_tree: ast.AST | None
@@ -205,8 +215,9 @@ def parse_module(
 
     try:
         source_file = inspect.getsourcefile(module)
+        source_code = inspect.getsource(module)
         syntax_tree = ast.parse(
-            inspect.getsource(module),
+            source_code,
             filename=source_file if source_file is not None else "",
             type_comments=type_inference is not TypeInferenceStrategy.NONE,
             feature_version=sys.version_info[1],
@@ -222,13 +233,16 @@ def parse_module(
         annotation_replacer = _ArgumentReturnAnnotationReplacementVisitor()
         annotation_replacer.visit(syntax_tree)
         syntax_tree = ast.fix_missing_locations(syntax_tree)
+        linenos = len(source_code.splitlines())
     except OSError as error:
         LOGGER.warning(
             f"Could not retrieve source code for module {module_name} ({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
         syntax_tree = None
+        linenos = -1
     return _ParseResult(
+        linenos=linenos,
         module_name=module_name,
         module=module,
         syntax_tree=syntax_tree,
@@ -243,7 +257,8 @@ class ModuleTestCluster:
     dependencies.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, linenos: int) -> None:
+        self.__linenos = linenos
         self.__generators: dict[type, OrderedSet[GenericAccessibleObject]] = {}
         self.__modifiers: dict[type, OrderedSet[GenericAccessibleObject]] = {}
         self.__accessible_objects_under_test: OrderedSet[
@@ -255,6 +270,15 @@ class ModuleTestCluster:
         self.__predicted_signatures: dict[
             GenericAccessibleObject, list[GenericCallableAccessibleObject]
         ] = {}
+
+    @property
+    def linenos(self) -> int:
+        """Provide the number of source code lines.
+
+        Returns:
+            The number of source code lines
+        """
+        return self.__linenos
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
@@ -482,6 +506,45 @@ class ModuleTestCluster:
             return None
         return select_from
 
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
+        """Track statistics values from the test cluster and its items.
+
+        Args:
+            tracking_fun: The tracking function as a callback.
+        """
+        tracking_fun(
+            RuntimeVariable.AccessibleObjectsUnderTest,
+            self.num_accessible_objects_under_test(),
+        )
+        tracking_fun(
+            RuntimeVariable.GeneratableTypes, len(self.get_all_generatable_types())
+        )
+
+        cyclomatic_complexity = self.__compute_cyclomatic_complexities(
+            self.function_data_for_accessibles.values()
+        )
+        tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
+        tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
+        tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
+        tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+        tracking_fun(RuntimeVariable.LineNos, self.__linenos)
+
+    CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
+
+    @staticmethod
+    def __compute_cyclomatic_complexities(
+        callable_data: typing.Iterable[_CallableData],
+    ) -> CyclomaticComplexity:
+        complexities = [item.cyclomatic_complexity for item in callable_data]
+        return ModuleTestCluster.CyclomaticComplexity(
+            min=min(complexities),
+            mean=mean(complexities),
+            median=median(complexities),
+            max=max(complexities),
+        )
+
 
 class FilteredModuleTestCluster(ModuleTestCluster):
     """A test cluster wrapping another test cluster.
@@ -498,13 +561,15 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         known_data: KnownData,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
-        super().__init__()
+        super().__init__(linenos=delegate.linenos)
         self.__delegate = delegate
         self.__known_data = known_data
         self.__code_object_id_to_accessible_objects: dict[
             int, GenericCallableAccessibleObject
         ] = {
-            json.loads(acc.callable.__code__.co_consts[0])[CODE_OBJECT_ID_KEY]: acc
+            json.loads(acc.callable.__code__.co_consts[0])[  # type: ignore
+                CODE_OBJECT_ID_KEY
+            ]: acc
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")
@@ -623,11 +688,21 @@ def __get_class_node_from_ast(tree: ast.AST | None, name: str) -> ast.ClassDef |
 
 
 def __get_function_description_from_ast(
-    tree: ast.AST | None,
+    tree: ASTFunctionNodes | None,
 ) -> FunctionDescription | None:
     if tree is None:
         return None
-    description = get_function_descriptions(tree)
+
+    def filter_for_tree_defining_function_name(desc: FunctionDescription) -> bool:
+        return getattr(tree, "name", None) == desc.name
+
+    # Filter the resulting function descriptions for the one represented by the `tree`
+    # AST node.  There might be more than one function description, e.g., for nested
+    # functions, where we are still only interested in the top-level functions and
+    # not in the closures.
+    description = list(
+        filter(filter_for_tree_defining_function_name, get_function_descriptions(tree))
+    )
     assert len(description) == 1
     return description[0]
 
@@ -665,7 +740,7 @@ class _CallableData:
 def __analyse_function(
     *,
     func_name: str,
-    func: Callable,
+    func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
@@ -680,10 +755,13 @@ def __analyse_function(
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
-    generic_function = GenericFunction(func, inferred_signature, func_name)
     func_ast = __get_function_node_from_ast(syntax_tree, func_name)
     description = __get_function_description_from_ast(func_ast)
+    raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
+    generic_function = GenericFunction(
+        func, inferred_signature, raised_exceptions, func_name
+    )
     function_data = _CallableData(
         accessible=generic_function,
         tree=func_ast,
@@ -715,17 +793,25 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 ) -> None:
     assert inspect.isclass(class_)
     LOGGER.debug("Analysing class %s", class_name)
-    if issubclass(class_, enum.Enum):
-        generic: GenericEnum | GenericConstructor = GenericEnum(class_)
-    else:
-        generic = GenericConstructor(
-            class_, infer_type_info(class_, type_inference_strategy)
-        )
-
     class_ast = __get_class_node_from_ast(syntax_tree, class_name)
     constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
     description = __get_function_description_from_ast(constructor_ast)
+    raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
+
+    if issubclass(class_, enum.Enum):
+        generic: GenericEnum | GenericConstructor = GenericEnum(class_)
+        if isinstance(generic, GenericEnum) and len(generic.names) == 0:
+            LOGGER.debug(
+                "Skipping enum %s from test cluster, it has no fields.",
+                class_name,
+            )
+            return
+    else:
+        generic = GenericConstructor(
+            class_, infer_type_info(class_, type_inference_strategy), raised_exceptions
+        )
+
     method_data = _CallableData(
         accessible=generic,
         tree=constructor_ast,
@@ -768,7 +854,12 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     class_name: str,
     class_: type,
     method_name: str,
-    method: Callable,
+    method: (
+        FunctionType
+        | BuiltinFunctionType
+        | WrapperDescriptorType
+        | MethodDescriptorType
+    ),
     type_inference_strategy: TypeInferenceStrategy,
     syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
@@ -788,10 +879,13 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
-    generic_method = GenericMethod(class_, method, inferred_signature, method_name)
     method_ast = __get_function_node_from_ast(syntax_tree, method_name)
     description = __get_function_description_from_ast(method_ast)
+    raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
+    generic_method = GenericMethod(
+        class_, method, inferred_signature, raised_exceptions, method_name
+    )
     method_data = _CallableData(
         accessible=generic_method,
         tree=method_ast,
@@ -965,7 +1059,7 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     Returns:
         A test cluster for the module
     """
-    test_cluster = ModuleTestCluster()
+    test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
     # select original module as general one
     parsed_module = parsed_modules[0]
     predicted_functions = predicted_classes = None
@@ -989,8 +1083,7 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     for i, (func_name, func) in enumerate(
         inspect.getmembers(
             parsed_module.module, function_in_module(parsed_module.module_name)
-        )
-    ):
+        )):
         # extract according predictions
         func_predictions = None
         if predicted_functions is not None:

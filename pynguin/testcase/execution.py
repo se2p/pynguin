@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Sized, TypeVar
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -770,7 +770,20 @@ class ExecutionTracer:
             distance_true = 0.0
             distance_false = 0.0
             if value:
-                distance_false = 1.0
+                if isinstance(value, Sized):
+                    # Sized instances evaluate to False if they are empty,
+                    # and to True otherwise, thus we can use their size as a distance
+                    # measurement.
+                    distance_false = len(value)
+                elif is_numeric(value):
+                    # For numeric value, we can use their absolute value
+                    distance_false = abs(value)
+                else:
+                    # Necessary to use inf instead of 1.0 here,
+                    # so that a value for which we can't compute a false distance
+                    # always has the greatest distance to the false branch than an
+                    # object for which we can compute a distance.
+                    distance_false = inf
             else:
                 distance_true = 1.0
 
@@ -814,6 +827,12 @@ class ExecutionTracer:
         Args:
             line_id: the if of the line that was visited
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            return
+
+        if self._is_disabled():
+            return
+
         self._trace.covered_line_ids.add(line_id)
 
     def register_line(
@@ -1133,7 +1152,9 @@ class TestCaseExecutor:
                 self._before_test_case_execution(test_case)
                 return_queue: Queue = Queue()
                 thread = threading.Thread(
-                    target=self._execute_test_case, args=(test_case, return_queue)
+                    target=self._execute_test_case,
+                    args=(test_case, return_queue),
+                    daemon=True,
                 )
                 thread.start()
                 thread.join(timeout=len(test_case.statements))

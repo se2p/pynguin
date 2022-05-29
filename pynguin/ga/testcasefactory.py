@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-from pynguin.analyses.seeding import initialpopulationseeding
+from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -69,16 +69,17 @@ class SeededTestCaseFactory(TestCaseFactory):
     generation is delegated to the RandomLengthTestCaseFactory.
     """
 
-    def __init__(self, delegate: TestCaseFactory, test_factory: tf.TestFactory):
-        super().__init__(test_factory)
+    def __init__(
+        self, delegate: TestCaseFactory, population_provider: InitialPopulationProvider
+    ):
+        super().__init__(delegate._test_factory)
         self._delegate = delegate
+        self._population_provider = population_provider
 
     def get_test_case(self) -> tc.TestCase:
         if (
-            config.configuration.seeding.initial_population_seeding
-            and initialpopulationseeding.has_tests
-            and randomness.next_float()
+            randomness.next_float()
             <= config.configuration.seeding.seeded_testcases_reuse_probability
         ):
-            return initialpopulationseeding.seeded_testcase
+            return self._population_provider.random_testcase()
         return self._delegate.get_test_case()

@@ -19,6 +19,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.types import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -235,11 +236,10 @@ def test_add_enum():
 )
 def test_create_primitive(type_, statement_type):
     factory = tf.TestFactory(MagicMock(ModuleTestCluster))
+    test = dtc.DefaultTestCase()
+    provider = EmptyConstantProvider()
     result = factory._create_primitive(
-        dtc.DefaultTestCase(),
-        type_,
-        position=0,
-        recursion_depth=0,
+        test, type_, position=0, recursion_depth=0, constant_provider=provider
     )
     assert result.type == statement_type
 
@@ -292,7 +292,7 @@ def test_attempt_generation_for_type_from_cluster(test_case_mock):
             type_generators, gao.GenericAccessibleObject
         )  # pragma: no cover
 
-    cluster = ModuleTestCluster()
+    cluster = ModuleTestCluster(linenos=-1)
     cluster.get_generators_for = lambda t: MagicMock(
         gao.GenericAccessibleObject
     )  # pragma: no cover

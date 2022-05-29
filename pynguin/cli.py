@@ -18,13 +18,13 @@ import sys
 from pathlib import Path
 
 import simple_parsing
+from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
 import pynguin.configuration as config
 from pynguin import __version__
 from pynguin.generator import run_pynguin, set_configuration
-from pynguin.utils.console import console
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -45,12 +45,13 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="verbose output (repeat for increased verbosity)",
     )
     parser.add_argument(
-        "--log-file",
-        "--log_file",
-        dest="log_file",
-        type=str,
-        default=None,
-        help="Path to store the log file.",
+        "--no-rich",
+        "--no_rich",
+        "--poor",  # hehe
+        dest="no_rich",
+        action="store_true",
+        default=False,
+        help="Don't use rich for nicer consoler output.",
     )
     parser.add_arguments(config.Configuration, dest="config")
 
@@ -111,34 +112,32 @@ def _setup_output_path(output_path: str) -> None:
 
 def _setup_logging(
     verbosity: int,
-    log_file: str | None = None,
-):
+    no_rich: bool,
+) -> Console | None:
     level = logging.WARNING
     if verbosity == 1:
         level = logging.INFO
     if verbosity >= 2:
         level = logging.DEBUG
 
-    handlers: list[logging.Handler] = []
-    if log_file:
-        log_file_path = Path(log_file).resolve()
-        if not log_file_path.parent.exists():
-            log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(log_file))
-
-    console_handler = RichHandler(
-        rich_tracebacks=True, log_time_format="[%X]", console=console
-    )
-    console_handler.setFormatter(logging.Formatter("%(message)s"))
-    handlers.append(console_handler)
+    console = None
+    if no_rich:
+        handler: logging.Handler = logging.StreamHandler()
+    else:
+        console = Console(tab_size=4)
+        handler = RichHandler(
+            rich_tracebacks=True, log_time_format="[%X]", console=console
+        )
+        handler.setFormatter(logging.Formatter("%(message)s"))
 
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s]"
         "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
         datefmt="[%X]",
-        handlers=handlers,
+        handlers=[handler],
     )
+    return console
 
 
 # People may wipe their disk, so we give them a heads-up.
@@ -182,10 +181,13 @@ to see why this happens and what you must do to prevent it."""
     # pylint: disable=no-member
     _setup_output_path(parsed.config.test_case_output.output_path)
     # pylint: disable=no-member
-    _setup_logging(parsed.verbosity, parsed.log_file)
+    console = _setup_logging(parsed.verbosity, parsed.no_rich)
 
     set_configuration(parsed.config)
-    with console.status("Running Pynguin..."):
+    if console is not None:
+        with console.status("Running Pynguin..."):
+            return run_pynguin().value
+    else:
         return run_pynguin().value
 
 

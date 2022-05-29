@@ -13,10 +13,25 @@ from __future__ import annotations
 import abc
 import enum
 import typing
-from typing import Callable, cast
+from types import (
+    BuiltinFunctionType,
+    ClassMethodDescriptorType,
+    FunctionType,
+    MethodDescriptorType,
+    WrapperDescriptorType,
+)
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.types import InferredSignature
+
+
+TypesOfCallables = typing.Union[
+    FunctionType,
+    BuiltinFunctionType,
+    WrapperDescriptorType,
+    MethodDescriptorType,
+    ClassMethodDescriptorType,
+]
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):
@@ -119,7 +134,9 @@ class GenericEnum(GenericAccessibleObject):
 
     def __init__(self, owner: type[enum.Enum]):
         super().__init__(owner)
-        self._names = list(map(lambda e: e.name, cast(list[enum.Enum], list(owner))))
+        self._names = list(
+            map(lambda e: e.name, typing.cast(list[enum.Enum], list(owner)))
+        )
 
     def generated_type(self) -> type | None:
         return self._owner
@@ -160,12 +177,14 @@ class GenericCallableAccessibleObject(
     def __init__(
         self,
         owner: type | None,
-        callable_: Callable,
+        callable_: TypesOfCallables,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
     ) -> None:
         super().__init__(owner)
         self._callable = callable_
         self._inferred_signature = inferred_signature
+        self._raised_exceptions = raised_exceptions
 
     def generated_type(self) -> type | None:
         return self._inferred_signature.return_type
@@ -180,7 +199,18 @@ class GenericCallableAccessibleObject(
         return self._inferred_signature
 
     @property
-    def callable(self) -> Callable:
+    def raised_exceptions(self) -> set[str]:
+        """Provides the set of exceptions that is expected to be raised by this callable
+
+        Returns:
+            The set of exceptions that is expected to be raised by this callable
+        """
+        return self._raised_exceptions
+
+    @property
+    def callable(
+        self,
+    ) -> TypesOfCallables:
         """Provides the callable.
 
         Returns:
@@ -202,9 +232,16 @@ class GenericCallableAccessibleObject(
 class GenericConstructor(GenericCallableAccessibleObject):
     """A constructor."""
 
-    def __init__(self, owner: type, inferred_signature: InferredSignature) -> None:
+    def __init__(
+        self,
+        owner: type,
+        inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
+    ) -> None:
         # super().__init__(owner, owner.__init__, inferred_signature)  # type: ignore
-        super().__init__(owner, getattr(owner, "__init__"), inferred_signature)
+        super().__init__(
+            owner, getattr(owner, "__init__"), inferred_signature, raised_exceptions
+        )
         assert owner
 
     def generated_type(self) -> type | None:
@@ -230,14 +267,16 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         owner: type,
-        method: Callable,
+        method: TypesOfCallables,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
         method_name: str | None = None,
     ) -> None:
-        super().__init__(owner, method, inferred_signature)
+        super().__init__(owner, method, inferred_signature, raised_exceptions)
         assert owner
         self._method_name = method_name
 
@@ -281,12 +320,13 @@ class GenericFunction(GenericCallableAccessibleObject):
 
     def __init__(
         self,
-        function: Callable,
+        function: FunctionType,
         inferred_signature: InferredSignature,
+        raised_exceptions: set[str] = frozenset(),  # type: ignore
         function_name: str | None = None,
     ) -> None:
         self._function_name = function_name
-        super().__init__(None, function, inferred_signature)
+        super().__init__(None, function, inferred_signature, raised_exceptions)
 
     def is_function(self) -> bool:
         return True
