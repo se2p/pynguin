@@ -432,26 +432,56 @@ class ModuleTestCluster:
                         randomness.next_float()
                         >= config.configuration.deeptyper.random_type_probability
                     ):
-                        # check if parameter type is specified
-                        if parameter_type in (None, typing.Any):
-                            # get predictions for parameter type
-                            type_predictions = [
-                                predicted_signatures[
-                                    i
-                                ].inferred_signature.parameters.get(parameter_name)
-                                for i in range(len(predicted_signatures))
-                            ]
-                            # intersect generatable and predicted types
-                            type_intersection = sorted(
-                                set(type_predictions)
-                                & set(self.get_all_generatable_types()),
-                                key=type_predictions.index,
+                        # get predictions for parameter type
+                        type_predictions = [
+                            predicted_signatures[i].inferred_signature.parameters.get(
+                                parameter_name
                             )
-                            if type_intersection:
-                                # update parameter type with the most likely deeptyper prediction
-                                modified_accessible.inferred_signature.update_parameter_type(
-                                    parameter_name, type_intersection[0]
-                                )
+                            for i in range(len(predicted_signatures))
+                        ]
+                        # intersect generatable and predicted types
+                        type_intersection = sorted(
+                            set(type_predictions)
+                            & set(self.get_all_generatable_types()),
+                            key=type_predictions.index,
+                        )
+                        if type_intersection:
+                            # update parameter type with the most likely deeptyper prediction
+                            modified_accessible.inferred_signature.update_parameter_type(
+                                parameter_name, type_intersection[0]
+                            )
+                        else:
+                            modified_accessible.inferred_signature.update_parameter_type(
+                                parameter_name, None
+                            )
+                    else:
+                        modified_accessible.inferred_signature.update_parameter_type(
+                            parameter_name, None
+                        )
+                if (
+                    randomness.next_float()
+                    >= config.configuration.deeptyper.random_type_probability
+                ):
+                    # get predictions for parameter type
+                    type_predictions = [
+                        predicted_signatures[i].inferred_signature.return_type
+                        for i in range(len(predicted_signatures))
+                    ]
+                    # intersect generatable and predicted types
+                    type_intersection = sorted(
+                        set(type_predictions) & set(self.get_all_generatable_types()),
+                        key=type_predictions.index,
+                    )
+                    if type_intersection:
+                        # update parameter type with the most likely deeptyper prediction
+                        modified_accessible.inferred_signature.update_return_type(
+                            type_intersection[0]
+                        )
+                    else:
+                        modified_accessible.inferred_signature.update_return_type(None)
+                else:
+                    modified_accessible.inferred_signature.update_return_type(None)
+            print(modified_accessible)
             return modified_accessible
         return accessible
 
@@ -771,7 +801,10 @@ def __analyse_function(
     if predictions is not None:
         predicted_signatures = [
             GenericFunction(
-                func, infer_type_info(prediction, type_inference_strategy), func_name
+                func,
+                infer_type_info(prediction, type_inference_strategy),
+                raised_exceptions,
+                func_name,
             )
             for prediction in predictions
         ]
@@ -898,6 +931,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
                 class_,
                 method,
                 infer_type_info(prediction, type_inference_strategy),
+                raised_exceptions,
                 method_name,
             )
             for prediction in predictions
@@ -1059,9 +1093,9 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     Returns:
         A test cluster for the module
     """
-    test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
     # select original module as general one
     parsed_module = parsed_modules[0]
+    test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
     predicted_functions = predicted_classes = None
     if len(parsed_modules) > 1 and config.configuration.deeptyper.deeptyper:
         # get all predicted functions
@@ -1083,7 +1117,8 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     for i, (func_name, func) in enumerate(
         inspect.getmembers(
             parsed_module.module, function_in_module(parsed_module.module_name)
-        )):
+        )
+    ):
         # extract according predictions
         func_predictions = None
         if predicted_functions is not None:
