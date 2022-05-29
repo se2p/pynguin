@@ -481,7 +481,6 @@ class ModuleTestCluster:
                         modified_accessible.inferred_signature.update_return_type(None)
                 else:
                     modified_accessible.inferred_signature.update_return_type(None)
-            print(modified_accessible)
             return modified_accessible
         return accessible
 
