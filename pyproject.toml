@@ -72,6 +72,7 @@ safety = "^1.10"
 sphinx = "^4.5"
 sphinx-autodoc-typehints = "^1.18"
 flake8 = "^4.0"
+pylint-print = "^1.0.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
