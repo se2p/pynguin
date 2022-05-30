@@ -67,7 +67,7 @@ ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
 
 # A tuple of modules that shall be blacklisted from analysis (keep them sorted!!!):
 MODULE_BLACKLIST = frozenset(
-    {
+    (
         "_thread",
         "asyncio",
         "concurrent",
@@ -97,7 +97,7 @@ MODULE_BLACKLIST = frozenset(
         "sys",
         "tempfile",
         "threading",
-    }
+    )
 )
 
 
