@@ -710,6 +710,9 @@ class KnownData:
     # stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
+    # stores known memory attribute object addresses
+    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
+
 
 # pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
@@ -772,8 +775,6 @@ class ExecutionTracer:
         self._init_trace()
         self._enabled = True
         self._current_thread_identifier: int | None = None
-        self._setup: bool = False
-        self._known_object_addresses: set[int] = set()
         self._assertion_stack_counter = 0
         self._test_id = ""
         self._module_name = ""
@@ -1158,9 +1159,9 @@ class ExecutionTracer:
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
         object_creation = False
-        if arg_address and arg_address not in self._known_object_addresses:
+        if arg_address and arg_address not in self.get_known_data().object_addresses:
             object_creation = True
-            self._known_object_addresses.add(arg_address)
+            self._known_data.object_addresses.append(arg_address)
 
         self._trace.add_memory_instruction(
             module,
