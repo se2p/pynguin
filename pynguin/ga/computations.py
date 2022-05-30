@@ -829,10 +829,12 @@ def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> fl
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
-        assertion_slicer = AssertionSlicer(trace, known_data.existing_code_objects)
+        assertion_slicer = AssertionSlicer(known_data.existing_code_objects)
         checked_instructions = []
         for assertion in trace.existing_assertions:
-            checked_instructions.extend(assertion_slicer.slice_assertion(assertion))
+            checked_instructions.extend(
+                assertion_slicer.slice_assertion(assertion, trace)
+            )
 
         # reduce coverage to lines instead of instructions
         checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)

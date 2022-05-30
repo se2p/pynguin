@@ -433,15 +433,17 @@ def test_slicing_after_test_execution(
 
         executor = TestCaseExecutor(tracer)
         executor.execute(test_case, instrument_test=True)
+        trace = tracer.get_trace()
+        assert trace.existing_assertions
 
-        assertions = tracer.get_trace().existing_assertions
-        assert assertions
-        assertion_slicer = AssertionSlicer(
-            tracer.get_trace(), tracer.get_known_data().existing_code_objects
-        )
         instructions_in_slice = []
-        for assertion in assertions:
-            instructions_in_slice.extend(assertion_slicer.slice_assertion(assertion))
+        assertion_slicer = AssertionSlicer(
+            tracer.get_known_data().existing_code_objects
+        )
+        for assertion in trace.existing_assertions:
+            instructions_in_slice.extend(
+                assertion_slicer.slice_assertion(assertion, trace)
+            )
         assert instructions_in_slice
 
         checked_lines = assertion_slicer.map_instructions_to_lines(
@@ -467,14 +469,14 @@ def test_slicing_after_test_execution(
         ),
         (
             "tests.fixtures.linecoverage.plus",
-            "full_cover_plus_testsuite",
-            1,
-        ),
-        (
-            "tests.fixtures.linecoverage.plus",
             "partial_cover_use_bool_as_int",
             # covers all but one line
             7 / 8,
+        ),
+        (
+            "tests.fixtures.linecoverage.plus",
+            "full_cover_plus_testsuite",
+            1,
         ),
     ],
 )

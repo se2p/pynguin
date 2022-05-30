@@ -112,7 +112,7 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
 
     trace = tracer.get_trace()
     known_code_objects = tracer.get_known_data().existing_code_objects
-    dynamic_slicer = DynamicSlicer(trace, known_code_objects)
+    dynamic_slicer = DynamicSlicer(known_code_objects)
 
     last_traced_instr = trace.executed_instructions[-1]
     slicing_instruction = UniqueInstruction(
@@ -144,7 +144,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
         known_code_objects = tracer.get_known_data().existing_code_objects
 
         assert known_code_objects
-        dynamic_slicer = DynamicSlicer(trace, known_code_objects)
+        dynamic_slicer = DynamicSlicer(known_code_objects)
         assert trace.executed_instructions
         last_traced_instr = trace.executed_instructions[-1]
         slicing_instruction = UniqueInstruction(

@@ -136,11 +136,9 @@ class DynamicSlicer:
 
     def __init__(
         self,
-        trace: ExecutionTrace,
         known_code_objects: dict[int, CodeObjectMetaData],
     ):
         self._known_code_objects = known_code_objects
-        self._trace = trace
 
     def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
         self,
@@ -661,7 +659,7 @@ class DynamicSlicer:
         complete_cover = False
 
         # Check local variables
-        if traced_instr.opcode in [op.STORE_FAST, op.DELETE_FAST]:
+        if traced_instr.opcode in (op.STORE_FAST, op.DELETE_FAST):
             complete_cover = self._check_scope_for_def(
                 context.var_uses_local,
                 traced_instr.argument,
@@ -670,7 +668,7 @@ class DynamicSlicer:
             )
 
         # Check global variables (with *_NAME instructions)
-        elif traced_instr.opcode in [op.STORE_NAME, op.DELETE_NAME]:
+        elif traced_instr.opcode in (op.STORE_NAME, op.DELETE_NAME):
             if (
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id]
@@ -694,7 +692,7 @@ class DynamicSlicer:
                 )
 
         # Check global variables
-        elif traced_instr.opcode in [op.STORE_GLOBAL, op.DELETE_GLOBAL]:
+        elif traced_instr.opcode in (op.STORE_GLOBAL, op.DELETE_GLOBAL):
             complete_cover = self._check_scope_for_def(
                 context.var_uses_global,
                 traced_instr.argument,
@@ -703,7 +701,7 @@ class DynamicSlicer:
             )
 
         # Check nonlocal variables
-        elif traced_instr.opcode in [op.STORE_DEREF, op.DELETE_DEREF]:
+        elif traced_instr.opcode in (op.STORE_DEREF, op.DELETE_DEREF):
             complete_cover = self._check_scope_for_def(
                 context.var_uses_nonlocal,
                 traced_instr.argument,
@@ -714,7 +712,7 @@ class DynamicSlicer:
         # Check IMPORT_NAME instructions
         # IMPORT_NAME gets a special treatment: it has an incorrect stack effect,
         # but it is compensated by treating it as a definition
-        elif traced_instr.opcode in [op.IMPORT_NAME]:
+        elif traced_instr.opcode == op.IMPORT_NAME:
             if (
                 traced_instr.arg_address
                 and hex(traced_instr.arg_address) in context.var_uses_addresses
@@ -840,20 +838,18 @@ class AssertionSlicer:
 
     def __init__(
         self,
-        trace: ExecutionTrace,
         known_code_objects: dict[int, CodeObjectMetaData],
     ):
-        self._trace = trace
-        self._known_code_objects: dict[int, CodeObjectMetaData] = known_code_objects
+        self._known_code_objects = known_code_objects
 
     def _slicing_criterion_from_assertion(
-        self, assertion: TracedAssertion
+        self, assertion: TracedAssertion, trace: ExecutionTrace
     ) -> SlicingCriterion:
         assert self._known_code_objects
         code_meta = self._known_code_objects.get(assertion.code_object_id)
         assert code_meta
 
-        traced_instr = self._trace.executed_instructions[assertion.trace_position]
+        traced_instr = trace.executed_instructions[assertion.trace_position]
 
         # find out the basic block of the assertion
         basic_block = None
@@ -883,21 +879,22 @@ class AssertionSlicer:
 
         return SlicingCriterion(unique_instr)
 
-    def slice_assertion(self, assertion: TracedAssertion) -> list[UniqueInstruction]:
+    def slice_assertion(
+        self, assertion: TracedAssertion, trace: ExecutionTrace
+    ) -> list[UniqueInstruction]:
         """Calculate the dynamic slice for an assertion inside a test case
 
         Args:
             assertion: The assertion, for which to calculate the slice.
+            trace: the execution trace
 
         Returns:
             The list of executed instructions contained in the slice of the assertion.
         """
 
-        slicing_criterion = self._slicing_criterion_from_assertion(assertion)
-        slicer = DynamicSlicer(self._trace, self._known_code_objects)
-        return slicer.slice(
-            self._trace, slicing_criterion, assertion.trace_position - 1
-        )
+        slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
+        slicer = DynamicSlicer(self._known_code_objects)
+        return slicer.slice(trace, slicing_criterion, assertion.trace_position - 1)
 
     @staticmethod
     def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
