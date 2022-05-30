@@ -6,6 +6,7 @@
 #
 import importlib
 import itertools
+import threading
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -56,6 +57,7 @@ def test_integrate_algorithms(module_name: str, algorithm):
     config.configuration.search_algorithm.population = 2
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         # Need to force reload in order to apply instrumentation.
         module = importlib.import_module(module_name)
@@ -104,6 +106,7 @@ def test_integrate_whole_suite_plus_archive(module_name: str):
 
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         # Need to force reload in order to apply instrumentation.
         module = importlib.import_module(module_name)

@@ -329,3 +329,20 @@ def test_compare_predicate_executed_other_thread():
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_predicates == {}
+
+
+@pytest.mark.parametrize(
+    "method,inputs",
+    [
+        (ExecutionTracer.executed_code_object.__name__, (None,)),
+        (ExecutionTracer.executed_compare_predicate.__name__, (None, None, None, None)),
+        (ExecutionTracer.executed_bool_predicate.__name__, (None, None)),
+        (ExecutionTracer.executed_exception_match.__name__, (None, None, None)),
+        (ExecutionTracer.track_line_visit.__name__, (None,)),
+    ],
+)
+def test_killed_by_thread_guard(method, inputs):
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident + 1
+    with pytest.raises(RuntimeError):
+        getattr(tracer, method)(*inputs)

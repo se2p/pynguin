@@ -6,6 +6,7 @@
 #
 import ast
 import importlib
+import threading
 
 import pytest
 
@@ -49,6 +50,7 @@ def test_generate_mutation_assertions(generator, expected_result):
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         # Need to force reload in order to apply instrumentation
         module = importlib.import_module(module_name)
