@@ -7,14 +7,12 @@
 import enum
 import inspect
 from typing import Any, Union
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from pynguin.analyses.types import InferredSignature
 from pynguin.utils.type_utils import (
-    class_in_module,
-    function_in_module,
     given_exception_matches,
     is_assertable,
     is_assignable_to,
@@ -70,24 +68,6 @@ def test_is_none_type(type_, result):
 )
 def test_is_type_unknown(type_, result):
     assert is_type_unknown(type_) == result
-
-
-@pytest.mark.parametrize(
-    "module, result",
-    [("wrong_module", False), ("unittest.mock", True)],
-)
-def test_class_in_module(module, result):
-    predicate = class_in_module(module)
-    assert predicate(MagicMock) == result
-
-
-@pytest.mark.parametrize(
-    "module, result",
-    [("wrong_module", False), ("unittest.mock", True)],
-)
-def test_function_in_module(module, result):
-    predicate = function_in_module(module)
-    assert predicate(patch) == result
 
 
 @pytest.mark.parametrize(
