@@ -695,9 +695,14 @@ class ExecutionTracer:
 
         Args:
             code_object_id: the code object id to mark
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         assert (
             code_object_id in self._known_data.existing_code_objects
@@ -729,9 +734,14 @@ class ExecutionTracer:
             value2: the second value
             predicate: the predicate identifier
             cmp_op: the compare operation
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -755,9 +765,14 @@ class ExecutionTracer:
         Args:
             value: the value
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -798,9 +813,14 @@ class ExecutionTracer:
             err: The raised exception
             exc: The matching condition
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -826,9 +846,14 @@ class ExecutionTracer:
 
         Args:
             line_id: the if of the line that was visited
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
