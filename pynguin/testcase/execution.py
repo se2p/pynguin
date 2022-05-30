@@ -1157,7 +1157,8 @@ class TestCaseExecutor:
                     daemon=True,
                 )
                 thread.start()
-                thread.join(timeout=len(test_case.statements))
+                # Set a timeout for the thread execution of at most 10 seconds.
+                thread.join(timeout=min(10, len(test_case.statements)))
                 if thread.is_alive():
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
