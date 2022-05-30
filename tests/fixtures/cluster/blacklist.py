@@ -6,11 +6,14 @@
 #
 
 # Uses function from blacklisted module
-from tempfile import gettempdirb
+import tempfile as temp
+from tempfile import SpooledTemporaryFile, mkdtemp
 
 import tests.fixtures.cluster.blacklist_transitive as bl_tr
 
 
 def foo():
-    gettempdirb()
+    temp.mktemp()
+    SpooledTemporaryFile()
+    mkdtemp()
     bl_tr.bar()

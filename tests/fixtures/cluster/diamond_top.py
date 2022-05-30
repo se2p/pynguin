@@ -4,11 +4,9 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import tempfile as temp
-from tempfile import SpooledTemporaryFile, mkdtemp
+from tests.fixtures.cluster import diamond_left, diamond_right
 
 
-def bar():
-    temp.mktemp()
-    SpooledTemporaryFile()
-    mkdtemp()
+def baz():
+    diamond_left.bar()
+    diamond_right.foobar()
