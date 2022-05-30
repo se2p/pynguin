@@ -293,6 +293,12 @@ def test_accessible():
     assert len(cluster.accessible_objects_under_test) == 4
 
 
+def test_nothing_from_blacklist():
+    cluster = generate_test_cluster("tests.fixtures.cluster.blacklist")
+    # Should only be foo and bar
+    assert sum(len(cl) for cl in cluster.generators.values()) == 2
+
+
 def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert len(cluster.get_generators_for(int)) == 0
