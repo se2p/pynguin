@@ -293,11 +293,25 @@ def test_accessible():
     assert len(cluster.accessible_objects_under_test) == 4
 
 
+def test_nothing_from_blacklist():
+    cluster = generate_test_cluster("tests.fixtures.cluster.blacklist")
+    # Should only be foo and bar
+    assert sum(len(cl) for cl in cluster.generators.values()) == 2
+    assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_nothing_included_multiple_times():
+    cluster = generate_test_cluster("tests.fixtures.cluster.diamond_top")
+    assert sum(len(cl) for cl in cluster.generators.values()) == 5
+    assert cluster.num_accessible_objects_under_test() == 1
+
+
 def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert len(cluster.get_generators_for(int)) == 0
     assert len(cluster.get_generators_for(float)) == 0
     assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1}
+    assert cluster.num_accessible_objects_under_test() == 4
 
 
 def test_simple_dependencies():
@@ -306,6 +320,7 @@ def test_simple_dependencies():
         "SomeArgumentType": 1,
         "ConstructMeWithDependency": 1,
     }
+    assert cluster.num_accessible_objects_under_test() == 1
 
 
 def test_complex_dependencies():
