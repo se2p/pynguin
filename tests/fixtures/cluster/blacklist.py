@@ -13,3 +13,4 @@ import tests.fixtures.cluster.blacklist_transitive as bl_tr
 
 def foo():
     gettempdirb()
+    bl_tr.bar()
