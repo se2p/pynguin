@@ -1213,7 +1213,9 @@ class TestCaseExecutor:
         # Otherwise raise an exception to kill it.
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
@@ -1252,7 +1254,9 @@ class TestCaseExecutor:
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         self._tracer.disable()
         try:
