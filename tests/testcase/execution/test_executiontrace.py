@@ -51,7 +51,6 @@ def test_merge_full():
     trace1.covered_line_ids = {1}
     trace1.executed_instructions = [instr0, instr1]
     trace1.traced_assertions = [assert1]
-    trace1.current_assertion = assert1
 
     # Shifted by one
     assert2 = TracedAssertion(1, 2, 4)
@@ -73,7 +72,6 @@ def test_merge_full():
     # instr0 is prepended
     result.executed_instructions = [instr0, instr0, instr1]
     result.traced_assertions = [assert0, assert2]
-    result.current_assertion = assert1
 
     trace0.merge(trace1)
     assert trace0 == result
