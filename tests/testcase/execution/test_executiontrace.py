@@ -53,6 +53,9 @@ def test_merge_full():
     trace1.traced_assertions = [assert1]
     trace1.current_assertion = assert1
 
+    # Shifted by one
+    assert2 = TracedAssertion(1, 2, 4)
+
     result = ExecutionTrace()
     result.executed_code_objects.add(0)
     result.executed_code_objects.add(1)
@@ -67,8 +70,9 @@ def test_merge_full():
     result.false_distances[1] = 1
     result.false_distances[2] = 0
     result.covered_line_ids = {0, 1}
-    result.executed_instructions = [instr0, instr1]
-    result.traced_assertions = [assert0, assert1]
+    # instr0 is prepended
+    result.executed_instructions = [instr0, instr0, instr1]
+    result.traced_assertions = [assert0, assert2]
     result.current_assertion = assert1
 
     trace0.merge(trace1)
