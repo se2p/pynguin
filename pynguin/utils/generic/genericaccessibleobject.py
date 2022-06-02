@@ -57,7 +57,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return self._owner
 
-    # pylint: disable=no-self-use
     def is_enum(self) -> bool:
         """Is this a enum?
 
@@ -66,7 +65,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def is_method(self) -> bool:
         """Is this a method?
 
@@ -75,7 +73,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def is_constructor(self) -> bool:
         """Is this a constructor?
 
@@ -84,7 +81,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def is_function(self) -> bool:
         """Is this a function?
 
@@ -93,7 +89,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def is_field(self) -> bool:
         """Is this a field?
 
@@ -102,7 +97,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def is_static(self) -> bool:
         """Is this static?
 
@@ -111,7 +105,6 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """
         return False
 
-    # pylint: disable=no-self-use
     def get_num_parameters(self) -> int:
         """Number of parameters.
 
@@ -153,7 +146,7 @@ class GenericEnum(GenericAccessibleObject):
         return True
 
     def get_dependencies(self) -> set[type]:
-        return set()  # pylint:disable=no-self-use
+        return set()
 
     def __eq__(self, other):
         if self is other:

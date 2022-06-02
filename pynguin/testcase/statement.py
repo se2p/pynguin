@@ -51,7 +51,6 @@ class Statement(metaclass=ABCMeta):
         """
         return None
 
-    # pylint:disable = no-self-use
     @ret_val.setter
     def ret_val(
         self,
@@ -1025,7 +1024,7 @@ class ParametrizedStatement(
         """
         return len(self.args)
 
-    # pylint: disable=unused-argument,no-self-use
+    # pylint: disable=unused-argument
     def _mutate_special_parameters(self, p_per_param: float) -> bool:
         """Overwrite this method to mutate any parameter, which is not in arg or kwargs.
         e.g., the callee in an instance method call.

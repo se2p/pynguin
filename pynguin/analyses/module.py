@@ -114,7 +114,7 @@ class _ParseResult(NamedTuple):
 class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
     """Removes argument annotations from an AST."""
 
-    # pylint: disable=missing-function-docstring, no-self-use
+    # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
         node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return node
@@ -165,7 +165,7 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
 
         return self.generic_visit(node)
 
-    # pylint: disable=missing-function-docstring, no-self-use
+    # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
         if (
             node.annotation is None
@@ -175,7 +175,7 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
             node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
-    # pylint: disable=missing-function-docstring, no-self-use, invalid-name
+    # pylint: disable=missing-function-docstring, invalid-name
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         if (
             node.returns is None
