@@ -289,7 +289,9 @@ def __extract_method_names(
 
 
 def test_accessible():
-    cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
+    cluster = generate_test_cluster(
+        "tests.fixtures.cluster.no_dependencies", TypeInferenceStrategy.NONE
+    )
     assert len(cluster.accessible_objects_under_test) == 4
 
 
