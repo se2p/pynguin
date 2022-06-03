@@ -12,12 +12,14 @@ import dataclasses
 import enum
 import importlib
 import inspect
+import itertools
 import json
 import logging
 import queue
 import sys
 import typing
 from collections import namedtuple
+from functools import lru_cache
 from statistics import mean, median
 from types import (
     BuiltinFunctionType,
@@ -54,6 +56,7 @@ from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
     get_class_that_defined_method,
+    is_non_generic_class,
 )
 
 if typing.TYPE_CHECKING:
@@ -359,7 +362,22 @@ class ModuleTestCluster:
         Returns:
             The set of all generators for that type
         """
+        if for_type is typing.Any:
+            return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
+        if is_non_generic_class(for_type):
+            return self.__hacky_subclass_generators(for_type)
         return self.__generators.get(for_type, OrderedSet())
+
+    @lru_cache(1000)
+    def __hacky_subclass_generators(
+        self, for_type: type
+    ) -> OrderedSet[GenericAccessibleObject]:
+        # Hacky way to include subclass generators
+        result = self.__generators.get(for_type, OrderedSet())
+        for typ, generators in self.__generators.items():
+            if is_non_generic_class(typ) and issubclass(typ, for_type):
+                result.update(generators)
+        return result
 
     def get_modifiers_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers for a type.
@@ -372,7 +390,21 @@ class ModuleTestCluster:
         Returns:
             The set of all accessibles that can modify the type
         """
+        if for_type is typing.Any:
+            return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
+        if is_non_generic_class(for_type):
+            return self.__hacky_superclass_modifiers(for_type)
         return self.__modifiers.get(for_type, OrderedSet())
+
+    @lru_cache(1000)
+    def __hacky_superclass_modifiers(
+        self, for_type: type
+    ) -> OrderedSet[GenericAccessibleObject]:
+        # Hacky way to include superclass modifiers
+        result = self.__modifiers.get(for_type, OrderedSet())
+        for mro_entry in for_type.mro():
+            result.update(self.__modifiers.get(mro_entry, OrderedSet()))
+        return result
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:

@@ -16,7 +16,7 @@ from inspect import isclass
 from typing import Any
 
 from ordered_set import OrderedSet
-from typing_inspect import get_args, get_origin, is_union_type
+from typing_inspect import get_args, get_origin, is_generic_type, is_union_type
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.types import InferredSignature
@@ -115,11 +115,29 @@ def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
     Returns:
         True if `from_type` is assignable to `to_type`
     """
-    if to_type == typing.Any:  # pylint:disable=comparison-with-callable
+    if (
+        to_type is typing.Any or from_type is typing.Any
+    ):  # pylint:disable=comparison-with-callable
         return True
+    if from_type == to_type:
+        return True
+    if is_non_generic_class(from_type) and is_non_generic_class(to_type):
+        return issubclass(from_type, to_type)  # type: ignore
     if is_union_type(to_type):
-        return from_type in get_args(to_type)
-    return from_type == to_type
+        return any(is_assignable_to(from_type, ttype) for ttype in get_args(to_type))
+    return False
+
+
+def is_non_generic_class(obj) -> bool:
+    """Is the given object a non-generic class?
+
+    Args:
+        obj: The object to check
+
+    Returns:
+        True if it is a non-generic class
+    """
+    return isclass(obj) and not is_generic_type(obj)
 
 
 def is_numeric(value: Any) -> bool:

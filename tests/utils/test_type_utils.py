@@ -70,6 +70,14 @@ def test_is_type_unknown(type_, result):
     assert is_type_unknown(type_) == result
 
 
+class Super:
+    pass
+
+
+class Sub(Super):
+    pass
+
+
 @pytest.mark.parametrize(
     "from_type,to_type,result",
     [
@@ -79,6 +87,13 @@ def test_is_type_unknown(type_, result):
         (float, Union[str, int], False),
         (float, Any, True),
         (int, Any, True),
+        (Super, Any, True),
+        (Sub, Any, True),
+        (Sub, Super, True),
+        (Sub, Union[Super, int], True),
+        (Sub, Union[Sub, int], True),
+        (Sub, Union[float, int], False),
+        (Super, Sub, False),
     ],
 )
 def test_is_assignable_to(from_type, to_type, result):

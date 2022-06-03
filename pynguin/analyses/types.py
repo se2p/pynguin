@@ -143,7 +143,9 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        parameters[param_name] = Any  # type: ignore
+        parameters[param_name] = wrap_var_param_type(
+            Any, method_signature.parameters[param_name].kind  # type: ignore
+        )
     return_type: type | None = Any  # type: ignore
 
     signature = InferredSignature(
