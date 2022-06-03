@@ -111,7 +111,7 @@ def run_pynguin() -> ReturnCode:
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
     # TODO this is ugly and needs to be reworked...
-    match config.configuration.type_inference:
+    match config.configuration.type_inference.type_inference_strategy:
         case config.TypeInferenceStrategy.TYPE_HINTS:
             strategy = TypeInferenceStrategy.TYPE_HINTS
         case config.TypeInferenceStrategy.NONE:
