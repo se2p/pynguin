@@ -6,13 +6,15 @@
 #
 import enum
 import inspect
-from typing import Any, Union
+from typing import Any, Sized, TypeVar, Union
 from unittest.mock import MagicMock
 
 import pytest
 
 from pynguin.analyses.types import InferredSignature
 from pynguin.utils.type_utils import (
+    extract_non_generic_class,
+    filter_type_vars,
     given_exception_matches,
     is_assertable,
     is_assignable_to,
@@ -94,10 +96,29 @@ class Sub(Super):
         (Sub, Union[Sub, int], True),
         (Sub, Union[float, int], False),
         (Super, Sub, False),
+        (Any, Sub, True),
+        (Any, Super, True),
     ],
 )
 def test_is_assignable_to(from_type, to_type, result):
     assert is_assignable_to(from_type, to_type) == result
+
+
+T = TypeVar("T")
+
+
+@pytest.mark.parametrize(
+    "from_type,result", [(list[int], list), (int, int), (Sized, None), (T, None)]
+)
+def test_extract_non_generic_class(from_type, result):
+    assert extract_non_generic_class(from_type) == result
+
+
+@pytest.mark.parametrize(
+    "from_type,result", [(list[int], list[int]), (int, int), (T, Any)]
+)
+def test_filter_type_vars(from_type, result):
+    assert filter_type_vars(from_type) == result
 
 
 @pytest.mark.parametrize(

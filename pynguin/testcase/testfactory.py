@@ -769,6 +769,9 @@ class TestFactory:
             test_case: The test case
             statement: The given statement
             call: The new call
+
+        Raises:
+            AssertionError: when an unhandled call is encountered.
         """
         position = statement.ret_val.get_statement_position()
         return_value = statement.ret_val
@@ -793,12 +796,15 @@ class TestFactory:
                 test_case, funktion.inferred_signature, position
             )
             replacement = stmt.FunctionStatement(test_case, funktion, parameters)
+        elif call.is_enum():
+            enum_ = cast(gao.GenericEnum, call)
+            replacement = stmt.EnumPrimitiveStatement(test_case, enum_)
 
         if replacement is None:
-            assert False, f"Unhandled call type {call}"
-        else:
-            replacement.ret_val = return_value
-            test_case.set_statement(replacement, position)
+            raise AssertionError(f"Unhandled call type {call}")
+
+        replacement.ret_val = return_value
+        test_case.set_statement(replacement, position)
 
     @staticmethod
     def _get_reuse_parameters(

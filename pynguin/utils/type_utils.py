@@ -16,7 +16,13 @@ from inspect import isclass
 from typing import Any
 
 from ordered_set import OrderedSet
-from typing_inspect import get_args, get_origin, is_generic_type, is_union_type
+from typing_inspect import (
+    get_args,
+    get_origin,
+    is_generic_type,
+    is_typevar,
+    is_union_type,
+)
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.types import InferredSignature
@@ -105,8 +111,9 @@ def is_type_unknown(type_: type | None) -> bool:
 
 def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
     """A naive implementation to check if one type is assignable to another.
+    Does not handle generic or any more complex types.
 
-    Currently only unary types, Any and Union are supported.
+    Currently, only simple (class) types, Any and Union are supported.
 
     Args:
         from_type: The type annotation that is used as the source.
@@ -121,15 +128,17 @@ def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
         return True
     if from_type == to_type:
         return True
-    if is_non_generic_class(from_type) and is_non_generic_class(to_type):
-        return issubclass(from_type, to_type)  # type: ignore
+    if (ftype := extract_non_generic_class(from_type)) is not None and (
+        ttype := extract_non_generic_class(to_type)
+    ) is not None:
+        return issubclass(ftype, ttype)
     if is_union_type(to_type):
         return any(is_assignable_to(from_type, ttype) for ttype in get_args(to_type))
     return False
 
 
-def is_non_generic_class(obj) -> bool:
-    """Is the given object a non-generic class?
+def extract_non_generic_class(obj) -> type | None:
+    """Extract non-generic origin.
 
     Args:
         obj: The object to check
@@ -137,7 +146,25 @@ def is_non_generic_class(obj) -> bool:
     Returns:
         True if it is a non-generic class
     """
-    return isclass(obj) and not is_generic_type(obj)
+    if not isclass(obj):
+        return None
+    if is_generic_type(obj):
+        return get_origin(obj)
+    return obj
+
+
+def filter_type_vars(obj) -> Any:
+    """We cannot handle typevars yet, so we erase them for now.
+
+    Args:
+        obj: maybe a type var
+
+    Returns:
+        Any, if obj was a typevar, otherwise return obj
+    """
+    if is_typevar(obj):
+        return Any
+    return obj
 
 
 def is_numeric(value: Any) -> bool:

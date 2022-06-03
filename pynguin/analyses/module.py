@@ -55,8 +55,8 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
+    extract_non_generic_class,
     get_class_that_defined_method,
-    is_non_generic_class,
 )
 
 if typing.TYPE_CHECKING:
@@ -364,8 +364,8 @@ class ModuleTestCluster:
         """
         if for_type is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
-        if is_non_generic_class(for_type):
-            return self.__hacky_subclass_generators(for_type)
+        if (ftype := extract_non_generic_class(for_type)) is not None:
+            return self.__hacky_subclass_generators(ftype)
         return self.__generators.get(for_type, OrderedSet())
 
     @lru_cache(1000)
@@ -375,7 +375,9 @@ class ModuleTestCluster:
         # Hacky way to include subclass generators
         result = self.__generators.get(for_type, OrderedSet())
         for typ, generators in self.__generators.items():
-            if is_non_generic_class(typ) and issubclass(typ, for_type):
+            if (ltyp := extract_non_generic_class(typ)) is not None and issubclass(
+                ltyp, for_type
+            ):
                 result.update(generators)
         return result
 
@@ -392,8 +394,8 @@ class ModuleTestCluster:
         """
         if for_type is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
-        if is_non_generic_class(for_type):
-            return self.__hacky_superclass_modifiers(for_type)
+        if (ftype := extract_non_generic_class(for_type)) is not None:
+            return self.__hacky_superclass_modifiers(ftype)
         return self.__modifiers.get(for_type, OrderedSet())
 
     @lru_cache(1000)
