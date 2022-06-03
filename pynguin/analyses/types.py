@@ -143,8 +143,8 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        parameters[param_name] = Any  # type: ignore
-    return_type: type | None = Any  # type: ignore
+        parameters[param_name] = None
+    return_type: type | None = None
 
     signature = InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
@@ -152,8 +152,8 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        signature.update_parameter_type(param_name, Any)  # type: ignore
-    signature.update_return_type(Any)  # type: ignore
+        signature.update_parameter_type(param_name, None)
+    signature.update_return_type(None)
     return signature
 
 
