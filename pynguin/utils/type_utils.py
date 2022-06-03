@@ -153,7 +153,7 @@ def extract_non_generic_class(obj) -> type | None:
     return obj
 
 
-def filter_type_vars(obj) -> Any:
+def filter_type_vars(obj):
     """We cannot handle typevars yet, so we erase them for now.
 
     Args:

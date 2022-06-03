@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, get_type_hints
 
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.type_utils import wrap_var_param_type
+from pynguin.utils.type_utils import filter_type_vars, wrap_var_param_type
 
 
 @dataclass
@@ -143,6 +143,9 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
+        # var-positional and var-keyword need a dict or list/tuple,
+        # which is technically not encoded in the type, but the kind of parameter,
+        # so we also wrap this here.
         parameters[param_name] = wrap_var_param_type(
             Any, method_signature.parameters[param_name].kind  # type: ignore
         )
@@ -154,8 +157,8 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        signature.update_parameter_type(param_name, Any)  # type: ignore
-    signature.update_return_type(Any)  # type: ignore
+        signature.update_parameter_type(param_name, Any)  # type:ignore
+    signature.update_return_type(Any)  # type:ignore
     return signature
 
 
@@ -179,9 +182,10 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
             continue
         hint = hints.get(param_name, Any)
         hint = wrap_var_param_type(hint, method_signature.parameters[param_name].kind)
+        hint = filter_type_vars(hint)
         parameters[param_name] = hint
 
-    return_type: type | None = hints.get("return", Any)
+    return_type: type | None = filter_type_vars(hints.get("return", Any))
 
     return InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
