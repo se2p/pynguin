@@ -268,9 +268,9 @@ def test_get_all_generatable_types(module_test_cluster):
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = MagicMock
     module_test_cluster.add_generator(generator)
-    assert module_test_cluster.get_all_generatable_types() == [MagicMock] + list(
-        PRIMITIVES
-    ) + list(COLLECTIONS)
+    assert module_test_cluster.get_all_generatable_types() == OrderedSet(
+        MagicMock.mro() + list(PRIMITIVES) + list(COLLECTIONS)
+    )
 
 
 def __convert_to_str_count_dict(dic: dict[type, OrderedSet]) -> dict[str, int]:
@@ -328,6 +328,22 @@ def test_simple_dependencies():
 def test_complex_dependencies():
     cluster = generate_test_cluster("tests.fixtures.cluster.complex_dependencies")
     assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_inheritance_generator():
+    cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
+    from tests.fixtures.cluster.inheritance import Bar, Foo
+
+    assert len(cluster.get_generators_for(Foo)) == 2
+    assert len(cluster.get_generators_for(Bar)) == 1
+
+
+def test_inheritance_modifier():
+    cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
+    from tests.fixtures.cluster.inheritance import Bar, Foo
+
+    assert len(cluster.get_modifiers_for(Bar)) == 2
+    assert len(cluster.get_modifiers_for(Foo)) == 1
 
 
 def test_modifier():

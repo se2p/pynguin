@@ -461,10 +461,19 @@ class ModuleTestCluster:
         Returns:
             A list of all types that can be generated
         """
-        generatable = list(self.__generators.keys())
-        generatable.extend(PRIMITIVES)
-        generatable.extend(COLLECTIONS)
-        return generatable
+        generatable = OrderedSet(self.__generators.keys())
+        generatable.update(self.__hacky_all_generatable())
+        generatable.update(PRIMITIVES)
+        generatable.update(COLLECTIONS)
+        return list(generatable)
+
+    @lru_cache(1)
+    def __hacky_all_generatable(self) -> OrderedSet[type]:
+        all_gen: OrderedSet[type] = OrderedSet()
+        for typ in self.__generators:
+            if (extract := extract_non_generic_class(typ)) is not None:
+                all_gen.update(extract.mro())
+        return all_gen
 
     def select_concrete_type(self, select_from: type | None) -> type | None:
         """Select a concrete type from the given type.
