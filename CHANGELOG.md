@@ -11,6 +11,22 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.22.0
 
+- Fix selection of type-inference strategy.
+- Fix a bug in the type inference regarding cases where not type information is present.
+- Add a PyLint checker for calls to `print()`.
+- Extend the blacklist of modules that shall not be analysed.
+- Raise `RuntimeError` from tracer when called from another thread.
+- Provide better exception messages for critical failures.
+- Apply a further limit to the execution time of a single generated test case to at 
+  most 10 seconds.
+- Exclude empty enum classes from test cluster to fix test generation.
+
+  Parsing included modules raised an issue when the `enum` module is used: the test 
+  cluster then had a reference to the `enum.Enum` class, which obviously does not 
+  contain any fields.  In the following, generating tests failed, as soon as this 
+  class was selected to fulfil parameter values because there was no field to select 
+  from, e.g., `MyEnum.MY_FIELD`.  We now exclude empty enums from the test cluster.
+
 ## Pynguin 0.21.0
 
 - Fix a bug in the module analysis regarding nested functions
