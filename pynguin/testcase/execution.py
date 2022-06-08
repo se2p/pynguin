@@ -460,8 +460,16 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
-        self.executed_instructions = other.executed_instructions
-        self.existing_assertions.extend(other.existing_assertions)
+        shift: int = len(self.executed_instructions)
+        self.executed_instructions.extend(other.executed_instructions)
+        for traced_assertion in other.existing_assertions:
+            self.existing_assertions.append(
+                TracedAssertion(
+                    traced_assertion.code_object_id,
+                    traced_assertion.node_id,
+                    traced_assertion.trace_position + shift,
+                )
+            )
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
