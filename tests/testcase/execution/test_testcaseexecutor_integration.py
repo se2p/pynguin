@@ -61,6 +61,7 @@ def test_no_exceptions(short_test_case):
 def test_instrumentation(short_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)

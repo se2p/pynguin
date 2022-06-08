@@ -783,10 +783,6 @@ class ExecutionTracer:
         self._init_trace()
         self._enabled = True
         self._current_thread_identifier: int | None = None
-        self._assertion_stack_counter = 0
-        self._test_id = ""
-        self._module_name = ""
-        self._traced_assertions: list[TracedAssertion] = []
 
     @property
     def current_thread_identifier(self) -> int | None:
