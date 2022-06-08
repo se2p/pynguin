@@ -6,6 +6,7 @@
 #
 """Integration tests for the executor."""
 import importlib
+import threading
 from unittest.mock import MagicMock
 
 import pynguin.configuration as config
@@ -18,6 +19,7 @@ from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
 def test_simple_execution():
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
@@ -35,6 +37,7 @@ def test_illegal_call(method_mock):
     test_case.add_statement(int_stmt)
     test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
@@ -46,6 +49,7 @@ def test_illegal_call(method_mock):
 def test_no_exceptions(short_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
@@ -68,6 +72,7 @@ def test_instrumentation(short_test_case):
 
 def test_observers(short_test_case):
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
     executor.add_observer(observer)
@@ -80,6 +85,7 @@ def test_observers(short_test_case):
 
 def test_observers_clear(short_test_case):
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
     executor.add_observer(observer)
@@ -90,6 +96,7 @@ def test_observers_clear(short_test_case):
 
 def test_module_provider():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     prov = ModuleProvider()
     executor = TestCaseExecutor(tracer, prov)
     assert executor.module_provider == prov

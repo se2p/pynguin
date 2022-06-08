@@ -302,7 +302,12 @@ def test_code_object_executed_other_thread():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
-    thread = threading.Thread(target=tracer.executed_code_object, args=(0,))
+
+    def wrapper(*args):
+        with pytest.raises(RuntimeError):
+            tracer.executed_code_object(*args)
+
+    thread = threading.Thread(target=wrapper, args=(0,))
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_code_objects == set()
@@ -313,7 +318,12 @@ def test_bool_predicate_executed_other_thread():
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
-    thread = threading.Thread(target=tracer.executed_bool_predicate, args=(True, 0))
+
+    def wrapper(*args):
+        with pytest.raises(RuntimeError):
+            tracer.executed_bool_predicate(*args)
+
+    thread = threading.Thread(target=wrapper, args=(True, 0))
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_predicates == {}
@@ -324,9 +334,29 @@ def test_compare_predicate_executed_other_thread():
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock())
     tracer.register_code_object(MagicMock(code_object_id=0))
-    thread = threading.Thread(
-        target=tracer.executed_compare_predicate, args=(True, False, Compare.EQ, 0)
-    )
+
+    def wrapper(*args):
+        with pytest.raises(RuntimeError):
+            tracer.executed_compare_predicate(*args)
+
+    thread = threading.Thread(target=wrapper, args=(True, False, Compare.EQ, 0))
     thread.start()
     thread.join()
     assert tracer.get_trace().executed_predicates == {}
+
+
+@pytest.mark.parametrize(
+    "method,inputs",
+    [
+        (ExecutionTracer.executed_code_object.__name__, (None,)),
+        (ExecutionTracer.executed_compare_predicate.__name__, (None, None, None, None)),
+        (ExecutionTracer.executed_bool_predicate.__name__, (None, None)),
+        (ExecutionTracer.executed_exception_match.__name__, (None, None, None)),
+        (ExecutionTracer.track_line_visit.__name__, (None,)),
+    ],
+)
+def test_killed_by_thread_guard(method, inputs):
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident + 1
+    with pytest.raises(RuntimeError):
+        getattr(tracer, method)(*inputs)

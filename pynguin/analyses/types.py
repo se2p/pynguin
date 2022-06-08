@@ -10,7 +10,6 @@ from __future__ import annotations
 import enum
 import inspect
 from dataclasses import dataclass, field
-from inspect import Parameter, Signature, signature
 from typing import Any, Callable, get_type_hints
 
 from pynguin.utils.exceptions import ConfigurationException
@@ -47,7 +46,7 @@ class InferredSignature:
     accordingly.
     """
 
-    signature: Signature
+    signature: inspect.Signature
     parameters: dict[str, type | None] = field(default_factory=dict)
     return_type: type | None = Any  # type: ignore
 
@@ -76,7 +75,7 @@ class InferredSignature:
     def __update_signature_parameter(
         self, parameter_name: str, parameter_type: type | None
     ) -> None:
-        current_parameter: Parameter | None = self.signature.parameters.get(
+        current_parameter: inspect.Parameter | None = self.signature.parameters.get(
             parameter_name
         )
         assert current_parameter is not None, "Cannot happen due to previous check"
@@ -139,17 +138,23 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     if inspect.isclass(method) and hasattr(method, "__init__"):
         return infer_type_info_no_types(getattr(method, "__init__"))
 
-    method_signature = signature(method)
+    method_signature = inspect.signature(method)
     parameters: dict[str, type | None] = {}
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        parameters[param_name] = Any  # type: ignore
-    return_type: type | None = Any  # type: ignore
+        parameters[param_name] = None
+    return_type: type | None = None
 
-    return InferredSignature(
+    signature = InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
     )
+    for param_name in method_signature.parameters:
+        if param_name == "self":
+            continue
+        signature.update_parameter_type(param_name, None)
+    signature.update_return_type(None)
+    return signature
 
 
 def infer_type_info_with_types(method: Callable) -> InferredSignature:
@@ -164,7 +169,7 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     if inspect.isclass(method) and hasattr(method, "__init__"):
         return infer_type_info_with_types(getattr(method, "__init__"))
 
-    method_signature = signature(method)
+    method_signature = inspect.signature(method)
     parameters: dict[str, type | None] = {}
     hints = get_type_hints(method)
     for param_name in method_signature.parameters:

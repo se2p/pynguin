@@ -12,8 +12,8 @@ import inspect
 import numbers
 import types
 import typing
-from inspect import isclass, isfunction
-from typing import Any, Callable
+from inspect import isclass
+from typing import Any
 
 from ordered_set import OrderedSet
 from typing_inspect import get_args, get_origin, is_union_type
@@ -77,32 +77,6 @@ def is_ignorable_type(type_: type) -> bool:
         Whether the type is ignorable
     """
     return f"{type_.__module__}.{type_.__name__}" in IGNORABLE_TYPES
-
-
-def class_in_module(module_name: str) -> Callable[[Any], bool]:
-    """Returns a predicate which filters out any classes not directly defined in the
-    given module.
-
-    Args:
-        module_name: the name of the model
-
-    Returns:
-        A filter predicate
-    """
-    return lambda member: isclass(member) and member.__module__ == module_name
-
-
-def function_in_module(module_name: str) -> Callable[[Any], bool]:
-    """Returns a predicate which filters out any functions not directly defined in the
-    given module.
-
-    Args:
-        module_name: the name of the model
-
-    Returns:
-        A filter predicate
-    """
-    return lambda member: isfunction(member) and member.__module__ == module_name
 
 
 def is_none_type(type_: type | None) -> bool:

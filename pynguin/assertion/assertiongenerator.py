@@ -115,7 +115,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             if statement.affects_assertions:
                 previous_statement_assertions = current_statement_assertions
 
-    def _get_assertions_for(  # pylint:disable=no-self-use
+    def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
     ) -> OrderedSet[ass.Assertion]:
         """Returns the set of assertions for the given statement.

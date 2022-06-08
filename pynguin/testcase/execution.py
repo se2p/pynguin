@@ -897,9 +897,14 @@ class ExecutionTracer:
 
         Args:
             code_object_id: the code object id to mark
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         assert (
             code_object_id in self._known_data.existing_code_objects
@@ -931,9 +936,14 @@ class ExecutionTracer:
             value2: the second value
             predicate: the predicate identifier
             cmp_op: the compare operation
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -957,9 +967,14 @@ class ExecutionTracer:
         Args:
             value: the value
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -1000,9 +1015,14 @@ class ExecutionTracer:
             err: The raised exception
             exc: The matching condition
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -1028,9 +1048,14 @@ class ExecutionTracer:
 
         Args:
             line_id: the if of the line that was visited
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -1841,7 +1866,8 @@ class TestCaseExecutor:
                     daemon=True,
                 )
                 thread.start()
-                thread.join(timeout=len(test_case.statements))
+                # Set a timeout for the thread execution of at most 10 seconds.
+                thread.join(timeout=min(10, len(test_case.statements)))
                 if thread.is_alive():
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
@@ -1896,7 +1922,9 @@ class TestCaseExecutor:
         # Otherwise raise an exception to kill it.
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
@@ -1951,7 +1979,9 @@ class TestCaseExecutor:
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         self._tracer.disable()
         try:

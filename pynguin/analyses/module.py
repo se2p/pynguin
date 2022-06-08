@@ -53,8 +53,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
-    class_in_module,
-    function_in_module,
     get_class_that_defined_method,
 )
 
@@ -68,36 +66,38 @@ LOGGER = logging.getLogger(__name__)
 ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
 
 # A tuple of modules that shall be blacklisted from analysis (keep them sorted!!!):
-MODULE_BLACKLIST: tuple[str, ...] = (
-    "_thread",
-    "asyncio",
-    "concurrent",
-    "concurrent.futures",
-    "contextvars",
-    "filecmp",
-    "fileinput",
-    "fnmatch",
-    "glob",
-    "linecache",
-    "mmap",
-    "multiprocessing",
-    "multiprocessing.shared_memory",
-    "os",
-    "os.path",
-    "pathlib",
-    "queue",
-    "sched",
-    "select",
-    "selectors",
-    "shutil",
-    "signal",
-    "socket",
-    "ssl",
-    "stat",
-    "subprocess",
-    "sys",
-    "tempfile",
-    "threading",
+MODULE_BLACKLIST = frozenset(
+    (
+        "_thread",
+        "asyncio",
+        "concurrent",
+        "concurrent.futures",
+        "contextvars",
+        "filecmp",
+        "fileinput",
+        "fnmatch",
+        "glob",
+        "linecache",
+        "mmap",
+        "multiprocessing",
+        "multiprocessing.shared_memory",
+        "os",
+        "os.path",
+        "pathlib",
+        "queue",
+        "sched",
+        "select",
+        "selectors",
+        "shutil",
+        "signal",
+        "socket",
+        "ssl",
+        "stat",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "threading",
+    )
 )
 
 
@@ -114,7 +114,7 @@ class _ParseResult(NamedTuple):
 class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
     """Removes argument annotations from an AST."""
 
-    # pylint: disable=missing-function-docstring, no-self-use
+    # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
         node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return node
@@ -165,7 +165,7 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
 
         return self.generic_visit(node)
 
-    # pylint: disable=missing-function-docstring, no-self-use
+    # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
         if (
             node.annotation is None
@@ -175,7 +175,7 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
             node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
-    # pylint: disable=missing-function-docstring, no-self-use, invalid-name
+    # pylint: disable=missing-function-docstring, invalid-name
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         if (
             node.returns is None
@@ -738,6 +738,12 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 
     if issubclass(class_, enum.Enum):
         generic: GenericEnum | GenericConstructor = GenericEnum(class_)
+        if isinstance(generic, GenericEnum) and len(generic.names) == 0:
+            LOGGER.debug(
+                "Skipping enum %s from test cluster, it has no fields.",
+                class_name,
+            )
+            return
     else:
         generic = GenericConstructor(
             class_, infer_type_info(class_, type_inference_strategy), raised_exceptions
@@ -815,142 +821,121 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
 
 def __resolve_dependencies(
-    module: ModuleType,
-    module_name: str,
+    root_module: ModuleType,
     type_inference_strategy: TypeInferenceStrategy,
+    syntax_tree: ast.AST | None,
     test_cluster: ModuleTestCluster,
 ) -> None:
-    def filter_for_classes_from_module(value: object, module_name: str) -> bool:
-        return inspect.isclass(value) and value.__module__ == module_name
 
-    def filter_for_classes_not_from_module(value: object, module_name: str) -> bool:
-        return inspect.isclass(value) and value.__module__ != module_name
-
-    def filter_for_functions_from_module(value: object, module_name: str) -> bool:
-        return inspect.isfunction(value) and value.__module__ == module_name
-
-    def filter_for_functions_not_from_module(value: object, module_name: str) -> bool:
-        return inspect.isfunction(value) and value.__module__ != module_name
-
-    def filter_modules(value: object) -> bool:
-        return inspect.ismodule(value) and module.__name__ not in MODULE_BLACKLIST
-
-    # Resolve the dependencies that are directly included in the module
-    __analyse_included_classes(
-        module=module,
-        module_name=module_name,
-        type_inference_strategy=type_inference_strategy,
-        test_cluster=test_cluster,
-        filtering_function=filter_for_classes_not_from_module,
-    )
-    __analyse_included_functions(
-        module=module,
-        module_name=module_name,
-        type_inference_strategy=type_inference_strategy,
-        test_cluster=test_cluster,
-        filtering_function=filter_for_functions_not_from_module,
-    )
-
-    # Provide a set of seen modules for fixed-point iteration and add the module
-    # under test as it has already been analysed before
+    # Provide a set of seen modules, classes and functions for fixed-point iteration
     seen_modules: set[ModuleType] = set()
-    seen_modules.add(module)
+    seen_classes: set[Any] = set()
+    seen_functions: set[Any] = set()
 
-    # Extract all imported modules and transitively analyse them
+    # Start with root module, i.e., the module under test.
     wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for included_module in filter(filter_modules, vars(module).values()):
-        assert included_module not in seen_modules
-        wait_list.put(included_module)
+    wait_list.put(root_module)
 
     while not wait_list.empty():
         current_module = wait_list.get()
         if current_module in seen_modules:
             # Skip the module, we have already analysed it before
             continue
+        if current_module.__name__ in MODULE_BLACKLIST:
+            # Don't include anything from the blacklist
+            continue
 
-        # Collect the classes from this module
+        tree = None
+        if current_module == root_module:
+            # Currently, the syntax tree is only available for the root module,
+            # i.e., the SUT.
+            tree = syntax_tree
+
+        # Analyze all classes found in the current module
         __analyse_included_classes(
             module=current_module,
-            module_name=current_module.__name__,
+            root_module_name=root_module.__name__,
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
-            filtering_function=filter_for_classes_from_module,
-        )
-        __analyse_included_functions(
-            module=current_module,
-            module_name=current_module.__name__,
-            type_inference_strategy=type_inference_strategy,
-            test_cluster=test_cluster,
-            filtering_function=filter_for_functions_from_module,
+            seen_classes=seen_classes,
+            syntax_tree=tree,
         )
 
-        # Collect the modules that are included by this module
+        # Analyze all functions found in the current module
+        __analyse_included_functions(
+            module=current_module,
+            root_module_name=root_module.__name__,
+            type_inference_strategy=type_inference_strategy,
+            test_cluster=test_cluster,
+            seen_functions=seen_functions,
+            syntax_tree=tree,
+        )
+
+        # Collect the modules that are included by this module and add
+        # them for further processing.
         for included_module in filter(inspect.ismodule, vars(current_module).values()):
-            if included_module not in seen_modules:
-                # Put in wait list if we have not yet analysed this module
-                wait_list.put(included_module)
+            wait_list.put(included_module)
 
         # Take care that we know for future iterations that we have already analysed
         # this module before
         seen_modules.add(current_module)
+    LOGGER.info("Analyzed project to create test cluster")
+    LOGGER.info("Modules:   %5i", len(seen_modules))
+    LOGGER.info("Functions: %5i", len(seen_functions))
+    LOGGER.info("Classes:   %5i", len(seen_classes))
 
 
 def __analyse_included_classes(
     *,
     module: ModuleType,
-    module_name: str,
+    root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    filtering_function: Callable[[object, str], bool],
+    syntax_tree: ast.AST | None,
+    seen_classes: set,
 ) -> None:
-    seen_types: set[str] = set()
-    wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for element in [
-        elem for elem in vars(module).values() if filtering_function(elem, module_name)
-    ]:
-        wait_list.put(element)
 
-    while not wait_list.empty():
-        current = wait_list.get()
-        if current.__qualname__ in seen_types:
+    for current in filter(
+        lambda x: inspect.isclass(x) and x.__module__ not in MODULE_BLACKLIST,
+        vars(module).values(),
+    ):
+        if current in seen_classes:
             continue
+        seen_classes.add(current)
         __analyse_class(
             class_name=current.__qualname__,
             class_=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=None,
+            syntax_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=False,
+            add_to_test=current.__module__ == root_module_name,
         )
-        seen_types.add(current.__qualname__)
+        seen_classes.add(current)
 
 
 def __analyse_included_functions(
     *,
     module: ModuleType,
-    module_name: str,
+    root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    filtering_function: Callable[[object, str], bool],
+    syntax_tree: ast.AST | None,
+    seen_functions: set,
 ) -> None:
-    seen_functions: set[str] = set()
-    wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for element in [
-        elem for elem in vars(module).values() if filtering_function(elem, module_name)
-    ]:
-        wait_list.put(element)
-
-    while not wait_list.empty():
-        current = wait_list.get()
-        if current.__qualname__ in seen_functions:
+    for current in filter(
+        lambda x: inspect.isfunction(x) and x.__module__ not in MODULE_BLACKLIST,
+        vars(module).values(),
+    ):
+        if current in seen_functions:
             continue
+        seen_functions.add(current)
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=None,
+            syntax_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=False,
+            add_to_test=current.__module__ == root_module_name,
         )
 
 
@@ -964,38 +949,12 @@ def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
         A test cluster for the module
     """
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
-
-    for func_name, func in inspect.getmembers(
-        parsed_module.module, function_in_module(parsed_module.module_name)
-    ):
-        __analyse_function(
-            func_name=func_name,
-            func=func,
-            type_inference_strategy=parsed_module.type_inference_strategy,
-            syntax_tree=parsed_module.syntax_tree,
-            test_cluster=test_cluster,
-            add_to_test=True,
-        )
-
-    for class_name, class_ in inspect.getmembers(
-        parsed_module.module, class_in_module(parsed_module.module_name)
-    ):
-        __analyse_class(
-            class_name=class_name,
-            class_=class_,
-            type_inference_strategy=parsed_module.type_inference_strategy,
-            syntax_tree=parsed_module.syntax_tree,
-            test_cluster=test_cluster,
-            add_to_test=True,
-        )
-
     __resolve_dependencies(
-        parsed_module.module,
-        parsed_module.module_name,
-        parsed_module.type_inference_strategy,
-        test_cluster,
+        root_module=parsed_module.module,
+        type_inference_strategy=parsed_module.type_inference_strategy,
+        syntax_tree=parsed_module.syntax_tree,
+        test_cluster=test_cluster,
     )
-
     return test_cluster
 
 

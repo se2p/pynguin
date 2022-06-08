@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import ast
+import itertools
 from logging import Logger
 from typing import Any, Union, cast
 from unittest.mock import MagicMock
@@ -288,8 +289,23 @@ def __extract_method_names(
 
 
 def test_accessible():
-    cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
+    cluster = generate_test_cluster(
+        "tests.fixtures.cluster.no_dependencies", TypeInferenceStrategy.NONE
+    )
     assert len(cluster.accessible_objects_under_test) == 4
+
+
+def test_nothing_from_blacklist():
+    cluster = generate_test_cluster("tests.fixtures.cluster.blacklist")
+    # Should only be foo and bar
+    assert sum(len(cl) for cl in cluster.generators.values()) == 2
+    assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_nothing_included_multiple_times():
+    cluster = generate_test_cluster("tests.fixtures.cluster.diamond_top")
+    assert sum(len(cl) for cl in cluster.generators.values()) == 5
+    assert cluster.num_accessible_objects_under_test() == 1
 
 
 def test_generators():
@@ -297,6 +313,7 @@ def test_generators():
     assert len(cluster.get_generators_for(int)) == 0
     assert len(cluster.get_generators_for(float)) == 0
     assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1}
+    assert cluster.num_accessible_objects_under_test() == 4
 
 
 def test_simple_dependencies():
@@ -305,6 +322,7 @@ def test_simple_dependencies():
         "SomeArgumentType": 1,
         "ConstructMeWithDependency": 1,
     }
+    assert cluster.num_accessible_objects_under_test() == 1
 
 
 def test_complex_dependencies():
@@ -399,3 +417,17 @@ def test_analyse_nested_functions(parsed_module_nested_functions):
     func = test_cluster.accessible_objects_under_test.pop()
     assert isinstance(func, GenericFunction)
     assert func.function_name == "table_row"
+
+
+def test_analyse_empty_enum_module():
+    def extract_enum_without_fields(enum: GenericAccessibleObject) -> bool:
+        return isinstance(enum, GenericEnum) and len(enum.names) == 0
+
+    cluster = generate_test_cluster("enum")
+    enums_without_fields = list(
+        filter(
+            extract_enum_without_fields,
+            itertools.chain.from_iterable(cluster.generators.values()),
+        )
+    )
+    assert len(enums_without_fields) == 0
