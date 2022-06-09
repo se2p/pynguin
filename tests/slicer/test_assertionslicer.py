@@ -23,9 +23,7 @@ from pynguin.ga.computations import TestSuiteCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
-from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.variablereference import FieldReference, StaticFieldReference
-from tests.fixtures.linecoverage.list import ListTest
 from tests.fixtures.linecoverage.plus import Plus
 
 
@@ -127,161 +125,6 @@ def full_cover_plus_four_test():
 
 
 @pytest.fixture
-def plus_test_with_float_assertion() -> TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
-    """
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 42
-    plus_0 = module_0.Plus()
-    int_1 = plus_0.plus_four(int_0)
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
-    return test_case
-
-
-@pytest.fixture
-def plus_test_with_not_none_assertion() -> TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 is not None
-    """
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 42
-    plus_0 = module_0.Plus()
-    int_1 = plus_0.plus_four(int_0)
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-
-    test_case.statements[-1].add_assertion(
-        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
-    )
-    return test_case
-
-
-@pytest.fixture
-def exception_test_with_except_assertion() -> TestCase:
-    """
-    Generated testcase:
-        exception_test_0 = module_0.ExceptionTest()
-        with pytest.raises(RuntimeError):
-            var_0 = exception_test_0.throw()
-    """
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    exception_test_0 = module_0.ExceptionTest()
-    var_0 = exception_test_0.throw()
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-
-    test_case.statements[-1].add_assertion(
-        ass.ExceptionAssertion(
-            module=RuntimeError.__module__,
-            exception_type_name=RuntimeError.__name__,
-        ),
-    )
-    return test_case
-
-
-@pytest.fixture
-def list_test_with_len_assertion() -> TestCase:
-    """
-    Generated testcase:
-        list_test_0 = module_0.ListTest()
-        assert len(list_test_0.attribute) == 3
-    """
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    list_test_0 = module_0.ListTest()
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-    test_case.statements[-1].add_assertion(
-        ass.CollectionLengthAssertion(
-            FieldReference(
-                test_case.statements[-1].ret_val,
-                gao.GenericField(ListTest, "attribute", list),
-            ),
-            3,
-        )
-    )
-    return test_case
-
-
-@pytest.fixture
-def plus_test_with_multiple_assertions():
-    """
-    Generated testcase:
-        int_0 = 42
-        assert int_0 == 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
-        assert plus_0.calculations == 1
-    """
-    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 42
-    plus_0 = module_0.Plus()
-    int_1 = plus_0.plus_four(int_0)
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-
-    test_case.statements[0].add_assertion(
-        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
-    )
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
-    test_case.statements[-1].add_assertion(
-        ass.ObjectAssertion(
-            FieldReference(
-                test_case.statements[1].ret_val,
-                gao.GenericField(Plus, "calculations", int),
-            ),
-            1,
-        )
-    )
-    return test_case
-
-
-@pytest.fixture
 def partial_cover_use_bool_as_int():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
@@ -371,29 +214,41 @@ def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
 
 
 @pytest.mark.parametrize(
-    "test_case_name, expected_assertions",
+    "module_name, test_case_name, expected_assertions",
     [
-        ("plus_test_with_object_assertion", 1),
-        ("plus_test_with_float_assertion", 1),
-        ("plus_test_with_not_none_assertion", 1),
-        ("exception_test_with_except_assertion", 1),
-        ("list_test_with_len_assertion", 1),
-        ("plus_test_with_multiple_assertions", 3),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_object_assertion", 1),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_float_assertion", 1),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_not_none_assertion", 1),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_multiple_assertions", 3),
+        (
+            "tests.fixtures.linecoverage.exception",
+            "exception_test_with_except_assertion",
+            1,
+        ),
+        ("tests.fixtures.linecoverage.list", "list_test_with_len_assertion", 1),
     ],
 )
-def test_assertion_detection_on_test_case(test_case_name, expected_assertions, request):
+def test_assertion_detection_on_test_case(
+    module_name, test_case_name, expected_assertions, request
+):
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED
     ]
+
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
 
-    executor = TestCaseExecutor(tracer)
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
 
-    executor.execute(test_case, instrument_test=True)
-    assert tracer.get_trace().existing_assertions
-    assert len(tracer.get_trace().existing_assertions) == expected_assertions
+        executor = TestCaseExecutor(tracer)
+        executor.execute(test_case, instrument_test=True)
+        trace = tracer.get_trace()
+        assert trace.existing_assertions
+
+        assert len(trace.existing_assertions) == expected_assertions
 
 
 @pytest.mark.parametrize(
