@@ -327,6 +327,7 @@ def _add_checked_coverage_instrumentation(
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
     spec = module.__spec__
+    tracer.current_thread_identifier = threading.current_thread().ident
     if spec is not None and isinstance(spec.loader, FileLoader):
         new_loader = InstrumentationLoader(
             spec.loader.name,

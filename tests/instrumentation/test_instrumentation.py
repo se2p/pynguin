@@ -344,6 +344,7 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     )
 
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     function_callable = getattr(simple_module, "bool_predicate")
     adapter = CheckedCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])

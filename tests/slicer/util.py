@@ -135,6 +135,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
         config.CoverageMetric.CHECKED
     ]
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
         module = importlib.import_module(module_name)
         importlib.reload(module)

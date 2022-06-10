@@ -1132,9 +1132,18 @@ class ExecutionTracer:
             opcode: the opcode of the instruction
             lineno: the line number of the instruction
             offset: the offset of the instruction
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         self._trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1171,9 +1180,16 @@ class ExecutionTracer:
 
         Raises:
             ValueError: when no argument is given
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         if not arg:
             if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
                 raise ValueError("A memory access instruction must have an argument")
@@ -1236,7 +1252,15 @@ class ExecutionTracer:
             src_address: the memory address of the attribute
             arg_address: the memory address of the argument
             arg_type: the type of argument
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
 
@@ -1289,9 +1313,18 @@ class ExecutionTracer:
             lineno: the line number of the instruction
             offset: the offset of the instruction
             target_id: the offset of the target of the jump
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         self._trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
@@ -1321,9 +1354,18 @@ class ExecutionTracer:
             lineno: the line number of the instruction
             offset: the offset of the instruction
             arg: the argument used in the method call
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         self._trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
@@ -1351,9 +1393,18 @@ class ExecutionTracer:
             opcode: the opcode of the instruction
             lineno: the line number of the instruction
             offset: the offset of the instruction
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         self._trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
@@ -1366,9 +1417,18 @@ class ExecutionTracer:
         an assertion containing this instruction.
         Therefore, we trace the instruction that was last executed before
         the exception.
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         trace = self.get_trace()
         error_call_position = len(trace.executed_instructions) - 1
         error_causing_instr = trace.executed_instructions[error_call_position]
@@ -1384,9 +1444,18 @@ class ExecutionTracer:
         Args:
             code_object_id: code object containing the assertion to register
             node_id: the id of the node containing the assertion to register
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
         if self._is_disabled():
             return
+
         exec_instr = self.get_trace().executed_instructions
         pop_jump_if_true_position = len(exec_instr) - 1
         for instr in reversed(exec_instr):
