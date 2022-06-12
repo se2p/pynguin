@@ -413,6 +413,7 @@ def _run() -> ReturnCode:
     _track_coverage_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
+    _minimize_assertions(generation_result)
 
     # only call checked coverage calculation after assertion generation
     if (
@@ -462,6 +463,16 @@ def _remove_statements_after_exceptions(generation_result):
         )
         generation_result.accept(unused_primitives_removal)
         # TODO(fk) add more postprocessing stuff.
+
+
+def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
+    """Calculates the checked lines of each assertion. If an assertion does not cover new lines,
+    it is removed from the resulting test case."""
+    if config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION:
+        assertion_minimizer = pp.TestCasePostProcessor(
+            [pp.CheckedAssertionsMinimizationTestCaseVisitor()]
+        )
+        generation_result.accept(assertion_minimizer)
 
 
 def _generate_assertions(executor, generation_result):
