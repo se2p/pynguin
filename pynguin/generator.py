@@ -413,6 +413,7 @@ def _run() -> ReturnCode:
     _track_coverage_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
+    _minimize_assertions(generation_result)
 
     # only call checked coverage calculation after assertion generation
     if (
