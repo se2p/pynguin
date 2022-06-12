@@ -469,9 +469,7 @@ def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
     """Calculates the checked lines of each assertion. If an assertion does not cover new lines,
     it is removed from the resulting test case."""
     if config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION:
-        assertion_minimizer = pp.TestCasePostProcessor(
-            [pp.CheckedAssertionsMinimizationTestCaseVisitor()]
-        )
+        assertion_minimizer = pp.AssertionMinimization()
         generation_result.accept(assertion_minimizer)
 
 

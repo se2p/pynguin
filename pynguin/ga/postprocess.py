@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion
+from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.statement import StatementVisitor
 
 if TYPE_CHECKING:
@@ -35,6 +36,68 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
             chop_position = chromosome.get_last_mutatable_statement()
             if chop_position is not None:
                 chromosome.test_case.chop(chop_position)
+
+
+class AssertionMinimization(cv.ChromosomeVisitor):
+    """Calculates the checked lines of each assertion. If an assertion does not cover new lines,
+    it is removed from the resulting test case."""
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self):
+        self._deleted_assertions: set[Assertion] = set()
+        self._checked_lines: set[int] = set()
+
+    @property
+    def deleted_assertions(self) -> set[Assertion]:
+        """Provides a set of deleted assertions
+
+        Returns:
+            The deleted assertions
+        """
+        return self._deleted_assertions
+
+    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+        for test_case_chromosome in chromosome.test_case_chromosomes:
+            test_case_chromosome.accept(self)
+
+        self._logger.debug(
+            "Removed %s assertion from test suite that do not increase checked coverage",
+            len(self._deleted_assertions),
+            )
+
+    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+        test_case = chromosome.test_case
+
+        # TODO(SiL) how to propagate this information?
+        existing_code_objects = None
+        trace = None
+        assertion_slicer = AssertionSlicer(existing_code_objects)
+
+        deleted_assertions_before = len(self._deleted_assertions)
+
+        for stmt in test_case.statements:
+            to_remove = set()
+            for assertion in stmt.assertions:
+                # TODO(SiL) the slicer needs assertions of type TracedAssertion, how to handle?
+                if not self._assertion_increases_checked_coverage(assertion, assertion_slicer, trace):
+                    to_remove.add(assertion)
+            for assertion in to_remove:
+                stmt.assertions.remove(assertion)
+                self._deleted_assertions.add(assertion)
+
+        deleted_assertions_after = len(self._deleted_assertions)
+
+        self._logger.debug(
+            "Removed %s assertion from test case that do not increase checked coverage",
+            deleted_assertions_after - deleted_assertions_before,
+        )
+
+    def _assertion_increases_checked_coverage(self, assertion, assertion_slicer, trace):
+        # TODO(SiL) add some caching to not re-calculate the slice during checked coverage calculations
+        checked_instructions = assertion_slicer.slice_assertion(assertion, trace)
+        checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)
+        return not checked_lines.issubset(self._checked_lines)
 
 
 class TestCasePostProcessor(cv.ChromosomeVisitor):
@@ -74,15 +137,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         """
         return self._deleted_statement_indexes
 
-    @property
-    def deleted_assertions(self) -> set[Assertion]:
-        """Provides a set of deleted assertions
-
-        Returns:
-            The deleted assertions
-        """
-        return self._deleted_assertions
-
 
 # pylint:disable=too-few-public-methods
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
@@ -103,32 +157,6 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
         )
         self._deleted_statement_indexes.update(
             primitive_remover.deleted_statement_indexes
-        )
-
-
-# pylint:disable=too-few-public-methods
-class CheckedAssertionsMinimizationTestCaseVisitor(ModificationAwareTestCaseVisitor):
-    """Removes assertions that do not increase the checked coverage."""
-
-    _logger = logging.getLogger(__name__)
-
-    def visit_default_test_case(self, test_case) -> None:
-        self._deleted_assertions.clear()
-        assertion_remover = CheckedCoverageAssertionMinimizationStatementVisitor()
-        assertions_before = 0
-        for statement in test_case.statements:
-            assertions_before += len(statement.assertions)
-
-        # Iterate over copy, to be able to modify original.
-        for stmt in list(test_case.statements):
-            stmt.accept(assertion_remover)
-
-        self._logger.debug(
-            "Removed %s assertion from test case that do not increase checked coverage",
-            len(assertion_remover.deleted_assertions),
-            )
-        self._deleted_assertions.update(
-            assertion_remover.deleted_assertions
         )
 
 
@@ -208,80 +236,3 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
 
     def visit_dict_statement(self, stmt) -> None:
         self._handle_collection_or_primitive(stmt)
-
-
-class CheckedCoverageAssertionMinimizationStatementVisitor(StatementVisitor):
-    """Visits all statements and removes the assertions that
-    do not increase the checked coverage."""
-
-    def __init__(self):
-        self._deleted_assertions: set[Assertion] = set()
-
-    @property
-    def deleted_assertions(self) -> set[Assertion]:
-        """Provides a set of deleted assertions
-
-        Returns:
-            The deleted assertions
-        """
-        return self._deleted_assertions
-
-    def _assertion_increases_checked_coverage(self, assertion):
-        pass
-
-    def _handle_assertions(self, stmt) -> None:
-        to_remove = set()
-        for assertion in stmt.assertions:
-            if not self._assertion_increases_checked_coverage(assertion):
-                to_remove.add(assertion)
-        for assertion in to_remove:
-            stmt.assertions.remove(assertion)
-            self._deleted_assertions.add(assertion)
-
-    def visit_int_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_float_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_string_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_bytes_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_boolean_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_enum_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_none_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_constructor_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_method_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_function_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_field_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_assignment_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_list_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_set_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_tuple_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_dict_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
