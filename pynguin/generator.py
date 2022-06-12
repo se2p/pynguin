@@ -468,7 +468,10 @@ def _generate_assertions(executor, generation_result):
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen != config.AssertionGenerator.NONE:
         _LOGGER.info("Start generating assertions")
-        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+        if ass_gen in (
+            config.AssertionGenerator.MUTATION_ANALYSIS,
+            config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION
+        ):
             generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
                 executor
             )
