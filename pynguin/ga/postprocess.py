@@ -146,15 +146,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         """
         return self._deleted_statement_indexes
 
-    @property
-    def deleted_assertions(self) -> set[Assertion]:
-        """Provides a set of deleted assertions
-
-        Returns:
-            The deleted assertions
-        """
-        return self._deleted_assertions
-
 
 # pylint:disable=too-few-public-methods
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
@@ -175,32 +166,6 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
         )
         self._deleted_statement_indexes.update(
             primitive_remover.deleted_statement_indexes
-        )
-
-
-# pylint:disable=too-few-public-methods
-class CheckedAssertionsMinimizationTestCaseVisitor(ModificationAwareTestCaseVisitor):
-    """Removes assertions that do not increase the checked coverage."""
-
-    _logger = logging.getLogger(__name__)
-
-    def visit_default_test_case(self, test_case) -> None:
-        self._deleted_assertions.clear()
-        assertion_remover = CheckedCoverageAssertionMinimizationStatementVisitor()
-        assertions_before = 0
-        for statement in test_case.statements:
-            assertions_before += len(statement.assertions)
-
-        # Iterate over copy, to be able to modify original.
-        for stmt in list(test_case.statements):
-            stmt.accept(assertion_remover)
-
-        self._logger.debug(
-            "Removed %s assertion from test case that do not increase checked coverage",
-            len(assertion_remover.deleted_assertions),
-            )
-        self._deleted_assertions.update(
-            assertion_remover.deleted_assertions
         )
 
 
@@ -280,80 +245,3 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
 
     def visit_dict_statement(self, stmt) -> None:
         self._handle_collection_or_primitive(stmt)
-
-
-class CheckedCoverageAssertionMinimizationStatementVisitor(StatementVisitor):
-    """Visits all statements and removes the assertions that
-    do not increase the checked coverage."""
-
-    def __init__(self):
-        self._deleted_assertions: set[Assertion] = set()
-
-    @property
-    def deleted_assertions(self) -> set[Assertion]:
-        """Provides a set of deleted assertions
-
-        Returns:
-            The deleted assertions
-        """
-        return self._deleted_assertions
-
-    def _assertion_increases_checked_coverage(self, assertion):
-        pass
-
-    def _handle_assertions(self, stmt) -> None:
-        to_remove = set()
-        for assertion in stmt.assertions:
-            if not self._assertion_increases_checked_coverage(assertion):
-                to_remove.add(assertion)
-        for assertion in to_remove:
-            stmt.assertions.remove(assertion)
-            self._deleted_assertions.add(assertion)
-
-    def visit_int_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_float_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_string_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_bytes_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_boolean_primitive_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_enum_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_none_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_constructor_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_method_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_function_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_field_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_assignment_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_list_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_set_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_tuple_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
-
-    def visit_dict_statement(self, stmt) -> None:
-        self._handle_assertions(stmt)
