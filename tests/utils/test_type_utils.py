@@ -17,9 +17,9 @@ from pynguin.utils.type_utils import (
     filter_type_vars,
     given_exception_matches,
     is_assertable,
-    is_assignable_to,
     is_bytes,
     is_collection_type,
+    is_consistent_with,
     is_dict,
     is_enum,
     is_ignorable_type,
@@ -30,6 +30,7 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
     is_set,
     is_string,
+    is_subtype_of,
     is_tuple,
     is_type_unknown,
     wrap_var_param_type,
@@ -81,27 +82,41 @@ class Sub(Super):
 
 
 @pytest.mark.parametrize(
-    "from_type,to_type,result",
+    "t1,t2,result",
     [
         (int, int, True),
         (float, Union[int, float], True),
         (float, int, False),
         (float, Union[str, int], False),
-        (float, Any, True),
-        (int, Any, True),
-        (Super, Any, True),
-        (Sub, Any, True),
         (Sub, Super, True),
         (Sub, Union[Super, int], True),
         (Sub, Union[Sub, int], True),
         (Sub, Union[float, int], False),
         (Super, Sub, False),
+        (Union[int, str], Union[float, int, str], True),
+        (Union[float, int], Union[int, None], False),
+        (list, Sized, False),  # Should be if when we support protocols
+    ],
+)
+def test_is_subtype_of(t1, t2, result):
+    assert is_subtype_of(t1, t2) == result
+
+
+@pytest.mark.parametrize(
+    "t1,t2,result",
+    [
+        (float, Any, True),
+        (int, Any, True),
+        (Super, Any, True),
+        (Sub, Any, True),
+        (Sub, Super, True),
+        (Super, Sub, False),
         (Any, Sub, True),
         (Any, Super, True),
     ],
 )
-def test_is_assignable_to(from_type, to_type, result):
-    assert is_assignable_to(from_type, to_type) == result
+def test_is_consitent_with(t1, t2, result):
+    assert is_consistent_with(t1, t2) == result
 
 
 T = TypeVar("T")

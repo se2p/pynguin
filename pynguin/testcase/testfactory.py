@@ -20,8 +20,8 @@ from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.type_utils import (
-    is_assignable_to,
     is_collection_type,
+    is_consistent_with,
     is_optional_parameter,
     is_primitive_type,
     is_type_unknown,
@@ -892,7 +892,7 @@ class TestFactory:
         for type_ in dependencies:
             found = False
             for var in objects:
-                if is_assignable_to(var.type, type_):
+                if is_consistent_with(var.type, type_):
                     found = True
             if not found:
                 return False

@@ -109,32 +109,57 @@ def is_type_unknown(type_: type | None) -> bool:
     return type_ is None
 
 
-def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
-    """A naive implementation to check if one type is assignable to another.
-    Does not handle generic or any more complex types.
+def is_subtype_of(tp1: type | None, tp2: type | None) -> bool:
+    """A naive implementation to check if tp1 is a subtype of tp2.
 
-    Currently, only simple (class) types, Any and Union are supported.
+    Currently, only handles simple class types and Union.
+    Should be gradually extended to support more complex structures, e.g.,
+    generics.
+
+    See https://peps.python.org/pep-0483/ for more details on this relation.
 
     Args:
-        from_type: The type annotation that is used as the source.
-        to_type: The type which should be assigned to.
+        tp1: subtype
+        tp2: supertype
 
     Returns:
-        True if `from_type` is assignable to `to_type`
+        True, if tp1 is a subtype of tp2
+    """
+    if tp1 == tp2:
+        # Trivial case
+        return True
+    if (ng_t1 := extract_non_generic_class(tp1)) is not None and (
+        ng_t2 := extract_non_generic_class(tp2)
+    ) is not None:
+        # Hacky way to handle generics by trying to extract non-generic classes
+        # and checking for subclass relation
+        return issubclass(ng_t1, ng_t2)
+    if is_union_type(tp2):
+        if is_union_type(tp1):
+            # Union[int, str] is a subtype of Union[str, float, int]
+            return all(is_subtype_of(t1_type, tp2) for t1_type in get_args(tp1))
+        # Check type separately
+        return any(is_subtype_of(tp1, t2_type) for t2_type in get_args(tp2))
+    return False
+
+
+def is_consistent_with(tp1: type | None, tp2: type | None) -> bool:
+    """Is tp1 is consistent with tp2.
+
+    The notion of this relation is taken from https://peps.python.org/pep-0483/
+
+    Args:
+        tp1: The type that is used as the source.
+        tp2: The type which should be assigned to.
+
+    Returns:
+        True if tp1 is compatible with tp2
     """
     if (
-        to_type is typing.Any or from_type is typing.Any
+        tp1 is typing.Any or tp2 is typing.Any
     ):  # pylint:disable=comparison-with-callable
         return True
-    if from_type == to_type:
-        return True
-    if (ftype := extract_non_generic_class(from_type)) is not None and (
-        ttype := extract_non_generic_class(to_type)
-    ) is not None:
-        return issubclass(ftype, ttype)
-    if is_union_type(to_type):
-        return any(is_assignable_to(from_type, ttype) for ttype in get_args(to_type))
-    return False
+    return is_subtype_of(tp1, tp2)
 
 
 def extract_non_generic_class(obj) -> type | None:
