@@ -39,14 +39,25 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
 
 
 class AssertionMinimization(cv.ChromosomeVisitor):
-    """Calculates the checked lines of each assertion. If an assertion does not cover new lines,
+    """Calculates the checked lines of each assertion.
+    If an assertion does not cover new lines,
     it is removed from the resulting test case."""
 
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
+        self._remaining_assertions: set[Assertion] = set()
         self._deleted_assertions: set[Assertion] = set()
         self._checked_lines: set[int] = set()
+
+    @property
+    def remaining_assertions(self) -> set[Assertion]:
+        """Provides a set of remaining assertions
+
+        Returns:
+            The remaining assertions
+        """
+        return self._remaining_assertions
 
     @property
     def deleted_assertions(self) -> set[Assertion]:
@@ -58,30 +69,32 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         return self._deleted_assertions
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+        # TODO(SiL) test
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
         self._logger.debug(
-            "Removed %s assertion from test suite that do not increase checked coverage",
+            "Removed %s assertion from test suite that"
+            "do not increase checked coverage",
             len(self._deleted_assertions),
-            )
+        )
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         test_case = chromosome.test_case
-
-        # TODO(SiL) how to propagate this information?
-        existing_code_objects = None
-        trace = None
-        assertion_slicer = AssertionSlicer(existing_code_objects)
 
         deleted_assertions_before = len(self._deleted_assertions)
 
         for stmt in test_case.statements:
             to_remove = set()
             for assertion in stmt.assertions:
-                # TODO(SiL) the slicer needs assertions of type TracedAssertion, how to handle?
-                if not self._assertion_increases_checked_coverage(assertion, assertion_slicer, trace):
+                new_checked_lines = AssertionSlicer.map_instructions_to_lines(
+                    assertion.checked_instructions
+                )
+                if new_checked_lines.issubset(self._checked_lines):
                     to_remove.add(assertion)
+                else:
+                    self._checked_lines.update(new_checked_lines)
+                    self._remaining_assertions.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
@@ -92,12 +105,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             "Removed %s assertion from test case that do not increase checked coverage",
             deleted_assertions_after - deleted_assertions_before,
         )
-
-    def _assertion_increases_checked_coverage(self, assertion, assertion_slicer, trace):
-        # TODO(SiL) add some caching to not re-calculate the slice during checked coverage calculations
-        checked_instructions = assertion_slicer.slice_assertion(assertion, trace)
-        checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)
-        return not checked_lines.issubset(self._checked_lines)
 
 
 class TestCasePostProcessor(cv.ChromosomeVisitor):
@@ -126,7 +133,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
 
     def __init__(self):
         self._deleted_statement_indexes: set[int] = set()
-        self._deleted_assertions: set[Assertion] = set()
 
     @property
     def deleted_statement_indexes(self) -> set[int]:

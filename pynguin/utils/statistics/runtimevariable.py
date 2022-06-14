@@ -147,5 +147,12 @@ class RuntimeVariable(str, enum.Enum):
     # The mutation score
     MutationScore = "MutationScore"
 
+    # The number of assertions in the generated test suite
+    Assertions = "Assertions"
+
+    # The number of generated assertions that were removed, since
+    # they do not increase the resulting checked coverage
+    DeletedAssertions = "DeletedAssertions"
+
     def __repr__(self):
         return f"{self.name}"

@@ -467,6 +467,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
                     traced_assertion.code_object_id,
                     traced_assertion.node_id,
                     traced_assertion.trace_position + shift,
+                    traced_assertion.assertion,
                 )
             )
 
@@ -1534,7 +1535,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def register_exception_assertion(self) -> None:
+    def register_exception_assertion(self, statement) -> None:
         """Track the position of an exception assertion in the trace.
 
         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
@@ -1542,6 +1543,9 @@ class ExecutionTracer:
         an assertion containing this instruction.
         Therefore, we trace the instruction that was last executed before
         the exception.
+
+        Args:
+            statement: the statement causing the exception
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -1554,21 +1558,29 @@ class ExecutionTracer:
         if self.is_disabled():
             return
 
+        assert len(statement.assertions) == 1
+        assert isinstance(statement.assertions[0], ass.ExceptionAssertion)
+
         trace = self._thread_local_state.trace
         error_call_position = len(trace.executed_instructions) - 1
         error_causing_instr = trace.executed_instructions[error_call_position]
         code_object_id = error_causing_instr.code_object_id
         node_id = error_causing_instr.node_id
         trace.executed_assertions.append(
-            ExecutedAssertion(code_object_id, node_id, error_call_position)
+            ExecutedAssertion(
+                code_object_id, node_id, error_call_position, statement.assertions[0]
+            )
         )
 
-    def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
+    def register_assertion_position(
+        self, code_object_id: int, node_id: int, assertion: ass.Assertion
+    ) -> None:
         """Track the position of an assertion in the trace.
 
         Args:
             code_object_id: code object containing the assertion to register
             node_id: the id of the node containing the assertion to register
+            assertion: the assertion of the statement
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -1596,6 +1608,7 @@ class ExecutionTracer:
                 code_object_id,
                 node_id,
                 pop_jump_if_true_position,
+                assertion,
             )
         )
 
@@ -1661,9 +1674,14 @@ class ExecutionTracer:
 class ExecutedAssertion:
     """Data class for assertions of a testcase traced during execution for slicing"""
 
+    # the code object containing the executed assertion
     code_object_id: int
+    # the node containing the executed assertion
     node_id: int
+    # the position inside the exection trace of the executed assertion
     trace_position: int
+    # the assertion object of a statement that was executed
+    assertion: ass.Assertion
 
 
 @dataclass(frozen=True)

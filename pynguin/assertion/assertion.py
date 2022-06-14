@@ -12,10 +12,23 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 class Assertion:
     """Base class for assertions."""
+
+    def __init__(self):
+        self._checked_instructions: list[UniqueInstruction] = []
+
+    @property
+    def checked_instructions(self) -> list[UniqueInstruction]:
+        """The instructions that were checked by the execution of the assertion.
+
+        Returns:
+            The instructions that were checked by the execution of the assertion.
+        """
+        return self._checked_instructions
 
     @abstractmethod
     def accept(self, visitor: AssertionVisitor) -> None:
@@ -50,6 +63,7 @@ class ReferenceAssertion(Assertion, ABC):
     """An assertion on a single reference."""
 
     def __init__(self, source: vr.Reference):
+        super().__init__()
         self._source = source
 
     @property
@@ -266,6 +280,7 @@ class ExceptionAssertion(Assertion):
             module: The module of the raised exception.
             exception_type_name: The name of the raised exception.
         """
+        super().__init__()
         self._module: str = module
         # We use the name here because the type may be defined multiple times,
         # for example during mutation analysis, however, equality on such types does not
