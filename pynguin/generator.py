@@ -413,7 +413,6 @@ def _run() -> ReturnCode:
     _track_coverage_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
-    _minimize_assertions(generation_result)
 
     # only call checked coverage calculation after assertion generation
     if (
@@ -487,7 +486,7 @@ def _generate_assertions(executor, generation_result):
         _LOGGER.info("Start generating assertions")
         if ass_gen in (
             config.AssertionGenerator.MUTATION_ANALYSIS,
-            config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION
+            config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION,
         ):
             generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
                 executor
