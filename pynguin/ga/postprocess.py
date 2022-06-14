@@ -69,6 +69,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         return self._deleted_assertions
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+        # TODO(SiL) test
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
@@ -99,6 +100,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                     self._remaining_assertions.add(assertion)
                 else:
                     to_remove.add(assertion)
+                else:
+                    self._checked_lines.update(new_checked_lines)
+                    self._remaining_assertions.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
@@ -130,7 +134,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
 
     def __init__(self):
         self._deleted_statement_indexes: set[int] = set()
-        self._deleted_assertions: set[Assertion] = set()
 
     @property
     def deleted_statement_indexes(self) -> set[int]:
