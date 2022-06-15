@@ -69,7 +69,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         return self._deleted_assertions
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
-        # TODO(SiL) test
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
