@@ -466,7 +466,6 @@ def _remove_statements_after_exceptions(generation_result):
 
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
-    # TODO(SiL) test
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION:
         _LOGGER.info("Minimizing assertions based on checked coverage")

@@ -14,6 +14,7 @@ import pytest
 
 import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
+import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
@@ -162,6 +163,19 @@ def test__reset_cache_for_result():
                 result_cache_mock.assert_called_once()
                 test_case_cache_mock.assert_called_once()
                 test_case_result_mock.assert_called_once()
+
+
+def test__minimize_assertions():
+    config.configuration.test_case_output.assertion_generation = (
+        config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION
+    )
+    result = MagicMock()
+    with mock.patch.object(result, "accept") as result_accept_mock:
+        gen._minimize_assertions(result)
+        result_accept_mock.assert_called_once()
+        assert isinstance(
+            result_accept_mock.call_args.args[0], pp.AssertionMinimization
+        )
 
 
 def test__setup_report_dir(tmp_path: Path):

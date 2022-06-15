@@ -69,7 +69,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         return self._deleted_assertions
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
-        # TODO(SiL) test
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
@@ -80,11 +79,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         )
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
-        test_case = chromosome.test_case
-
-        deleted_assertions_before = len(self._deleted_assertions)
-
-        for stmt in test_case.statements:
+        for stmt in chromosome.test_case.statements:
             to_remove = set()
             for assertion in stmt.assertions:
                 new_checked_lines = AssertionSlicer.map_instructions_to_lines(
@@ -98,13 +93,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
-
-        deleted_assertions_after = len(self._deleted_assertions)
-
-        self._logger.debug(
-            "Removed %s assertion from test case that do not increase checked coverage",
-            deleted_assertions_after - deleted_assertions_before,
-        )
 
 
 class TestCasePostProcessor(cv.ChromosomeVisitor):
