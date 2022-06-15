@@ -5,12 +5,18 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Integration tests for the executor."""
+import ast
 import importlib
 import threading
 from unittest.mock import MagicMock
 
+import pytest
+
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, ModuleProvider, TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
@@ -88,3 +94,32 @@ def test_module_provider():
     prov = ModuleProvider()
     executor = TestCaseExecutor(tracer, prov)
     assert executor.module_provider == prov
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_killing_endless_loop():
+    config.configuration.module_name = "tests.fixtures.examples.loop"
+    module_name = config.configuration.module_name
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        # Need to force reload in order to apply instrumentation
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        cluster = generate_test_cluster(module_name)
+        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+        transformer.visit(
+            ast.parse(
+                """def test_case_0():
+    anything = module_0.loop_with_condition()
+"""
+            )
+        )
+        test_case = transformer.testcases[0]
+        executor.execute(test_case)
+        # Running this with a debugger may break these assertions
+        threads = threading.enumerate()[:]
+        assert not any(["_execute_test_case" in thread.name for thread in threads])
+        assert len(threads) == 1  # Only main thread should be alive.

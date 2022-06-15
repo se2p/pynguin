@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-def here_goes_the_loop():
-    while True:
-        print("Still looping")
+def loop_with_condition():
+    """Loops endlessly"""
+    x = -1
+    while x < 0:
+        x = x - 1
