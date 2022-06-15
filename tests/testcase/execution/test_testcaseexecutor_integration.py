@@ -120,8 +120,7 @@ def test_killing_endless_loop():
         test_case = transformer.testcases[0]
         executor.execute(test_case)
         # Running this with a debugger may break these assertions
-        threads = threading.enumerate()[:]
-        for thread in threads:
+        for thread in threading.enumerate():
             if "_execute_test_case" in thread.name:
                 thread.join()
-        assert len(threads) == 1  # Only main thread should be alive.
+        assert len(threading.enumerate()) == 1  # Only main thread should be alive.
