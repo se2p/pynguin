@@ -439,21 +439,14 @@ class ModuleTestCluster:
                             )
                             for i in range(len(predicted_signatures))
                         ]
-                        # intersect generatable and predicted types
-                        type_intersection = sorted(
-                            set(type_predictions)
-                            & set(self.get_all_generatable_types()),
-                            key=type_predictions.index,
+                        # update parameter type with the most likely deeptyper prediction
+                        weights = []
+                        for l in range(len(type_predictions)):
+                            weights.append(5 - l)
+                        modified_accessible.inferred_signature.update_parameter_type(
+                            parameter_name,
+                            randomness.choices(type_predictions, weights=weights)[0],
                         )
-                        if type_intersection:
-                            # update parameter type with the most likely deeptyper prediction
-                            modified_accessible.inferred_signature.update_parameter_type(
-                                parameter_name, type_intersection[0]
-                            )
-                        else:
-                            modified_accessible.inferred_signature.update_parameter_type(
-                                parameter_name, None
-                            )
                     else:
                         modified_accessible.inferred_signature.update_parameter_type(
                             parameter_name, None
@@ -467,18 +460,13 @@ class ModuleTestCluster:
                         predicted_signatures[i].inferred_signature.return_type
                         for i in range(len(predicted_signatures))
                     ]
-                    # intersect generatable and predicted types
-                    type_intersection = sorted(
-                        set(type_predictions) & set(self.get_all_generatable_types()),
-                        key=type_predictions.index,
+                    # update parameter type with the most likely deeptyper prediction
+                    weights = []
+                    for l in range(len(type_predictions)):
+                        weights.append(5 - l)
+                    modified_accessible.inferred_signature.update_return_type(
+                        randomness.choices(type_predictions, weights=weights)[0]
                     )
-                    if type_intersection:
-                        # update parameter type with the most likely deeptyper prediction
-                        modified_accessible.inferred_signature.update_return_type(
-                            type_intersection[0]
-                        )
-                    else:
-                        modified_accessible.inferred_signature.update_return_type(None)
                 else:
                     modified_accessible.inferred_signature.update_return_type(None)
             return modified_accessible
