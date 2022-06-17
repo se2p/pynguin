@@ -14,6 +14,7 @@ from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
+from pynguin.slicer.dynamicslicer import AssertionSlicer
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -90,6 +91,45 @@ class LineCoverageGoal(AbstractCoverageGoal):
         if not isinstance(other, LineCoverageGoal):
             return False
         return self._line_id == other._line_id
+
+
+class CheckedCoverageGoal(AbstractCoverageGoal):
+    """Line to be checked covered by the search as goal."""
+
+    def __init__(self, code_object_id: int, line_number: int):
+        super().__init__(code_object_id)
+        self._line_number = line_number
+
+    @property
+    def line_id(self) -> int:
+        """Provides the line id of the targeted line.
+
+        Returns:
+            The line number of the targeted line.
+        """
+        return self._line_number
+
+    def is_covered(self, result: ExecutionResult) -> bool:
+        checked_instructions = result.execution_trace.checked_instructions
+        return self._line_number in AssertionSlicer.map_instructions_to_lines(
+            checked_instructions
+        )
+
+    def __str__(self) -> str:
+        return f"Checked Coverage Goal{self._line_number}"
+
+    def __repr__(self) -> str:
+        return f"CheckedCoverageGoal({self._line_number})"
+
+    def __hash__(self) -> int:
+        return 31 + self._line_number
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, CheckedCoverageGoal):
+            return False
+        return self._line_number == other._line_number
 
 
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
@@ -359,6 +399,33 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
         )
 
 
+class CheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
+    """A statement checked coverage fitness implementation for test cases."""
+
+    def __init__(self, executor: TestCaseExecutor, goal: CheckedCoverageGoal):
+        super().__init__(executor, goal.code_object_id)
+        self._goal = goal
+
+    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+        return 0 if self.compute_is_covered(individual) else 1
+
+    def compute_is_covered(self, individual) -> bool:
+        result = self._run_test_case_chromosome(individual)
+        return self._goal.is_covered(result)
+
+    def is_maximisation_function(self) -> bool:
+        return False
+
+    def __str__(self) -> str:
+        return f"CheckedCoverageTestFitness for {self._goal}"
+
+    def __repr__(self) -> str:
+        return (
+            f"CheckedCoverageTestFitness(executor={self._executor}, "
+            f"goal={self._goal})"
+        )
+
+
 def create_branch_coverage_fitness_functions(
     executor: TestCaseExecutor, branch_goal_pool: BranchGoalPool
 ) -> OrderedSet[BranchCoverageTestFitness]:
@@ -388,7 +455,7 @@ def create_line_coverage_fitness_functions(
         executor: The test case executor for the fitness functions to use.
 
     Returns:
-        All branch coverage related fitness functions.
+        All line coverage related fitness functions.
     """
     return OrderedSet(
         [
@@ -399,5 +466,27 @@ def create_line_coverage_fitness_functions(
                 line_id,
                 line_meta,
             ) in executor.tracer.get_known_data().existing_lines.items()
+        ]
+    )
+
+
+def create_checked_coverage_fitness_functions(
+    executor: TestCaseExecutor,
+) -> OrderedSet[CheckedCoverageTestFitness]:
+    """Create fitness functions for each line coverage goal.
+
+    Args:
+        executor: The test case executor for the fitness functions to use.
+
+    Returns:
+        All line coverage related fitness functions.
+    """
+    return OrderedSet(
+        [
+            CheckedCoverageTestFitness(
+                executor,
+                CheckedCoverageGoal(line_meta.code_object_id, line_meta.line_number),
+            )
+            for line_meta in executor.tracer.get_known_data().existing_lines.values()
         ]
     )

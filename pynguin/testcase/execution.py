@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 _logger = logging.getLogger(__name__)
@@ -448,6 +449,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
+    checked_instructions: list[UniqueInstruction] = field(default_factory=list)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
