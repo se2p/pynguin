@@ -57,7 +57,6 @@ pytest = "^7.1"
 black = "^22.3"
 pytest-cov = "^3.0"
 pylint = "^2.13"
-pytest-sugar = "^0.9"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.5"
 hypothesis = "^6.46"
@@ -73,6 +72,7 @@ sphinx = "^4.5"
 sphinx-autodoc-typehints = "^1.18"
 flake8 = "^4.0"
 pylint-print = "^1.0.0"
+pytest-sugar = {git = "https://github.com/Teemu/pytest-sugar.git", rev = "ee02ada"}
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
