@@ -485,13 +485,13 @@ class ModuleTestCluster:
         callable_data: typing.Iterable[_CallableData],
     ) -> CyclomaticComplexity:
         # Collect complexities only for callables that had an AST.  Their minimal
-        # complexity is 1, the value -1 symbolises a callable that had no AST present,
+        # complexity is 1, the value None symbolises a callable that had no AST present,
         # either because there is none or because it is an implicitly added function,
         # such as a default constructor or the constructor of a base class.
         complexities = [
             item.cyclomatic_complexity
             for item in callable_data
-            if item.cyclomatic_complexity > 0
+            if item.cyclomatic_complexity is not None
         ]
         return ModuleTestCluster.CyclomaticComplexity(
             min=min(complexities),
@@ -662,9 +662,9 @@ def __get_function_description_from_ast(
     return description[0]
 
 
-def __get_mccabe_complexity(tree: ast.AST | None) -> int:
+def __get_mccabe_complexity(tree: ast.AST | None) -> int | None:
     if tree is None:
-        return -1
+        return None
     return mccabe_complexity(tree)
 
 
@@ -689,7 +689,7 @@ class _CallableData:
     accessible: GenericAccessibleObject
     tree: ast.AST | None
     description: FunctionDescription | None
-    cyclomatic_complexity: int
+    cyclomatic_complexity: int | None
 
 
 def __analyse_function(
