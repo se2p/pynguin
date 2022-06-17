@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 _logger = logging.getLogger(__name__)
