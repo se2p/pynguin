@@ -484,7 +484,15 @@ class ModuleTestCluster:
     def __compute_cyclomatic_complexities(
         callable_data: typing.Iterable[_CallableData],
     ) -> CyclomaticComplexity:
-        complexities = [item.cyclomatic_complexity for item in callable_data]
+        # Collect complexities only for callables that had an AST.  Their minimal
+        # complexity is 1, the value -1 symbolises a callable that had no AST present,
+        # either because there is none or because it is an implicitly added function,
+        # such as a default constructor or the constructor of a base class.
+        complexities = [
+            item.cyclomatic_complexity
+            for item in callable_data
+            if item.cyclomatic_complexity > 0
+        ]
         return ModuleTestCluster.CyclomaticComplexity(
             min=min(complexities),
             mean=mean(complexities),
