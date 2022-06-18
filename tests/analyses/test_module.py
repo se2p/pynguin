@@ -122,7 +122,7 @@ def test_parse_module_replace_no_annotation_by_any_parameter(
 ):
     function_args = parsed_module_no_any_annotation.syntax_tree.body[1].args
     assert function_args.args[0].annotation.id == "Any"
-    assert function_args.args[1].annotation.id == "Any"
+    assert function_args.args[1].annotation.id == "object"
     assert function_args.args[2].annotation.id == "Any"
 
 
@@ -135,7 +135,7 @@ def test_parse_module_replace_no_annotation_by_any_return(
     faz_func_return = parsed_module_no_any_annotation.syntax_tree.body[4].returns
     assert foo_func_return == "Any"
     assert bar_func_return == "Any"
-    assert baz_func_return == "Any"
+    assert baz_func_return == "object"
     assert isinstance(faz_func_return, ast.Constant)
     assert faz_func_return.value is None
 

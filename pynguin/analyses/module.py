@@ -123,8 +123,8 @@ class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
 class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
     """Replaces type-annotations by typing.Any.
 
-    The types `object` and unannotated are the same as `Any` hence, we replace these
-    type annotations by the `Any` value.
+    An unannotated type is the same as `Any` hence, we replace it
+    by the `Any` value.
     """
 
     class FindTypingAnyImportVisitor(ast.NodeVisitor):
@@ -167,21 +167,13 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
 
     # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
-        if (
-            node.annotation is None
-            or isinstance(node.annotation, ast.Name)
-            and node.annotation.id == "object"
-        ):
+        if node.annotation is None:
             node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
     # pylint: disable=missing-function-docstring, invalid-name
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        if (
-            node.returns is None
-            or isinstance(node.returns, ast.Name)
-            and node.returns.id == "object"
-        ):
+        if node.returns is None:
             node.returns = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
