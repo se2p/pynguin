@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import abc
 import ast
-import dataclasses
 import logging
 import os
 import typing
@@ -33,7 +32,6 @@ T = typing.TypeVar("T", float, int, str, bytes)
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
 class ConstantPool:
     """A pool of constants for various types."""
 
