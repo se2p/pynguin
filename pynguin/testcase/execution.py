@@ -1129,6 +1129,15 @@ class TestCaseExecutor:
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
 
+        def log_thread_exception(arg):
+            self._logger.error(
+                "Error in Thread: %s",
+                arg.thread,
+                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
+            )
+
+        threading.excepthook = log_thread_exception
+
     @property
     def module_provider(self) -> ModuleProvider:
         """The module provider used by this executor.
