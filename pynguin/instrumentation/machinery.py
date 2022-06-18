@@ -191,7 +191,7 @@ def install_import_hook(
     """
     if dynamic_constant_provider is None:
         dynamic_constant_provider = DynamicConstantProvider(
-            ConstantPool(), EmptyConstantProvider(), 0
+            ConstantPool(), EmptyConstantProvider(), 0, 1
         )
 
     to_wrap = None
