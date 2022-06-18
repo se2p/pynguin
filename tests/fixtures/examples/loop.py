@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-def here_goes_the_loop():
-    while True:
-        print("Still looping")
+def here_goes_the_loop(f: int):
+    x = True
+    while x:
+        if 3 * f != 70:
+            x = False

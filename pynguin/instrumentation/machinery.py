@@ -44,11 +44,11 @@ class InstrumentationLoader(SourceFileLoader):
         fullname,
         path,
         tracer: ExecutionTracer,
-        dynamic_constant_provider: DynamicConstantProvider | None,
+        transformer: InstrumentationTransformer,
     ):
         super().__init__(fullname, path)
         self._tracer = tracer
-        self._dynamic_constant_provider = dynamic_constant_provider
+        self._transformer = transformer
 
     def exec_module(self, module):
         self._tracer.reset()
@@ -67,21 +67,35 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        adapters: list[InstrumentationAdapter] = []
-        coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.BRANCH in coverage_metrics:
-            adapters.append(BranchCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.LINE in coverage_metrics:
-            adapters.append(LineCoverageInstrumentation(self._tracer))
+        return self._transformer.instrument_module(to_instrument)
 
-        if config.configuration.seeding.dynamic_constant_seeding:
-            assert self._dynamic_constant_provider is not None
-            adapters.append(
-                DynamicSeedingInstrumentation(self._dynamic_constant_provider)
-            )
 
-        transformer = InstrumentationTransformer(self._tracer, adapters)
-        return transformer.instrument_module(to_instrument)
+def build_transformer(
+    tracer: ExecutionTracer,
+    dynamic_constant_provider: DynamicConstantProvider | None = None,
+) -> InstrumentationTransformer:
+    """Create an instrumentation transformer that applies the configured
+    instrumentations.
+
+    Args:
+        tracer: The tracer to use.
+        dynamic_constant_provider: The constant provider to use.
+
+    Returns:
+        An instrumentation transformer.
+    """
+    adapters: list[InstrumentationAdapter] = []
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.CoverageMetric.BRANCH in coverage_metrics:
+        adapters.append(BranchCoverageInstrumentation(tracer))
+    if config.CoverageMetric.LINE in coverage_metrics:
+        adapters.append(LineCoverageInstrumentation(tracer))
+
+    if config.configuration.seeding.dynamic_constant_seeding:
+        assert dynamic_constant_provider is not None
+        adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
+
+    return InstrumentationTransformer(tracer, adapters)
 
 
 class InstrumentationFinder(MetaPathFinder):
@@ -130,6 +144,7 @@ class InstrumentationFinder(MetaPathFinder):
         Returns:
             An optional ModuleSpec
         """
+
         if self._should_instrument(fullname):
             spec: ModuleSpec = self._original_pathfinder.find_spec(
                 fullname, path, target
@@ -140,7 +155,9 @@ class InstrumentationFinder(MetaPathFinder):
                         spec.loader.name,
                         spec.loader.path,
                         self._tracer,
-                        self._dynamic_constant_provider,
+                        build_transformer(
+                            self._tracer, self._dynamic_constant_provider
+                        ),
                     )
                     return spec
                 self._logger.error(

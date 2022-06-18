@@ -7,10 +7,14 @@
 """Provides an assertion generator"""
 from __future__ import annotations
 
+import ast
 import logging
+import threading
+import types
 from collections import Counter
 from typing import TYPE_CHECKING
 
+import mutpy
 from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
@@ -18,14 +22,22 @@ import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
+import pynguin.testcase.execution as ex
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+)
+from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
-    import pynguin.testcase.execution as ex
     import pynguin.testcase.statement as st
     import pynguin.testcase.testcase as tc
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class AssertionGenerator(cv.ChromosomeVisitor):
@@ -34,18 +46,20 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, executor: ex.TestCaseExecutor, base_executions: int = 2):
+    def __init__(self, base_executions: int = 2):
         """
         Create new assertion generator.
 
         Args:
-            executor: the executor that will be used to execute the test cases.
             base_executions: How often should the tests be executed to filter
                 out trivially flaky assertions, e.g., str representations based on
                 memory locations.
         """
         self._base_executions = base_executions
-        self._executor = executor
+        # We use a separate tracer and executor to execute tests on the mutants.
+        self._tracer = ex.ExecutionTracer()
+        self._tracer.current_thread_identifier = threading.current_thread().ident
+        self._executor = ex.TestCaseExecutor(self._tracer)
         self._executor.add_observer(ato.AssertionTraceObserver())
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
@@ -143,9 +157,30 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
     """Uses mutation analysis to filter out less relevant assertions."""
 
-    def __init__(self, executor: ex.TestCaseExecutor):
-        super().__init__(executor)
+    def _create_module_with_instrumentation(
+        self, ast_node, module_name="mutant", module_dict=None
+    ):
+        # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
+        # module
+        code = compile(ast_node, module_name, "exec")
+        _LOGGER.info(ast.unparse(ast_node))
+        code = self._transformer.instrument_module(code)
+        module = types.ModuleType(module_name)
+        module.__dict__.update(module_dict or {})
+        # pylint: disable=exec-used
+        exec(code, module.__dict__)  # nosec
+        return module
+
+    def __init__(self):
+        super().__init__()
+        self._transformer = build_transformer(
+            self._tracer,
+            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
+        )
         adapter = ma.MutationAdapter()
+
+        # Evil hack to change the way mutpy creates mutated modules.
+        mutpy.utils.create_module = self._create_module_with_instrumentation
         self._mutated_modules = [x for x, _ in adapter.mutate_module()]
 
     def _execute(
