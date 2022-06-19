@@ -9,3 +9,4 @@ def here_goes_the_loop(f: int):
     while x:
         if 3 * f != 70:
             x = False
+    return x
