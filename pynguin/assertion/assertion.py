@@ -264,6 +264,9 @@ class ExceptionAssertion(Assertion):
     def __hash__(self) -> int:
         return hash((self._module, self._exception_type_name))
 
+    def __repr__(self):
+        return f"ExceptionAssertion({self._module}, {self._exception_type_name})"
+
 
 class AssertionVisitor:
     """Abstract visitor for assertions."""
