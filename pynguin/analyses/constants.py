@@ -188,9 +188,9 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             max_constant_length: The maximum length of strings to store.
         """
         super().__init__(pool, delegate, probability)
-        assert max_constant_length > 0, (
-            "Length limit for constant pool elements must be positive."
-        )
+        assert (
+            max_constant_length > 0
+        ), "Length limit for constant pool elements must be positive."
         self._max_constant_length = max_constant_length
 
     # A map containing the names of all string functions which are instrumented.
