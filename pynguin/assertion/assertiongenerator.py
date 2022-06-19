@@ -251,14 +251,20 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     # Mutant caused timeout
                     info.timeout = True
                     _LOGGER.info(
-                        "Mutant %i timed out with test %i.", info.mut_num, test_num
+                        "Mutant %i timed out. First time with test %i.",
+                        info.mut_num,
+                        test_num,
                     )
                     continue
                 if self._merge_assertions([result]) != plain_assertions:
                     # We did not get the same assertions, so we have detected the
                     # mutant.
                     info.killed = True
-                    _LOGGER.info("Mutant %i killed by test %i.", info.mut_num, test_num)
+                    _LOGGER.info(
+                        "Mutant %i killed. First time by test %i.",
+                        info.mut_num,
+                        test_num,
+                    )
         # TODO(sl) calculate mutation score from mutation_info.
         #  Consider what to do with timeouts (incompetent mutants?)
 
