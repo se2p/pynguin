@@ -268,11 +268,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # TODO(sl) calculate mutation score from mutation_info.
         #  Consider what to do with timeouts (incompetent mutants?)
 
+    @staticmethod
     def _merge_assertions(
-        self, results: list[ex.ExecutionResult]
+        results: list[ex.ExecutionResult],
     ) -> OrderedSet[ass.Assertion]:
         assertions = []
-        for result in results[: self._plain_executions]:
+        for result in results:
             for ass_trace in result.assertion_traces.values():
                 assertions.append(ass_trace.get_all_assertions())
         merged_assertions, *remainder = assertions
