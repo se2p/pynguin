@@ -107,7 +107,7 @@ class RestrictedConstantPool(ConstantPool):
             max_size: The maximum number of collected values.
         """
         super().__init__()
-        assert max_size > 0
+        assert max_size > 0, "Size limit for constant pool must be positive."
         self._max_size = max_size
 
     def add_constant(self, constant: ConstantTypes) -> None:
@@ -188,7 +188,9 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             max_constant_length: The maximum length of strings to store.
         """
         super().__init__(pool, delegate, probability)
-        assert max_constant_length > 0
+        assert max_constant_length > 0, (
+            "Length limit for constant pool elements must be positive."
+        )
         self._max_constant_length = max_constant_length
 
     # A map containing the names of all string functions which are instrumented.
