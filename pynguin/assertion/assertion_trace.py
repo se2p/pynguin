@@ -50,6 +50,18 @@ class AssertionTrace:
             return OrderedSet(self._trace[position])
         return OrderedSet()
 
+    def get_all_assertions(self) -> OrderedSet[ass.Assertion]:
+        """Get all generated assertions.
+
+        Returns:
+            A set of all recorded assertions.
+
+        """
+        merged: OrderedSet[ass.Assertion] = OrderedSet()
+        for assertions in self._trace.values():
+            merged.update(assertions)
+        return merged
+
     def clear(self) -> None:
         """Clear this trace."""
         self._trace.clear()
