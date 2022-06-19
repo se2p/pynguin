@@ -357,9 +357,11 @@ def _run() -> ReturnCode:
     if ass_gen != config.AssertionGenerator.NONE:
         _LOGGER.info("Start generating assertions")
         if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator()
+            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
+                executor
+            )
         else:
-            generator = ag.AssertionGenerator()
+            generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)
 
     # Export the generated test suites

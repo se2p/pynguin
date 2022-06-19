@@ -1220,7 +1220,7 @@ class TestCaseExecutor:
     ) -> None:
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
-        self.tracer.current_thread_identifier = threading.current_thread().ident
+        self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)

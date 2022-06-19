@@ -26,12 +26,16 @@ def test__generate_assertions_short(generator_setup):
     test_case.size_with_assertions.return_value = 1
     config.configuration.test_case_output.max_length_test_case = 2
 
-    generator = ag.AssertionGenerator()
-    with mock.patch.object(generator, "_executor") as executor_mock:
-        trace = MagicMock()
-        assertion = MagicMock()
-        trace.get_assertions.return_value = {assertion}
-        result = MagicMock(assertion_traces={"": trace})
+    trace = MagicMock()
+    assertion = MagicMock()
+    trace.get_assertions.return_value = {assertion}
+    result = MagicMock(assertion_traces={"": trace})
+
+    executor = MagicMock()
+    executor.execute.return_value = result
+
+    generator = ag.AssertionGenerator(executor)
+    with mock.patch.object(generator, "_mutation_executor") as executor_mock:
         executor_mock.execute.return_value = result
         generator._generate_assertions([test_case])
         statement.add_assertion.assert_called_with(assertion)
@@ -42,25 +46,33 @@ def test__generate_assertions_long(generator_setup):
     test_case.size_with_assertions.return_value = 3
     config.configuration.test_case_output.max_length_test_case = 2
 
-    generator = ag.AssertionGenerator()
-    with mock.patch.object(generator, "_executor") as executor_mock:
-        trace = MagicMock()
-        assertion = MagicMock()
-        trace.get_assertions.return_value = {assertion}
-        result = MagicMock(assertion_traces={"": trace})
+    trace = MagicMock()
+    assertion = MagicMock()
+    trace.get_assertions.return_value = {assertion}
+    result = MagicMock(assertion_traces={"": trace})
+
+    executor = MagicMock()
+    executor.execute.return_value = result
+
+    generator = ag.AssertionGenerator(executor)
+    with mock.patch.object(generator, "_mutation_executor") as executor_mock:
         executor_mock.execute.return_value = result
         generator._generate_assertions([test_case])
         statement.add_assertion.assert_not_called()
 
 
 def test_filter_contradicting_assertions(generator_setup):
-    generator = ag.AssertionGenerator()
-    with mock.patch.object(generator, "_executor") as executor_mock:
-        trace = MagicMock()
-        assertion = MagicMock()
-        assertion_2 = MagicMock()
-        trace.get_assertions.side_effect = [{assertion}, {assertion_2}]
-        result = MagicMock(assertion_traces={"": trace})
+    trace = MagicMock()
+    assertion = MagicMock()
+    assertion_2 = MagicMock()
+    trace.get_assertions.side_effect = [{assertion}, {assertion_2}]
+    result = MagicMock(assertion_traces={"": trace})
+
+    executor = MagicMock()
+    executor.execute.return_value = result
+
+    generator = ag.AssertionGenerator(executor)
+    with mock.patch.object(generator, "_mutation_executor") as executor_mock:
         executor_mock.execute.return_value = result
         test_case = MagicMock()
         statement = MagicMock()

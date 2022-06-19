@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
 import logging
 import threading
 import types
@@ -46,21 +47,28 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, base_executions: int = 2):
+    def __init__(self, plain_executor: ex.TestCaseExecutor, plain_executions: int = 2):
         """
         Create new assertion generator.
 
         Args:
-            base_executions: How often should the tests be executed to filter
+            plain_executor: The executor that is used to execute on the non mutated
+                module.
+            plain_executions: How often should the tests be executed to filter
                 out trivially flaky assertions, e.g., str representations based on
                 memory locations.
         """
-        self._base_executions = base_executions
+        self._plain_executions = plain_executions
+        self._plain_executor = plain_executor
+        self._plain_executor.add_observer(ato.AssertionTraceObserver())
+
         # We use a separate tracer and executor to execute tests on the mutants.
-        self._tracer = ex.ExecutionTracer()
-        self._tracer.current_thread_identifier = threading.current_thread().ident
-        self._executor = ex.TestCaseExecutor(self._tracer)
-        self._executor.add_observer(ato.AssertionTraceObserver())
+        self._mutation_tracer = ex.ExecutionTracer()
+        self._mutation_tracer.current_thread_identifier = (
+            threading.current_thread().ident
+        )
+        self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer)
+        self._mutation_executor.add_observer(ato.AssertionTraceObserver())
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         self._generate_assertions(
@@ -76,7 +84,12 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         Args:
             test_cases: the test case for which assertions should be generated.
         """
-        self._add_assertions(self._execute(test_cases))
+        self._process_results(self._execute(test_cases))
+
+    def _process_results(
+        self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
+    ):
+        self._add_assertions(tests_and_results)
 
     def _execute(
         self, test_cases: list[tc.TestCase]
@@ -84,10 +97,10 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]] = [
             (test_case, []) for test_case in test_cases
         ]
-        for _ in range(self._base_executions):
+        for _ in range(self._plain_executions):
             randomness.RNG.shuffle(tests_and_results)
             for test, results in tests_and_results:
-                results.append(self._executor.execute(test))
+                results.append(self._plain_executor.execute(test))
         return tests_and_results
 
     def _add_assertions(
@@ -163,7 +176,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
         # module
         code = compile(ast_node, module_name, "exec")
-        _LOGGER.info(ast.unparse(ast_node))
+        _LOGGER.debug("Generated Mutant: %s", ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
@@ -171,10 +184,10 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         exec(code, module.__dict__)  # nosec
         return module
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, plain_executor: ex.TestCaseExecutor):
+        super().__init__(plain_executor)
         self._transformer = build_transformer(
-            self._tracer,
+            self._mutation_tracer,
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
         adapter = ma.MutationAdapter()
@@ -192,25 +205,83 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             self._logger.info(
                 "Running tests on mutant %3i/%i", idx + 1, len(self._mutated_modules)
             )
-            self._executor.module_provider.add_mutated_version(
+            self._mutation_executor.module_provider.add_mutated_version(
                 module_name=config.configuration.module_name,
                 mutated_module=mutated_module,
             )
             for test, results in tests_and_results:
-                results.append(self._executor.execute(test))
+                results.append(self._mutation_executor.execute(test))
 
         return tests_and_results
+
+    def _process_results(
+        self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
+    ):
+        super()._process_results(tests_and_results)
+        self._calculate_mutation_score(tests_and_results)
+
+    def _calculate_mutation_score(
+        self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
+    ):
+        @dataclasses.dataclass
+        class MutantInfo:
+            """Collect data about mutants"""
+
+            # Number of the mutant.
+            mut_num: int
+
+            # Did the mutant cause a timeout?
+            timeout: bool = False
+
+            # Was the mutant killed by any test?
+            killed: bool = False
+
+        mutation_info = [MutantInfo(i) for i in range(len(self._mutated_modules))]
+        for _, results in tests_and_results:
+            # Accumulate assertions for this test without mutations
+            plain_assertions = self._merge_assertions(results[: self._plain_executions])
+            # For each mutation, check if we got the same assertions
+            for info, result in zip(
+                mutation_info, results[self._plain_executions :], strict=True
+            ):
+                if info.killed or info.timeout:
+                    # Was already killed / timed out by another test.
+                    continue
+                if result.timeout:
+                    # Mutant caused timeout
+                    info.timeout = True
+                    _LOGGER.info("Mutant %i timed out.", info.mut_num)
+                    continue
+                if self._merge_assertions([result]) != plain_assertions:
+                    # We did not get the same assertions, so we have detected the
+                    # mutant.
+                    info.killed = True
+                    _LOGGER.info("Mutant %i killed.", info.mut_num)
+        # TODO(sl) calculate mutation score from mutation_info.
+        #  Consider what to do with timeouts (incompetent mutants?)
+
+    def _merge_assertions(
+        self, results: list[ex.ExecutionResult]
+    ) -> OrderedSet[ass.Assertion]:
+        assertions = []
+        for result in results[: self._plain_executions]:
+            for ass_trace in result.assertion_traces.values():
+                assertions.append(ass_trace.get_all_assertions())
+        merged_assertions, *remainder = assertions
+        if len(remainder) > 0:
+            merged_assertions.intersection_update(*remainder)
+        return merged_assertions
 
     def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
     ) -> OrderedSet[ass.Assertion]:
         # The first executions are from executions on the non-mutated module.
         base_assertions = super()._get_assertions_for(
-            results[: self._base_executions], statement
+            results[: self._plain_executions], statement
         )
 
         assertion_counter: dict[ass.Assertion, int] = Counter()
-        for mutated_result in results[self._base_executions :]:
+        for mutated_result in results[self._plain_executions :]:
             for trace in mutated_result.assertion_traces.values():
                 assertion_counter.update(Counter(trace.get_assertions(statement)))
 
