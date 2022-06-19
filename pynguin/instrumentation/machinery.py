@@ -207,8 +207,13 @@ def install_import_hook(
         RuntimeError: In case a PathFinder could not be found
     """
     if dynamic_constant_provider is None:
+        # Create a dummy constant provider here. If you want to actually use this
+        # feature, you should pass in your own instance.
         dynamic_constant_provider = DynamicConstantProvider(
-            ConstantPool(), EmptyConstantProvider(), 0, 1
+            ConstantPool(),
+            EmptyConstantProvider(),
+            probability=0,
+            max_constant_length=1,
         )
 
     to_wrap = None
