@@ -237,7 +237,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             killed: bool = False
 
         mutation_info = [MutantInfo(i) for i in range(len(self._mutated_modules))]
-        for _, results in tests_and_results:
+        for test_num, (_, results) in enumerate(tests_and_results):
             # Accumulate assertions for this test without mutations
             plain_assertions = self._merge_assertions(results[: self._plain_executions])
             # For each mutation, check if we got the same assertions
@@ -250,13 +250,15 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 if result.timeout:
                     # Mutant caused timeout
                     info.timeout = True
-                    _LOGGER.info("Mutant %i timed out.", info.mut_num)
+                    _LOGGER.info(
+                        "Mutant %i timed out with test %i.", info.mut_num, test_num
+                    )
                     continue
                 if self._merge_assertions([result]) != plain_assertions:
                     # We did not get the same assertions, so we have detected the
                     # mutant.
                     info.killed = True
-                    _LOGGER.info("Mutant %i killed.", info.mut_num)
+                    _LOGGER.info("Mutant %i killed by test %i.", info.mut_num, test_num)
         # TODO(sl) calculate mutation score from mutation_info.
         #  Consider what to do with timeouts (incompetent mutants?)
 
