@@ -70,7 +70,7 @@ def test_export_sequence_unexpected_exception(
 import pytest
 import tests.fixtures.accessibles.accessible as module_0
 
-@pytest.mark.xfail
+@pytest.mark.xfail(strict=True)
 def test_case_0():
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)"""

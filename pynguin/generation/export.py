@@ -137,19 +137,25 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
 
     @staticmethod
     def __create_decorator_list(is_failing: bool) -> list[ast.expr]:
-        if not is_failing:
-            return []
-        return [
-            ast.Attribute(
-                attr="xfail",
-                ctx=ast.Load(),
-                value=ast.Attribute(
-                    attr="mark",
-                    ctx=ast.Load(),
-                    value=ast.Name(id="pytest", ctx=ast.Load()),
-                ),
-            )
-        ]
+        if is_failing:
+            return [
+                ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Attribute(
+                            value=ast.Name(id="pytest", ctx=ast.Load()),
+                            attr="mark",
+                            ctx=ast.Load(),
+                        ),
+                        attr="xfail",
+                        ctx=ast.Load(),
+                    ),
+                    args=[],
+                    keywords=[
+                        ast.keyword(arg="strict", value=ast.Constant(value=True))
+                    ],
+                )
+            ]
+        return []
 
     def to_module(self) -> ast.Module:
         """Provides a module in PyTest style that contains all visited test cases.
