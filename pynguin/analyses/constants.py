@@ -235,10 +235,7 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The value
             name: The string
         """
-        if (
-            type(value) is str  # pylint:disable=unidiomatic-typecheck
-            and name in self.STRING_FUNCTION_LOOKUP
-        ):
+        if isinstance(value, str) and name in self.STRING_FUNCTION_LOOKUP:
             self.add_value(value)
             self.add_value(self.STRING_FUNCTION_LOOKUP[name](value))
 
