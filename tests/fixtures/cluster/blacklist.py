@@ -17,3 +17,11 @@ def foo():
     SpooledTemporaryFile()
     mkdtemp()
     bl_tr.bar()
+
+
+def main():
+    """main usually calls sys.exit so we don't want it."""
+
+
+def test():
+    """test usually performs some tests on the module, we don't want them."""

@@ -70,6 +70,7 @@ MODULE_BLACKLIST = frozenset(
     (
         "_thread",
         "asyncio",
+        "argparse",
         "concurrent",
         "concurrent.futures",
         "contextvars",
@@ -78,6 +79,7 @@ MODULE_BLACKLIST = frozenset(
         "fnmatch",
         "glob",
         "linecache",
+        "logging",
         "mmap",
         "multiprocessing",
         "multiprocessing.shared_memory",
@@ -99,6 +101,30 @@ MODULE_BLACKLIST = frozenset(
         "threading",
     )
 )
+
+
+def _is_blacklisted(element: Any) -> bool:
+    """Checks if the given element belongs to the blacklist.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element blacklisted?
+    """
+    if inspect.ismodule(element):
+        return element.__name__ in MODULE_BLACKLIST
+    if inspect.isclass(element):
+        return element.__module__ in MODULE_BLACKLIST
+    if inspect.isfunction(element):
+        # Some modules can be run standalone using a main function or provide a small
+        # set of tests ('test'). We don't want to include those functions.
+        return element.__module__ in MODULE_BLACKLIST or element.__name__ in (
+            "main",
+            "test",
+        )
+    # Something that is not supported yet.
+    return False
 
 
 class _ParseResult(NamedTuple):
@@ -841,7 +867,7 @@ def __resolve_dependencies(
         if current_module in seen_modules:
             # Skip the module, we have already analysed it before
             continue
-        if current_module.__name__ in MODULE_BLACKLIST:
+        if _is_blacklisted(current_module):
             # Don't include anything from the blacklist
             continue
 
@@ -896,7 +922,7 @@ def __analyse_included_classes(
 ) -> None:
 
     for current in filter(
-        lambda x: inspect.isclass(x) and x.__module__ not in MODULE_BLACKLIST,
+        lambda x: inspect.isclass(x) and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_classes:
@@ -923,7 +949,7 @@ def __analyse_included_functions(
     seen_functions: set,
 ) -> None:
     for current in filter(
-        lambda x: inspect.isfunction(x) and x.__module__ not in MODULE_BLACKLIST,
+        lambda x: inspect.isfunction(x) and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_functions:
