@@ -71,12 +71,14 @@ MODULE_BLACKLIST = frozenset(
         "_thread",
         "asyncio",
         "argparse",
+        "builtins",
         "concurrent",
         "concurrent.futures",
         "contextvars",
         "filecmp",
         "fileinput",
         "fnmatch",
+        "gc",
         "glob",
         "linecache",
         "logging",
@@ -99,6 +101,7 @@ MODULE_BLACKLIST = frozenset(
         "sys",
         "tempfile",
         "threading",
+        "typing",
     )
 )
 
