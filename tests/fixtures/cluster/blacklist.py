@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
+import multiprocessing.shared_memory as sm
+
 # Uses function from blacklisted module
 import tempfile as temp
 from tempfile import SpooledTemporaryFile, mkdtemp
@@ -17,6 +19,7 @@ def foo():
     SpooledTemporaryFile()
     mkdtemp()
     bl_tr.bar()
+    sm.SharedMemory()
 
 
 def main():
