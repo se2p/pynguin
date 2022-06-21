@@ -1184,10 +1184,10 @@ class TestCaseExecutor:
                 thread.start()
                 # Set a timeout for the thread execution of at most 10 seconds.
                 thread.join(timeout=min(10, len(test_case.statements)))
-                # Set thread ident to invalid value, such that the tracer
-                # kills the thread
-                self._tracer.current_thread_identifier = -1
                 if thread.is_alive():
+                    # Set thread ident to invalid value, such that the tracer
+                    # kills the thread
+                    self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
                 else:
