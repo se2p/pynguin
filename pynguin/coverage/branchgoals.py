@@ -14,7 +14,6 @@ from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
-from pynguin.slicer.dynamicslicer import AssertionSlicer
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
