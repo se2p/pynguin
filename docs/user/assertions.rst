@@ -117,7 +117,7 @@ For an unexpected exception that is raised during execution of a function
 
 .. code-block:: python
 
-  @pytest.mark.xfail
+  @pytest.mark.xfail(strict=True)
   def test_case_0():
       example()
 
