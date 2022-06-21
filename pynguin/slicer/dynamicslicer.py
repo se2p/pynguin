@@ -51,13 +51,10 @@ if TYPE_CHECKING:
 @dataclass
 class SlicingCriterion:
     """Slicing criterion data class holding the instruction
-    and variables to slice for."""
+    and position in the trace to slice for."""
 
     unique_instr: UniqueInstruction
-
-    local_variables: set | None = None
-
-    global_variables: set | None = None
+    trace_position: int
 
 
 @dataclass
@@ -145,7 +142,6 @@ class DynamicSlicer:
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
-        trace_position: int,
     ) -> list[UniqueInstruction]:
         """Main routine to perform the dynamic slicing.
 
@@ -153,13 +149,6 @@ class DynamicSlicer:
             trace: Execution trace object containing slicing information
                 with collected instructions.
             slicing_criterion: Slicing criterion object where slicing is started
-                (must have correct `occurrence` attribute if
-                `trace_position` is not given).
-            trace_position: The position in the trace where
-                slicing is started. Can be given directly (as in the case of internal
-                traced assertions). In case it is not given it has to be determined
-                based on the occurrence of the instruction of the slicing criterion
-                in the trace.
 
         Returns:
             A `DynamicSlice` object containing the included instructions.
@@ -168,9 +157,7 @@ class DynamicSlicer:
             SlicingTimeoutException: when the slicing takes longer than the
                 configured budget
         """
-        slc = self._setup_slicing_configuration(
-            slicing_criterion, trace, trace_position
-        )
+        slc = self._setup_slicing_configuration(slicing_criterion, trace)
 
         while True:
             criterion_in_slice = imp_data_dep = False
@@ -341,7 +328,6 @@ class DynamicSlicer:
         self,
         slicing_criterion: SlicingCriterion,
         trace: ExecutionTrace,
-        trace_position: int,
     ):
         new_attribute_object_uses: set[str] = set()
         # Build slicing criterion
@@ -355,9 +341,7 @@ class DynamicSlicer:
         pops, pushes, trace_stack = self._init_stack(
             last_ex_instruction,
         )
-        context = self._init_context(
-            code_object_id, last_ex_instruction, slicing_criterion
-        )
+        context = self._init_context(code_object_id, last_ex_instruction)
         timeout = time.time() + config.configuration.stopping.maximum_slicing_time
         return SlicingState(
             basic_block_id,
@@ -371,7 +355,7 @@ class DynamicSlicer:
             pops,
             pushes,
             timeout,
-            trace_position,
+            slicing_criterion.trace_position,
             trace_stack,
         )
 
@@ -388,14 +372,9 @@ class DynamicSlicer:
         )  # The slicing criterion is in the slice
         return pops, pushes, trace_stack
 
-    def _init_context(
-        self, code_object_id, last_ex_instruction, slicing_criterion
-    ) -> SlicingContext:
+    def _init_context(self, code_object_id, last_ex_instruction) -> SlicingContext:
         context = SlicingContext()
         context.instr_in_slice.append(last_ex_instruction)
-        if slicing_criterion.global_variables:
-            for tup in slicing_criterion.global_variables:
-                context.var_uses_global.add(tup)
         self.add_control_dependencies(context, last_ex_instruction, code_object_id)
         return context
 
@@ -837,7 +816,7 @@ class AssertionSlicer:
             traced_instr.lineno,
         )
 
-        return SlicingCriterion(unique_instr)
+        return SlicingCriterion(unique_instr, assertion.trace_position - 1)
 
     def slice_assertion(
         self, assertion: ExecutedAssertion, trace: ExecutionTrace
@@ -854,7 +833,7 @@ class AssertionSlicer:
 
         slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
         slicer = DynamicSlicer(self._known_code_objects)
-        return slicer.slice(trace, slicing_criterion, assertion.trace_position - 1)
+        return slicer.slice(trace, slicing_criterion)
 
     @staticmethod
     def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
