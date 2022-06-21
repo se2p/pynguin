@@ -319,8 +319,9 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         for test_case_chromosome in individual.test_case_chromosomes:
             for statement in test_case_chromosome.test_case.statements:
-                statement_slice = self._get_slice_of_statement_for_execution_trace(
-                    statement, merged_trace, dynamic_slicer
+                statement_slice = dynamic_slicer.slice(
+                    merged_trace,
+                    statement.slicing_criterion,
                 )
                 checked_lines.update(
                     AssertionSlicer.map_instructions_to_lines(statement_slice)
@@ -344,31 +345,6 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
     def is_maximisation_function(self) -> bool:
         return False
-
-    def _get_slice_of_statement_for_execution_trace(
-        self, statement: Statement, merged_trace: ExecutionTrace, slicer: DynamicSlicer
-    ) -> list[UniqueInstruction]:
-        statement.get_position()
-        # TODO(SiL) get instruction and position based on statement
-        last_traced_instr_of_statement = merged_trace.executed_instructions[-1]
-        statement_trace_position = len(merged_trace.executed_instructions) - 2
-
-        code_object = self._executor.tracer.get_known_data().existing_code_objects[
-            last_traced_instr_of_statement.code_object_id
-        ]
-
-        slicing_instruction = UniqueInstruction(
-            last_traced_instr_of_statement.file,
-            last_traced_instr_of_statement.name,
-            last_traced_instr_of_statement.code_object_id,
-            last_traced_instr_of_statement.node_id,
-            code_object,
-            last_traced_instr_of_statement.offset,
-            lineno=last_traced_instr_of_statement.lineno,
-        )
-        slicing_criterion = SlicingCriterion(slicing_instruction)
-
-        return slicer.slice(merged_trace, slicing_criterion, statement_trace_position)
 
 
 class CoverageFunction:  # pylint:disable=too-few-public-methods
