@@ -84,6 +84,7 @@ MODULE_BLACKLIST = frozenset(
         "concurrent",
         "concurrent.futures",
         "configparser",
+        "contextlib",
         "contextvars",
         "copy",
         "copyreg",
