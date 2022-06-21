@@ -173,7 +173,7 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     parameters: dict[str, type | None] = {}
     try:
         hints = get_type_hints(method)
-        # Sadly there is not guarantee that resolving the type hints actually works.
+        # Sadly there is no guarantee that resolving the type hints actually works.
         # If the developers annotated something with an erroneous type hint we fall back
         # to no type hints, i.e., use Any.
     except NameError:
