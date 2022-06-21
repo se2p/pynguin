@@ -24,6 +24,7 @@ import pynguin.assertion.mutation_analysis.mutationadapter as ma
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
+import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import (
     ConstantPool,
     DynamicConstantProvider,
@@ -31,6 +32,7 @@ from pynguin.analyses.constants import (
 )
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -167,6 +169,20 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         return first
 
 
+@dataclasses.dataclass
+class _MutantInfo:
+    """Collect data about mutants"""
+
+    # Number of the mutant.
+    mut_num: int
+
+    # Did the mutant cause a timeout?
+    timeout: bool = False
+
+    # Was the mutant killed by any test?
+    killed: bool = False
+
+
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
     """Uses mutation analysis to filter out less relevant assertions."""
 
@@ -217,29 +233,16 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     def _process_results(
         self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
     ):
-        super()._process_results(tests_and_results)
-        self._calculate_mutation_score(tests_and_results)
+        super()._process_results(self._filter_and_score(tests_and_results))
 
-    def _calculate_mutation_score(
+    def _compute_mutation_info(
         self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
-    ):
-        @dataclasses.dataclass
-        class MutantInfo:
-            """Collect data about mutants"""
-
-            # Number of the mutant.
-            mut_num: int
-
-            # Did the mutant cause a timeout?
-            timeout: bool = False
-
-            # Was the mutant killed by any test?
-            killed: bool = False
-
-        mutation_info = [MutantInfo(i) for i in range(len(self._mutated_modules))]
+    ) -> list[_MutantInfo]:
+        mutation_info = [_MutantInfo(i) for i in range(len(self._mutated_modules))]
         for test_num, (_, results) in enumerate(tests_and_results):
             # Accumulate assertions for this test without mutations
             plain_assertions = self._merge_assertions(results[: self._plain_executions])
+
             # For each mutation, check if we got the same assertions
             for info, result in zip(
                 mutation_info, results[self._plain_executions :], strict=True
@@ -265,43 +268,115 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                         info.mut_num,
                         test_num,
                     )
-        # TODO(sl) calculate mutation score from mutation_info.
-        #  Consider what to do with timeouts (incompetent mutants?)
+        return mutation_info
+
+    def _filter_and_score(
+        self, tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]]
+    ) -> list[tuple[tc.TestCase, list[ex.ExecutionResult]]]:
+
+        mutation_info = self._compute_mutation_info(tests_and_results)
+        metrics = self._compute_mutation_metrics(mutation_info)
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfKilledMutants, metrics.num_killed_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfTimedOutMutants, metrics.num_timeout_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfCreatedMutants, metrics.num_created_mutants
+        )
+        stat.track_output_variable(RuntimeVariable.MutationScore, metrics.get_score())
+
+        # Filter out all results that happened in a mutated execution,
+        # otherwise our results might be unbalanced.
+        filtered_test_and_results = []
+        for test, results in tests_and_results:
+            filtered_results = []
+            # Append plain executions
+            filtered_results.extend(results[: self._plain_executions])
+
+            # Append mutant executions where no test timed out.
+            for mut_num, result in enumerate(results[self._plain_executions :]):
+                # Filter out results from timed out executions
+                if not mutation_info[mut_num].timeout:
+                    filtered_results.append(result)
+            filtered_test_and_results.append((test, filtered_results))
+        return filtered_test_and_results
+
+    @dataclasses.dataclass
+    class _MutationMetrics:
+        num_created_mutants: int
+        num_timeout_mutants: int
+        num_killed_mutants: int
+
+        def get_score(self) -> float:
+            """Computes the mutation score
+
+            Returns:
+                The mutation score
+            """
+            divisor = self.num_created_mutants - self.num_timeout_mutants
+            assert divisor >= 0
+            if divisor == 0:
+                # No mutants -> all mutants covered.
+                return 1.0
+            return self.num_killed_mutants / divisor
+
+    @staticmethod
+    def _compute_mutation_metrics(mutation_info: list[_MutantInfo]) -> _MutationMetrics:
+        metrics = MutationAnalysisAssertionGenerator._MutationMetrics(
+            num_created_mutants=len(mutation_info),
+            num_timeout_mutants=0,
+            num_killed_mutants=0,
+        )
+        for info in mutation_info:
+            if info.timeout:
+                metrics.num_timeout_mutants += 1
+                # Don't count time-outs towards killed.
+            elif info.killed:
+                metrics.num_killed_mutants += 1
+        return metrics
 
     @staticmethod
     def _merge_assertions(
         results: list[ex.ExecutionResult],
-    ) -> OrderedSet[ass.Assertion]:
-        assertions = []
+    ) -> dict[int, OrderedSet[ass.Assertion]]:
+        data = []
         for result in results:
+            assert not result.timeout, (
+                "Cannot process assertions from timed out " "execution"
+            )
             for ass_trace in result.assertion_traces.values():
-                assertions.append(ass_trace.get_all_assertions())
-        merged_assertions, *remainder = assertions
-        if len(remainder) > 0:
-            merged_assertions.intersection_update(*remainder)
+                data.append(ass_trace.get_all_assertions())
+        merged_assertions, *remainder = data
+        for rem in remainder:
+            for pos, assertions in rem.items():
+                if pos not in merged_assertions:
+                    merged_assertions[pos] = OrderedSet()
+                merged_assertions[pos].update(assertions)
         return merged_assertions
 
     def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
     ) -> OrderedSet[ass.Assertion]:
         # The first executions are from executions on the non-mutated module.
-        base_assertions = super()._get_assertions_for(
+        plain_assertions = super()._get_assertions_for(
             results[: self._plain_executions], statement
         )
 
         assertion_counter: dict[ass.Assertion, int] = Counter()
+        num_mutation_results = len(results) - self._plain_executions
+        assert num_mutation_results >= 0
         for mutated_result in results[self._plain_executions :]:
             for trace in mutated_result.assertion_traces.values():
                 assertion_counter.update(Counter(trace.get_assertions(statement)))
-
-        num_mutations = len(self._mutated_modules)
 
         # Only assertions that are not found every time are interesting.
         return OrderedSet(
             [
                 assertion
-                for assertion in base_assertions
-                if assertion_counter[assertion] < num_mutations
+                for assertion in plain_assertions
+                if assertion_counter[assertion] < num_mutation_results
                 or isinstance(
                     assertion, ass.ExceptionAssertion
                 )  # exceptions are interesting nonetheless
