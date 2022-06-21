@@ -6,6 +6,7 @@
 #
 import ast
 import itertools
+import typing
 from logging import Logger
 from typing import Any, Union, cast
 from unittest.mock import MagicMock
@@ -373,10 +374,14 @@ def test_conditional_import_forward_ref():
     cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
     accessible_objects = list(cluster.accessible_objects_under_test)
     constructor = cast(GenericConstructor, accessible_objects[0])
-    assert (
-        str(constructor.inferred_signature.parameters["arg0"])
-        == "<class 'tests.fixtures.cluster.complex_dependency.SomeOtherType'>"
-    )
+    assert constructor.inferred_signature.parameters["arg0"] == typing.Any
+
+
+def test_garbage_annotation():
+    cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
+    accessible_objects = list(cluster.accessible_objects_under_test)
+    constructor = cast(GenericConstructor, accessible_objects[0])
+    assert constructor.inferred_signature.parameters["arg1"] == typing.Any
 
 
 def test_enums():

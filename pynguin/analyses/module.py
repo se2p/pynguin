@@ -222,11 +222,6 @@ def parse_module(
     Returns:
         A tuple of the imported module type and its optional AST
     """
-    if type_inference is not TypeInferenceStrategy.NONE:
-        # Enable imports that are conditional on the typing.TYPE_CHECKING variable.
-        # See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING
-        typing.TYPE_CHECKING = True
-
     module = importlib.import_module(module_name)
 
     try:

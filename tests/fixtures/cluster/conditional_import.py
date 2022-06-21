@@ -11,5 +11,5 @@ if typing.TYPE_CHECKING:
 
 
 class SomeClass:
-    def __init__(self, arg0: "SomeOtherType"):
+    def __init__(self, arg0: "SomeOtherType", arg1: "Invalid"):
         pass

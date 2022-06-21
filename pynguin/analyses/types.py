@@ -171,7 +171,14 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
 
     method_signature = inspect.signature(method)
     parameters: dict[str, type | None] = {}
-    hints = get_type_hints(method)
+    try:
+        hints = get_type_hints(method)
+        # Sadly there is not guarantee that resolving the type hints actually works.
+        # If the developers annotated something with an erroneous type hint we fall back
+        # to no type hints, i.e., use Any.
+    except NameError:
+        hints = {}
+
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
