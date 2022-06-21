@@ -167,7 +167,7 @@ def test__reset_cache_for_result():
 
 def test__minimize_assertions():
     config.configuration.test_case_output.assertion_generation = (
-        config.AssertionGenerator.CHECKED_MINIMIZING_MUTATION
+        config.AssertionGenerator.CHECKED_MINIMIZING
     )
     result = MagicMock()
     with mock.patch.object(result, "accept") as result_accept_mock:
