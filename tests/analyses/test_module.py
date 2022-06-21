@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import ast
+import importlib
 import itertools
 import typing
 from logging import Logger
@@ -16,6 +17,7 @@ from ordered_set import OrderedSet
 
 from pynguin.analyses import module
 from pynguin.analyses.module import (
+    MODULE_BLACKLIST,
     ModuleTestCluster,
     TypeInferenceStrategy,
     _ParseResult,
@@ -301,6 +303,12 @@ def test_nothing_from_blacklist():
     # Should only be foo and bar
     assert sum(len(cl) for cl in cluster.generators.values()) == 2
     assert cluster.num_accessible_objects_under_test() == 1
+
+
+def test_blacklist_is_valid():
+    # Naive test without assert, checks if the module names are valid.
+    for item in MODULE_BLACKLIST:
+        importlib.import_module(item)
 
 
 def test_nothing_included_multiple_times():
