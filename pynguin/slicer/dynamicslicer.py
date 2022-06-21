@@ -18,13 +18,13 @@ from typing import TYPE_CHECKING, Union
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
-from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
-from pynguin.slicer.stack.stackeffect import StackEffect
-from pynguin.slicer.stack.stacksimulation import TraceStack
-from pynguin.testcase.execution import (
+from pynguin.slicer.executedinstruction import (
     ExecutedAttributeInstruction,
     ExecutedMemoryInstruction,
 )
+from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
+from pynguin.slicer.stack.stackeffect import StackEffect
+from pynguin.slicer.stack.stacksimulation import TraceStack
 from pynguin.utils.exceptions import (
     InstructionNotFoundException,
     SlicingTimeoutException,
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
         ProgramGraphNode,
     )
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+    from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
     from pynguin.testcase.execution import (
         ExecutedAssertion,
@@ -271,15 +272,6 @@ class DynamicSlicer:
             # next iteration
             slc.curr_instr = last_state.last_instr
 
-            self._debug_output(
-                slc.context,
-                control_dependency,
-                slc.curr_instr,
-                exp_data_dep,
-                imp_data_dep,
-                criterion_in_slice,
-            )
-
             if time.time() > slc.timeout:
                 raise SlicingTimeoutException
 
@@ -406,36 +398,6 @@ class DynamicSlicer:
                 context.var_uses_global.add(tup)
         self.add_control_dependencies(context, last_ex_instruction, code_object_id)
         return context
-
-    def _debug_output(  # pylint: disable=too-many-arguments
-        self,
-        context,
-        control_dependency,
-        curr_instr,
-        exp_data_dep,
-        imp_data_dep,
-        in_slice,
-    ):
-        self._logger.debug(curr_instr)
-        self._logger.debug("\tIn slice: %s", in_slice)
-        if in_slice:
-            self._logger.debug("\t(Reason: ")
-            if exp_data_dep:
-                self._logger.debug("explicit data dependency, ")
-            if imp_data_dep:
-                self._logger.debug("implicit data dependency, ")
-            if control_dependency:
-                self._logger.debug("control dependency")
-            self._logger.debug(")")
-        self._logger.debug("\n")
-        self._logger.debug("\tlocal_variables: %s", context.var_uses_local)
-        self._logger.debug("\tglobal_variables: %s", context.var_uses_global)
-        self._logger.debug("\tcell_free_variables: %s", context.var_uses_nonlocal)
-        self._logger.debug("\taddresses: %s", context.var_uses_addresses)
-        self._logger.debug("\tattributes: %s", context.attr_uses)
-        self._logger.debug("\tattribute_variables: %s", context.attribute_variables)
-        self._logger.debug("\tS_C: %s", context.instr_ctrl_deps)
-        self._logger.debug("\n")
 
     def _locate_unique_in_bytecode(
         self, instr: UniqueInstruction, code_object_id: int, basic_block_id: int

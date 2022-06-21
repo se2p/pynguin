@@ -27,11 +27,11 @@ from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union
 import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
 from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
+import pynguin.slicer.executedinstruction as ei
 import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
@@ -43,6 +43,8 @@ from pynguin.instrumentation.instrumentation import (
     InstrumentationTransformer,
     PredicateMetaData,
 )
+from pynguin.slicer.dynamicslicer import SlicingCriterion
+from pynguin.slicer.executionflowbuilder import UniqueInstruction
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -56,7 +58,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
-    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 _logger = logging.getLogger(__name__)
@@ -447,7 +448,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
-    executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
+    executed_instructions: list[ei.ExecutedInstruction] = field(default_factory=list)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
     checked_instructions: list[UniqueInstruction] = field(default_factory=list)
 
@@ -525,7 +526,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
-        executed_instr = ExecutedInstruction(
+        executed_instr = ei.ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
         self.executed_instructions.append(executed_instr)
@@ -557,7 +558,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             is_mutable_type: if the argument is mutable
             object_creation: if the instruction creates the object used
         """
-        executed_instr = ExecutedMemoryInstruction(
+        executed_instr = ei.ExecutedMemoryInstruction(
             module,
             code_object_id,
             node_id,
@@ -599,7 +600,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             arg_address: the memory address of the argument
             is_mutable_type: if the attribute is mutable
         """
-        executed_instr = ExecutedAttributeInstruction(
+        executed_instr = ei.ExecutedAttributeInstruction(
             module,
             code_object_id,
             node_id,
@@ -634,7 +635,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             offset: the offset of the instruction
             target_id: the target offset to jump to
         """
-        executed_instr = ExecutedControlInstruction(
+        executed_instr = ei.ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
         self.executed_instructions.append(executed_instr)
@@ -660,7 +661,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             offset: the offset of the instruction
             arg: the argument to the instruction
         """
-        executed_instr = ExecutedCallInstruction(
+        executed_instr = ei.ExecutedCallInstruction(
             module, code_object_id, node_id, opcode, arg, lineno, offset
         )
 
@@ -685,7 +686,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
-        executed_instr = ExecutedReturnInstruction(
+        executed_instr = ei.ExecutedReturnInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
 
@@ -1687,137 +1688,6 @@ class ExecutedAssertion:
     trace_position: int
     # the assertion object of a statement that was executed
     assertion: ass.Assertion
-
-
-@dataclass(frozen=True)
-class ExecutedInstruction:
-    """Represents an executed bytecode instruction with additional information."""
-
-    file: str
-    code_object_id: int
-    node_id: int
-    opcode: int
-    argument: int | str | None
-    lineno: int
-    offset: int
-
-    @property
-    def name(self) -> str:
-        """Returns the name of the executed instruction.
-
-        Returns:
-            The name of the executed instruction.
-        """
-        return opname[self.opcode]
-
-    @staticmethod
-    def is_jump() -> bool:
-        """Returns whether the executed instruction is a jump condition.
-
-        Returns:
-            True, if the instruction is a jump condition, False otherwise.
-        """
-        return False
-
-    def __str__(self) -> str:
-        return (
-            f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedMemoryInstruction(ExecutedInstruction):
-    """Represents an executed instructions which read from or wrote to memory."""
-
-    arg_address: int
-    is_mutable_type: bool
-    object_creation: bool
-
-    def __str__(self) -> str:
-        if not self.arg_address:
-            arg_address = -1
-        else:
-            arg_address = self.arg_address
-        return (
-            f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedAttributeInstruction(ExecutedInstruction):
-    """
-    Represents an executed instructions which accessed an attribute.
-
-    We prepend each accessed attribute with the address of the object the attribute
-    is taken from. This allows to build correct def-use pairs during backward traversal.
-    """
-
-    src_address: int
-    arg_address: int
-    is_mutable_type: bool
-
-    @property
-    def combined_attr(self):
-        """Format the source address and the argument
-        for an ExecutedAttributeInstruction.
-
-        Returns:
-            A string representation of the attribute in memory
-        """
-        return f"{hex(self.src_address)}_{self.argument}"
-
-    def __str__(self) -> str:
-        return (
-            f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.combined_attr:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedControlInstruction(ExecutedInstruction):
-    """Represents an executed control flow instruction."""
-
-    @staticmethod
-    def is_jump() -> bool:
-        """Returns whether the executed instruction is a jump condition.
-
-        Returns:
-            True, if the instruction is a jump condition, False otherwise.
-        """
-        return True
-
-    def __str__(self) -> str:
-        return (
-            f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.argument:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedCallInstruction(ExecutedInstruction):
-    """Represents an executed call instruction."""
-
-    def __str__(self) -> str:
-        return (
-            f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedReturnInstruction(ExecutedInstruction):
-    """Represents an executed return instruction."""
-
-    def __str__(self) -> str:
-        return (
-            f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
 
 
 def _eq(val1, val2) -> float:

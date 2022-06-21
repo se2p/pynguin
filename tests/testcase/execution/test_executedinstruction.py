@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
-from pynguin.testcase.execution import ExecutedInstruction
+from pynguin.slicer.executedinstruction import ExecutedInstruction
 
 
 def test_instruction_equal():
