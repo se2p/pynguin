@@ -14,14 +14,8 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from pynguin.slicer.dynamicslicer import (
-    AssertionSlicer,
-    DynamicSlicer,
-    SlicingCriterion,
-)
-from pynguin.slicer.executionflowbuilder import UniqueInstruction
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.statement import Statement
 
 if TYPE_CHECKING:
     from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
@@ -285,16 +279,20 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         for test_case_chromosome in individual.test_case_chromosomes:
             for statement in test_case_chromosome.test_case.statements:
-                statement_slice = dynamic_slicer.slice(
-                    merged_trace,
-                    statement.slicing_criterion,
-                )
-                checked_lines.update(
-                    AssertionSlicer.map_instructions_to_lines(statement_slice)
-                )
+                # if there is no slicing criterion the statement has not
+                # been executed yet, therefor there are no checked instructions yet
+                if statement.slicing_criterion:
+                    statement_slice = dynamic_slicer.slice(
+                        merged_trace,
+                        statement.slicing_criterion,
+                    )
+                    checked_lines.update(
+                        AssertionSlicer.map_instructions_to_lines(statement_slice)
+                    )
 
-                merged_trace.checked_instructions.extend(statement_slice)
-
+        # TODO(SiL) which trace has to be extended here?
+        self._executor.tracer.get_trace().checked_lines.update(checked_lines)
+        merged_trace.checked_lines.update(checked_lines)
         return len(existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
@@ -812,10 +810,9 @@ def compute_checked_coverage_fitness_is_covered(
     Returns:
         True, if all lines were checked by a return, false otherwise
     """
-    checked_instructions = trace.checked_instructions
-    return len(known_data.existing_lines) == len(
-        AssertionSlicer.map_instructions_to_lines(checked_instructions)
-    )
+    # TODO(SiL) will always be empty since the calculation is in the fitness computation
+    # TODO(SiL) only works when line coverage is instrumented as well
+    return len(known_data.existing_lines) == len(trace.checked_lines)
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:

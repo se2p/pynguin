@@ -27,6 +27,7 @@ from pynguin.utils.type_utils import is_consistent_with, is_optional_parameter
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.typesystem import InferredSignature
+    from pynguin.slicer.dynamicslicer import SlicingCriterion
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 
@@ -39,6 +40,7 @@ class Statement(metaclass=ABCMeta):
     def __init__(self, test_case: tc.TestCase) -> None:
         self._test_case = test_case
         self._assertions: OrderedSet[ass.Assertion] = OrderedSet()
+        self._slicing_criterion: SlicingCriterion | None = None
 
     @property
     def ret_val(self) -> vr.VariableReference | None:
@@ -213,6 +215,27 @@ class Statement(metaclass=ABCMeta):
             Whether the execution of this statement possibly affect assertions.
         """
         return False
+
+    @property
+    def slicing_criterion(self) -> SlicingCriterion | None:
+        """A slicing criterion for the statement within its execution trace.
+
+        Returns:
+            The slicing criterion for this statement, if any.
+        """
+        return self._slicing_criterion
+
+    @slicing_criterion.setter
+    def slicing_criterion(
+        self,
+        slicing_criterion: SlicingCriterion,
+    ) -> None:
+        """Updates the slicing criterion of this statement.
+
+        Args:
+            slicing_criterion: The new slicing criterion
+        """
+        self._slicing_criterion = slicing_criterion
 
     @abstractmethod
     def structural_eq(

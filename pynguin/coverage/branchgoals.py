@@ -14,7 +14,6 @@ from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
-from pynguin.slicer.dynamicslicer import AssertionSlicer
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -101,7 +100,7 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
         self._line_number = line_number
 
     @property
-    def line_id(self) -> int:
+    def line_number(self) -> int:
         """Provides the line id of the targeted line.
 
         Returns:
@@ -110,10 +109,7 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
         return self._line_number
 
     def is_covered(self, result: ExecutionResult) -> bool:
-        checked_instructions = result.execution_trace.checked_instructions
-        return self._line_number in AssertionSlicer.map_instructions_to_lines(
-            checked_instructions
-        )
+        return self._line_number in result.execution_trace.checked_lines
 
     def __str__(self) -> str:
         return f"Checked Coverage Goal{self._line_number}"

@@ -77,13 +77,8 @@ def known_data_mock():
     return KnownData()
 
 
-def test_test_case_is_minimizing_function(executor_mock):
+def test_branch_test_case_is_minimizing_function(executor_mock):
     func = ff.BranchDistanceTestCaseFitnessFunction(executor_mock, 0)
-    assert not func.is_maximisation_function()
-
-
-def test_test_case_is_maximisation_function(executor_mock):
-    func = ff.LineTestSuiteFitnessFunction(executor_mock)
     assert not func.is_maximisation_function()
 
 
@@ -99,6 +94,16 @@ def test_test_case_compute_fitness_values(known_data_mock, executor_mock, trace_
         run_suite_mock.return_value = result
         assert func.compute_fitness(indiv) == 0
         run_suite_mock.assert_called_with(indiv)
+
+
+def test_line_test_suite_is_minimizing_function(executor_mock):
+    func = ff.LineTestSuiteFitnessFunction(executor_mock)
+    assert not func.is_maximisation_function()
+
+
+def test_checked_test_suite_is_minimizing_function(executor_mock):
+    func = ff.CheckedTestSuiteFitnessFunction(executor_mock)
+    assert not func.is_maximisation_function()
 
 
 def test_test_suite_is_maximisation_function(executor_mock):
@@ -136,6 +141,22 @@ def test_test_suite_compute_statements_covered_fitness_values(
         run_suite_mock.return_value = [result]
         assert func.compute_fitness(indiv) == 0
         run_suite_mock.assert_called_with(indiv)
+
+
+def test_test_suite_compute_checked_covered_fitness_values(
+    known_data_mock, executor_mock, trace_mock
+):
+    tracer = MagicMock()
+    tracer.get_known_data.return_value = known_data_mock
+    executor_mock.tracer.return_value = tracer
+    func = ff.CheckedTestSuiteFitnessFunction(executor_mock)
+    indiv = MagicMock()
+    with patch.object(func, "_run_test_suite_chromosome") as run_suite_mock:
+        result = ExecutionResult()
+        result.execution_trace = trace_mock
+        run_suite_mock.return_value = [result]
+        assert func.compute_fitness(indiv) == 0
+        run_suite_mock.assert_called_with(indiv, instrument_test_suite=True)
 
 
 def test_run_test_suite_chromosome():

@@ -450,7 +450,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ei.ExecutedInstruction] = field(default_factory=list)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
-    checked_instructions: list[UniqueInstruction] = field(default_factory=list)
+    checked_lines: OrderedSet[int] = field(default_factory=OrderedSet)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -464,6 +464,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
+        self.checked_lines.update(other.checked_lines)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
         for traced_assertion in other.executed_assertions:
