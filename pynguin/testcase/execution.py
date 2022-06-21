@@ -1197,6 +1197,9 @@ class TestCaseExecutor:
                 # Set a timeout for the thread execution of at most 10 seconds.
                 thread.join(timeout=min(10, len(test_case.statements)))
                 if thread.is_alive():
+                    # Set thread ident to invalid value, such that the tracer
+                    # kills the thread
+                    self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
                 else:
@@ -1239,7 +1242,14 @@ class TestCaseExecutor:
             test_case: The executed test case
             result: The execution result
         """
-        result.execution_trace = self._tracer.get_trace()
+        if result.timeout:
+            # Tests with a timeout are assigned an empty trace because
+            # the statement that caused the timeout might have polluted the trace.
+            # Could be solved if we make the tracer transactional, i.e., commit traced
+            # information per statement only if that statement executed without timeout.
+            result.execution_trace = ExecutionTrace()
+        else:
+            result.execution_trace = self._tracer.get_trace()
         for observer in self._observers:
             observer.after_test_case_execution(test_case, result)
 
