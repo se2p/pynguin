@@ -18,6 +18,7 @@ import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion, ExceptionAssertion
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.statement import StatementVisitor
+from pynguin.assertion.assertion import ExceptionAssertion
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -107,6 +108,8 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                 else:
                     self._checked_lines.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
+                else:
+                    to_remove.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
