@@ -1123,6 +1123,12 @@ class TestCaseExecutor:
             tracer: the execution tracer
             module_provider: The used module provider
         """
+        # Repeatedly opening/closing devnull caused problems.
+        # This is closed when Pynguin terminates, since we don't need this output
+        # anyway this is ok.
+        # pylint:disable=unspecified-encoding,consider-using-with
+        self._null_file = open(os.devnull, mode="w")
+
         self._module_provider = (
             module_provider if module_provider is not None else ModuleProvider()
         )
@@ -1183,9 +1189,8 @@ class TestCaseExecutor:
         Returns:
             Result of the execution
         """
-        # pylint:disable=unspecified-encoding
-        with open(os.devnull, mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
+        with contextlib.redirect_stdout(self._null_file):
+            with contextlib.redirect_stderr(self._null_file):
                 self._before_test_case_execution(test_case)
                 return_queue: Queue = Queue()
                 thread = threading.Thread(
