@@ -361,12 +361,9 @@ class StatementToAstVisitor(StatementVisitor):
                     case Parameter.POSITIONAL_ONLY:
                         args.append(var)
                     case Parameter.POSITIONAL_OR_KEYWORD:
-                        # TODO(fk) figure out how to decide when POSITIONAL_OR_KEYWORD
-                        #  (PoW) parameters are passed by kw or by pos.
-
-                        # If a PoW parameter left of the current param has a default,
-                        # and we did not pass a value, we must pass the current value by
-                        # keyword, otherwise by position.
+                        # If a POSITIONAL_OR_KEYWORD parameter left of the current param
+                        # has a default, and we did not pass a value, we must pass the
+                        # current value by keyword, otherwise by position.
                         if any(
                             (
                                 parameters[left].default is not Parameter.empty
