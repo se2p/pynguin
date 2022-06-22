@@ -18,7 +18,6 @@ import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion, ExceptionAssertion
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.statement import StatementVisitor
-from pynguin.assertion.assertion import ExceptionAssertion
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
