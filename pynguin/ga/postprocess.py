@@ -18,6 +18,7 @@ import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.statement import StatementVisitor
+from pynguin.assertion.assertion import ExceptionAssertion
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -85,11 +86,20 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                 new_checked_lines = AssertionSlicer.map_instructions_to_lines(
                     assertion.checked_instructions
                 )
-                if new_checked_lines.issubset(self._checked_lines):
-                    to_remove.add(assertion)
-                else:
+                if (
+                    # keep exception assertions to catch the exceptions
+                    isinstance(assertion, ExceptionAssertion)
+                    # keep assertions when they check "nothing", since this is
+                    # more likely due to pyChecco's limitation, rather than an actual
+                    # assertion that checks nothing at all
+                    or not new_checked_lines
+                    # keep assertions that increase checked coverage
+                    or not new_checked_lines.issubset(self._checked_lines)
+                ):
                     self._checked_lines.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
+                else:
+                    to_remove.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
