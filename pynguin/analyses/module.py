@@ -130,7 +130,10 @@ MODULE_BLACKLIST = frozenset(
         "shelve",
         "shutil",
         "signal",
+        "six",  # Not from STDLIB
         "socket",
+        "sre_compile",
+        "sre_parse",
         "ssl",
         "stat",
         "subprocess",
@@ -144,6 +147,7 @@ MODULE_BLACKLIST = frozenset(
         "tracemalloc",
         "types",
         "typing",
+        "warnings",
         "weakref",
     )
 )
