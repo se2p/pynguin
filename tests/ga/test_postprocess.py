@@ -81,7 +81,9 @@ def test_test_case_assertion_minimization_does_not_remove_exception_assertion():
     assertion_1 = MagicMock(
         checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
     )
-    assertion_2 = MagicMock(spec=ExceptionAssertion, checked_instructions=[MagicMock(lineno=1)])
+    assertion_2 = MagicMock(
+        spec=ExceptionAssertion, checked_instructions=[MagicMock(lineno=1)]
+    )
 
     statement.add_assertion(assertion_1)
     statement.add_assertion(assertion_2)
@@ -100,9 +102,7 @@ def test_test_case_assertion_minimization_does_not_remove_empty_assertion():
     test_case = dtc.DefaultTestCase()
     statement = stmt.IntPrimitiveStatement(test_case)
 
-    assertion_1 = MagicMock(
-        checked_instructions=[]
-    )
+    assertion_1 = MagicMock(checked_instructions=[])
 
     statement.add_assertion(assertion_1)
     test_case.add_statement(statement)
