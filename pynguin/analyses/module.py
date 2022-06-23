@@ -971,7 +971,9 @@ def __analyse_included_classes(
 ) -> None:
 
     for current in filter(
-        lambda x: inspect.isclass(x) and not _is_blacklisted(x),
+        lambda x: inspect.isclass(x)
+        and not inspect.isabstract(x)
+        and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_classes:

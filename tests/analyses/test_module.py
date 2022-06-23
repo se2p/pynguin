@@ -437,3 +437,10 @@ def test_analyse_empty_enum_module():
         )
     )
     assert len(enums_without_fields) == 0
+
+
+def test_no_abstract_class():
+    cluster = generate_test_cluster("tests.fixtures.cluster.abstract")
+    assert len(cluster.accessible_objects_under_test) == 0
+    assert len(cluster.generators) == 0
+    assert len(cluster.modifiers) == 0
