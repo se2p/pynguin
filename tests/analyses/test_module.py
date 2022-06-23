@@ -25,6 +25,7 @@ from pynguin.analyses.module import (
     generate_test_cluster,
     parse_module,
 )
+from pynguin.analyses.types import TypeWrapper
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -469,3 +470,10 @@ def test_no_abstract_class():
     assert len(cluster.accessible_objects_under_test) == 1
     assert len(cluster.generators) == 3
     assert len(cluster.modifiers) == 1
+
+
+def test_inheritance_graph():
+    cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
+    assert (
+        len(cluster.inheritance_graph.get_subtypes(TypeWrapper.from_type(object))) == 3
+    )
