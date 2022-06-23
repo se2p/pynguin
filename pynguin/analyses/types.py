@@ -7,10 +7,16 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
+import abc
+import dataclasses
 import enum
 import inspect
 from dataclasses import dataclass, field
 from typing import Any, Callable, get_type_hints
+
+import networkx as nx
+from networkx.drawing.nx_pydot import to_pydot
+from ordered_set import OrderedSet
 
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import filter_type_vars, wrap_var_param_type
@@ -197,3 +203,96 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     return InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
     )
+
+
+@dataclasses.dataclass(unsafe_hash=True, frozen=True)
+class TypeWrapper:
+    """
+    TODO(fk) this is another (shitty) abstraction around types. Create a proper one that
+     can handle most cases and use it instead of 'type | None' that is also used in many
+     places.
+    """
+
+    raw_type: type = dataclasses.field(hash=False, repr=False)
+    name: str
+    is_abstract: bool
+
+    @staticmethod
+    def from_type(raw_type: type) -> TypeWrapper:
+        """Create type wrapper from given type.
+
+        Args:
+            raw_type: the raw type
+
+        Returns:
+            A wrapper for the given raw type.
+        """
+        name = f"{raw_type.__module__}.{raw_type.__qualname__}"
+        is_abstract = inspect.isabstract(raw_type)
+        if raw_type is abc.ABC:
+            is_abstract = True
+        return TypeWrapper(raw_type, name, is_abstract=is_abstract)
+
+
+class InheritanceGraph:
+    """Provides a simple inheritance graph."""
+
+    def __init__(self):
+        self._graph = nx.DiGraph()
+
+    def add_type(self, type_: TypeWrapper) -> None:
+        """Add the given type to the graph.
+
+        Args:
+            type_: The type to add
+        """
+        self._graph.add_node(type_)
+
+    def add_edge(self, *, super_type: TypeWrapper, sub_type: TypeWrapper) -> None:
+        """Add an edge between two types.
+
+        Args:
+            super_type: super type
+            sub_type: sub type
+        """
+        self._graph.add_edge(super_type, sub_type)
+
+    def get_subtypes(self, type_: TypeWrapper) -> OrderedSet[TypeWrapper]:
+        """Provides all descendants of the given type. Includes type_.
+
+        Args:
+            type_: The type whose subtypes we want to query.
+
+        Returns:
+            All subtypes.
+        """
+        if type_ not in self._graph:
+            return OrderedSet([type_])
+        result: OrderedSet[TypeWrapper] = OrderedSet(nx.descendants(self._graph, type_))
+        result.add(type_)
+        return result
+
+    def get_supertypes(self, type_: TypeWrapper) -> OrderedSet[TypeWrapper]:
+        """Provides all ancestors of the given type. Includes type_.
+
+        Args:
+            type_: The type whose supertypes we want to query.
+
+        Returns:
+            All supertypes
+        """
+        if type_ not in self._graph:
+            return OrderedSet([type_])
+        result: OrderedSet[TypeWrapper] = OrderedSet(nx.ancestors(self._graph, type_))
+        result.add(type_)
+        return result
+
+    @property
+    def dot(self) -> str:
+        """Create dot representation of this graph.
+
+        Returns:
+            A dot string.
+        """
+        dot = to_pydot(self._graph)
+        return dot.to_string()

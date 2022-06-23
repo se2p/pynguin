@@ -151,7 +151,7 @@ def test_analyse_module(parsed_module_no_dependencies):
 def test_analyse_module_dependencies(parsed_module_complex_dependencies):
     test_cluster = analyse_module(parsed_module_complex_dependencies)
     assert test_cluster.num_accessible_objects_under_test() == 1
-    assert len(test_cluster.generators) == 2
+    assert len(test_cluster.generators) == 3
     assert len(test_cluster.modifiers) == 1
 
 
@@ -256,9 +256,10 @@ def test_select_concrete_type_any(module_test_cluster):
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = MagicMock
     module_test_cluster.add_generator(generator)
-    assert module_test_cluster.select_concrete_type(Any) in list(PRIMITIVES) + list(
-        COLLECTIONS
-    ) + [MagicMock]
+    assert (
+        module_test_cluster.select_concrete_type(Any)
+        in list(PRIMITIVES) + list(COLLECTIONS) + MagicMock.mro()
+    )
 
 
 def test_get_all_generatable_types_only_primitive(module_test_cluster):
@@ -272,7 +273,7 @@ def test_get_all_generatable_types(module_test_cluster):
     generator.generated_type.return_value = MagicMock
     module_test_cluster.add_generator(generator)
     assert module_test_cluster.get_all_generatable_types() == OrderedSet(
-        MagicMock.mro() + list(PRIMITIVES) + list(COLLECTIONS)
+        [MagicMock] + list(PRIMITIVES) + list(COLLECTIONS)
     )
 
 
@@ -313,7 +314,7 @@ def test_blacklist_is_valid():
 
 def test_nothing_included_multiple_times():
     cluster = generate_test_cluster("tests.fixtures.cluster.diamond_top")
-    assert sum(len(cl) for cl in cluster.generators.values()) == 5
+    assert sum(len(cl) for cl in cluster.generators.values()) == 6
     assert cluster.num_accessible_objects_under_test() == 1
 
 
@@ -321,7 +322,7 @@ def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert len(cluster.get_generators_for(int)) == 0
     assert len(cluster.get_generators_for(float)) == 0
-    assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1}
+    assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1, "object": 1}
     assert cluster.num_accessible_objects_under_test() == 4
 
 
@@ -330,6 +331,7 @@ def test_simple_dependencies():
     assert __convert_to_str_count_dict(cluster.generators) == {
         "SomeArgumentType": 1,
         "ConstructMeWithDependency": 1,
+        "object": 1,
     }
     assert cluster.num_accessible_objects_under_test() == 1
 
@@ -368,7 +370,7 @@ def test_simple_dependencies_only_own_classes():
 def test_resolve_dependencies():
     cluster = generate_test_cluster("tests.fixtures.cluster.typing_parameters")
     assert len(cluster.accessible_objects_under_test) == 3
-    assert len(cluster.generators) == 3
+    assert len(cluster.generators) == 4
 
 
 def test_resolve_optional():
@@ -424,7 +426,7 @@ def test_analyse_async_function_or_method(module_name):
 
 def test_analyse_async_as_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
-    assert len(cluster.generators) == 3
+    assert len(cluster.generators) == 4
     assert len(cluster.modifiers) == 0
     assert len(cluster.accessible_objects_under_test) == 1
 
@@ -464,6 +466,6 @@ def test_analyse_empty_enum_module():
 
 def test_no_abstract_class():
     cluster = generate_test_cluster("tests.fixtures.cluster.abstract")
-    assert len(cluster.accessible_objects_under_test) == 0
-    assert len(cluster.generators) == 0
-    assert len(cluster.modifiers) == 0
+    assert len(cluster.accessible_objects_under_test) == 1
+    assert len(cluster.generators) == 3
+    assert len(cluster.modifiers) == 1

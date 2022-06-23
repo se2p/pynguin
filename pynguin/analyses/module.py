@@ -19,7 +19,6 @@ import queue
 import sys
 import typing
 from collections import namedtuple
-from functools import lru_cache
 from statistics import mean, median
 from types import (
     BuiltinFunctionType,
@@ -40,7 +39,12 @@ from pynguin.analyses.syntaxtree import (
     get_all_functions,
     get_function_descriptions,
 )
-from pynguin.analyses.types import TypeInferenceStrategy, infer_type_info
+from pynguin.analyses.types import (
+    InheritanceGraph,
+    TypeInferenceStrategy,
+    TypeWrapper,
+    infer_type_info,
+)
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -332,6 +336,16 @@ class ModuleTestCluster:
         self.__function_data_for_accessibles: dict[
             GenericAccessibleObject, _CallableData
         ] = {}
+        self.__inheritance_graph = InheritanceGraph()
+
+    @property
+    def inheritance_graph(self) -> InheritanceGraph:
+        """Provides the inheritance graph.
+
+        Returns:
+            The inheritance graph.
+        """
+        return self.__inheritance_graph
 
     @property
     def linenos(self) -> int:
@@ -429,21 +443,14 @@ class ModuleTestCluster:
         if type_ is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
         if (non_generic_type := extract_non_generic_class(type_)) is not None:
-            return self.__hacky_subclass_generators(non_generic_type)
-        return self.__generators.get(type_, OrderedSet())
-
-    @lru_cache(1000)
-    def __hacky_subclass_generators(
-        self, type_: type
-    ) -> OrderedSet[GenericAccessibleObject]:
-        # Hacky way to include subclass generators
-        result = self.__generators.get(type_, OrderedSet())
-        for typ, generators in self.__generators.items():
-            if (non_generic_type := extract_non_generic_class(typ)) is not None and issubclass(
-                non_generic_type, type_
+            generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for subtype in self.__inheritance_graph.get_subtypes(
+                TypeWrapper.from_type(non_generic_type)
             ):
-                result.update(generators)
-        return result
+                if subtype.raw_type in self.__generators:
+                    generators.update(self.__generators[subtype.raw_type])
+            return generators
+        return self.__generators.get(type_, OrderedSet())
 
     def get_modifiers_for(self, type_: type) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers for a type.
@@ -459,18 +466,14 @@ class ModuleTestCluster:
         if type_ is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
         if (non_generic_type := extract_non_generic_class(type_)) is not None:
-            return self.__hacky_superclass_modifiers(non_generic_type)
+            modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for super_type in self.__inheritance_graph.get_supertypes(
+                TypeWrapper.from_type(non_generic_type)
+            ):
+                if super_type.raw_type in self.__modifiers:
+                    modifiers.update(self.__modifiers[super_type.raw_type])
+            return modifiers
         return self.__modifiers.get(type_, OrderedSet())
-
-    @lru_cache(1000)
-    def __hacky_superclass_modifiers(
-        self, type_: type
-    ) -> OrderedSet[GenericAccessibleObject]:
-        # Hacky way to include superclass modifiers
-        result = self.__modifiers.get(type_, OrderedSet())
-        for mro_entry in type_.mro():
-            result.update(self.__modifiers.get(mro_entry, OrderedSet()))
-        return result
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
@@ -526,18 +529,9 @@ class ModuleTestCluster:
             A list of all types that can be generated
         """
         generatable = OrderedSet(self.__generators.keys())
-        generatable.update(self.__hacky_all_generatable())
         generatable.update(PRIMITIVES)
         generatable.update(COLLECTIONS)
         return list(generatable)
-
-    @lru_cache(1)
-    def __hacky_all_generatable(self) -> OrderedSet[type]:
-        all_gen: OrderedSet[type] = OrderedSet()
-        for typ in self.__generators:
-            if (extract := extract_non_generic_class(typ)) is not None:
-                all_gen.update(extract.mro())
-        return all_gen
 
     def select_concrete_type(self, type_: type | None) -> type | None:
         """Select a concrete type from the given type.
@@ -877,9 +871,11 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    test_cluster.add_generator(generic)
-    if add_to_test:
-        test_cluster.add_accessible_object_under_test(generic, method_data)
+    if not inspect.isabstract(class_):
+        # TODO adding an abstract class constructor makes no sense?
+        test_cluster.add_generator(generic)
+        if add_to_test:
+            test_cluster.add_accessible_object_under_test(generic, method_data)
 
     for method_name, method in inspect.getmembers(class_, inspect.isfunction):
         __analyse_method(
@@ -1020,16 +1016,19 @@ def __analyse_included_classes(
     syntax_tree: ast.AST | None,
     seen_classes: set,
 ) -> None:
+    work_list = list(
+        filter(
+            lambda x: inspect.isclass(x) and not _is_blacklisted(x),
+            vars(module).values(),
+        )
+    )
 
-    for current in filter(
-        lambda x: inspect.isclass(x)
-        and not inspect.isabstract(x)
-        and not _is_blacklisted(x),
-        vars(module).values(),
-    ):
+    while len(work_list) > 0:
+        current = work_list.pop(0)
         if current in seen_classes:
             continue
         seen_classes.add(current)
+
         __analyse_class(
             class_name=current.__qualname__,
             class_=current,
@@ -1038,7 +1037,18 @@ def __analyse_included_classes(
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
-        seen_classes.add(current)
+
+        # TODO(fk) apply blacklist on bases?
+        wrapper = TypeWrapper.from_type(current)
+        test_cluster.inheritance_graph.add_type(wrapper)
+        if hasattr(current, "__bases__"):
+            for base in current.__bases__:
+                base_wrapper = TypeWrapper.from_type(base)
+                test_cluster.inheritance_graph.add_type(base_wrapper)
+                test_cluster.inheritance_graph.add_edge(
+                    super_type=base_wrapper, sub_type=wrapper
+                )
+                work_list.append(base)
 
 
 def __analyse_included_functions(
