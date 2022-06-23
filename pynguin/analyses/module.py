@@ -771,8 +771,12 @@ def __analyse_function(
     if __is_private(func_name) or __is_protected(func_name):
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
-    if inspect.isasyncgenfunction(func):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
+        return
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
@@ -871,8 +875,12 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
-    if inspect.isasyncgenfunction(method):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
+        return
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)

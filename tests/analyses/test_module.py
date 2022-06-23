@@ -399,11 +399,18 @@ def test_enums():
 
 @pytest.mark.parametrize(
     "module_name",
-    [pytest.param("cluster.comments"), pytest.param("instrumentation.mixed")],
+    ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
 def test_analyse_async_function_or_method(module_name):
     with pytest.raises(ValueError):
-        generate_test_cluster(f"tests.fixtures.{module_name}")
+        generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+
+
+def test_analyse_async_as_dependency():
+    cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
+    assert len(cluster.generators) == 3
+    assert len(cluster.modifiers) == 0
+    assert len(cluster.accessible_objects_under_test) == 1
 
 
 def test_import_dependency():
