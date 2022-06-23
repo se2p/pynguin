@@ -161,6 +161,62 @@ def all_param_types_signature():
     )
 
 
+def default_args_signature():
+    return InferredSignature(
+        signature=inspect.Signature(
+            parameters=[
+                inspect.Parameter(
+                    name="a",
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                    default=0.5,
+                ),
+                inspect.Parameter(
+                    name="b",
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                    default=0.42,
+                ),
+                inspect.Parameter(
+                    name="c",
+                    kind=inspect.Parameter.KEYWORD_ONLY,
+                    annotation=float,
+                    default=0.42,
+                ),
+            ]
+        ),
+        return_type=float,
+        parameters={"a": float, "b": float, "c": float},
+    )
+
+
+def no_default_args_signature():
+    return InferredSignature(
+        signature=inspect.Signature(
+            parameters=[
+                inspect.Parameter(
+                    name="a",
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="b",
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                ),
+                inspect.Parameter(
+                    name="c",
+                    kind=inspect.Parameter.KEYWORD_ONLY,
+                    annotation=float,
+                    default=0.42,
+                ),
+            ]
+        ),
+        return_type=float,
+        parameters={"a": float, "b": float, "c": float},
+    )
+
+
 @pytest.fixture()
 def all_types_constructor():
     return GenericConstructor(
@@ -183,6 +239,22 @@ def all_types_function():
     return GenericFunction(
         function=MagicMock(__name__="function"),
         inferred_signature=all_param_types_signature(),
+    )
+
+
+@pytest.fixture()
+def default_args_function():
+    return GenericFunction(
+        function=MagicMock(__name__="function"),
+        inferred_signature=default_args_signature(),
+    )
+
+
+@pytest.fixture()
+def no_default_args_function():
+    return GenericFunction(
+        function=MagicMock(__name__="function"),
+        inferred_signature=no_default_args_signature(),
     )
 
 
@@ -247,23 +319,23 @@ def test_statement_to_ast_constructor_no_store(
         ({}, "var_1 = var_0.method()"),
         (
             {"a": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_2 = var_0.method(var_1)",
+            "var_2 = var_1.method(var_0)",
         ),
         (
             {"b": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_2 = var_0.method(var_1)",
+            "var_2 = var_1.method(var_0)",
         ),
         (
             {"c": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_2 = var_0.method(*var_1)",
+            "var_2 = var_1.method(*var_0)",
         ),
         (
             {"d": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_2 = var_0.method(d=var_1)",
+            "var_2 = var_1.method(d=var_0)",
         ),
         (
             {"e": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_2 = var_0.method(**var_1)",
+            "var_2 = var_1.method(**var_0)",
         ),
         (
             {
@@ -273,7 +345,7 @@ def test_statement_to_ast_constructor_no_store(
                 "d": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
                 "e": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
             },
-            "var_6 = var_0.method(var_1, var_2, *var_3, d=var_4, **var_5)",
+            "var_6 = var_5.method(var_0, var_1, *var_2, d=var_3, **var_4)",
         ),
     ],
 )
@@ -346,6 +418,82 @@ def test_statement_to_ast_function_args(
     statement_to_ast_visitor, test_case_mock, all_types_function, args, expected
 ):
     func_stmt = stmt.FunctionStatement(test_case_mock, all_types_function, args)
+    statement_to_ast_visitor.visit_function_statement(func_stmt)
+    assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ({}, "var_0 = module_0.function()"),
+        (
+            {"a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val},
+            "var_1 = module_0.function(var_0)",
+        ),
+        (
+            {"b": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val},
+            "var_1 = module_0.function(b=var_0)",
+        ),
+        (
+            {
+                "a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "b": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+            },
+            "var_2 = module_0.function(var_0, var_1)",
+        ),
+        (
+            {"c": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val},
+            "var_1 = module_0.function(c=var_0)",
+        ),
+        (
+            {
+                "a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "c": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+            },
+            "var_2 = module_0.function(var_0, c=var_1)",
+        ),
+        (
+            {
+                "a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "b": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "c": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+            },
+            "var_3 = module_0.function(var_0, var_1, c=var_2)",
+        ),
+    ],
+)
+def test_statement_to_ast_function_default_args(
+    statement_to_ast_visitor, test_case_mock, default_args_function, args, expected
+):
+    func_stmt = stmt.FunctionStatement(test_case_mock, default_args_function, args)
+    statement_to_ast_visitor.visit_function_statement(func_stmt)
+    assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            {
+                "a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "b": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+            },
+            "var_2 = module_0.function(var_0, var_1)",
+        ),
+        (
+            {
+                "a": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "b": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+                "c": stmt.FloatPrimitiveStatement(MagicMock(), 3.0).ret_val,
+            },
+            "var_3 = module_0.function(var_0, var_1, c=var_2)",
+        ),
+    ],
+)
+def test_statement_to_ast_function_no_default_args(
+    statement_to_ast_visitor, test_case_mock, no_default_args_function, args, expected
+):
+    func_stmt = stmt.FunctionStatement(test_case_mock, no_default_args_function, args)
     statement_to_ast_visitor.visit_function_statement(func_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == expected
 

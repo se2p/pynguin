@@ -1123,11 +1123,29 @@ class TestCaseExecutor:
             tracer: the execution tracer
             module_provider: The used module provider
         """
+        # Repeatedly opening/closing devnull caused problems.
+        # This is closed when Pynguin terminates, since we don't need this output
+        # anyway this is ok.
+        # pylint:disable=unspecified-encoding,consider-using-with
+        self._null_file = open(os.devnull, mode="w")
+
         self._module_provider = (
             module_provider if module_provider is not None else ModuleProvider()
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
+
+        def log_thread_exception(arg):
+            self._logger.error(
+                "Exception in Thread: %s",
+                arg.thread,
+                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
+            )
+
+        # Set our own exception hook, so timeout related errors in executing threads
+        # are not spilled out to stderr and clutter our formatted output but are send
+        # to the logger
+        threading.excepthook = log_thread_exception
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -1171,9 +1189,8 @@ class TestCaseExecutor:
         Returns:
             Result of the execution
         """
-        # pylint:disable=unspecified-encoding
-        with open(os.devnull, mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
+        with contextlib.redirect_stdout(self._null_file):
+            with contextlib.redirect_stderr(self._null_file):
                 self._before_test_case_execution(test_case)
                 return_queue: Queue = Queue()
                 thread = threading.Thread(
@@ -1182,9 +1199,12 @@ class TestCaseExecutor:
                     daemon=True,
                 )
                 thread.start()
-                # Set a timeout for the thread execution of at most 10 seconds.
-                thread.join(timeout=min(10, len(test_case.statements)))
+                # Set a timeout for the thread execution of at most 5 seconds.
+                thread.join(timeout=min(5, len(test_case.statements)))
                 if thread.is_alive():
+                    # Set thread ident to invalid value, such that the tracer
+                    # kills the thread
+                    self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
                 else:
@@ -1208,7 +1228,7 @@ class TestCaseExecutor:
     ) -> None:
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
-        self.tracer.current_thread_identifier = threading.current_thread().ident
+        self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)
@@ -1227,7 +1247,14 @@ class TestCaseExecutor:
             test_case: The executed test case
             result: The execution result
         """
-        result.execution_trace = self._tracer.get_trace()
+        if result.timeout:
+            # Tests with a timeout are assigned an empty trace because
+            # the statement that caused the timeout might have polluted the trace.
+            # Could be solved if we make the tracer transactional, i.e., commit traced
+            # information per statement only if that statement executed without timeout.
+            result.execution_trace = ExecutionTrace()
+        else:
+            result.execution_trace = self._tracer.get_trace()
         for observer in self._observers:
             observer.after_test_case_execution(test_case, result)
 

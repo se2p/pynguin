@@ -5,7 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import ast
+import importlib
 import itertools
+import typing
 from logging import Logger
 from typing import Any, Union, cast
 from unittest.mock import MagicMock
@@ -15,6 +17,7 @@ from ordered_set import OrderedSet
 
 from pynguin.analyses import module
 from pynguin.analyses.module import (
+    MODULE_BLACKLIST,
     ModuleTestCluster,
     TypeInferenceStrategy,
     _ParseResult,
@@ -122,7 +125,7 @@ def test_parse_module_replace_no_annotation_by_any_parameter(
 ):
     function_args = parsed_module_no_any_annotation.syntax_tree.body[1].args
     assert function_args.args[0].annotation.id == "Any"
-    assert function_args.args[1].annotation.id == "Any"
+    assert function_args.args[1].annotation.id == "object"
     assert function_args.args[2].annotation.id == "Any"
 
 
@@ -135,7 +138,7 @@ def test_parse_module_replace_no_annotation_by_any_return(
     faz_func_return = parsed_module_no_any_annotation.syntax_tree.body[4].returns
     assert foo_func_return == "Any"
     assert bar_func_return == "Any"
-    assert baz_func_return == "Any"
+    assert baz_func_return == "object"
     assert isinstance(faz_func_return, ast.Constant)
     assert faz_func_return.value is None
 
@@ -302,6 +305,12 @@ def test_nothing_from_blacklist():
     assert cluster.num_accessible_objects_under_test() == 1
 
 
+def test_blacklist_is_valid():
+    # Naive test without assert, checks if the module names are valid.
+    for item in MODULE_BLACKLIST:
+        importlib.import_module(item)
+
+
 def test_nothing_included_multiple_times():
     cluster = generate_test_cluster("tests.fixtures.cluster.diamond_top")
     assert sum(len(cl) for cl in cluster.generators.values()) == 5
@@ -389,10 +398,7 @@ def test_conditional_import_forward_ref():
     cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
     accessible_objects = list(cluster.accessible_objects_under_test)
     constructor = cast(GenericConstructor, accessible_objects[0])
-    assert (
-        str(constructor.inferred_signature.parameters["arg0"])
-        == "<class 'tests.fixtures.cluster.complex_dependency.SomeOtherType'>"
-    )
+    assert constructor.inferred_signature.parameters["arg0"] == typing.Any
 
 
 def test_enums():
@@ -409,11 +415,18 @@ def test_enums():
 
 @pytest.mark.parametrize(
     "module_name",
-    [pytest.param("cluster.comments"), pytest.param("instrumentation.mixed")],
+    ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
 def test_analyse_async_function_or_method(module_name):
     with pytest.raises(ValueError):
-        generate_test_cluster(f"tests.fixtures.{module_name}")
+        generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+
+
+def test_analyse_async_as_dependency():
+    cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
+    assert len(cluster.generators) == 3
+    assert len(cluster.modifiers) == 0
+    assert len(cluster.accessible_objects_under_test) == 1
 
 
 def test_import_dependency():
@@ -447,3 +460,10 @@ def test_analyse_empty_enum_module():
         )
     )
     assert len(enums_without_fields) == 0
+
+
+def test_no_abstract_class():
+    cluster = generate_test_cluster("tests.fixtures.cluster.abstract")
+    assert len(cluster.accessible_objects_under_test) == 0
+    assert len(cluster.generators) == 0
+    assert len(cluster.modifiers) == 0

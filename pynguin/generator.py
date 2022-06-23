@@ -38,11 +38,11 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import (
-    ConstantPool,
     ConstantProvider,
     DelegatingConstantProvider,
     DynamicConstantProvider,
     EmptyConstantProvider,
+    RestrictedConstantPool,
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
@@ -219,9 +219,12 @@ def _setup_constant_seeding() -> tuple[
     if config.configuration.seeding.dynamic_constant_seeding:
         _LOGGER.info("Setting up runtime collection of constants")
         dynamic_constant_provider = DynamicConstantProvider(
-            ConstantPool(),
+            RestrictedConstantPool(
+                max_size=config.configuration.seeding.max_dynamic_pool_size
+            ),
             wrapped_provider,
             config.configuration.seeding.seeded_dynamic_values_reuse_probability,
+            config.configuration.seeding.max_dynamic_length,
         )
         wrapped_provider = dynamic_constant_provider
 

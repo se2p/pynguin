@@ -68,40 +68,117 @@ if typing.TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
 
-# A tuple of modules that shall be blacklisted from analysis (keep them sorted!!!):
+# A set of modules that shall be blacklisted from analysis (keep them sorted!!!):
+# The modules that are listed here are not prohibited from execution, but Pynguin will
+# not consider any classes or functions from these modules for generating inputs to
+# other routines
 MODULE_BLACKLIST = frozenset(
     (
+        "__future__",
         "_thread",
+        "abc",
+        "argparse",
         "asyncio",
+        "atexit",
+        "builtins",
+        "cmd",
+        "code",
+        "codeop",
+        "compileall",
         "concurrent",
         "concurrent.futures",
+        "configparser",
+        "contextlib",
         "contextvars",
+        "copy",
+        "copyreg",
+        "csv",
+        "ctypes",
+        "dbm",
+        "dis",
         "filecmp",
         "fileinput",
         "fnmatch",
+        "functools",
+        "gc",
+        "getopt",
+        "getpass",
         "glob",
+        "importlib",
+        "io",
+        "itertools",
         "linecache",
+        "logging",
+        "logging.config",
+        "logging.handlers",
+        "marshal",
         "mmap",
         "multiprocessing",
         "multiprocessing.shared_memory",
+        "netrc",
+        "operator",
         "os",
         "os.path",
         "pathlib",
+        "pickle",
+        "pickletools",
+        "plistlib",
+        "py_compile",
         "queue",
+        "random",
+        "reprlib",
         "sched",
+        "secrets",
         "select",
         "selectors",
+        "shelve",
         "shutil",
         "signal",
+        "six",  # Not from STDLIB
         "socket",
+        "sre_compile",
+        "sre_parse",
         "ssl",
         "stat",
         "subprocess",
         "sys",
+        "tarfile",
         "tempfile",
         "threading",
+        "timeit",
+        "trace",
+        "traceback",
+        "tracemalloc",
+        "types",
+        "typing",
+        "warnings",
+        "weakref",
     )
 )
+
+
+def _is_blacklisted(element: Any) -> bool:
+    """Checks if the given element belongs to the blacklist.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element blacklisted?
+    """
+    if inspect.ismodule(element):
+        return element.__name__ in MODULE_BLACKLIST
+    if inspect.isclass(element):
+        return element.__module__ in MODULE_BLACKLIST
+    if inspect.isfunction(element):
+        # Some modules can be run standalone using a main function or provide a small
+        # set of tests ('test'). We don't want to include those functions.
+        return element.__module__ in MODULE_BLACKLIST or element.__name__ in (
+            "main",
+            "test",
+        )
+    # Something that is not supported yet.
+    return False
 
 
 class _ParseResult(NamedTuple):
@@ -126,8 +203,8 @@ class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
 class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
     """Replaces type-annotations by typing.Any.
 
-    The types `object` and unannotated are the same as `Any` hence, we replace these
-    type annotations by the `Any` value.
+    An unannotated type is the same as `Any` hence, we replace it
+    by the `Any` value.
     """
 
     class FindTypingAnyImportVisitor(ast.NodeVisitor):
@@ -170,21 +247,13 @@ class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
 
     # pylint: disable=missing-function-docstring
     def visit_arg(self, node: ast.arg) -> Any:
-        if (
-            node.annotation is None
-            or isinstance(node.annotation, ast.Name)
-            and node.annotation.id == "object"
-        ):
+        if node.annotation is None:
             node.annotation = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
     # pylint: disable=missing-function-docstring, invalid-name
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        if (
-            node.returns is None
-            or isinstance(node.returns, ast.Name)
-            and node.returns.id == "object"
-        ):
+        if node.returns is None:
             node.returns = ast.Name(id="Any", ctx=ast.Load())
         return self.generic_visit(node)
 
@@ -207,11 +276,6 @@ def parse_module(
     Returns:
         A tuple of the imported module type and its optional AST
     """
-    if type_inference is not TypeInferenceStrategy.NONE:
-        # Enable imports that are conditional on the typing.TYPE_CHECKING variable.
-        # See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING
-        typing.TYPE_CHECKING = True
-
     module = importlib.import_module(module_name)
 
     try:
@@ -515,19 +579,30 @@ class ModuleTestCluster:
         cyclomatic_complexity = self.__compute_cyclomatic_complexities(
             self.function_data_for_accessibles.values()
         )
-        tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
-        tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
-        tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
-        tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
-        tracking_fun(RuntimeVariable.LineNos, self.__linenos)
+        if cyclomatic_complexity is not None:
+            tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
+            tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
+            tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
+            tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+            tracking_fun(RuntimeVariable.LineNos, self.__linenos)
 
     CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
 
     @staticmethod
     def __compute_cyclomatic_complexities(
         callable_data: typing.Iterable[_CallableData],
-    ) -> CyclomaticComplexity:
-        complexities = [item.cyclomatic_complexity for item in callable_data]
+    ) -> CyclomaticComplexity | None:
+        # Collect complexities only for callables that had an AST.  Their minimal
+        # complexity is 1, the value None symbolises a callable that had no AST present,
+        # either because there is none or because it is an implicitly added function,
+        # such as a default constructor or the constructor of a base class.
+        complexities = [
+            item.cyclomatic_complexity
+            for item in callable_data
+            if item.cyclomatic_complexity is not None
+        ]
+        if len(complexities) == 0:
+            return None
         return ModuleTestCluster.CyclomaticComplexity(
             min=min(complexities),
             mean=mean(complexities),
@@ -697,9 +772,9 @@ def __get_function_description_from_ast(
     return description[0]
 
 
-def __get_mccabe_complexity(tree: ast.AST | None) -> int:
+def __get_mccabe_complexity(tree: ast.AST | None) -> int | None:
     if tree is None:
-        return -1
+        return None
     return mccabe_complexity(tree)
 
 
@@ -724,7 +799,7 @@ class _CallableData:
     accessible: GenericAccessibleObject
     tree: ast.AST | None
     description: FunctionDescription | None
-    cyclomatic_complexity: int
+    cyclomatic_complexity: int | None
 
 
 def __analyse_function(
@@ -739,8 +814,12 @@ def __analyse_function(
     if __is_private(func_name) or __is_protected(func_name):
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
-    if inspect.isasyncgenfunction(func):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
+        return
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
@@ -839,8 +918,12 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
-    if inspect.isasyncgenfunction(method):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
+        return
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
@@ -884,7 +967,7 @@ def __resolve_dependencies(
         if current_module in seen_modules:
             # Skip the module, we have already analysed it before
             continue
-        if current_module.__name__ in MODULE_BLACKLIST:
+        if _is_blacklisted(current_module):
             # Don't include anything from the blacklist
             continue
 
@@ -939,7 +1022,9 @@ def __analyse_included_classes(
 ) -> None:
 
     for current in filter(
-        lambda x: inspect.isclass(x) and x.__module__ not in MODULE_BLACKLIST,
+        lambda x: inspect.isclass(x)
+        and not inspect.isabstract(x)
+        and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_classes:
@@ -966,7 +1051,7 @@ def __analyse_included_functions(
     seen_functions: set,
 ) -> None:
     for current in filter(
-        lambda x: inspect.isfunction(x) and x.__module__ not in MODULE_BLACKLIST,
+        lambda x: inspect.isfunction(x) and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_functions:
