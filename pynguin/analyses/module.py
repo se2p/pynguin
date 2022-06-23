@@ -73,6 +73,7 @@ MODULE_BLACKLIST = frozenset(
     (
         "__future__",
         "_thread",
+        "abc",
         "argparse",
         "asyncio",
         "atexit",
