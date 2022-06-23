@@ -417,58 +417,58 @@ class ModuleTestCluster:
         """
         return len(self.__accessible_objects_under_test)
 
-    def get_generators_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_generators_for(self, type_: type) -> OrderedSet[GenericAccessibleObject]:
         """Retrieve all known generators for the given type.
 
         Args:
-            for_type: The type we want to have the generators for
+            type_: The type we want to have the generators for
 
         Returns:
             The set of all generators for that type
         """
-        if for_type is typing.Any:
+        if type_ is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
-        if (ftype := extract_non_generic_class(for_type)) is not None:
-            return self.__hacky_subclass_generators(ftype)
-        return self.__generators.get(for_type, OrderedSet())
+        if (non_generic_type := extract_non_generic_class(type_)) is not None:
+            return self.__hacky_subclass_generators(non_generic_type)
+        return self.__generators.get(type_, OrderedSet())
 
     @lru_cache(1000)
     def __hacky_subclass_generators(
-        self, for_type: type
+        self, type_: type
     ) -> OrderedSet[GenericAccessibleObject]:
         # Hacky way to include subclass generators
-        result = self.__generators.get(for_type, OrderedSet())
+        result = self.__generators.get(type_, OrderedSet())
         for typ, generators in self.__generators.items():
-            if (ltyp := extract_non_generic_class(typ)) is not None and issubclass(
-                ltyp, for_type
+            if (non_generic_type := extract_non_generic_class(typ)) is not None and issubclass(
+                non_generic_type, type_
             ):
                 result.update(generators)
         return result
 
-    def get_modifiers_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_modifiers_for(self, type_: type) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers for a type.
 
         TODO: Incorporate inheritance
 
         Args:
-            for_type: The type
+            type_: The type
 
         Returns:
             The set of all accessibles that can modify the type
         """
-        if for_type is typing.Any:
+        if type_ is typing.Any:
             return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
-        if (ftype := extract_non_generic_class(for_type)) is not None:
-            return self.__hacky_superclass_modifiers(ftype)
-        return self.__modifiers.get(for_type, OrderedSet())
+        if (non_generic_type := extract_non_generic_class(type_)) is not None:
+            return self.__hacky_superclass_modifiers(non_generic_type)
+        return self.__modifiers.get(type_, OrderedSet())
 
     @lru_cache(1000)
     def __hacky_superclass_modifiers(
-        self, for_type: type
+        self, type_: type
     ) -> OrderedSet[GenericAccessibleObject]:
         # Hacky way to include superclass modifiers
-        result = self.__modifiers.get(for_type, OrderedSet())
-        for mro_entry in for_type.mro():
+        result = self.__modifiers.get(type_, OrderedSet())
+        for mro_entry in type_.mro():
             result.update(self.__modifiers.get(mro_entry, OrderedSet()))
         return result
 
@@ -539,26 +539,26 @@ class ModuleTestCluster:
                 all_gen.update(extract.mro())
         return all_gen
 
-    def select_concrete_type(self, select_from: type | None) -> type | None:
+    def select_concrete_type(self, type_: type | None) -> type | None:
         """Select a concrete type from the given type.
 
         This is required, for example, when handling union types.  Currently, only
         unary types, Any, and Union are handled.
 
         Args:
-            select_from: An optional type
+            type_: An optional type
 
         Returns:
             An optional type
         """
-        if select_from == Any:  # pylint: disable=comparison-with-callable
+        if type_ == Any:  # pylint: disable=comparison-with-callable
             return randomness.choice(self.get_all_generatable_types())
-        if is_union_type(select_from):
-            candidates = get_args(select_from)
+        if is_union_type(type_):
+            candidates = get_args(type_)
             if candidates is not None and len(candidates) > 0:
                 return randomness.choice(candidates)
             return None
-        return select_from
+        return type_
 
     def track_statistics_values(
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
@@ -702,11 +702,11 @@ class FilteredModuleTestCluster(ModuleTestCluster):
     def num_accessible_objects_under_test(self) -> int:
         return self.__delegate.num_accessible_objects_under_test()
 
-    def get_generators_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
-        return self.__delegate.get_generators_for(for_type)
+    def get_generators_for(self, type_: type) -> OrderedSet[GenericAccessibleObject]:
+        return self.__delegate.get_generators_for(type_)
 
-    def get_modifiers_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
-        return self.__delegate.get_modifiers_for(for_type)
+    def get_modifiers_for(self, type_: type) -> OrderedSet[GenericAccessibleObject]:
+        return self.__delegate.get_modifiers_for(type_)
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
@@ -728,8 +728,8 @@ class FilteredModuleTestCluster(ModuleTestCluster):
     def get_all_generatable_types(self) -> list[type]:
         return self.__delegate.get_all_generatable_types()
 
-    def select_concrete_type(self, select_from: type | None) -> type | None:
-        return self.__delegate.select_concrete_type(select_from)
+    def select_concrete_type(self, type_: type | None) -> type | None:
+        return self.__delegate.select_concrete_type(type_)
 
 
 def __get_function_node_from_ast(

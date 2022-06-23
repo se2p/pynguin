@@ -119,8 +119,8 @@ def is_subtype_of(tp1: type | None, tp2: type | None) -> bool:
     See https://peps.python.org/pep-0483/ for more details on this relation.
 
     Args:
-        tp1: subtype
-        tp2: supertype
+        tp1: first type
+        tp2: second type
 
     Returns:
         True, if tp1 is a subtype of tp2
@@ -128,18 +128,18 @@ def is_subtype_of(tp1: type | None, tp2: type | None) -> bool:
     if tp1 == tp2:
         # Trivial case
         return True
-    if (ng_t1 := extract_non_generic_class(tp1)) is not None and (
-        ng_t2 := extract_non_generic_class(tp2)
+    if (non_generic_tp1 := extract_non_generic_class(tp1)) is not None and (
+        non_generic_tp2 := extract_non_generic_class(tp2)
     ) is not None:
         # Hacky way to handle generics by trying to extract non-generic classes
         # and checking for subclass relation
-        return issubclass(ng_t1, ng_t2)
+        return issubclass(non_generic_tp1, non_generic_tp2)
     if is_union_type(tp2):
         if is_union_type(tp1):
             # Union[int, str] is a subtype of Union[str, float, int]
-            return all(is_subtype_of(t1_type, tp2) for t1_type in get_args(tp1))
+            return all(is_subtype_of(t1_element, tp2) for t1_element in get_args(tp1))
         # Check type separately
-        return any(is_subtype_of(tp1, t2_type) for t2_type in get_args(tp2))
+        return any(is_subtype_of(tp1, t2_element) for t2_element in get_args(tp2))
     return False
 
 
