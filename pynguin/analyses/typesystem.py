@@ -10,12 +10,16 @@ from __future__ import annotations
 import dataclasses
 import enum
 import inspect
+import types
+import typing
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, get_type_hints
+from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 from ordered_set import OrderedSet
+from typing_inspect import is_union_type
 
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import filter_type_vars, wrap_var_param_type
@@ -167,6 +171,216 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     return signature
 
 
+# The following classes are inspired by
+# https://github.com/python/mypy/blob/master/mypy/types.py and most likely incomplete.
+# The plan is to gradually expand this type representation.
+
+
+T = TypeVar("T")
+
+
+class ProperType(ABC):
+    """Base class for all types. Might have to add another layer, like mypy's Type?."""
+
+    @abstractmethod
+    def accept(self, visitor: TypeVisitor) -> T:
+        """Accept a type visitor
+
+        Args:
+            visitor: the visitor
+        """
+
+    def __repr__(self) -> str:
+        return self.accept(TypeStringVisitor())
+
+
+class AnyType(ProperType):
+    """The Any Type"""
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_any_type(self)
+
+    def __hash__(self):
+        return hash(AnyType)
+
+    def __eq__(self, other):
+        return isinstance(other, AnyType)
+
+
+class NoneType(ProperType):
+    """The None type"""
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_none_type(self)
+
+    def __hash__(self):
+        return hash(NoneType)
+
+    def __eq__(self, other):
+        return isinstance(other, NoneType)
+
+
+class Instance(ProperType):
+    """An instance type of form C[T1, ..., Tn].
+    C is a class.
+    Args can be empty."""
+
+    def __init__(self, typ: TypeInfo, args: Sequence[ProperType] = None):
+        self.type = typ
+        if args is None:
+            args = []
+        self.args = tuple(args)
+        # Cached hash value
+        self._hash: int | None = None
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_instance(self)
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash((self.type, self.args))
+        return self._hash
+
+    def __eq__(self, other):
+        if not isinstance(other, Instance):
+            return NotImplemented
+        return self.type == other.type and self.args == other.args
+
+
+class TupleType(ProperType):
+    """Tuple type Tuple[T1, ..., Tn]. At least one argument."""
+
+    def __init__(self, args: Sequence[ProperType], unknown_size: bool = False):
+        self.args = tuple(args)
+        assert len(self.args) > 0
+        self.unknown_size = unknown_size
+        # Cached hash value
+        self._hash: int | None = None
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_tuple_type(self)
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash((self.args, self.unknown_size))
+        return self._hash
+
+    def __eq__(self, other):
+        if not isinstance(other, TupleType):
+            return NotImplemented
+        return self.args == other.args and self.unknown_size == other.unknown_size
+
+
+class UnionType(ProperType):
+    """The union type Union[T1, ..., Tn] (at least one type argument)."""
+
+    def __init__(self, items: Sequence[ProperType]):
+        self.items = items
+        assert len(self.items) > 0
+        # Cached hash value
+        self._hash: int | None = None
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_union_type(self)
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash(frozenset(self.items))
+        return self._hash
+
+    def __eq__(self, other):
+        if not isinstance(other, UnionType):
+            return NotImplemented
+        return frozenset(self.items) == frozenset(other.items)
+
+
+class TypeVisitor(Generic[T]):
+    """A type visitor"""
+
+    @abstractmethod
+    def visit_any_type(self, typ: AnyType) -> T:
+        """Visit the Any type
+
+        Args:
+            typ: the Any type
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
+    def visit_none_type(self, typ: NoneType) -> T:
+        """Visit the None type
+
+        Args:
+            typ: the None type
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
+    def visit_instance(self, typ: Instance) -> T:
+        """Visit an instance
+
+        Args:
+            typ: instance
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
+    def visit_tuple_type(self, typ: TupleType) -> T:
+        """Visit a tuple type
+
+        Args:
+            typ: tuple
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
+    def visit_union_type(self, typ: UnionType) -> T:
+        """Visit a union
+
+        Args:
+            typ: union
+
+        Returns:
+            result of the visit
+        """
+
+
+class TypeStringVisitor(TypeVisitor[str]):
+    """A simple visitor to convert a proper type to a string."""
+
+    def visit_any_type(self, typ: AnyType) -> str:
+        return "Any"
+
+    def visit_none_type(self, typ: NoneType) -> str:
+        return "None"
+
+    def visit_instance(self, typ: Instance) -> str:
+        rep = typ.type.name
+        if len(typ.args) > 0:
+            rep += "[" + self._list_str(typ.args) + "]"
+        return rep
+
+    def visit_tuple_type(self, typ: TupleType) -> str:
+        return f"tuple[{self._list_str(typ.args)}]"
+
+    def visit_union_type(self, typ: UnionType) -> str:
+        return f"Union{self._list_str(typ.items)}"
+
+    def _list_str(self, typs: Sequence[ProperType]) -> str:
+        res: list[str] = []
+        for typ in typs:
+            res.append(typ.accept(self))
+        return ", ".join(res)
+
+
 def infer_type_info_with_types(method: Callable) -> InferredSignature:
     """Infers the method signature while incorporating PEP484-style type information.
 
@@ -204,17 +418,27 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     )
 
 
-@dataclasses.dataclass(unsafe_hash=True, frozen=True)
-class ClassWrapper:
-    """A small wrapper around type, i.e., classes."""
+@dataclasses.dataclass
+class TypeInfo:
+    """A small wrapper around type, i.e., classes.
+    Corresponds 1:1 to a class."""
 
-    raw_type: type = dataclasses.field(hash=False, repr=False)
-    name: str
-    is_abstract: bool
+    def __init__(self, raw_type: type, name: str, is_abstract: bool):
+        self.raw_type = raw_type
+        self.name = name
+        self.is_abstract = is_abstract
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, TypeInfo):
+            return False
+        return other.raw_type == self.raw_type
+
+    def __hash__(self):
+        return hash(self.raw_type)
 
     @staticmethod
-    def from_type(raw_type: type) -> ClassWrapper:
-        """Create type wrapper from given type.
+    def from_type(raw_type: type) -> TypeInfo:
+        """Create type info from the given type.
 
         Naming in python is somehow misleading. 'type' actually only represents classes,
         but not any more complex types.
@@ -227,7 +451,7 @@ class ClassWrapper:
         """
         name = f"{raw_type.__module__}.{raw_type.__qualname__}"
         is_abstract = inspect.isabstract(raw_type)
-        return ClassWrapper(raw_type, name, is_abstract=is_abstract)
+        return TypeInfo(raw_type, name, is_abstract=is_abstract)
 
 
 class InheritanceGraph:
@@ -237,7 +461,7 @@ class InheritanceGraph:
     def __init__(self):
         self._graph = nx.DiGraph()
 
-    def add_class(self, typ: ClassWrapper) -> None:
+    def add_class(self, typ: TypeInfo) -> None:
         """Add the given type to the graph.
 
         Args:
@@ -245,7 +469,7 @@ class InheritanceGraph:
         """
         self._graph.add_node(typ)
 
-    def add_edge(self, *, super_class: ClassWrapper, sub_class: ClassWrapper) -> None:
+    def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add an edge between two types.
 
         Args:
@@ -254,7 +478,7 @@ class InheritanceGraph:
         """
         self._graph.add_edge(super_class, sub_class)
 
-    def get_subclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+    def get_subclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all descendants of the given type. Includes klass.
 
         Args:
@@ -265,13 +489,11 @@ class InheritanceGraph:
         """
         if klass not in self._graph:
             return OrderedSet([klass])
-        result: OrderedSet[ClassWrapper] = OrderedSet(
-            nx.descendants(self._graph, klass)
-        )
+        result: OrderedSet[TypeInfo] = OrderedSet(nx.descendants(self._graph, klass))
         result.add(klass)
         return result
 
-    def get_superclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+    def get_superclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all ancestors of the given class.
 
         Args:
@@ -282,7 +504,7 @@ class InheritanceGraph:
         """
         if klass not in self._graph:
             return OrderedSet([klass])
-        result: OrderedSet[ClassWrapper] = OrderedSet(nx.ancestors(self._graph, klass))
+        result: OrderedSet[TypeInfo] = OrderedSet(nx.ancestors(self._graph, klass))
         result.add(klass)
         return result
 
@@ -295,3 +517,44 @@ class InheritanceGraph:
         """
         dot = to_pydot(self._graph)
         return dot.to_string()
+
+
+def convert_type_hint(
+    hint: Any,
+) -> ProperType:
+    # pylint:disable=too-many-return-statements
+    """Converts a type hint to a proper type.
+    Probably will need a lot of special cases.
+
+    Handles type hints from different versions, e.g.:
+    - dict[K, V] == typing.Dict[K, V]
+    - tuple[T1, T2, ...] == typing.Tuple[T1, T2, ...]
+    - set[V] == typing.Set[V]
+    - list[V] == typing.List[V]
+
+    Args:
+        hint: The type hint
+
+    Returns:
+        A proper type.
+    """
+    if hint is typing.Any or hint is None:
+        return AnyType()
+    if hint is type(None):  # noqa: E721
+        return NoneType()
+    if hint is tuple:
+        # Tuple without size. Should use tuple[Any, ...] ?
+        return TupleType([AnyType()], unknown_size=True)
+    if typing.get_origin(hint) is tuple:
+        return TupleType([convert_type_hint(t) for t in hint.__args__])
+    if isinstance(hint, types.GenericAlias):
+        return Instance(
+            TypeInfo.from_type(hint.__origin__),
+            [convert_type_hint(t) for t in hint.__args__],
+        )
+    if is_union_type(hint) or isinstance(hint, types.UnionType):
+        return UnionType([convert_type_hint(t) for t in hint.__args__])
+    if isinstance(hint, type):
+        return Instance(TypeInfo.from_type(hint), [])
+    # Fallback for now. Should raise an error in the future.
+    return AnyType()

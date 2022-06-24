@@ -46,7 +46,7 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.types import TypeInferenceStrategy
+from pynguin.analyses.typesystem import TypeInferenceStrategy
 from pynguin.generation import export
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import (

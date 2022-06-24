@@ -20,7 +20,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericField,

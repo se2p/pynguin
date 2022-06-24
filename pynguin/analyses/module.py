@@ -39,10 +39,10 @@ from pynguin.analyses.syntaxtree import (
     get_all_functions,
     get_function_descriptions,
 )
-from pynguin.analyses.types import (
-    ClassWrapper,
+from pynguin.analyses.typesystem import (
     InheritanceGraph,
     TypeInferenceStrategy,
+    TypeInfo,
     infer_type_info,
 )
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
@@ -445,7 +445,7 @@ class ModuleTestCluster:
         if (non_generic_type := extract_non_generic_class(typ)) is not None:
             generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for subclass in self.__inheritance_graph.get_subclasses(
-                ClassWrapper.from_type(non_generic_type)
+                TypeInfo.from_type(non_generic_type)
             ):
                 if subclass.raw_type in self.__generators:
                     generators.update(self.__generators[subclass.raw_type])
@@ -468,7 +468,7 @@ class ModuleTestCluster:
         if (non_generic_type := extract_non_generic_class(typ)) is not None:
             modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for super_class in self.__inheritance_graph.get_superclasses(
-                ClassWrapper.from_type(non_generic_type)
+                TypeInfo.from_type(non_generic_type)
             ):
                 if super_class.raw_type in self.__modifiers:
                     modifiers.update(self.__modifiers[super_class.raw_type])
@@ -1039,11 +1039,11 @@ def __analyse_included_classes(
         )
 
         # TODO(fk) apply blacklist on bases?
-        wrapper = ClassWrapper.from_type(current)
+        wrapper = TypeInfo.from_type(current)
         test_cluster.inheritance_graph.add_class(wrapper)
         if hasattr(current, "__bases__"):
             for base in current.__bases__:
-                base_wrapper = ClassWrapper.from_type(base)
+                base_wrapper = TypeInfo.from_type(base)
                 test_cluster.inheritance_graph.add_class(base_wrapper)
                 test_cluster.inheritance_graph.add_edge(
                     super_class=base_wrapper, sub_class=wrapper

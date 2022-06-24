@@ -5,13 +5,20 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, Union
+from typing import Any, Dict, Tuple, Union
 
 import pytest
 
-from pynguin.analyses.types import (
+from pynguin.analyses.typesystem import (
+    AnyType,
     InferredSignature,
+    Instance,
+    NoneType,
+    TupleType,
     TypeInferenceStrategy,
+    TypeInfo,
+    UnionType,
+    convert_type_hint,
     infer_type_info,
 )
 
@@ -136,3 +143,70 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     result = infer_type_info(func, infer_types)
     assert result.parameters == expected_parameters
     assert result.return_type == expected_return
+
+
+@pytest.mark.parametrize(
+    "hint,expected",
+    [
+        (list, Instance(TypeInfo.from_type(list))),
+        (
+            list[int],
+            Instance(TypeInfo.from_type(list), [Instance(TypeInfo.from_type(int))]),
+        ),
+        (
+            dict[int, str],
+            Instance(
+                TypeInfo.from_type(dict),
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            Dict[int, str],
+            Instance(
+                TypeInfo.from_type(dict),
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            int | str,
+            UnionType(
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            Union[int, str],
+            UnionType(
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            Union[int, type(None)],
+            UnionType(
+                [Instance(TypeInfo.from_type(int)), NoneType()],
+            ),
+        ),
+        (
+            tuple[int, str],
+            TupleType(
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            Tuple[int, str],
+            TupleType(
+                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+            ),
+        ),
+        (
+            Any,
+            AnyType(),
+        ),
+        (
+            type(None),
+            NoneType(),
+        ),
+    ],
+)
+def test_convert_type_hints(hint, expected):
+    assert convert_type_hint(hint) == expected
+    assert repr(convert_type_hint(hint)) == repr(expected)

@@ -21,7 +21,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import (
     ExecutionResult,
