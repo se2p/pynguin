@@ -518,6 +518,7 @@ class DynamicSlicer:
         code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
+        assert curr_node, "Invalid node id"
         successors = cdg.get_successors(curr_node)
 
         instr_ctrl_deps_copy = context.instr_ctrl_deps.copy()
@@ -550,6 +551,7 @@ class DynamicSlicer:
         code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
         curr_node = self.get_node(unique_instr.node_id, cdg)
+        assert curr_node, "Invalid node id"
         predecessors = cdg.get_predecessors(curr_node)
 
         for predecessor in predecessors:
@@ -559,7 +561,7 @@ class DynamicSlicer:
     @staticmethod
     def get_node(
         node_id: int, graph: Union[ControlDependenceGraph, CFG]
-    ) -> ProgramGraphNode:
+    ) -> ProgramGraphNode | None:
         """Iterate through all nodes of the graph and return the node
         with the given id.
 
@@ -569,14 +571,12 @@ class DynamicSlicer:
 
         Returns:
             A ProgramGraphNode object with the given id
+            or None if the id is not in the nodes
         """
-        ret_node = None
         for node in graph.nodes:
             if node.index == node_id:
-                ret_node = node
-                break
-        assert ret_node, "Invalid node id"
-        return ret_node
+                return node
+        return None
 
     def check_explicit_data_dependency(
         self,
@@ -845,11 +845,9 @@ class AssertionSlicer:
     def _slicing_criterion_from_assertion(
         self, assertion: TracedAssertion, trace: ExecutionTrace
     ) -> SlicingCriterion:
-        assert self._known_code_objects
-        code_meta = self._known_code_objects.get(assertion.code_object_id)
-        assert code_meta
 
         traced_instr = trace.executed_instructions[assertion.trace_position]
+        code_meta = self._known_code_objects[traced_instr.code_object_id]
 
         # find out the basic block of the assertion
         basic_block = None

@@ -1465,12 +1465,14 @@ class ExecutionTracer:
         assert (
             pop_jump_if_true_position != -1
         ), "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
-        new_assertion = TracedAssertion(
-            code_object_id,
-            node_id,
-            pop_jump_if_true_position,
+
+        self._trace.existing_assertions.append(
+            TracedAssertion(
+                code_object_id,
+                node_id,
+                pop_jump_if_true_position,
+            )
         )
-        self._trace.existing_assertions.append(new_assertion)
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
