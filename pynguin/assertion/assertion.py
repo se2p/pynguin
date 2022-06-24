@@ -83,6 +83,9 @@ class NotNoneAssertion(ReferenceAssertion):
     def __hash__(self) -> int:
         return hash(self._source)
 
+    def __repr__(self):
+        return f"NotNoneAssertion({self._source!r})"
+
 
 class FloatAssertion(ReferenceAssertion):
     """An assertion on the float value of a reference.
@@ -121,6 +124,9 @@ class FloatAssertion(ReferenceAssertion):
 
     def __hash__(self) -> int:
         return hash((self._source, self._value))
+
+    def __repr__(self):
+        return f"FloatAssertion({self._source!r}, {self._value!r})"
 
 
 class ObjectAssertion(ReferenceAssertion):
@@ -168,6 +174,9 @@ class ObjectAssertion(ReferenceAssertion):
         # For example, dicts, lists and sets are not hashable.
         return 17 * hash(self._source) + 31
 
+    def __repr__(self):
+        return f"ObjectAssertion({self._source!r}, {self._object!r})"
+
 
 class CollectionLengthAssertion(ReferenceAssertion):
     """An assertion on the length of a reference.
@@ -210,6 +219,9 @@ class CollectionLengthAssertion(ReferenceAssertion):
 
     def __hash__(self) -> int:
         return hash((self._source, self._length))
+
+    def __repr__(self):
+        return f"CollectionLengthAssertion({self._source!r}, {self._length})"
 
 
 class ExceptionAssertion(Assertion):
@@ -263,6 +275,9 @@ class ExceptionAssertion(Assertion):
 
     def __hash__(self) -> int:
         return hash((self._module, self._exception_type_name))
+
+    def __repr__(self):
+        return f"ExceptionAssertion({self._module}, {self._exception_type_name})"
 
 
 class AssertionVisitor:

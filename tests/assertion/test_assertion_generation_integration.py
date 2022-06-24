@@ -52,21 +52,17 @@ def test_generate_mutation_assertions(generator, expected_result):
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
-        # Need to force reload in order to apply instrumentation
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
+        importlib.reload(importlib.import_module(module_name))
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
         transformer.visit(
             ast.parse(
                 """def test_case_0():
-    str_0 = 'foo bar'
-    float_0 = 39.82
-    human_0 = module_0.Human(str_0, float_0)
-    str_1 = human_0.get_name()
-"""
+        str_0 = 'foo bar'
+        float_0 = 39.82
+        human_0 = module_0.Human(str_0, float_0)
+        str_1 = human_0.get_name()
+    """
             )
         )
         test_case = transformer.testcases[0]
@@ -75,7 +71,7 @@ def test_generate_mutation_assertions(generator, expected_result):
         suite = tsc.TestSuiteChromosome()
         suite.add_test_case_chromosome(chromosome)
 
-        gen = generator(executor)
+        gen = generator(TestCaseExecutor(tracer))
         suite.accept(gen)
 
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())

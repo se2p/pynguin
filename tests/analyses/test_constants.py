@@ -6,12 +6,22 @@
 #
 import pytest
 
-from pynguin.analyses.constants import ConstantPool
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+    RestrictedConstantPool,
+)
 
 
 @pytest.fixture()
 def pool() -> ConstantPool:
     return ConstantPool()
+
+
+@pytest.fixture()
+def rpool() -> ConstantPool:
+    return RestrictedConstantPool(max_size=5)
 
 
 def test_has_constant(pool):
@@ -55,3 +65,23 @@ def test_len_not_empty(pool):
     pool.add_constant(42)
     pool.add_constant(13.37)
     assert len(pool) == 2
+
+
+def test_restriced(rpool):
+    for i in range(20):
+        rpool.add_constant(i)
+    assert rpool.get_all_constants_for(int) == {15, 16, 17, 18, 19}
+
+
+def test_restriced_str(rpool):
+    for i in range(20):
+        rpool.add_constant(chr(ord("A") + i))
+    assert rpool.get_all_constants_for(str) == {"P", "Q", "R", "S", "T"}
+
+
+def test_dynamic_constant_pool_max_size(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 5)
+    provider.add_value("abcd")
+    provider.add_value("abcde")
+    provider.add_value("abcdef")
+    assert rpool.get_all_constants_for(str) == {"abcd", "abcde"}

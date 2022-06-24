@@ -15,7 +15,7 @@ from ordered_set import OrderedSet
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_assignable_to, is_type_unknown
+from pynguin.utils.type_utils import is_consistent_with, is_type_unknown
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -251,7 +251,7 @@ class TestCase(metaclass=ABCMeta):
             var = statement.ret_val
             if var is None:
                 continue
-            if not var.is_none_type() and is_assignable_to(var.type, parameter_type):
+            if not var.is_none_type() and is_consistent_with(var.type, parameter_type):
                 variables.append(var)
 
         return variables

@@ -544,7 +544,10 @@ def test_expected_covered_lines(func, arg, expected_lines, artificial_none_modul
 def dynamic_instr():
     constant_pool = ConstantPool()
     constant_provider = DynamicConstantProvider(
-        pool=constant_pool, delegate=EmptyConstantProvider(), probability=1.0
+        pool=constant_pool,
+        delegate=EmptyConstantProvider(),
+        probability=1.0,
+        max_constant_length=50,
     )
     adapter = DynamicSeedingInstrumentation(constant_provider)
     transformer = InstrumentationTransformer(ExecutionTracer(), [adapter])

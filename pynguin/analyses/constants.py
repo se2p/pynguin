@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import abc
 import ast
-import dataclasses
 import logging
 import os
 import typing
@@ -33,7 +32,6 @@ T = typing.TypeVar("T", float, int, str, bytes)
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
 class ConstantPool:
     """A pool of constants for various types."""
 
@@ -97,6 +95,28 @@ class ConstantPool:
         return sum(len(value) for value in self._constants.values())
 
 
+class RestrictedConstantPool(ConstantPool):
+    """A constant pool that is restricted in its size.
+    If the size limit is reached, the oldest values are purged."""
+
+    def __init__(self, max_size: int = 50):
+        """Create a new restricted constant pool with the given max number of constants
+        per collected type.
+
+        Args:
+            max_size: The maximum number of collected values.
+        """
+        super().__init__()
+        assert max_size > 0, "Size limit for constant pool must be positive."
+        self._max_size = max_size
+
+    def add_constant(self, constant: ConstantTypes) -> None:
+        values = self._constants[type(constant)]
+        values.add(constant)
+        if len(values) > self._max_size:
+            values.pop(0)
+
+
 class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
     """Provides constants"""
 
@@ -151,6 +171,28 @@ class DelegatingConstantProvider(
 class DynamicConstantProvider(DelegatingConstantProvider):
     """Provide values collected during runtime."""
 
+    def __init__(
+        self,
+        pool: ConstantPool,
+        delegate: ConstantProvider,
+        probability: float,
+        max_constant_length: int,
+    ):
+        """Create a new dynamic constant provider
+
+        Args:
+            pool: The pool of constants to use
+            delegate: The delegate to forward the query
+            probability: The probability to use a value from this provider,
+                if there is one.
+            max_constant_length: The maximum length of strings to store.
+        """
+        super().__init__(pool, delegate, probability)
+        assert (
+            max_constant_length > 0
+        ), "Length limit for constant pool elements must be positive."
+        self._max_constant_length = max_constant_length
+
     # A map containing the names of all string functions which are instrumented.
     # Maps those names to a function producing a value that negates the functions
     # result.
@@ -179,6 +221,11 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The observed
         """
         if type(value) in typing.get_args(ConstantTypes):
+            if (
+                isinstance(value, (str, bytes))
+                and len(value) > self._max_constant_length
+            ):
+                return
             self._pool.add_constant(value)
 
     def add_value_for_strings(self, value: str, name: str):
@@ -188,9 +235,9 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The value
             name: The string
         """
-        if type(value) is str:  # pylint:disable=unidiomatic-typecheck
-            self._pool.add_constant(value)
-            self._pool.add_constant(self.STRING_FUNCTION_LOOKUP[name](value))
+        if isinstance(value, str) and name in self.STRING_FUNCTION_LOOKUP:
+            self.add_value(value)
+            self.add_value(self.STRING_FUNCTION_LOOKUP[name](value))
 
 
 def _find_modules_with_constants(project_path: str | os.PathLike) -> OrderedSet[str]:

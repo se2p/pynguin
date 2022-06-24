@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
+import multiprocessing.shared_memory as sm
+
 # Uses function from blacklisted module
 import tempfile as temp
 from tempfile import SpooledTemporaryFile, mkdtemp
@@ -17,3 +19,12 @@ def foo():
     SpooledTemporaryFile()
     mkdtemp()
     bl_tr.bar()
+    sm.SharedMemory()
+
+
+def main():
+    """main usually calls sys.exit so we don't want it."""
+
+
+def test():
+    """test usually performs some tests on the module, we don't want them."""

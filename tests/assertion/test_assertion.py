@@ -112,3 +112,9 @@ def test_object_assertion_object():
 def test_collection_length_assertion_length():
     assertion = ass.CollectionLengthAssertion(MagicMock(), 3)
     assert assertion.length == 3
+
+
+def test_exception_assertion():
+    assertion = ass.ExceptionAssertion("builtin", "foo")
+    assert assertion.module == "builtin"
+    assert assertion.exception_type_name == "foo"
