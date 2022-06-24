@@ -39,17 +39,21 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import (
-    ConstantPool,
     ConstantProvider,
     DelegatingConstantProvider,
     DynamicConstantProvider,
     EmptyConstantProvider,
+    RestrictedConstantPool,
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.types import TypeInferenceStrategy
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import InstrumentationLoader, install_import_hook
+from pynguin.instrumentation.machinery import (
+    InstrumentationLoader,
+    build_transformer,
+    install_import_hook,
+)
 from pynguin.testcase.execution import (
     ExecutionTracer,
     ReturnTypeObserver,
@@ -221,9 +225,12 @@ def _setup_constant_seeding() -> tuple[
     if config.configuration.seeding.dynamic_constant_seeding:
         _LOGGER.info("Setting up runtime collection of constants")
         dynamic_constant_provider = DynamicConstantProvider(
-            ConstantPool(),
+            RestrictedConstantPool(
+                max_size=config.configuration.seeding.max_dynamic_pool_size
+            ),
             wrapped_provider,
             config.configuration.seeding.seeded_dynamic_values_reuse_probability,
+            config.configuration.seeding.max_dynamic_length,
         )
         wrapped_provider = dynamic_constant_provider
 
@@ -333,7 +340,7 @@ def _add_checked_coverage_instrumentation(
             spec.loader.name,
             spec.loader.path,
             tracer,
-            constant_provider,
+            build_transformer(tracer, constant_provider),
         )
         spec.loader = new_loader
         module.__loader__ = new_loader
@@ -362,7 +369,6 @@ def _track_resulting_checked_coverage(
     Args:
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
-        constant_provider: the constant required for the instrumentation
     """
     _LOGGER.info("Calculating resulting checked coverage")
 

@@ -7,13 +7,18 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
+import dataclasses
 import enum
 import inspect
 from dataclasses import dataclass, field
 from typing import Any, Callable, get_type_hints
 
+import networkx as nx
+from networkx.drawing.nx_pydot import to_pydot
+from ordered_set import OrderedSet
+
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.type_utils import wrap_var_param_type
+from pynguin.utils.type_utils import filter_type_vars, wrap_var_param_type
 
 
 @dataclass
@@ -143,8 +148,13 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        parameters[param_name] = None
-    return_type: type | None = None
+        # var-positional and var-keyword need a dict or list/tuple,
+        # which is technically not encoded in the type, but the kind of parameter,
+        # so we also wrap this here.
+        parameters[param_name] = wrap_var_param_type(
+            Any, method_signature.parameters[param_name].kind  # type: ignore
+        )
+    return_type: type | None = Any  # type: ignore
 
     signature = InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
@@ -152,8 +162,8 @@ def infer_type_info_no_types(method: Callable) -> InferredSignature:
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
-        signature.update_parameter_type(param_name, None)
-    signature.update_return_type(None)
+        signature.update_parameter_type(param_name, Any)  # type:ignore
+    signature.update_return_type(Any)  # type:ignore
     return signature
 
 
@@ -171,16 +181,117 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
 
     method_signature = inspect.signature(method)
     parameters: dict[str, type | None] = {}
-    hints = get_type_hints(method)
+    try:
+        hints = get_type_hints(method)
+        # Sadly there is no guarantee that resolving the type hints actually works.
+        # If the developers annotated something with an erroneous type hint we fall back
+        # to no type hints, i.e., use Any.
+    except NameError:
+        hints = {}
+
     for param_name in method_signature.parameters:
         if param_name == "self":
             continue
         hint = hints.get(param_name, Any)
         hint = wrap_var_param_type(hint, method_signature.parameters[param_name].kind)
+        hint = filter_type_vars(hint)
         parameters[param_name] = hint
 
-    return_type: type | None = hints.get("return", Any)
+    return_type: type | None = filter_type_vars(hints.get("return", Any))
 
     return InferredSignature(
         signature=method_signature, parameters=parameters, return_type=return_type
     )
+
+
+@dataclasses.dataclass(unsafe_hash=True, frozen=True)
+class ClassWrapper:
+    """A small wrapper around type, i.e., classes."""
+
+    raw_type: type = dataclasses.field(hash=False, repr=False)
+    name: str
+    is_abstract: bool
+
+    @staticmethod
+    def from_type(raw_type: type) -> ClassWrapper:
+        """Create type wrapper from given type.
+
+        Naming in python is somehow misleading. 'type' actually only represents classes,
+        but not any more complex types.
+
+        Args:
+            raw_type: the raw (class) type
+
+        Returns:
+            A wrapper for the given raw class.
+        """
+        name = f"{raw_type.__module__}.{raw_type.__qualname__}"
+        is_abstract = inspect.isabstract(raw_type)
+        return ClassWrapper(raw_type, name, is_abstract=is_abstract)
+
+
+class InheritanceGraph:
+    """Provides a simple inheritance graph relating various classes using their subclass
+    relationships."""
+
+    def __init__(self):
+        self._graph = nx.DiGraph()
+
+    def add_class(self, typ: ClassWrapper) -> None:
+        """Add the given type to the graph.
+
+        Args:
+            typ: The type to add
+        """
+        self._graph.add_node(typ)
+
+    def add_edge(self, *, super_class: ClassWrapper, sub_class: ClassWrapper) -> None:
+        """Add an edge between two types.
+
+        Args:
+            super_class: superclass
+            sub_class: subclass
+        """
+        self._graph.add_edge(super_class, sub_class)
+
+    def get_subclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+        """Provides all descendants of the given type. Includes klass.
+
+        Args:
+            klass: The class whose subtypes we want to query.
+
+        Returns:
+            All subclasses including klass
+        """
+        if klass not in self._graph:
+            return OrderedSet([klass])
+        result: OrderedSet[ClassWrapper] = OrderedSet(
+            nx.descendants(self._graph, klass)
+        )
+        result.add(klass)
+        return result
+
+    def get_superclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+        """Provides all ancestors of the given class.
+
+        Args:
+            klass: The class whose supertypes we want to query.
+
+        Returns:
+            All superclasses including klass
+        """
+        if klass not in self._graph:
+            return OrderedSet([klass])
+        result: OrderedSet[ClassWrapper] = OrderedSet(nx.ancestors(self._graph, klass))
+        result.add(klass)
+        return result
+
+    @property
+    def dot(self) -> str:
+        """Create dot representation of this graph.
+
+        Returns:
+            A dot string.
+        """
+        dot = to_pydot(self._graph)
+        return dot.to_string()

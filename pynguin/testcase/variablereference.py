@@ -30,8 +30,8 @@ class Reference(metaclass=ABCMeta):
     Here, foo_0, int_0 and foo_0.bar are references.
     """
 
-    def __init__(self, tp_: type | None) -> None:
-        self._type = tp_
+    def __init__(self, typ: type | None) -> None:
+        self._type = typ
 
     @property
     def type(self) -> type | None:
@@ -149,8 +149,8 @@ class VariableReference(Reference):
     to check for equality. The other reference do implement eq/hash.
     """
 
-    def __init__(self, test_case: tc.TestCase, tp_: type | None):
-        super().__init__(tp_)
+    def __init__(self, test_case: tc.TestCase, typ: type | None):
+        super().__init__(typ)
         self._test_case = test_case
         self._distance = 0
 

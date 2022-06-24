@@ -119,14 +119,15 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_constructor_statement(self, stmt: ConstructorStatement) -> None:
         owner = stmt.accessible_object().owner
         assert owner
+        args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
                 attr=owner.__name__,
                 ctx=ast.Load(),
                 value=self._create_module_alias(owner.__module__),
             ),
-            args=self._create_args(stmt),
-            keywords=self._create_kw_args(stmt),
+            args=args,
+            keywords=kwargs,
         )
         if self._store_call_return:
             self._ast_node = ast.Assign(
@@ -141,6 +142,7 @@ class StatementToAstVisitor(StatementVisitor):
             self._ast_node = ast.Expr(value=call)
 
     def visit_method_statement(self, stmt: MethodStatement) -> None:
+        args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
                 attr=stmt.accessible_object().callable.__name__,
@@ -149,8 +151,8 @@ class StatementToAstVisitor(StatementVisitor):
                     self._variable_names, self._module_aliases, stmt.callee, True
                 ),
             ),
-            args=self._create_args(stmt),
-            keywords=self._create_kw_args(stmt),
+            args=args,
+            keywords=kwargs,
         )
         if not self._store_call_return or stmt.ret_val.is_none_type():
             self._ast_node = ast.Expr(value=call)
@@ -165,6 +167,7 @@ class StatementToAstVisitor(StatementVisitor):
             )
 
     def visit_function_statement(self, stmt: FunctionStatement) -> None:
+        args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
                 attr=stmt.accessible_object().callable.__name__,
@@ -173,8 +176,8 @@ class StatementToAstVisitor(StatementVisitor):
                     stmt.accessible_object().callable.__module__
                 ),
             ),
-            args=self._create_args(stmt),
-            keywords=self._create_kw_args(stmt),
+            args=args,
+            keywords=kwargs,
         )
         if not self._store_call_return or stmt.ret_val.is_none_type():
             self._ast_node = ast.Expr(value=call)
@@ -321,96 +324,86 @@ class StatementToAstVisitor(StatementVisitor):
             value=ast.Constant(value=stmt.value),
         )
 
-    def _create_args(self, stmt: ParametrizedStatement) -> list[ast.expr]:
+    def _create_args(
+        self, stmt: ParametrizedStatement
+    ) -> tuple[list[ast.expr], list[ast.keyword]]:
         """Creates the positional arguments, i.e., POSITIONAL_ONLY,
-        POSITIONAL_OR_KEYWORD and VAR_POSITIONAL.
+        POSITIONAL_OR_KEYWORD and VAR_POSITIONAL as well as the keyword arguments,
+        i.e., KEYWORD_ONLY or VAR_KEYWORD.
 
         Args:
             stmt: The parameterised statement
 
         Returns:
-            A list of AST statements
+            Two lists of AST statements, one for args and one for kwargs
         """
         args: list[ast.expr] = []
-        gen_callable: GenericCallableAccessibleObject = cast(
-            GenericCallableAccessibleObject, stmt.accessible_object()
-        )
-        for param_name in gen_callable.inferred_signature.parameters:
-            if param_name in stmt.args:
-                param_kind = gen_callable.inferred_signature.signature.parameters[
-                    param_name
-                ].kind
-                if param_kind in (
-                    Parameter.POSITIONAL_ONLY,
-                    Parameter.POSITIONAL_OR_KEYWORD,
-                ):
-                    args.append(
-                        au.create_full_name(
-                            self._variable_names,
-                            self._module_aliases,
-                            stmt.args[param_name],
-                            True,
-                        )
-                    )
-                elif param_kind == Parameter.VAR_POSITIONAL:
-                    # Append *args, if necessary.
-                    args.append(
-                        ast.Starred(
-                            value=au.create_full_name(
-                                self._variable_names,
-                                self._module_aliases,
-                                stmt.args[param_name],
-                                True,
-                            ),
-                            ctx=ast.Load(),
-                        )
-                    )
-        return args
-
-    def _create_kw_args(self, stmt: ParametrizedStatement) -> list[ast.keyword]:
-        """Creates the keyword arguments, i.e., KEYWORD_ONLY or VAR_KEYWORD.
-
-        Args:
-            stmt: The parameterised statement
-
-        Returns:
-            A list of AST statements
-        """
         kwargs = []
+
         gen_callable: GenericCallableAccessibleObject = cast(
             GenericCallableAccessibleObject, stmt.accessible_object()
         )
-        for param_name in gen_callable.inferred_signature.parameters:
+
+        left_of_current: list[str] = []
+
+        parameters = gen_callable.inferred_signature.signature.parameters
+
+        for param_name, param in parameters.items():
             if param_name in stmt.args:
-                param_kind = gen_callable.inferred_signature.signature.parameters[
-                    param_name
-                ].kind
-                if param_kind == Parameter.KEYWORD_ONLY:
-                    kwargs.append(
-                        ast.keyword(
-                            arg=param_name,
-                            value=au.create_full_name(
-                                self._variable_names,
-                                self._module_aliases,
-                                stmt.args[param_name],
-                                True,
-                            ),
+                # The variable that is passed in as an argument
+                var = au.create_full_name(
+                    self._variable_names,
+                    self._module_aliases,
+                    stmt.args[param_name],
+                    True,
+                )
+                match param.kind:
+                    case Parameter.POSITIONAL_ONLY:
+                        args.append(var)
+                    case Parameter.POSITIONAL_OR_KEYWORD:
+                        # If a POSITIONAL_OR_KEYWORD parameter left of the current param
+                        # has a default, and we did not pass a value, we must pass the
+                        # current value by keyword, otherwise by position.
+                        if any(
+                            (
+                                parameters[left].default is not Parameter.empty
+                                and left not in stmt.args
+                                for left in left_of_current
+                            )
+                        ):
+                            kwargs.append(
+                                ast.keyword(
+                                    arg=param_name,
+                                    value=var,
+                                )
+                            )
+                        else:
+                            args.append(var)
+                    case Parameter.KEYWORD_ONLY:
+                        kwargs.append(
+                            ast.keyword(
+                                arg=param_name,
+                                value=var,
+                            )
                         )
-                    )
-                elif param_kind == Parameter.VAR_KEYWORD:
-                    # Append **kwargs, if necessary.
-                    kwargs.append(
-                        ast.keyword(
-                            arg=None,
-                            value=au.create_full_name(
-                                self._variable_names,
-                                self._module_aliases,
-                                stmt.args[param_name],
-                                True,
-                            ),
+                    case Parameter.VAR_POSITIONAL:
+                        # Append *args, if necessary.
+                        args.append(
+                            ast.Starred(
+                                value=var,
+                                ctx=ast.Load(),
+                            )
                         )
-                    )
-        return kwargs
+                    case Parameter.VAR_KEYWORD:
+                        # Append **kwargs, if necessary.
+                        kwargs.append(
+                            ast.keyword(
+                                arg=None,
+                                value=var,
+                            )
+                        )
+            left_of_current.append(param_name)
+        return args, kwargs
 
     def _create_module_alias(self, module_name) -> ast.Name:
         """Create a name node for a module alias.

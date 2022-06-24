@@ -135,5 +135,17 @@ class RuntimeVariable(str, enum.Enum):
     # The number of lines in the source file
     LineNos = "LineNos"
 
+    # The number of created mutants
+    NumberOfCreatedMutants = "NumberOfCreatedMutants"
+
+    # The number of killed mutants
+    NumberOfKilledMutants = "NumberOfKilledMutants"
+
+    # The number of mutants that caused a timeout
+    NumberOfTimedOutMutants = "NumberOfTimedOutMutants"
+
+    # The mutation score
+    MutationScore = "MutationScore"
+
     def __repr__(self):
         return f"{self.name}"

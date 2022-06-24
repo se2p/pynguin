@@ -45,26 +45,11 @@ class InstrumentationLoader(SourceFileLoader):
         fullname,
         path,
         tracer: ExecutionTracer,
-        dynamic_constant_provider: DynamicConstantProvider | None,
+        transformer: InstrumentationTransformer,
     ):
         super().__init__(fullname, path)
         self._tracer = tracer
-        self._dynamic_constant_provider = dynamic_constant_provider
-
-        self._adapters: list[InstrumentationAdapter] = []
-        coverage_metrics = config.configuration.statistics_output.coverage_metrics
-        if config.CoverageMetric.BRANCH in coverage_metrics:
-            self._adapters.append(BranchCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.LINE in coverage_metrics:
-            self._adapters.append(LineCoverageInstrumentation(self._tracer))
-        if config.CoverageMetric.CHECKED in coverage_metrics:
-            self._adapters.append(CheckedCoverageInstrumentation(self._tracer))
-
-        if config.configuration.seeding.dynamic_constant_seeding:
-            assert self._dynamic_constant_provider is not None
-            self._adapters.append(
-                DynamicSeedingInstrumentation(self._dynamic_constant_provider)
-            )
+        self._transformer = transformer
 
     def exec_module(self, module):
         self._tracer.reset()
@@ -83,8 +68,37 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
         assert to_instrument, "Failed to get code object of module."
-        transformer = InstrumentationTransformer(self._tracer, self._adapters)
-        return transformer.instrument_module(to_instrument)
+        return self._transformer.instrument_module(to_instrument)
+
+
+def build_transformer(
+    tracer: ExecutionTracer,
+    dynamic_constant_provider: DynamicConstantProvider | None = None,
+) -> InstrumentationTransformer:
+    """Create an instrumentation transformer that applies the configured
+    instrumentations.
+
+    Args:
+        tracer: The tracer to use.
+        dynamic_constant_provider: The constant provider to use.
+
+    Returns:
+        An instrumentation transformer.
+    """
+    adapters: list[InstrumentationAdapter] = []
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.CoverageMetric.BRANCH in coverage_metrics:
+        adapters.append(BranchCoverageInstrumentation(tracer))
+    if config.CoverageMetric.LINE in coverage_metrics:
+        adapters.append(LineCoverageInstrumentation(tracer))
+    if config.CoverageMetric.CHECKED in coverage_metrics:
+        adapters.append(CheckedCoverageInstrumentation(tracer))
+
+    if config.configuration.seeding.dynamic_constant_seeding:
+        assert dynamic_constant_provider is not None
+        adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
+
+    return InstrumentationTransformer(tracer, adapters)
 
 
 class InstrumentationFinder(MetaPathFinder):
@@ -133,6 +147,7 @@ class InstrumentationFinder(MetaPathFinder):
         Returns:
             An optional ModuleSpec
         """
+
         if self._should_instrument(fullname):
             spec: ModuleSpec = self._original_pathfinder.find_spec(
                 fullname, path, target
@@ -143,7 +158,9 @@ class InstrumentationFinder(MetaPathFinder):
                         spec.loader.name,
                         spec.loader.path,
                         self._tracer,
-                        self._dynamic_constant_provider,
+                        build_transformer(
+                            self._tracer, self._dynamic_constant_provider
+                        ),
                     )
                     return spec
                 self._logger.error(
@@ -193,8 +210,13 @@ def install_import_hook(
         RuntimeError: In case a PathFinder could not be found
     """
     if dynamic_constant_provider is None:
+        # Create a dummy constant provider here. If you want to actually use this
+        # feature, you should pass in your own instance.
         dynamic_constant_provider = DynamicConstantProvider(
-            ConstantPool(), EmptyConstantProvider(), 0
+            ConstantPool(),
+            EmptyConstantProvider(),
+            probability=0,
+            max_constant_length=1,
         )
 
     to_wrap = None

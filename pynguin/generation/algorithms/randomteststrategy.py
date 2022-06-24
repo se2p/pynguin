@@ -17,25 +17,18 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.statistics.statistics as stat
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
-from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution import ExecutionResult
 
 
 class RandomTestStrategy(TestGenerationStrategy):
     """Implements a random test generation algorithm similar to Randoop."""
 
     _logger = logging.getLogger(__name__)
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._execution_results: list[ExecutionResult] = []
 
     def generate_tests(
         self,
@@ -70,11 +63,6 @@ class RandomTestStrategy(TestGenerationStrategy):
                     "Generate test case failed with exception %s", exception
                 )
             self.after_search_iteration(combined_chromosome)
-
-        # TODO(fk) is this still required?
-        stat.track_output_variable(
-            RuntimeVariable.ExecutionResults, self._execution_results
-        )
         self.after_search_finish()
         return combined_chromosome
 
@@ -134,12 +122,14 @@ class RandomTestStrategy(TestGenerationStrategy):
         new_test.set_changed(False)
 
         # Classify new test case and outputs
+        if exec_result.timeout:
+            # Don't store tests that timeout, because their trace may be polluted.
+            return
         if exec_result.has_test_exceptions():
             failing_test_chromosome.add_test_case_chromosome(new_test)
         else:
             test_chromosome.add_test_case_chromosome(new_test)
-            # TODO(sl) What about extensible flags?
-        self._execution_results.append(exec_result)
+        # TODO(sl) What about extensible flags?
 
     @staticmethod
     def _combine_current_individual(

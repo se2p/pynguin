@@ -9,7 +9,39 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.24.0
+
 ## Pynguin 0.23.0
+
+- Provide a naive inheritance graph to improve input generation.
+- Improve killing of long-running test-case executions
+- Add computation of mutation scores for `MUTATION_ANALYSIS` assertion generation.
+
+  The output variables `NumberOfCreatedMutants`, `NumberOfKilledMutants`, 
+  `NumberOfTimedOutMutants`, and `MutationScore` allow to export those values.
+- Do not enable `typing.TYPE_CHECKING` for SUT analysis as this may cause circular 
+  imports.
+- Improve the black list of modules that shall not be incorporated into the test 
+  cluster.
+- Annotate failing tests with `@pytest.mark.xfail(strict=True)`.
+- Improve log output of mutation-based assertion generation.
+- Add instrumentation to mutated modules to easier kill them.
+
+  This change is relevant only to the `MUTATION_ANALYSIS` assertion-generation strategy.
+- Write errors in execution threads to the log instead of STDERR to avoid cluttering 
+  log output.
+- Add limits for amount and size of constants in the constant pool.
+
+  The configuration options `max_dynamic_length` and `max_dynamic_pool_size` allow 
+  to set sizes for the maximum length of strings/bytes that shall be stored in the 
+  dynamic constant pool and the maximum numbers of constants of a type, respectively.
+  This prevents the constant pool from growing unreasonably large.
+- Improve handling of type annotations.
+- Fix computation of cyclomatic complexity.
+
+  Computing cyclomatic complexity does not work for functions that are not present 
+  in the AST, e.g., default constructors.  We now omit those from the computation of 
+  the cyclomatic-complexity output variables.
 
 ## Pynguin 0.22.0
 

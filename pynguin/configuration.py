@@ -295,6 +295,14 @@ class SeedingConfiguration:
     seed_from_archive_mutations: int = 3
     """Number of mutations applied when sampling from the archive."""
 
+    max_dynamic_length: int = 1000
+    """Maximum length of strings/bytes that should be stored in the dynamic constant
+    pool."""
+
+    max_dynamic_pool_size: int = 50
+    """Maximum number of constants of the same type that should be stored in the
+    dynamic constant pool."""
+
 
 @dataclasses.dataclass
 class MIOPhaseConfiguration:
