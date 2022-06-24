@@ -206,85 +206,85 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
 
 
 @dataclasses.dataclass(unsafe_hash=True, frozen=True)
-class TypeWrapper:
-    """
-    TODO(fk) this is another (shitty) abstraction around types. Create a proper one that
-     can handle most cases and use it instead of 'type | None' that is also used in many
-     places.
-    """
+class ClassWrapper:
+    """A small wrapper around type, i.e., classes."""
 
     raw_type: type = dataclasses.field(hash=False, repr=False)
     name: str
     is_abstract: bool
 
     @staticmethod
-    def from_type(raw_type: type) -> TypeWrapper:
+    def from_type(raw_type: type) -> ClassWrapper:
         """Create type wrapper from given type.
 
+        Naming in python is somehow misleading. 'type' actually only represents classes,
+        but not any more complex types.
+
         Args:
-            raw_type: the raw type
+            raw_type: the raw (class) type
 
         Returns:
-            A wrapper for the given raw type.
+            A wrapper for the given raw class.
         """
         name = f"{raw_type.__module__}.{raw_type.__qualname__}"
         is_abstract = inspect.isabstract(raw_type)
-        if raw_type is abc.ABC:
-            is_abstract = True
-        return TypeWrapper(raw_type, name, is_abstract=is_abstract)
+        return ClassWrapper(raw_type, name, is_abstract=is_abstract)
 
 
 class InheritanceGraph:
-    """Provides a simple inheritance graph."""
+    """Provides a simple inheritance graph relating various classes using their subclass
+    relationships."""
 
     def __init__(self):
         self._graph = nx.DiGraph()
 
-    def add_type(self, type_: TypeWrapper) -> None:
+    def add_class(self, typ: ClassWrapper) -> None:
         """Add the given type to the graph.
 
         Args:
-            type_: The type to add
+            typ: The type to add
         """
-        self._graph.add_node(type_)
+        self._graph.add_node(typ)
 
-    def add_edge(self, *, super_type: TypeWrapper, sub_type: TypeWrapper) -> None:
+    def add_edge(self, *, super_class: ClassWrapper, sub_class: ClassWrapper) -> None:
         """Add an edge between two types.
 
         Args:
-            super_type: super type
-            sub_type: sub type
+            super_class: superclass
+            sub_class: subclass
         """
-        self._graph.add_edge(super_type, sub_type)
+        self._graph.add_edge(super_class, sub_class)
 
-    def get_subtypes(self, type_: TypeWrapper) -> OrderedSet[TypeWrapper]:
-        """Provides all descendants of the given type. Includes type_.
+    def get_subclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+        """Provides all descendants of the given type. Includes klass.
 
         Args:
-            type_: The type whose subtypes we want to query.
+            klass: The class whose subtypes we want to query.
 
         Returns:
-            All subtypes.
+            All subclasses including klass
         """
-        if type_ not in self._graph:
-            return OrderedSet([type_])
-        result: OrderedSet[TypeWrapper] = OrderedSet(nx.descendants(self._graph, type_))
-        result.add(type_)
+        if klass not in self._graph:
+            return OrderedSet([klass])
+        result: OrderedSet[ClassWrapper] = OrderedSet(
+            nx.descendants(self._graph, klass)
+        )
+        result.add(klass)
         return result
 
-    def get_supertypes(self, type_: TypeWrapper) -> OrderedSet[TypeWrapper]:
-        """Provides all ancestors of the given type. Includes type_.
+    def get_superclasses(self, klass: ClassWrapper) -> OrderedSet[ClassWrapper]:
+        """Provides all ancestors of the given class.
 
         Args:
-            type_: The type whose supertypes we want to query.
+            klass: The class whose supertypes we want to query.
 
         Returns:
-            All supertypes
+            All superclasses including klass
         """
-        if type_ not in self._graph:
-            return OrderedSet([type_])
-        result: OrderedSet[TypeWrapper] = OrderedSet(nx.ancestors(self._graph, type_))
-        result.add(type_)
+        if klass not in self._graph:
+            return OrderedSet([klass])
+        result: OrderedSet[ClassWrapper] = OrderedSet(nx.ancestors(self._graph, klass))
+        result.add(klass)
         return result
 
     @property
