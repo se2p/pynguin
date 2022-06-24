@@ -7,7 +7,6 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
-import abc
 import dataclasses
 import enum
 import inspect
