@@ -9,6 +9,8 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.24.0
+
 ## Pynguin 0.23.0
 
 - Provide a naive inheritance graph to improve input generation.
