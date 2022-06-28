@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.statement import Statement
 
 if TYPE_CHECKING:
     from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
