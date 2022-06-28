@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.statement import Statement
 
 if TYPE_CHECKING:
     from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
@@ -261,7 +262,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
-class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
+class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on lines included in the backward
     slice of each statement of a test suite."""
 
@@ -270,25 +271,14 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             individual, instrument_test_suite=True
         )
         merged_trace = analyze_results(results)
-        existing_lines = self._executor.tracer.get_known_data().existing_lines
-        known_code_objects = (
-            self._executor.tracer.get_known_data().existing_code_objects
+        known_data = self._executor.tracer.get_known_data()
+        existing_lines = known_data.existing_lines
+        statements = []
+        for test_case in individual.test_case_chromosomes:
+            statements.extend(test_case.statements)
+        checked_lines = compute_statement_checked_lines(
+            statements, merged_trace, known_data
         )
-        dynamic_slicer = DynamicSlicer(known_code_objects)
-        checked_lines = set()
-
-        for test_case_chromosome in individual.test_case_chromosomes:
-            for statement in test_case_chromosome.test_case.statements:
-                # if there is no slicing criterion the statement has not
-                # been executed yet, therefor there are no checked instructions yet
-                if statement.slicing_criterion:
-                    statement_slice = dynamic_slicer.slice(
-                        merged_trace,
-                        statement.slicing_criterion,
-                    )
-                    checked_lines.update(
-                        AssertionSlicer.map_instructions_to_lines(statement_slice)
-                    )
 
         self._executor.tracer.get_trace().checked_lines.update(checked_lines)
 
@@ -302,7 +292,7 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return compute_checked_coverage_fitness_is_covered(
+        return compute_checked_coverage_statement_fitness_is_covered(
             merged_trace,
             tracer.get_known_data(),
         )
@@ -429,8 +419,8 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         return compute_line_coverage(merged_trace, tracer.get_known_data())
 
 
-class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
-    """Computes checked coverage on test suites."""
+class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
+    """Computes checked coverage on the statements of test suites."""
 
     def compute_coverage(self, individual) -> float:
         results = self._run_test_suite_chromosome(
@@ -438,17 +428,67 @@ class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
         )
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_checked_coverage(merged_trace, tracer.get_known_data())
+        statements = []
+        for chromosome in individual.test_case_chromosomes:
+            statements.extend(chromosome.test_case.statements)
+
+        existing = len(tracer.get_known_data().existing_lines)
+
+        if existing == 0:
+            # Nothing to cover => everything is covered.
+            coverage = 1.0
+        else:
+            checked_lines = compute_statement_checked_lines(
+                statements, merged_trace, tracer.get_known_data()
+            )
+            covered = len(checked_lines)
+            coverage = covered / existing
+        assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+        return coverage
 
 
-class TestCaseCheckedCoverageFunction(TestCaseCoverageFunction):
-    """Computes checked coverage on test suites."""
+class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
+    """Computes checked coverage on the statements of test cases."""
 
     def compute_coverage(self, individual) -> float:
         result = self._run_test_case_chromosome(individual, instrument_test=True)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_checked_coverage(merged_trace, tracer.get_known_data())
+        existing = len(tracer.get_known_data().existing_lines)
+
+        if existing == 0:
+            # Nothing to cover => everything is covered.
+            coverage = 1.0
+        else:
+            checked_lines = compute_statement_checked_lines(
+                individual.test_case.statements, merged_trace, tracer.get_known_data()
+            )
+            covered = len(checked_lines)
+            coverage = covered / existing
+        assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+        return coverage
+
+
+class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
+    """Computes checked coverage on test suites with assertions."""
+
+    def compute_coverage(self, individual) -> float:
+        results = self._run_test_suite_chromosome(
+            individual, instrument_test_suite=True
+        )
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
+    """Computes checked coverage on test cases with assertions."""
+
+    def compute_coverage(self, individual) -> float:
+        result = self._run_test_case_chromosome(individual, instrument_test=True)
+        merged_trace = analyze_results([result])
+        tracer = self._executor.tracer
+        return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -848,7 +888,7 @@ def compute_line_coverage_fitness_is_covered(
     return len(trace.covered_line_ids) == len(known_data.existing_lines)
 
 
-def compute_checked_coverage_fitness_is_covered(
+def compute_checked_coverage_statement_fitness_is_covered(
     trace: ExecutionTrace, known_data: KnownData
 ) -> bool:
     """Computes if all lines and code objects are checked by a return statement.
@@ -860,7 +900,6 @@ def compute_checked_coverage_fitness_is_covered(
     Returns:
         True, if all lines were checked by a return, false otherwise
     """
-    # TODO(SiL) will always be empty since the calculation is in the fitness computation
     # TODO(SiL) only works when line coverage is instrumented as well
     return len(known_data.existing_lines) == len(trace.checked_lines)
 
@@ -921,7 +960,47 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
     return coverage
 
 
-def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+def compute_statement_checked_lines(
+    statements: list[Statement], trace: ExecutionTrace, known_data: KnownData
+) -> set[int]:
+    """Computes checked coverage on bytecode instructions.
+    Each statement can be sliced, returning a list of instructions
+    that are checked by the return value of the statement.
+    If we combine all lists of instructions returned by slicing all statements,
+    we get the combined dynamic slice of the test execution's statements.
+    We then can map all instructions inside the slice to lines
+    that are checked covered of the module under test.
+
+    Args:
+        statements: The sliced instructions
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        The computed coverage value
+    """
+    known_code_objects = known_data.existing_code_objects
+    dynamic_slicer = DynamicSlicer(known_code_objects)
+    checked_lines = set()
+    for statement in statements:
+        # TODO(SiL) is never set and therefore the checked coverage is always empty
+        #  since the test_case is only executed with instrument_test=False
+        #  for the Line Fitness Function, and then in execution no slicing
+        #  criterion is set
+        assert (
+            statement.slicing_criterion
+        ), "The statement was not correctly executed yet"
+        statement_slice = dynamic_slicer.slice(
+            trace,
+            statement.slicing_criterion,
+        )
+        checked_lines.update(DynamicSlicer.map_instructions_to_lines(statement_slice))
+    return checked_lines
+
+
+def compute_assertion_checked_coverage(
+    trace: ExecutionTrace, known_data: KnownData
+) -> float:
     """Computes checked coverage on bytecode instructions.
     Each assertion can be sliced, returning a list of instructions
     that are checked by an assertion.
@@ -959,7 +1038,7 @@ def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> fl
             checked_instructions.extend(assertion_checked_instructions)
 
         # reduce coverage to lines instead of instructions
-        checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)
+        checked_lines = DynamicSlicer.map_instructions_to_lines(checked_instructions)
 
         covered = len(checked_lines)
         coverage = covered / existing
