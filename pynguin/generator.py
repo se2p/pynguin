@@ -357,7 +357,7 @@ def _reset_cache_for_result(generation_result):
         test_case.remove_last_execution_result()
 
 
-def _track_resulting_checked_coverage(
+def _track_resulting_assertion_checked_coverage(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
     constant_provider: DynamicConstantProvider | None,
@@ -374,15 +374,17 @@ def _track_resulting_checked_coverage(
     _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
     executor.add_observer(AssertionSlicingObserver(executor.tracer))
 
-    checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
-    generation_result.add_coverage_function(checked_coverage_ff)
+    assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
+        executor
+    )
+    generation_result.add_coverage_function(assertion_checked_coverage_ff)
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)
 
     stat.track_output_variable(
-        RuntimeVariable.CheckedCoverage,
-        generation_result.get_coverage_for(checked_coverage_ff),
+        RuntimeVariable.AssertionCheckedCoverage,
+        generation_result.get_coverage_for(assertion_checked_coverage_ff),
     )
 
 
@@ -416,13 +418,13 @@ def _run() -> ReturnCode:
 
     # only call checked coverage calculation after assertion generation
     if (
-        RuntimeVariable.CheckedCoverage
+        RuntimeVariable.AssertionCheckedCoverage
         in config.configuration.statistics_output.output_variables
     ):
         dynamic_constant_provider = None
         if isinstance(constant_provider, DynamicConstantProvider):
             dynamic_constant_provider = constant_provider
-        _track_resulting_checked_coverage(
+        _track_resulting_assertion_checked_coverage(
             executor, generation_result, dynamic_constant_provider
         )
         _minimize_assertions(generation_result)
@@ -523,6 +525,14 @@ def _track_coverage_metrics(
         stat.track_output_variable(
             RuntimeVariable.BranchCoverage,
             generation_result.get_coverage_for(branch_coverage_ff),
+        )
+    if config.CoverageMetric.CHECKED in coverage_metrics:
+        checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+            algorithm, ff.TestSuiteAssertionCheckedCoverageFunction
+        )
+        stat.track_output_variable(
+            RuntimeVariable.StatementCheckedCoverage,
+            generation_result.get_coverage_for(checked_coverage_ff),
         )
 
 

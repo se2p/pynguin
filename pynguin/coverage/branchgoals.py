@@ -469,18 +469,19 @@ def create_line_coverage_fitness_functions(
 def create_checked_coverage_fitness_functions(
     executor: TestCaseExecutor,
 ) -> OrderedSet[CheckedCoverageTestFitness]:
-    """Create fitness functions for each line coverage goal.
+    """Create fitness functions for each statement checked coverage goal.
 
     Args:
         executor: The test case executor for the fitness functions to use.
 
     Returns:
-        All line coverage related fitness functions.
+        All checked coverage related fitness functions.
     """
     return OrderedSet(
         [
             CheckedCoverageTestFitness(
                 executor,
+                # TODO(SiL) use line ids instead of line numbers
                 CheckedCoverageGoal(line_meta.code_object_id, line_meta.line_number),
             )
             for line_meta in executor.tracer.get_known_data().existing_lines.values()

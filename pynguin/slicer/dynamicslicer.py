@@ -771,6 +771,24 @@ class DynamicSlicer:
         if not traced_instr.arg_address or traced_instr.opcode == op.IMPORT_FROM:
             context.var_uses_addresses.add(hex(traced_instr.src_address))
 
+    @staticmethod
+    def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
+        """Map the list of instructions in a slice to a set of lines of the module
+        under test. Instructions of the test case statements are ignored.
+
+        Args:
+            instructions: list of unique instructions
+
+        Returns:
+            a set of line numbers used in the given list of instructions
+        """
+        lines = set()
+        for instruction in instructions:
+            if instruction.file != "<ast>":  # do not include test statements
+                lines.add(instruction.lineno)
+
+        return lines
+
 
 # pylint:disable=too-few-public-methods
 class AssertionSlicer:
@@ -834,21 +852,3 @@ class AssertionSlicer:
         slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
         slicer = DynamicSlicer(self._known_code_objects)
         return slicer.slice(trace, slicing_criterion)
-
-    @staticmethod
-    def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
-        """Map the list of instructions in a slice to a set of lines of the module
-        under test. Instructions of the test case statements are ignored.
-
-        Args:
-            instructions: list of unique instructions
-
-        Returns:
-            a set of line numbers used in the given list of instructions
-        """
-        lines = set()
-        for instruction in instructions:
-            if instruction.file != "<ast>":  # do not include test statements
-                lines.add(instruction.lineno)
-
-        return lines
