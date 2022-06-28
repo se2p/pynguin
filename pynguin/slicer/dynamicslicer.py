@@ -138,7 +138,7 @@ class DynamicSlicer:
     ):
         self._known_code_objects = known_code_objects
 
-    def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
+    def slice(  # pylint: disable=too-many-branches, too-many-locals
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,

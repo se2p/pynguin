@@ -290,9 +290,9 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
                         AssertionSlicer.map_instructions_to_lines(statement_slice)
                     )
 
-        # TODO(SiL) which trace has to be extended here?
         self._executor.tracer.get_trace().checked_lines.update(checked_lines)
-        merged_trace.checked_lines.update(checked_lines)
+
+        assert len(existing_lines) >= len(checked_lines)
         return len(existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
