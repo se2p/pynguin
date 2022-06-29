@@ -1,7 +1,11 @@
-[10:36:45] INFO     Start Pynguin Test Generation…                                                       generator.py:106
+[09:51:20] INFO     Start Pynguin Test Generation…                                                       generator.py:106
            INFO     Collecting static constants from module under test                                   generator.py:208
            INFO     No constants found                                                                   generator.py:211
            INFO     Setting up runtime collection of constants                                           generator.py:220
+           INFO     Analyzed project to create test cluster                                                module.py:1004
+           INFO     Modules:       2                                                                       module.py:1005
+           INFO     Functions:     0                                                                       module.py:1006
+           INFO     Classes:       3                                                                       module.py:1007
            INFO     Using seed 1629381673714481067                                                       generator.py:194
            INFO     Using strategy: Algorithm.DYNAMOSA                                  generationalgorithmfactory.py:267
            INFO     Instantiated 14 fitness functions                                   generationalgorithmfactory.py:353
@@ -11,54 +15,83 @@
            INFO     Using fallback timeout of 600 seconds                                generationalgorithmfactory.py:93
            INFO     Using crossover function: SinglePointRelativeCrossOver              generationalgorithmfactory.py:299
            INFO     Using ranking function: RankBasedPreferenceSorting                  generationalgorithmfactory.py:319
-           INFO     Start generating test cases                                                          generator.py:333
+           INFO     Start generating test cases                                                          generator.py:329
            INFO     Initial Population, Coverage: 0.785714                                           searchobserver.py:66
-[10:36:46] INFO     Iteration:       1, Coverage: 0.785714                                           searchobserver.py:70
-           INFO     Iteration:       2, Coverage: 0.785714                                           searchobserver.py:70
-           INFO     Iteration:       3, Coverage: 0.785714                                           searchobserver.py:70
-           INFO     Iteration:       4, Coverage: 0.785714                                           searchobserver.py:70
-           INFO     Iteration:       5, Coverage: 0.857143                                           searchobserver.py:70
-[10:36:47] INFO     Iteration:       6, Coverage: 0.857143                                           searchobserver.py:70
-           INFO     Iteration:       7, Coverage: 0.928571                                           searchobserver.py:70
-           INFO     Iteration:       8, Coverage: 1.000000                                           searchobserver.py:70
-           INFO     Algorithm stopped before using all resources.                                        generator.py:336
-           INFO     Stop generating test cases                                                           generator.py:341
-           INFO     Start generating assertions                                                          generator.py:362
+           INFO     Iteration:       1, Coverage: 0.785714                                           searchobserver.py:70
+[09:51:21] INFO     Iteration:       2, Coverage: 0.928571                                           searchobserver.py:70
+           INFO     Iteration:       3, Coverage: 0.928571                                           searchobserver.py:70
+           INFO     Iteration:       4, Coverage: 1.000000                                           searchobserver.py:70
+           INFO     Algorithm stopped before using all resources.                                        generator.py:332
+           INFO     Stop generating test cases                                                           generator.py:337
+           INFO     Start generating assertions                                                          generator.py:358
            INFO     Setup mutation controller                                                       mutationadapter.py:68
            INFO     Build AST for queue_example                                                     mutationadapter.py:54
            INFO     Mutate module queue_example                                                     mutationadapter.py:56
-           INFO     Generated 31 mutants                                                            mutationadapter.py:64
-           INFO     Running tests on mutant   1/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   2/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   3/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   4/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   5/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   6/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   7/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   8/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant   9/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  10/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  11/31                                              assertiongenerator.py:157
-[10:36:48] INFO     Running tests on mutant  12/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  13/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  14/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  15/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  16/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  17/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  18/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  19/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  20/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  21/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  22/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  23/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  24/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  25/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  26/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  27/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  28/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  29/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  30/31                                              assertiongenerator.py:157
-           INFO     Running tests on mutant  31/31                                              assertiongenerator.py:157
-           INFO     Written 7 test cases to /tmp/pynguin-results/test_queue_example.py                   generator.py:487
+[09:51:22] INFO     Generated 31 mutants                                                            mutationadapter.py:64
+           INFO     Running tests on mutant   1/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   2/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   3/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   4/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   5/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   6/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   7/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   8/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant   9/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  10/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  11/31                                              assertiongenerator.py:221
+[09:51:23] INFO     Running tests on mutant  12/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  13/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  14/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  15/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  16/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  17/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  18/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  19/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  20/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  21/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  22/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  23/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  24/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  25/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  26/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  27/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  28/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  29/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  30/31                                              assertiongenerator.py:221
+           INFO     Running tests on mutant  31/31                                              assertiongenerator.py:221
+           INFO     Mutant 0 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 1 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 2 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 3 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 4 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 5 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 6 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 7 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 8 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 9 killed. First time by test 0.                                      assertiongenerator.py:266
+           INFO     Mutant 10 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 11 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 12 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 13 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 14 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 15 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 16 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 17 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 18 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 19 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 20 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 21 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 22 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 23 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 24 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 25 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 26 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 27 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 28 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 29 killed. First time by test 0.                                     assertiongenerator.py:266
+           INFO     Mutant 30 killed. First time by test 0.                                     assertiongenerator.py:266
+[09:51:24] INFO     Written 8 test cases to /tmp/pynguin-results/test_queue_example.py                   generator.py:483
            INFO     Writing statistics                                                                  statistics.py:354
+TargetModule: OutputVariable(name='TargetModule', value='queue_example')
+Coverage: OutputVariable(name='Coverage', value=1.0)
            INFO     Stop Pynguin Test Generation…                                                        generator.py:109
