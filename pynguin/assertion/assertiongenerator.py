@@ -179,7 +179,7 @@ class _MutantInfo:
     mut_num: int
 
     # Did the mutant cause a timeout?
-    timeout: bool = False
+    timed_out_by: list[int] = dataclasses.field(default_factory=list)
 
     # Was the mutant killed by any test?
     killed_by: list[int] = dataclasses.field(default_factory=list)
@@ -249,17 +249,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for info, result in zip(
                 mutation_info, results[self._plain_executions :], strict=True
             ):
-                if info.timeout:
-                    # Was already killed / timed out by another test.
+                if info.timed_out_by:
+                    # Already timed out on another test.
                     continue
                 if result.timeout:
                     # Mutant caused timeout
-                    info.timeout = True
-                    _LOGGER.info(
-                        "Mutant %i timed out. First time with test %i.",
-                        info.mut_num,
-                        test_num,
-                    )
+                    info.timed_out_by.append(test_num)
                     continue
                 if self._merge_assertions([result]) != plain_assertions:
                     # We did not get the same assertions, so we have detected the
@@ -274,10 +269,17 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     info.mut_num,
                     ", ".join(map(str, info.killed_by)),
                 )
+            elif info.timed_out_by:
+                _LOGGER.info(
+                    "Mutant %i timed out. First time with test %i.",
+                    info.mut_num,
+                    info.timed_out_by[0],
+                )
             else:
                 survived.append(info)
         _LOGGER.info(
-            "Surviving Mutant(s): %s",
+            "Surviving Mutant(s): %i (Nums: %s)",
+            len(survived),
             ", ".join(map(lambda x: str(x.mut_num), survived)),
         )
         return mutation_info
@@ -299,7 +301,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         )
         stat.track_output_variable(RuntimeVariable.MutationScore, metrics.get_score())
 
-        # Filter out all results that happened in a mutated execution,
+        # Filter out all results that happened in a timed out execution,
         # otherwise our results might be unbalanced.
         filtered_test_and_results = []
         for test, results in tests_and_results:
@@ -310,7 +312,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             # Append mutant executions where no test timed out.
             for mut_num, result in enumerate(results[self._plain_executions :]):
                 # Filter out results from timed out executions
-                if not mutation_info[mut_num].timeout:
+                if not mutation_info[mut_num].timed_out_by:
                     filtered_results.append(result)
             filtered_test_and_results.append((test, filtered_results))
         return filtered_test_and_results
@@ -342,7 +344,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             num_killed_mutants=0,
         )
         for info in mutation_info:
-            if info.timeout:
+            if info.timed_out_by:
                 metrics.num_timeout_mutants += 1
                 # Don't count time-outs towards killed.
             elif info.killed_by:
