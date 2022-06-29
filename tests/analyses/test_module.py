@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import ast
 import importlib
 import itertools
 import typing
@@ -78,70 +77,6 @@ def test_parse_c_module():
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
     module.LOGGER.warning.assert_called_once()
-
-
-def test_parse_module_check_for_type_hint(parsed_module_no_dependencies):
-    annotated_type = (
-        parsed_module_no_dependencies.syntax_tree.body[2].args.args[0].annotation.id
-    )
-    assert annotated_type == "float"
-    assert (
-        parsed_module_no_dependencies.type_inference_strategy
-        is TypeInferenceStrategy.TYPE_HINTS
-    )
-
-
-def test_parse_module_check_for_no_type_hint():
-    module_name = "tests.fixtures.cluster.no_dependencies"
-    parse_result = parse_module(module_name, type_inference=TypeInferenceStrategy.NONE)
-    annotated_type = parse_result.syntax_tree.body[2].args.args[0].annotation
-    assert annotated_type.id == "Any"
-    assert parse_result.type_inference_strategy is TypeInferenceStrategy.NONE
-
-
-def test_parse_module_add_from_typing_import_any_import(parsed_module_no_dependencies):
-    import_statement = parsed_module_no_dependencies.syntax_tree.body[0]
-    assert isinstance(import_statement, ast.ImportFrom)
-    assert import_statement.module == "typing"
-    assert import_statement.names[0].name == "Any"
-
-
-def test_parse_module_not_add_from_typing_import_any_import(
-    parsed_module_no_any_annotation,
-):
-    imports = len(
-        [
-            elem
-            for elem in parsed_module_no_any_annotation.syntax_tree.body
-            if isinstance(elem, ast.ImportFrom)
-            and elem.module == "typing"
-            and elem.names[0].name == "Any"
-        ]
-    )
-    assert imports == 1
-
-
-def test_parse_module_replace_no_annotation_by_any_parameter(
-    parsed_module_no_any_annotation,
-):
-    function_args = parsed_module_no_any_annotation.syntax_tree.body[1].args
-    assert function_args.args[0].annotation.id == "Any"
-    assert function_args.args[1].annotation.id == "object"
-    assert function_args.args[2].annotation.id == "Any"
-
-
-def test_parse_module_replace_no_annotation_by_any_return(
-    parsed_module_no_any_annotation,
-):
-    foo_func_return = parsed_module_no_any_annotation.syntax_tree.body[1].returns.id
-    bar_func_return = parsed_module_no_any_annotation.syntax_tree.body[2].returns.id
-    baz_func_return = parsed_module_no_any_annotation.syntax_tree.body[3].returns.id
-    faz_func_return = parsed_module_no_any_annotation.syntax_tree.body[4].returns
-    assert foo_func_return == "Any"
-    assert bar_func_return == "Any"
-    assert baz_func_return == "object"
-    assert isinstance(faz_func_return, ast.Constant)
-    assert faz_func_return.value is None
 
 
 def test_analyse_module(parsed_module_no_dependencies):

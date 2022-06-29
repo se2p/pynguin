@@ -10,34 +10,24 @@ Reilly under MIT license."""
 import ast
 import importlib
 import inspect
-from typing import Iterable
 
+import astroid
 import pytest
 
 from pynguin.analyses.syntaxtree import (
     FunctionAnalysisVisitor,
-    FunctionAndMethodVisitor,
-    get_all_classes,
-    get_all_functions,
-    get_all_methods,
-    get_docstring,
-    get_function_descriptions,
-    get_line_number_for_function,
-    get_return_type,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
     has_decorator,
 )
 
 
 @pytest.fixture(scope="module")
-def comments_tree() -> ast.AST:
+def comments_tree() -> astroid.Module:
     module = importlib.import_module("tests.fixtures.cluster.comments")
-    tree = ast.parse(
-        inspect.getsource(module),
-        filename="comments.py",
-        type_comments=True,
-        feature_version=(3, 8),
-    )
-    return tree
+    return astroid.parse(inspect.getsource(module), path="comments.py")
 
 
 @pytest.fixture(scope="function")
@@ -45,78 +35,11 @@ def function_analysis() -> FunctionAnalysisVisitor:
     return FunctionAnalysisVisitor()
 
 
-def __get_names_from_function_definitions(
-    definitions: Iterable[ast.FunctionDef | ast.AsyncFunctionDef],
-) -> set[str]:
-    return {func.name for func in definitions}
-
-
 def __parse_ast(code: str) -> ast.Module:
     tree = ast.parse(
         code, filename="dummy.py", type_comments=True, feature_version=(3, 8)
     )
     return tree
-
-
-def test__get_all_functions(comments_tree):
-    functions = {func.name for func in get_all_functions(comments_tree)}
-    expected = {
-        "public_function",
-        "public_method",
-        "__init__",
-        "__private_method",
-        "_protected_method",
-        "asynchronous_method",
-        "__twice",
-        "b",
-    }
-    assert functions == expected
-
-
-def test__get_all_classes(comments_tree):
-    classes = {class_.name for class_ in get_all_classes(comments_tree)}
-    expected = {"AClass"}
-    assert classes == expected
-
-
-def test__get_all_methods(comments_tree):
-    methods = {method.name for method in get_all_methods(comments_tree)}
-    expected = {
-        "__init__",
-        "__private_method",
-        "_protected_method",
-        "public_method",
-        "asynchronous_method",
-        "__twice",
-        "b",
-    }
-    assert methods == expected
-
-
-def test__get_docstring(comments_tree):
-    functions = {func.name: func for func in get_all_functions(comments_tree)}
-    docstring = get_docstring(functions["public_function"])
-    expected = """A public function
-
-Args:
-    a: Argument description
-
-Returns:
-    Return description"""
-    assert docstring == expected
-
-
-def test__get_return_type():
-    func = ast.FunctionDef(name="foo", returns=None)
-    async_func = ast.AsyncFunctionDef(name="bar", returns=ast.Name(id="str"))
-    assert get_return_type(func) is None
-    assert get_return_type(async_func) == "str"
-
-
-def test__get_line_number_for_function(comments_tree):
-    functions = {func.name: func for func in get_all_functions(comments_tree)}
-    assert get_line_number_for_function(functions["public_function"]) == 14
-    assert get_line_number_for_function(ast.FunctionDef(lineno=42)) == 42
 
 
 @pytest.mark.parametrize(
@@ -127,33 +50,26 @@ def test__get_line_number_for_function(comments_tree):
     ],
 )
 def test__has_decorator(comments_tree, decorators, expected):
-    functions = {func.name: func for func in get_all_functions(comments_tree)}
-    assert has_decorator(functions["public_function"], decorators) == expected
+    public_function = get_function_node_from_ast(comments_tree, "public_function")
+    assert has_decorator(astroid_to_ast(public_function), decorators) == expected
 
 
-def test_function_and_method_visitor(comments_tree):
-    visitor = FunctionAndMethodVisitor()
-    visitor.visit(comments_tree)
-    assert __get_names_from_function_definitions(visitor.properties) == {"b"}
-    methods = {
-        "__init__",
-        "public_method",
-        "_protected_method",
-        "__private_method",
-        "asynchronous_method",
-        "__twice",
-    }
-    assert __get_names_from_function_definitions(visitor.methods) == methods
-    assert __get_names_from_function_definitions(visitor.functions) == {
-        "public_function"
-    }
-
-
-def test_get_function_descriptions(comments_tree):
-    descriptions = get_function_descriptions(comments_tree)
-    names = {desc.name for desc in descriptions}
-    assert names == {
+@pytest.mark.parametrize(
+    "function",
+    [
         "public_function",
+    ],
+)
+def test_get_function_description(comments_tree, function):
+    descriptions = get_function_description(
+        get_function_node_from_ast(comments_tree, function)
+    )
+    assert descriptions.name == function
+
+
+@pytest.mark.parametrize(
+    "function",
+    [
         "__init__",
         "public_method",
         "b",
@@ -161,7 +77,28 @@ def test_get_function_descriptions(comments_tree):
         "_protected_method",
         "__private_method",
         "__twice",
-    }
+    ],
+)
+def test_get_method_description(comments_tree, function):
+    descriptions = get_function_description(
+        get_function_node_from_ast(
+            get_class_node_from_ast(comments_tree, "AClass"), function
+        )
+    )
+    assert descriptions.name == function
+
+
+def test_get_function_description_nested():
+    module = astroid.parse(
+        """
+def foo():
+    def bar():
+        return False
+    yield 5"""
+    )
+    description = get_function_description(get_function_node_from_ast(module, "foo"))
+    assert description.has_return is False
+    assert description.has_yield is True
 
 
 def __assert_found(program: str, *exceptions):
@@ -390,121 +327,6 @@ def test_visits_or_else_block():
     __assert_found(program, "MyException")
 
 
-def test_detect_static_method():
-    program = """class A:
-    @staticmethod
-    def f(x: int) -> int:
-        return 2 * x
-"""
-    tree = __parse_ast(program)
-    descriptions = get_function_descriptions(tree)
-    assert len(descriptions) == 1
-    assert descriptions[0].is_static
-
-
-def test_detect_non_static_method():
-    program = """class A:
-    def f(self, x: int) -> int:
-        self.y = 2 * x
-"""
-    tree = __parse_ast(program)
-    descriptions = get_function_descriptions(tree)
-    assert len(descriptions) == 1
-    assert not descriptions[0].is_static
-
-
-def test_detect_abstract_method_pass(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        pass
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
-def test_detect_abstract_method_ellipsis(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        ...
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
-def test_detect_abstract_method_NotImplementedError(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        raise NotImplementedError()
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
-def test_detect_abstract_method_NotImplemented(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        return NotImplemented
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
-def test_detect_abstract_method_docstring(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        '''description'''
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
-def test_detect_abstract_method_with_implementation(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        x = foo()
-        y = bar()
-        return x + y
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert not function_analysis.is_abstract
-
-
-def test_detect_abstract_method_with_two_statements(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        x = foo()
-        return 2 + x
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert not function_analysis.is_abstract
-
-
-def test_detect_abstract_method_with_docstring_and_statement(function_analysis):
-    program = """class A:
-    @abstractmethod
-    def f():
-        '''documentation'''
-        pass
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.is_abstract
-
-
 def test_visit_nested_async_functions(function_analysis):
     program = """async def foo():
     async def bar():
@@ -545,40 +367,6 @@ def test_yield_from(function_analysis):
     assert len(function_analysis.yields) == 1
     assert isinstance(function_analysis.yields[0], ast.YieldFrom)
     assert function_analysis.yields[0].value.id == "g"
-
-
-def test_visit_complex_function_definition(function_analysis):
-    program = """def f(
-    pos_1,
-    pos_2,
-    /,
-    normal_1,
-    normal_2,
-    *,
-    kw_1,
-    kw_2,
-):
-    pass
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.arguments == [
-        "pos_1",
-        "pos_2",
-        "normal_1",
-        "normal_2",
-        "kw_1",
-        "kw_2",
-    ]
-
-
-def test_visit_function_args_kwargs(function_analysis):
-    program = """def f(*args, **kwargs):
-    pass
-"""
-    tree = __parse_ast(program)
-    function_analysis.visit(tree.body[0])
-    assert function_analysis.arguments == ["*args", "**kwargs"]
 
 
 def test_visit_assert(function_analysis):
