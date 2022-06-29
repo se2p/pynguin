@@ -182,7 +182,7 @@ class _MutantInfo:
     timeout: bool = False
 
     # Was the mutant killed by any test?
-    killed: bool = False
+    killed_by: list[int] = dataclasses.field(default_factory=list)
 
 
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
@@ -249,7 +249,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for info, result in zip(
                 mutation_info, results[self._plain_executions :], strict=True
             ):
-                if info.killed or info.timeout:
+                if info.timeout:
                     # Was already killed / timed out by another test.
                     continue
                 if result.timeout:
@@ -264,12 +264,22 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 if self._merge_assertions([result]) != plain_assertions:
                     # We did not get the same assertions, so we have detected the
                     # mutant.
-                    info.killed = True
-                    _LOGGER.info(
-                        "Mutant %i killed. First time by test %i.",
-                        info.mut_num,
-                        test_num,
-                    )
+                    info.killed_by.append(test_num)
+
+        survived = []
+        for info in mutation_info:
+            if info.killed_by:
+                _LOGGER.info(
+                    "Mutant %i killed by Test(s): %s",
+                    info.mut_num,
+                    ", ".join(map(str, info.killed_by)),
+                )
+            else:
+                survived.append(info)
+        _LOGGER.info(
+            "Surviving Mutant(s): %s",
+            ", ".join(map(lambda x: str(x.mut_num), survived)),
+        )
         return mutation_info
 
     def _filter_and_score(
@@ -335,7 +345,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             if info.timeout:
                 metrics.num_timeout_mutants += 1
                 # Don't count time-outs towards killed.
-            elif info.killed:
+            elif info.killed_by:
                 metrics.num_killed_mutants += 1
         return metrics
 
