@@ -390,10 +390,20 @@ class GenericField(GenericAbstractField):
             return True
         if not isinstance(other, GenericField):
             return False
-        return self._owner == other._owner and self._field == other._field
+        return (
+            self._owner.__module__ == other._owner.__module__
+            and self._owner.__qualname__ == other._owner.__qualname__  # type: ignore
+            and self._field == other._field
+        )
 
     def __hash__(self):
-        return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
+        return hash(
+            (
+                self._owner.__module__,
+                self._owner.__qualname__,  # type: ignore
+                self._field,
+            )
+        )
 
     def __repr__(self):
         return (
@@ -420,10 +430,20 @@ class GenericStaticField(GenericAbstractField):
             return True
         if not isinstance(other, GenericStaticField):
             return False
-        return self._owner == other._owner and self._field == other._field
+        return (
+            self._owner.__module__ == other._owner.__module__
+            and self._owner.__qualname__ == other._owner.__qualname__  # type: ignore
+            and self._field == other._field
+        )
 
     def __hash__(self):
-        return 31 + 17 * hash(self._owner) + 17 * hash(self._field)
+        return hash(
+            (
+                self._owner.__module__,
+                self._owner.__qualname__,  # type: ignore
+                self._field,
+            )
+        )
 
     def __repr__(self):
         return (
