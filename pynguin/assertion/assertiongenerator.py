@@ -100,8 +100,10 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             (test_case, []) for test_case in test_cases
         ]
         for _ in range(self._plain_executions):
-            randomness.RNG.shuffle(tests_and_results)
-            for test, results in tests_and_results:
+            # Create a copy of the list that is shuffled.
+            shuffled_copy = list(tests_and_results)
+            randomness.RNG.shuffle(shuffled_copy)
+            for test, results in shuffled_copy:
                 results.append(self._plain_executor.execute(test))
         return tests_and_results
 
