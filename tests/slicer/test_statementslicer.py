@@ -61,7 +61,7 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
         executor = TestCaseExecutor(tracer)
 
         ff = TestSuiteStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_suite) == pytest.approx(3 / 8, 0.1, 0.1)
+        assert ff.compute_coverage(test_suite) == pytest.approx(4 / 8, 0.1, 0.1)
 
 
 def test_testcase_statement_checked_coverage_calculation(plus_three_test):
@@ -83,5 +83,5 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            3 / 8, 0.1, 0.1
+            4 / 8, 0.1, 0.1
         )
