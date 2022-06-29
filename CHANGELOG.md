@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.24.0
 
+- Fix killing mutant reporting
+- Use [black](https://github.com/psf/black) to format the generated test cases.
+
+  Pynguin now requires `black` as a run-time dependency to use its code formatting.
+
 ## Pynguin 0.23.0
 
 - Provide a naive inheritance graph to improve input generation.
