@@ -16,14 +16,14 @@ import ast
 import dataclasses
 import logging
 from collections import deque
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, TypeAlias
 
 import astroid
 from astroid.nodes.as_string import to_code
 
 _LOGGER = logging.getLogger(__name__)
-AstroidFunctionDef = Union[astroid.AsyncFunctionDef, ast.FunctionDef]
-ASTFunctionDef = Union[ast.AsyncFunctionDef, ast.FunctionDef]
+AstroidFunctionDef: TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
+ASTFunctionDef: TypeAlias = ast.AsyncFunctionDef | ast.FunctionDef
 
 
 def has_decorator(
@@ -552,7 +552,7 @@ def get_function_description(
         has_empty_return = return_value is not None and return_value.value is None
 
     return FunctionDescription(
-        end_line_no=func.tolineno,  # type: ignore
+        end_line_no=func.tolineno,
         func=func,
         has_empty_return=has_empty_return,
         has_return=has_return,
@@ -560,5 +560,5 @@ def get_function_description(
         name=func.name,
         raises=function_analysis.exceptions,
         raises_assert=bool(function_analysis.asserts),
-        start_line_no=func.fromlineno,  # type: ignore
+        start_line_no=func.fromlineno,
     )
