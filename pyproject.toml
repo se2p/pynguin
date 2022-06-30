@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.24.0.dev"
+version = "0.25.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "LGPL-3.0-or-later"
@@ -50,6 +50,8 @@ Jinja2 = "^3.1"
 Pygments = "^2.12"
 ordered-set = "^4.1"
 MutPy-Pynguin = "^0.7.1"
+black = "^22.6.0"
+astroid = "^2.11.6"
 
 [tool.poetry.dev-dependencies]
 coverage = "^6.4"
@@ -59,15 +61,15 @@ pytest-cov = "^3.0"
 pylint = "^2.13"
 pytest-picked = "^0.4"
 pytest-xdist = "^2.5"
-hypothesis = "^6.46"
-pytest-mock = "^3.7"
+hypothesis = "^6.48"
+pytest-mock = "^3.8"
 mypy = "^0.961"
 isort = {extras = ["pyproject"], version = "^5.10"}
 pre-commit = "^2.19"
 darglint = "^1.8"
 pyupgrade = "^2.32"
 bandit = "^1.7"
-safety = "^1.10"
+safety = "^2.0"
 sphinx = "^5.0"
 sphinx-autodoc-typehints = "^1.18"
 flake8 = "^4.0"

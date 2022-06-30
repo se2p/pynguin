@@ -7,7 +7,6 @@
 """Provides analyses for the subject module, based on the module and its AST."""
 from __future__ import annotations
 
-import ast
 import dataclasses
 import enum
 import importlib
@@ -16,7 +15,6 @@ import itertools
 import json
 import logging
 import queue
-import sys
 import typing
 from collections import namedtuple
 from statistics import mean, median
@@ -29,15 +27,17 @@ from types import (
 )
 from typing import Any, Callable, NamedTuple, get_args
 
+import astroid
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
-    get_all_classes,
-    get_all_functions,
-    get_function_descriptions,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
 )
 from pynguin.analyses.typesystem import (
     InheritanceGraph,
@@ -69,8 +69,10 @@ if typing.TYPE_CHECKING:
     from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
+ASTFunctionNodes = typing.Union[astroid.FunctionDef, astroid.AsyncFunctionDef]
+
+
 LOGGER = logging.getLogger(__name__)
-ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
 
 # A set of modules that shall be blacklisted from analysis (keep them sorted!!!):
 # The modules that are listed here are not prohibited from execution, but Pynguin will
@@ -191,75 +193,8 @@ class _ParseResult(NamedTuple):
     linenos: int
     module_name: str
     module: ModuleType
-    syntax_tree: ast.AST | None
+    syntax_tree: astroid.Module | None
     type_inference_strategy: TypeInferenceStrategy
-
-
-class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
-    """Removes argument annotations from an AST."""
-
-    # pylint: disable=missing-function-docstring
-    def visit_arg(self, node: ast.arg) -> Any:
-        node.annotation = ast.Name(id="Any", ctx=ast.Load())
-        return node
-
-
-class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
-    """Replaces type-annotations by typing.Any.
-
-    An unannotated type is the same as `Any` hence, we replace it
-    by the `Any` value.
-    """
-
-    class FindTypingAnyImportVisitor(ast.NodeVisitor):
-        """A visitor checking for the existence of an ``from typing import Any``."""
-
-        def __init__(self) -> None:
-            self.__is_any_imported = False
-
-        # pylint: disable=missing-function-docstring, invalid-name
-        def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-            if node.module == "typing":
-                for alias in node.names:
-                    assert isinstance(alias, ast.alias)
-                    if alias.name == "Any":
-                        self.__is_any_imported = True
-            return node
-
-        @property
-        def is_any_imported(self) -> bool:
-            """Returns, whether ``Any`` is already imported.
-
-            Returns:
-                Whether ``Any`` is already imported
-            """
-            return self.__is_any_imported
-
-    # pylint: disable=missing-function-docstring, invalid-name
-    def visit_Module(self, node: ast.Module) -> Any:
-        # Check whether there is an `from typing import Any` somewhere
-        visitor = self.FindTypingAnyImportVisitor()
-        visitor.visit(node)
-        # Insert an `from typing import Any` to the module if there is not yet one
-        if not visitor.is_any_imported:
-            import_node = ast.ImportFrom(module="typing", names=[ast.alias(name="Any")])
-            ast.copy_location(import_node, node)
-            ast.fix_missing_locations(import_node)
-            node.body.insert(0, import_node)
-
-        return self.generic_visit(node)
-
-    # pylint: disable=missing-function-docstring
-    def visit_arg(self, node: ast.arg) -> Any:
-        if node.annotation is None:
-            node.annotation = ast.Name(id="Any", ctx=ast.Load())
-        return self.generic_visit(node)
-
-    # pylint: disable=missing-function-docstring, invalid-name
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        if node.returns is None:
-            node.returns = ast.Name(id="Any", ctx=ast.Load())
-        return self.generic_visit(node)
 
 
 def parse_module(
@@ -285,23 +220,11 @@ def parse_module(
     try:
         source_file = inspect.getsourcefile(module)
         source_code = inspect.getsource(module)
-        syntax_tree = ast.parse(
-            source_code,
-            filename=source_file if source_file is not None else "",
-            type_comments=type_inference is not TypeInferenceStrategy.NONE,
-            feature_version=sys.version_info[1],
+        syntax_tree = astroid.parse(
+            code=source_code,
+            module_name=module_name,
+            path=source_file if source_file is not None else "",
         )
-        if type_inference is TypeInferenceStrategy.NONE:
-            # The parameter type_comments of the AST library's parse function does not
-            # prevent that the annotation is present in the AST.  Thus, we explicitly
-            # remove it if we do not want the types to be extracted.
-            # This is a hack, maybe I do not understand how to use ast.parse properly...
-            annotation_remover = _ArgumentAnnotationRemovalVisitor()
-            annotation_remover.visit(syntax_tree)
-        # Replace all occurrences of `object` or no type annotation by `Any`
-        annotation_replacer = _ArgumentReturnAnnotationReplacementVisitor()
-        annotation_replacer.visit(syntax_tree)
-        syntax_tree = ast.fix_missing_locations(syntax_tree)
         linenos = len(source_code.splitlines())
     except OSError as error:
         LOGGER.warning(
@@ -726,50 +649,10 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         return self.__delegate.select_concrete_type(typ)
 
 
-def __get_function_node_from_ast(
-    tree: ast.AST | None, name: str
-) -> ASTFunctionNodes | None:
+def __get_mccabe_complexity(tree: ASTFunctionNodes | None) -> int | None:
     if tree is None:
         return None
-    for func in get_all_functions(tree):
-        if func.name == name:
-            return func
-    return None
-
-
-def __get_class_node_from_ast(tree: ast.AST | None, name: str) -> ast.ClassDef | None:
-    if tree is None:
-        return None
-    for class_ in get_all_classes(tree):
-        if class_.name == name:
-            return class_
-    return None
-
-
-def __get_function_description_from_ast(
-    tree: ASTFunctionNodes | None,
-) -> FunctionDescription | None:
-    if tree is None:
-        return None
-
-    def filter_for_tree_defining_function_name(desc: FunctionDescription) -> bool:
-        return getattr(tree, "name", None) == desc.name
-
-    # Filter the resulting function descriptions for the one represented by the `tree`
-    # AST node.  There might be more than one function description, e.g., for nested
-    # functions, where we are still only interested in the top-level functions and
-    # not in the closures.
-    description = list(
-        filter(filter_for_tree_defining_function_name, get_function_descriptions(tree))
-    )
-    assert len(description) == 1
-    return description[0]
-
-
-def __get_mccabe_complexity(tree: ast.AST | None) -> int | None:
-    if tree is None:
-        return None
-    return mccabe_complexity(tree)
+    return mccabe_complexity(astroid_to_ast(tree))
 
 
 def __is_constructor(method_name: str) -> bool:
@@ -791,7 +674,7 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 @dataclasses.dataclass
 class _CallableData:
     accessible: GenericAccessibleObject
-    tree: ast.AST | None
+    tree: ASTFunctionNodes | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
 
@@ -801,7 +684,7 @@ def __analyse_function(
     func_name: str,
     func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -817,8 +700,8 @@ def __analyse_function(
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
-    func_ast = __get_function_node_from_ast(syntax_tree, func_name)
-    description = __get_function_description_from_ast(func_ast)
+    func_ast = get_function_node_from_ast(module_tree, func_name)
+    description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     generic_function = GenericFunction(
@@ -840,15 +723,15 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     class_name: str,
     class_: type,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
     assert inspect.isclass(class_)
     LOGGER.debug("Analysing class %s", class_name)
-    class_ast = __get_class_node_from_ast(syntax_tree, class_name)
-    constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
-    description = __get_function_description_from_ast(constructor_ast)
+    class_ast = get_class_node_from_ast(module_tree, class_name)
+    constructor_ast = get_function_node_from_ast(class_ast, "__init__")
+    description = get_function_description(constructor_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
@@ -884,7 +767,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             method_name=method_name,
             method=method,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=class_ast,
+            class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
         )
@@ -902,7 +785,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         | MethodDescriptorType
     ),
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    class_tree: astroid.ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -923,8 +806,8 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
-    method_ast = __get_function_node_from_ast(syntax_tree, method_name)
-    description = __get_function_description_from_ast(method_ast)
+    method_ast = get_function_node_from_ast(class_tree, method_name)
+    description = get_function_description(method_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
     generic_method = GenericMethod(
@@ -945,7 +828,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 def __resolve_dependencies(
     root_module: ModuleType,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    syntax_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
 ) -> None:
 
@@ -1013,7 +896,7 @@ def __analyse_included_classes(
     root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    syntax_tree: ast.AST | None,
+    syntax_tree: astroid.Module | None,
     seen_classes: set,
 ) -> None:
     work_list = list(
@@ -1033,7 +916,7 @@ def __analyse_included_classes(
             class_name=current.__qualname__,
             class_=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=syntax_tree,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1058,7 +941,7 @@ def __analyse_included_functions(
     root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    syntax_tree: ast.AST | None,
+    syntax_tree: astroid.Module | None,
     seen_functions: set,
 ) -> None:
     for current in filter(
@@ -1072,7 +955,7 @@ def __analyse_included_functions(
             func_name=current.__qualname__,
             func=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=syntax_tree,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )

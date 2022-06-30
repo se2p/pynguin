@@ -14,17 +14,20 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import enum
 import logging
 from collections import deque
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Union
+
+import astroid
+from astroid.nodes.as_string import to_code
 
 _LOGGER = logging.getLogger(__name__)
-FunctionDef = ast.AsyncFunctionDef | ast.FunctionDef
+AstroidFunctionDef = Union[astroid.AsyncFunctionDef, ast.FunctionDef]
+ASTFunctionDef = Union[ast.AsyncFunctionDef, ast.FunctionDef]
 
 
 def has_decorator(
-    func: FunctionDef,
+    func: ASTFunctionDef,
     decorators: str | Iterable[str],
 ) -> bool:
     """Checks whether a function has one or more decorators.
@@ -43,151 +46,6 @@ def has_decorator(
         if isinstance(decorator, ast.Name) and decorator.id in decorators:
             return True
     return False
-
-
-def get_docstring(node: ast.AST) -> str | None:
-    """Retrieves the docstring for an AST node if any.
-
-    If the node does not provide a docstring, it raises a ``TypeError``.
-
-    Args:
-        node: The AST node
-
-    Returns:
-        The docstring for that node, if any
-    """
-    return ast.get_docstring(node)
-
-
-def get_all_functions(
-    tree: ast.AST,
-) -> Iterator[FunctionDef]:
-    """Yields all functions from an AST.
-
-    Args:
-        tree: The AST
-
-    Yields:
-        All functions from the AST
-    """
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            yield node
-
-
-def get_all_classes(tree: ast.AST) -> Iterator[ast.ClassDef]:
-    """Yields all classes from an AST.
-
-    Args:
-        tree: The AST
-
-    Yields:
-        All classes from the AST
-    """
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            yield node
-
-
-def get_all_methods(
-    tree: ast.AST,
-) -> Iterator[FunctionDef]:
-    """Yields all methods from an AST.
-
-    Args:
-        tree: The AST
-
-    Yields:
-        All methods from the AST
-    """
-    for class_ in get_all_classes(tree):
-        yield from get_all_functions(class_)
-
-
-def get_return_type(func: FunctionDef) -> str | None:
-    """Retrieves the return type of a function from the AST.
-
-    Args:
-        func: The function-definition node from the AST
-
-    Returns:
-        The function's return type, might be ``None``
-    """
-    if func.returns is not None and hasattr(func.returns, "id"):
-        return getattr(func.returns, "id")
-    return None
-
-
-def get_line_number_for_function(func: FunctionDef) -> int:
-    """Retrieves the line number for a function from the AST.
-
-    Args:
-        func: The function-definition node from the AST
-
-    Returns:
-        The function's line number
-    """
-    line_number = func.lineno
-    if hasattr(func, "args") and func.args.args:
-        last_arg = func.args.args[-1]
-        line_number = last_arg.lineno
-    return line_number
-
-
-class FunctionAndMethodVisitor(ast.NodeVisitor):
-    """Extracts all functions, methods, and properties from an AST."""
-
-    def __init__(self) -> None:
-        self.__callables: set[FunctionDef] = set()
-        self.__methods: set[FunctionDef] = set()
-        self.__properties: set[FunctionDef] = set()
-
-    @property
-    def functions(self) -> list[FunctionDef]:
-        """Provides all traced functions.
-
-        Returns:
-            A list of all traced functions
-        """
-        return list(self.__callables - self.__methods - self.__properties)
-
-    @property
-    def methods(self) -> list[FunctionDef]:
-        """Provides all traced methods.
-
-        Returns:
-            A list of all traced methods
-        """
-        return list(self.__methods)
-
-    @property
-    def properties(self) -> list[FunctionDef]:
-        """Provides all traced properties.
-
-        Returns:
-            A list of all traced properties
-        """
-        return list(self.__properties)
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_ClassDef(self, node: ast.ClassDef) -> ast.AST:
-        for item in node.body:
-            if isinstance(item, (ast.AsyncFunctionDef, ast.FunctionDef)):
-                if has_decorator(item, "property"):
-                    self.__properties.add(item)
-                else:
-                    self.__methods.add(item)
-        return self.generic_visit(node)
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-        self.__callables.add(node)
-        return self.generic_visit(node)
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
-        self.__callables.add(node)
-        return self.generic_visit(node)
 
 
 class _FunctionScopedVisitorMixin(ast.NodeVisitor):
@@ -217,99 +75,6 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
             self.in_function = True
             return getattr(super(), "visit_Lambda", super().generic_visit)(node)
         return ast.Pass()
-
-
-class _AbstractStaticCallableVisitor(ast.NodeVisitor):
-    """A visitor that checks for abstract or static methods."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.is_abstract: bool | None = None
-        self.is_static: bool = False
-        self.start_line_no: int = -1
-        self.end_line_no: int = -1
-
-    @staticmethod
-    def __is_docstring(node: ast.AST) -> bool:
-        return (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
-        )
-
-    @staticmethod
-    def __is_ellipsis(node: ast.AST) -> bool:
-        return (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and node.value.value is Ellipsis
-        )
-
-    # pylint: disable=invalid-name
-    @staticmethod
-    def __is_raise_NotImplementedException(node: ast.AST) -> bool:
-        return isinstance(node, ast.Raise) and (
-            (isinstance(node.exc, ast.Name) and node.exc.id == "NotImplementedError")
-            or (
-                isinstance(node.exc, ast.Call)
-                and isinstance(node.exc.func, ast.Name)
-                and node.exc.func.id == "NotImplementedError"
-            )
-        )
-
-    # pylint: disable=invalid-name
-    @staticmethod
-    def __is_raise_NotImplemented(node: ast.AST) -> bool:
-        return (
-            isinstance(node, ast.Return)
-            and isinstance(node.value, ast.Name)
-            and node.value.id == "NotImplemented"
-        )
-
-    def __analyse_pure_abstract(self, node: FunctionDef) -> bool:
-        if not has_decorator(node, "abstractmethod"):
-            return False
-
-        children = len(node.body)
-        if children > 2:
-            return False
-        if children == 2:
-            if not self.__is_docstring(node.body[0]):
-                return False
-
-            statement = node.body[1]
-        else:
-            statement = node.body[0]
-
-        return (
-            isinstance(statement, ast.Pass)
-            or self.__is_ellipsis(statement)
-            or self.__is_raise_NotImplementedException(statement)
-            or self.__is_raise_NotImplemented(statement)
-            or (children == 1 and self.__is_docstring(statement))
-        )
-
-    @staticmethod
-    def __analyse_static(node: FunctionDef) -> bool:
-        return has_decorator(node, "staticmethod")
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
-        self.is_abstract = self.__analyse_pure_abstract(node)
-        self.is_static = self.__analyse_static(node)
-        self.__capture_line_nos(node)
-        return self.generic_visit(node)
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-        self.is_abstract = self.__analyse_pure_abstract(node)
-        self.is_static = self.__analyse_static(node)
-        self.__capture_line_nos(node)
-        return self.generic_visit(node)
-
-    def __capture_line_nos(self, node: FunctionDef) -> None:
-        self.start_line_no = get_line_number_for_function(node)
-        self.end_line_no = node.end_lineno if node.end_lineno is not None else -1
 
 
 class _Context:
@@ -635,65 +400,12 @@ class _YieldVisitor(ast.NodeVisitor):
         return self.generic_visit(node)
 
 
-class _ArgumentVisitor(ast.NodeVisitor):
-    """Reports the arguments a function contains."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.arguments: list[str] = []
-        self.types: list[tuple[str, str | None]] = []
-
-    def __add_arg_by_name(self, name: str, arg: ast.arg) -> None:
-        self.arguments.append(name)
-        if arg.annotation is not None and hasattr(arg.annotation, "id"):
-            # TODO does this cover unions?
-            self.types.append((name, getattr(arg.annotation, "id")))
-        else:
-            self.types.append((name, None))
-
-    # pylint: disable=missing-docstring
-    def visit_arguments(self, node: ast.arguments) -> ast.AST:
-        for arg in node.posonlyargs:
-            self.__add_arg_by_name(arg.arg, arg)
-
-        for arg in node.args:
-            self.__add_arg_by_name(arg.arg, arg)
-
-        for arg in node.kwonlyargs:
-            self.__add_arg_by_name(arg.arg, arg)
-
-        if node.vararg is not None:
-            name = f"*{node.vararg.arg}"
-            self.__add_arg_by_name(name, node.vararg)
-
-        if node.kwarg is not None:
-            name = f"**{node.kwarg.arg}"
-            self.__add_arg_by_name(name, node.kwarg)
-
-        return self.generic_visit(node)
-
-
-class _VariableVisitor(ast.NodeVisitor):
-    """Collect variables."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.variables: list[ast.Name] = []
-
-    # pylint: disable=invalid-name, missing-docstring
-    def visit_Name(self, node: ast.Name) -> ast.AST:
-        if hasattr(node, "ctx") and isinstance(node.ctx, ast.Store):
-            self.variables.append(node)
-        return self.generic_visit(node)
-
-
 class _ReturnVisitor(ast.NodeVisitor):
     """A visitor checking for ``return`` nodes"""
 
     def __init__(self) -> None:
         super().__init__()
         self.returns: list[ast.Return | None] = []
-        self.return_types: list[ast.AST | None] = []
 
     # pylint: disable=invalid-name, missing-docstring
     def visit_Return(self, node: ast.Return) -> ast.AST:
@@ -719,11 +431,8 @@ class _AssertVisitor(ast.NodeVisitor):
 # pylint: disable=too-many-ancestors
 class FunctionAnalysisVisitor(
     _FunctionScopedVisitorMixin,  # needs to be first in order!
-    _AbstractStaticCallableVisitor,
     _RaiseVisitor,
     _YieldVisitor,
-    _ArgumentVisitor,
-    _VariableVisitor,
     _ReturnVisitor,
     _AssertVisitor,
 ):
@@ -734,136 +443,122 @@ class FunctionAnalysisVisitor(
     """
 
 
-class FunctionType(enum.Enum):
-    """Specifies the kind of function."""
-
-    FUNCTION = enum.auto()
-    """Denotes a function, i.e., a callable on the top level of the module."""
-
-    METHOD = enum.auto()
-    """Denotes a method, i.e., a callable that is part of a class."""
-
-    PROPERTY = enum.auto()
-    """Denotes a property, i.e., a callable that has the ``@property`` decorator."""
-
-
 @dataclasses.dataclass
 class FunctionDescription:  # pylint: disable=too-many-instance-attributes
     """Describes a function or method in the subject under test.
 
     Attributes:
-        argument_names: The (potentially empty) list of arguments of the function
-        argument_types: The list of arguments and their annotated type (or ``None``)
-        docstring: The optional docstring of the function
         end_line_no: The last line number of the function (or -1)
         func: The AST node of the function
         has_empty_return: Whether the function has an empty ``return`` statement
         has_return: Whether the function has a ``return`` statement
         has_yield: Whether there is a ``yield`` statement in the function's body
-        is_abstract: Whether the function is an abstract method of a class
-        is_method: Whether the function is a method of a class
-        is_property: Whether the function is a property of a class
-        is_static: Whether the function is a static method of a class
-        line_number: The line number the function is defined in
         name: The name of the function
         raises: The (potentially empty) set of exceptions the function raises
         raises_assert: Whether the function raises any exceptions
-        return_type: The annotated type the function returns (if any)
-        return_value: The return node from the AST (if any)
         start_line_no: The first line number of the function
-        variables: A list of variables that get defined inside the function
     """
 
-    argument_names: list[str]
-    argument_types: list[tuple[str, str | None]]
-    docstring: str | None
     end_line_no: int
-    func: FunctionDef
+    func: AstroidFunctionDef
     has_empty_return: bool
     has_return: bool
     has_yield: bool
-    is_abstract: bool | None
-    is_method: bool
-    is_property: bool
-    is_static: bool
-    line_number: int
     name: str
     raises: set[str]
     raises_assert: bool
-    return_type: str | None
-    return_value: ast.Return | None
     start_line_no: int
-    variables: list[ast.Name]
 
 
-def get_function_descriptions(program: ast.AST) -> list[FunctionDescription]:
-    """Extracts the function descriptions from the AST.
+def astroid_to_ast(astroid_in: AstroidFunctionDef) -> ASTFunctionDef:
+    """Some part of the analysis only works with Pythons AST (for now).
+    So it is necessary to convert astroid to AST.
 
     Args:
-        program: The program's AST
+        astroid_in: The astroid function def
 
     Returns:
-        A list of function descriptions extracted from the AST
+        The ast function def
     """
-    result: list[FunctionDescription] = []
-    functions_methods = FunctionAndMethodVisitor()
-    functions_methods.visit(program)
-    for prop in functions_methods.properties:
-        result.append(
-            __build_function_description(function_type=FunctionType.PROPERTY, func=prop)
-        )
-    for method in functions_methods.methods:
-        result.append(
-            __build_function_description(function_type=FunctionType.METHOD, func=method)
-        )
-    for function in functions_methods.functions:
-        result.append(
-            __build_function_description(
-                function_type=FunctionType.FUNCTION, func=function
-            )
-        )
-    return result
+    # TODO(fk) port all of the analysis to astroid so this is no longer necessary.
+    return ast.parse(to_code(astroid_in)).body[0]  # type: ignore
 
 
-def __build_function_description(
-    function_type: FunctionType, func: FunctionDef
-) -> FunctionDescription:
+def get_function_node_from_ast(
+    tree: astroid.Module | astroid.ClassDef | None, name: str
+) -> AstroidFunctionDef | None:
+    """Get the AST Node that represents the function with the given name.
+
+    Args:
+        tree: The AST to search
+        name: The name of the function.
+
+    Returns:
+        The (Async)FunctionDef Node, if any.
+    """
+    if tree is None:
+        return None
+    if name not in tree.locals:
+        return None
+    maybe_function = tree.locals[name][0]
+    if isinstance(maybe_function, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
+        return maybe_function
+    return None
+
+
+def get_class_node_from_ast(
+    tree: astroid.Module | None, name: str
+) -> astroid.ClassDef | None:
+    """Get the AST Node that represents the class with the given name.
+
+    Args:
+        tree: The AST to search
+        name: The name of the class.
+
+    Returns:
+        The ClassDef Node, if any.
+    """
+    if tree is None:
+        return None
+    if name not in tree.locals:
+        return None
+    maybe_class = tree.locals[name][0]
+    if isinstance(maybe_class, astroid.ClassDef):
+        return maybe_class
+    return None
+
+
+def get_function_description(
+    func: AstroidFunctionDef | None,
+) -> FunctionDescription | None:
+    """Get a description of the given function, if any.
+
+    Args:
+        func: The function to describe.
+
+    Returns:
+        A description of the function.
+    """
+    if func is None:
+        return None
+
     function_analysis = FunctionAnalysisVisitor()
-    function_analysis.visit(func)
-
-    arguments = function_analysis.arguments
-    argument_types = function_analysis.types
-    if function_type != FunctionType.FUNCTION and len(arguments) > 0:
-        if not has_decorator(func, "staticmethod"):
-            arguments.pop(0)
-            argument_types.pop(0)
+    function_analysis.visit(astroid_to_ast(func))
 
     has_return = bool(function_analysis.returns)
     has_empty_return = False
-    return_value = None
     if has_return:
         return_value = function_analysis.returns[0]
         has_empty_return = return_value is not None and return_value.value is None
 
     return FunctionDescription(
-        argument_names=arguments,
-        argument_types=argument_types,
-        docstring=get_docstring(func),
-        end_line_no=function_analysis.end_line_no,
+        end_line_no=func.tolineno,  # type: ignore
         func=func,
         has_empty_return=has_empty_return,
         has_return=has_return,
         has_yield=bool(function_analysis.yields),
-        is_abstract=function_analysis.is_abstract,
-        is_method=(function_type == FunctionType.METHOD),
-        is_property=(function_type == FunctionType.PROPERTY),
-        is_static=function_analysis.is_static,
-        line_number=get_line_number_for_function(func),
         name=func.name,
         raises=function_analysis.exceptions,
         raises_assert=bool(function_analysis.asserts),
-        return_type=get_return_type(func),
-        return_value=return_value,
-        start_line_no=function_analysis.start_line_no,
-        variables=function_analysis.variables,
+        start_line_no=func.fromlineno,  # type: ignore
     )
