@@ -721,8 +721,8 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 ) -> None:
     LOGGER.info("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
-    if class_ast is not None:
-        type_info.add_instance_attrs(*list(class_ast.instance_attrs))
+    __find_attributes(class_ast, type_info)
+
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
     raised_exceptions = description.raises if description is not None else set()
@@ -767,6 +767,14 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             test_cluster=test_cluster,
             add_to_test=add_to_test,
         )
+
+
+def __find_attributes(class_ast, type_info):
+    if class_ast is not None:
+        type_info.add_instance_attrs(*list(class_ast.instance_attrs))
+    if issubclass(type_info.raw_type, tuple) and hasattr(type_info.raw_type, "_fields"):
+        # Handle Named Tuple
+        type_info.add_instance_attrs(*type_info.raw_type._fields)
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments

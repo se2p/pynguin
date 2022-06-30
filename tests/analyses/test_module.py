@@ -410,3 +410,19 @@ def test_no_abstract_class():
 def test_inheritance_graph():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
     assert len(cluster.inheritance_graph.get_subclasses(TypeInfo(object))) == 3
+
+
+@pytest.mark.parametrize(
+    "mod,typ,attributes",
+    [
+        ("tests.fixtures.cluster.attributes", "SomeClass", {"foo", "bar"}),
+        ("tests.fixtures.cluster.attributes", "SomeDataClass", {"baz", "box"}),
+        ("tests.fixtures.cluster.attributes", "SomeNamedTuple", {"a", "b", "c"}),
+    ],
+)
+def test_instance_attrs(mod, typ, attributes):
+    cluster = generate_test_cluster(mod)
+    assert (
+        cluster.inheritance_graph.types[f"{mod}.{typ}"].instance_attributes
+        == attributes
+    )
