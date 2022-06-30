@@ -464,6 +464,7 @@ class InheritanceGraph:
 
     def __init__(self):
         self._graph = nx.DiGraph()
+        self._types: dict[str, TypeInfo] = {}
 
     def add_class(self, typ: TypeInfo) -> None:
         """Add the given type to the graph.
@@ -472,6 +473,7 @@ class InheritanceGraph:
             typ: The type to add
         """
         self._graph.add_node(typ)
+        self._types[typ.full_name] = typ
 
     def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add an edge between two types.
@@ -521,6 +523,16 @@ class InheritanceGraph:
         """
         dot = to_pydot(self._graph)
         return dot.to_string()
+
+    @property
+    def types(self) -> dict[str, TypeInfo]:
+        """Provide all dictionary that maps the full name of each klass to it's
+        TypeInfo.
+
+        Returns:
+            A dict of all types known by this graph.
+        """
+        return self._types
 
 
 def convert_type_hint(
