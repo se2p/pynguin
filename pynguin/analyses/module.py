@@ -1039,6 +1039,7 @@ def __analyse_included_classes(
         )
 
         # TODO(fk) apply blacklist on bases?
+        #  -> perform another filtering pass after we analysed everything.
         wrapper = TypeInfo.from_type(current)
         test_cluster.inheritance_graph.add_class(wrapper)
         if hasattr(current, "__bases__"):

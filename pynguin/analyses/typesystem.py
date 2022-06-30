@@ -243,7 +243,7 @@ class Instance(ProperType):
 
     def __eq__(self, other):
         if not isinstance(other, Instance):
-            return NotImplemented
+            return False
         return self.type == other.type and self.args == other.args
 
 
@@ -267,7 +267,7 @@ class TupleType(ProperType):
 
     def __eq__(self, other):
         if not isinstance(other, TupleType):
-            return NotImplemented
+            return False
         return self.args == other.args and self.unknown_size == other.unknown_size
 
 
@@ -290,7 +290,7 @@ class UnionType(ProperType):
 
     def __eq__(self, other):
         if not isinstance(other, UnionType):
-            return NotImplemented
+            return False
         return frozenset(self.items) == frozenset(other.items)
 
 
@@ -544,6 +544,7 @@ def convert_type_hint(
         return NoneType()
     if hint is tuple:
         # Tuple without size. Should use tuple[Any, ...] ?
+        # But ... (ellipsis) is not a type.
         return TupleType([AnyType()], unknown_size=True)
     if typing.get_origin(hint) is tuple:
         return TupleType([convert_type_hint(t) for t in hint.__args__])
