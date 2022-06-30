@@ -963,7 +963,8 @@ def __analyse_included_functions(
 
 
 def analyse_module(
-    parsed_module: _ModuleParseResult, type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+    parsed_module: _ModuleParseResult,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 

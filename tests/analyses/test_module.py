@@ -409,6 +409,4 @@ def test_no_abstract_class():
 
 def test_inheritance_graph():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
-    assert (
-        len(cluster.inheritance_graph.get_subclasses(TypeInfo(object))) == 3
-    )
+    assert len(cluster.inheritance_graph.get_subclasses(TypeInfo(object))) == 3
