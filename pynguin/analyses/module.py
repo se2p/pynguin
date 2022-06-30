@@ -69,7 +69,7 @@ if typing.TYPE_CHECKING:
     from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
-ASTFunctionNodes = typing.Union[astroid.FunctionDef, astroid.AsyncFunctionDef]
+AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
 
 LOGGER = logging.getLogger(__name__)
@@ -649,7 +649,7 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         return self.__delegate.select_concrete_type(typ)
 
 
-def __get_mccabe_complexity(tree: ASTFunctionNodes | None) -> int | None:
+def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
     if tree is None:
         return None
     return mccabe_complexity(astroid_to_ast(tree))
@@ -674,7 +674,7 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 @dataclasses.dataclass
 class _CallableData:
     accessible: GenericAccessibleObject
-    tree: ASTFunctionNodes | None
+    tree: AstroidFunctionDef | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
 
