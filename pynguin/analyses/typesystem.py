@@ -364,20 +364,17 @@ class TypeStringVisitor(TypeVisitor[str]):
     def visit_instance(self, typ: Instance) -> str:
         rep = typ.type.name
         if len(typ.args) > 0:
-            rep += "[" + self._list_str(typ.args) + "]"
+            rep += "[" + self._sequence_str(typ.args) + "]"
         return rep
 
     def visit_tuple_type(self, typ: TupleType) -> str:
-        return f"tuple[{self._list_str(typ.args)}]"
+        return f"tuple[{self._sequence_str(typ.args)}]"
 
     def visit_union_type(self, typ: UnionType) -> str:
-        return f"Union{self._list_str(typ.items)}"
+        return f"Union{self._sequence_str(typ.items)}"
 
-    def _list_str(self, typs: Sequence[ProperType]) -> str:
-        res: list[str] = []
-        for typ in typs:
-            res.append(typ.accept(self))
-        return ", ".join(res)
+    def _sequence_str(self, typs: Sequence[ProperType]) -> str:
+        return ", ".join(t.accept(self) for t in typs)
 
 
 def infer_type_info_with_types(method: Callable) -> InferredSignature:
