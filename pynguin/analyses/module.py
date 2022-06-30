@@ -187,30 +187,27 @@ def _is_blacklisted(element: Any) -> bool:
     return False
 
 
-class _ParseResult(NamedTuple):
+class _ModuleParseResult(NamedTuple):
     """A data wrapper for an imported and parsed module."""
 
     linenos: int
     module_name: str
     module: ModuleType
     syntax_tree: astroid.Module | None
-    type_inference_strategy: TypeInferenceStrategy
 
 
 def parse_module(
     module_name: str,
-    type_inference: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
-) -> _ParseResult:
+) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
     If the source code is not available it is not possible to build an AST.  In this
-    case the respective field of the :py:class:`_ParseResult` will contain the value
-    ``None``.  This is the case, for example, for modules written in native code,
+    case the respective field of the :py:class:`_ModuleParseResult` will contain the
+    value ``None``.  This is the case, for example, for modules written in native code,
     for example, in C.
 
     Args:
         module_name: The fully-qualified name of the module
-        type_inference: The type-inference strategy to use
 
     Returns:
         A tuple of the imported module type and its optional AST
@@ -233,12 +230,8 @@ def parse_module(
         )
         syntax_tree = None
         linenos = -1
-    return _ParseResult(
-        linenos=linenos,
-        module_name=module_name,
-        module=module,
-        syntax_tree=syntax_tree,
-        type_inference_strategy=type_inference,
+    return _ModuleParseResult(
+        linenos=linenos, module_name=module_name, module=module, syntax_tree=syntax_tree
     )
 
 
@@ -368,7 +361,7 @@ class ModuleTestCluster:
         if (non_generic_type := extract_non_generic_class(typ)) is not None:
             generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for subclass in self.__inheritance_graph.get_subclasses(
-                TypeInfo.from_type(non_generic_type)
+                TypeInfo(non_generic_type)
             ):
                 if subclass.raw_type in self.__generators:
                     generators.update(self.__generators[subclass.raw_type])
@@ -391,7 +384,7 @@ class ModuleTestCluster:
         if (non_generic_type := extract_non_generic_class(typ)) is not None:
             modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for super_class in self.__inheritance_graph.get_superclasses(
-                TypeInfo.from_type(non_generic_type)
+                TypeInfo(non_generic_type)
             ):
                 if super_class.raw_type in self.__modifiers:
                     modifiers.update(self.__modifiers[super_class.raw_type])
@@ -720,32 +713,35 @@ def __analyse_function(
 
 def __analyse_class(  # pylint: disable=too-many-arguments
     *,
-    class_name: str,
-    class_: type,
+    type_info: TypeInfo,
     type_inference_strategy: TypeInferenceStrategy,
     module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
-    assert inspect.isclass(class_)
-    LOGGER.debug("Analysing class %s", class_name)
-    class_ast = get_class_node_from_ast(module_tree, class_name)
+    LOGGER.info("Analysing class %s", type_info)
+    class_ast = get_class_node_from_ast(module_tree, type_info.name)
+    if class_ast is not None:
+        type_info.add_instance_attrs(*list(class_ast.instance_attrs))
+    LOGGER.info("Found %s", type_info.instance_attributes)
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
-    if issubclass(class_, enum.Enum):
-        generic: GenericEnum | GenericConstructor = GenericEnum(class_)
+    if issubclass(type_info.raw_type, enum.Enum):
+        generic: GenericEnum | GenericConstructor = GenericEnum(type_info.raw_type)
         if isinstance(generic, GenericEnum) and len(generic.names) == 0:
             LOGGER.debug(
                 "Skipping enum %s from test cluster, it has no fields.",
-                class_name,
+                type_info.full_name,
             )
             return
     else:
         generic = GenericConstructor(
-            class_, infer_type_info(class_, type_inference_strategy), raised_exceptions
+            type_info.raw_type,
+            infer_type_info(type_info.raw_type, type_inference_strategy),
+            raised_exceptions,
         )
 
     method_data = _CallableData(
@@ -754,16 +750,17 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    if not inspect.isabstract(class_):
+    if not type_info.is_abstract:
         # TODO adding an abstract class constructor makes no sense?
         test_cluster.add_generator(generic)
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
-    for method_name, method in inspect.getmembers(class_, inspect.isfunction):
+    for method_name, method in inspect.getmembers(
+        type_info.raw_type, inspect.isfunction
+    ):
         __analyse_method(
-            class_name=class_name,
-            class_=class_,
+            type_info=type_info,
             method_name=method_name,
             method=method,
             type_inference_strategy=type_inference_strategy,
@@ -775,8 +772,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 
 def __analyse_method(  # pylint: disable=too-many-arguments
     *,
-    class_name: str,
-    class_: type,
+    type_info: TypeInfo,
     method_name: str,
     method: (
         FunctionType
@@ -793,7 +789,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         __is_private(method_name)
         or __is_protected(method_name)
         or __is_constructor(method_name)
-        or not __is_method_defined_in_class(class_, method)
+        or not __is_method_defined_in_class(type_info.raw_type, method)
     ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
@@ -804,14 +800,14 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
         return
 
-    LOGGER.debug("Analysing method %s.%s", class_name, method_name)
+    LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
     generic_method = GenericMethod(
-        class_, method, inferred_signature, raised_exceptions, method_name
+        type_info.raw_type, method, inferred_signature, raised_exceptions, method_name
     )
     method_data = _CallableData(
         accessible=generic_method,
@@ -820,17 +816,26 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         cyclomatic_complexity=cyclomatic_complexity,
     )
     test_cluster.add_generator(generic_method)
-    test_cluster.add_modifier(class_, generic_method)
+    test_cluster.add_modifier(type_info.raw_type, generic_method)
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 
+class _ParseResults(dict):
+    def __missing__(self, key):
+        # Parse module on demand
+        res = self[key] = parse_module(key)
+        return res
+
+
 def __resolve_dependencies(
-    root_module: ModuleType,
+    root_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
 ) -> None:
+
+    parse_results: dict[str, _ModuleParseResult] = _ParseResults()
+    parse_results[root_module.module_name] = root_module
 
     # Provide a set of seen modules, classes and functions for fixed-point iteration
     seen_modules: set[ModuleType] = set()
@@ -838,8 +843,8 @@ def __resolve_dependencies(
     seen_functions: set[Any] = set()
 
     # Start with root module, i.e., the module under test.
-    wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    wait_list.put(root_module)
+    wait_list: queue.SimpleQueue[ModuleType] = queue.SimpleQueue()
+    wait_list.put(root_module.module)
 
     while not wait_list.empty():
         current_module = wait_list.get()
@@ -850,16 +855,12 @@ def __resolve_dependencies(
             # Don't include anything from the blacklist
             continue
 
-        tree = None
-        if current_module == root_module:
-            # Currently, the syntax tree is only available for the root module,
-            # i.e., the SUT.
-            tree = syntax_tree
+        tree = parse_results[root_module.module_name].syntax_tree
 
         # Analyze all classes found in the current module
         __analyse_included_classes(
             module=current_module,
-            root_module_name=root_module.__name__,
+            root_module_name=root_module.module_name,
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
             seen_classes=seen_classes,
@@ -869,7 +870,7 @@ def __resolve_dependencies(
         # Analyze all functions found in the current module
         __analyse_included_functions(
             module=current_module,
-            root_module_name=root_module.__name__,
+            root_module_name=root_module.module_name,
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
             seen_functions=seen_functions,
@@ -912,9 +913,10 @@ def __analyse_included_classes(
             continue
         seen_classes.add(current)
 
+        type_info = TypeInfo(current)
+
         __analyse_class(
-            class_name=current.__qualname__,
-            class_=current,
+            type_info=type_info,
             type_inference_strategy=type_inference_strategy,
             module_tree=syntax_tree,
             test_cluster=test_cluster,
@@ -923,14 +925,13 @@ def __analyse_included_classes(
 
         # TODO(fk) apply blacklist on bases?
         #  -> perform another filtering pass after we analysed everything.
-        wrapper = TypeInfo.from_type(current)
-        test_cluster.inheritance_graph.add_class(wrapper)
+        test_cluster.inheritance_graph.add_class(type_info)
         if hasattr(current, "__bases__"):
             for base in current.__bases__:
-                base_wrapper = TypeInfo.from_type(base)
+                base_wrapper = TypeInfo(base)
                 test_cluster.inheritance_graph.add_class(base_wrapper)
                 test_cluster.inheritance_graph.add_edge(
-                    super_class=base_wrapper, sub_class=wrapper
+                    super_class=base_wrapper, sub_class=type_info
                 )
                 work_list.append(base)
 
@@ -961,20 +962,22 @@ def __analyse_included_functions(
         )
 
 
-def analyse_module(parsed_module: _ParseResult) -> ModuleTestCluster:
+def analyse_module(
+    parsed_module: _ModuleParseResult, type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
         parsed_module: The parsed module
+        type_inference_strategy: The type inference strategy to use.
 
     Returns:
         A test cluster for the module
     """
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
     __resolve_dependencies(
-        root_module=parsed_module.module,
-        type_inference_strategy=parsed_module.type_inference_strategy,
-        syntax_tree=parsed_module.syntax_tree,
+        root_module=parsed_module,
+        type_inference_strategy=type_inference_strategy,
         test_cluster=test_cluster,
     )
     return test_cluster
@@ -993,4 +996,4 @@ def generate_test_cluster(
     Returns:
         A new test cluster for the given module
     """
-    return analyse_module(parse_module(module_name, type_inference_strategy))
+    return analyse_module(parse_module(module_name), type_inference_strategy)

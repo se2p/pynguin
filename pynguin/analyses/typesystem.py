@@ -7,7 +7,6 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
-import dataclasses
 import enum
 import inspect
 import types
@@ -418,26 +417,11 @@ def infer_type_info_with_types(method: Callable) -> InferredSignature:
     )
 
 
-@dataclasses.dataclass
 class TypeInfo:
     """A small wrapper around type, i.e., classes.
     Corresponds 1:1 to a class."""
 
-    def __init__(self, raw_type: type, name: str, is_abstract: bool):
-        self.raw_type = raw_type
-        self.name = name
-        self.is_abstract = is_abstract
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, TypeInfo):
-            return False
-        return other.raw_type == self.raw_type
-
-    def __hash__(self):
-        return hash(self.raw_type)
-
-    @staticmethod
-    def from_type(raw_type: type) -> TypeInfo:
+    def __init__(self, raw_type: type):
         """Create type info from the given type.
 
         Naming in python is somehow misleading. 'type' actually only represents classes,
@@ -445,13 +429,33 @@ class TypeInfo:
 
         Args:
             raw_type: the raw (class) type
-
-        Returns:
-            A wrapper for the given raw class.
         """
-        name = f"{raw_type.__module__}.{raw_type.__qualname__}"
-        is_abstract = inspect.isabstract(raw_type)
-        return TypeInfo(raw_type, name, is_abstract=is_abstract)
+        self.raw_type = raw_type
+        self.name = raw_type.__name__
+        self.qualname = raw_type.__qualname__
+        self.full_name = f"{raw_type.__module__}.{raw_type.__qualname__}"
+        self.is_abstract = inspect.isabstract(raw_type)
+        # TODO(fk) store more information on attributes
+        self.instance_attributes: OrderedSet[str] = OrderedSet()
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, TypeInfo):
+            return False
+        return other.full_name == self.full_name
+
+    def __hash__(self):
+        return hash(self.full_name)
+
+    def __str__(self):
+        return self.full_name
+
+    def add_instance_attrs(self, *attrs: str):
+        """Add the given attribute names
+
+        Args:
+            *attrs: The names
+        """
+        self.instance_attributes.update(attrs)
 
 
 class InheritanceGraph:
@@ -550,12 +554,12 @@ def convert_type_hint(
         return TupleType([convert_type_hint(t) for t in hint.__args__])
     if isinstance(hint, types.GenericAlias):
         return Instance(
-            TypeInfo.from_type(hint.__origin__),
+            TypeInfo(hint.__origin__),
             [convert_type_hint(t) for t in hint.__args__],
         )
     if is_union_type(hint) or isinstance(hint, types.UnionType):
         return UnionType([convert_type_hint(t) for t in hint.__args__])
     if isinstance(hint, type):
-        return Instance(TypeInfo.from_type(hint), [])
+        return Instance(TypeInfo(hint), [])
     # Fallback for now. Should raise an error in the future.
     return AnyType()

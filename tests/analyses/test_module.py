@@ -19,7 +19,7 @@ from pynguin.analyses.module import (
     MODULE_BLACKLIST,
     ModuleTestCluster,
     TypeInferenceStrategy,
-    _ParseResult,
+    _ModuleParseResult,
     analyse_module,
     generate_test_cluster,
     parse_module,
@@ -37,22 +37,22 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 @pytest.fixture(scope="module")
-def parsed_module_no_dependencies() -> _ParseResult:
+def parsed_module_no_dependencies() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.no_dependencies")
 
 
 @pytest.fixture(scope="module")
-def parsed_module_complex_dependencies() -> _ParseResult:
+def parsed_module_complex_dependencies() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.complex_dependencies")
 
 
 @pytest.fixture(scope="module")
-def parsed_module_no_any_annotation() -> _ParseResult:
+def parsed_module_no_any_annotation() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.no_any_annotations")
 
 
 @pytest.fixture(scope="module")
-def parsed_module_nested_functions() -> _ParseResult:
+def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
 
 
@@ -410,6 +410,5 @@ def test_no_abstract_class():
 def test_inheritance_graph():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
     assert (
-        len(cluster.inheritance_graph.get_subclasses(TypeInfo.from_type(object)))
-        == 3
+        len(cluster.inheritance_graph.get_subclasses(TypeInfo(object))) == 3
     )

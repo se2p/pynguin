@@ -148,53 +148,53 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
 @pytest.mark.parametrize(
     "hint,expected",
     [
-        (list, Instance(TypeInfo.from_type(list))),
+        (list, Instance(TypeInfo(list))),
         (
             list[int],
-            Instance(TypeInfo.from_type(list), [Instance(TypeInfo.from_type(int))]),
+            Instance(TypeInfo(list), [Instance(TypeInfo(int))]),
         ),
         (
             dict[int, str],
             Instance(
-                TypeInfo.from_type(dict),
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                TypeInfo(dict),
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
             Dict[int, str],
             Instance(
-                TypeInfo.from_type(dict),
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                TypeInfo(dict),
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
             int | str,
             UnionType(
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
             Union[int, str],
             UnionType(
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
             Union[int, type(None)],
             UnionType(
-                [Instance(TypeInfo.from_type(int)), NoneType()],
+                [Instance(TypeInfo(int)), NoneType()],
             ),
         ),
         (
             tuple[int, str],
             TupleType(
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
             Tuple[int, str],
             TupleType(
-                [Instance(TypeInfo.from_type(int)), Instance(TypeInfo.from_type(str))],
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
         (
