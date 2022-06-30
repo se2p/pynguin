@@ -723,7 +723,6 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
     if class_ast is not None:
         type_info.add_instance_attrs(*list(class_ast.instance_attrs))
-    LOGGER.info("Found %s", type_info.instance_attributes)
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
     raised_exceptions = description.raises if description is not None else set()
