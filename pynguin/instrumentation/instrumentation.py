@@ -781,7 +781,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 continue
 
             # register all lines available
-            if instr.lineno != lineno and file_name != '<ast>':
+            if instr.lineno != lineno and file_name != "<ast>":
                 lineno = instr.lineno
                 self._tracer.register_line(code_object_id, file_name, lineno)
 
