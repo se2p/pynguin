@@ -6,6 +6,7 @@
 #
 import ast
 import importlib
+import inspect
 import threading
 
 import pytest
@@ -16,12 +17,16 @@ import pynguin.ga.testsuitechromosome as tsc
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.analyses.types import InferredSignature
 from pynguin.ga.computations import (
     TestCaseStatementCheckedCoverageFunction,
     TestSuiteStatementCheckedCoverageFunction,
 )
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.statement import MethodStatement
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from tests.fixtures.linecoverage.setter_getter import SetterGetter
 
 
 @pytest.fixture
@@ -84,4 +89,64 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
             4 / 8, 0.1, 0.1
+        )
+
+
+@pytest.fixture
+def setter_test():
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    setter_getter_0 = module_0.SetterGetter()
+    int_0 = 3360
+    int_1 = setter_getter_0.getter()
+"""
+        )
+    )
+    tc = transformer.testcases[0]
+
+    # we have to manually add a method call without assign,
+    # since the AST Parser would ignore this statement
+    # without assigning a new variable
+    tc.add_statement(
+        MethodStatement(
+            tc,
+            GenericMethod(
+                SetterGetter,
+                SetterGetter.setter,
+                InferredSignature(
+                    signature=inspect.signature(SetterGetter.setter),
+                    parameters={"new_attribute": int},
+                    return_type=None,
+                ),
+            ),
+            tc.statements[0].ret_val,
+            {"new_value": tc.statements[1].ret_val},
+        )
+    )
+    return tc
+
+
+def test_void_function(setter_test):
+    module_name = "tests.fixtures.linecoverage.setter_getter"
+    test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_test)
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.LINE,
+        config.CoverageMetric.CHECKED,
+    ]
+
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+
+        ff = TestCaseStatementCheckedCoverageFunction(executor)
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
+            6 / 6, 0.1, 0.1
         )

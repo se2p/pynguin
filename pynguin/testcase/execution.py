@@ -32,7 +32,6 @@ from ordered_set import OrderedSet
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.slicer.executedinstruction as ei
-import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
@@ -55,6 +54,7 @@ from pynguin.utils.type_utils import (
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
+    import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -1007,7 +1007,7 @@ class ExecutionTracer:
         """Declare that a predicate exists.
 
         Args:
-            meta: Meta data about the predicates
+            meta: Metadata about the predicates
 
         Returns:
             the id of the predicate, which can be used to identify the predicate
