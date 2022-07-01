@@ -115,6 +115,10 @@ and that there are assertions that check for the correct return value.
   mutation. This allows to generate assertions also for more complex data types, see
   :ref:`assertions <assertions>` for more details.
 
+.. note::
+  As of version 0.24.0, Pynguin uses `black <https://github.com/psf/black>`_ to format
+  the generated tests.
+
 
 A more complex example
 ----------------------

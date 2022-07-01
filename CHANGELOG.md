@@ -9,7 +9,18 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.25.0
+
+## Pynguin 0.24.1
+
+- Update Pynguin's documentation to match fixes from Pynguin 0.24.0
+
 ## Pynguin 0.24.0
+
+- Fix killing mutant reporting
+- Use [black](https://github.com/psf/black) to format the generated test cases.
+
+  Pynguin now requires `black` as a run-time dependency to use its code formatting.
 
 ## Pynguin 0.23.0
 

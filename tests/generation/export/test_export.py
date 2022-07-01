@@ -19,6 +19,7 @@ def test_export_sequence(exportable_test_case, tmp_path):
 import pytest
 import tests.fixtures.accessibles.accessible as module_0
 
+
 def test_case_0():
     int_0 = 5
     some_type_0 = module_0.SomeType(int_0)
@@ -27,13 +28,15 @@ def test_case_0():
     float_1 = module_0.simple_function(float_0)
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)
 
+
 def test_case_1():
     int_0 = 5
     some_type_0 = module_0.SomeType(int_0)
     assert some_type_0 == 5
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)
-    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
+    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)
+"""
     )
 
 
@@ -50,10 +53,12 @@ def test_export_sequence_expected_exception(
 import pytest
 import tests.fixtures.accessibles.accessible as module_0
 
+
 def test_case_0():
     float_0 = 42.23
     with pytest.raises(ValueError):
-        float_1 = module_0.simple_function(float_0)"""
+        float_1 = module_0.simple_function(float_0)
+"""
     )
 
 
@@ -70,8 +75,10 @@ def test_export_sequence_unexpected_exception(
 import pytest
 import tests.fixtures.accessibles.accessible as module_0
 
+
 @pytest.mark.xfail(strict=True)
 def test_case_0():
     float_0 = 42.23
-    float_1 = module_0.simple_function(float_0)"""
+    float_1 = module_0.simple_function(float_0)
+"""
     )
