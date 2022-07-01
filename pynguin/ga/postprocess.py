@@ -98,17 +98,8 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                     self._checked_lines.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
                 else:
-                    to_remove.add(assertion)
-                else:
                     self._checked_lines.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
-                else:
-                    to_remove.add(assertion)
-                else:
-                    self._checked_lines.update(new_checked_lines)
-                    self._remaining_assertions.add(assertion)
-                else:
-                    to_remove.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
