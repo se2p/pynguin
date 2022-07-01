@@ -144,8 +144,7 @@ def test__track_resulting_checked_coverage_exchanges_loader():
         gen._track_resulting_checked_coverage(executor, result, None)
 
         new_metrics = config.configuration.statistics_output.coverage_metrics
-        assert len(new_metrics) == 2
-        assert config.CoverageMetric.LINE in new_metrics
+        assert len(new_metrics) == 1
         assert config.CoverageMetric.CHECKED in new_metrics
 
         assert old_loader is not module.__loader__

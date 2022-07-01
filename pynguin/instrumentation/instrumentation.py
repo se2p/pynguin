@@ -772,12 +772,19 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         file_name = cfg.bytecode_cfg().filename
         new_block_instructions: list[Instr] = []
+        lineno = None
 
         for instr in basic_block:
             # do not instrument instructions that were added by the instrumentation
             if isinstance(instr, ArtificialInstr):
                 new_block_instructions.append(instr)
                 continue
+
+            # register all lines available
+            if instr.lineno != lineno and file_name != '<ast>':
+                lineno = instr.lineno
+                self._tracer.register_line(code_object_id, file_name, lineno)
+
             # Perform the actual instrumentation
             match instr.opcode:
                 case opcode if opcode in (

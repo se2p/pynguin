@@ -340,7 +340,6 @@ def test_testsuite_checked_execution_and_calculation(
 ):
     test_suite = request.getfixturevalue(test_suite_name)
     config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.LINE,
         config.CoverageMetric.CHECKED,
     ]
 

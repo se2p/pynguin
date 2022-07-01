@@ -325,10 +325,8 @@ def _get_coverage_ff_from_algorithm(
 def _add_checked_coverage_instrumentation(
     constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
 ):
-    # LINE is required for CHECKED to discover all available lines
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
-        config.CoverageMetric.LINE,
     ]
 
     module_name = config.configuration.module_name
