@@ -327,12 +327,10 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
                         statement.slicing_criterion,
                     )
                     checked_lines.update(
-                        AssertionSlicer.map_instructions_to_lines(statement_slice)
+                        DynamicSlicer.map_instructions_to_lines(statement_slice)
                     )
 
-        # TODO(SiL) which trace has to be extended here?
         self._executor.tracer.get_trace().checked_lines.update(checked_lines)
-        merged_trace.checked_lines.update(checked_lines)
         return len(existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
@@ -342,7 +340,7 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return compute_checked_coverage_fitness_is_covered(
+        return compute_checked_coverage_statement_fitness_is_covered(
             merged_trace,
             tracer.get_known_data(),
         )
@@ -900,7 +898,6 @@ def compute_checked_coverage_statement_fitness_is_covered(
     Returns:
         True, if all lines were checked by a return, false otherwise
     """
-    # TODO(SiL) only works when line coverage is instrumented as well
     return len(known_data.existing_lines) == len(trace.checked_lines)
 
 
