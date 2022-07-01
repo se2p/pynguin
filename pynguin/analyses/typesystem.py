@@ -479,6 +479,8 @@ class InheritanceGraph:
             super_class: superclass
             sub_class: subclass
         """
+        assert super_class in self._types
+        assert sub_class in self._types
         self._graph.add_edge(super_class, sub_class)
 
     def get_subclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
