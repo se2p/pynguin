@@ -443,7 +443,7 @@ class AssignmentStatement(Statement):
         return None
 
     def mutate(self) -> bool:
-        raise Exception("Implement me")
+        raise NotImplementedError("Implement me")
 
     def get_variable_references(self) -> set[vr.VariableReference]:
         refs = {self._rhs}
