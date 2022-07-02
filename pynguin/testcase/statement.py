@@ -409,19 +409,19 @@ class AssignmentStatement(Statement):
 
     @property
     def lhs(self) -> vr.Reference:
-        """The reference that is used on the left hand side.
+        """The reference that is used on the left-hand side.
 
         Returns:
-            The reference that is used on the left hand side
+            The reference that is used on the left-hand side
         """
         return self._lhs
 
     @property
     def rhs(self) -> vr.VariableReference:
-        """The variable that is used as the right hand side.
+        """The variable that is used as the right-hand side.
 
         Returns:
-            The variable used as the right hand side
+            The variable used as the right-hand side
         """
         return self._rhs
 
