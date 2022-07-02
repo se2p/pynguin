@@ -42,6 +42,9 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class ExecutionContext:
     """Contains information required in the context of an execution.
     e.g. the used variables, modules and
@@ -520,8 +523,6 @@ class KnownData:
 class ExecutionTracer:
     """Tracks branch distances and covered statements during execution.
     The results are stored in an execution trace."""
-
-    _logger = logging.getLogger(__name__)
 
     # Contains static information about how branch distances
     # for certain op codes should be computed.
