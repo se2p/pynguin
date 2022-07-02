@@ -19,13 +19,15 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Sized, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Sized, TypeVar, cast
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
 from pynguin.utils.type_utils import (
@@ -37,7 +39,6 @@ from pynguin.utils.type_utils import (
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
-    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
 
@@ -215,6 +216,15 @@ class ReturnTypeObserver(ExecutionObserver):
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         result.store_return_types(dict(self._return_type_trace))
+        for idx, statement in enumerate(test_case.statements):
+            if (
+                observed_ret_type := self._return_type_trace.get(idx)
+            ) is not None and isinstance(statement, stmt.ParametrizedStatement):
+                # TODO(fk) need to update generators in cluster as well.
+                cast(
+                    gao.GenericCallableAccessibleObject,
+                    statement.accessible_object(),
+                ).inferred_signature.update_return_type(observed_ret_type)
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
