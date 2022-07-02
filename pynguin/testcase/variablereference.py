@@ -200,9 +200,9 @@ class VariableReference(Reference):
     def structural_eq(
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
-        if not isinstance(other, VariableReference):
+        if not isinstance(other, self.__class__):
             return False
-        return self._type == other._type and memo[self] == other
+        return memo[self] == other
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         # Use position where variable is defined as hash value.

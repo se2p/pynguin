@@ -120,12 +120,6 @@ def test_var_eq_same(test_case_mock):
     assert ref.structural_eq(ref, {ref: ref})
 
 
-def test_var_eq_different_var_type(test_case_mock):
-    ref1 = vr.VariableReference(test_case_mock, int)
-    ref2 = vr.VariableReference(test_case_mock, float)
-    assert not ref1.structural_eq(ref2, {ref1: ref2})
-
-
 def test_var_eq_other_type(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
     assert not ref.structural_eq(test_case_mock, {})
