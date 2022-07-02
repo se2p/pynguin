@@ -1256,7 +1256,7 @@ class TestCaseExecutor:
             result.execution_trace = ExecutionTrace()
         else:
             result.execution_trace = self._tracer.get_trace()
-        for observer in self._observers:
+        for observer in reversed(self._observers):
             observer.after_test_case_execution(test_case, result)
 
     def _before_statement_execution(
@@ -1313,7 +1313,7 @@ class TestCaseExecutor:
 
         self._tracer.disable()
         try:
-            for observer in self._observers:
+            for observer in reversed(self._observers):
                 observer.after_statement_execution(statement, exec_ctx, exception)
         finally:
             self._tracer.enable()
