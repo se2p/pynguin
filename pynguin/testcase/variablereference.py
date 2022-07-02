@@ -48,7 +48,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if the variable is a primitive
         """
-        return type_utils.is_primitive_type(self._type)
+        return type_utils.is_primitive_type(self.type)
 
     def is_none_type(self) -> bool:
         """Is this variable reference of type none, i.e. it does not return anything.
@@ -56,7 +56,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if this variable is a none type
         """
-        return type_utils.is_none_type(self._type)
+        return type_utils.is_none_type(self.type)
 
     def is_type_unknown(self) -> bool:
         """Is the type of this variable unknown?
@@ -64,7 +64,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if this variable has unknown type
         """
-        return is_type_unknown(self._type)
+        return is_type_unknown(self.type)
 
     @abstractmethod
     def get_names(
@@ -233,6 +233,51 @@ class VariableReference(Reference):
     ) -> None:
         # We can't replace ourselves.
         return
+
+
+class CallBasedVariableReference(VariableReference):
+    """Variable reference which is based on a call.
+
+    This allows us to update the type of this variable when we have gathered information
+    on the return type of the call on which it is based.
+
+    Consider the following example:
+
+    SUT:
+        def foo() -> Any
+            ...
+
+    Test case:
+        var_0: Any = foo()
+
+    The type of var_0 initially is 'Any'. If we are able to successfully call foo()
+    we can update its return type and thus the type of var_0.
+
+    """
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        generic_callable: gao.GenericCallableAccessibleObject,
+    ):
+        super().__init__(test_case, None)
+        self._callable = generic_callable
+
+    @property
+    def type(self) -> type | None:
+        # Dynamically look up type instead of using fixed type given at
+        # construction time.
+        return self._callable.generated_type()
+
+    def structural_eq(
+        self, other: Any, memo: dict[VariableReference, VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return super().structural_eq(other, memo) and self._callable == other._callable
+
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        return hash((super().structural_hash(memo), self._callable))
 
 
 class FieldReference(Reference):

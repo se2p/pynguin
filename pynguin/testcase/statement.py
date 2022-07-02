@@ -947,7 +947,7 @@ class ParametrizedStatement(
         """
         super().__init__(
             test_case,
-            vr.VariableReference(test_case, generic_callable.generated_type()),
+            vr.CallBasedVariableReference(test_case, generic_callable),
         )
         self._generic_callable = generic_callable
         self._args = args if args else {}
