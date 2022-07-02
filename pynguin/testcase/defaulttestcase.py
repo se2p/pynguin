@@ -183,4 +183,9 @@ class DefaultTestCase(tc.TestCase):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum(17 * s.structural_hash() for s in self._statements)
+        memo: dict[vr.VariableReference, int] = {
+            statement.ret_val: idx
+            for idx, statement in enumerate(self._statements)
+            if statement.ret_val is not None
+        }
+        return hash(tuple(s.structural_hash(memo) for s in self._statements))

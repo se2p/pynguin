@@ -113,8 +113,11 @@ class Reference(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         """Required for structural_eq to work.
+
+        Args:
+            memo: A dictionary that maps variables to their position in this test case.
 
         Returns:
             A hash value.
@@ -201,8 +204,9 @@ class VariableReference(Reference):
             return False
         return self._type == other._type and memo[self] == other
 
-    def structural_hash(self) -> int:
-        return 31 * 17 + hash(self._type)
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        # Use position where variable is defined as hash value.
+        return memo[self]
 
     def get_statement_position(self) -> int:
         """Provides the position of the statement which defines this variable reference
@@ -278,8 +282,8 @@ class FieldReference(Reference):
             other._source, memo
         )
 
-    def structural_hash(self) -> int:
-        return hash((self._field, self._source.structural_hash()))
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        return hash((self._field, self._source.structural_hash(memo)))
 
     def __eq__(self, other):
         if not isinstance(other, FieldReference):
@@ -341,14 +345,14 @@ class StaticFieldReference(Reference):
             return False
         return self._field == other._field
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         return hash(self._field)
 
     def __eq__(self, other):
         return self.structural_eq(other, {})
 
     def __hash__(self):
-        return self.structural_hash()
+        return self.structural_hash({})
 
     def get_variable_reference(self) -> VariableReference | None:
         return None
@@ -396,14 +400,14 @@ class StaticModuleFieldReference(Reference):
             return False
         return self._field == other._field
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         return hash(self._field)
 
     def __eq__(self, other):
         return self.structural_eq(other, {})
 
     def __hash__(self):
-        return self.structural_hash()
+        return self.structural_hash({})
 
     def get_variable_reference(self) -> VariableReference | None:
         return None

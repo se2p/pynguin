@@ -212,16 +212,16 @@ def test_none_statement_equals_clone():
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(stmt.IntPrimitiveStatement, 42),
-        pytest.param(stmt.FloatPrimitiveStatement, 42.23),
-        pytest.param(stmt.StringPrimitiveStatement, "foo"),
-        pytest.param(stmt.BytesPrimitiveStatement, b"foo"),
-        pytest.param(stmt.BooleanPrimitiveStatement, True),
+        (stmt.IntPrimitiveStatement, 42),
+        (stmt.FloatPrimitiveStatement, 42.23),
+        (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.BytesPrimitiveStatement, b"foo"),
+        (stmt.BooleanPrimitiveStatement, True),
     ],
 )
 def test_primitive_statement_hash(statement_type, value):
     statement = statement_type(MagicMock(tc.TestCase), value)
-    assert statement.structural_hash() != 0
+    assert statement.structural_hash({statement.ret_val: 0}) != 0
 
 
 def test_int_primitive_statement_randomize_value(test_case_mock):
@@ -540,7 +540,9 @@ def test_enum_statement_hash(test_case_mock):
     enum_ = MagicMock(names=["FOO"])
     statement = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
     statement2 = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
-    assert statement.structural_hash() == statement2.structural_hash()
+    assert statement.structural_hash(
+        {statement.ret_val: 0}
+    ) == statement2.structural_hash({statement2.ret_val: 0})
 
 
 def test_enum_statement_accept(test_case_mock):

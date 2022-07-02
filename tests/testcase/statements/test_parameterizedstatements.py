@@ -49,7 +49,7 @@ def test_constructor_statement_accept(
 
 def test_constructor_statement_hash(test_case_mock, constructor_mock):
     statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
-    assert statement.structural_hash() != 0
+    assert statement.structural_hash({statement.ret_val: 0}) != 0
 
 
 def test_constructor_statement_eq_same(test_case_mock, constructor_mock):
@@ -85,7 +85,9 @@ def test_function_different_callables_different_hashes(test_case_mock, function_
     assert not other_statement.structural_eq(
         function_statement, {other_statement.ret_val: other_statement.ret_val}
     )
-    assert function_statement.structural_hash() != other_statement.structural_hash()
+    assert function_statement.structural_hash(
+        {function_statement.ret_val: 0}
+    ) != other_statement.structural_hash({other_statement.ret_val: 0})
 
 
 def test_constructor_statement_eq_other_type(
@@ -376,7 +378,9 @@ def test_method_statement_eq(test_case_mock, method_mock):
     assert statement.structural_eq(
         statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
     )
-    assert statement.structural_hash() == statement2.structural_hash()
+    assert statement.structural_hash(
+        {var1: 0, statement.ret_val: 1}
+    ) == statement2.structural_hash({var1: 0, statement2.ret_val: 1})
 
 
 def test_method_statement_accept(test_case_mock, variable_reference_mock, method_mock):
