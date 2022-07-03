@@ -76,8 +76,9 @@ class InferredSignature:
         """
         # What to do with existing type?
         # Would need to do return_type = join(new, old)
-        self.return_type = return_type
-        self.__update_signature_return_type(return_type)
+        if return_type != self.return_type:
+            self.return_type = return_type
+            self.__update_signature_return_type(return_type)
 
     def __update_signature_parameter(
         self, parameter_name: str, parameter_type: type | None
