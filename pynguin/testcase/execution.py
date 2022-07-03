@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Sized, TypeVar
+from typing import TYPE_CHECKING, Any, Sized, TypeVar
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -594,53 +594,6 @@ class ExecutionTracer:
             self.enabled = True
             self.trace = ExecutionTrace()
 
-    # Contains static information about how branch distances
-    # for certain op codes should be computed.
-    # The returned tuple for each computation is (true distance, false distance).
-    # pylint: disable=arguments-out-of-order
-    _DISTANCE_COMPUTATIONS: dict[Compare, Callable[[Any, Any], tuple[float, float]]] = {
-        Compare.EQ: lambda val1, val2: (
-            _eq(val1, val2),
-            _neq(val1, val2),
-        ),
-        Compare.NE: lambda val1, val2: (
-            _neq(val1, val2),
-            _eq(val1, val2),
-        ),
-        Compare.LT: lambda val1, val2: (
-            _lt(val1, val2),
-            _le(val2, val1),
-        ),
-        Compare.LE: lambda val1, val2: (
-            _le(val1, val2),
-            _lt(val2, val1),
-        ),
-        Compare.GT: lambda val1, val2: (
-            _lt(val2, val1),
-            _le(val1, val2),
-        ),
-        Compare.GE: lambda val1, val2: (
-            _le(val2, val1),
-            _lt(val1, val2),
-        ),
-        Compare.IN: lambda val1, val2: (
-            _in(val1, val2),
-            _nin(val1, val2),
-        ),
-        Compare.NOT_IN: lambda val1, val2: (
-            _nin(val1, val2),
-            _in(val1, val2),
-        ),
-        Compare.IS: lambda val1, val2: (
-            _is(val1, val2),
-            _isn(val1, val2),
-        ),
-        Compare.IS_NOT: lambda val1, val2: (
-            _isn(val1, val2),
-            _is(val1, val2),
-        ),
-    }
-
     def __init__(self) -> None:
         self._known_data = KnownData()
         # Contains the trace information that is generated when a module is imported
@@ -806,7 +759,8 @@ class ExecutionTracer:
             cmp_op: the compare operation
 
         Raises:
-            RuntimeError: raised when called from another thread
+            RuntimeError: raised when called from another thread.
+            AssertionError: when encountering an unknown compare op.
         """
         if threading.current_thread().ident != self._current_thread_identifier:
             raise RuntimeError(
@@ -821,10 +775,57 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
-            distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
-                cmp_op
-            ](value1, value2)
-
+            match cmp_op:
+                case Compare.EQ:
+                    distance_true, distance_false = _eq(value1, value2), _neq(
+                        value1, value2
+                    )
+                case Compare.NE:
+                    distance_true, distance_false = _neq(value1, value2), _eq(
+                        value1, value2
+                    )
+                case Compare.LT:
+                    distance_true, distance_false = (
+                        _lt(value1, value2),
+                        _le(value2, value1),
+                    )
+                case Compare.LE:
+                    distance_true, distance_false = (
+                        _le(value1, value2),
+                        _lt(value2, value1),
+                    )
+                case Compare.GT:
+                    distance_true, distance_false = (
+                        _lt(value2, value1),
+                        _le(value1, value2),
+                    )
+                case Compare.GE:
+                    distance_true, distance_false = (
+                        _le(value2, value1),
+                        _lt(value1, value2),
+                    )
+                case Compare.IN:
+                    distance_true, distance_false = (
+                        _in(value1, value2),
+                        _nin(value1, value2),
+                    )
+                case Compare.NOT_IN:
+                    distance_true, distance_false = (
+                        _nin(value1, value2),
+                        _in(value1, value2),
+                    )
+                case Compare.IS:
+                    distance_true, distance_false = (
+                        _is(value1, value2),
+                        _isn(value1, value2),
+                    )
+                case Compare.IS_NOT:
+                    distance_true, distance_false = (
+                        _isn(value1, value2),
+                        _is(value1, value2),
+                    )
+                case _:
+                    raise AssertionError("Unknown compare op")
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
             self.enable()
