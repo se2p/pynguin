@@ -157,7 +157,15 @@ class ExecutionObserver:
     is initialized per thread, so there is no need to clear any pre-existing data
     (because there is none), as every thread gets its own instance.
 
-    For more details, look at some implementations, e.g., AssertionTraceObserver
+    Methods that are called from within the thread are not allowed to interact with the
+    'outside'. The only thing that should leave an observer are results when they are
+    written to the execution result in
+    ExecutionObserver::after_test_case_execution_inside_thread.
+
+    You may interact with the 'outside' in
+    ExecutionObserver::after_test_case_execution_outside_thread.
+
+    For more details, look at some implementations, e.g., AssertionTraceObserver.
     """
 
     @abstractmethod
