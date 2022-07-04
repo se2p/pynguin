@@ -6,6 +6,8 @@
 #
 """Provides an abstract observer that can be used to generate assertions."""
 import copy
+import logging
+import threading
 from types import ModuleType
 from typing import Sized, cast
 
@@ -24,19 +26,23 @@ from pynguin.utils.type_utils import (
     is_primitive_type,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class AssertionTraceObserver(ex.ExecutionObserver):
     """Observer that creates assertions.
     Observes the execution of a test case and generates assertions from it."""
 
-    def __init__(self) -> None:
-        self._trace: at.AssertionTrace = at.AssertionTrace()
-        self._watch_list: list[vr.VariableReference] = []
+    class AssertionLocalState(threading.local):  # pylint:disable=too-few-public-methods
+        """Stores thread-local assertion data."""
 
-    def clear(self) -> None:
-        """Clear the existing gathered trace."""
-        self._trace.clear()
-        self._watch_list.clear()
+        def __init__(self):
+            super().__init__()
+            self.trace: at.AssertionTrace = at.AssertionTrace()
+            self.watch_list: list[vr.VariableReference] = []
+
+    def __init__(self) -> None:
+        self._assertion_local_state = AssertionTraceObserver.AssertionLocalState()
 
     def get_trace(self) -> at.AssertionTrace:
         """Get a copy of the gathered trace.
@@ -45,10 +51,10 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             A copy of the gathered trace.
 
         """
-        return self._trace.clone()
+        return self._assertion_local_state.trace.clone()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        self.clear()
+        pass
 
     def before_statement_execution(
         self, statement: st.Statement, exec_ctx: ExecutionContext
@@ -63,7 +69,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         exception: Exception | None = None,
     ) -> None:
         if exception is not None:
-            self._trace.add_entry(
+            self._assertion_local_state.trace.add_entry(
                 statement.get_position(),
                 ass.ExceptionAssertion(
                     module=type(exception).__module__,
@@ -75,10 +81,15 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             stmt = cast(st.VariableCreatingStatement, statement)
             self._handle(stmt, exec_ctx)
 
-    def after_test_case_execution(
+    def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         result.add_assertion_trace(type(self), self.get_trace())
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    ):
+        pass
 
     def _handle(
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
@@ -91,16 +102,18 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         """
         position = statement.get_position()
 
+        trace = self._assertion_local_state.trace
+
         if not statement.ret_val.is_none_type():
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
-                self._check_reference(exec_ctx, statement.ret_val, position)
+                self._check_reference(exec_ctx, statement.ret_val, position, trace)
             else:
                 # Everything else is continually checked.
-                self._watch_list.append(statement.ret_val)
+                self._assertion_local_state.watch_list.append(statement.ret_val)
 
-        for var in self._watch_list:
-            self._check_reference(exec_ctx, var, position)
+        for var in self._assertion_local_state.watch_list:
+            self._check_reference(exec_ctx, var, position, trace)
 
         # Check all used modules.
         for module_name, alias in exec_ctx.module_aliases:
@@ -116,11 +129,13 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                         gao.GenericStaticModuleField(module_name, field, type(value))
                     ),
                     position,
+                    trace,
                 )
 
         # Check fields of classes whose constructors were used.
         for seen_type in [
-            type(exec_ctx.get_reference_value(ref)) for ref in self._watch_list
+            type(exec_ctx.get_reference_value(ref))
+            for ref in self._assertion_local_state.watch_list
         ]:
             if (
                 is_primitive_type(seen_type)
@@ -141,6 +156,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                         gao.GenericStaticField(seen_type, field, type(value))
                     ),
                     position,
+                    trace,
                 )
 
     def _check_reference(  # pylint: disable=too-many-arguments
@@ -148,6 +164,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         exec_ctx: ex.ExecutionContext,
         ref: vr.Reference,
         position: int,
+        trace: at.AssertionTrace,
         depth: int = 0,
         max_depth: int = 1,
     ) -> None:
@@ -159,24 +176,21 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             exec_ctx: The execution context.
             ref: The reference that should be checked.
             position: The position of the test case after which the assertions are made.
+            trace: The assertion trace where the observed assertions are stored.
             depth: The current recursion depth
             max_depth: The maximum recursion depth.
         """
         value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
-            self._trace.add_entry(position, ass.FloatAssertion(ref, value))
+            trace.add_entry(position, ass.FloatAssertion(ref, value))
             return
         if is_assertable(value):
-            self._trace.add_entry(
-                position, ass.ObjectAssertion(ref, copy.deepcopy(value))
-            )
+            trace.add_entry(position, ass.ObjectAssertion(ref, copy.deepcopy(value)))
             return
         if isinstance(value, Sized):
             try:
                 length = len(value)
-                self._trace.add_entry(
-                    position, ass.CollectionLengthAssertion(ref, length)
-                )
+                trace.add_entry(position, ass.CollectionLengthAssertion(ref, length))
                 return
             except Exception:  # pylint: disable=broad-except
                 # Could not get len, so continue down.
@@ -194,12 +208,13 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             ref, gao.GenericField(type(value), field, type(field_value))
                         ),
                         position,
+                        trace,
                         depth + 1,
                     )
             if not asserted_something:
                 # If we can assert nothing else, we can at least assert that it
                 # is not None
-                self._trace.add_entry(position, ass.NotNoneAssertion(ref))
+                trace.add_entry(position, ass.NotNoneAssertion(ref))
 
     @staticmethod
     def _should_ignore(field, attr_value):
