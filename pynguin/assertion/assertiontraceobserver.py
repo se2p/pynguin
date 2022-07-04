@@ -165,15 +165,23 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
             self._trace.add_entry(position, ass.FloatAssertion(ref, value))
-        elif is_assertable(value):
+            return
+        if is_assertable(value):
             self._trace.add_entry(
                 position, ass.ObjectAssertion(ref, copy.deepcopy(value))
             )
-        elif isinstance(value, Sized):
-            self._trace.add_entry(
-                position, ass.CollectionLengthAssertion(ref, len(value))
-            )
-        elif depth < max_depth and hasattr(value, "__dict__"):
+            return
+        if isinstance(value, Sized):
+            try:
+                length = len(value)
+                self._trace.add_entry(
+                    position, ass.CollectionLengthAssertion(ref, length)
+                )
+                return
+            except Exception:  # pylint: disable=broad-except
+                # Could not get len, so continue down.
+                pass
+        if depth < max_depth and hasattr(value, "__dict__"):
             asserted_something = False
             # Reference is a complex object.
             # Try to assert something on its fields.
