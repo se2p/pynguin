@@ -21,13 +21,13 @@ def test_current_value(stopping_condition):
 
 
 def test_current_value_reset(stopping_condition):
-    stopping_condition.after_statement_execution(None, None)
+    stopping_condition.before_statement_execution(None, None)
     stopping_condition.reset()
     assert stopping_condition.current_value() == 0
 
 
 def test_before_search_start(stopping_condition):
-    stopping_condition.after_statement_execution(None, None)
+    stopping_condition.before_statement_execution(None, None)
     stopping_condition.before_search_start(None)
     assert stopping_condition.current_value() == 0
 
@@ -43,7 +43,7 @@ def test_is_not_fulfilled(stopping_condition):
 
 def test_is_fulfilled(stopping_condition):
     stopping_condition.set_limit(3)
-    stopping_condition.after_statement_execution(None, None)
-    stopping_condition.after_statement_execution(None, None)
-    stopping_condition.after_statement_execution(None, None)
+    stopping_condition.before_statement_execution(None, None)
+    stopping_condition.before_statement_execution(None, None)
+    stopping_condition.before_statement_execution(None, None)
     assert stopping_condition.is_fulfilled()

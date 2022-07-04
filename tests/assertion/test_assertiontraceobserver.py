@@ -27,16 +27,9 @@ class FooObserver(ato.AssertionTraceObserver):
         pass  # pragma: no cover
 
 
-def test_clear():
-    observer = FooObserver()
-    with mock.patch.object(observer, "_trace") as trace_mock:
-        observer.clear()
-        trace_mock.clear.assert_called_once()
-
-
 def test_clone():
     observer = FooObserver()
-    with mock.patch.object(observer, "_trace") as trace_mock:
+    with mock.patch.object(observer._assertion_local_state, "trace") as trace_mock:
         clone = object()
         trace_mock.clone.return_value = clone
         cloned = observer.get_trace()
@@ -44,18 +37,11 @@ def test_clone():
         assert cloned == clone
 
 
-def test_before_test_case_execution():
-    observer = FooObserver()
-    with mock.patch.object(observer, "clear") as clear_mock:
-        observer.before_test_case_execution(MagicMock())
-        clear_mock.assert_called_once()
-
-
 def test_after_test_case_execution():
     observer = FooObserver()
     result = MagicMock()
-    with mock.patch.object(observer, "_trace") as trace_mock:
+    with mock.patch.object(observer._assertion_local_state, "trace") as trace_mock:
         clone = object()
         trace_mock.clone.return_value = clone
-        observer.after_test_case_execution(MagicMock(), result)
+        observer.after_test_case_execution_inside_thread(MagicMock(), result)
         result.add_assertion_trace.assert_called_with(type(observer), clone)
