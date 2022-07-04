@@ -321,7 +321,7 @@ def _run() -> ReturnCode:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
     # Observe return types during execution.
-    executor.add_observer(ReturnTypeObserver())
+    executor.add_observer(ReturnTypeObserver(test_cluster))
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider

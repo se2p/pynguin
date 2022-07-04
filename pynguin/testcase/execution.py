@@ -19,7 +19,8 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Sized, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Sized, TypeVar
+
 from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses import module
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -240,7 +242,8 @@ class ExecutionObserver:
 
 
 class ReturnTypeObserver(ExecutionObserver):
-    """Observes the runtime types seen during execution."""
+    """Observes the runtime types seen during execution.
+    Updates the return types of the called function with the observed types"""
 
     class ReturnTypeLocalState(
         threading.local
@@ -251,8 +254,11 @@ class ReturnTypeObserver(ExecutionObserver):
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
 
-    def __init__(self):
+    def __init__(self, test_cluster: module.TestCluster):
         self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
+
+        # Non local state
+        self._test_cluster = test_cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
@@ -265,15 +271,13 @@ class ReturnTypeObserver(ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        for idx, statement in enumerate(test_case.statements):
-            if (
-                observed_ret_type := result.return_type_trace.get(idx)
-            ) is not None and isinstance(statement, stmt.ParametrizedStatement):
-                # TODO(fk) need to update generators in cluster as well.
-                cast(
-                    gao.GenericCallableAccessibleObject,
-                    statement.accessible_object(),
-                ).inferred_signature.update_return_type(observed_ret_type)
+        for idx, typ in result.return_type_trace.items():
+            if typ is not None:
+                statement = test_case.get_statement(idx)
+                if isinstance(statement, stmt.ParametrizedStatement):
+                    call_acc = statement.accessible_object()
+                    assert isinstance(call_acc, gao.GenericCallableAccessibleObject)
+                    self._test_cluster.update_return_type(call_acc, typ)
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
