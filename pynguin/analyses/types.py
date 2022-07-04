@@ -74,11 +74,8 @@ class InferredSignature:
         Args:
             return_type: The new return type
         """
-        # What to do with existing type?
-        # Would need to do return_type = join(new, old)
-        if return_type != self.return_type:
-            self.return_type = return_type
-            self.__update_signature_return_type(return_type)
+        self.return_type = return_type
+        self.__update_signature_return_type(return_type)
 
     def __update_signature_parameter(
         self, parameter_name: str, parameter_type: type | None
