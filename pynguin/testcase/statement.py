@@ -1262,7 +1262,8 @@ class MethodStatement(ParametrizedStatement):
         if randomness.next_float() < p_per_param:
             callee = self.callee
             objects = self.test_case.get_objects(callee.type, self.get_position())
-            objects.remove(callee)
+            if callee in objects:
+                objects.remove(callee)
 
             if len(objects) > 0:
                 self.callee = randomness.choice(objects)
