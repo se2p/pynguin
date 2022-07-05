@@ -14,6 +14,7 @@ from pynguin.testcase.execution import ExecutionTracer
 
 def test_hook():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
         module = importlib.import_module("tests.fixtures.instrumentation.mixed")
         importlib.reload(module)

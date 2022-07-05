@@ -293,6 +293,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
 )
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
     function_callable = getattr(comparison_module, "_" + op.name.lower())
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
@@ -306,6 +307,7 @@ def test_comparison(comparison_module, op):
 
 def test_exception():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
 
     def func():
         try:
@@ -323,6 +325,7 @@ def test_exception():
 
 def test_exception_no_match():
     tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
 
     def func():
         try:
@@ -541,7 +544,10 @@ def test_expected_covered_lines(func, arg, expected_lines, artificial_none_modul
 def dynamic_instr():
     constant_pool = ConstantPool()
     constant_provider = DynamicConstantProvider(
-        pool=constant_pool, delegate=EmptyConstantProvider(), probability=1.0
+        pool=constant_pool,
+        delegate=EmptyConstantProvider(),
+        probability=1.0,
+        max_constant_length=50,
     )
     adapter = DynamicSeedingInstrumentation(constant_provider)
     transformer = InstrumentationTransformer(ExecutionTracer(), [adapter])

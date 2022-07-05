@@ -9,7 +9,76 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+- Pynguin 0.26.0
+
+## Pynguin 0.25.0
+
+- Fix further issues with test-case isolation during execution.
+- Fix some bugs regarding type information.
+- Use [astroid](https://github.com/PyCQA/astroid) instead of Python's
+  [ast](https://docs.python.org/3/library/ast.html) module for our module analysis due
+  to its enhanced features.
+
+## Pynguin 0.24.1
+
+- Update Pynguin's documentation to match fixes from Pynguin 0.24.0
+
+## Pynguin 0.24.0
+
+- Fix killing mutant reporting
+- Use [black](https://github.com/psf/black) to format the generated test cases.
+
+  Pynguin now requires `black` as a run-time dependency to use its code formatting.
+
+## Pynguin 0.23.0
+
+- Provide a naive inheritance graph to improve input generation.
+- Improve killing of long-running test-case executions
+- Add computation of mutation scores for `MUTATION_ANALYSIS` assertion generation.
+
+  The output variables `NumberOfCreatedMutants`, `NumberOfKilledMutants`, 
+  `NumberOfTimedOutMutants`, and `MutationScore` allow to export those values.
+- Do not enable `typing.TYPE_CHECKING` for SUT analysis as this may cause circular 
+  imports.
+- Improve the black list of modules that shall not be incorporated into the test 
+  cluster.
+- Annotate failing tests with `@pytest.mark.xfail(strict=True)`.
+- Improve log output of mutation-based assertion generation.
+- Add instrumentation to mutated modules to easier kill them.
+
+  This change is relevant only to the `MUTATION_ANALYSIS` assertion-generation strategy.
+- Write errors in execution threads to the log instead of STDERR to avoid cluttering 
+  log output.
+- Add limits for amount and size of constants in the constant pool.
+
+  The configuration options `max_dynamic_length` and `max_dynamic_pool_size` allow 
+  to set sizes for the maximum length of strings/bytes that shall be stored in the 
+  dynamic constant pool and the maximum numbers of constants of a type, respectively.
+  This prevents the constant pool from growing unreasonably large.
+- Improve handling of type annotations.
+- Fix computation of cyclomatic complexity.
+
+  Computing cyclomatic complexity does not work for functions that are not present 
+  in the AST, e.g., default constructors.  We now omit those from the computation of 
+  the cyclomatic-complexity output variables.
+
 ## Pynguin 0.22.0
+
+- Fix selection of type-inference strategy.
+- Fix a bug in the type inference regarding cases where not type information is present.
+- Add a PyLint checker for calls to `print()`.
+- Extend the blacklist of modules that shall not be analysed.
+- Raise `RuntimeError` from tracer when called from another thread.
+- Provide better exception messages for critical failures.
+- Apply a further limit to the execution time of a single generated test case to at 
+  most 10 seconds.
+- Exclude empty enum classes from test cluster to fix test generation.
+
+  Parsing included modules raised an issue when the `enum` module is used: the test 
+  cluster then had a reference to the `enum.Enum` class, which obviously does not 
+  contain any fields.  In the following, generating tests failed, as soon as this 
+  class was selected to fulfil parameter values because there was no field to select 
+  from, e.g., `MyEnum.MY_FIELD`.  We now exclude empty enums from the test cluster.
 
 ## Pynguin 0.21.0
 

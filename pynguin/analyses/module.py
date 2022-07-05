@@ -7,16 +7,15 @@
 """Provides analyses for the subject module, based on the module and its AST."""
 from __future__ import annotations
 
-import ast
 import copy
 import dataclasses
 import enum
 import importlib
 import inspect
+import itertools
 import json
 import logging
 import queue
-import sys
 import typing
 from collections import namedtuple
 from statistics import mean, median
@@ -29,6 +28,7 @@ from types import (
 )
 from typing import Any, Callable, NamedTuple, get_args
 
+import astroid
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
@@ -36,11 +36,17 @@ import pynguin.configuration as config
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
-    get_all_classes,
-    get_all_functions,
-    get_function_descriptions,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
 )
-from pynguin.analyses.types import TypeInferenceStrategy, infer_type_info
+from pynguin.analyses.types import (
+    ClassWrapper,
+    InheritanceGraph,
+    TypeInferenceStrategy,
+    infer_type_info,
+)
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness, type_utils
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -55,8 +61,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
-    class_in_module,
-    function_in_module,
+    extract_non_generic_class,
     get_class_that_defined_method,
 )
 
@@ -66,41 +71,122 @@ if typing.TYPE_CHECKING:
     from pynguin.testcase.execution import KnownData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
-LOGGER = logging.getLogger(__name__)
-ASTFunctionNodes = ast.FunctionDef | ast.AsyncFunctionDef
+AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
-# A tuple of modules that shall be blacklisted from analysis (keep them sorted!!!):
-MODULE_BLACKLIST: tuple[str, ...] = (
-    "_thread",
-    "asyncio",
-    "concurrent",
-    "concurrent.futures",
-    "contextvars",
-    "filecmp",
-    "fileinput",
-    "fnmatch",
-    "glob",
-    "linecache",
-    "mmap",
-    "multiprocessing",
-    "multiprocessing.shared_memory",
-    "os",
-    "os.path",
-    "pathlib",
-    "queue",
-    "sched",
-    "select",
-    "selectors",
-    "shutil",
-    "signal",
-    "socket",
-    "ssl",
-    "stat",
-    "subprocess",
-    "sys",
-    "tempfile",
-    "threading",
+
+LOGGER = logging.getLogger(__name__)
+
+# A set of modules that shall be blacklisted from analysis (keep them sorted!!!):
+# The modules that are listed here are not prohibited from execution, but Pynguin will
+# not consider any classes or functions from these modules for generating inputs to
+# other routines
+MODULE_BLACKLIST = frozenset(
+    (
+        "__future__",
+        "_thread",
+        "abc",
+        "argparse",
+        "asyncio",
+        "atexit",
+        "builtins",
+        "cmd",
+        "code",
+        "codeop",
+        "compileall",
+        "concurrent",
+        "concurrent.futures",
+        "configparser",
+        "contextlib",
+        "contextvars",
+        "copy",
+        "copyreg",
+        "csv",
+        "ctypes",
+        "dbm",
+        "dis",
+        "filecmp",
+        "fileinput",
+        "fnmatch",
+        "functools",
+        "gc",
+        "getopt",
+        "getpass",
+        "glob",
+        "importlib",
+        "io",
+        "itertools",
+        "linecache",
+        "logging",
+        "logging.config",
+        "logging.handlers",
+        "marshal",
+        "mmap",
+        "multiprocessing",
+        "multiprocessing.shared_memory",
+        "netrc",
+        "operator",
+        "os",
+        "os.path",
+        "pathlib",
+        "pickle",
+        "pickletools",
+        "plistlib",
+        "py_compile",
+        "queue",
+        "random",
+        "reprlib",
+        "sched",
+        "secrets",
+        "select",
+        "selectors",
+        "shelve",
+        "shutil",
+        "signal",
+        "six",  # Not from STDLIB
+        "socket",
+        "sre_compile",
+        "sre_parse",
+        "ssl",
+        "stat",
+        "subprocess",
+        "sys",
+        "tarfile",
+        "tempfile",
+        "threading",
+        "timeit",
+        "trace",
+        "traceback",
+        "tracemalloc",
+        "types",
+        "typing",
+        "warnings",
+        "weakref",
+    )
 )
+
+
+def _is_blacklisted(element: Any) -> bool:
+    """Checks if the given element belongs to the blacklist.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element blacklisted?
+    """
+    if inspect.ismodule(element):
+        return element.__name__ in MODULE_BLACKLIST
+    if inspect.isclass(element):
+        return element.__module__ in MODULE_BLACKLIST
+    if inspect.isfunction(element):
+        # Some modules can be run standalone using a main function or provide a small
+        # set of tests ('test'). We don't want to include those functions.
+        return element.__module__ in MODULE_BLACKLIST or element.__name__ in (
+            "main",
+            "test",
+        )
+    # Something that is not supported yet.
+    return False
 
 
 class _ParseResult(NamedTuple):
@@ -109,83 +195,8 @@ class _ParseResult(NamedTuple):
     linenos: int
     module_name: str
     module: ModuleType
-    syntax_tree: ast.AST | None
+    syntax_tree: astroid.Module | None
     type_inference_strategy: TypeInferenceStrategy
-
-
-class _ArgumentAnnotationRemovalVisitor(ast.NodeTransformer):
-    """Removes argument annotations from an AST."""
-
-    # pylint: disable=missing-function-docstring, no-self-use
-    def visit_arg(self, node: ast.arg) -> Any:
-        node.annotation = ast.Name(id="Any", ctx=ast.Load())
-        return node
-
-
-class _ArgumentReturnAnnotationReplacementVisitor(ast.NodeTransformer):
-    """Replaces type-annotations by typing.Any.
-
-    The types `object` and unannotated are the same as `Any` hence, we replace these
-    type annotations by the `Any` value.
-    """
-
-    class FindTypingAnyImportVisitor(ast.NodeVisitor):
-        """A visitor checking for the existence of an ``from typing import Any``."""
-
-        def __init__(self) -> None:
-            self.__is_any_imported = False
-
-        # pylint: disable=missing-function-docstring, invalid-name
-        def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-            if node.module == "typing":
-                for alias in node.names:
-                    assert isinstance(alias, ast.alias)
-                    if alias.name == "Any":
-                        self.__is_any_imported = True
-            return node
-
-        @property
-        def is_any_imported(self) -> bool:
-            """Returns, whether ``Any`` is already imported.
-
-            Returns:
-                Whether ``Any`` is already imported
-            """
-            return self.__is_any_imported
-
-    # pylint: disable=missing-function-docstring, invalid-name
-    def visit_Module(self, node: ast.Module) -> Any:
-        # Check whether there is an `from typing import Any` somewhere
-        visitor = self.FindTypingAnyImportVisitor()
-        visitor.visit(node)
-        # Insert an `from typing import Any` to the module if there is not yet one
-        if not visitor.is_any_imported:
-            import_node = ast.ImportFrom(module="typing", names=[ast.alias(name="Any")])
-            ast.copy_location(import_node, node)
-            ast.fix_missing_locations(import_node)
-            node.body.insert(0, import_node)
-
-        return self.generic_visit(node)
-
-    # pylint: disable=missing-function-docstring, no-self-use
-    def visit_arg(self, node: ast.arg) -> Any:
-        if (
-            node.annotation is None
-            or isinstance(node.annotation, ast.Name)
-            and node.annotation.id == "object"
-        ):
-            node.annotation = ast.Name(id="Any", ctx=ast.Load())
-        return self.generic_visit(node)
-
-    # pylint: disable=missing-function-docstring, no-self-use, invalid-name
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        if (
-            node.returns is None
-            or isinstance(node.returns, ast.Name)
-            and node.returns.id == "object"
-        ):
-            node.returns = ast.Name(id="Any", ctx=ast.Load())
-        return self.generic_visit(node)
 
 
 def parse_module(
@@ -206,33 +217,16 @@ def parse_module(
     Returns:
         A tuple of the imported module type and its optional AST
     """
-    if type_inference is not TypeInferenceStrategy.NONE:
-        # Enable imports that are conditional on the typing.TYPE_CHECKING variable.
-        # See https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING
-        typing.TYPE_CHECKING = True
-
     module = importlib.import_module(module_name)
 
     try:
         source_file = inspect.getsourcefile(module)
         source_code = inspect.getsource(module)
-        syntax_tree = ast.parse(
-            source_code,
-            filename=source_file if source_file is not None else "",
-            type_comments=type_inference is not TypeInferenceStrategy.NONE,
-            feature_version=sys.version_info[1],
+        syntax_tree = astroid.parse(
+            code=source_code,
+            module_name=module_name,
+            path=source_file if source_file is not None else "",
         )
-        if type_inference is TypeInferenceStrategy.NONE:
-            # The parameter type_comments of the AST library's parse function does not
-            # prevent that the annotation is present in the AST.  Thus, we explicitly
-            # remove it if we do not want the types to be extracted.
-            # This is a hack, maybe I do not understand how to use ast.parse properly...
-            annotation_remover = _ArgumentAnnotationRemovalVisitor()
-            annotation_remover.visit(syntax_tree)
-        # Replace all occurrences of `object` or no type annotation by `Any`
-        annotation_replacer = _ArgumentReturnAnnotationReplacementVisitor()
-        annotation_replacer.visit(syntax_tree)
-        syntax_tree = ast.fix_missing_locations(syntax_tree)
         linenos = len(source_code.splitlines())
     except OSError as error:
         LOGGER.warning(
@@ -270,6 +264,16 @@ class ModuleTestCluster:
         self.__predicted_signatures: dict[
             GenericAccessibleObject, list[GenericCallableAccessibleObject]
         ] = {}
+        self.__inheritance_graph = InheritanceGraph()
+
+    @property
+    def inheritance_graph(self) -> InheritanceGraph:
+        """Provides the inheritance graph.
+
+        Returns:
+            The inheritance graph.
+        """
+        return self.__inheritance_graph
 
     @property
     def linenos(self) -> int:
@@ -323,20 +327,20 @@ class ModuleTestCluster:
         """
         self.__predicted_signatures[objc] = predictions
 
-    def add_modifier(self, type_: type, obj: GenericAccessibleObject) -> None:
+    def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
         """Add a modifier.
 
         A modifier is something that can be used to modify the given type,
         for example, a method.
 
         Args:
-            type_: The type that can be modified
+            typ: The type that can be modified
             obj: The accessible that can modify
         """
-        if type_ in self.__modifiers:
-            self.__modifiers[type_].add(obj)
+        if typ in self.__modifiers:
+            self.__modifiers[typ].add(obj)
         else:
-            self.__modifiers[type_] = OrderedSet([obj])
+            self.__modifiers[typ] = OrderedSet([obj])
 
     @property
     def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
@@ -368,29 +372,49 @@ class ModuleTestCluster:
         """
         return len(self.__accessible_objects_under_test)
 
-    def get_generators_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
         """Retrieve all known generators for the given type.
 
         Args:
-            for_type: The type we want to have the generators for
+            typ: The type we want to have the generators for
 
         Returns:
             The set of all generators for that type
         """
-        return self.__generators.get(for_type, OrderedSet())
+        if typ is typing.Any:
+            return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
+        if (non_generic_type := extract_non_generic_class(typ)) is not None:
+            generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for subclass in self.__inheritance_graph.get_subclasses(
+                ClassWrapper.from_type(non_generic_type)
+            ):
+                if subclass.raw_type in self.__generators:
+                    generators.update(self.__generators[subclass.raw_type])
+            return generators
+        return self.__generators.get(typ, OrderedSet())
 
-    def get_modifiers_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers for a type.
 
         TODO: Incorporate inheritance
 
         Args:
-            for_type: The type
+            typ: The type
 
         Returns:
             The set of all accessibles that can modify the type
         """
-        return self.__modifiers.get(for_type, OrderedSet())
+        if typ is typing.Any:
+            return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
+        if (non_generic_type := extract_non_generic_class(typ)) is not None:
+            modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for super_class in self.__inheritance_graph.get_superclasses(
+                ClassWrapper.from_type(non_generic_type)
+            ):
+                if super_class.raw_type in self.__modifiers:
+                    modifiers.update(self.__modifiers[super_class.raw_type])
+            return modifiers
+        return self.__modifiers.get(typ, OrderedSet())
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
@@ -472,11 +496,11 @@ class ModuleTestCluster:
             return modified_accessible
         return accessible
 
-    def get_random_call_for(self, type_: type) -> GenericAccessibleObject:
+    def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
         """Get a random modifier for the given type.
 
         Args:
-            type_: The type
+            typ: The type
 
         Returns:
             A random modifier for that type
@@ -484,9 +508,9 @@ class ModuleTestCluster:
         Raises:
             ConstructionFailedException: if no modifiers for the type exist
         """
-        accessible_objects = self.get_modifiers_for(type_)
+        accessible_objects = self.get_modifiers_for(typ)
         if len(accessible_objects) == 0:
-            raise ConstructionFailedException(f"No modifiers for {type_}")
+            raise ConstructionFailedException(f"No modifiers for {typ}")
         return randomness.choice(accessible_objects)
 
     def get_all_generatable_types(self) -> list[type]:
@@ -497,31 +521,31 @@ class ModuleTestCluster:
         Returns:
             A list of all types that can be generated
         """
-        generatable = list(self.__generators.keys())
-        generatable.extend(PRIMITIVES)
-        generatable.extend(COLLECTIONS)
-        return generatable
+        generatable = OrderedSet(self.__generators.keys())
+        generatable.update(PRIMITIVES)
+        generatable.update(COLLECTIONS)
+        return list(generatable)
 
-    def select_concrete_type(self, select_from: type | None) -> type | None:
+    def select_concrete_type(self, typ: type | None) -> type | None:
         """Select a concrete type from the given type.
 
         This is required, for example, when handling union types.  Currently, only
         unary types, Any, and Union are handled.
 
         Args:
-            select_from: An optional type
+            typ: An optional type
 
         Returns:
             An optional type
         """
-        if select_from == Any:  # pylint: disable=comparison-with-callable
+        if typ == Any:  # pylint: disable=comparison-with-callable
             return randomness.choice(self.get_all_generatable_types())
-        if is_union_type(select_from):
-            candidates = get_args(select_from)
+        if is_union_type(typ):
+            candidates = get_args(typ)
             if candidates is not None and len(candidates) > 0:
                 return randomness.choice(candidates)
             return None
-        return select_from
+        return typ
 
     def track_statistics_values(
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
@@ -542,19 +566,30 @@ class ModuleTestCluster:
         cyclomatic_complexity = self.__compute_cyclomatic_complexities(
             self.function_data_for_accessibles.values()
         )
-        tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
-        tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
-        tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
-        tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
-        tracking_fun(RuntimeVariable.LineNos, self.__linenos)
+        if cyclomatic_complexity is not None:
+            tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
+            tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
+            tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
+            tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+            tracking_fun(RuntimeVariable.LineNos, self.__linenos)
 
     CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
 
     @staticmethod
     def __compute_cyclomatic_complexities(
         callable_data: typing.Iterable[_CallableData],
-    ) -> CyclomaticComplexity:
-        complexities = [item.cyclomatic_complexity for item in callable_data]
+    ) -> CyclomaticComplexity | None:
+        # Collect complexities only for callables that had an AST.  Their minimal
+        # complexity is 1, the value None symbolises a callable that had no AST present,
+        # either because there is none or because it is an implicitly added function,
+        # such as a default constructor or the constructor of a base class.
+        complexities = [
+            item.cyclomatic_complexity
+            for item in callable_data
+            if item.cyclomatic_complexity is not None
+        ]
+        if len(complexities) == 0:
+            return None
         return ModuleTestCluster.CyclomaticComplexity(
             min=min(complexities),
             mean=mean(complexities),
@@ -654,11 +689,11 @@ class FilteredModuleTestCluster(ModuleTestCluster):
     def num_accessible_objects_under_test(self) -> int:
         return self.__delegate.num_accessible_objects_under_test()
 
-    def get_generators_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
-        return self.__delegate.get_generators_for(for_type)
+    def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+        return self.__delegate.get_generators_for(typ)
 
-    def get_modifiers_for(self, for_type: type) -> OrderedSet[GenericAccessibleObject]:
-        return self.__delegate.get_modifiers_for(for_type)
+    def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+        return self.__delegate.get_modifiers_for(typ)
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
@@ -674,60 +709,20 @@ class FilteredModuleTestCluster(ModuleTestCluster):
             return self.__delegate.get_random_accessible()
         return randomness.choice(OrderedSet(accessibles))
 
-    def get_random_call_for(self, type_: type) -> GenericAccessibleObject:
-        return self.__delegate.get_random_call_for(type_)
+    def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
+        return self.__delegate.get_random_call_for(typ)
 
     def get_all_generatable_types(self) -> list[type]:
         return self.__delegate.get_all_generatable_types()
 
-    def select_concrete_type(self, select_from: type | None) -> type | None:
-        return self.__delegate.select_concrete_type(select_from)
+    def select_concrete_type(self, typ: type | None) -> type | None:
+        return self.__delegate.select_concrete_type(typ)
 
 
-def __get_function_node_from_ast(
-    tree: ast.AST | None, name: str
-) -> ASTFunctionNodes | None:
+def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
     if tree is None:
         return None
-    for func in get_all_functions(tree):
-        if func.name == name:
-            return func
-    return None
-
-
-def __get_class_node_from_ast(tree: ast.AST | None, name: str) -> ast.ClassDef | None:
-    if tree is None:
-        return None
-    for class_ in get_all_classes(tree):
-        if class_.name == name:
-            return class_
-    return None
-
-
-def __get_function_description_from_ast(
-    tree: ASTFunctionNodes | None,
-) -> FunctionDescription | None:
-    if tree is None:
-        return None
-
-    def filter_for_tree_defining_function_name(desc: FunctionDescription) -> bool:
-        return getattr(tree, "name", None) == desc.name
-
-    # Filter the resulting function descriptions for the one represented by the `tree`
-    # AST node.  There might be more than one function description, e.g., for nested
-    # functions, where we are still only interested in the top-level functions and
-    # not in the closures.
-    description = list(
-        filter(filter_for_tree_defining_function_name, get_function_descriptions(tree))
-    )
-    assert len(description) == 1
-    return description[0]
-
-
-def __get_mccabe_complexity(tree: ast.AST | None) -> int:
-    if tree is None:
-        return -1
-    return mccabe_complexity(tree)
+    return mccabe_complexity(astroid_to_ast(tree))
 
 
 def __is_constructor(method_name: str) -> bool:
@@ -749,9 +744,9 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 @dataclasses.dataclass
 class _CallableData:
     accessible: GenericAccessibleObject
-    tree: ast.AST | None
+    tree: AstroidFunctionDef | None
     description: FunctionDescription | None
-    cyclomatic_complexity: int
+    cyclomatic_complexity: int | None
 
 
 def __analyse_function(
@@ -759,7 +754,7 @@ def __analyse_function(
     func_name: str,
     func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
     predictions: list[Any] | None = None,
@@ -767,13 +762,17 @@ def __analyse_function(
     if __is_private(func_name) or __is_protected(func_name):
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
-    if inspect.isasyncgenfunction(func):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
+        return
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = infer_type_info(func, type_inference_strategy)
-    func_ast = __get_function_node_from_ast(syntax_tree, func_name)
-    description = __get_function_description_from_ast(func_ast)
+    func_ast = get_function_node_from_ast(module_tree, func_name)
+    description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     generic_function = GenericFunction(
@@ -806,16 +805,16 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     class_name: str,
     class_: type,
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
     predictions: list[Any] | None = None,
 ) -> None:
     assert inspect.isclass(class_)
     LOGGER.debug("Analysing class %s", class_name)
-    class_ast = __get_class_node_from_ast(syntax_tree, class_name)
-    constructor_ast = __get_function_node_from_ast(class_ast, "__init__")
-    description = __get_function_description_from_ast(constructor_ast)
+    class_ast = get_class_node_from_ast(module_tree, class_name)
+    constructor_ast = get_function_node_from_ast(class_ast, "__init__")
+    description = get_function_description(constructor_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
@@ -838,9 +837,11 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    test_cluster.add_generator(generic)
-    if add_to_test:
-        test_cluster.add_accessible_object_under_test(generic, method_data)
+    if not inspect.isabstract(class_):
+        # TODO adding an abstract class constructor makes no sense?
+        test_cluster.add_generator(generic)
+        if add_to_test:
+            test_cluster.add_accessible_object_under_test(generic, method_data)
 
     predicted_methods = None
     if predictions is not None:
@@ -862,7 +863,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             method_name=method_name,
             method=method,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=class_ast,
+            class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
             predictions=method_predictions,
@@ -881,7 +882,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         | MethodDescriptorType
     ),
     type_inference_strategy: TypeInferenceStrategy,
-    syntax_tree: ast.AST | None,
+    class_tree: astroid.ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
     predictions: list[Any] | None = None,
@@ -894,13 +895,17 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
-    if inspect.isasyncgenfunction(method):
-        raise ValueError("Pynguin cannot handle async functions. Stopping.")
+    if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
+        if add_to_test:
+            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+        # Coroutine outside the SUT are not problematic, just exclude them.
+        LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
+        return
 
     LOGGER.debug("Analysing method %s.%s", class_name, method_name)
     inferred_signature = infer_type_info(method, type_inference_strategy)
-    method_ast = __get_function_node_from_ast(syntax_tree, method_name)
-    description = __get_function_description_from_ast(method_ast)
+    method_ast = get_function_node_from_ast(class_tree, method_name)
+    description = get_function_description(method_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
     generic_method = GenericMethod(
@@ -932,142 +937,200 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
 
 def __resolve_dependencies(
-    module: ModuleType,
-    module_name: str,
+    root_module: ModuleType,
     type_inference_strategy: TypeInferenceStrategy,
+    syntax_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
+    parsed_modules: list[_ParseResult],
 ) -> None:
-    def filter_for_classes_from_module(value: object, module_name: str) -> bool:
-        return inspect.isclass(value) and value.__module__ == module_name
 
-    def filter_for_classes_not_from_module(value: object, module_name: str) -> bool:
-        return inspect.isclass(value) and value.__module__ != module_name
-
-    def filter_for_functions_from_module(value: object, module_name: str) -> bool:
-        return inspect.isfunction(value) and value.__module__ == module_name
-
-    def filter_for_functions_not_from_module(value: object, module_name: str) -> bool:
-        return inspect.isfunction(value) and value.__module__ != module_name
-
-    def filter_modules(value: object) -> bool:
-        return inspect.ismodule(value) and module.__name__ not in MODULE_BLACKLIST
-
-    # Resolve the dependencies that are directly included in the module
-    __analyse_included_classes(
-        module=module,
-        module_name=module_name,
-        type_inference_strategy=type_inference_strategy,
-        test_cluster=test_cluster,
-        filtering_function=filter_for_classes_not_from_module,
-    )
-    __analyse_included_functions(
-        module=module,
-        module_name=module_name,
-        type_inference_strategy=type_inference_strategy,
-        test_cluster=test_cluster,
-        filtering_function=filter_for_functions_not_from_module,
-    )
-
-    # Provide a set of seen modules for fixed-point iteration and add the module
-    # under test as it has already been analysed before
+    # Provide a set of seen modules, classes and functions for fixed-point iteration
     seen_modules: set[ModuleType] = set()
-    seen_modules.add(module)
+    seen_classes: set[Any] = set()
+    seen_functions: set[Any] = set()
 
-    # Extract all imported modules and transitively analyse them
+    # Start with root module, i.e., the module under test.
     wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for included_module in filter(filter_modules, vars(module).values()):
-        assert included_module not in seen_modules
-        wait_list.put(included_module)
+    wait_list.put(root_module)
 
     while not wait_list.empty():
         current_module = wait_list.get()
         if current_module in seen_modules:
             # Skip the module, we have already analysed it before
             continue
+        if _is_blacklisted(current_module):
+            # Don't include anything from the blacklist
+            continue
 
-        # Collect the classes from this module
+        tree = None
+        if current_module == root_module:
+            # Currently, the syntax tree is only available for the root module,
+            # i.e., the SUT.
+            tree = syntax_tree
+
+            if config.configuration.deeptyper.deeptyper:
+                # Analyze all classes found in the current module
+                __analyse_included_classes(
+                    module=current_module,
+                    root_module_name=root_module.__name__,
+                    type_inference_strategy=type_inference_strategy,
+                    test_cluster=test_cluster,
+                    seen_classes=seen_classes,
+                    syntax_tree=tree,
+                    parsed_modules=parsed_modules,
+                )
+
+                # Analyze all functions found in the current module
+                __analyse_included_functions(
+                    module=current_module,
+                    root_module_name=root_module.__name__,
+                    type_inference_strategy=type_inference_strategy,
+                    test_cluster=test_cluster,
+                    seen_functions=seen_functions,
+                    syntax_tree=tree,
+                    parsed_modules=parsed_modules,
+                )
+
+        # Analyze all classes found in the current module
         __analyse_included_classes(
             module=current_module,
-            module_name=current_module.__name__,
+            root_module_name=root_module.__name__,
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
-            filtering_function=filter_for_classes_from_module,
-        )
-        __analyse_included_functions(
-            module=current_module,
-            module_name=current_module.__name__,
-            type_inference_strategy=type_inference_strategy,
-            test_cluster=test_cluster,
-            filtering_function=filter_for_functions_from_module,
+            seen_classes=seen_classes,
+            syntax_tree=tree,
         )
 
-        # Collect the modules that are included by this module
+        # Analyze all functions found in the current module
+        __analyse_included_functions(
+            module=current_module,
+            root_module_name=root_module.__name__,
+            type_inference_strategy=type_inference_strategy,
+            test_cluster=test_cluster,
+            seen_functions=seen_functions,
+            syntax_tree=tree,
+        )
+
+        # Collect the modules that are included by this module and add
+        # them for further processing.
         for included_module in filter(inspect.ismodule, vars(current_module).values()):
-            if included_module not in seen_modules:
-                # Put in wait list if we have not yet analysed this module
-                wait_list.put(included_module)
+            wait_list.put(included_module)
 
         # Take care that we know for future iterations that we have already analysed
         # this module before
         seen_modules.add(current_module)
-
+    LOGGER.info("Analyzed project to create test cluster")
+    LOGGER.info("Modules:   %5i", len(seen_modules))
+    LOGGER.info("Functions: %5i", len(seen_functions))
+    LOGGER.info("Classes:   %5i", len(seen_classes))
 
 def __analyse_included_classes(
     *,
     module: ModuleType,
-    module_name: str,
+    root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    filtering_function: Callable[[object, str], bool],
+    syntax_tree: astroid.Module | None,
+    seen_classes: set,
+    parsed_modules: list[_ParseResult] | None = None, 
 ) -> None:
-    seen_types: set[str] = set()
-    wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for element in [
-        elem for elem in vars(module).values() if filtering_function(elem, module_name)
-    ]:
-        wait_list.put(element)
+    work_list = list(
+        filter(
+            lambda x: inspect.isclass(x) and not _is_blacklisted(x),
+            vars(module).values(),
+        )
+    )
 
-    while not wait_list.empty():
-        current = wait_list.get()
-        if current.__qualname__ in seen_types:
+    predicted_classes = None
+    if config.configuration.deeptyper.deeptyper and len(parsed_modules) > 1:
+        predicted_classes = [list(
+            filter(
+                lambda x: inspect.isclass(x) and not _is_blacklisted(x),
+                vars(parsed_modules[i]).values(),
+            )
+        ) for i in range(1, 6)]
+
+    while len(work_list) > 0:
+        current = work_list.pop(0)
+        if current in seen_classes:
             continue
+        seen_classes.add(current)
+
+        if predicted_classes is not None:
+            predictions = [predicted_classes[i].pop(0) for i in range(5)]
+        else:
+            predictions = None
+
+        print("klass:", current.__qualname__, predictions)
+
         __analyse_class(
             class_name=current.__qualname__,
             class_=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=None,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=False,
+            add_to_test=current.__module__ == root_module_name,
+            predictions=predictions,
         )
-        seen_types.add(current.__qualname__)
+
+        # TODO(fk) apply blacklist on bases?
+        wrapper = ClassWrapper.from_type(current)
+        test_cluster.inheritance_graph.add_class(wrapper)
+        if hasattr(current, "__bases__"):
+            for base in current.__bases__:
+                base_wrapper = ClassWrapper.from_type(base)
+                test_cluster.inheritance_graph.add_class(base_wrapper)
+                test_cluster.inheritance_graph.add_edge(
+                    super_class=base_wrapper, sub_class=wrapper
+                )
+                work_list.append(base)
 
 
 def __analyse_included_functions(
     *,
     module: ModuleType,
-    module_name: str,
+    root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    filtering_function: Callable[[object, str], bool],
+    syntax_tree: astroid.Module | None,
+    seen_functions: set,
+    parsed_modules: list[_ParseResult] | None = None,
 ) -> None:
-    seen_functions: set[str] = set()
-    wait_list: queue.SimpleQueue = queue.SimpleQueue()
-    for element in [
-        elem for elem in vars(module).values() if filtering_function(elem, module_name)
-    ]:
-        wait_list.put(element)
 
-    while not wait_list.empty():
-        current = wait_list.get()
-        if current.__qualname__ in seen_functions:
+    predicted_functions = None
+    if config.configuration.deeptyper.deeptyper and len(parsed_modules) > 1:
+        predicted_functions = [list(
+            filter(
+                lambda x: inspect.isfunction(x) and not _is_blacklisted(x),
+                vars(parsed_modules[i]).values(),
+            )
+        ) for i in range(1, 6)]
+
+    function_count = 0
+    for current in filter(
+        lambda x: inspect.isfunction(x) and not _is_blacklisted(x),
+        vars(module).values(),
+    ):
+        if current in seen_functions:
             continue
+        function_count += 1
+        seen_functions.add(current)
+        
+        if predicted_functions is not None:
+            predictions = [predicted_functions[i][function_count] for i in range(5)]
+        else:
+            predictions = None
+
+        print("FUNK:", current.__qualname__, predictions)
+
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
             type_inference_strategy=type_inference_strategy,
-            syntax_tree=None,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=False,
+            add_to_test=current.__module__ == root_module_name,
+            predictions=predictions,
         )
 
 
@@ -1083,71 +1146,15 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     # select original module as general one
     parsed_module = parsed_modules[0]
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
-    predicted_functions = predicted_classes = None
-    if len(parsed_modules) > 1 and config.configuration.deeptyper.deeptyper:
-        # get all predicted functions
-        predicted_functions = [
-            inspect.getmembers(
-                parsed_modules[i].module,
-                function_in_module(parsed_modules[i].module_name),
-            )
-            for i in range(1, 6)
-        ]
-        # get all predicted classes
-        predicted_classes = [
-            inspect.getmembers(
-                parsed_modules[i].module, class_in_module(parsed_modules[i].module_name)
-            )
-            for i in range(1, 6)
-        ]
-
-    for i, (func_name, func) in enumerate(
-        inspect.getmembers(
-            parsed_module.module, function_in_module(parsed_module.module_name)
-        )
-    ):
-        # extract according predictions
-        func_predictions = None
-        if predicted_functions is not None:
-            func_predictions = [predicted_functions[j][i][1] for j in range(5)]
-        __analyse_function(
-            func_name=func_name,
-            func=func,
-            type_inference_strategy=parsed_module.type_inference_strategy,
-            syntax_tree=parsed_module.syntax_tree,
-            test_cluster=test_cluster,
-            add_to_test=True,
-            predictions=func_predictions,
-        )
-
-    for i, (class_name, class_) in enumerate(
-        inspect.getmembers(
-            parsed_module.module, class_in_module(parsed_module.module_name)
-        )
-    ):
-        # extract according predictions
-        class_predictions = None
-        if predicted_functions is not None:
-            class_predictions = [predicted_classes[j][i][1] for j in range(5)]
-        __analyse_class(
-            class_name=class_name,
-            class_=class_,
-            type_inference_strategy=parsed_module.type_inference_strategy,
-            syntax_tree=parsed_module.syntax_tree,
-            test_cluster=test_cluster,
-            add_to_test=True,
-            predictions=class_predictions,
-        )
 
     __resolve_dependencies(
-        parsed_module.module,
-        parsed_module.module_name,
-        parsed_module.type_inference_strategy,
-        test_cluster,
+        root_module=parsed_module.module,
+        type_inference_strategy=parsed_module.type_inference_strategy,
+        syntax_tree=parsed_module.syntax_tree,
+        test_cluster=test_cluster,
+        parsed_modules=parsed_modules,
     )
-
     return test_cluster
-
 
 def generate_test_cluster(
     module_name: str,

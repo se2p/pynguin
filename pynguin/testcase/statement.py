@@ -21,7 +21,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses import constants
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
-from pynguin.utils.type_utils import is_assignable_to, is_optional_parameter
+from pynguin.utils.type_utils import is_consistent_with, is_optional_parameter
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -51,7 +51,6 @@ class Statement(metaclass=ABCMeta):
         """
         return None
 
-    # pylint:disable = no-self-use
     @ret_val.setter
     def ret_val(
         self,
@@ -1025,7 +1024,7 @@ class ParametrizedStatement(
         """
         return len(self.args)
 
-    # pylint: disable=unused-argument,no-self-use
+    # pylint: disable=unused-argument
     def _mutate_special_parameters(self, p_per_param: float) -> bool:
         """Overwrite this method to mutate any parameter, which is not in arg or kwargs.
         e.g., the callee in an instance method call.
@@ -1150,7 +1149,7 @@ class ParametrizedStatement(
         if not type_:
             return 0
         for var_ref in self.args.values():
-            if is_assignable_to(var_ref.type, type_):
+            if is_consistent_with(var_ref.type, type_):
                 count += 1
         return count
 

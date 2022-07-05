@@ -10,40 +10,47 @@ import example as module_0
 
 
 def test_case_0():
-    int_0 = -842
-    int_1 = -808
-    str_0 = module_0.triangle(int_0, int_0, int_1)
-    assert str_0 == "Isosceles triangle"
+    int_0 = 2649
+    str_0 = module_0.triangle(int_0, int_0, int_0)
+    assert str_0 == "Equilateral triangle"
+    int_1 = -1571
+    str_1 = module_0.triangle(int_0, int_1, int_1)
+    assert str_1 == "Isosceles triangle"
 
 
 def test_case_1():
-    int_0 = -690
-    int_1 = 4296
-    str_0 = module_0.triangle(int_0, int_1, int_1)
+    int_0 = 2423
+    int_1 = -3053
+    str_0 = module_0.triangle(int_0, int_0, int_1)
     assert str_0 == "Isosceles triangle"
+    int_2 = -1391
+    str_1 = module_0.triangle(int_0, int_2, int_2)
+    assert str_1 == "Isosceles triangle"
+    int_3 = -2081
+    str_2 = module_0.triangle(int_3, int_2, int_3)
+    assert str_2 == "Isosceles triangle"
 
 
 def test_case_2():
-    int_0 = 1880
-    int_1 = 279
-    int_2 = 187
-    int_3 = 1231
-    str_0 = module_0.triangle(int_1, int_2, int_3)
-    assert str_0 == "Scalene triangle"
-    str_1 = module_0.triangle(int_0, int_0, int_0)
-    assert str_1 == "Equilateral triangle"
+    int_0 = -2145
+    str_0 = module_0.triangle(int_0, int_0, int_0)
+    assert str_0 == "Equilateral triangle"
+    int_1 = 1885
+    int_2 = 341
+    str_1 = module_0.triangle(int_1, int_2, int_2)
+    assert str_1 == "Isosceles triangle"
+    int_3 = -912
+    str_2 = module_0.triangle(int_1, int_3, int_1)
+    assert str_2 == "Isosceles triangle"
 
 
 def test_case_3():
-    int_0 = -2442
-    int_1 = 748
-    int_2 = 206
-    str_0 = module_0.triangle(int_1, int_1, int_2)
-    assert str_0 == "Isosceles triangle"
-    int_3 = -3241
-    int_4 = 549
-    int_5 = 996
-    str_1 = module_0.triangle(int_3, int_4, int_5)
-    assert str_1 == "Scalene triangle"
-    str_2 = module_0.triangle(int_0, int_3, int_0)
-    assert str_2 == "Isosceles triangle"
+    none_type_0 = None
+    int_0 = 944
+    int_1 = -2515
+    str_0 = module_0.triangle(none_type_0, int_0, int_1)
+    assert str_0 == "Scalene triangle"
+    int_2 = -680
+    int_3 = -3327
+    str_1 = module_0.triangle(int_2, int_2, int_3)
+    assert str_1 == "Isosceles triangle"

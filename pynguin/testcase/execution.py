@@ -19,7 +19,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Sized, TypeVar
+from typing import TYPE_CHECKING, Any, Sized, TypeVar
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -150,7 +150,23 @@ class ExecutionContext:
 
 
 class ExecutionObserver:
-    """An Observer that can be used to observe statement execution"""
+    """An Observer that can be used to observe statement execution.
+
+    Important Note: If an observer is stateful, then this state must be encapsulated
+    in a threading.local, i.e., be bound to a thread. Note that thread local data
+    is initialized per thread, so there is no need to clear any pre-existing data
+    (because there is none), as every thread gets its own instance.
+
+    Methods that are called from within the thread are not allowed to interact with the
+    'outside'. The only thing that should leave an observer are results when they are
+    written to the execution result in
+    ExecutionObserver::after_test_case_execution_inside_thread.
+
+    You may interact with the 'outside' in
+    ExecutionObserver::after_test_case_execution_outside_thread.
+
+    For more details, look at some implementations, e.g., AssertionTraceObserver.
+    """
 
     @abstractmethod
     def before_test_case_execution(self, test_case: tc.TestCase):
@@ -161,13 +177,34 @@ class ExecutionObserver:
         """
 
     @abstractmethod
-    def after_test_case_execution(
+    def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
-    ):
-        """Called after test case execution.
+    ) -> None:
+        """Called after test case execution from inside the thread that executed
+        the test case. You should override this method to extract information from the
+        thread local storage to the execution result.
+
+        Note: When a thread times out, then this method might not be called at all.
 
         Args:
-            test_case: The test cases that will be executed
+            test_case: The test cases that was executed
+            result: The execution result
+        """
+
+    @abstractmethod
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        """Called after test case execution from the main thread.
+
+        Note: This method is always called, though the data you expect in the execution
+        might not be there, if the execution of the test case timed out.
+        You are not allowed to access thread local state here (due to how
+        threading.local works, it isn't even possible ;)), but you can do some
+        postprocessing with the data from the execution result here.
+
+        Args:
+            test_case: The test cases that was executed
             result: The execution result
         """
 
@@ -202,16 +239,30 @@ class ExecutionObserver:
 class ReturnTypeObserver(ExecutionObserver):
     """Observes the runtime types seen during execution."""
 
+    class ReturnTypeLocalState(
+        threading.local
+    ):  # pylint:disable=too-few-public-methods
+        """Encapsulate observed return types."""
+
+        def __init__(self):
+            super().__init__()
+            self.return_type_trace: dict[int, type] = {}
+
     def __init__(self):
-        self._return_type_trace: dict[int, type] = {}
+        self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        self._return_type_trace.clear()
+        pass
 
-    def after_test_case_execution(
+    def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        result.store_return_types(dict(self._return_type_trace))
+        result.store_return_types(dict(self._return_type_local_state.return_type_trace))
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ):
+        pass
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
@@ -229,9 +280,9 @@ class ReturnTypeObserver(ExecutionObserver):
             and (ret_val := statement.ret_val) is not None
             and not ret_val.is_none_type()
         ):
-            self._return_type_trace[statement.get_position()] = type(
-                exec_ctx.get_reference_value(ret_val)
-            )
+            self._return_type_local_state.return_type_trace[
+                statement.get_position()
+            ] = type(exec_ctx.get_reference_value(ret_val))
 
 
 class ExecutionResult:
@@ -240,7 +291,7 @@ class ExecutionResult:
     def __init__(self, timeout: bool = False) -> None:
         self._exceptions: dict[int, Exception] = {}
         self._assertion_traces: dict[type, at.AssertionTrace] = {}
-        self._execution_trace: ExecutionTrace | None = None
+        self._execution_trace: ExecutionTrace = ExecutionTrace()
         self._timeout = timeout
         self._return_type_trace: dict[int, type] = {}
 
@@ -434,6 +485,26 @@ class ExecutionTrace:
         for key, value in source.items():
             target[key] = min(target.get(key, inf), value)
 
+    def update_predicate_distances(
+        self, distance_true: float, distance_false: float, predicate: int
+    ) -> None:
+        """Update the distances and predicate execution count.
+
+        Args:
+            distance_true: the measured true distance
+            distance_false: the measured false distance
+            predicate: the predicate id
+        """
+        self.executed_predicates[predicate] = (
+            self.executed_predicates.get(predicate, 0) + 1
+        )
+        self.true_distances[predicate] = min(
+            self.true_distances.get(predicate, inf), distance_true
+        )
+        self.false_distances[predicate] = min(
+            self.false_distances.get(predicate, inf), distance_false
+        )
+
 
 @dataclass
 class CodeObjectMetaData:
@@ -523,59 +594,23 @@ class ExecutionTracer:
 
     _logger = logging.getLogger(__name__)
 
-    # Contains static information about how branch distances
-    # for certain op codes should be computed.
-    # The returned tuple for each computation is (true distance, false distance).
-    # pylint: disable=arguments-out-of-order
-    _DISTANCE_COMPUTATIONS: dict[Compare, Callable[[Any, Any], tuple[float, float]]] = {
-        Compare.EQ: lambda val1, val2: (
-            _eq(val1, val2),
-            _neq(val1, val2),
-        ),
-        Compare.NE: lambda val1, val2: (
-            _neq(val1, val2),
-            _eq(val1, val2),
-        ),
-        Compare.LT: lambda val1, val2: (
-            _lt(val1, val2),
-            _le(val2, val1),
-        ),
-        Compare.LE: lambda val1, val2: (
-            _le(val1, val2),
-            _lt(val2, val1),
-        ),
-        Compare.GT: lambda val1, val2: (
-            _lt(val2, val1),
-            _le(val1, val2),
-        ),
-        Compare.GE: lambda val1, val2: (
-            _le(val2, val1),
-            _lt(val1, val2),
-        ),
-        Compare.IN: lambda val1, val2: (
-            _in(val1, val2),
-            _nin(val1, val2),
-        ),
-        Compare.NOT_IN: lambda val1, val2: (
-            _nin(val1, val2),
-            _in(val1, val2),
-        ),
-        Compare.IS: lambda val1, val2: (
-            _is(val1, val2),
-            _isn(val1, val2),
-        ),
-        Compare.IS_NOT: lambda val1, val2: (
-            _isn(val1, val2),
-            _is(val1, val2),
-        ),
-    }
+    class TracerLocalState(threading.local):  # pylint:disable=too-few-public-methods
+        """Encapsulate state that is thread specific."""
+
+        def __init__(self):
+            super().__init__()
+            self.enabled = True
+            self.trace = ExecutionTrace()
 
     def __init__(self) -> None:
         self._known_data = KnownData()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
-        self._init_trace()
-        self._enabled = True
+
+        # Thread local state
+        self._thread_local_state = ExecutionTracer.TracerLocalState()
+
+        self.init_trace()
         self._current_thread_identifier: int | None = None
 
     @property
@@ -624,7 +659,7 @@ class ExecutionTracer:
         """
         self._known_data = KnownData()
         self._import_trace = ExecutionTrace()
-        self._init_trace()
+        self.init_trace()
 
     def store_import_trace(self) -> None:
         """Stores the current trace as the import trace.
@@ -632,14 +667,14 @@ class ExecutionTracer:
         Should only be done once, after a module was loaded. The import trace will be
         merged into every subsequently recorded trace.
         """
-        self._import_trace = self._trace
-        self._init_trace()
+        self._import_trace = self._thread_local_state.trace
+        self.init_trace()
 
-    def _init_trace(self) -> None:
+    def init_trace(self) -> None:
         """Create a new trace that only contains the trace data from the import."""
         new_trace = ExecutionTrace()
         new_trace.merge(self._import_trace)
-        self._trace = new_trace
+        self._thread_local_state.trace = new_trace
 
     def _is_disabled(self) -> bool:
         """Should we track anything?
@@ -650,15 +685,15 @@ class ExecutionTracer:
         Returns:
             Whether we should track anything
         """
-        return not self._enabled
+        return not self._thread_local_state.enabled
 
     def enable(self) -> None:
         """Enable tracing."""
-        self._enabled = True
+        self._thread_local_state.enabled = True
 
     def disable(self) -> None:
         """Disable tracing."""
-        self._enabled = False
+        self._thread_local_state.enabled = False
 
     def get_trace(self) -> ExecutionTrace:
         """Get the trace with the current information.
@@ -666,11 +701,7 @@ class ExecutionTracer:
         Returns:
             The current execution trace
         """
-        return self._trace
-
-    def clear_trace(self) -> None:
-        """Clear trace."""
-        self._init_trace()
+        return self._thread_local_state.trace
 
     def register_code_object(self, meta: CodeObjectMetaData) -> int:
         """Declare that a code object exists.
@@ -695,14 +726,19 @@ class ExecutionTracer:
 
         Args:
             code_object_id: the code object id to mark
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         assert (
             code_object_id in self._known_data.existing_code_objects
         ), "Cannot trace unknown code object"
-        self._trace.executed_code_objects.add(code_object_id)
+        self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
     def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
@@ -729,9 +765,15 @@ class ExecutionTracer:
             value2: the second value
             predicate: the predicate identifier
             cmp_op: the compare operation
+
+        Raises:
+            RuntimeError: raised when called from another thread.
+            AssertionError: when encountering an unknown compare op.
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -741,10 +783,57 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
-            distance_true, distance_false = ExecutionTracer._DISTANCE_COMPUTATIONS[
-                cmp_op
-            ](value1, value2)
-
+            match cmp_op:
+                case Compare.EQ:
+                    distance_true, distance_false = _eq(value1, value2), _neq(
+                        value1, value2
+                    )
+                case Compare.NE:
+                    distance_true, distance_false = _neq(value1, value2), _eq(
+                        value1, value2
+                    )
+                case Compare.LT:
+                    distance_true, distance_false = (
+                        _lt(value1, value2),
+                        _le(value2, value1),
+                    )
+                case Compare.LE:
+                    distance_true, distance_false = (
+                        _le(value1, value2),
+                        _lt(value2, value1),
+                    )
+                case Compare.GT:
+                    distance_true, distance_false = (
+                        _lt(value2, value1),
+                        _le(value1, value2),
+                    )
+                case Compare.GE:
+                    distance_true, distance_false = (
+                        _le(value2, value1),
+                        _lt(value1, value2),
+                    )
+                case Compare.IN:
+                    distance_true, distance_false = (
+                        _in(value1, value2),
+                        _nin(value1, value2),
+                    )
+                case Compare.NOT_IN:
+                    distance_true, distance_false = (
+                        _nin(value1, value2),
+                        _in(value1, value2),
+                    )
+                case Compare.IS:
+                    distance_true, distance_false = (
+                        _is(value1, value2),
+                        _isn(value1, value2),
+                    )
+                case Compare.IS_NOT:
+                    distance_true, distance_false = (
+                        _isn(value1, value2),
+                        _is(value1, value2),
+                    )
+                case _:
+                    raise AssertionError("Unknown compare op")
             self._update_metrics(distance_false, distance_true, predicate)
         finally:
             self.enable()
@@ -755,9 +844,14 @@ class ExecutionTracer:
         Args:
             value: the value
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -798,9 +892,14 @@ class ExecutionTracer:
             err: The raised exception
             exc: The matching condition
             predicate: the predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
@@ -826,14 +925,19 @@ class ExecutionTracer:
 
         Args:
             line_id: the if of the line that was visited
+
+        Raises:
+            RuntimeError: raised when called from another thread
         """
         if threading.current_thread().ident != self._current_thread_identifier:
-            return
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         if self._is_disabled():
             return
 
-        self._trace.covered_line_ids.add(line_id)
+        self._thread_local_state.trace.covered_line_ids.add(line_id)
 
     def register_line(
         self, code_object_id: int, file_name: str, line_number: int
@@ -868,14 +972,10 @@ class ExecutionTracer:
         assert (distance_true == 0.0) ^ (
             distance_false == 0.0
         ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
-        self._trace.executed_predicates[predicate] = (
-            self._trace.executed_predicates.get(predicate, 0) + 1
-        )
-        self._trace.true_distances[predicate] = min(
-            self._trace.true_distances.get(predicate, inf), distance_true
-        )
-        self._trace.false_distances[predicate] = min(
-            self._trace.false_distances.get(predicate, inf), distance_false
+        self._thread_local_state.trace.update_predicate_distances(
+            distance_true=distance_true,
+            distance_false=distance_false,
+            predicate=predicate,
         )
 
     def __repr__(self) -> str:
@@ -1098,11 +1198,29 @@ class TestCaseExecutor:
             tracer: the execution tracer
             module_provider: The used module provider
         """
+        # Repeatedly opening/closing devnull caused problems.
+        # This is closed when Pynguin terminates, since we don't need this output
+        # anyway this is ok.
+        # pylint:disable=unspecified-encoding,consider-using-with
+        self._null_file = open(os.devnull, mode="w")
+
         self._module_provider = (
             module_provider if module_provider is not None else ModuleProvider()
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
+
+        def log_thread_exception(arg):
+            self._logger.error(
+                "Exception in Thread: %s",
+                arg.thread,
+                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
+            )
+
+        # Set our own exception hook, so timeout related errors in executing threads
+        # are not spilled out to stderr and clutter our formatted output but are send
+        # to the logger
+        threading.excepthook = log_thread_exception
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -1146,19 +1264,21 @@ class TestCaseExecutor:
         Returns:
             Result of the execution
         """
-        # pylint:disable=unspecified-encoding
-        with open(os.devnull, mode="w") as null_file:
-            with contextlib.redirect_stdout(null_file):
-                self._before_test_case_execution(test_case)
-                return_queue: Queue = Queue()
+        with contextlib.redirect_stdout(self._null_file):
+            with contextlib.redirect_stderr(self._null_file):
+                return_queue: Queue[ExecutionResult] = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case,
                     args=(test_case, return_queue),
                     daemon=True,
                 )
                 thread.start()
-                thread.join(timeout=len(test_case.statements))
+                # Set a timeout for the thread execution of at most 5 seconds.
+                thread.join(timeout=min(5, len(test_case.statements)))
                 if thread.is_alive():
+                    # Set thread ident to invalid value, such that the tracer
+                    # kills the thread
+                    self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
                     self._logger.warning("Experienced timeout from test-case execution")
                 else:
@@ -1167,11 +1287,11 @@ class TestCaseExecutor:
                     except Empty as ex:
                         self._logger.error("Finished thread did not return a result.")
                         raise RuntimeError("Bug in Pynguin!") from ex
-                self._after_test_case_execution(test_case, result)
+        self._after_test_case_execution_outside_thread(test_case, result)
         return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
-        self._tracer.clear_trace()
+        self._tracer.init_trace()
         for observer in self._observers:
             observer.before_test_case_execution(test_case)
 
@@ -1180,9 +1300,10 @@ class TestCaseExecutor:
         test_case: tc.TestCase,
         result_queue: Queue,
     ) -> None:
+        self._before_test_case_execution(test_case)
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
-        self.tracer.current_thread_identifier = threading.current_thread().ident
+        self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             self._before_statement_execution(statement, exec_ctx)
             exception = self._execute_statement(statement, exec_ctx)
@@ -1190,12 +1311,13 @@ class TestCaseExecutor:
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
                 break
+        self._after_test_case_execution_inside_thread(test_case, result)
         result_queue.put(result)
 
-    def _after_test_case_execution(
+    def _after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        """Collect the execution trace after each executed test case.
+        """Collect the trace data after each executed test case.
 
         Args:
             test_case: The executed test case
@@ -1203,7 +1325,19 @@ class TestCaseExecutor:
         """
         result.execution_trace = self._tracer.get_trace()
         for observer in self._observers:
-            observer.after_test_case_execution(test_case, result)
+            observer.after_test_case_execution_inside_thread(test_case, result)
+
+    def _after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        """Process results outside of thread.
+
+        Args:
+            test_case: The executed test case
+            result: The execution result
+        """
+        for observer in self._observers:
+            observer.after_test_case_execution_outside_thread(test_case, result)
 
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
@@ -1212,7 +1346,9 @@ class TestCaseExecutor:
         # Otherwise raise an exception to kill it.
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
@@ -1251,7 +1387,9 @@ class TestCaseExecutor:
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError()
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
 
         self._tracer.disable()
         try:

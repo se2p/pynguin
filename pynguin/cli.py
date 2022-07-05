@@ -160,6 +160,7 @@ def main(argv: list[str] = None) -> int:
         success, all non-zero exit codes indicate errors.
     """
     if _DANGER_ENV not in os.environ:
+        # pylint: disable=print-function
         print(
             f"""Environment variable '{_DANGER_ENV}' not set.
 Aborting to avoid harming your system.

@@ -12,11 +12,17 @@ import inspect
 import numbers
 import types
 import typing
-from inspect import isclass, isfunction
-from typing import Any, Callable
+from inspect import isclass
+from typing import Any
 
 from ordered_set import OrderedSet
-from typing_inspect import get_args, get_origin, is_union_type
+from typing_inspect import (
+    get_args,
+    get_origin,
+    is_generic_type,
+    is_typevar,
+    is_union_type,
+)
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.types import InferredSignature
@@ -26,31 +32,31 @@ COLLECTIONS = OrderedSet([list, set, tuple, dict])
 IGNORABLE_TYPES = OrderedSet(["builtins.generator", "builtins.async_generator"])
 
 
-def is_primitive_type(type_: type | None) -> bool:
+def is_primitive_type(typ: type | None) -> bool:
     """Check if the given type is a primitive.
 
     Args:
-        type_: a given type
+        typ: a given type
 
     Returns:
         Whether the type is a primitive type
     """
-    return type_ in PRIMITIVES
+    return typ in PRIMITIVES
 
 
-def is_collection_type(type_: type | None) -> bool:
+def is_collection_type(typ: type | None) -> bool:
     """Check if the given type is a collection type.
 
     Args:
-        type_: a given type
+        typ: a given type
 
     Returns:
         Whether the type is a collection type
     """
-    return type_ in COLLECTIONS or get_origin(type_) in COLLECTIONS
+    return typ in COLLECTIONS or get_origin(typ) in COLLECTIONS
 
 
-def is_ignorable_type(type_: type) -> bool:
+def is_ignorable_type(typ: type) -> bool:
     """Check if the given type is ignorable.
 
     These are types that are exposed as a runtime type, although they are not
@@ -71,81 +77,119 @@ def is_ignorable_type(type_: type) -> bool:
     reasonably handle them or generate an assertion for them.
 
     Args:
-        type_: a given type
+        typ: a given type
 
     Returns:
         Whether the type is ignorable
     """
-    return f"{type_.__module__}.{type_.__name__}" in IGNORABLE_TYPES
+    return f"{typ.__module__}.{typ.__name__}" in IGNORABLE_TYPES
 
 
-def class_in_module(module_name: str) -> Callable[[Any], bool]:
-    """Returns a predicate which filters out any classes not directly defined in the
-    given module.
-
-    Args:
-        module_name: the name of the model
-
-    Returns:
-        A filter predicate
-    """
-    return lambda member: isclass(member) and member.__module__ == module_name
-
-
-def function_in_module(module_name: str) -> Callable[[Any], bool]:
-    """Returns a predicate which filters out any functions not directly defined in the
-    given module.
-
-    Args:
-        module_name: the name of the model
-
-    Returns:
-        A filter predicate
-    """
-    return lambda member: isfunction(member) and member.__module__ == module_name
-
-
-def is_none_type(type_: type | None) -> bool:
+def is_none_type(typ: type | None) -> bool:
     """Is the given type NoneType?
 
     Args:
-        type_: a type to check
+        typ: a type to check
 
     Returns:
         Whether or not the given type is NoneType
     """
-    return type_ is type(None)  # noqa: E721
+    return typ is type(None)  # noqa: E721
 
 
-def is_type_unknown(type_: type | None) -> bool:
+def is_type_unknown(typ: type | None) -> bool:
     """Is the type of this variable unknown?
 
     Args:
-        type_: a type to check
+        typ: a type to check
 
     Returns:
         Whether or not the given type is unknown
     """
-    return type_ is None
+    return typ is None
 
 
-def is_assignable_to(from_type: type | None, to_type: type | None) -> bool:
-    """A naive implementation to check if one type is assignable to another.
+def is_subtype_of(typ1: type | None, typ2: type | None) -> bool:
+    """A naive implementation to check if typ1 is a subtype of typ2.
 
-    Currently only unary types, Any and Union are supported.
+    Currently, only handles simple class types and Union.
+    Should be gradually extended to support more complex structures, e.g.,
+    generics.
+
+    See https://peps.python.org/pep-0483/ for more details on this relation.
 
     Args:
-        from_type: The type annotation that is used as the source.
-        to_type: The type which should be assigned to.
+        typ1: first type
+        typ2: second type
 
     Returns:
-        True if `from_type` is assignable to `to_type`
+        True, if typ1 is a subtype of typ2
     """
-    if to_type == typing.Any:  # pylint:disable=comparison-with-callable
+    if typ1 == typ2:
+        # Trivial case
         return True
-    if is_union_type(to_type):
-        return from_type in get_args(to_type)
-    return from_type == to_type
+    if (non_generic_tp1 := extract_non_generic_class(typ1)) is not None and (
+        non_generic_tp2 := extract_non_generic_class(typ2)
+    ) is not None:
+        # Hacky way to handle generics by trying to extract non-generic classes
+        # and checking for subclass relation
+        return issubclass(non_generic_tp1, non_generic_tp2)
+    if is_union_type(typ2):
+        if is_union_type(typ1):
+            # Union[int, str] is a subtype of Union[str, float, int]
+            return all(is_subtype_of(t1_element, typ2) for t1_element in get_args(typ1))
+        # Check type separately
+        return any(is_subtype_of(typ1, t2_element) for t2_element in get_args(typ2))
+    return False
+
+
+def is_consistent_with(typ1: type | None, typ2: type | None) -> bool:
+    """Is typ1 is consistent with typ2.
+
+    The notion of this relation is taken from https://peps.python.org/pep-0483/
+
+    Args:
+        typ1: The type that is used as the source.
+        typ2: The type which should be assigned to.
+
+    Returns:
+        True if tp1 is compatible with tp2
+    """
+    if (
+        typ1 is typing.Any or typ2 is typing.Any
+    ):  # pylint:disable=comparison-with-callable
+        return True
+    return is_subtype_of(typ1, typ2)
+
+
+def extract_non_generic_class(obj) -> type | None:
+    """Extract non-generic origin.
+
+    Args:
+        obj: The object to check
+
+    Returns:
+        True if it is a non-generic class
+    """
+    if not isclass(obj):
+        return None
+    if is_generic_type(obj):
+        return get_origin(obj)
+    return obj
+
+
+def filter_type_vars(obj):
+    """We cannot handle typevars yet, so we erase them for now.
+
+    Args:
+        obj: maybe a type var
+
+    Returns:
+        Any, if obj was a typevar, otherwise return obj
+    """
+    if is_typevar(obj):
+        return Any
+    return obj
 
 
 def is_numeric(value: Any) -> bool:
@@ -337,26 +381,26 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
     )
 
 
-def wrap_var_param_type(type_: type | None, param_kind) -> type | None:
+def wrap_var_param_type(typ: type | None, param_kind) -> type | None:
     """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
     respectively.
 
     Args:
-        type_: The type to be wrapped.
+        typ: The type to be wrapped.
         param_kind: the kind of parameter.
 
     Returns:
         The wrapped type, or the original type, if no wrapping is required.
     """
     if param_kind == inspect.Parameter.VAR_POSITIONAL:
-        if type_ is None:
+        if typ is None:
             return list[typing.Any]
-        return list[type_]  # type: ignore
+        return list[typ]  # type: ignore
     if param_kind == inspect.Parameter.VAR_KEYWORD:
-        if type_ is None:
+        if typ is None:
             return dict[str, typing.Any]
-        return dict[str, type_]  # type: ignore
-    return type_
+        return dict[str, typ]  # type: ignore
+    return typ
 
 
 def given_exception_matches(err, exc) -> bool:

@@ -963,6 +963,7 @@ def test_change_call_unknown():
     acc.is_method.return_value = False
     acc.is_constructor.return_value = False
     acc.is_function.return_value = False
+    acc.is_enum.return_value = False
     with pytest.raises(AssertionError):
         test_factory.change_call(test_case, to_replace, acc)
 
