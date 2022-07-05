@@ -11,6 +11,12 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.25.0
 
+- Fix further issues with test-case isolation during execution.
+- Fix some bugs regarding type information.
+- Use [astroid](https://github.com/PyCQA/astroid) instead of Python's
+  [ast](https://docs.python.org/3/library/ast.html) module for our module analysis due
+  to its enhanced features.
+
 ## Pynguin 0.24.1
 
 - Update Pynguin's documentation to match fixes from Pynguin 0.24.0
