@@ -1026,6 +1026,7 @@ def __resolve_dependencies(
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
+
 def __analyse_included_classes(
     *,
     module: ModuleType,
@@ -1034,7 +1035,7 @@ def __analyse_included_classes(
     test_cluster: ModuleTestCluster,
     syntax_tree: astroid.Module | None,
     seen_classes: set,
-    parsed_modules: list[_ParseResult] | None = None, 
+    parsed_modules: list[_ParseResult] | None = None,
 ) -> None:
     work_list = list(
         filter(
@@ -1044,9 +1045,24 @@ def __analyse_included_classes(
     )
 
     predicted_classes = original_classes = None
-    if config.configuration.deeptyper.deeptyper and parsed_modules is not None and len(parsed_modules) > 1:
-        predicted_classes = [inspect.getmembers(parsed_modules[i].module, lambda member: inspect.isclass(member) and member.__module__ == parsed_modules[i].module_name) for i in range(1, 6)]
-        o_classes = inspect.getmembers(module, lambda member: inspect.isclass(member) and member.__module__ == root_module_name)
+    if (
+        config.configuration.deeptyper.deeptyper
+        and parsed_modules is not None
+        and len(parsed_modules) > 1
+    ):
+        predicted_classes = [
+            inspect.getmembers(
+                parsed_modules[i].module,
+                lambda member: inspect.isclass(member)
+                and member.__module__ == parsed_modules[i].module_name,
+            )
+            for i in range(1, 6)
+        ]
+        o_classes = inspect.getmembers(
+            module,
+            lambda member: inspect.isclass(member)
+            and member.__module__ == root_module_name,
+        )
         original_classes = [c[1] for c in o_classes]
 
     while len(work_list) > 0:
@@ -1055,7 +1071,11 @@ def __analyse_included_classes(
             continue
         seen_classes.add(current)
 
-        if predicted_classes is not None and original_classes is not None and current in original_classes:
+        if (
+            predicted_classes is not None
+            and original_classes is not None
+            and current in original_classes
+        ):
             predictions = [predicted_classes[i].pop(0) for i in range(5)]
         else:
             predictions = None
@@ -1095,9 +1115,24 @@ def __analyse_included_functions(
 ) -> None:
 
     predicted_functions = original_functions = None
-    if config.configuration.deeptyper.deeptyper and parsed_modules is not None and len(parsed_modules) > 1:
-        predicted_functions = [inspect.getmembers(parsed_modules[i].module, lambda member: inspect.isfunction(member) and member.__module__ == parsed_modules[i].module_name) for i in range(1, 6)]
-        o_functions = inspect.getmembers(module, lambda member: inspect.isfunction(member) and member.__module__ == root_module_name)
+    if (
+        config.configuration.deeptyper.deeptyper
+        and parsed_modules is not None
+        and len(parsed_modules) > 1
+    ):
+        predicted_functions = [
+            inspect.getmembers(
+                parsed_modules[i].module,
+                lambda member: inspect.isfunction(member)
+                and member.__module__ == parsed_modules[i].module_name,
+            )
+            for i in range(1, 6)
+        ]
+        o_functions = inspect.getmembers(
+            module,
+            lambda member: inspect.isfunction(member)
+            and member.__module__ == root_module_name,
+        )
         original_functions = [c[1] for c in o_functions]
 
     func_count = 0
@@ -1108,8 +1143,12 @@ def __analyse_included_functions(
         if current in seen_functions:
             continue
         seen_functions.add(current)
-        
-        if predicted_functions is not None and original_functions is not None and current in original_functions:
+
+        if (
+            predicted_functions is not None
+            and original_functions is not None
+            and current in original_functions
+        ):
             predictions = [predicted_functions[i][func_count] for i in range(5)]
         else:
             predictions = None
@@ -1146,10 +1185,8 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
         test_cluster=test_cluster,
         parsed_modules=parsed_modules,
     )
-    predss = test_cluster.get_predicted_signatures()
-    for i in predss:
-        print("\n", i, predss[i])
     return test_cluster
+
 
 def generate_test_cluster(
     module_name: str,
