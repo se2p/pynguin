@@ -1,0 +1,703 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
+#
+#  SPDX-License-Identifier: LGPL-3.0-or-later
+#
+"""Provides classes to trace the usage of objects."""
+
+from __future__ import annotations
+
+import builtins
+import contextlib
+import dataclasses
+import logging
+import operator
+from collections import defaultdict
+
+LOGGER = logging.getLogger(__name__)
+
+
+# Parts of the following code were taken from the awesome
+# https://github.com/GrahamDumpleton/wrapt module and modified for our purposes.
+
+# The wrapt library is under BSD 2-Clause "Simplified" License:
+#
+# Copyright (c) 2013-2022, Graham Dumpleton
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+
+@dataclasses.dataclass
+class ProxyKnowledge:
+    """The knowledge gathered by a proxy."""
+
+    name: str
+
+    # The depth of the proxy within the proxied object graph.
+    # Zero indicates that it is the root.
+    depth: int = 0
+    # A list may contain None, when access to an attribute failed.
+    # In such a case we only know that something tried to access the given attribute,
+    # but could not wrap the result in a Proxy.
+    children: defaultdict[str, list[ProxyKnowledge | None]] = dataclasses.field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    # The type against which this proxy was checked.
+    # Weak vs strong type checks?
+    # TODO(fk) do not record type checks originating from other proxies?
+    # TODO(fk) do not record anything if it involves another proxy
+    type_checks: list[type | tuple[type, ...]] = dataclasses.field(default_factory=list)
+
+    # Type checks on elements. Special case for __contains__
+    element_type_checks: list[type | tuple[type, ...]] = dataclasses.field(
+        default_factory=list
+    )
+
+    def __str__(self) -> str:
+        output = self.__get_indent(depth=self.depth) + f"'{self.name}'"
+        if len(self.type_checks) > 0:
+            output += f" (type-checks: {self.type_checks}"
+        if len(self.element_type_checks) > 0:
+            output += f" (element-type-checks: {self.element_type_checks}"
+        for children in self.children.values():
+            for child in children:
+                if child is not None:
+                    output += "\n" + str(child)
+                else:
+                    output += (
+                        "\n" + self.__get_indent(depth=self.depth) + f"'{self.name}'"
+                    )
+        return output
+
+    @staticmethod
+    def __get_indent(depth: int) -> str:
+        indent = "     " * (depth - 1)
+        if depth > 0:
+            indent += "└---"
+        return indent
+
+    @staticmethod
+    def from_proxy(obj: ObjectProxy) -> ProxyKnowledge:
+        """Extract knowledge from the given proxy.
+
+        Args:
+            obj: the proxy from which we should extract knowledge
+
+        Returns:
+            The extracted knowledge.
+        """
+        return obj._self_proxy_knowledge
+
+
+def proxify(log_arg_type=False, as_element=False):
+    """Decorator to wrap the result of a dunder method in a proxy.
+
+    Args:
+        log_arg_type: Should we log the argument as a type check?
+        as_element: log it as element check (special case for __contains__)
+
+    Returns:
+        A decorated function
+    """
+
+    def wrap(function):
+        def wrapped(*args, **kwargs):
+            self = args[0]
+            knowledge = ProxyKnowledge.from_proxy(self)
+            knowledge.children[function.__name__].append(None)
+            if len(args) > 1:
+                if isinstance(args[1], ObjectProxy):
+                    # Only record access but nothing more, if we interact with another
+                    # proxy.
+                    # TODO(fk) unproxy/disable arguments?
+                    return function(*args, **kwargs)
+                if log_arg_type:
+                    if as_element:
+                        # Special case for __contains__
+                        knowledge.element_type_checks.append(type(args[1]))
+                    else:
+                        knowledge.type_checks.append(type(args[1]))
+            proxy = ObjectProxy(
+                function(*args, **kwargs),
+                name=function.__name__,
+                depth=knowledge.depth + 1,
+            )
+            knowledge.children[function.__name__].pop()
+            knowledge.children[function.__name__].append(
+                ProxyKnowledge.from_proxy(proxy)
+            )
+            return proxy
+
+        return wrapped
+
+    return wrap
+
+
+class _ObjectProxyMethods:
+
+    # We use properties to override the values of __module__ and
+    # __doc__. If we add these in ObjectProxy, the derived class
+    # __dict__ will still be setup to have string variants of these
+    # attributes and the rules of descriptors means that they appear to
+    # take precedence over the properties in the base class. To avoid
+    # that, we copy the properties into the derived class type itself
+    # via a meta class. In that way the properties will always take
+    # precedence.
+
+    @property  # type:ignore
+    def __module__(self):
+        return self.__wrapped__.__module__  # type:ignore # pylint:disable=no-member
+
+    @__module__.setter
+    def __module__(self, value):
+        self.__wrapped__.__module__ = value  # type:ignore # pylint:disable=no-member
+
+    @property  # type:ignore
+    def __doc__(self):
+        return self.__wrapped__.__doc__  # type:ignore # pylint:disable=no-member
+
+    @__doc__.setter
+    def __doc__(self, value):
+        self.__wrapped__.__doc__ = value  # type:ignore # pylint:disable=no-member
+
+    # We similar use a property for __dict__. We need __dict__ to be
+    # explicit to ensure that vars() works as expected.
+
+    @property
+    def __dict__(self):
+        return self.__wrapped__.__dict__  # type:ignore  # pylint:disable=no-member
+
+    # Need to also propagate the special __weakref__ attribute for case
+    # where decorating classes which will define this. If do not define
+    # it and use a function like inspect.getmembers() on a decorator
+    # class it will fail. This can't be in the derived classes.
+
+    @property
+    def __weakref__(self):
+        return self.__wrapped__.__weakref__  # type:ignore  # pylint:disable=no-member
+
+
+class _ObjectProxyMetaType(type):
+    def __new__(cls, name, bases, dictionary):
+        # Copy our special properties into the class so that they
+        # always take precedence over attributes of the same name added
+        # during construction of a derived class. This is to save
+        # duplicating the implementation for them in all derived classes.
+
+        dictionary.update(vars(_ObjectProxyMethods))
+
+        return type.__new__(cls, name, bases, dictionary)
+
+
+class ObjectProxy(metaclass=_ObjectProxyMetaType):
+    """A proxy for (almost) any Python object."""
+
+    # TODO(fk) Create separate class for each wrapped type and drop
+    #  __dunder_methods__ not declared in wrapped type?
+
+    def __init__(self, wrapped, name: str | None = None, depth: int = 0):
+        object.__setattr__(self, "__wrapped__", wrapped)
+        # What does this proxy know?
+        object.__setattr__(
+            self,
+            "_self_proxy_knowledge",
+            ProxyKnowledge(name="ROOT" if name is None else name, depth=depth),
+        )
+        # Python 3.2+ has the __qualname__ attribute, but it does not
+        # allow it to be overridden using a property and it must instead
+        # be an actual string object instead.
+
+        try:
+            object.__setattr__(self, "__qualname__", wrapped.__qualname__)
+        except AttributeError:
+            pass
+
+        # Python 3.10 onwards also does not allow itself to be overridden
+        # using a property and it must instead be set explicitly.
+
+        try:
+            object.__setattr__(self, "__annotations__", wrapped.__annotations__)
+        except AttributeError:
+            pass
+
+    @property
+    def __name__(self):
+        return self.__wrapped__.__name__  # type:ignore
+
+    @__name__.setter
+    def __name__(self, value):
+        self.__wrapped__.__name__ = value  # type:ignore
+
+    @property
+    def __class__(self):
+        return self.__wrapped__.__class__  # type:ignore
+
+    @__class__.setter
+    def __class__(self, value):  # noqa: F811
+        self.__wrapped__.__class__ = value  # type:ignore
+
+    def __dir__(self):
+        return dir(self.__wrapped__)  # type:ignore
+
+    def __str__(self):
+        return str(self.__wrapped__)  # type:ignore
+
+    def __bytes__(self):
+        return bytes(self.__wrapped__)  # type:ignore
+
+    def __repr__(self):
+        return (
+            f"<{type(self).__name__} at 0x{id(self):x} for "
+            f"{type(self.__wrapped__).__name__} "  # type: ignore
+            f"at 0x{id(self.__wrapped__):x}>"  # type: ignore
+        )
+
+    def __reversed__(self):
+        return reversed(self.__wrapped__)  # type:ignore
+
+    @proxify()
+    def __round__(self, *args):
+        return round(self.__wrapped__, *args)  # type:ignore
+
+    def __mro_entries__(self, bases):  # pylint:disable=unused-argument
+        return (self.__wrapped__,)  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __lt__(self, other):
+        return self.__wrapped__ < other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __le__(self, other):
+        return self.__wrapped__ <= other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __eq__(self, other):
+        return self.__wrapped__ == other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __ne__(self, other):
+        return self.__wrapped__ != other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __gt__(self, other):
+        return self.__wrapped__ > other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __ge__(self, other):
+        return self.__wrapped__ >= other  # type:ignore
+
+    def __hash__(self):
+        return hash(self.__wrapped__)  # type:ignore
+
+    def __bool__(self):
+        return bool(self.__wrapped__)  # type:ignore
+
+    def __setattr__(self, name, value):
+        if name.startswith("_self_"):
+            object.__setattr__(self, name, value)
+
+        elif name == "__wrapped__":
+            object.__setattr__(self, name, value)
+            try:
+                object.__delattr__(self, "__qualname__")
+            except AttributeError:
+                pass
+            try:
+                object.__setattr__(self, "__qualname__", value.__qualname__)
+            except AttributeError:
+                pass
+            try:
+                object.__delattr__(self, "__annotations__")
+            except AttributeError:
+                pass
+            try:
+                object.__setattr__(self, "__annotations__", value.__annotations__)
+            except AttributeError:
+                pass
+
+        elif name == "__qualname__":
+            setattr(self.__wrapped__, name, value)  # type:ignore
+            object.__setattr__(self, name, value)
+
+        elif name == "__annotations__":
+            setattr(self.__wrapped__, name, value)  # type:ignore
+            object.__setattr__(self, name, value)
+
+        elif hasattr(type(self), name):
+            object.__setattr__(self, name, value)
+
+        else:
+            setattr(self.__wrapped__, name, value)  # type:ignore
+
+    def __getattr__(self, name):
+        # If we are being asked to lookup '__wrapped__' then the
+        # '__init__()' method cannot have been called.
+        if name == "__wrapped__":
+            raise ValueError("wrapper has not been initialised")
+        if name.startswith("_self_"):
+            return object.__getattribute__(self, name)
+
+        # Append dummy in case of failed access
+        knowledge = self._self_proxy_knowledge
+        knowledge.children[name].append(None)
+        proxy = ObjectProxy(
+            getattr(self.__wrapped__, name),  # type:ignore
+            name=name,
+            depth=self._self_proxy_knowledge.depth + 1,
+        )
+        knowledge.children[name].pop()
+        knowledge.children[name].append(proxy._self_proxy_knowledge)
+        return proxy
+
+    def __delattr__(self, name):
+        if name.startswith("_self_"):
+            object.__delattr__(self, name)
+
+        elif name == "__wrapped__":
+            raise TypeError("__wrapped__ must be an object")
+
+        elif name == "__qualname__":
+            object.__delattr__(self, name)
+            delattr(self.__wrapped__, name)  # type:ignore
+
+        elif hasattr(type(self), name):
+            object.__delattr__(self, name)
+
+        else:
+            delattr(self.__wrapped__, name)  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __add__(self, other):
+        return self.__wrapped__ + other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __sub__(self, other):
+        return self.__wrapped__ - other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __mul__(self, other):
+        return self.__wrapped__ * other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __truediv__(self, other):
+        return operator.truediv(self.__wrapped__, other)  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __floordiv__(self, other):
+        return self.__wrapped__ // other  # type:ignore
+
+    @proxify()
+    def __mod__(self, other):
+        return self.__wrapped__ % other  # type:ignore
+
+    @proxify()
+    def __divmod__(self, other):
+        return divmod(self.__wrapped__, other)  # type:ignore
+
+    @proxify()
+    def __pow__(self, other, *args):
+        return pow(self.__wrapped__, other, *args)  # type:ignore
+
+    @proxify()
+    def __lshift__(self, other):
+        return self.__wrapped__ << other  # type:ignore
+
+    @proxify()
+    def __rshift__(self, other):
+        return self.__wrapped__ >> other  # type:ignore
+
+    @proxify()
+    def __and__(self, other):
+        return self.__wrapped__ & other  # type:ignore
+
+    @proxify()
+    def __xor__(self, other):
+        return self.__wrapped__ ^ other  # type:ignore
+
+    @proxify()
+    def __or__(self, other):
+        return self.__wrapped__ | other  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __radd__(self, other):
+        return other + self.__wrapped__  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __rsub__(self, other):
+        return other - self.__wrapped__  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __rmul__(self, other):
+        return other * self.__wrapped__  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __rtruediv__(self, other):
+        return operator.truediv(other, self.__wrapped__)  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __rfloordiv__(self, other):
+        return other // self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __rmod__(self, other):
+        return other % self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __rdivmod__(self, other):
+        return divmod(other, self.__wrapped__)  # type:ignore
+
+    @proxify()
+    def __rpow__(self, other, *args):
+        return pow(other, self.__wrapped__, *args)  # type:ignore
+
+    @proxify()
+    def __rlshift__(self, other):
+        return other << self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __rrshift__(self, other):
+        return other >> self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __rand__(self, other):
+        return other & self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __rxor__(self, other):
+        return other ^ self.__wrapped__  # type:ignore
+
+    @proxify()
+    def __ror__(self, other):
+        return other | self.__wrapped__  # type:ignore
+
+    @proxify(log_arg_type=True)
+    def __iadd__(self, other):  # type:ignore
+        self.__wrapped__ += other  # type:ignore
+        return self
+
+    @proxify(log_arg_type=True)
+    def __isub__(self, other):  # type:ignore
+        self.__wrapped__ -= other  # type:ignore
+        return self
+
+    @proxify(log_arg_type=True)
+    def __imul__(self, other):  # type:ignore
+        self.__wrapped__ *= other  # type:ignore
+        return self
+
+    @proxify(log_arg_type=True)
+    def __itruediv__(self, other):  # type:ignore
+        # pylint:disable=attribute-defined-outside-init
+        self.__wrapped__ = operator.itruediv(self.__wrapped__, other)  # type:ignore
+        return self
+
+    @proxify(log_arg_type=True)
+    def __ifloordiv__(self, other):  # type:ignore
+        self.__wrapped__ //= other
+        return self
+
+    @proxify(log_arg_type=True)
+    def __imod__(self, other):  # type:ignore
+        self.__wrapped__ %= other
+        return self
+
+    @proxify()
+    def __ipow__(self, other):  # type:ignore
+        self.__wrapped__ **= other
+        return self
+
+    @proxify()
+    def __ilshift__(self, other):  # type:ignore
+        self.__wrapped__ <<= other
+        return self
+
+    @proxify()
+    def __irshift__(self, other):  # type:ignore
+        self.__wrapped__ >>= other
+        return self
+
+    @proxify()
+    def __iand__(self, other):  # type:ignore
+        self.__wrapped__ &= other
+        return self
+
+    @proxify()
+    def __ixor__(self, other):  # type:ignore
+        self.__wrapped__ ^= other
+        return self
+
+    @proxify()
+    def __ior__(self, other):  # type:ignore
+        self.__wrapped__ |= other
+        return self
+
+    @proxify()
+    def __neg__(self):
+        return -self.__wrapped__
+
+    @proxify()
+    def __pos__(self):
+        return +self.__wrapped__
+
+    @proxify()
+    def __abs__(self):
+        return abs(self.__wrapped__)
+
+    @proxify()
+    def __invert__(self):
+        return ~self.__wrapped__
+
+    def __int__(self):
+        return int(self.__wrapped__)
+
+    def __float__(self):
+        return float(self.__wrapped__)
+
+    def __complex__(self):
+        return complex(self.__wrapped__)
+
+    def __index__(self):
+        return operator.index(self.__wrapped__)
+
+    @proxify()
+    def __len__(self):
+        return len(self.__wrapped__)
+
+    @proxify(log_arg_type=True, as_element=True)
+    def __contains__(self, value):
+        return value in self.__wrapped__
+
+    @proxify()
+    def __getitem__(self, key):
+        return self.__wrapped__[key]
+
+    @proxify()
+    def __setitem__(self, key, value):
+        self.__wrapped__[key] = value
+
+    @proxify()
+    def __delitem__(self, key):
+        del self.__wrapped__[key]
+
+    def __enter__(self):
+        return self.__wrapped__.__enter__()
+
+    def __exit__(self, *args, **kwargs):
+        return self.__wrapped__.__exit__(*args, **kwargs)
+
+    def __iter__(self):
+        # Does this work?
+        knowledge = self._self_proxy_knowledge
+        knowledge.children["__iter__"].append(None)
+        fst = True
+        for i in self.__wrapped__:
+            proxy = ObjectProxy(i, name="__iter__", depth=knowledge.depth + 1)
+            if fst:
+                # Pop None again
+                knowledge.children["__iter__"].pop()
+                fst = False
+            knowledge.children["__iter__"].append(proxy._self_proxy_knowledge)
+            yield proxy
+
+    # These do not give us any hint.
+    # def __copy__(self):
+    #     raise NotImplementedError('object proxy must define __copy__()')
+    #
+    # def __deepcopy__(self, memo):
+    #     raise NotImplementedError('object proxy must define __deepcopy__()')
+    #
+    # def __reduce__(self):
+    #     raise NotImplementedError(
+    #             'object proxy must define __reduce_ex__()')
+    #
+    # def __reduce_ex__(self, protocol):
+    #     raise NotImplementedError(
+    #             'object proxy must define __reduce_ex__()')
+
+    @proxify()
+    def __call__(self, *args, **kwargs):
+        return self.__wrapped__(*args, **kwargs)
+
+
+@contextlib.contextmanager
+def shim_isinstance():
+    """Context manager that temporarily replaces isinstance with a shim.
+    The shim is aware of ObjectProxies
+
+    Yields:
+        resets the shim
+    """
+    orig_isinstance = builtins.isinstance
+
+    def shim(inst, types):
+        # pylint:disable=unidiomatic-typecheck
+        if type(inst) is ObjectProxy and types is not ObjectProxy:
+            ProxyKnowledge.from_proxy(inst).type_checks.append(types)
+        return orig_isinstance(inst, types)
+
+    builtins.isinstance = shim
+    yield
+    builtins.isinstance = orig_isinstance
+
+
+# def main_foo():
+#     # Argument
+#     argument = [1]
+#     argument2 = ["0"]
+#     # argument = ProxyKnowledge()
+#
+#     # Execute
+#     proxied = ObjectProxy(argument)
+#     proxied2 = ObjectProxy(argument)
+#     try:
+#         with shim_isinstance():
+#             faab(2, proxied2)
+#     except Exception as ex:
+#         print(ex)
+#
+#     # Look at gathered knowledge
+#     print(proxied._self_proxy_knowledge)
+#     print(proxied2._self_proxy_knowledge)
+#
+#
+# def faab(a, b):
+#     # Something weird happens here
+#     print(a in b)
+#
+#
+# def foobar(something: Any) -> Any:
+#     if isinstance(something, list):
+#         print("outer is a list")
+#     something[0].append("foo")
+#     if isinstance(something[0], list):
+#         print("inner is a list")
+#     if something[0][0].startswith("wat"):
+#         print("does start with wat")
+#     else:
+#         print("no")
+#     for i in something:
+#         for j in i:
+#             print(j.upper())
