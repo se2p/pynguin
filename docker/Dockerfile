@@ -36,7 +36,7 @@ FROM python:3.10.5-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.25.1"
+ENV PYNGUIN_VERSION "0.26.0.dev0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the
