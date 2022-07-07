@@ -579,13 +579,14 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
     @proxify()
     def __len__(self):
+        # len turns result into an integer
         return len(self.__wrapped__)
 
     @proxify(log_arg_type=True)
     def __contains__(self, value):
         return value in self.__wrapped__
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __getitem__(self, key):
         return self.__wrapped__[key]
 

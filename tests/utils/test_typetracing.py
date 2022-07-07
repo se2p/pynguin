@@ -54,6 +54,14 @@ def test_loop_over_list():
     )
 
 
+def test_dict():
+    proxy = tt.ObjectProxy({"foo": 42})
+    assert proxy == {"foo": 42}
+    assert (
+        dict in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__eq__"][0].arg_types
+    )
+
+
 def test_isinstance_check():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
@@ -87,6 +95,42 @@ def test_contains():
     )
 
 
+def test_getitem():
+    proxy = tt.ObjectProxy(["entry"])
+    element = proxy[0]
+    assert element == "entry"
+    assert isinstance(element, tt.ObjectProxy)
+    assert (
+        int
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"][0].arg_types
+    )
+
+
+def test_len():
+    proxy = tt.ObjectProxy(["entry"])
+    length = len(proxy)
+    assert length == 1
+    assert "__len__" in tt.ProxyKnowledge.from_proxy(proxy).symbol_table
+
+
+def test_hash():
+    proxy = tt.ObjectProxy("entry")
+    assert hash(proxy) == hash("entry")
+
+
+def test_class():
+    proxy = tt.ObjectProxy("entry")
+    assert proxy.__class__ == "entry".__class__
+
+
+def test_name():
+    class Foo:
+        pass
+
+    proxy = tt.ObjectProxy(Foo)
+    assert proxy.__name__ == Foo.__name__
+
+
 def test_contains_proxy():
     proxy = tt.ObjectProxy([42])
     proxy2 = tt.ObjectProxy(42)
@@ -113,6 +157,16 @@ def test_dont_record_objectproxy_instance_check():
     with tt.shim_isinstance():
         assert isinstance(proxy, tt.ObjectProxy)
     assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
+
+
+def test_setattr():
+    class Foo:
+        def __init__(self):
+            self.foo = 42
+
+    proxy = tt.ObjectProxy(Foo())
+    proxy.foo = 42
+    assert len(tt.ProxyKnowledge.from_proxy(proxy).symbol_table["foo"]) == 1
 
 
 @pytest.mark.parametrize("obj", [42, "foo", 42.3, {}])
