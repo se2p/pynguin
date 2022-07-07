@@ -115,11 +115,13 @@ class ProxyKnowledge:
         return obj._self_proxy_knowledge
 
 
-def proxify(log_arg_type=False):
+def proxify(log_arg_type=False, no_wrap_return=False):
     """Decorator to wrap the result of a dunder method in a proxy.
 
     Args:
         log_arg_type: Should we log the argument as a type check?
+        no_wrap_return: Some cases, e.g., __int__ don't allow a return value that is
+            not an int, so in some cases we have to disable wrapping.
 
     Returns:
         A decorated function
@@ -141,8 +143,9 @@ def proxify(log_arg_type=False):
                     return function(*args, **kwargs)
                 if log_arg_type:
                     new_knowledge.arg_types.append(type(args[1]))
-            proxy = ObjectProxy(function(*args, **kwargs), knowledge=new_knowledge)
-            return proxy
+            if no_wrap_return:
+                return function(*args, **kwargs)
+            return ObjectProxy(function(*args, **kwargs), knowledge=new_knowledge)
 
         return wrapped
 
@@ -258,6 +261,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __str__(self):
         return str(self.__wrapped__)  # type:ignore
 
+    @proxify(no_wrap_return=True)
     def __bytes__(self):
         return bytes(self.__wrapped__)  # type:ignore
 
@@ -305,6 +309,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __hash__(self):
         return hash(self.__wrapped__)  # type:ignore
 
+    @proxify(no_wrap_return=True)
     def __bool__(self):
         return bool(self.__wrapped__)  # type:ignore
 
@@ -404,35 +409,35 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __floordiv__(self, other):
         return self.__wrapped__ // other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __mod__(self, other):
         return self.__wrapped__ % other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __divmod__(self, other):
         return divmod(self.__wrapped__, other)  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __pow__(self, other, *args):
         return pow(self.__wrapped__, other, *args)  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __lshift__(self, other):
         return self.__wrapped__ << other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rshift__(self, other):
         return self.__wrapped__ >> other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __and__(self, other):
         return self.__wrapped__ & other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __xor__(self, other):
         return self.__wrapped__ ^ other  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __or__(self, other):
         return self.__wrapped__ | other  # type:ignore
 
@@ -456,35 +461,35 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __rfloordiv__(self, other):
         return other // self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rmod__(self, other):
         return other % self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rdivmod__(self, other):
         return divmod(other, self.__wrapped__)  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rpow__(self, other, *args):
         return pow(other, self.__wrapped__, *args)  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rlshift__(self, other):
         return other << self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rrshift__(self, other):
         return other >> self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rand__(self, other):
         return other & self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __rxor__(self, other):
         return other ^ self.__wrapped__  # type:ignore
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __ror__(self, other):
         return other | self.__wrapped__  # type:ignore
 
@@ -519,32 +524,32 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         self.__wrapped__ %= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __ipow__(self, other):  # type:ignore
         self.__wrapped__ **= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __ilshift__(self, other):  # type:ignore
         self.__wrapped__ <<= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __irshift__(self, other):  # type:ignore
         self.__wrapped__ >>= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __iand__(self, other):  # type:ignore
         self.__wrapped__ &= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __ixor__(self, other):  # type:ignore
         self.__wrapped__ ^= other
         return self
 
-    @proxify()
+    @proxify(log_arg_type=True)
     def __ior__(self, other):  # type:ignore
         self.__wrapped__ |= other
         return self
@@ -565,15 +570,19 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __invert__(self):
         return ~self.__wrapped__
 
+    @proxify(no_wrap_return=True)
     def __int__(self):
         return int(self.__wrapped__)
 
+    @proxify(no_wrap_return=True)
     def __float__(self):
         return float(self.__wrapped__)
 
+    @proxify(no_wrap_return=True)
     def __complex__(self):
         return complex(self.__wrapped__)
 
+    @proxify(no_wrap_return=True)
     def __index__(self):
         return operator.index(self.__wrapped__)
 
@@ -590,7 +599,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __getitem__(self, key):
         return self.__wrapped__[key]
 
-    @proxify()
+    # TODO(fk) log value?
+    @proxify(log_arg_type=True)
     def __setitem__(self, key, value):
         self.__wrapped__[key] = value
 
@@ -605,7 +615,6 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         return self.__wrapped__.__exit__(*args, **kwargs)
 
     def __iter__(self):
-        # Does this work?
         knowledge = self._self_proxy_knowledge
         new_knowledge = ProxyKnowledge("__iter__", knowledge.depth + 1)
         knowledge.symbol_table["__iter__"].append(new_knowledge)
