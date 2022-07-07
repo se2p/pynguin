@@ -343,6 +343,10 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             object.__setattr__(self, name, value)
 
         else:
+            knowledge = ProxyKnowledge.from_proxy(self)
+            knowledge.symbol_table[name].append(
+                ProxyKnowledge(name, knowledge.depth + 1)
+            )
             setattr(self.__wrapped__, name, value)  # type:ignore
 
     def __getattr__(self, name):
