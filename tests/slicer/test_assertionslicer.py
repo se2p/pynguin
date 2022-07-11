@@ -245,10 +245,8 @@ def test_assertion_detection_on_test_case(
 
         executor = TestCaseExecutor(tracer)
         executor.execute(test_case, instrument_test=True)
-        trace = tracer.get_trace()
-        assert trace.existing_assertions
-
-        assert len(trace.existing_assertions) == expected_assertions
+        assert tracer.get_trace().executed_assertions
+        assert len(tracer.get_trace().executed_assertions) == expected_assertions
 
 
 @pytest.mark.parametrize(
@@ -288,16 +286,15 @@ def test_slicing_after_test_execution(
 
         executor = TestCaseExecutor(tracer)
         executor.execute(test_case, instrument_test=True)
-        trace = tracer.get_trace()
-        assert trace.existing_assertions
+        assert tracer.get_trace().executed_assertions
 
         instructions_in_slice = []
         assertion_slicer = AssertionSlicer(
             tracer.get_known_data().existing_code_objects
         )
-        for assertion in trace.existing_assertions:
+        for assertion in tracer.get_trace().executed_assertions:
             instructions_in_slice.extend(
-                assertion_slicer.slice_assertion(assertion, trace)
+                assertion_slicer.slice_assertion(assertion, tracer.get_trace())
             )
         assert instructions_in_slice
 

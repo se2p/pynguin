@@ -497,7 +497,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
-    existing_assertions: list[TracedAssertion] = field(default_factory=list)
+    executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -513,9 +513,9 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self.covered_line_ids.update(other.covered_line_ids)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
-        for traced_assertion in other.existing_assertions:
-            self.existing_assertions.append(
-                TracedAssertion(
+        for traced_assertion in other.executed_assertions:
+            self.executed_assertions.append(
+                ExecutedAssertion(
                     traced_assertion.code_object_id,
                     traced_assertion.node_id,
                     traced_assertion.trace_position + shift,
@@ -1219,7 +1219,7 @@ class ExecutionTracer:
         if self._is_disabled():
             return
 
-        self.get_trace().add_instruction(
+        self._thread_local_state.trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
@@ -1283,7 +1283,7 @@ class ExecutionTracer:
             object_creation = True
             self._known_data.object_addresses.append(arg_address)
 
-        self.get_trace().add_memory_instruction(
+        self._thread_local_state.trace.add_memory_instruction(
             module,
             code_object_id,
             node_id,
@@ -1350,7 +1350,7 @@ class ExecutionTracer:
         if arg_type in immutable_types:
             mutable_type = False
 
-        self.get_trace().add_attribute_instruction(
+        self._thread_local_state.trace.add_attribute_instruction(
             module,
             code_object_id,
             node_id,
@@ -1400,7 +1400,7 @@ class ExecutionTracer:
         if self._is_disabled():
             return
 
-        self.get_trace().add_jump_instruction(
+        self._thread_local_state.trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
@@ -1441,7 +1441,7 @@ class ExecutionTracer:
         if self._is_disabled():
             return
 
-        self.get_trace().add_call_instruction(
+        self._thread_local_state.trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
@@ -1480,7 +1480,7 @@ class ExecutionTracer:
         if self._is_disabled():
             return
 
-        self.get_trace().add_return_instruction(
+        self._thread_local_state.trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
@@ -1504,13 +1504,13 @@ class ExecutionTracer:
         if self._is_disabled():
             return
 
-        trace = self.get_trace()
+        trace = self._thread_local_state.trace
         error_call_position = len(trace.executed_instructions) - 1
         error_causing_instr = trace.executed_instructions[error_call_position]
         code_object_id = error_causing_instr.code_object_id
         node_id = error_causing_instr.node_id
-        trace.existing_assertions.append(
-            TracedAssertion(code_object_id, node_id, error_call_position)
+        trace.executed_assertions.append(
+            ExecutedAssertion(code_object_id, node_id, error_call_position)
         )
 
     def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
@@ -1541,8 +1541,8 @@ class ExecutionTracer:
             pop_jump_if_true_position != -1
         ), "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
 
-        self.get_trace().existing_assertions.append(
-            TracedAssertion(
+        self._thread_local_state.trace.executed_assertions.append(
+            ExecutedAssertion(
                 code_object_id,
                 node_id,
                 pop_jump_if_true_position,
@@ -1608,7 +1608,7 @@ class ExecutionTracer:
 
 
 @dataclass
-class TracedAssertion:
+class ExecutedAssertion:
     """Data class for assertions of a testcase traced during execution for slicing"""
 
     code_object_id: int

@@ -41,9 +41,9 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executionflowbuilder import LastInstrState
     from pynguin.testcase.execution import (
+        ExecutedAssertion,
         ExecutedInstruction,
         ExecutionTrace,
-        TracedAssertion,
     )
 
 
@@ -843,7 +843,7 @@ class AssertionSlicer:
         self._known_code_objects = known_code_objects
 
     def _slicing_criterion_from_assertion(
-        self, assertion: TracedAssertion, trace: ExecutionTrace
+        self, assertion: ExecutedAssertion, trace: ExecutionTrace
     ) -> SlicingCriterion:
 
         traced_instr = trace.executed_instructions[assertion.trace_position]
@@ -878,7 +878,7 @@ class AssertionSlicer:
         return SlicingCriterion(unique_instr)
 
     def slice_assertion(
-        self, assertion: TracedAssertion, trace: ExecutionTrace
+        self, assertion: ExecutedAssertion, trace: ExecutionTrace
     ) -> list[UniqueInstruction]:
         """Calculate the dynamic slice for an assertion inside a test case
 

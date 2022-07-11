@@ -831,7 +831,7 @@ def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> fl
     else:
         assertion_slicer = AssertionSlicer(known_data.existing_code_objects)
         checked_instructions = []
-        for assertion in trace.existing_assertions:
+        for assertion in trace.executed_assertions:
             checked_instructions.extend(
                 assertion_slicer.slice_assertion(assertion, trace)
             )

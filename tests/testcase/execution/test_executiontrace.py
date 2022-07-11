@@ -6,9 +6,9 @@
 #
 
 from pynguin.testcase.execution import (
+    ExecutedAssertion,
     ExecutedInstruction,
     ExecutionTrace,
-    TracedAssertion,
 )
 
 
@@ -22,7 +22,7 @@ def test_merge():
 def test_merge_full():
 
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
-    assert0 = TracedAssertion(0, 1, 2)
+    assert0 = ExecutedAssertion(0, 1, 2)
 
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
@@ -38,7 +38,7 @@ def test_merge_full():
     trace0.traced_assertions = [assert0]
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
-    assert1 = TracedAssertion(1, 2, 3)
+    assert1 = ExecutedAssertion(1, 2, 3)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -53,7 +53,7 @@ def test_merge_full():
     trace1.traced_assertions = [assert1]
 
     # Shifted by one
-    assert2 = TracedAssertion(1, 2, 4)
+    assert2 = ExecutedAssertion(1, 2, 4)
 
     result = ExecutionTrace()
     result.executed_code_objects.add(0)
