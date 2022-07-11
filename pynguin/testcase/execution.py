@@ -21,7 +21,7 @@ from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Sized, TypeVar
+from typing import TYPE_CHECKING, Any, Sized, TypeVar, cast
 
 from bytecode import Compare
 from jellyfish import levenshtein_distance
@@ -1552,9 +1552,9 @@ class TypeTracingObserver(ExecutionObserver):
             # Store the old value here to replace it after statement execution.
             self.shadow_locals: dict[vr.VariableReference, Any] = {}
 
-    def __init__(self, cluster: module.ModuleTestCluster):
+    def __init__(self, cluster: module.TestCluster):
         self._local_state = TypeTracingObserver.TypeTracingLocalState()
-        self._cluster: module.ModuleTestCluster = cluster
+        self._cluster = cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
@@ -1570,12 +1570,16 @@ class TypeTracingObserver(ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        # for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
-        #    statement = test_case.get_statement(stmt_pos)
-        #    assert isinstance(statement, stmt.ParametrizedStatement)
-        #    self._cluster.update_parameter_type(statement.accessible_object(),
-        #       arg_name, knowledge)
-        pass
+        for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
+            statement = test_case.get_statement(stmt_pos)
+            assert isinstance(statement, stmt.ParametrizedStatement)
+            self._cluster.update_parameter_knowledge(
+                cast(
+                    gao.GenericCallableAccessibleObject, statement.accessible_object()
+                ),
+                arg_name,
+                knowledge,
+            )
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext

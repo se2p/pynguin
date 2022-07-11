@@ -32,6 +32,7 @@ import astroid
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
+import pynguin.utils.typetracing as tt
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
@@ -406,6 +407,21 @@ class TestCluster(abc.ABC):
             new_type: the new return type
         """
 
+    @abc.abstractmethod
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        """Update the knowledge about the parameter of the given accessible.
+
+        Args:
+            accessible: the accessible that was observed.
+            param_name: the parameter name for which we have new information.
+            knowledge: the new information.
+        """
+
 
 class ModuleTestCluster(TestCluster):
     """A test cluster for a module.
@@ -464,6 +480,15 @@ class ModuleTestCluster(TestCluster):
         else:
             self.__generators[new].append(accessible)  # type:ignore
         accessible.inferred_signature.update_return_type(new_type)
+
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        # TODO(fk) implement search/update here.
+        pass
 
     @property
     def inheritance_graph(self) -> InheritanceGraph:
@@ -630,6 +655,14 @@ class FilteredModuleTestCluster(TestCluster):
         self, accessible: GenericCallableAccessibleObject, new_type: type
     ) -> None:
         self.__delegate.update_return_type(accessible, new_type)
+
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        self.__delegate.update_parameter_knowledge(accessible, param_name, knowledge)
 
     @property
     def linenos(self) -> int:
