@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses import module
 
     # import pynguin.utils.generic.genericaccessibleobject as gao
 
@@ -1492,9 +1493,9 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     Every test case is executed twice, one time for the regular result
     and one time with proxies in order to refine parameter types."""
 
-    def __init__(self, delegate: AbstractTestCaseExecutor):
+    def __init__(self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster):
         self._delegate = delegate
-        self._observer = TypeTracingObserver()
+        self._observer = TypeTracingObserver(cluster)
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -1537,8 +1538,9 @@ class TypeTracingObserver(ExecutionObserver):
             # Store the old value here to replace it after statement execution.
             self.shadow_locals: dict[vr.VariableReference, Any] = {}
 
-    def __init__(self):
+    def __init__(self, cluster: module.ModuleTestCluster):
         self._local_state = TypeTracingObserver.TypeTracingLocalState()
+        self._cluster: module.ModuleTestCluster = cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
@@ -1554,11 +1556,10 @@ class TypeTracingObserver(ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        # for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
-        #     statement = test_case.get_statement(stmt_pos)
-        #     assert isinstance(statement, stmt.ParametrizedStatement)
-        #     # TODO(fk) process data here.
-        pass
+        for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
+            statement = test_case.get_statement(stmt_pos)
+            assert isinstance(statement, stmt.ParametrizedStatement)
+            # self._cluster.update_parameter_type(statement.accessible_object(), arg_name, knowledge)
 
     def before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
@@ -1569,7 +1570,8 @@ class TypeTracingObserver(ExecutionObserver):
                     param
                 ] = exec_ctx.get_reference_value(param)
                 # TODO(fk) use proxy only with some chance?
-                #  May be necessary for functions that don't like proxies, e.g., native.
+                #  May be necessary for functions that don't like proxies, e.g.,
+                #  open(...).
                 proxy = tt.ObjectProxy(old)
                 exec_ctx.replace_variable_value(param, proxy)
                 self._local_state.proxies[(statement.get_position(), name)] = proxy
