@@ -74,7 +74,7 @@ def test_instrumentation(short_test_case):
         executor = TestCaseExecutor(tracer)
         result = executor.execute(short_test_case, instrument_test=True)
         assert not result.has_test_exceptions()
-        assert tracer.get_trace().executed_instructions
+        assert result.execution_trace.executed_instructions
 
 
 def test_observers(short_test_case):
