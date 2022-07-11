@@ -169,7 +169,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
 class TestSuiteFitnessFunction(
     TestSuiteChromosomeComputation, FitnessFunction, metaclass=abc.ABCMeta
 ):
-    """Base class for test case fitness functions."""
+    """Base class for test suite fitness functions."""
 
 
 class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
