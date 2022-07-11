@@ -31,6 +31,7 @@ from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
+import pynguin.configuration as config
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
@@ -1964,14 +1965,11 @@ class TestCaseExecutor:
     def execute(
         self,
         test_case: tc.TestCase,
-        instrument_test: bool = False,
     ) -> ExecutionResult:
         """Executes all statements of the given test case.
 
         Args:
             test_case: the test case that should be executed.
-            instrument_test: if the test case itself needs to be
-                instrumented before execution
 
         Raises:
             RuntimeError: If something goes wrong inside Pynguin during execution.
@@ -1984,7 +1982,7 @@ class TestCaseExecutor:
                 return_queue: Queue[ExecutionResult] = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case,
-                    args=(test_case, return_queue, instrument_test),
+                    args=(test_case, return_queue),
                     daemon=True,
                 )
                 thread.start()
@@ -2010,9 +2008,7 @@ class TestCaseExecutor:
         for observer in self._observers:
             observer.before_test_case_execution(test_case)
 
-    def _execute_test_case(
-        self, test_case: tc.TestCase, result_queue: Queue, instrument_test: bool
-    ) -> None:
+    def _execute_test_case(self, test_case: tc.TestCase, result_queue: Queue) -> None:
         self._before_test_case_execution(test_case)
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
@@ -2109,6 +2105,7 @@ class TestCaseExecutor:
             failed_stmt = ast.unparse(ast_node)
             _logger.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
+
         return None
 
     def _after_statement_execution(

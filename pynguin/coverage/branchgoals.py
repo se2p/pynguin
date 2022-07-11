@@ -100,7 +100,7 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
         self._line_id = line_id
 
     @property
-    def line_number(self) -> int:
+    def line_id(self) -> int:
         """Provides the line id of the targeted line.
 
         Returns:

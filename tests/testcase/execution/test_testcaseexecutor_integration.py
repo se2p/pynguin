@@ -66,13 +66,16 @@ def test_no_exceptions(short_test_case):
 
 def test_instrumentation(short_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED
+    ]
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         executor = TestCaseExecutor(tracer)
-        result = executor.execute(short_test_case, instrument_test=True)
+        result = executor.execute(short_test_case)
         assert not result.has_test_exceptions()
         assert result.execution_trace.executed_instructions
 

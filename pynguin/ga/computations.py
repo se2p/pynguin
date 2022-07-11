@@ -36,22 +36,20 @@ class TestCaseChromosomeComputation(
     """A function that computes something on a test case chromosome."""
 
     def _run_test_case_chromosome(
-        self, individual, instrument_test: bool = False
+        self, individual
     ) -> ExecutionResult:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
-            instrument_test: whether the test needs to be
-                instrumented before the execution
 
         Returns:
             A list of execution results
         """
         if individual.has_changed() or individual.get_last_execution_result() is None:
             individual.set_last_execution_result(
-                self._executor.execute(individual.test_case, instrument_test)
+                self._executor.execute(individual.test_case)
             )
             individual.set_changed(False)
         result = individual.get_last_execution_result()
@@ -64,16 +62,12 @@ class TestSuiteChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(
-        self, individual, instrument_test_suite: bool = False
-    ) -> list[ExecutionResult]:
+    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
-            instrument_test_suite: whether the test suite needs to be
-                instrumented before the execution
 
         Returns:
             A list of execution results
@@ -85,9 +79,7 @@ class TestSuiteChromosomeComputation(
                 or test_case_chromosome.get_last_execution_result() is None
             ):
                 test_case_chromosome.set_last_execution_result(
-                    self._executor.execute(
-                        test_case_chromosome.test_case, instrument_test_suite
-                    )
+                    self._executor.execute(test_case_chromosome.test_case)
                 )
                 test_case_chromosome.set_changed(False)
                 # If we execute a suite which in turn executes it's test cases,
@@ -267,9 +259,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     slice of each statement of a test suite."""
 
     def compute_fitness(self, individual) -> float:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         known_data = self._executor.tracer.get_known_data()
         existing_lines = known_data.existing_lines
@@ -286,9 +276,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return len(existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
@@ -306,9 +294,7 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     slice of each statement of a test suite."""
 
     def compute_fitness(self, individual) -> float:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         known_data = self._executor.tracer.get_known_data()
         dynamic_slicer = DynamicSlicer(known_data.existing_code_objects)
@@ -333,9 +319,7 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return len(known_data.existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
@@ -420,9 +404,7 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on the statements of test suites."""
 
     def compute_coverage(self, individual) -> float:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
         statements = []
@@ -448,7 +430,7 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on the statements of test cases."""
 
     def compute_coverage(self, individual) -> float:
-        result = self._run_test_case_chromosome(individual, instrument_test=True)
+        result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         existing = len(tracer.get_known_data().existing_lines)
@@ -470,9 +452,7 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on test suites with assertions."""
 
     def compute_coverage(self, individual) -> float:
-        results = self._run_test_suite_chromosome(
-            individual, instrument_test_suite=True
-        )
+        results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
         return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
@@ -482,7 +462,7 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on test cases with assertions."""
 
     def compute_coverage(self, individual) -> float:
-        result = self._run_test_case_chromosome(individual, instrument_test=True)
+        result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())

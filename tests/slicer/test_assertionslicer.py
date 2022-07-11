@@ -241,7 +241,7 @@ def test_assertion_detection_on_test_case(
 
         executor = TestCaseExecutor(tracer)
         executor.add_observer(AssertionSlicingObserver(tracer))
-        result = executor.execute(test_case, instrument_test=True)
+        result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
         assert len(result.execution_trace.executed_assertions) == expected_assertions
 
@@ -283,7 +283,7 @@ def test_slicing_after_test_execution(
 
         executor = TestCaseExecutor(tracer)
         executor.add_observer(AssertionSlicingObserver(tracer))
-        result = executor.execute(test_case, instrument_test=True)
+        result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
 
         instructions_in_slice = []
