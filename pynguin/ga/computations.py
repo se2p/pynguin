@@ -264,8 +264,8 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         known_data = self._executor.tracer.get_known_data()
         existing_lines = known_data.existing_lines
         statements = []
-        for test_case in individual.test_case_chromosomes:
-            statements.extend(test_case.statements)
+        for chromosome in individual.test_case_chromosomes:
+            statements.extend(chromosome.test_case.statements)
         checked_lines = compute_statement_checked_lines(
             statements, merged_trace, known_data
         )
