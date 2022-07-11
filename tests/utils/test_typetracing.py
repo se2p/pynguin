@@ -82,6 +82,31 @@ def test_isinstance_check():
     assert int in tt.ProxyKnowledge.from_proxy(proxy).type_checks
 
 
+def test_isinstance_check_2():
+    proxy = tt.ObjectProxy(42)
+    with tt.shim_isinstance():
+        assert isinstance(proxy, (int, str))
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).type_checks
+    assert str in tt.ProxyKnowledge.from_proxy(proxy).type_checks
+
+
+def test_merge():
+    copy = proxy = tt.ObjectProxy(42)
+    proxy2 = tt.ObjectProxy("42")
+    copy += 3
+    assert proxy2 + "3"
+    with tt.shim_isinstance():
+        assert isinstance(proxy, int)
+        assert isinstance(proxy2, str)
+    knowledge1 = tt.ProxyKnowledge.from_proxy(proxy)
+    knowledge2 = tt.ProxyKnowledge.from_proxy(proxy2)
+    knowledge1.merge(knowledge2)
+    assert int in knowledge1.symbol_table["__iadd__"].arg_types
+    assert str in knowledge1.symbol_table["__add__"].arg_types
+    assert int in knowledge1.type_checks
+    assert str in knowledge1.type_checks
+
+
 @pytest.mark.parametrize(
     "op,name",
     [

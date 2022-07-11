@@ -67,7 +67,7 @@ class ProxyKnowledge:
     # Weak vs strong type checks?
     # TODO(fk) do not record type checks originating from other proxies?
     # TODO(fk) do not record anything if it involves another proxy
-    type_checks: list[type | tuple[type, ...]] = dataclasses.field(default_factory=list)
+    type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
 
     arg_types: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
 
@@ -109,6 +109,19 @@ class ProxyKnowledge:
             The extracted knowledge.
         """
         return obj._self_proxy_knowledge
+
+    def merge(self, other: ProxyKnowledge) -> None:
+        """Merge the knowledge from the other proxy into this one.
+
+        Args:
+            other: The knowledge that should be merged into this one.
+        """
+        assert self.name == other.name
+        assert self.depth == other.depth
+        self.arg_types.update(other.arg_types)
+        self.type_checks.update(other.type_checks)
+        for symbol, knowledge in other.symbol_table.items():
+            self.symbol_table[symbol].merge(knowledge)
 
 
 class DepthDefaultDict(dict[str, ProxyKnowledge]):
@@ -660,7 +673,10 @@ def shim_isinstance():
     def shim(inst, types):
         # pylint:disable=unidiomatic-typecheck
         if type(inst) is ObjectProxy and types is not ObjectProxy:
-            ProxyKnowledge.from_proxy(inst).type_checks.append(types)
+            if orig_isinstance(types, tuple):
+                ProxyKnowledge.from_proxy(inst).type_checks.update(types)
+            else:
+                ProxyKnowledge.from_proxy(inst).type_checks.add(types)
         return orig_isinstance(inst, types)
 
     builtins.isinstance = shim
