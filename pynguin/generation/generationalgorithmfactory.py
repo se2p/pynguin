@@ -391,8 +391,8 @@ class TestSuiteGenerationAlgorithmFactory(
             test_suite_ffs.update(
                 [ff.TestSuiteStatementCheckedCoverageFunction(self._executor)]
             )
-        # do not add TestSuiteCheckedCoverageFunction here, since it must be added and
-        # calculated after the assertion generation
+        # do not add TestSuiteAssertionCheckedCoverageFunction here, since it must
+        # be added and calculated after the assertion generation
         return test_suite_ffs
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):

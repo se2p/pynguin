@@ -528,7 +528,7 @@ def _track_coverage_metrics(
         )
     if config.CoverageMetric.CHECKED in coverage_metrics:
         checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteAssertionCheckedCoverageFunction
+            algorithm, ff.TestSuiteStatementCheckedCoverageFunction
         )
         stat.track_output_variable(
             RuntimeVariable.StatementCheckedCoverage,
