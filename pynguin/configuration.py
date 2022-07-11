@@ -368,6 +368,8 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
+    use_type_tracing: bool = True
+    """Trace usage of parameters with unknown types to improve type guesses."""
 
     stub_dir: str = ""
     """Path to the pyi-stub files for the StubInferenceStrategy"""
