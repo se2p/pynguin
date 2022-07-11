@@ -368,9 +368,6 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    max_cluster_recursion: int = 10
-    """The maximum level of recursion when calculating the dependencies in the test
-    cluster."""
 
     stub_dir: str = ""
     """Path to the pyi-stub files for the StubInferenceStrategy"""
