@@ -1153,13 +1153,6 @@ class ParametrizedStatement(
                 count += 1
         return count
 
-    def _get_parameter_type(self, arg: int | str) -> type | None:
-        parameters = self._generic_callable.inferred_signature.parameters
-        if isinstance(arg, int):
-
-            return list(parameters.values())[arg]
-        return parameters[arg]
-
     @property
     def affects_assertions(self) -> bool:
         return True
