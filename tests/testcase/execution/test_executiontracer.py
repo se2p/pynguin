@@ -52,7 +52,7 @@ def test_line_visit():
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
-    assert tracer._trace.covered_line_ids == {42, 43}
+    assert tracer.get_trace().covered_line_ids == {42, 43}
 
 
 def test_update_metrics_covered():
@@ -226,13 +226,13 @@ def test_bool_distances(val, true_dist, false_dist):
     assert tracer.get_trace().false_distances.get(0) == false_dist
 
 
-def test_clear():
+def test_init():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_code_object(MagicMock(CodeObjectMetaData))
     tracer.executed_code_object(0)
     trace = tracer.get_trace()
-    tracer.clear_trace()
+    tracer.init_trace()
     assert tracer.get_trace() != trace
 
 
