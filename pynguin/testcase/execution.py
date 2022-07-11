@@ -7,8 +7,10 @@
 """Contains all code related to test-case execution."""
 from __future__ import annotations
 
+import abc
 import ast
 import contextlib
+import copy
 import logging
 import os
 import sys
@@ -25,8 +27,10 @@ from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
+import pynguin.utils.typetracing as tt
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
 from pynguin.utils.type_utils import (
     given_exception_matches,
@@ -37,9 +41,10 @@ from pynguin.utils.type_utils import (
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion_trace as at
-    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+
+    # import pynguin.utils.generic.genericaccessibleobject as gao
 
 
 class ExecutionContext:
@@ -69,6 +74,17 @@ class ExecutionContext:
             The local namespace
         """
         return self._local_namespace
+
+    def replace_variable_value(
+        self, variable: vr.VariableReference, new_value: Any
+    ) -> None:
+        """Replace the value of the variable with the new value.
+
+        Args:
+            variable: The variable for which we want to replace the value
+            new_value: The replacement value.
+        """
+        self._local_namespace[self._variable_names.get_name(variable)] = new_value
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -294,6 +310,7 @@ class ExecutionResult:
         self._execution_trace: ExecutionTrace = ExecutionTrace()
         self._timeout = timeout
         self._return_type_trace: dict[int, type] = {}
+        self._proxy_knowledge: dict[tuple[int, str], tt.ProxyKnowledge] = {}
 
     @property
     def timeout(self) -> bool:
@@ -332,6 +349,16 @@ class ExecutionResult:
 
         """
         return self._assertion_traces
+
+    @property
+    def proxy_knowledge(self) -> dict[tuple[int, str], tt.ProxyKnowledge]:
+        """Provides the proxy knowledge.
+
+        Returns:
+            the proxy knowledge.
+
+        """
+        return self._proxy_knowledge
 
     @property
     def execution_trace(self) -> ExecutionTrace:
@@ -1184,7 +1211,62 @@ class ModuleProvider:
         reload(sys.modules[module_name])
 
 
-class TestCaseExecutor:
+class AbstractTestCaseExecutor(abc.ABC):
+    """Interface for a test case executor."""
+
+    @property
+    @abstractmethod
+    def module_provider(self) -> ModuleProvider:
+        """The module provider used by this executor.
+
+        Returns:
+            The used module provider
+        """
+
+    @abstractmethod
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        """Add an execution observer.
+
+        Args:
+            observer: the observer to be added.
+        """
+
+    @abstractmethod
+    def clear_observers(self) -> None:
+        """Remove all existing observers."""
+
+    def temporarily_add_observer(self, observer: ExecutionObserver):
+        """Temporarily add the given observer.
+
+        Args:
+            observer: The observer to add.
+        """
+
+    @property
+    @abstractmethod
+    def tracer(self) -> ExecutionTracer:
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+
+    @abstractmethod
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+        """Executes all statements of the given test case.
+
+        Args:
+            test_case: the test case that should be executed.
+
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
+        Returns:
+            Result of the execution
+        """
+
+
+class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
 
     _logger = logging.getLogger(__name__)
@@ -1242,6 +1324,12 @@ class TestCaseExecutor:
     def clear_observers(self) -> None:
         """Remove all existing observers."""
         self._observers.clear()
+
+    @contextlib.contextmanager
+    def temporarily_add_observer(self, observer: ExecutionObserver):
+        self._observers.append(observer)
+        yield
+        self._observers.remove(observer)
 
     @property
     def tracer(self) -> ExecutionTracer:
@@ -1397,3 +1485,108 @@ class TestCaseExecutor:
                 observer.after_statement_execution(statement, exec_ctx, exception)
         finally:
             self._tracer.enable()
+
+
+class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
+    """A test case executor that delegates to another executor.
+    Every test case is executed twice, one time for the regular result
+    and one time with proxies in order to refine parameter types."""
+
+    def __init__(self, delegate: AbstractTestCaseExecutor):
+        self._delegate = delegate
+        self._observer = TypeTracingObserver()
+
+    @property
+    def module_provider(self) -> ModuleProvider:
+        return self._delegate.module_provider
+
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        self._delegate.add_observer(observer)
+
+    def clear_observers(self) -> None:
+        self._delegate.clear_observers()
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        return self._delegate.tracer
+
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+        result = self._delegate.execute(test_case)
+        if not result.timeout:
+            # Only execute with proxies if the test case doesn't time out.
+            # There is no need to stall another threads.
+            with self._delegate.temporarily_add_observer(self._observer):
+                self._delegate.execute(test_case)
+        return result
+
+
+class TypeTracingObserver(ExecutionObserver):
+    """An execution observer which wraps parameters in proxies in order to make better
+    guesses on their type."""
+
+    class TypeTracingLocalState(
+        threading.local
+    ):  # pylint:disable=too-few-public-methods
+        """Thread local data for type tracing."""
+
+        def __init__(self):
+            super().__init__()
+            # Active proxies per statement position and argument name.
+            self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
+            # We need to temporarily replace the value that is used for the call.
+            # Store the old value here to replace it after statement execution.
+            self.shadow_locals: dict[vr.VariableReference, Any] = {}
+
+    def __init__(self):
+        self._local_state = TypeTracingObserver.TypeTracingLocalState()
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        pass
+
+    def after_test_case_execution_inside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
+            result.proxy_knowledge[(stmt_pos, arg_name)] = copy.deepcopy(
+                tt.ProxyKnowledge.from_proxy(proxy)
+            )
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        # for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
+        #     statement = test_case.get_statement(stmt_pos)
+        #     assert isinstance(statement, stmt.ParametrizedStatement)
+        #     # TODO(fk) process data here.
+        pass
+
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ):
+        if isinstance(statement, stmt.ParametrizedStatement):
+            for name, param in statement.args.items():
+                old = self._local_state.shadow_locals[
+                    param
+                ] = exec_ctx.get_reference_value(param)
+                # TODO(fk) use proxy only with some chance?
+                #  May be necessary for functions that don't like proxies, e.g., native.
+                proxy = tt.ObjectProxy(old)
+                exec_ctx.replace_variable_value(param, proxy)
+                self._local_state.proxies[(statement.get_position(), name)] = proxy
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        exec_ctx: ExecutionContext,
+        exception: Exception | None = None,
+    ) -> None:
+        if isinstance(statement, stmt.ParametrizedStatement):
+            for param in statement.args.values():
+                if param in self._local_state.shadow_locals:
+                    exec_ctx.replace_variable_value(
+                        param, self._local_state.shadow_locals[param]
+                    )
+                    del self._local_state.shadow_locals[param]
+        assert (
+            len(self._local_state.shadow_locals) == 0
+        ), "Shadow store must be empty after statement execution."

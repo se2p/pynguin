@@ -51,7 +51,10 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
     StoppingCondition,
 )
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import (
+    AbstractTestCaseExecutor,
+    TypeTracingTestCaseExecutor,
+)
 from pynguin.utils.exceptions import ConfigurationException
 
 if TYPE_CHECKING:
@@ -133,10 +136,12 @@ class TestSuiteGenerationAlgorithmFactory(
 
     def __init__(
         self,
-        executor: TestCaseExecutor,
+        executor: AbstractTestCaseExecutor,
         test_cluster: ModuleTestCluster,
         constant_provider: ConstantProvider | None = None,
     ):
+        if config.configuration.type_inference.use_type_tracing:
+            executor = TypeTracingTestCaseExecutor(executor)
         self._executor = executor
         self._test_cluster = test_cluster
         if constant_provider is None:

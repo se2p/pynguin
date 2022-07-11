@@ -17,14 +17,18 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
-    from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
+    from pynguin.testcase.execution import (
+        AbstractTestCaseExecutor,
+        ExecutionResult,
+        KnownData,
+    )
 
 
 @dataclasses.dataclass(eq=False)
 class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
     """An abstract computation on chromosomes."""
 
-    _executor: TestCaseExecutor
+    _executor: AbstractTestCaseExecutor
     """Executor that will be used by the computation to execute chromosomes."""
 
 

@@ -18,10 +18,10 @@ import pynguin.ga.computations as ff
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     from pynguin.testcase.execution import (
+        AbstractTestCaseExecutor,
         ExecutionResult,
         ExecutionTracer,
         KnownData,
-        TestCaseExecutor,
     )
 
 
@@ -297,7 +297,9 @@ class BranchGoalPool:
 class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: TestCaseExecutor, goal: AbstractBranchCoverageGoal):
+    def __init__(
+        self, executor: AbstractTestCaseExecutor, goal: AbstractBranchCoverageGoal
+    ):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
@@ -336,7 +338,7 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: TestCaseExecutor, goal: LineCoverageGoal):
+    def __init__(self, executor: AbstractTestCaseExecutor, goal: LineCoverageGoal):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
@@ -360,7 +362,7 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
 
 
 def create_branch_coverage_fitness_functions(
-    executor: TestCaseExecutor, branch_goal_pool: BranchGoalPool
+    executor: AbstractTestCaseExecutor, branch_goal_pool: BranchGoalPool
 ) -> OrderedSet[BranchCoverageTestFitness]:
     """Create fitness functions for each branch coverage goal.
 
@@ -380,7 +382,7 @@ def create_branch_coverage_fitness_functions(
 
 
 def create_line_coverage_fitness_functions(
-    executor: TestCaseExecutor,
+    executor: AbstractTestCaseExecutor,
 ) -> OrderedSet[LineCoverageTestFitness]:
     """Create fitness functions for each line coverage goal.
 

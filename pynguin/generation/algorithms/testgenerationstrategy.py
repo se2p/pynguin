@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from pynguin.generation.stoppingconditions.stoppingcondition import (
         StoppingCondition,
     )
-    from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.testcase.execution import AbstractTestCaseExecutor
 
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
 
@@ -44,7 +44,7 @@ class TestGenerationStrategy(
     def __init__(self) -> None:
         self._archive: A
         self._chromosome_factory: cf.ChromosomeFactory
-        self._executor: TestCaseExecutor
+        self._executor: AbstractTestCaseExecutor
         self._test_cluster: ModuleTestCluster
         self._test_factory: tf.TestFactory
         self._selection_function: SelectionFunction
@@ -77,7 +77,7 @@ class TestGenerationStrategy(
         self._chromosome_factory = chromosome_factory
 
     @property
-    def executor(self) -> TestCaseExecutor:
+    def executor(self) -> AbstractTestCaseExecutor:
         """Provides the test-case executor
 
         Returns:
@@ -86,7 +86,7 @@ class TestGenerationStrategy(
         return self._executor
 
     @executor.setter
-    def executor(self, executor: TestCaseExecutor) -> None:
+    def executor(self, executor: AbstractTestCaseExecutor) -> None:
         self._executor = executor
 
     @property
