@@ -22,7 +22,7 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     ) -> bool:
         return True  # pragma: no cover
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         return True  # pragma: no cover
 
     def _replacement_supplier(

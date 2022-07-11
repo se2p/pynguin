@@ -169,7 +169,7 @@ class DefaultTestCase(tc.TestCase):
             if len(self._statements) != len(other._statements):
                 return False
             memo: dict[vr.VariableReference, vr.VariableReference] = {}
-            for left, right in zip(self._statements, other._statements):
+            for left, right in zip(self._statements, other._statements, strict=True):
                 if ((lret := left.ret_val) is None) ^ ((rret := right.ret_val) is None):
                     # One is None but the other isn't, i.e., one creates a variable
                     # but the other doesn't -> they are different.
@@ -183,4 +183,9 @@ class DefaultTestCase(tc.TestCase):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum(17 * s.structural_hash() for s in self._statements)
+        memo: dict[vr.VariableReference, int] = {
+            statement.ret_val: idx
+            for idx, statement in enumerate(self._statements)
+            if statement.ret_val is not None
+        }
+        return hash(tuple(s.structural_hash(memo) for s in self._statements))

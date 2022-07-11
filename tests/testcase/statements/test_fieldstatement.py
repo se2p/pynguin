@@ -112,7 +112,9 @@ def test_hash_same(test_case_mock, variable_reference_mock, field_mock):
     statement2 = stmt.FieldStatement(
         test_case_mock, field_mock, variable_reference_mock
     )
-    assert statement.structural_hash() == statement2.structural_hash()
+    memo = {variable_reference_mock: 0, statement.ret_val: 1}
+    memo2 = {variable_reference_mock: 0, statement2.ret_val: 1}
+    assert statement.structural_hash(memo) == statement2.structural_hash(memo2)
 
 
 def test_mutate_not(test_case_mock, field_mock, variable_reference_mock):

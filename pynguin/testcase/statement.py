@@ -223,8 +223,11 @@ class Statement(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         """Required for structural_eq to work.
+
+        Args:
+            memo: A dictionary that maps variables to their position in this test case.
 
         Returns:
             A hash.
@@ -409,19 +412,19 @@ class AssignmentStatement(Statement):
 
     @property
     def lhs(self) -> vr.Reference:
-        """The reference that is used on the left hand side.
+        """The reference that is used on the left-hand side.
 
         Returns:
-            The reference that is used on the left hand side
+            The reference that is used on the left-hand side
         """
         return self._lhs
 
     @property
     def rhs(self) -> vr.VariableReference:
-        """The variable that is used as the right hand side.
+        """The variable that is used as the right-hand side.
 
         Returns:
-            The variable used as the right hand side
+            The variable used as the right-hand side
         """
         return self._rhs
 
@@ -443,7 +446,7 @@ class AssignmentStatement(Statement):
         return None
 
     def mutate(self) -> bool:
-        raise Exception("Implement me")
+        raise NotImplementedError("Implement me")
 
     def get_variable_references(self) -> set[vr.VariableReference]:
         refs = {self._rhs}
@@ -459,8 +462,8 @@ class AssignmentStatement(Statement):
         if self._rhs == old:
             self._rhs = new
 
-    def structural_hash(self) -> int:
-        return 31 + 17 * self._lhs.structural_hash() + 17 * self._rhs.structural_hash()
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash((self._lhs.structural_hash(memo), self._rhs.structural_hash(memo)))
 
     def structural_eq(
         self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
@@ -599,11 +602,12 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
             self.test_case.get_objects(element.type, self.get_position()) + [element]
         )
 
-    def structural_hash(self) -> int:
-        return (
-            31
-            + 17 * self._ret_val.structural_hash()
-            + 17 * hash(frozenset((v.structural_hash()) for v in self._elements))
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash(
+            (
+                self._ret_val.structural_hash(memo),
+                frozenset((v.structural_hash(memo)) for v in self._elements),
+            )
         )
 
     def structural_eq(
@@ -785,16 +789,14 @@ class DictStatement(
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_dict_statement(self)
 
-    def structural_hash(self) -> int:
-        return (
-            31
-            + 17 * self._ret_val.structural_hash()
-            + 17
-            * hash(
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash(
+            (
+                self._ret_val.structural_hash(memo),
                 frozenset(
-                    (k.structural_hash(), v.structural_hash())
+                    (k.structural_hash(memo), v.structural_hash(memo))
                     for k, v in self._elements
-                )
+                ),
             )
         )
 
@@ -916,8 +918,8 @@ class FieldStatement(VariableCreatingStatement):
             and self._source.structural_eq(other._source, memo)
         )
 
-    def structural_hash(self) -> int:
-        return 31 + 17 * hash(self._field) + 17 * self._ret_val.structural_hash()
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash((self._field, self._ret_val.structural_hash(memo)))
 
 
 class ParametrizedStatement(
@@ -945,7 +947,7 @@ class ParametrizedStatement(
         """
         super().__init__(
             test_case,
-            vr.VariableReference(test_case, generic_callable.generated_type()),
+            vr.CallBasedVariableReference(test_case, generic_callable),
         )
         self._generic_callable = generic_callable
         self._args = args if args else {}
@@ -1157,13 +1159,13 @@ class ParametrizedStatement(
     def affects_assertions(self) -> bool:
         return True
 
-    def structural_hash(self) -> int:
-        return (
-            31
-            + 17 * self._ret_val.structural_hash()
-            + 17 * hash(self._generic_callable)
-            + 17
-            * hash(frozenset((k, v.structural_hash()) for k, v in self._args.items()))
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash(
+            (
+                self._ret_val.structural_hash(memo),
+                self._generic_callable,
+                frozenset((k, v.structural_hash(memo)) for k, v in self._args.items()),
+            )
         )
 
     def structural_eq(
@@ -1253,7 +1255,8 @@ class MethodStatement(ParametrizedStatement):
         if randomness.next_float() < p_per_param:
             callee = self.callee
             objects = self.test_case.get_objects(callee.type, self.get_position())
-            objects.remove(callee)
+            if callee in objects:
+                objects.remove(callee)
 
             if len(objects) > 0:
                 self.callee = randomness.choice(objects)
@@ -1303,8 +1306,8 @@ class MethodStatement(ParametrizedStatement):
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_method_statement(self)
 
-    def structural_hash(self) -> int:
-        return hash((super().structural_hash(), self._callee.structural_hash()))
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash((super().structural_hash(memo), self._callee.structural_hash(memo)))
 
     def structural_eq(
         self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
@@ -1443,8 +1446,8 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
             and self._value == other._value
         )
 
-    def structural_hash(self) -> int:
-        return 31 + self._ret_val.structural_hash() + hash(self._value)
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash((self._ret_val.structural_hash(memo), hash(self._value)))
 
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):
@@ -1823,8 +1826,8 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
             and other._generic_enum == self._generic_enum
         )
 
-    def structural_hash(self) -> int:
-        return hash((super().structural_hash(), self._generic_enum))
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
+        return hash((super().structural_hash(memo), self._generic_enum))
 
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_enum_statement(self)

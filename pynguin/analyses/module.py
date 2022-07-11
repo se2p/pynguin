@@ -7,6 +7,7 @@
 """Provides analyses for the subject module, based on the module and its AST."""
 from __future__ import annotations
 
+import abc
 import dataclasses
 import enum
 import importlib
@@ -59,8 +60,9 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
-    extract_non_generic_class,
     get_class_that_defined_method,
+    is_consistent_with,
+    is_primitive_type,
 )
 
 if typing.TYPE_CHECKING:
@@ -242,7 +244,170 @@ def parse_module(
     )
 
 
-class ModuleTestCluster:
+class TestCluster(abc.ABC):
+    """Interface for a test cluster"""
+
+    @property
+    @abc.abstractmethod
+    def inheritance_graph(self) -> InheritanceGraph:
+        """Provides the inheritance graph."""
+
+    @property
+    @abc.abstractmethod
+    def linenos(self) -> int:
+        """Provide the number of source code lines."""
+
+    @abc.abstractmethod
+    def add_generator(self, generator: GenericAccessibleObject) -> None:
+        """Add the given accessible as a generator.
+
+        Args:
+            generator: The accessible object
+        """
+
+    @abc.abstractmethod
+    def add_accessible_object_under_test(
+        self, objc: GenericAccessibleObject, data: _CallableData
+    ) -> None:
+        """Add accessible object to the objects under test.
+
+        Args:
+            objc: The accessible object
+            data: The function-description data
+        """
+
+    @abc.abstractmethod
+    def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
+        """Add a modifier.
+
+        A modifier is something that can be used to modify the given type,
+        for example, a method.
+
+        Args:
+            typ: The type that can be modified
+            obj: The accessible that can modify
+        """
+
+    @property
+    @abc.abstractmethod
+    def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
+        """Provides all accessible objects under test."""
+
+    @property
+    @abc.abstractmethod
+    def function_data_for_accessibles(
+        self,
+    ) -> dict[GenericAccessibleObject, _CallableData]:
+        """Provides all function data for all accessibles."""
+
+    @abc.abstractmethod
+    def num_accessible_objects_under_test(self) -> int:
+        """Provide the number of accessible objects under test.
+
+        Useful to check whether there is even something to test."""
+
+    @abc.abstractmethod
+    def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+        """Retrieve all known generators for the given type.
+
+        Args:
+            typ: The type we want to have the generators for
+
+        Returns:
+            The set of all generators for that type  # noqa: DAR202
+        """
+
+    @abc.abstractmethod
+    def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+        """Get all known modifiers for a type.
+
+        Args:
+            typ: The type
+
+        Returns:
+            The set of all accessibles that can modify the type  # noqa: DAR202
+        """
+
+    @property
+    @abc.abstractmethod
+    def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
+        """Provides all available generators."""
+
+    @property
+    @abc.abstractmethod
+    def modifiers(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
+        """Provides all available modifiers."""
+
+    @abc.abstractmethod
+    def get_random_accessible(self) -> GenericAccessibleObject | None:
+        """Provides a random accessible of the unit under test.
+
+        Returns:
+            A random accessible, or None if there is none  # noqa: DAR202
+        """
+
+    @abc.abstractmethod
+    def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
+        """Get a random modifier for the given type.
+
+        Args:
+            typ: The type
+
+        Returns:
+            A random modifier for that type  # noqa: DAR202
+
+        Raises:
+            ConstructionFailedException: if no modifiers for the type
+                exist# noqa: DAR402
+        """
+
+    @abc.abstractmethod
+    def get_all_generatable_types(self) -> list[type]:
+        """Provides all types that can be generated.
+
+        This includes primitives and collections.
+
+        Returns:
+            A list of all types that can be generated  # noqa: DAR202
+        """
+
+    @abc.abstractmethod
+    def select_concrete_type(self, typ: type | None) -> type | None:
+        """Select a concrete type from the given type.
+
+        This is required, for example, when handling union types.  Currently, only
+        unary types, Any, and Union are handled.
+
+        Args:
+            typ: An optional type
+
+        Returns:
+            An optional type  # noqa: DAR202
+        """
+
+    @abc.abstractmethod
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
+        """Track statistics values from the test cluster and its items.
+
+        Args:
+            tracking_fun: The tracking function as a callback.
+        """
+
+    @abc.abstractmethod
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: type
+    ) -> None:
+        """Update the return for the given accessible to the new seen type.
+
+        Args:
+            accessible: the accessible that was observed
+            new_type: the new return type
+        """
+
+
+class ModuleTestCluster(TestCluster):
     """A test cluster for a module.
 
     Contains all methods/constructors/functions and all required transitive
@@ -261,30 +426,54 @@ class ModuleTestCluster:
         ] = {}
         self.__inheritance_graph = InheritanceGraph()
 
+    def _drop_generator(self, accessible: GenericCallableAccessibleObject):
+        gens = self.__generators.get(accessible.generated_type())  # type:ignore
+        if gens is None:
+            return
+
+        gens.discard(accessible)
+        if len(gens) == 0:
+            self.__generators.pop(accessible.generated_type())  # type:ignore
+
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: type
+    ) -> None:
+        old_type = accessible.generated_type()
+        if new_type == old_type:
+            return
+
+        if is_primitive_type(new_type):
+            # We don't want to generate primitives.
+            self._drop_generator(accessible)
+            return
+
+        if is_union_type(old_type):
+            args = typing.get_args(old_type)
+            if len(args) >= 5 or new_type in args:
+                # Don't create unions exceeding five elements.
+                return
+            new = typing.Union[(new_type,) + typing.get_args(old_type)]  # type:ignore
+        elif old_type is Any:
+            # Always replace Any
+            new = new_type
+        else:
+            new = typing.Union[old_type, new_type]
+        self._drop_generator(accessible)
+        if new not in self.__generators:
+            self.__generators[new] = OrderedSet([accessible])  # type:ignore
+        else:
+            self.__generators[new].append(accessible)  # type:ignore
+        accessible.inferred_signature.update_return_type(new_type)
+
     @property
     def inheritance_graph(self) -> InheritanceGraph:
-        """Provides the inheritance graph.
-
-        Returns:
-            The inheritance graph.
-        """
         return self.__inheritance_graph
 
     @property
     def linenos(self) -> int:
-        """Provide the number of source code lines.
-
-        Returns:
-            The number of source code lines
-        """
         return self.__linenos
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
-        """Add the given accessible as a generator.
-
-        Args:
-            generator: The accessible object
-        """
         generated_type = generator.generated_type()
         if (
             generated_type is None
@@ -300,25 +489,10 @@ class ModuleTestCluster:
     def add_accessible_object_under_test(
         self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
-        """Add accessible object to the objects under test.
-
-        Args:
-            objc: The accessible object
-            data: The function-description data
-        """
         self.__accessible_objects_under_test.add(objc)
         self.__function_data_for_accessibles[objc] = data
 
     def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
-        """Add a modifier.
-
-        A modifier is something that can be used to modify the given type,
-        for example, a method.
-
-        Args:
-            typ: The type that can be modified
-            obj: The accessible that can modify
-        """
         if typ in self.__modifiers:
             self.__modifiers[typ].add(obj)
         else:
@@ -326,148 +500,65 @@ class ModuleTestCluster:
 
     @property
     def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
-        """Provides all accessible objects under test.
-
-        Returns:
-            The set of all accessible objects under test
-        """
         return self.__accessible_objects_under_test
 
     @property
     def function_data_for_accessibles(
         self,
     ) -> dict[GenericAccessibleObject, _CallableData]:
-        """Provides all function data for all accessibles.
-
-        Returns:
-            A dictionary of accessibles to their function data
-        """
         return self.__function_data_for_accessibles
 
     def num_accessible_objects_under_test(self) -> int:
-        """Provide the number of accessible objects under test.
-
-        Useful to check whether there is even something to test.
-
-        Returns:
-            The number of all accessibles under test
-        """
         return len(self.__accessible_objects_under_test)
 
     def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
-        """Retrieve all known generators for the given type.
-
-        Args:
-            typ: The type we want to have the generators for
-
-        Returns:
-            The set of all generators for that type
-        """
         if typ is typing.Any:
+            # fast track for Any
             return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
-        if (non_generic_type := extract_non_generic_class(typ)) is not None:
-            generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
-            for subclass in self.__inheritance_graph.get_subclasses(
-                ClassWrapper.from_type(non_generic_type)
-            ):
-                if subclass.raw_type in self.__generators:
-                    generators.update(self.__generators[subclass.raw_type])
-            return generators
-        return self.__generators.get(typ, OrderedSet())
+
+        generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        for gen_typ, gens in self.__generators.items():
+            if is_consistent_with(gen_typ, typ):
+                generators.update(gens)
+        return generators
 
     def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
-        """Get all known modifiers for a type.
-
-        TODO: Incorporate inheritance
-
-        Args:
-            typ: The type
-
-        Returns:
-            The set of all accessibles that can modify the type
-        """
         if typ is typing.Any:
+            # fast track for Any
             return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
-        if (non_generic_type := extract_non_generic_class(typ)) is not None:
-            modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
-            for super_class in self.__inheritance_graph.get_superclasses(
-                ClassWrapper.from_type(non_generic_type)
-            ):
-                if super_class.raw_type in self.__modifiers:
-                    modifiers.update(self.__modifiers[super_class.raw_type])
-            return modifiers
-        return self.__modifiers.get(typ, OrderedSet())
+
+        modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        for mod_typ, gens in self.__modifiers.items():
+            if is_consistent_with(typ, mod_typ):
+                modifiers.update(gens)
+        return modifiers
 
     @property
     def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
-        """Provides all available generators.
-
-        Returns:
-            A dictionary of types and their generating accessibles
-        """
         return self.__generators
 
     @property
     def modifiers(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
-        """Provides all available modifiers.
-
-        Returns:
-            A dictionary of types and their modifying accessibles
-        """
         return self.__modifiers
 
     def get_random_accessible(self) -> GenericAccessibleObject | None:
-        """Provides a random accessible of the unit under test.
-
-        Returns:
-            A random accessible, or None if there is none
-        """
         if self.num_accessible_objects_under_test() == 0:
             return None
         return randomness.choice(self.__accessible_objects_under_test)
 
     def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
-        """Get a random modifier for the given type.
-
-        Args:
-            typ: The type
-
-        Returns:
-            A random modifier for that type
-
-        Raises:
-            ConstructionFailedException: if no modifiers for the type exist
-        """
         accessible_objects = self.get_modifiers_for(typ)
         if len(accessible_objects) == 0:
             raise ConstructionFailedException(f"No modifiers for {typ}")
         return randomness.choice(accessible_objects)
 
     def get_all_generatable_types(self) -> list[type]:
-        """Provides all types that can be generated.
-
-        This includes primitives and collections.
-
-        Returns:
-            A list of all types that can be generated
-        """
         generatable = OrderedSet(self.__generators.keys())
         generatable.update(PRIMITIVES)
         generatable.update(COLLECTIONS)
         return list(generatable)
 
     def select_concrete_type(self, typ: type | None) -> type | None:
-        """Select a concrete type from the given type.
-
-        This is required, for example, when handling union types.  Currently, only
-        unary types, Any, and Union are handled.
-
-        Args:
-            typ: An optional type
-
-        Returns:
-            An optional type
-        """
         if typ == Any:  # pylint: disable=comparison-with-callable
             return randomness.choice(self.get_all_generatable_types())
         if is_union_type(typ):
@@ -480,11 +571,6 @@ class ModuleTestCluster:
     def track_statistics_values(
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
     ) -> None:
-        """Track statistics values from the test cluster and its items.
-
-        Args:
-            tracking_fun: The tracking function as a callback.
-        """
         tracking_fun(
             RuntimeVariable.AccessibleObjectsUnderTest,
             self.num_accessible_objects_under_test(),
@@ -528,13 +614,48 @@ class ModuleTestCluster:
         )
 
 
-class FilteredModuleTestCluster(ModuleTestCluster):
+class FilteredModuleTestCluster(TestCluster):
     """A test cluster wrapping another test cluster.
 
     Delegates most methods to the wrapped delegate.  This cluster filters out
     accessible objects under test that are already fully covered, in order to focus
     the search on areas that are not yet fully covered.
     """
+
+    @property
+    def inheritance_graph(self) -> InheritanceGraph:
+        return self.__delegate.inheritance_graph
+
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: type
+    ) -> None:
+        self.__delegate.update_return_type(accessible, new_type)
+
+    @property
+    def linenos(self) -> int:
+        return self.__delegate.linenos
+
+    def add_generator(self, generator: GenericAccessibleObject) -> None:
+        self.__delegate.add_generator(generator)
+
+    def add_accessible_object_under_test(
+        self, objc: GenericAccessibleObject, data: _CallableData
+    ) -> None:
+        self.__delegate.add_accessible_object_under_test(objc, data)
+
+    def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
+        self.__delegate.add_modifier(typ, obj)
+
+    @property
+    def function_data_for_accessibles(
+        self,
+    ) -> dict[GenericAccessibleObject, _CallableData]:
+        return self.__delegate.function_data_for_accessibles
+
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
+        self.__delegate.track_statistics_values(tracking_fun)
 
     def __init__(
         self,
@@ -543,7 +664,6 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         known_data: KnownData,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
-        super().__init__(linenos=delegate.linenos)
         self.__delegate = delegate
         self.__known_data = known_data
         self.__code_object_id_to_accessible_objects: dict[

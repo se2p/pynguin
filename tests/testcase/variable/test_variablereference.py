@@ -32,7 +32,7 @@ class DummyReference(vr.Reference):
     ) -> bool:
         pass  # pragma: no cover
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         pass  # pragma: no cover
 
     def get_variable_reference(self) -> VariableReference | None:
@@ -112,18 +112,12 @@ def test_var_get_position_no_statements(test_case_mock):
 
 def test_var_hash(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
-    assert ref.structural_hash() != 0
+    assert ref.structural_hash({ref: 0}) == 0
 
 
 def test_var_eq_same(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
     assert ref.structural_eq(ref, {ref: ref})
-
-
-def test_var_eq_different_var_type(test_case_mock):
-    ref1 = vr.VariableReference(test_case_mock, int)
-    ref2 = vr.VariableReference(test_case_mock, float)
-    assert not ref1.structural_eq(ref2, {ref1: ref2})
 
 
 def test_var_eq_other_type(test_case_mock):
@@ -202,15 +196,7 @@ def test_field_structural_hash(field_mock):
     var_2 = vr.VariableReference(MagicMock(), int)
     ref = vr.FieldReference(var, field_mock)
     ref_2 = vr.FieldReference(var_2, field_mock)
-    assert ref.structural_hash() == ref_2.structural_hash()
-
-
-def test_field_structural_hash_2(field_mock):
-    var = vr.VariableReference(MagicMock(), int)
-    var_2 = vr.VariableReference(MagicMock(), str)
-    ref = vr.FieldReference(var, field_mock)
-    ref_2 = vr.FieldReference(var_2, field_mock)
-    assert ref.structural_hash() != ref_2.structural_hash()
+    assert ref.structural_hash({var: 0}) == ref_2.structural_hash({var_2: 0})
 
 
 def test_field_structural_hash_3(field_mock):
