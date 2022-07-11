@@ -32,9 +32,7 @@ def test_method_called():
     assert "startswith" in tt.ProxyKnowledge.from_proxy(proxy).symbol_table
     assert (
         "__call__"
-        in tt.ProxyKnowledge.from_proxy(proxy)
-        .symbol_table["startswith"][0]
-        .symbol_table
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["startswith"].symbol_table
     )
 
 
@@ -43,23 +41,15 @@ def test_loop_over_list():
     with tt.shim_isinstance():
         for i, element in enumerate(proxy):
             assert isinstance(element, str)
-    # Index 0 is a dummy entry to tell us that __iter__ was accessed.
     assert (
-        str
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__iter__"][1].type_checks
-    )
-    assert (
-        str
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__iter__"][2].type_checks
+        str in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__iter__"].type_checks
     )
 
 
 def test_dict():
     proxy = tt.ObjectProxy({"foo": 42})
     assert proxy == {"foo": 42}
-    assert (
-        dict in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__eq__"][0].arg_types
-    )
+    assert dict in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__eq__"].arg_types
 
 
 def test_dont_record_objectproxy_instance_check():
@@ -76,7 +66,7 @@ def test_setattr():
 
     proxy = tt.ObjectProxy(Foo())
     proxy.foo = 42
-    assert len(tt.ProxyKnowledge.from_proxy(proxy).symbol_table["foo"]) == 1
+    assert "foo" in tt.ProxyKnowledge.from_proxy(proxy).symbol_table
 
 
 @pytest.mark.parametrize("obj", [42, "foo", 42.3, {}])
@@ -106,7 +96,7 @@ def test_isinstance_check():
 def test_compares_op(op, name):
     proxy = tt.ObjectProxy(42)
     assert op(proxy, 42) == op(42, 42)
-    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table[name][0].arg_types
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table[name].arg_types
 
 
 def test_contains():
@@ -114,7 +104,7 @@ def test_contains():
     assert 42 in proxy
     assert (
         int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__contains__"][0].arg_types
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__contains__"].arg_types
     )
 
 
@@ -148,11 +138,7 @@ def test_contains_proxy():
     proxy2 = tt.ObjectProxy(42)
     assert proxy2 in proxy
     assert (
-        len(
-            tt.ProxyKnowledge.from_proxy(proxy)
-            .symbol_table["__contains__"][0]
-            .arg_types
-        )
+        len(tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__contains__"].arg_types)
         == 0
     )
 
@@ -171,27 +157,21 @@ def test_add():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert value + 1 == proxy + 1
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__add__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__add__"].arg_types
 
 
 def test_sub():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert value - 1 == proxy - 1
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__sub__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__sub__"].arg_types
 
 
 def test_mul():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert value * 2 == proxy * 2
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__mul__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__mul__"].arg_types
 
 
 def test_truediv():
@@ -199,8 +179,7 @@ def test_truediv():
     proxy = tt.ObjectProxy(value)
     assert value / 2 == proxy / 2
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__truediv__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__truediv__"].arg_types
     )
 
 
@@ -210,7 +189,7 @@ def test_floordiv():
     assert value // 2 == proxy // 2
     assert (
         int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__floordiv__"][0].arg_types
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__floordiv__"].arg_types
     )
 
 
@@ -218,9 +197,7 @@ def test_mod():
     value = 7
     proxy = tt.ObjectProxy(value)
     assert value % 3 == proxy % 3
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__mod__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__mod__"].arg_types
 
 
 def test_divmod():
@@ -228,8 +205,7 @@ def test_divmod():
     proxy = tt.ObjectProxy(value)
     assert divmod(value, 3) == divmod(proxy, 3)
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__divmod__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__divmod__"].arg_types
     )
 
 
@@ -237,9 +213,7 @@ def test_pow():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value**2 == proxy**2
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__pow__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__pow__"].arg_types
 
 
 def test_lshift():
@@ -247,8 +221,7 @@ def test_lshift():
     proxy = tt.ObjectProxy(value)
     assert value << 3 == proxy << 3
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__lshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__lshift__"].arg_types
     )
 
 
@@ -257,8 +230,7 @@ def test_rshift():
     proxy = tt.ObjectProxy(value)
     assert value >> 3 == proxy >> 3
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rshift__"].arg_types
     )
 
 
@@ -266,27 +238,21 @@ def test_and():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value & 1 == proxy & 1
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__and__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__and__"].arg_types
 
 
 def test_xor():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value ^ 1 == proxy ^ 1
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__xor__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__xor__"].arg_types
 
 
 def test_or():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value | 1 == proxy | 1
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__or__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__or__"].arg_types
 
 
 # Reverse operators
@@ -296,27 +262,21 @@ def test_radd():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert 1 + value == 1 + proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__radd__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__radd__"].arg_types
 
 
 def test_rsub():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert 1 - value == 1 - proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rsub__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rsub__"].arg_types
 
 
 def test_rmul():
     value = 42
     proxy = tt.ObjectProxy(value)
     assert 2 * value == 2 * proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rmul__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rmul__"].arg_types
 
 
 def test_rtruediv():
@@ -325,7 +285,7 @@ def test_rtruediv():
     assert 7 / value == 7 / proxy
     assert (
         int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rtruediv__"][0].arg_types
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rtruediv__"].arg_types
     )
 
 
@@ -335,9 +295,7 @@ def test_rfloordiv():
     assert 7 // value == 7 // proxy
     assert (
         int
-        in tt.ProxyKnowledge.from_proxy(proxy)
-        .symbol_table["__rfloordiv__"][0]
-        .arg_types
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rfloordiv__"].arg_types
     )
 
 
@@ -345,9 +303,7 @@ def test_rmod():
     value = 3
     proxy = tt.ObjectProxy(value)
     assert 7 % value == 7 % proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rmod__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rmod__"].arg_types
 
 
 def test_rdivmod():
@@ -355,8 +311,7 @@ def test_rdivmod():
     proxy = tt.ObjectProxy(value)
     assert divmod(7, value) == divmod(7, proxy)
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rdivmod__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rdivmod__"].arg_types
     )
 
 
@@ -364,9 +319,7 @@ def test_rpow():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 3**value == 3**proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rpow__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rpow__"].arg_types
 
 
 def test_rlshift():
@@ -374,8 +327,7 @@ def test_rlshift():
     proxy = tt.ObjectProxy(value)
     assert 3 << value == 3 << proxy
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rlshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rlshift__"].arg_types
     )
 
 
@@ -384,8 +336,7 @@ def test_rrshift():
     proxy = tt.ObjectProxy(value)
     assert 3 >> value == 3 >> proxy
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rrshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rrshift__"].arg_types
     )
 
 
@@ -393,27 +344,21 @@ def test_rand():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 1 & value == 1 & proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rand__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rand__"].arg_types
 
 
 def test_rxor():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 1 ^ value == 1 ^ proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rxor__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__rxor__"].arg_types
 
 
 def test_ror():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 1 | value == 1 | proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__ror__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__ror__"].arg_types
 
 
 # Inplace operators
@@ -425,9 +370,7 @@ def test_iadd():
     value += 1
     proxy += 1
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__iadd__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__iadd__"].arg_types
 
 
 def test_isub():
@@ -436,9 +379,7 @@ def test_isub():
     value -= 1
     proxy -= 1
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__isub__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__isub__"].arg_types
 
 
 def test_imul():
@@ -447,9 +388,7 @@ def test_imul():
     value *= 2
     proxy *= 2
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__imul__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__imul__"].arg_types
 
 
 def test_itruediv():
@@ -459,8 +398,7 @@ def test_itruediv():
     proxy /= 2
     assert value == proxy
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__itruediv__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__itruediv__"].arg_types
     )
 
 
@@ -472,7 +410,7 @@ def test_ifloordiv():
     assert value == proxy
     assert (
         int
-        in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ifloordiv__"][0].arg_types
+        in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ifloordiv__"].arg_types
     )
 
 
@@ -482,9 +420,7 @@ def test_imod():
     value %= 3
     proxy %= 3
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__imod__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__imod__"].arg_types
 
 
 def test_ipow():
@@ -493,9 +429,7 @@ def test_ipow():
     value **= 3
     proxy **= 3
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ipow__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ipow__"].arg_types
 
 
 def test_ilshift():
@@ -505,8 +439,7 @@ def test_ilshift():
     proxy <<= 1
     assert value == proxy
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ilshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ilshift__"].arg_types
     )
 
 
@@ -517,8 +450,7 @@ def test_irshift():
     proxy >>= 1
     assert value == proxy
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__irshift__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__irshift__"].arg_types
     )
 
 
@@ -528,9 +460,7 @@ def test_iand():
     value &= 1
     proxy &= 1
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__iand__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__iand__"].arg_types
 
 
 def test_ixor():
@@ -539,9 +469,7 @@ def test_ixor():
     value ^= 1
     proxy ^= 1
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ixor__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ixor__"].arg_types
 
 
 def test_ior():
@@ -550,9 +478,7 @@ def test_ior():
     value |= 1
     proxy |= 1
     assert value == proxy
-    assert (
-        int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ior__"][0].arg_types
-    )
+    assert int in tt.ProxyKnowledge.from_proxy(copy).symbol_table["__ior__"].arg_types
 
 
 def test_neg():
@@ -596,8 +522,7 @@ def test_getitem_list():
     assert element == "entry"
     assert isinstance(element, tt.ObjectProxy)
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"].arg_types
     )
 
 
@@ -608,7 +533,7 @@ def test_getitem_list_slice():
     assert isinstance(element, tt.ObjectProxy)
     assert (
         slice
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"][0].arg_types
+        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"].arg_types
     )
 
 
@@ -618,8 +543,7 @@ def test_getitem_dict():
     assert element == "entry"
     assert isinstance(element, tt.ObjectProxy)
     assert (
-        str
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"][0].arg_types
+        str in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__getitem__"].arg_types
     )
 
 
@@ -630,6 +554,5 @@ def test_setitem_list():
     assert element == 42
     assert isinstance(element, tt.ObjectProxy)
     assert (
-        int
-        in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__setitem__"][0].arg_types
+        int in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__setitem__"].arg_types
     )

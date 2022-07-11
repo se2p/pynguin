@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides classes to trace the usage of objects."""
+"""Provides utilities to trace the usage of objects."""
 
 from __future__ import annotations
 
@@ -13,7 +13,8 @@ import contextlib
 import dataclasses
 import logging
 import operator
-from collections import defaultdict
+
+from ordered_set import OrderedSet
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,14 +56,12 @@ class ProxyKnowledge:
 
     name: str
 
-    # The depth of the proxy within the proxied object graph.
+    # The depth of the proxy within the proxied object tree.
     # Zero indicates that it is the root.
     depth: int = 0
 
     # Symbols that have been accessed on this proxy.
-    symbol_table: defaultdict[str, list[ProxyKnowledge]] = dataclasses.field(
-        default_factory=lambda: defaultdict(list)
-    )
+    symbol_table: dict[str, ProxyKnowledge] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
     # Weak vs strong type checks?
@@ -70,7 +69,10 @@ class ProxyKnowledge:
     # TODO(fk) do not record anything if it involves another proxy
     type_checks: list[type | tuple[type, ...]] = dataclasses.field(default_factory=list)
 
-    arg_types: list[type] = dataclasses.field(default_factory=list)
+    arg_types: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
+
+    def __post_init__(self):
+        self.symbol_table = DepthDefaultDict(self.depth)
 
     def pretty(self) -> str:
         """Create a pretty representation of this object.
@@ -82,15 +84,9 @@ class ProxyKnowledge:
         if len(self.type_checks) > 0:
             output += f" (type-checks: {self.type_checks}"
         if len(self.arg_types) > 0:
-            output += f" (arg_types: {self.arg_types}"
+            output += f" (arg-types: {self.arg_types}"
         for children in self.symbol_table.values():
-            for child in children:
-                if child is not None:
-                    output += "\n" + child.pretty()
-                else:
-                    output += (
-                        "\n" + self.__get_indent(depth=self.depth) + f"'{self.name}'"
-                    )
+            output += "\n" + children.pretty()
         return output
 
     @staticmethod
@@ -115,6 +111,20 @@ class ProxyKnowledge:
         return obj._self_proxy_knowledge
 
 
+class DepthDefaultDict(dict[str, ProxyKnowledge]):
+    """Default dict which automatically creates a ProxyKnowledge for each requested
+    and non-existing key."""
+
+    def __init__(self, depth: int):
+        super().__init__()
+        self._depth = depth
+
+    def __missing__(self, key):
+        # Create knowledge for missing symbol
+        res = self[key] = ProxyKnowledge(key, depth=self._depth + 1)
+        return res
+
+
 def proxify(log_arg_type=False, no_wrap_return=False):
     """Decorator to wrap the result of a dunder method in a proxy.
 
@@ -131,10 +141,7 @@ def proxify(log_arg_type=False, no_wrap_return=False):
         def wrapped(*args, **kwargs):
             self = args[0]
             knowledge = ProxyKnowledge.from_proxy(self)
-            new_knowledge = ProxyKnowledge(
-                depth=knowledge.depth + 1, name=function.__name__
-            )
-            knowledge.symbol_table[function.__name__].append(new_knowledge)
+            nested_knowledge = knowledge.symbol_table[function.__name__]
             if len(args) > 1:
                 if isinstance(args[1], ObjectProxy):
                     # Only record access but nothing more, if we interact with another
@@ -142,10 +149,10 @@ def proxify(log_arg_type=False, no_wrap_return=False):
                     # TODO(fk) unproxy/disable arguments?
                     return function(*args, **kwargs)
                 if log_arg_type:
-                    new_knowledge.arg_types.append(type(args[1]))
+                    nested_knowledge.arg_types.add(type(args[1]))
             if no_wrap_return:
                 return function(*args, **kwargs)
-            return ObjectProxy(function(*args, **kwargs), knowledge=new_knowledge)
+            return ObjectProxy(function(*args, **kwargs), knowledge=nested_knowledge)
 
         return wrapped
 
@@ -349,9 +356,9 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
         else:
             knowledge = ProxyKnowledge.from_proxy(self)
-            knowledge.symbol_table[name].append(
-                ProxyKnowledge(name, knowledge.depth + 1)
-            )
+            accessed = knowledge.symbol_table[name]
+            # Knowledge is created implicitly.
+            assert accessed
             setattr(self.__wrapped__, name, value)  # type:ignore
 
     def __getattr__(self, name):
@@ -364,11 +371,10 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
         # Append dummy in case of failed access
         knowledge = self._self_proxy_knowledge
-        new_knowledge = ProxyKnowledge(name=name, depth=knowledge.depth + 1)
-        knowledge.symbol_table[name].append(new_knowledge)
+        nested_knowledge = knowledge.symbol_table[name]
         proxy = ObjectProxy(
             getattr(self.__wrapped__, name),  # type:ignore
-            knowledge=new_knowledge,
+            knowledge=nested_knowledge,
         )
         return proxy
 
@@ -616,13 +622,9 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
     def __iter__(self):
         knowledge = self._self_proxy_knowledge
-        new_knowledge = ProxyKnowledge("__iter__", knowledge.depth + 1)
-        knowledge.symbol_table["__iter__"].append(new_knowledge)
-
+        nested_knowledge = knowledge.symbol_table["__iter__"]
         for i in self.__wrapped__:
-            new_knowledge = ProxyKnowledge("__iter__", knowledge.depth + 1)
-            proxy = ObjectProxy(i, knowledge=new_knowledge)
-            knowledge.symbol_table["__iter__"].append(new_knowledge)
+            proxy = ObjectProxy(i, knowledge=nested_knowledge)
             yield proxy
 
     # These do not give us any hint.
