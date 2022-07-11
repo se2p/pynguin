@@ -772,22 +772,36 @@ class DynamicSlicer:
             context.var_uses_addresses.add(hex(traced_instr.src_address))
 
     @staticmethod
-    def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
+    def map_instructions_to_lines(
+        instructions: list[UniqueInstruction], known_data: KnownData
+    ) -> set[int]:
         """Map the list of instructions in a slice to a set of lines of the module
         under test. Instructions of the test case statements are ignored.
 
         Args:
             instructions: list of unique instructions
+            known_data: the known data about the module under test
 
         Returns:
-            a set of line numbers used in the given list of instructions
+            a set of line ids used in the given list of instructions
         """
-        lines = set()
+        line_ids = set()
+        curr_line = -1
         for instruction in instructions:
-            if instruction.file != "<ast>":  # do not include test statements
-                lines.add(instruction.lineno)
-
-        return lines
+            if instruction.file == "<ast>":  # do not include test statements
+                continue
+            if instruction.lineno == curr_line:  # only add new lines
+                continue
+            curr_line = instruction.lineno
+            for (line_id, line_meta) in known_data.existing_lines.items():
+                if (
+                    line_meta.code_object_id == instruction.code_object_id
+                    and line_meta.file_name == instruction.file
+                    and line_meta.line_number == instruction.lineno
+                ):
+                    line_ids.add(line_id)
+                    break
+        return line_ids
 
 
 # pylint:disable=too-few-public-methods

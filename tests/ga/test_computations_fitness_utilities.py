@@ -198,6 +198,8 @@ def test_assertion_checked_coverage_half_covered(known_data_mock, trace_mock):
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1]
         assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 0.5
@@ -212,8 +214,12 @@ def test_assertion_checked_coverage_fully_covered(known_data_mock, trace_mock):
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     mock_instr_2 = MagicMock()
     mock_instr_2.lineno = 1
+    mock_instr_2.code_object_id = 0
+    mock_instr_2.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1, mock_instr_2]
         assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 1
@@ -230,6 +236,8 @@ def test_statement_checked_coverage_half_covered(known_data_mock, trace_mock):
     }
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     statements = [MagicMock()]
     with patch.object(DynamicSlicer, "slice") as slice_mock:
         slice_mock.return_value = [mock_instr_1]
@@ -245,8 +253,12 @@ def test_statement_checked_coverage_fully_covered(known_data_mock, trace_mock):
     }
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     mock_instr_2 = MagicMock()
     mock_instr_2.lineno = 1
+    mock_instr_2.code_object_id = 0
+    mock_instr_2.file = "foo"
     statements = [MagicMock()]
     with patch.object(DynamicSlicer, "slice") as slice_mock:
         slice_mock.return_value = [mock_instr_1, mock_instr_2]

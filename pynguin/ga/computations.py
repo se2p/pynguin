@@ -310,11 +310,8 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             individual, instrument_test_suite=True
         )
         merged_trace = analyze_results(results)
-        existing_lines = self._executor.tracer.get_known_data().existing_lines
-        known_code_objects = (
-            self._executor.tracer.get_known_data().existing_code_objects
-        )
-        dynamic_slicer = DynamicSlicer(known_code_objects)
+        known_data = self._executor.tracer.get_known_data()
+        dynamic_slicer = DynamicSlicer(known_data.existing_code_objects)
         checked_lines = set()
 
         for test_case_chromosome in individual.test_case_chromosomes:
@@ -327,11 +324,13 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
                         statement.slicing_criterion,
                     )
                     checked_lines.update(
-                        DynamicSlicer.map_instructions_to_lines(statement_slice)
+                        DynamicSlicer.map_instructions_to_lines(
+                            statement_slice, known_data
+                        )
                     )
 
         self._executor.tracer.get_trace().checked_lines.update(checked_lines)
-        return len(existing_lines) - len(checked_lines)
+        return len(known_data.existing_lines) - len(checked_lines)
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(
@@ -974,11 +973,11 @@ def compute_statement_checked_lines(
         known_data: All known data
 
     Returns:
-        The computed coverage value
+        The checked line ids of lines checked by the statements
     """
     known_code_objects = known_data.existing_code_objects
     dynamic_slicer = DynamicSlicer(known_code_objects)
-    checked_lines = set()
+    checked_lines_ids = set()
     for statement in statements:
         # TODO(SiL) is never set and therefore the checked coverage is always empty
         #  since the test_case is only executed with instrument_test=False
@@ -991,8 +990,10 @@ def compute_statement_checked_lines(
             trace,
             statement.slicing_criterion,
         )
-        checked_lines.update(DynamicSlicer.map_instructions_to_lines(statement_slice))
-    return checked_lines
+        checked_lines_ids.update(
+            DynamicSlicer.map_instructions_to_lines(statement_slice, known_data)
+        )
+    return checked_lines_ids
 
 
 def compute_assertion_checked_coverage(
@@ -1035,7 +1036,9 @@ def compute_assertion_checked_coverage(
             checked_instructions.extend(assertion_checked_instructions)
 
         # reduce coverage to lines instead of instructions
-        checked_lines = DynamicSlicer.map_instructions_to_lines(checked_instructions)
+        checked_lines = DynamicSlicer.map_instructions_to_lines(
+            checked_instructions, known_data
+        )
 
         covered = len(checked_lines)
         coverage = covered / existing

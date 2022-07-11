@@ -252,17 +252,17 @@ def test_assertion_detection_on_test_case(
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_object_assertion",
-            {9, 16, 18},
+            {0, 3, 7},
         ),
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_float_assertion",
-            {9, 16, 18},
+            {0, 3, 7},
         ),
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_multiple_assertions",
-            {9, 10, 16, 17, 18},
+            {0, 1, 3, 6, 7},
         ),
     ],
 )
@@ -296,7 +296,9 @@ def test_slicing_after_test_execution(
             )
         assert instructions_in_slice
 
-        checked_lines = DynamicSlicer.map_instructions_to_lines(instructions_in_slice)
+        checked_lines = DynamicSlicer.map_instructions_to_lines(
+            instructions_in_slice, tracer.get_known_data()
+        )
         assert checked_lines
         assert checked_lines == expected_lines
 

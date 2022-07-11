@@ -95,9 +95,9 @@ class LineCoverageGoal(AbstractCoverageGoal):
 class CheckedCoverageGoal(AbstractCoverageGoal):
     """Line to be checked covered by the search as goal."""
 
-    def __init__(self, code_object_id: int, line_number: int):
+    def __init__(self, code_object_id: int, line_id: int):
         super().__init__(code_object_id)
-        self._line_number = line_number
+        self._line_id = line_id
 
     @property
     def line_number(self) -> int:
@@ -106,26 +106,26 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
         Returns:
             The line number of the targeted line.
         """
-        return self._line_number
+        return self._line_id
 
     def is_covered(self, result: ExecutionResult) -> bool:
-        return self._line_number in result.execution_trace.checked_lines
+        return self._line_id in result.execution_trace.checked_lines
 
     def __str__(self) -> str:
-        return f"Checked Coverage Goal{self._line_number}"
+        return f"Checked Coverage Goal{self._line_id}"
 
     def __repr__(self) -> str:
-        return f"CheckedCoverageGoal({self._line_number})"
+        return f"CheckedCoverageGoal({self._line_id})"
 
     def __hash__(self) -> int:
-        return 31 + self._line_number
+        return 31 + self._line_id
 
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True
         if not isinstance(other, CheckedCoverageGoal):
             return False
-        return self._line_number == other._line_number
+        return self._line_id == other._line_id
 
 
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
@@ -481,9 +481,11 @@ def create_checked_coverage_fitness_functions(
         [
             CheckedCoverageTestFitness(
                 executor,
-                # TODO(SiL) use line ids instead of line numbers
-                CheckedCoverageGoal(line_meta.code_object_id, line_meta.line_number),
+                CheckedCoverageGoal(line_meta.code_object_id, line_id),
             )
-            for line_meta in executor.tracer.get_known_data().existing_lines.values()
+            for (
+                line_id,
+                line_meta,
+            ) in executor.tracer.get_known_data().existing_lines.items()
         ]
     )
