@@ -772,6 +772,31 @@ class DynamicSlicer:
             context.var_uses_addresses.add(hex(traced_instr.src_address))
 
     @staticmethod
+    def get_line_id_by_instruction(
+        instruction: UniqueInstruction, known_data: KnownData
+    ) -> int:
+        """Get the line id of the line an instruction belongs to.
+
+        Args:
+            instruction: the instruction the line id is needed for
+            known_data: the known data about the module under test
+
+        Returns:
+            the line id used by the line of an instruction
+
+        Raises:
+            ValueError: If the line of the instruction is not part of the known data.
+        """
+        for (line_id, line_meta) in known_data.existing_lines.items():
+            if (
+                line_meta.code_object_id == instruction.code_object_id
+                and line_meta.file_name == instruction.file
+                and line_meta.line_number == instruction.lineno
+            ):
+                return line_id
+        raise ValueError("The instruction's line is not registered in the known data")
+
+    @staticmethod
     def map_instructions_to_lines(
         instructions: list[UniqueInstruction], known_data: KnownData
     ) -> set[int]:
@@ -793,14 +818,9 @@ class DynamicSlicer:
             if instruction.lineno == curr_line:  # only add new lines
                 continue
             curr_line = instruction.lineno
-            for (line_id, line_meta) in known_data.existing_lines.items():
-                if (
-                    line_meta.code_object_id == instruction.code_object_id
-                    and line_meta.file_name == instruction.file
-                    and line_meta.line_number == instruction.lineno
-                ):
-                    line_ids.add(line_id)
-                    break
+            line_ids.add(
+                DynamicSlicer.get_line_id_by_instruction(instruction, known_data)
+            )
         return line_ids
 
 

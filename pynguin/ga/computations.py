@@ -14,6 +14,7 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
+import pynguin.utils.opcodes as op
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import ExecutionTrace
 from pynguin.testcase.statement import Statement
@@ -936,6 +937,29 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
     return coverage
 
 
+def _cleanse_included_implicit_return_none(
+    known_data, statement_checked_lines, statement_slice
+):
+    if (
+        # check if the last included instructions before the store
+        # are a "return None"
+        len(statement_slice) >= 3
+        and statement_slice[-3].opcode == op.LOAD_CONST
+        and statement_slice[-3].arg is None
+        and statement_slice[-2].opcode == op.RETURN_VALUE
+    ):
+        if (
+            # check if the "return None" is implicit or explicit
+            len(statement_slice) != 3
+            and statement_slice[-4].lineno != statement_slice[-3].lineno
+        ):
+            statement_checked_lines.remove(
+                DynamicSlicer.get_line_id_by_instruction(
+                    statement_slice[-3], known_data
+                )
+            )
+
+
 def compute_statement_checked_lines(
     statements: list[Statement], trace: ExecutionTrace, known_data: KnownData
 ) -> set[int]:
@@ -966,13 +990,20 @@ def compute_statement_checked_lines(
         assert (
             statement.slicing_criterion
         ), "The statement was not correctly executed yet"
+
         statement_slice = dynamic_slicer.slice(
             trace,
             statement.slicing_criterion,
         )
-        checked_lines_ids.update(
-            DynamicSlicer.map_instructions_to_lines(statement_slice, known_data)
+        statement_checked_lines = DynamicSlicer.map_instructions_to_lines(
+            statement_slice, known_data
         )
+
+        _cleanse_included_implicit_return_none(
+            known_data, statement_checked_lines, statement_slice
+        )
+
+        checked_lines_ids.update(statement_checked_lines)
     return checked_lines_ids
 
 
