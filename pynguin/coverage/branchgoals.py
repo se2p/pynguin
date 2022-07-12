@@ -14,6 +14,7 @@ from ordered_set import OrderedSet
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
+from pynguin.slicer.dynamicslicer import DynamicSlicer
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -395,7 +396,7 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
         )
 
 
-class CheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
+class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement checked coverage fitness implementation for test cases."""
 
     def __init__(self, executor: TestCaseExecutor, goal: CheckedCoverageGoal):
@@ -407,6 +408,27 @@ class CheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)
+        known_data = self._executor.tracer.get_known_data()
+        dynamic_slicer = DynamicSlicer(known_data.existing_code_objects)
+        checked_lines = set()
+
+        for statement in individual.test_case.statements:
+            # if there is no slicing criterion the statement has not
+            # been executed yet, therefor there are no checked instructions yet
+            # TODO(SiL) add some sort of caching to only slice entire
+            #  test once not again for each goal
+            if statement.slicing_criterion:
+                statement_slice = dynamic_slicer.slice(
+                    result.execution_trace,
+                    statement.slicing_criterion,
+                )
+                checked_lines.update(
+                    DynamicSlicer.map_instructions_to_lines(
+                        statement_slice, known_data
+                    )
+                )
+
+        result.execution_trace.checked_lines.update(checked_lines)
         return self._goal.is_covered(result)
 
     def is_maximisation_function(self) -> bool:
@@ -468,7 +490,7 @@ def create_line_coverage_fitness_functions(
 
 def create_checked_coverage_fitness_functions(
     executor: TestCaseExecutor,
-) -> OrderedSet[CheckedCoverageTestFitness]:
+) -> OrderedSet[StatementCheckedCoverageTestFitness]:
     """Create fitness functions for each statement checked coverage goal.
 
     Args:
@@ -479,7 +501,7 @@ def create_checked_coverage_fitness_functions(
     """
     return OrderedSet(
         [
-            CheckedCoverageTestFitness(
+            StatementCheckedCoverageTestFitness(
                 executor,
                 CheckedCoverageGoal(line_meta.code_object_id, line_id),
             )
