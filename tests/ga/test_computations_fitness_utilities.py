@@ -20,6 +20,7 @@ import pynguin.ga.computations as ff
 from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import (
+    ExecutedAssertion,
     ExecutionResult,
     ExecutionTrace,
     KnownData,
