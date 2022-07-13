@@ -26,7 +26,7 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
-from typing import Any, Callable, NamedTuple, get_args
+from typing import Any, Callable, NamedTuple, Sequence, get_args
 
 import astroid
 from ordered_set import OrderedSet
@@ -262,7 +262,7 @@ class ModuleTestCluster:
             GenericAccessibleObject, _CallableData
         ] = {}
         self.__predicted_signatures: dict[
-            GenericAccessibleObject, list[GenericCallableAccessibleObject]
+            GenericAccessibleObject, Sequence[GenericCallableAccessibleObject]
         ] = {}
         self.__inheritance_graph = InheritanceGraph()
 
@@ -317,17 +317,22 @@ class ModuleTestCluster:
     def add_predicted_signatures(
         self,
         objc: GenericAccessibleObject,
-        predictions: list[GenericCallableAccessibleObject],
+        predictions: Sequence[GenericCallableAccessibleObject],
     ) -> None:
         """Add predicted_signatures for a specific function.
 
         Args:
             objc: The accessible object
-            prediction: The list including predictions
+            predictions: The list including predictions
         """
         self.__predicted_signatures[objc] = predictions
 
     def get_predicted_signatures(self):
+        """Get all predicted signatures.
+
+        Returns:
+            A dictionary of accessibles to predicted signatures
+        """
         return self.__predicted_signatures
 
     def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
@@ -453,8 +458,8 @@ class ModuleTestCluster:
             if predicted_signatures is not None:
                 for (
                     parameter_name,
-                    parameter_type,
-                ) in accessible.inferred_signature.parameters.items():
+                    _,
+                ) in accessible.inferred_signature.parameters.items():  # type: ignore
                     if (
                         randomness.next_float()
                         >= config.configuration.deeptyper.random_type_probability
@@ -466,18 +471,21 @@ class ModuleTestCluster:
                             )
                             for i in range(len(predicted_signatures))
                         ]
-                        # update parameter type with the most likely deeptyper prediction
+                        # update parameter type with the most
+                        # likely deeptyper prediction
                         weights = []
-                        for l in range(len(type_predictions)):
-                            weights.append(5 - l)
-                        modified_accessible.inferred_signature.update_parameter_type(
+                        for count in range(len(type_predictions)):
+                            weights.append(5 - count)
+                        (
+                            modified_accessible.inferred_signature  # type: ignore
+                        ).update_parameter_type(
                             parameter_name,
                             randomness.choices(type_predictions, weights=weights)[0],
                         )
                     else:
-                        modified_accessible.inferred_signature.update_parameter_type(
-                            parameter_name, None
-                        )
+                        (
+                            modified_accessible.inferred_signature  # type: ignore
+                        ).update_parameter_type(parameter_name, None)
                 if (
                     randomness.next_float()
                     >= config.configuration.deeptyper.random_type_probability
@@ -489,13 +497,17 @@ class ModuleTestCluster:
                     ]
                     # update parameter type with the most likely deeptyper prediction
                     weights = []
-                    for l in range(len(type_predictions)):
-                        weights.append(5 - l)
-                    modified_accessible.inferred_signature.update_return_type(
+                    for count in range(len(type_predictions)):
+                        weights.append(5 - count)
+                    (
+                        modified_accessible.inferred_signature  # type: ignore
+                    ).update_return_type(
                         randomness.choices(type_predictions, weights=weights)[0]
                     )
                 else:
-                    modified_accessible.inferred_signature.update_return_type(None)
+                    (
+                        modified_accessible.inferred_signature  # type: ignore
+                    ).update_return_type(None)
             return modified_accessible
         return accessible
 
@@ -803,7 +815,7 @@ def __analyse_function(
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
-def __analyse_class(  # pylint: disable=too-many-arguments
+def __analyse_class(  # pylint: disable=too-many-arguments, too-many-locals
     *,
     class_name: str,
     class_: type,
@@ -872,7 +884,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
-def __analyse_method(  # pylint: disable=too-many-arguments
+def __analyse_method(  # pylint: disable=too-many-arguments, too-many-locals
     *,
     class_name: str,
     class_: type,
@@ -1027,7 +1039,7 @@ def __resolve_dependencies(
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
 
-def __analyse_included_classes(
+def __analyse_included_classes(  # pylint: disable=too-many-locals, cell-var-from-loop
     *,
     module: ModuleType,
     root_module_name: str,
@@ -1054,7 +1066,7 @@ def __analyse_included_classes(
             inspect.getmembers(
                 parsed_modules[i].module,
                 lambda member: inspect.isclass(member)
-                and member.__module__ == parsed_modules[i].module_name,
+                and member.__module__ == parsed_modules[i].module_name,  # type: ignore
             )
             for i in range(1, 6)
         ]
@@ -1103,7 +1115,7 @@ def __analyse_included_classes(
                 work_list.append(base)
 
 
-def __analyse_included_functions(
+def __analyse_included_functions(  # pylint: disable=cell-var-from-loop
     *,
     module: ModuleType,
     root_module_name: str,
@@ -1124,7 +1136,7 @@ def __analyse_included_functions(
             inspect.getmembers(
                 parsed_modules[i].module,
                 lambda member: inspect.isfunction(member)
-                and member.__module__ == parsed_modules[i].module_name,
+                and member.__module__ == parsed_modules[i].module_name,  # type: ignore
             )
             for i in range(1, 6)
         ]
@@ -1169,7 +1181,7 @@ def analyse_module(parsed_modules: list[_ParseResult]) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
-        parsed_module: The parsed module
+        parsed_modules: The parsed modules
 
     Returns:
         A test cluster for the module

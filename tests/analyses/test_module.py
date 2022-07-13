@@ -37,13 +37,15 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 @pytest.fixture(scope="module")
-def parsed_module_no_dependencies() -> _ParseResult:
-    return parse_module("tests.fixtures.cluster.no_dependencies")
+def parsed_module_no_dependencies() -> list[_ParseResult]:
+    parsed_results = [parse_module("tests.fixtures.cluster.no_dependencies")]
+    return parsed_results
 
 
 @pytest.fixture(scope="module")
-def parsed_module_complex_dependencies() -> _ParseResult:
-    return parse_module("tests.fixtures.cluster.complex_dependencies")
+def parsed_module_complex_dependencies() -> list[_ParseResult]:
+    parsed_results = [parse_module("tests.fixtures.cluster.complex_dependencies")]
+    return parsed_results
 
 
 @pytest.fixture(scope="module")
@@ -52,8 +54,9 @@ def parsed_module_no_any_annotation() -> _ParseResult:
 
 
 @pytest.fixture(scope="module")
-def parsed_module_nested_functions() -> _ParseResult:
-    return parse_module("tests.fixtures.cluster.nested_functions")
+def parsed_module_nested_functions() -> list[_ParseResult]:
+    parsed_results = [parse_module("tests.fixtures.cluster.nested_functions")]
+    return parsed_results
 
 
 @pytest.fixture
@@ -63,7 +66,7 @@ def module_test_cluster() -> ModuleTestCluster:
 
 def test_parse_module(parsed_module_no_dependencies):
     module_name = "tests.fixtures.cluster.no_dependencies"
-    parse_result = parsed_module_no_dependencies
+    parse_result = parsed_module_no_dependencies[0]
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is not None
