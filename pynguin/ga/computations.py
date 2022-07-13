@@ -984,9 +984,10 @@ def compute_statement_checked_lines(
     checked_lines_ids = set()
     for statement in statements:
         if not statement.slicing_criterion:
-            # if there is no slicing criterion there was an exception during the test
-            # case execution and the latter statements after the one with an exception
-            # will never be executed, thus having no slicing criterion
+            # if there is no slicing criterion there was an exception during
+            # the test case execution and the latter statements after the one
+            # with an exception will never be executed,
+            # thus having no slicing criterion
             break
         statement_slice = dynamic_slicer.slice(
             trace,

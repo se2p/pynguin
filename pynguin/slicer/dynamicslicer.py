@@ -789,8 +789,7 @@ class DynamicSlicer:
         """
         for (line_id, line_meta) in known_data.existing_lines.items():
             if (
-                line_meta.code_object_id == instruction.code_object_id
-                and line_meta.file_name == instruction.file
+                line_meta.file_name == instruction.file
                 and line_meta.line_number == instruction.lineno
             ):
                 return line_id
