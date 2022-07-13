@@ -8,8 +8,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from ordered_set import OrderedSet
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.assertion_trace as at
+import pynguin.testcase.execution as ex
+import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 
 
@@ -102,3 +106,21 @@ def test_visit_test():
     with mock.patch.object(gen, "_generate_assertions") as gen_mock:
         gen.visit_test_case_chromosome(test)
         gen_mock.assert_called_with([test.test_case])
+
+
+def test_merge_assertions():
+    result = ex.ExecutionResult()
+    trace = at.AssertionTrace()
+    trace.add_entry(0, ass.NothingRaisedException())
+    trace.add_entry(1, ass.NothingRaisedException())
+    trace.add_entry(1, 42)
+    result.add_assertion_trace(type(trace), trace)
+
+    result2 = ex.ExecutionResult()
+    trace2 = at.AssertionTrace()
+    trace2.add_entry(1, ass.NothingRaisedException())
+    trace2.add_entry(1, 42)
+    trace2.add_entry(2, ass.NothingRaisedException())
+    result2.add_assertion_trace(type(trace2), trace2)
+    merged = ag.MutationAnalysisAssertionGenerator._merge_assertions([result,result2])
+    assert merged == {1: OrderedSet([ass.NothingRaisedException(), 42])}

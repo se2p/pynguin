@@ -7,8 +7,6 @@
 import ast
 import importlib
 import threading
-from unittest import mock
-from unittest.mock import call
 
 import pytest
 
@@ -23,7 +21,6 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
-from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 @pytest.mark.parametrize(
@@ -87,98 +84,138 @@ def test_generate_mutation_assertions(generator, expected_result):
         assert source == expected_result
 
 
+# Known mutants of tests.fixtures.mutation.mutation
+_MUTANTS = [
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if not param == 0:\n"
+    "        return uniform(0, 5)\n"
+    "    else:\n"
+    "        return 3.0",
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if param == 1:\n"
+    "        return uniform(0, 5)\n"
+    "    else:\n"
+    "        return 3.0",
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if param == 0:\n"
+    "        return uniform(1, 5)\n"
+    "    else:\n"
+    "        return 3.0",
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if param == 0:\n"
+    "        return uniform(0, 6)\n"
+    "    else:\n"
+    "        return 3.0",
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if param == 0:\n"
+    "        return uniform(0, 5)\n"
+    "    else:\n"
+    "        return 4.0",
+    "from random import uniform\n"
+    "\n"
+    "def foo(param) -> float:\n"
+    '    """This is flaky"""\n'
+    "    if param != 0:\n"
+    "        return uniform(0, 5)\n"
+    "    else:\n"
+    "        return 3.0",
+]
+
+
 @pytest.mark.parametrize(
-    "test_case_str,test_case_str_with_assertions,killed_mut,created_mut,timeout_mut,mut_score",
+    "module,test_case_str,test_case_str_with_assertions,mutants,killed_mut,created_mut,timeout_mut,mut_score,killed,timeout",
     [
-        pytest.param(
+        (
+            "tests.fixtures.mutation.mutation",
             """def test_case_0():
     int_0 = 1
     float_0 = module_0.foo(int_0)""",
             """int_0 = 1
 float_0 = module_0.foo(int_0)
 assert float_0 == pytest.approx(3.0, abs=0.01, rel=0.01)""",
+            _MUTANTS,
             4,
             6,
             0,
-            0.6666666666666666,
-            id="Kills 0, 1, 4, 5",
+            0.666,
+            {0, 1, 4, 5},
+            set(),
         ),
-        pytest.param(
+        (
+            "tests.fixtures.mutation.mutation",
             """def test_case_0():
     int_0 = 0
     float_0 = module_0.foo(int_0)""",
             """int_0 = 0
 float_0 = module_0.foo(int_0)""",
+            _MUTANTS,
             0,
             6,
             0,
             0.0,
-            id="Kills Nothing as we have no base assertions",
+            set(),
+            set(),
+        ),
+        (
+            "tests.fixtures.mutation.exception",
+            """def test_case_0():
+    float_0 = module_0.foo(int_0)""",
+            """module_0.foo()""",
+            [
+                "def foo() -> None:\n"
+                "    alist = [2, 2]\n"
+                "    assert len(alist) == 2\n"
+                "    return None",
+                "def foo() -> None:\n"
+                "    alist = [1, 3]\n"
+                "    assert len(alist) == 2\n"
+                "    return None",
+                "def foo() -> None:\n"
+                "    alist = [1, 2]\n"
+                "    assert len(alist) == 3\n"
+                "    return None",
+                "def foo() -> None:\n"
+                "    alist = [1, 2]\n"
+                "    assert len(alist) != 2\n"
+                "    return None",
+            ],
+            2,
+            4,
+            0,
+            0.5,
+            {2, 3},
+            set(),
         ),
     ],
 )
-def test_mutation_score(
+def test_mutation_analysis_integration_full(
+    module,
     test_case_str,
     test_case_str_with_assertions,
+    mutants,
     killed_mut,
     created_mut,
     timeout_mut,
     mut_score,
+    killed,
+    timeout,
 ):
-    """
-    We have a module tests/fixtures/mutation/mutation.py that looks like this:
-
-    from random import uniform
-
-
-    def foo(param) -> float:
-        '''This is flaky'''
-        if param == 0:
-            return uniform(0, 5)
-        else:
-            return 3.0
-
-    The generated mutants look like this:
-
-    0:
-        def foo(param) -> float:
-            if not param == 0:
-                return uniform(0, 5)
-            else:
-                return 3.0
-    1:
-        def foo(param) -> float:
-            if param == 1:
-                return uniform(0, 5)
-            else:
-                return 3.0
-    2:
-        def foo(param) -> float:
-            if param == 0:
-                return uniform(1, 5)
-            else:
-                return 3.0
-    3:
-        def foo(param) -> float:
-            if param == 0:
-                return uniform(0, 6)
-            else:
-                return 3.0
-    4:
-        def foo(param) -> float:
-            if param == 0:
-                return uniform(0, 5)
-            else:
-                return 4.0
-    5:
-        def foo(param) -> float:
-            if param != 0:
-                return uniform(0, 5)
-            else:
-                return 3.0
-    """
-
-    config.configuration.module_name = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
     module_name = config.configuration.module_name
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -193,27 +230,21 @@ def test_mutation_score(
         suite = tsc.TestSuiteChromosome()
         suite.add_test_case_chromosome(chromosome)
 
-        gen = ag.MutationAnalysisAssertionGenerator(TestCaseExecutor(tracer))
-        with mock.patch.object(ag, "stat") as stat_mock:
-            suite.accept(gen)
-            stat_mock.assert_has_calls(
-                [
-                    call.track_output_variable(
-                        RuntimeVariable.NumberOfKilledMutants, killed_mut
-                    ),
-                    call.track_output_variable(
-                        RuntimeVariable.NumberOfTimedOutMutants, timeout_mut
-                    ),
-                    call.track_output_variable(
-                        RuntimeVariable.NumberOfCreatedMutants, created_mut
-                    ),
-                    call.track_output_variable(
-                        RuntimeVariable.MutationScore,
-                        mut_score,  # pytest.approx does not work here
-                    ),
-                ]
-            )
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(tracer), testing=True
+        )
+        suite.accept(gen)
 
+        mut_info = gen._testing_mutation_info
+        assert {i for i, mut in enumerate(mut_info) if mut.killed_by} == killed
+        assert {i for i, mut in enumerate(mut_info) if mut.timed_out_by} == timeout
+
+        metrics = gen._compute_mutation_metrics(mut_info)
+        assert metrics.num_timeout_mutants == timeout_mut
+        assert metrics.num_killed_mutants == killed_mut
+        assert metrics.num_created_mutants == created_mut
+        assert metrics.get_score() == pytest.approx(mut_score, abs=1e-2)
+        assert gen._testing_created_mutants == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(

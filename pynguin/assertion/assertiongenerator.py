@@ -194,7 +194,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
         # module
         code = compile(ast_node, module_name, "exec")
-        _LOGGER.debug("Generated Mutant: %s", ast.unparse(ast_node))
+        if self._testing:
+            self._testing_created_mutants.append(ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
@@ -202,12 +203,22 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         exec(code, module.__dict__)  # nosec
         return module
 
-    def __init__(self, plain_executor: ex.TestCaseExecutor):
+    def __init__(self, plain_executor: ex.TestCaseExecutor, testing: bool = False):
+        """
+
+        Args:
+            plain_executor: Executor used for plain execution
+            testing: Enable test mode, currently required for integration testing.
+        """
         super().__init__(plain_executor)
         self._transformer = build_transformer(
             self._mutation_tracer,
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
+        # Some debug information
+        self._testing = testing
+        self._testing_created_mutants: list[str] = []
+        self._testing_mutation_info: list[_MutantInfo] = []
         adapter = ma.MutationAdapter()
 
         # Evil hack to change the way mutpy creates mutated modules.
@@ -296,6 +307,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     ) -> list[tuple[tc.TestCase, list[ex.ExecutionResult]]]:
 
         mutation_info = self._compute_mutation_info(tests_and_results)
+        if self._testing:
+            self._testing_mutation_info = mutation_info
         metrics = self._compute_mutation_metrics(mutation_info)
         stat.track_output_variable(
             RuntimeVariable.NumberOfKilledMutants, metrics.num_killed_mutants
@@ -370,14 +383,19 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for ass_trace in result.assertion_traces.values():
                 data.append(ass_trace.get_all_assertions())
         merged_assertions, *remainder = data
+        # Make copy of first
+        result = {k: OrderedSet(v) for k, v in merged_assertions.items()}
+        # Go over all remaining
         for rem in remainder:
+            # Merge assertions for each position
             for pos, assertions in rem.items():
-                if pos not in merged_assertions:
-                    merged_assertions[pos] = OrderedSet()
-                    merged_assertions[pos].update(assertions)
-                else:
-                    merged_assertions[pos].intersection_update(assertions)
-        return merged_assertions
+                if pos in result:
+                    result[pos].intersection_update(assertions)
+            # Remove position in the result if they are missing in remaining
+            for drop in [pos for pos in result if pos not in rem]:
+                del result[drop]
+
+        return result
 
     def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
