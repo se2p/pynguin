@@ -10,11 +10,11 @@ from unittest.mock import MagicMock
 import pytest
 from ordered_set import OrderedSet
 
-import pynguin.assertion.assertiongenerator as ag
-import pynguin.assertion.assertion_trace as at
-import pynguin.testcase.execution as ex
 import pynguin.assertion.assertion as ass
+import pynguin.assertion.assertion_trace as at
+import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
+import pynguin.testcase.execution as ex
 
 
 @pytest.fixture()
@@ -122,5 +122,5 @@ def test_merge_assertions():
     trace2.add_entry(1, 42)
     trace2.add_entry(2, ass.NothingRaisedException())
     result2.add_assertion_trace(type(trace2), trace2)
-    merged = ag.MutationAnalysisAssertionGenerator._merge_assertions([result,result2])
+    merged = ag.MutationAnalysisAssertionGenerator._merge_assertions([result, result2])
     assert merged == {1: OrderedSet([ass.NothingRaisedException(), 42])}

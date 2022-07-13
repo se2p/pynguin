@@ -384,18 +384,18 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 data.append(ass_trace.get_all_assertions())
         merged_assertions, *remainder = data
         # Make copy of first
-        result = {k: OrderedSet(v) for k, v in merged_assertions.items()}
+        merged = {k: OrderedSet(v) for k, v in merged_assertions.items()}
         # Go over all remaining
         for rem in remainder:
             # Merge assertions for each position
             for pos, assertions in rem.items():
-                if pos in result:
-                    result[pos].intersection_update(assertions)
+                if pos in merged:
+                    merged[pos].intersection_update(assertions)
             # Remove position in the result if they are missing in remaining
-            for drop in [pos for pos in result if pos not in rem]:
-                del result[drop]
+            for drop in [pos for pos in merged if pos not in rem]:
+                del merged[drop]
 
-        return result
+        return merged
 
     def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
