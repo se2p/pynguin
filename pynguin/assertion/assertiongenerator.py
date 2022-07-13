@@ -257,16 +257,16 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     info.timed_out_by.append(test_num)
                     continue
                 mutant_assertions = self._merge_assertions([result])
-                if mutant_assertions.keys() != plain_assertions.keys():
-                    # We did not get assertions at the same positons, so we have
+                for (pos, plain) in plain_assertions.items():
+                    # We did not get assertions at the same positions, so we have
                     # detected the mutant.
-                    info.killed_by.append(test_num)
-                else:
-                    for (pos, plain) in plain_assertions.items():
-                        # A plain assertion was not found in the mutated run -> killed.
-                        if not plain.issubset(mutant_assertions[pos]):
-                            info.killed_by.append(test_num)
-                            break
+                    if pos not in mutant_assertions:
+                        info.killed_by.append(test_num)
+                        break
+                    # A plain assertion was not found in the mutated run -> killed.
+                    if not plain.issubset(mutant_assertions[pos]):
+                        info.killed_by.append(test_num)
+                        break
 
         survived = []
         for info in mutation_info:
