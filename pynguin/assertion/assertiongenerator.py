@@ -256,10 +256,17 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     # Mutant caused timeout
                     info.timed_out_by.append(test_num)
                     continue
-                if self._merge_assertions([result]) != plain_assertions:
-                    # We did not get the same assertions, so we have detected the
-                    # mutant.
+                mutant_assertions = self._merge_assertions([result])
+                if mutant_assertions.keys() != plain_assertions.keys():
+                    # We did not get assertions at the same positons, so we have
+                    # detected the mutant.
                     info.killed_by.append(test_num)
+                else:
+                    for (pos, plain) in plain_assertions.items():
+                        # A plain assertion was not found in the mutated run -> killed.
+                        if not plain.issubset(mutant_assertions[pos]):
+                            info.killed_by.append(test_num)
+                            break
 
         survived = []
         for info in mutation_info:
@@ -367,7 +374,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for pos, assertions in rem.items():
                 if pos not in merged_assertions:
                     merged_assertions[pos] = OrderedSet()
-                merged_assertions[pos].update(assertions)
+                    merged_assertions[pos].update(assertions)
+                else:
+                    merged_assertions[pos].intersection_update(assertions)
         return merged_assertions
 
     def _get_assertions_for(
