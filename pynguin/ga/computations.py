@@ -983,14 +983,11 @@ def compute_statement_checked_lines(
     dynamic_slicer = DynamicSlicer(known_code_objects)
     checked_lines_ids = set()
     for statement in statements:
-        # TODO(SiL) is never set and therefore the checked coverage is always empty
-        #  since the test_case is only executed with instrument_test=False
-        #  for the Line Fitness Function, and then in execution no slicing
-        #  criterion is set
-        assert (
-            statement.slicing_criterion
-        ), "The statement was not correctly executed yet"
-
+        if not statement.slicing_criterion:
+            # if there is no slicing criterion there was an exception during the test
+            # case execution and the latter statements after the one with an exception
+            # will never be executed, thus having no slicing criterion
+            break
         statement_slice = dynamic_slicer.slice(
             trace,
             statement.slicing_criterion,

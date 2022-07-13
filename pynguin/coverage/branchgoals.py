@@ -413,20 +413,22 @@ class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
         checked_lines = set()
 
         for statement in individual.test_case.statements:
-            # if there is no slicing criterion the statement has not
-            # been executed yet, therefor there are no checked instructions yet
+            if not statement.slicing_criterion:
+                # if there is no slicing criterion there was an exception during the test
+                # case execution and the latter statements after the one with an exception
+                # will never be executed, thus having no slicing criterion
+                break
             # TODO(SiL) add some sort of caching to only slice entire
             #  test once not again for each goal
-            if statement.slicing_criterion:
-                statement_slice = dynamic_slicer.slice(
-                    result.execution_trace,
-                    statement.slicing_criterion,
+            statement_slice = dynamic_slicer.slice(
+                result.execution_trace,
+                statement.slicing_criterion,
+            )
+            checked_lines.update(
+                DynamicSlicer.map_instructions_to_lines(
+                    statement_slice, known_data
                 )
-                checked_lines.update(
-                    DynamicSlicer.map_instructions_to_lines(
-                        statement_slice, known_data
-                    )
-                )
+            )
 
         result.execution_trace.checked_lines.update(checked_lines)
         return self._goal.is_covered(result)
