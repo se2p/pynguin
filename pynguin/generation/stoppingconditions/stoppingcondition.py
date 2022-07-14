@@ -13,7 +13,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
 import pynguin.generation.searchobserver as so
-from pynguin.testcase.execution import ExecutionObserver
+from pynguin.testcase.execution import ExecutionObserver, ExecutionTrace
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
@@ -100,6 +100,7 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         statement: stmt.Statement,
         executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
+        trace: ExecutionTrace,
         exception: BaseException | None,
     ) -> None:
         pass

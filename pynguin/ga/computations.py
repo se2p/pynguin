@@ -271,8 +271,6 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             statements, merged_trace, known_data
         )
 
-        self._executor.tracer.get_trace().checked_lines.update(checked_lines)
-
         assert len(existing_lines) >= len(checked_lines)
         return len(existing_lines) - len(checked_lines)
 
@@ -297,27 +295,11 @@ class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        known_data = self._executor.tracer.get_known_data()
-        dynamic_slicer = DynamicSlicer(known_data.existing_code_objects)
-        checked_lines = set()
+        tracer = self._executor.tracer
 
-        for test_case_chromosome in individual.test_case_chromosomes:
-            for statement in test_case_chromosome.test_case.statements:
-                # if there is no slicing criterion the statement has not
-                # been executed yet, therefor there are no checked instructions yet
-                if statement.slicing_criterion:
-                    statement_slice = dynamic_slicer.slice(
-                        merged_trace,
-                        statement.slicing_criterion,
-                    )
-                    checked_lines.update(
-                        DynamicSlicer.map_instructions_to_lines(
-                            statement_slice, known_data
-                        )
-                    )
-
-        self._executor.tracer.get_trace().checked_lines.update(checked_lines)
-        return len(known_data.existing_lines) - len(checked_lines)
+        return len(tracer.get_known_data().existing_lines) - len(
+            merged_trace.checked_lines
+        )
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
@@ -408,9 +390,6 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        statements = []
-        for chromosome in individual.test_case_chromosomes:
-            statements.extend(chromosome.test_case.statements)
 
         existing = len(tracer.get_known_data().existing_lines)
 
@@ -418,10 +397,7 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
             # Nothing to cover => everything is covered.
             coverage = 1.0
         else:
-            checked_lines = compute_statement_checked_lines(
-                statements, merged_trace, tracer.get_known_data()
-            )
-            covered = len(checked_lines)
+            covered = len(merged_trace.checked_lines)
             coverage = covered / existing
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
@@ -440,10 +416,7 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
             # Nothing to cover => everything is covered.
             coverage = 1.0
         else:
-            checked_lines = compute_statement_checked_lines(
-                individual.test_case.statements, merged_trace, tracer.get_known_data()
-            )
-            covered = len(checked_lines)
+            covered = len(merged_trace.checked_lines)
             coverage = covered / existing
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
@@ -878,7 +851,7 @@ def compute_checked_coverage_statement_fitness_is_covered(
     Returns:
         True, if all lines were checked by a return, false otherwise
     """
-    return len(known_data.existing_lines) == len(trace.checked_lines)
+    return len(trace.checked_lines) == len(known_data.existing_lines)
 
 
 def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:

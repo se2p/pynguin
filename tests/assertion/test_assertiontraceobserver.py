@@ -9,7 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.assertion.assertiontraceobserver as ato
-from pynguin.testcase.execution import ExecutionContext, TestCaseExecutor
+from pynguin.testcase.execution import ExecutionContext, ExecutionTrace, TestCaseExecutor
 from pynguin.testcase.statement import Statement
 
 
@@ -24,6 +24,7 @@ class FooObserver(ato.AssertionTraceObserver):
         statement: Statement,
         executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
+        trace: ExecutionTrace,
         exception: BaseException | None,
     ) -> None:
         pass  # pragma: no cover

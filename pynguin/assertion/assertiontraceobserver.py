@@ -69,6 +69,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         statement: st.Statement,
         executor: ex.TestCaseExecutor,
         exec_ctx: ex.ExecutionContext,
+        trace: ex.ExecutionTrace,
         exception: BaseException | None,
     ) -> None:
         if exception is not None:
