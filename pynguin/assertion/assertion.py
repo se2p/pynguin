@@ -280,7 +280,7 @@ class ExceptionAssertion(Assertion):
         return f"ExceptionAssertion({self._module}, {self._exception_type_name})"
 
 
-class NothingRaisedException(Assertion):
+class NothingRaisedAssertion(Assertion):
     """An assertion that no exception was raised.
     This is a pseudo assertion used for mutation analysis to indicate
     that the execution of a routine did not raise an exception.
@@ -291,17 +291,17 @@ class NothingRaisedException(Assertion):
 
     def clone(
         self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> NothingRaisedException:
-        return NothingRaisedException()
+    ) -> NothingRaisedAssertion:
+        return NothingRaisedAssertion()
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NothingRaisedException)
+        return isinstance(other, NothingRaisedAssertion)
 
     def __hash__(self) -> int:
         return 0
 
     def __repr__(self):
-        return "NothingRaisedException()"
+        return "NothingRaisedAssertion()"
 
 
 class AssertionVisitor:
@@ -354,7 +354,7 @@ class AssertionVisitor:
 
         """
 
-    def visit_nothing_raised_assertion(self, assertion: NothingRaisedException) -> None:
+    def visit_nothing_raised_assertion(self, assertion: NothingRaisedAssertion) -> None:
         """Visit a nothing raised assertion
 
         Args:

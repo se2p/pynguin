@@ -231,7 +231,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
         )
 
     def visit_nothing_raised_assertion(
-        self, assertion: ass.NothingRaisedException
+        self, assertion: ass.NothingRaisedAssertion
     ) -> None:
         # Nothing to do here, as it is a pseudo assertion
         pass
