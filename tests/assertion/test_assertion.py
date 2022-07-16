@@ -46,11 +46,11 @@ def test_reference_assertion_source():
             ass.CollectionLengthAssertion(MagicMock(), 5),
             "visit_collection_length_assertion",
         ),
-(
+        (
             ass.ExceptionAssertion("", ""),
             "visit_exception_assertion",
         ),
-(
+        (
             ass.NothingRaisedAssertion(),
             "visit_nothing_raised_assertion",
         ),
