@@ -43,13 +43,13 @@ def __create_source_from_ast(module_body: list[ast.stmt]) -> str:
     )
 
 
-def test_none(assertion_to_ast_ref):
+def test_type_name(assertion_to_ast_ref):
     assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.NotNoneAssertion(source=ref)
+    assertion = ass.TypeNameAssertion(source=ref, module="foo", qualname="bar")
     assertion.accept(assertion_to_ast)
     assert (
         __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert var_0 is not None"
+        == "var_0 = 5\nassert f'{type(var_0).__module__}.{type(var_0).__qualname__}' == 'foo.bar'"
     )
 
 

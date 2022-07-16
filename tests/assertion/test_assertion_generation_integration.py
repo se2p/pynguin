@@ -31,7 +31,7 @@ from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
             """str_0 = 'foo bar'
 float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
-assert human_0 is not None
+assert f'{type(human_0).__module__}.{type(human_0).__qualname__}' == 'tests.fixtures.examples.assertions.Human'
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
 assert str_1 == 'foo bar'""",

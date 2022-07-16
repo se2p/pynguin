@@ -78,7 +78,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
             au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
         )
 
-    def visit_not_none_assertion(self, assertion: ass.NotNoneAssertion) -> None:
+    def visit_type_name_assertion(self, assertion: ass.TypeNameAssertion) -> None:
         """
         Creates an assertion of form "assert var0 is None" or "assert var0 is not None".
 
@@ -86,7 +86,57 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
             assertion: the assertion that is visited.
         """
         self._assertion_nodes.append(
-            self._create_constant_assert(assertion.source, ast.IsNot(), None)
+            ast.Assert(
+                test=ast.Compare(
+                    left=ast.JoinedStr(
+                        values=[
+                            ast.FormattedValue(
+                                value=ast.Attribute(
+                                    value=ast.Call(
+                                        func=ast.Name(id="type", ctx=ast.Load()),
+                                        args=[
+                                            au.create_full_name(
+                                                self._variable_names,
+                                                self._module_aliases,
+                                                assertion.source,
+                                                load=True,
+                                            )
+                                        ],
+                                        keywords=[],
+                                    ),
+                                    attr="__module__",
+                                    ctx=ast.Load(),
+                                ),
+                                conversion=-1,
+                            ),
+                            ast.Constant(value="."),
+                            ast.FormattedValue(
+                                value=ast.Attribute(
+                                    value=ast.Call(
+                                        func=ast.Name(id="type", ctx=ast.Load()),
+                                        args=[
+                                            au.create_full_name(
+                                                self._variable_names,
+                                                self._module_aliases,
+                                                assertion.source,
+                                                load=True,
+                                            )
+                                        ],
+                                        keywords=[],
+                                    ),
+                                    attr="__qualname__",
+                                    ctx=ast.Load(),
+                                ),
+                                conversion=-1,
+                            ),
+                        ]
+                    ),
+                    ops=[ast.Eq()],
+                    comparators=[
+                        ast.Constant(value=f"{assertion.module}.{assertion.qualname}")
+                    ],
+                )
+            )
         )
 
     def visit_object_assertion(self, assertion: ass.ObjectAssertion) -> None:

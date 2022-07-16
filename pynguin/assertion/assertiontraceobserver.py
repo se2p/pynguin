@@ -170,7 +170,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         trace: at.AssertionTrace,
         depth: int = 0,
         max_depth: int = 1,
-    ) -> None:
+    ) -> bool:
         """Check if we can generate an assertion for the given reference.
         For complex types, we do one recursion step, i.e., try to assert anything
         on the attributes of the given object.
@@ -182,6 +182,9 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             trace: The assertion trace where the observed assertions are stored.
             depth: The current recursion depth
             max_depth: The maximum recursion depth.
+
+        Returns:
+            True, if we could assert something on the given reference.
         """
         value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
@@ -194,10 +197,10 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             asserted_something = False
             # Reference is a complex object.
             # Try to assert something on its fields.
+            # TODO(fk) rethink this
             for field, field_value in vars(value).items():
                 if not self._should_ignore(field, field_value):
-                    asserted_something = True
-                    self._check_reference(
+                    asserted_something |= self._check_reference(
                         exec_ctx,
                         vr.FieldReference(
                             ref, gao.GenericField(type(value), field, type(field_value))
@@ -206,10 +209,19 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                         trace,
                         depth + 1,
                     )
-            if not asserted_something:
-                # If we can assert nothing else, we can at least assert that it
-                # is not None
-                trace.add_entry(position, ass.NotNoneAssertion(ref))
+            typ = type(value)
+            if (
+                not asserted_something
+                and hasattr(typ, "__module__")
+                and hasattr(typ, "__qualname__")
+            ):
+                # If we can assert nothing else, we can at least assert on the type name
+                trace.add_entry(
+                    position,
+                    ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
+                )
+            return asserted_something
+        return True
 
     @staticmethod
     def _should_ignore(field, attr_value):

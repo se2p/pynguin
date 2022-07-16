@@ -39,12 +39,20 @@ def test_reference_assertion_source():
 @pytest.mark.parametrize(
     "assertion,method",
     [
-        (ass.NotNoneAssertion(MagicMock()), "visit_not_none_assertion"),
+        (ass.TypeNameAssertion(MagicMock(), "foo", "bar"), "visit_type_name_assertion"),
         (ass.FloatAssertion(MagicMock(), 3.7), "visit_float_assertion"),
         (ass.ObjectAssertion(MagicMock(), [1]), "visit_object_assertion"),
         (
             ass.CollectionLengthAssertion(MagicMock(), 5),
             "visit_collection_length_assertion",
+        ),
+(
+            ass.ExceptionAssertion("", ""),
+            "visit_exception_assertion",
+        ),
+(
+            ass.NothingRaisedAssertion(),
+            "visit_nothing_raised_assertion",
         ),
     ],
 )
@@ -57,7 +65,11 @@ def test_assertion_accept(assertion, method):
 @pytest.mark.parametrize(
     "assertion",
     [
-        (ass.NotNoneAssertion(vr.VariableReference(MagicMock(), int))),
+        (
+            ass.TypeNameAssertion(
+                vr.VariableReference(MagicMock(), int), "builtins", "int"
+            )
+        ),
         (ass.FloatAssertion(vr.VariableReference(MagicMock(), int), 3.7)),
         (ass.ObjectAssertion(vr.VariableReference(MagicMock(), int), [1])),
         (ass.CollectionLengthAssertion(vr.VariableReference(MagicMock(), int), 5)),
@@ -73,7 +85,18 @@ def test_assertion_clone(assertion):
 @pytest.mark.parametrize(
     "assertion,different",
     [
-        (ass.NotNoneAssertion(0), ass.NotNoneAssertion(1)),
+        (
+            ass.TypeNameAssertion(0, "foo", "bar"),
+            ass.TypeNameAssertion(1, "foo", "bar"),
+        ),
+        (
+            ass.TypeNameAssertion(0, "foo", "bar"),
+            ass.TypeNameAssertion(1, "fob", "bar"),
+        ),
+        (
+            ass.TypeNameAssertion(0, "foo", "bar"),
+            ass.TypeNameAssertion(1, "fob", "baz"),
+        ),
         (
             ass.FloatAssertion(0, 3.7),
             ass.FloatAssertion(vr.VariableReference(1, int), 3.7),
