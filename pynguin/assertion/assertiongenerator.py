@@ -66,7 +66,6 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
         self._filtering_executions = filtering_executions
         self._plain_executor = plain_executor
-        # self._plain_executor.add_observer(ato.AssertionTraceObserver())
 
     def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
         self._add_assertions(
