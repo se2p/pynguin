@@ -114,7 +114,6 @@ class AssertionVerificationTrace:
         Returns:
             True, if the assertion was violated.
         """
-        # TODO(fk) test this!
         if stmt_idx in self.failed and assertion_idx in self.failed[stmt_idx]:
             return True
         if stmt_idx in self.error and assertion_idx in self.error[stmt_idx]:
