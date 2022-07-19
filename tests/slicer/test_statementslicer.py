@@ -73,6 +73,49 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
 
 
 @pytest.fixture
+def almost_full_coverage():
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    plus_0 = module_0.Plus()
+    int_0 = 42
+    var_0 = plus_0.plus_four(int_0)
+    var_1 = plus_0.plus_three(var_0)
+    var_2 = plus_0.plus_four(var_1)
+"""
+            # TODO(SiL) why does this produce 100% coverage
+        )
+    )
+    return transformer.testcases[0]
+
+
+def test_testsuite(almost_full_coverage):
+    module_name = "tests.fixtures.linecoverage.plus"
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(
+        tcc.TestCaseChromosome(test_case=almost_full_coverage)
+    )
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED,
+    ]
+
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+
+        ff = TestSuiteStatementCheckedCoverageFunction(executor)
+        assert ff.compute_coverage(test_suite) == pytest.approx(7 / 8, 0.1, 0.1)
+
+
+@pytest.fixture
 def setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
