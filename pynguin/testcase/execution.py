@@ -166,7 +166,7 @@ class ExecutionContext:
 
 
 class ExecutionObserver:
-    """An Observer that can be used to observe statement execution.
+    """An Observer that can be used to observe the execution of a test case.
 
     Important Note: If an observer is stateful, then this state must be encapsulated
     in a threading.local, i.e., be bound to a thread. Note that thread local data
@@ -180,6 +180,10 @@ class ExecutionObserver:
 
     You may interact with the 'outside' in
     ExecutionObserver::after_test_case_execution_outside_thread.
+
+    Note: Usage of threading.local may interfere with debugging tools, such as pydevd.
+    In such a case, disable Cython by setting the following environment variable:
+    PYDEVD_USE_CYTHON=NO
 
     For more details, look at some implementations, e.g., AssertionTraceObserver.
     """
