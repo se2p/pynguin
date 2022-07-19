@@ -75,7 +75,12 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
 
-    def after_test_case_execution(
+    def after_test_case_execution_inside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ):
+        pass
+
+    def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         pass
@@ -177,9 +182,7 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
     def before_search_start(self, start_time_ns: int) -> None:
         self._num_executed_tests = 0
 
-    def after_test_case_execution(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ):
+    def before_test_case_execution(self, test_case: tc.TestCase):
         self._num_executed_tests += 1
 
     def __str__(self):
@@ -218,12 +221,9 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
     def before_search_start(self, start_time_ns: int) -> None:
         self._num_executed_statements = 0
 
-    def after_statement_execution(
-        self,
-        statement: stmt.Statement,
-        exec_ctx: ExecutionContext,
-        exception: Exception | None = None,
-    ) -> None:
+    def before_statement_execution(
+        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+    ):
         self._num_executed_statements += 1
 
     def __str__(self):

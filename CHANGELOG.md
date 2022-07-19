@@ -9,7 +9,23 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Pynguin 0.26.0
+
+## Pynguin 0.25.2
+
+- Fix bugs in mutation analysis and assertion generation
+
+## Pynguin 0.25.1
+
+- Fix documentation build on read the docs
+
 ## Pynguin 0.25.0
+
+- Fix further issues with test-case isolation during execution.
+- Fix some bugs regarding type information.
+- Use [astroid](https://github.com/PyCQA/astroid) instead of Python's
+  [ast](https://docs.python.org/3/library/ast.html) module for our module analysis due
+  to its enhanced features.
 
 ## Pynguin 0.24.1
 
