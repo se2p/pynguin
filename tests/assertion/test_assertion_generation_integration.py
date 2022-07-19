@@ -137,6 +137,7 @@ _MUTANTS = [
 ]
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 @pytest.mark.parametrize(
     "module,test_case_str,test_case_str_with_assertions,mutants,metrics,killed,timeout",
     [
@@ -215,31 +216,31 @@ _MUTANTS = [
                 "\n"
                 "def timeout(foo):\n"
                 "    if not foo == 2:\n"
-                "        time.sleep(5)\n"
+                "        time.sleep(4)\n"
                 "    return 5",
                 "import time\n"
                 "\n"
                 "def timeout(foo):\n"
                 "    if foo == 3:\n"
-                "        time.sleep(5)\n"
-                "    return 5",
-                "import time\n"
-                "\n"
-                "def timeout(foo):\n"
-                "    if foo == 2:\n"
-                "        time.sleep(6)\n"
+                "        time.sleep(4)\n"
                 "    return 5",
                 "import time\n"
                 "\n"
                 "def timeout(foo):\n"
                 "    if foo == 2:\n"
                 "        time.sleep(5)\n"
+                "    return 5",
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if foo == 2:\n"
+                "        time.sleep(4)\n"
                 "    return 6",
                 "import time\n"
                 "\n"
                 "def timeout(foo):\n"
                 "    if foo != 2:\n"
-                "        time.sleep(5)\n"
+                "        time.sleep(4)\n"
                 "    return 5",
             ],
             ag._MutationMetrics(5, 1, 2),
@@ -298,3 +299,7 @@ def test_mutation_analysis_integration_full(
             )
         )
         assert source == test_case_str_with_assertions
+        for thread in threading.enumerate():
+            if "_execute_test_case" in thread.name:
+                thread.join()
+        assert len(threading.enumerate()) == 1  # Only main thread should be alive.
