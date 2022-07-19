@@ -467,9 +467,8 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
         self.checked_lines.update(other.checked_lines)
-        self.executed_instructions.extend(other.executed_instructions)
-
         shift: int = len(self.executed_instructions)
+        self.executed_instructions.extend(other.executed_instructions)
         for executed_assertion in other.executed_assertions:
             self.executed_assertions.append(
                 ExecutedAssertion(
