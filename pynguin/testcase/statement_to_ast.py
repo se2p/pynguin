@@ -154,7 +154,7 @@ class StatementToAstVisitor(StatementVisitor):
             args=args,
             keywords=kwargs,
         )
-        if not self._store_call_return or stmt.ret_val.is_none_type():
+        if not self._store_call_return: # or stmt.ret_val.is_none_type():
             self._ast_node = ast.Expr(value=call)
         else:
             self._ast_node = ast.Assign(
@@ -179,7 +179,7 @@ class StatementToAstVisitor(StatementVisitor):
             args=args,
             keywords=kwargs,
         )
-        if not self._store_call_return or stmt.ret_val.is_none_type():
+        if not self._store_call_return: # or stmt.ret_val.is_none_type():
             self._ast_node = ast.Expr(value=call)
         else:
             self._ast_node = ast.Assign(
