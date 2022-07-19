@@ -194,7 +194,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
         # module
         code = compile(ast_node, module_name, "exec")
-        _LOGGER.debug("Generated Mutant: %s", ast.unparse(ast_node))
+        if self._testing:
+            self._testing_created_mutants.append(ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
@@ -202,12 +203,22 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         exec(code, module.__dict__)  # nosec
         return module
 
-    def __init__(self, plain_executor: ex.TestCaseExecutor):
+    def __init__(self, plain_executor: ex.TestCaseExecutor, testing: bool = False):
+        """
+
+        Args:
+            plain_executor: Executor used for plain execution
+            testing: Enable test mode, currently required for integration testing.
+        """
         super().__init__(plain_executor)
         self._transformer = build_transformer(
             self._mutation_tracer,
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
+        # Some debug information
+        self._testing = testing
+        self._testing_created_mutants: list[str] = []
+        self._testing_mutation_info: list[_MutantInfo] = []
         adapter = ma.MutationAdapter()
 
         # Evil hack to change the way mutpy creates mutated modules.
@@ -256,10 +267,17 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     # Mutant caused timeout
                     info.timed_out_by.append(test_num)
                     continue
-                if self._merge_assertions([result]) != plain_assertions:
-                    # We did not get the same assertions, so we have detected the
-                    # mutant.
-                    info.killed_by.append(test_num)
+                mutant_assertions = self._merge_assertions([result])
+                for (pos, plain) in plain_assertions.items():
+                    # We did not get assertions at the same positions, so we have
+                    # detected the mutant.
+                    if pos not in mutant_assertions:
+                        info.killed_by.append(test_num)
+                        break
+                    # A plain assertion was not found in the mutated run -> killed.
+                    if not plain.issubset(mutant_assertions[pos]):
+                        info.killed_by.append(test_num)
+                        break
 
         survived = []
         for info in mutation_info:
@@ -289,6 +307,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     ) -> list[tuple[tc.TestCase, list[ex.ExecutionResult]]]:
 
         mutation_info = self._compute_mutation_info(tests_and_results)
+        if self._testing:
+            self._testing_mutation_info = mutation_info
         metrics = self._compute_mutation_metrics(mutation_info)
         stat.track_output_variable(
             RuntimeVariable.NumberOfKilledMutants, metrics.num_killed_mutants
@@ -363,12 +383,19 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for ass_trace in result.assertion_traces.values():
                 data.append(ass_trace.get_all_assertions())
         merged_assertions, *remainder = data
+        # Make copy of first
+        merged = {k: OrderedSet(v) for k, v in merged_assertions.items()}
+        # Go over all remaining
         for rem in remainder:
+            # Merge assertions for each position
             for pos, assertions in rem.items():
-                if pos not in merged_assertions:
-                    merged_assertions[pos] = OrderedSet()
-                merged_assertions[pos].update(assertions)
-        return merged_assertions
+                if pos in merged:
+                    merged[pos].intersection_update(assertions)
+            # Remove position in the result if they are missing in remaining
+            for drop in [pos for pos in merged if pos not in rem]:
+                del merged[drop]
+
+        return merged
 
     def _get_assertions_for(
         self, results: list[ex.ExecutionResult], statement: st.Statement
