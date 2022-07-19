@@ -69,6 +69,7 @@ def test_observers(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
+    observer.before_statement_execution.side_effect = lambda x, y, z: y
     executor.add_observer(observer)
     executor.execute(short_test_case)
     assert observer.before_test_case_execution.call_count == 1

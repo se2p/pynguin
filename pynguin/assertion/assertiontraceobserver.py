@@ -5,20 +5,24 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an abstract observer that can be used to generate assertions."""
+import ast
 import copy
 import logging
 import threading
 from types import ModuleType
 from typing import Sized, cast
 
+from _pytest.outcomes import Failed
+from ordered_set import OrderedSet
+
 import pynguin.assertion.assertion as ass
+import pynguin.assertion.assertion_to_ast as ata
 import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.testcase.execution import ExecutionContext
 from pynguin.utils.type_utils import (
     is_assertable,
     is_collection_type,
@@ -57,16 +61,17 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         pass
 
     def before_statement_execution(
-        self, statement: st.Statement, exec_ctx: ExecutionContext
-    ):
+        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
+    ) -> ast.stmt:
         # Nothing to do before statement.
-        pass
+        return node
 
     def after_statement_execution(
         self,
         statement: st.Statement,
+        executor: ex.TestCaseExecutor,
         exec_ctx: ex.ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         if exception is not None:
             self._assertion_local_state.trace.add_entry(
@@ -78,22 +83,20 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             )
             return
         if statement.affects_assertions:
-            self._assertion_local_state.trace.add_entry(
-                statement.get_position(), ass.NothingRaisedAssertion()
-            )
             stmt = cast(st.VariableCreatingStatement, statement)
             self._handle(stmt, exec_ctx)
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
-        result.add_assertion_trace(type(self), self.get_trace())
+        result.assertion_trace = self.get_trace()
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         pass
 
+    # pylint:disable=too-many-branches
     def _handle(
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
     ) -> None:
@@ -111,8 +114,11 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
                 self._check_reference(exec_ctx, statement.ret_val, position, trace)
-            else:
-                # Everything else is continually checked.
+            elif (
+                type(exec_ctx.get_reference_value(statement.ret_val)).__module__
+                != "builtins"
+            ):
+                # Everything else is continually checked, unless it is from builltins.
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
         for var in self._assertion_local_state.watch_list:
@@ -120,6 +126,10 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 
         # Check all used modules.
         for module_name, alias in exec_ctx.module_aliases:
+            if module_name == "builtins":
+                # Don't assert stuff on builtins
+                continue
+
             module = exec_ctx.global_namespace[alias]
 
             # Check all static fields.
@@ -170,7 +180,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         trace: at.AssertionTrace,
         depth: int = 0,
         max_depth: int = 1,
-    ) -> bool:
+    ):
         """Check if we can generate an assertion for the given reference.
         For complex types, we do one recursion step, i.e., try to assert anything
         on the attributes of the given object.
@@ -182,46 +192,39 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             trace: The assertion trace where the observed assertions are stored.
             depth: The current recursion depth
             max_depth: The maximum recursion depth.
-
-        Returns:
-            True, if we could assert something on the given reference.
         """
         value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(ref, value))
         elif is_assertable(value):
             trace.add_entry(position, ass.ObjectAssertion(ref, copy.deepcopy(value)))
-        elif isinstance(value, Sized):
-            trace.add_entry(position, ass.CollectionLengthAssertion(ref, len(value)))
-        elif depth < max_depth and hasattr(value, "__dict__"):
-            asserted_something = False
-            # Reference is a complex object.
-            # Try to assert something on its fields.
-            # TODO(fk) rethink this
-            for field, field_value in vars(value).items():
-                if not self._should_ignore(field, field_value):
-                    asserted_something |= self._check_reference(
-                        exec_ctx,
-                        vr.FieldReference(
-                            ref, gao.GenericField(type(value), field, type(field_value))
-                        ),
-                        position,
-                        trace,
-                        depth + 1,
-                    )
+        else:
+            # No precise assertion possible, so assert on type.
             typ = type(value)
-            if (
-                not asserted_something
-                and hasattr(typ, "__module__")
-                and hasattr(typ, "__qualname__")
-            ):
-                # If we can assert nothing else, we can at least assert on the type name
+            if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
                 trace.add_entry(
                     position,
                     ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
                 )
-            return asserted_something
-        return True
+            if isinstance(value, Sized):
+                trace.add_entry(
+                    position, ass.CollectionLengthAssertion(ref, len(value))
+                )
+            if depth < max_depth and hasattr(value, "__dict__"):
+                # Reference is a complex object.
+                # Try to assert something on its fields.
+                for field, field_value in vars(value).items():
+                    if not self._should_ignore(field, field_value):
+                        self._check_reference(
+                            exec_ctx,
+                            vr.FieldReference(
+                                ref,
+                                gao.GenericField(type(value), field, type(field_value)),
+                            ),
+                            position,
+                            trace,
+                            depth + 1,
+                        )
 
     @staticmethod
     def _should_ignore(field, attr_value):
@@ -230,4 +233,102 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             or field.endswith("__")
             or callable(attr_value)
             or isinstance(attr_value, ModuleType)
+        )
+
+
+class AssertionVerificationObserver(ex.ExecutionObserver):
+    """This observer is used to check if assertions hold."""
+
+    class AssertionExecutorLocalState(
+        threading.local
+    ):  # pylint:disable=too-few-public-methods
+        """Local state for assertion executor."""
+
+        def __init__(self):
+            super().__init__()
+            self.trace = at.AssertionVerificationTrace()
+
+    def __init__(self):
+        self.state = AssertionVerificationObserver.AssertionExecutorLocalState()
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        pass
+
+    def after_test_case_execution_inside_thread(
+        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    ) -> None:
+        result.assertion_verification_trace = self.state.trace
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    ) -> None:
+        pass
+
+    def before_statement_execution(
+        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
+    ) -> ast.stmt:
+        if self.__is_only_exception_assertion(statement.assertions):
+            commons_modules: set[str] = set()
+            visitor = ata.PyTestAssertionToAstVisitor(
+                exec_ctx.variable_names, exec_ctx.module_aliases, commons_modules, node
+            )
+            statement.assertions[0].accept(visitor)
+
+            for common in commons_modules:
+                if common not in exec_ctx.global_namespace:
+                    exec_ctx.add_new_module_alias(common, common)
+            assert len(visitor.nodes) == 1
+            return visitor.nodes[0]
+        return node
+
+    def after_statement_execution(
+        self,
+        statement: st.Statement,
+        executor: ex.TestCaseExecutor,
+        exec_ctx: ex.ExecutionContext,
+        exception: BaseException | None,
+    ) -> None:
+        if self.__is_only_exception_assertion(statement.assertions):
+            if exception is None:
+                return
+            # If we have an exception assertion, all we have to do is check the
+            # exception.
+            if isinstance(exception, Failed):
+                # Failed indicates that the expected assertion was not raised
+                self.state.trace.failed[statement.get_position()].append(0)
+            else:
+                self.state.trace.error[statement.get_position()].append(0)
+        else:
+            # Other assertions are executed after the statement.
+            for idx, assertion in enumerate(statement.assertions):
+
+                commons_modules: set[str] = set()
+                visitor = ata.PyTestAssertionToAstVisitor(
+                    exec_ctx.variable_names,
+                    exec_ctx.module_aliases,
+                    commons_modules,
+                    ast.stmt(),  # Node is a dummy here
+                )
+                assertion.accept(visitor)
+
+                for common in commons_modules:
+                    if common not in exec_ctx.global_namespace:
+                        exec_ctx.add_new_module_alias(common, common)
+
+                for node in visitor.assertion_nodes:
+                    exc = executor.execute_ast(
+                        exec_ctx.wrap_node_in_module(node), exec_ctx
+                    )
+                    if exc is None:
+                        continue
+
+                    if isinstance(exc, AssertionError):
+                        self.state.trace.failed[statement.get_position()].append(idx)
+                    else:
+                        self.state.trace.error[statement.get_position()].append(idx)
+
+    @staticmethod
+    def __is_only_exception_assertion(assertions: OrderedSet[ass.Assertion]) -> bool:
+        return len(assertions) == 1 and isinstance(
+            assertions[0], ass.ExceptionAssertion
         )

@@ -4,25 +4,27 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.assertion.assertiontraceobserver as ato
-from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.execution import ExecutionContext, TestCaseExecutor
 from pynguin.testcase.statement import Statement
 
 
 class FooObserver(ato.AssertionTraceObserver):
     def before_statement_execution(
-        self, statement: Statement, exec_ctx: ExecutionContext
-    ):
-        pass  # pragma: no cover
+        self, statement: Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node  # pragma: no cover
 
     def after_statement_execution(
         self,
         statement: Statement,
+        executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         pass  # pragma: no cover
 
@@ -44,4 +46,4 @@ def test_after_test_case_execution():
         clone = object()
         trace_mock.clone.return_value = clone
         observer.after_test_case_execution_inside_thread(MagicMock(), result)
-        result.add_assertion_trace.assert_called_with(type(observer), clone)
+        assert result.assertion_trace == clone

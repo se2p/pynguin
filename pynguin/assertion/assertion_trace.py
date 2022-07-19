@@ -7,6 +7,7 @@
 """Provides an output trace."""
 from __future__ import annotations
 
+import dataclasses
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -75,3 +76,47 @@ class AssertionTrace:
             for entry in stmt_value:
                 copy._trace[stmt_key].add(entry)
         return copy
+
+
+@dataclasses.dataclass
+class AssertionVerificationTrace:
+    """Trace for assertion verification."""
+
+    # Assertion that did not hold
+    failed: dict[int, OrderedSet[int]] = dataclasses.field(
+        default_factory=lambda: defaultdict(OrderedSet)
+    )
+    # Assertion whose execution raised an error
+    error: dict[int, OrderedSet[int]] = dataclasses.field(
+        default_factory=lambda: defaultdict(OrderedSet)
+    )
+
+    def merge(self, other: AssertionVerificationTrace) -> None:
+        """Merge another trace into this trace.
+
+        Args:
+            other: The other trace
+
+        """
+        for pos, assertions in other.failed.items():
+            self.failed[pos].update(assertions)
+        for pos, assertions in other.error.items():
+            self.error[pos].update(assertions)
+
+    def was_violated(self, stmt_idx: int, assertion_idx: int) -> bool:
+        """Was the assertion at the given position violated?
+        This may happen because the assertion failed or another error occurred.
+
+        Args:
+            stmt_idx: The statement index.
+            assertion_idx: The assertion index.
+
+        Returns:
+            True, if the assertion was violated.
+        """
+        # TODO(fk) test this!
+        if stmt_idx in self.failed and assertion_idx in self.failed[stmt_idx]:
+            return True
+        if stmt_idx in self.error and assertion_idx in self.error[stmt_idx]:
+            return True
+        return False

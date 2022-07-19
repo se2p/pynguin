@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import dataclasses
 import logging
 import os
 import sys
@@ -25,6 +26,7 @@ from bytecode import Compare
 from jellyfish import levenshtein_distance
 from ordered_set import OrderedSet
 
+import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
@@ -36,7 +38,6 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
-    import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -57,7 +58,7 @@ class ExecutionContext:
         self._local_namespace: dict[str, Any] = {}
         self._variable_names = ns.NamingScope()
         self._module_aliases = ns.NamingScope(
-            prefix="module", new_name_callback=self._add_new_module_alias
+            prefix="module", new_name_callback=self.add_new_module_alias
         )
         self._global_namespace: dict[str, ModuleType] = {}
 
@@ -78,6 +79,15 @@ class ExecutionContext:
             A naming scope that maps the used modules to their alias.
         """
         return self._module_aliases
+
+    @property
+    def variable_names(self) -> ns.NamingScope:
+        """The module aliases
+
+        Returns:
+            A naming scope that maps the used variables to their names.
+        """
+        return self._variable_names
 
     def get_reference_value(self, reference: vr.Reference) -> Any:
         """Resolve the given reference in this execution context.
@@ -114,10 +124,10 @@ class ExecutionContext:
         """
         return self._global_namespace
 
-    def executable_node_for(
+    def node_for(
         self,
         statement: stmt.Statement,
-    ) -> ast.Module:
+    ) -> ast.stmt:
         """Transforms the given statement in an executable ast node.
 
         Args:
@@ -130,10 +140,10 @@ class ExecutionContext:
             self._module_aliases, self._variable_names
         )
         statement.accept(visitor)
-        return ExecutionContext._wrap_node_in_module(visitor.ast_node)
+        return visitor.ast_node
 
     @staticmethod
-    def _wrap_node_in_module(node: ast.stmt) -> ast.Module:
+    def wrap_node_in_module(node: ast.stmt) -> ast.Module:
         """Wraps the given node in a module, such that it can be executed.
 
         Args:
@@ -145,7 +155,13 @@ class ExecutionContext:
         ast.fix_missing_locations(node)
         return ast.Module(body=[node], type_ignores=[])
 
-    def _add_new_module_alias(self, module_name: str, alias: str) -> None:
+    def add_new_module_alias(self, module_name: str, alias: str) -> None:
+        """Add a new module alias
+
+        Args:
+            module_name: The name of the module
+            alias: The alias
+        """
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
 
@@ -210,27 +226,33 @@ class ExecutionObserver:
 
     @abstractmethod
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ):
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
         """Called before a statement is executed.
 
         Args:
             statement: the statement about to be executed.
+            node: the ast node representing the statement.
             exec_ctx: the current execution context.
+
+        Returns:
+            An ast node. You may choose to modify this node to change what is executed.
         """
 
     @abstractmethod
     def after_statement_execution(
         self,
         statement: stmt.Statement,
+        executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         """
         Called after a statement was executed.
 
         Args:
             statement: the statement that was executed.
+            executor: the executor, in case you want to execute something.
             exec_ctx: the current execution context.
             exception: the exception that was thrown, if any.
         """
@@ -257,7 +279,7 @@ class ReturnTypeObserver(ExecutionObserver):
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        result.store_return_types(dict(self._return_type_local_state.return_type_trace))
+        result.return_type_trace = dict(self._return_type_local_state.return_type_trace)
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
@@ -265,15 +287,16 @@ class ReturnTypeObserver(ExecutionObserver):
         pass
 
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ):
-        pass  # not relevant
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node  # not relevant
 
     def after_statement_execution(
         self,
         statement: stmt.Statement,
+        executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         if (
             exception is None
@@ -283,172 +306,6 @@ class ReturnTypeObserver(ExecutionObserver):
             self._return_type_local_state.return_type_trace[
                 statement.get_position()
             ] = type(exec_ctx.get_reference_value(ret_val))
-
-
-class ExecutionResult:
-    """Result of an execution."""
-
-    def __init__(self, timeout: bool = False) -> None:
-        self._exceptions: dict[int, Exception] = {}
-        self._assertion_traces: dict[type, at.AssertionTrace] = {}
-        self._execution_trace: ExecutionTrace = ExecutionTrace()
-        self._timeout = timeout
-        self._return_type_trace: dict[int, type] = {}
-
-    @property
-    def timeout(self) -> bool:
-        """Did a timeout occur during the execution?
-
-        Returns:
-            True, if a timeout occurred.
-        """
-        return self._timeout
-
-    @property
-    def return_type_trace(self) -> dict[int, type]:
-        """Provide the stored type trace.
-
-        Returns:
-            The observed return types per statement.
-            Not every statement index may have an entry.
-        """
-        return self._return_type_trace
-
-    @property
-    def exceptions(self) -> dict[int, Exception]:
-        """Provide a map of statements indices that threw an exception.
-
-        Returns:
-             A map of statement indices to their raised exception
-        """
-        return self._exceptions
-
-    @property
-    def assertion_traces(self) -> dict[type, at.AssertionTrace]:
-        """Provides the gathered state traces.
-
-        Returns:
-            the gathered output traces.
-
-        """
-        return self._assertion_traces
-
-    @property
-    def execution_trace(self) -> ExecutionTrace:
-        """The trace for this execution.
-
-        Returns:
-            The execution race
-        """
-        assert self._execution_trace, "No trace provided"
-        return self._execution_trace
-
-    @execution_trace.setter
-    def execution_trace(self, trace: ExecutionTrace) -> None:
-        """Set new trace.
-
-        Args:
-            trace: The new execution trace
-        """
-        self._execution_trace = trace
-
-    def add_assertion_trace(self, trace_type: type, trace: at.AssertionTrace) -> None:
-        """Add the given trace to the recorded assertion traces.
-
-        Args:
-            trace_type: the type of trace.
-            trace: the trace to store.
-
-        """
-        self._assertion_traces[trace_type] = trace
-
-    def has_test_exceptions(self) -> bool:
-        """Returns true if any exceptions were thrown during the execution.
-
-        Returns:
-            Whether the test has exceptions
-        """
-        return bool(self._exceptions)
-
-    def report_new_thrown_exception(self, stmt_idx: int, ex: Exception) -> None:
-        """Report an exception that was thrown during execution.
-
-        Args:
-            stmt_idx: the index of the statement, that caused the exception
-            ex: the exception
-        """
-        self._exceptions[stmt_idx] = ex
-
-    def get_first_position_of_thrown_exception(self) -> int | None:
-        """Provide the index of the first thrown exception or None.
-
-        Returns:
-            The index of the first thrown exception, if any
-        """
-        if self.has_test_exceptions():
-            return min(self._exceptions.keys())
-        return None
-
-    def store_return_types(self, return_types: dict[int, type]) -> None:
-        """Report that the statement with the given stmt_idx has type tp_.
-
-        Args:
-            return_types: The observed types for each statement index.
-        """
-        self._return_type_trace = return_types
-
-    def delete_statement_data(self, deleted_statements: set[int]) -> None:
-        """It may happen that the test case is modified after execution, for example,
-        by removing unused primitives. We have to update the execution result to reflect
-        this, otherwise the indexes maybe wrong.
-
-        Args:
-            deleted_statements: The indexes of the deleted statements
-        """
-        self._return_type_trace = ExecutionResult.shift_dict(
-            self._return_type_trace, deleted_statements
-        )
-        self._exceptions = ExecutionResult.shift_dict(
-            self._exceptions, deleted_statements
-        )
-
-    T = TypeVar("T")
-
-    @staticmethod
-    def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
-        """Shifts the entries in the given dictionary by computing their new positions
-        after the given statements were deleted.
-
-        Args:
-            to_shift: The dict to shift
-            deleted_indexes: A set of deleted statement indexes.
-
-        Returns:
-            The shifted dict
-        """
-        # Count how many statements were deleted up to a given point
-        shifts = {}
-        delta = 0
-        for idx in range(max(to_shift.keys(), default=0) + 1):
-            if idx in deleted_indexes:
-                delta += 1
-            shifts[idx] = delta
-
-        # Shift all indexes accordingly
-        shifted = {}
-        for stmt_idx, value in to_shift.items():
-            if stmt_idx not in deleted_indexes:
-                shifted[stmt_idx - shifts[stmt_idx]] = value
-        return shifted
-
-    def __str__(self) -> str:
-        return (
-            f"ExecutionResult(exceptions: {self._exceptions}, "
-            + f"trace: {self._execution_trace})"
-        )
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 @dataclass
@@ -504,6 +361,108 @@ class ExecutionTrace:
         self.false_distances[predicate] = min(
             self.false_distances.get(predicate, inf), distance_false
         )
+
+
+@dataclasses.dataclass
+class ExecutionResult:
+    """Result of an execution."""
+
+    timeout: bool = False
+    exceptions: dict[int, BaseException] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    assertion_trace: at.AssertionTrace = dataclasses.field(
+        default_factory=at.AssertionTrace, init=False
+    )
+    assertion_verification_trace: at.AssertionVerificationTrace = dataclasses.field(
+        default_factory=at.AssertionVerificationTrace, init=False
+    )
+    execution_trace: ExecutionTrace = dataclasses.field(
+        default_factory=ExecutionTrace, init=False
+    )
+    return_type_trace: dict[int, type] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+
+    def has_test_exceptions(self) -> bool:
+        """Returns true if any exceptions were thrown during the execution.
+
+        Returns:
+            Whether the test has exceptions
+        """
+        return bool(self.exceptions)
+
+    def report_new_thrown_exception(self, stmt_idx: int, ex: BaseException) -> None:
+        """Report an exception that was thrown during execution.
+
+        Args:
+            stmt_idx: the index of the statement, that caused the exception
+            ex: the exception
+        """
+        self.exceptions[stmt_idx] = ex
+
+    def get_first_position_of_thrown_exception(self) -> int | None:
+        """Provide the index of the first thrown exception or None.
+
+        Returns:
+            The index of the first thrown exception, if any
+        """
+        if self.has_test_exceptions():
+            return min(self.exceptions.keys())
+        return None
+
+    def delete_statement_data(self, deleted_statements: set[int]) -> None:
+        """It may happen that the test case is modified after execution, for example,
+        by removing unused primitives. We have to update the execution result to reflect
+        this, otherwise the indexes maybe wrong.
+
+        Args:
+            deleted_statements: The indexes of the deleted statements
+        """
+        self.return_type_trace = ExecutionResult.shift_dict(
+            self.return_type_trace, deleted_statements
+        )
+        self.exceptions = ExecutionResult.shift_dict(
+            self.exceptions, deleted_statements
+        )
+
+    T = TypeVar("T")
+
+    @staticmethod
+    def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
+        """Shifts the entries in the given dictionary by computing their new positions
+        after the given statements were deleted.
+
+        Args:
+            to_shift: The dict to shift
+            deleted_indexes: A set of deleted statement indexes.
+
+        Returns:
+            The shifted dict
+        """
+        # Count how many statements were deleted up to a given point
+        shifts = {}
+        delta = 0
+        for idx in range(max(to_shift.keys(), default=0) + 1):
+            if idx in deleted_indexes:
+                delta += 1
+            shifts[idx] = delta
+
+        # Shift all indexes accordingly
+        shifted = {}
+        for stmt_idx, value in to_shift.items():
+            if stmt_idx not in deleted_indexes:
+                shifted[stmt_idx - shifts[stmt_idx]] = value
+        return shifted
+
+    def __str__(self) -> str:
+        return (
+            f"ExecutionResult(exceptions: {self.exceptions}, "
+            + f"trace: {self.execution_trace})"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 @dataclass
@@ -1243,6 +1202,20 @@ class TestCaseExecutor:
         """Remove all existing observers."""
         self._observers.clear()
 
+    @contextlib.contextmanager
+    def temporarily_add_observer(self, observer: ExecutionObserver):
+        """Temporarily add the given observer.
+
+        Args:
+            observer: The observer to add.
+
+        Yields:
+            A context manager to remove the observer
+        """
+        self._observers.append(observer)
+        yield
+        self._observers.remove(observer)
+
     @property
     def tracer(self) -> ExecutionTracer:
         """Provide access to the execution tracer.
@@ -1305,8 +1278,8 @@ class TestCaseExecutor:
         exec_ctx = ExecutionContext(self._module_provider)
         self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
-            self._before_statement_execution(statement, exec_ctx)
-            exception = self._execute_statement(statement, exec_ctx)
+            ast_node = self._before_statement_execution(statement, exec_ctx)
+            exception = self.execute_ast(ast_node, exec_ctx)
             self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
@@ -1341,7 +1314,7 @@ class TestCaseExecutor:
 
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ) -> None:
+    ) -> ast.Module:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
@@ -1354,23 +1327,38 @@ class TestCaseExecutor:
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
         self._tracer.disable()
+
+        ast_node = exec_ctx.node_for(statement)
         try:
             for observer in self._observers:
-                observer.before_statement_execution(statement, exec_ctx)
+                ast_node = observer.before_statement_execution(
+                    statement, ast_node, exec_ctx
+                )
         finally:
             self._tracer.enable()
+        return ExecutionContext.wrap_node_in_module(ast_node)
 
-    def _execute_statement(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ) -> Exception | None:
-        ast_node = exec_ctx.executable_node_for(statement)
-        if self._logger.isEnabledFor(logging.DEBUG):
-            self._logger.debug("Executing %s", ast.unparse(ast_node))
+    @staticmethod
+    def execute_ast(
+        ast_node: ast.Module, exec_ctx: ExecutionContext
+    ) -> BaseException | None:
+        """Execute the given ast_node in the given context.
+        You can use this in an observer if you also need to execute an AST Node.
+
+        Args:
+            ast_node: The node to execute.
+            exec_ctx: The execution context
+
+        Returns:
+            The raised exception, if any.
+        """
+        if TestCaseExecutor._logger.isEnabledFor(logging.DEBUG):
+            TestCaseExecutor._logger.debug("Executing %s", ast.unparse(ast_node))
         code = compile(ast_node, "<ast>", "exec")
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
-        except Exception as err:  # pylint: disable=broad-except
+        except BaseException as err:  # pylint: disable=broad-except
             failed_stmt = ast.unparse(ast_node)
             TestCaseExecutor._logger.debug(
                 "Failed to execute statement:\n%s%s", failed_stmt, err.args
@@ -1382,7 +1370,7 @@ class TestCaseExecutor:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        exception: Exception | None,
+        exception: BaseException | None,
     ):
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
@@ -1394,6 +1382,6 @@ class TestCaseExecutor:
         self._tracer.disable()
         try:
             for observer in self._observers:
-                observer.after_statement_execution(statement, exec_ctx, exception)
+                observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
             self._tracer.enable()

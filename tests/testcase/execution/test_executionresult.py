@@ -48,8 +48,8 @@ def test_timeout(execution_result):
 
 def test_output_traces(execution_result):
     trace = MagicMock(at.AssertionTrace)
-    execution_result.add_assertion_trace(str, trace)
-    assert execution_result.assertion_traces == {str: trace}
+    execution_result.assertion_trace = trace
+    assert execution_result.assertion_trace == trace
 
 
 @pytest.mark.parametrize(

@@ -7,5 +7,6 @@
 def foo() -> None:
     alist = [1, 2]
     # Fails on mutation
-    assert len(alist) == 2
+    if len(alist) != 2:
+        raise ValueError()
     return None

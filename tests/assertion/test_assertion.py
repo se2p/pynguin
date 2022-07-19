@@ -39,7 +39,7 @@ def test_reference_assertion_source():
 @pytest.mark.parametrize(
     "assertion,method",
     [
-        (ass.TypeNameAssertion(MagicMock(), "foo", "bar"), "visit_type_name_assertion"),
+        (ass.TypeNameAssertion(MagicMock(), "", ""), "visit_type_name_assertion"),
         (ass.FloatAssertion(MagicMock(), 3.7), "visit_float_assertion"),
         (ass.ObjectAssertion(MagicMock(), [1]), "visit_object_assertion"),
         (
@@ -49,10 +49,6 @@ def test_reference_assertion_source():
         (
             ass.ExceptionAssertion("", ""),
             "visit_exception_assertion",
-        ),
-        (
-            ass.NothingRaisedAssertion(),
-            "visit_nothing_raised_assertion",
         ),
     ],
 )
