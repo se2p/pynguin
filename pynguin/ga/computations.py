@@ -238,7 +238,8 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        existing_lines = self._executor.tracer.get_known_data().existing_lines
+        tracer = self._executor.tracer
+        existing_lines = tracer.get_known_data().existing_lines
         return len(existing_lines) - len(merged_trace.covered_line_ids)
 
     def compute_is_covered(self, individual) -> bool:
@@ -262,17 +263,11 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        known_data = self._executor.tracer.get_known_data()
-        existing_lines = known_data.existing_lines
-        statements = []
-        for chromosome in individual.test_case_chromosomes:
-            statements.extend(chromosome.test_case.statements)
-        checked_lines = compute_statement_checked_lines(
-            statements, merged_trace, known_data
-        )
+        tracer = self._executor.tracer
 
-        assert len(existing_lines) >= len(checked_lines)
-        return len(existing_lines) - len(checked_lines)
+        return len(tracer.get_known_data().existing_lines) - len(
+            merged_trace.checked_lines
+        )
 
     def compute_is_covered(self, individual) -> bool:
         results = self._run_test_suite_chromosome(individual)
