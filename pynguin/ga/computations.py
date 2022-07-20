@@ -283,33 +283,6 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
-class CheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
-    """A fitness function based on lines included in the backward
-    slice of each statement of a test suite."""
-
-    def compute_fitness(self, individual) -> float:
-        results = self._run_test_suite_chromosome(individual)
-        merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-
-        return len(tracer.get_known_data().existing_lines) - len(
-            merged_trace.checked_lines
-        )
-
-    def compute_is_covered(self, individual) -> bool:
-        results = self._run_test_suite_chromosome(individual)
-        merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-
-        return compute_checked_coverage_statement_fitness_is_covered(
-            merged_trace,
-            tracer.get_known_data(),
-        )
-
-    def is_maximisation_function(self) -> bool:
-        return False
-
-
 class CoverageFunction:  # pylint:disable=too-few-public-methods
     """Interface for a coverage function."""
 
