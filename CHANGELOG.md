@@ -11,6 +11,10 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.26.0
 
+## Pynguin 0.25.2
+
+- Fix bugs in mutation analysis and assertion generation
+
 ## Pynguin 0.25.1
 
 - Fix documentation build on read the docs

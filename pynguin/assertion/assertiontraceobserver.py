@@ -78,6 +78,9 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             )
             return
         if statement.affects_assertions:
+            self._assertion_local_state.trace.add_entry(
+                statement.get_position(), ass.NothingRaisedAssertion()
+            )
             stmt = cast(st.VariableCreatingStatement, statement)
             self._handle(stmt, exec_ctx)
 

@@ -74,7 +74,7 @@ sphinx = "^5.0"
 sphinx-autodoc-typehints = "^1.18"
 flake8 = "^4.0"
 pylint-print = "^1.0.0"
-pytest-sugar = {git = "https://github.com/Teemu/pytest-sugar.git", rev = "ee02ada"}
+pytest-sugar = "^0.9.5"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
