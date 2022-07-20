@@ -41,6 +41,7 @@ before_script:
 
 .unit-tests: &unit-tests
   stage: test
+  coverage: '(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$'
   script:
     - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report=term-missing tests/
   artifacts:
