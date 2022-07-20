@@ -2196,6 +2196,8 @@ class TestCaseExecutor:
         exec_ctx.global_namespace["pytest"] = pytest  # import pytest for assertions
 
         for assertion in statement.assertions:
+            if isinstance(assertion, ass.NothingRaisedAssertion):
+                continue  # ignore pseudo assertions
             assertion_node = exec_ctx.executable_assertion_node(assertion, ast_stmt)
 
             if self._logger.isEnabledFor(logging.DEBUG):
