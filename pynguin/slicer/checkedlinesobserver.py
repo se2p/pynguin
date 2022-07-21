@@ -6,6 +6,7 @@
 #
 """Provides an observer that can be used to calculate the checked lines of a test."""
 import logging
+import threading
 
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
@@ -24,12 +25,19 @@ class CheckedLineObserver(ex.ExecutionObserver):
     Observes the execution of a test case and calculates the
     slices of its statements."""
 
+    class CheckedLocalState(threading.local):  # pylint:disable=too-few-public-methods
+        """Stores thread-local slicing data."""
+
+        def __init__(self):
+            super().__init__()
+            self.slicing_criteria: dict[int, SlicingCriterion] = {}
+
     def __init__(self, tracer: ex.ExecutionTracer) -> None:
         self._tracer = tracer
-        self._slicing_criteria: dict[int, SlicingCriterion] = {}
+        self._checked_local_state = CheckedLineObserver.CheckedLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        self._slicing_criteria = {}  # reset known slicing criteria
+        pass
 
     def before_statement_execution(
         self, statement: st.Statement, exec_ctx: ExecutionContext
@@ -66,7 +74,9 @@ class CheckedLineObserver(ex.ExecutionObserver):
                 slicing_instruction,
                 len(trace.executed_instructions) - 3,
             )
-            self._slicing_criteria[statement.get_position()] = slicing_criterion
+            self._checked_local_state.slicing_criteria[
+                statement.get_position()
+            ] = slicing_criterion
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
@@ -75,7 +85,7 @@ class CheckedLineObserver(ex.ExecutionObserver):
             test_case.statements,
             result.execution_trace,
             self._tracer.get_known_data(),
-            self._slicing_criteria,
+            self._checked_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)
 
