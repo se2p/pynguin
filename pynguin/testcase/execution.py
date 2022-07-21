@@ -296,7 +296,6 @@ class ExecutionObserver:
         statement: stmt.Statement,
         executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        trace: ExecutionTrace,
         exception: BaseException | None,
     ) -> None:
         """
@@ -306,7 +305,6 @@ class ExecutionObserver:
             statement: the statement that was executed.
             executor: the executor, in case you want to execute something.
             exec_ctx: the current execution context.
-            trace: the current execution trace.
             exception: the exception that was thrown, if any.
         """
 
@@ -426,7 +424,6 @@ class ReturnTypeObserver(ExecutionObserver):
         statement: stmt.Statement,
         executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        trace: ExecutionTrace,
         exception: BaseException | None,
     ) -> None:
         if (
@@ -2017,9 +2014,7 @@ class TestCaseExecutor:
         for idx, statement in enumerate(test_case.statements):
             ast_node = self._before_statement_execution(statement, exec_ctx)
             exception = self.execute_ast(ast_node, exec_ctx, instrument=instrument_test)
-            self._after_statement_execution(
-                statement, exec_ctx, self._tracer.get_trace(), exception
-            )
+            self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
                 break
@@ -2115,7 +2110,6 @@ class TestCaseExecutor:
         self,
         statement: stmt.Statement,
         exec_ctx: ExecutionContext,
-        trace: ExecutionTrace,
         exception: BaseException | None,
     ):
         # See comments in _before_statement_execution
@@ -2128,8 +2122,6 @@ class TestCaseExecutor:
         self._tracer.disable()
         try:
             for observer in self._observers:
-                observer.after_statement_execution(
-                    statement, self, exec_ctx, trace, exception
-                )
+                observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
             self._tracer.enable()

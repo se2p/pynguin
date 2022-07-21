@@ -398,7 +398,7 @@ def _run() -> ReturnCode:
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+        executor.add_observer(CheckedLineObserver(executor.tracer))
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider

@@ -21,8 +21,8 @@ class CheckedLineObserver(ex.ExecutionObserver):
     Observes the execution of a test case and calculates the
     slices of its statements."""
 
-    def __init__(self, known_data) -> None:
-        self._known_data = known_data
+    def __init__(self, tracer: ex.ExecutionTracer) -> None:
+        self._tracer = tracer
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
@@ -37,15 +37,15 @@ class CheckedLineObserver(ex.ExecutionObserver):
         self,
         statement: st.Statement,
         exec_ctx: ex.ExecutionContext,
-        trace: ex.ExecutionTrace,
         exception: Exception | None = None,
     ) -> None:
         if exception is None:
             assert isinstance(statement, st.VariableCreatingStatement)
+            trace = self._tracer.get_trace()
             last_traced_instr = trace.executed_instructions[-2]
             assert last_traced_instr.opcode == op.STORE_NAME
 
-            code_object = self._known_data.existing_code_objects[
+            code_object = self._tracer.get_known_data().existing_code_objects[
                 last_traced_instr.code_object_id
             ]
             slicing_instruction = UniqueInstruction(
@@ -67,7 +67,7 @@ class CheckedLineObserver(ex.ExecutionObserver):
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         checked_lines = compute_statement_checked_lines(
-            test_case.statements, result.execution_trace, self._known_data
+            test_case.statements, result.execution_trace, self._tracer.get_known_data()
         )
         result.execution_trace.checked_lines.update(checked_lines)
 

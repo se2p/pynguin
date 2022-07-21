@@ -66,10 +66,33 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+        executor.add_observer(CheckedLineObserver(tracer))
 
         ff = TestSuiteStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(4 / 8, 0.1, 0.1)
+
+
+def test_testcase_statement_checked_coverage_calculation(plus_three_test):
+    module_name = "tests.fixtures.linecoverage.plus"
+    test_case_chromosome = tcc.TestCaseChromosome(test_case=plus_three_test)
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED,
+    ]
+
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        executor.add_observer(CheckedLineObserver(tracer))
+
+        ff = TestCaseStatementCheckedCoverageFunction(executor)
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
+            4 / 8, 0.1, 0.1
+        )
 
 
 @pytest.fixture
@@ -108,29 +131,6 @@ def setter_test():
     return tc
 
 
-def test_testcase_statement_checked_coverage_calculation(plus_three_test):
-    module_name = "tests.fixtures.linecoverage.plus"
-    test_case_chromosome = tcc.TestCaseChromosome(test_case=plus_three_test)
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED,
-    ]
-
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
-
-        ff = TestCaseStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            4 / 8, 0.1, 0.1
-        )
-
-
 def test_only_void_function(setter_test):
     """Test if implicit return nones are correctly filtered from the sliced
     assignment to a none type for methods with none return type."""
@@ -148,7 +148,7 @@ def test_only_void_function(setter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+        executor.add_observer(CheckedLineObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
@@ -211,7 +211,7 @@ def test_getter_before_setter(getter_setter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+        executor.add_observer(CheckedLineObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
@@ -289,7 +289,7 @@ def test_getter_after_setter(setter_getter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(executor.tracer.get_known_data()))
+        executor.add_observer(CheckedLineObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
