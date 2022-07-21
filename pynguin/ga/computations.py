@@ -20,6 +20,7 @@ from pynguin.testcase.execution import ExecutionTrace
 from pynguin.testcase.statement import Statement
 
 if TYPE_CHECKING:
+    from pynguin.slicer.dynamicslicer import SlicingCriterion
     from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
 
 
@@ -902,7 +903,10 @@ def _cleanse_included_implicit_return_none(
 
 
 def compute_statement_checked_lines(
-    statements: list[Statement], trace: ExecutionTrace, known_data: KnownData
+    statements: list[Statement],
+    trace: ExecutionTrace,
+    known_data: KnownData,
+    statement_slicing_criteria: dict[int, SlicingCriterion],
 ) -> set[int]:
     """Computes checked coverage on bytecode instructions.
     Each statement can be sliced, returning a list of instructions
@@ -916,6 +920,8 @@ def compute_statement_checked_lines(
         statements: The sliced instructions
         trace: The execution trace
         known_data: All known data
+        statement_slicing_criteria: a dictionary of statement positions
+            and its slicing criteria
 
     Returns:
         The checked line ids of lines checked by the statements
@@ -924,7 +930,7 @@ def compute_statement_checked_lines(
     dynamic_slicer = DynamicSlicer(known_code_objects)
     checked_lines_ids = set()
     for statement in statements:
-        if not statement.slicing_criterion:
+        if statement.get_position() not in statement_slicing_criteria:
             # if there is no slicing criterion there was an exception during
             # the test case execution and the latter statements after the one
             # with an exception will never be executed,
@@ -932,7 +938,7 @@ def compute_statement_checked_lines(
             break
         statement_slice = dynamic_slicer.slice(
             trace,
-            statement.slicing_criterion,
+            statement_slicing_criteria[statement.get_position()],
         )
         statement_checked_lines = DynamicSlicer.map_instructions_to_lines(
             statement_slice, known_data

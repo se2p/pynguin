@@ -23,9 +23,10 @@ class CheckedLineObserver(ex.ExecutionObserver):
 
     def __init__(self, tracer: ex.ExecutionTracer) -> None:
         self._tracer = tracer
+        self._slicing_criteria: dict[int, SlicingCriterion] = {}
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        self._slicing_criteria = {}  # reset known slicing criteria
 
     def before_statement_execution(
         self, statement: st.Statement, exec_ctx: ExecutionContext
@@ -58,16 +59,20 @@ class CheckedLineObserver(ex.ExecutionObserver):
                 arg=last_traced_instr.argument,
                 lineno=last_traced_instr.lineno,
             )
-            statement.slicing_criterion = SlicingCriterion(
+            slicing_criterion = SlicingCriterion(
                 slicing_instruction,
                 len(trace.executed_instructions) - 3,
             )
+            self._slicing_criteria[statement.get_position()] = slicing_criterion
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         checked_lines = compute_statement_checked_lines(
-            test_case.statements, result.execution_trace, self._tracer.get_known_data()
+            test_case.statements,
+            result.execution_trace,
+            self._tracer.get_known_data(),
+            self._slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)
 
