@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import ast
 import importlib
 import inspect
 import sys
@@ -13,14 +14,19 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Bytecode, Instr, Label
 
+import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.statistics as stat
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
 from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericField,
@@ -30,6 +36,8 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
+from tests.fixtures.linecoverage.list import ListTest
+from tests.fixtures.linecoverage.plus import Plus
 
 
 @pytest.fixture(autouse=True)
@@ -280,6 +288,188 @@ def larger_control_flow_graph() -> CFG:
     graph.add_edge(n_110, n_300, label="false")
     graph.add_edge(n_300, n_exit)
     return graph
+
+
+@pytest.fixture()
+def plus_test_with_object_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        int_0 = 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(var_0)
+        assert int_1 == 46
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    test_case.statements[-1].add_assertion(
+        ass.ObjectAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    return test_case
+
+
+@pytest.fixture()
+def plus_test_with_float_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        int_0 = 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    test_case.statements[-1].add_assertion(
+        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    return test_case
+
+
+@pytest.fixture()
+def plus_test_with_not_none_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        int_0 = 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 is not None
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
+    test_case.statements[-1].add_assertion(
+        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
+    )
+    return test_case
+
+
+@pytest.fixture()
+def exception_test_with_except_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        exception_test_0 = module_0.ExceptionTest()
+        with pytest.raises(RuntimeError):
+            var_0 = exception_test_0.throw()
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    exception_test_0 = module_0.ExceptionTest()
+    var_0 = exception_test_0.throw()
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
+    test_case.statements[-1].add_assertion(
+        ass.ExceptionAssertion(
+            module=RuntimeError.__module__,
+            exception_type_name=RuntimeError.__name__,
+        ),
+    )
+    return test_case
+
+
+@pytest.fixture()
+def list_test_with_len_assertion() -> tc.TestCase:
+    """
+    Generated testcase:
+        list_test_0 = module_0.ListTest()
+        assert len(list_test_0.attribute) == 3
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    list_test_0 = module_0.ListTest()
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    test_case.statements[-1].add_assertion(
+        ass.CollectionLengthAssertion(
+            vr.FieldReference(
+                test_case.statements[-1].ret_val,
+                gao.GenericField(ListTest, "attribute", list),
+            ),
+            3,
+        )
+    )
+    return test_case
+
+
+@pytest.fixture()
+def plus_test_with_multiple_assertions():
+    """
+    Generated testcase:
+        int_0 = 42
+        assert int_0 == 42
+        plus_0 = module_0.Plus()
+        int_1 = plus_0.plus_four(int_0)
+        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+        assert plus_0.calculations == 1
+    """
+    cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+
+    test_case.statements[0].add_assertion(
+        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
+    )
+    test_case.statements[-1].add_assertion(
+        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
+    )
+    test_case.statements[-1].add_assertion(
+        ass.ObjectAssertion(
+            vr.FieldReference(
+                test_case.statements[1].ret_val,
+                gao.GenericField(Plus, "calculations", int),
+            ),
+            1,
+        )
+    )
+    return test_case
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

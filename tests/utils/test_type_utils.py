@@ -170,7 +170,7 @@ def test_is_bytes(value, result):
     ],
 )
 def test_is_list(value, result):
-    assert is_list(value) == result
+    assert is_list(type(value)) == result
 
 
 @pytest.mark.parametrize(
@@ -183,7 +183,7 @@ def test_is_list(value, result):
     ],
 )
 def test_is_set(value, result):
-    assert is_set(value) == result
+    assert is_set(type(value)) == result
 
 
 @pytest.mark.parametrize(
@@ -196,7 +196,7 @@ def test_is_set(value, result):
     ],
 )
 def test_is_dict(value, result):
-    assert is_dict(value) == result
+    assert is_dict(type(value)) == result
 
 
 @pytest.mark.parametrize(
@@ -209,7 +209,7 @@ def test_is_dict(value, result):
     ],
 )
 def test_is_tuple(value, result):
-    assert is_tuple(value) == result
+    assert is_tuple(type(value)) == result
 
 
 def test_is_enum():

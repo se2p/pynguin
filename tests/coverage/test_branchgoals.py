@@ -421,14 +421,14 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     trace_mock.covered_line_ids = {}
 
     chromosome = _get_empty_test()
-    _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
+    _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock)
 
     fitness = chromosome.get_fitness()
     assert fitness == 8
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    known_data_mock, executor_mock, trace_mock
+    known_data_mock, executor_mock, trace_mock, plus_test_with_object_assertion
 ):
     """
     Test for a testcase for the plus module, which should cover 5 out of 8 goals,
@@ -451,8 +451,9 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        chromosome = _get_test_for_statement_coverage(module)
-        _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock)
+        test_case = plus_test_with_object_assertion
+        chromosome = tcc.TestCaseChromosome(test_case=test_case)
+        _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock)
 
         with mock.patch.object(
             bg.LineCoverageTestFitness, "_run_test_case_chromosome"
@@ -466,7 +467,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
             assert fitness == 3
 
 
-def _add_plus_fitness_functions_to_chromosome(chromosome, executor_mock):
+def _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock):
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
     for line_id in range(len(lines)):
         line_goal = bg.LineCoverageGoal(0, line_id)
@@ -486,41 +487,4 @@ def _get_lines_data_for_plus_module():
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
     test_case = dtc.DefaultTestCase()
-    return tcc.TestCaseChromosome(test_case=test_case)
-
-
-def _get_test_for_statement_coverage(module):
-    test_case = dtc.DefaultTestCase()
-
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 42)
-
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            module.Plus,
-            InferredSignature(
-                signature=inspect.signature(module.Plus.__init__),
-                parameters={},
-                return_type=module.Plus,
-            ),
-        ),
-    )
-
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            module.Plus,
-            module.Plus.plus_four,
-            InferredSignature(
-                signature=inspect.signature(module.Plus.plus_four),
-                parameters={"number": int},
-                return_type=int,
-            ),
-        ),
-        constructor_call.ret_val,
-        {"number": int_stmt.ret_val},
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
     return tcc.TestCaseChromosome(test_case=test_case)

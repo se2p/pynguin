@@ -90,6 +90,7 @@ MODULE_BLACKLIST = frozenset(
         "cmd",
         "code",
         "codeop",
+        "collections.abc",
         "compileall",
         "concurrent",
         "concurrent.futures",
