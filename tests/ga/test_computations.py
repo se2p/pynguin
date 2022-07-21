@@ -156,7 +156,7 @@ def test_test_suite_compute_checked_covered_fitness_values(
         result.execution_trace = trace_mock
         run_suite_mock.return_value = [result]
         assert func.compute_fitness(indiv) == 0
-        run_suite_mock.assert_called_with(indiv, instrument_test_suite=True)
+        run_suite_mock.assert_called_with(indiv)
 
 
 def test_run_test_suite_chromosome():

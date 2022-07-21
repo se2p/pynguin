@@ -37,9 +37,7 @@ class TestCaseChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test case chromosome."""
 
-    def _run_test_case_chromosome(
-        self, individual
-    ) -> ExecutionResult:
+    def _run_test_case_chromosome(self, individual) -> ExecutionResult:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
