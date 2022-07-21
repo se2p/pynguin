@@ -1,7 +1,10 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides an abstract observer that can be used to generate assertions."""
+"""Provides an observer that can be used to calculate the checked lines of a test."""
 import logging
 
 import pynguin.testcase.execution as ex
