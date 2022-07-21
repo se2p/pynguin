@@ -184,30 +184,6 @@ def test_data_dependency_5():
     assert compare(sliced_instructions, expected_instructions)
 
 
-def test_data_dependency_6():
-    def func() -> int:
-        class Plus:
-            calculations = 0  # falsely included
-
-            def plus_four(self, number):
-                self.calculations += 1  # falsely included
-                return number + 4
-
-        plus_0 = Plus()
-        int_0 = 42
-        var_1 = plus_0.plus_four(int_0)
-        result = plus_0.plus_four(var_1)
-        return result
-
-    # TODO(SiL) how to deal with wrongly included instructions/lines
-    sliced_instructions = slice_function_at_return(func)
-    checked_lines = set()
-    for instr in sliced_instructions:
-        checked_lines.add(instr.lineno)
-    expected_lines = {189, 192, 194, 196, 197, 198, 199, 200}
-    assert checked_lines == expected_lines
-
-
 def test_simple_control_dependency_1():
     # If condition evaluated to true, with relevant variable foo
     def func() -> int:
