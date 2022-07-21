@@ -80,7 +80,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         for stmt in chromosome.test_case.statements:
-            to_remove = set()
+            to_remove: set[Assertion] = set()
             for assertion in stmt.assertions:
                 new_checked_lines = AssertionSlicer.map_instructions_to_lines(
                     assertion.checked_instructions
@@ -98,8 +98,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                     self._checked_lines.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
                 else:
-                    self._checked_lines.update(new_checked_lines)
-                    self._remaining_assertions.add(assertion)
+                    to_remove.add(assertion)
             for assertion in to_remove:
                 stmt.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)

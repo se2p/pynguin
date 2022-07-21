@@ -25,7 +25,6 @@ from pynguin.testcase.execution import (
     ExecutionTrace,
     KnownData,
     LineMetaData,
-    TracedAssertion,
 )
 
 
@@ -195,7 +194,7 @@ def test_checked_coverage_half_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = TracedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
@@ -209,7 +208,7 @@ def test_checked_coverage_fully_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = TracedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
