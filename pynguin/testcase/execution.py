@@ -1984,8 +1984,8 @@ class TestCaseExecutor:
                     daemon=True,
                 )
                 thread.start()
-                # Set a timeout for the thread execution of at most 5 seconds.
-                thread.join(timeout=min(5, len(test_case.statements)))
+                # Set a timeout for the thread execution of at most 300 seconds.
+                thread.join(timeout=min(300, 60 * len(test_case.statements)))
                 if thread.is_alive():
                     # Set thread ident to invalid value, such that the tracer
                     # kills the thread
