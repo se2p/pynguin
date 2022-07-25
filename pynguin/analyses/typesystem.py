@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import enum
 import inspect
+import logging
 import types
 import typing
 from abc import ABC, abstractmethod
@@ -16,12 +17,15 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
 import networkx as nx
+from networkx import has_path
 from networkx.drawing.nx_pydot import to_pydot
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import filter_type_vars, wrap_var_param_type
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -297,55 +301,55 @@ class TypeVisitor(Generic[T]):
     """A type visitor"""
 
     @abstractmethod
-    def visit_any_type(self, typ: AnyType) -> T:
+    def visit_any_type(self, left: AnyType) -> T:
         """Visit the Any type
 
         Args:
-            typ: the Any type
+            left: the Any type
 
         Returns:
             result of the visit
         """
 
     @abstractmethod
-    def visit_none_type(self, typ: NoneType) -> T:
+    def visit_none_type(self, left: NoneType) -> T:
         """Visit the None type
 
         Args:
-            typ: the None type
+            left: the None type
 
         Returns:
             result of the visit
         """
 
     @abstractmethod
-    def visit_instance(self, typ: Instance) -> T:
+    def visit_instance(self, left: Instance) -> T:
         """Visit an instance
 
         Args:
-            typ: instance
+            left: instance
 
         Returns:
             result of the visit
         """
 
     @abstractmethod
-    def visit_tuple_type(self, typ: TupleType) -> T:
+    def visit_tuple_type(self, left: TupleType) -> T:
         """Visit a tuple type
 
         Args:
-            typ: tuple
+            left: tuple
 
         Returns:
             result of the visit
         """
 
     @abstractmethod
-    def visit_union_type(self, typ: UnionType) -> T:
+    def visit_union_type(self, left: UnionType) -> T:
         """Visit a union
 
         Args:
-            typ: union
+            left: union
 
         Returns:
             result of the visit
@@ -355,26 +359,83 @@ class TypeVisitor(Generic[T]):
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
 
-    def visit_any_type(self, typ: AnyType) -> str:
+    def visit_any_type(self, left: AnyType) -> str:
         return "Any"
 
-    def visit_none_type(self, typ: NoneType) -> str:
+    def visit_none_type(self, left: NoneType) -> str:
         return "None"
 
-    def visit_instance(self, typ: Instance) -> str:
-        rep = typ.type.name
-        if len(typ.args) > 0:
-            rep += "[" + self._sequence_str(typ.args) + "]"
+    def visit_instance(self, left: Instance) -> str:
+        rep = left.type.name
+        if len(left.args) > 0:
+            rep += "[" + self._sequence_str(left.args) + "]"
         return rep
 
-    def visit_tuple_type(self, typ: TupleType) -> str:
-        return f"tuple[{self._sequence_str(typ.args)}]"
+    def visit_tuple_type(self, left: TupleType) -> str:
+        return f"tuple[{self._sequence_str(left.args)}]"
 
-    def visit_union_type(self, typ: UnionType) -> str:
-        return f"Union{self._sequence_str(typ.items)}"
+    def visit_union_type(self, left: UnionType) -> str:
+        return f"Union{self._sequence_str(left.items)}"
 
     def _sequence_str(self, typs: Sequence[ProperType]) -> str:
         return ", ".join(t.accept(self) for t in typs)
+
+
+class _SubtypeVisitor(TypeVisitor[bool]):
+    """A visitor to check the subtyping relationship between two types, i.e.,
+    is left a subtype of right?
+
+    There is no need to check 'right' for AnyType, as this is done outside.
+    """
+
+    def __init__(self, graph: InheritanceGraph, right: ProperType):
+        """Create new visitor
+
+        Args:
+            graph: The inheritance graph.
+            right: The right type.
+        """
+        self.graph = graph
+        self.right = right
+
+    def visit_any_type(self, left: AnyType) -> bool:  # pylint:disable=unused-argument
+        # Any wins always
+        return True
+
+    def visit_none_type(self, left: NoneType) -> bool:  # pylint:disable=unused-argument
+        # None cannot be subtyped
+        # TODO(fk) handle protocols, e.g., hashable.
+        return False
+
+    def visit_instance(self, left: Instance) -> bool:
+        if isinstance(self.right, UnionType):
+            return any(
+                self.graph.is_subtype(left, right_elem)
+                for right_elem in self.right.items
+            )
+        if isinstance(self.right, Instance):
+            # We only check for subclasses relation currently.
+            # TODO(fk) handle generics :(
+            return self.graph.is_subclass(left.type, self.right.type)
+        return False
+
+    def visit_tuple_type(self, left: TupleType) -> bool:
+        if isinstance(self.right, TupleType):
+            if len(left.args) != len(self.right.args):
+                # TODO(fk) Handle unknown size.
+                return False
+            return all(
+                self.graph.is_subtype(left_elem, right_elem)
+                for left_elem, right_elem in zip(left.args, self.right.args)
+            )
+        return False
+
+    def visit_union_type(self, left: UnionType) -> bool:
+        if isinstance(self.right, UnionType):
+            return all(
+                self.graph.is_subtype(left_elem, self.right) for left_elem in left.items
+            )
+        return False
 
 
 def infer_type_info_with_types(method: Callable) -> InferredSignature:
@@ -421,7 +482,10 @@ class TypeInfo:
     def __init__(self, raw_type: type):
         """Create type info from the given type.
 
-        Naming in python is somehow misleading. 'type' actually only represents classes,
+        Don't use this constructor directly (unless for testing purposes), instead ask
+        the inheritance graph to give you a type info for the given raw type.
+
+        Naming in python is somehow misleading, 'type' actually only represents classes,
         but not any more complex types.
 
         Args:
@@ -430,10 +494,23 @@ class TypeInfo:
         self.raw_type = raw_type
         self.name = raw_type.__name__
         self.qualname = raw_type.__qualname__
-        self.full_name = f"{raw_type.__module__}.{raw_type.__qualname__}"
+        self.full_name = TypeInfo.to_full_name(raw_type)
         self.is_abstract = inspect.isabstract(raw_type)
         # TODO(fk) store more information on attributes
         self.instance_attributes: OrderedSet[str] = OrderedSet()
+        self.symbols: OrderedSet[str] = OrderedSet()
+
+    @staticmethod
+    def to_full_name(typ: type) -> str:
+        """Get the full name of the given type
+
+        Args:
+            typ: The type for which we want a full name.
+
+        Returns:
+            The fully qualified name
+        """
+        return f"{typ.__module__}.{typ.__qualname__}"
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, TypeInfo):
@@ -444,33 +521,22 @@ class TypeInfo:
         return hash(self.full_name)
 
     def __str__(self):
-        return self.full_name
-
-    def add_instance_attrs(self, *attrs: str):
-        """Add the given attribute names
-
-        Args:
-            *attrs: The names
-        """
-        self.instance_attributes.update(attrs)
+        return (
+            f"{self.full_name}"
+            f"\nsymbols {self.symbols}"
+            f"\ninstance-attributes {self.instance_attributes}"
+        )
 
 
 class InheritanceGraph:
     """Provides a simple inheritance graph relating various classes using their subclass
-    relationships."""
+    relationships.
+
+    Note that parents point to their children."""
 
     def __init__(self):
         self._graph = nx.DiGraph()
         self._types: dict[str, TypeInfo] = {}
-
-    def add_class(self, typ: TypeInfo) -> None:
-        """Add the given type to the graph.
-
-        Args:
-            typ: The type to add
-        """
-        self._graph.add_node(typ)
-        self._types[typ.full_name] = typ
 
     def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add an edge between two types.
@@ -479,8 +545,6 @@ class InheritanceGraph:
             super_class: superclass
             sub_class: subclass
         """
-        assert super_class in self._types
-        assert sub_class in self._types
         self._graph.add_edge(super_class, sub_class)
 
     def get_subclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
@@ -513,6 +577,39 @@ class InheritanceGraph:
         result.add(klass)
         return result
 
+    def is_subclass(self, left: TypeInfo, right: TypeInfo) -> bool:
+        """Is 'left' a subclass of 'right'?
+
+        Args:
+            left: left type info
+            right: right type info
+
+        Returns:
+            True, if there is a subclassing path from left to right.
+        """
+        return has_path(self._graph, right, left)
+
+    def is_subtype(self, left: ProperType, right: ProperType) -> bool:
+        """Is 'left' a subtype of 'right'?
+
+        This check is more than incomplete, but it takes into account
+        that anything is a subtype of AnyType.
+
+        See https://peps.python.org/pep-0483/ and https://peps.python.org/pep-0484/
+        for more details
+
+        Args:
+            left: The left type
+            right: The right type
+
+        Returns:
+            True, if left is a subtype of right.
+        """
+        if isinstance(right, AnyType):
+            # trivial case
+            return True
+        return left.accept(_SubtypeVisitor(self, right))
+
     @property
     def dot(self) -> str:
         """Create dot representation of this graph.
@@ -523,54 +620,91 @@ class InheritanceGraph:
         dot = to_pydot(self._graph)
         return dot.to_string()
 
-    @property
-    def types(self) -> dict[str, TypeInfo]:
-        """Provide all dictionary that maps the full name of each klass to it's
-        TypeInfo.
+    def to_type_info(self, typ: type) -> TypeInfo:
+        """Find type info for the given type.
+
+        Args:
+            typ: The raw type we want to convert.
 
         Returns:
-            A dict of all types known by this graph.
+            A type info object.
         """
-        return self._types
+        found = self._types.get(TypeInfo.to_full_name(typ))
+        if found is not None:
+            return found
+        info = TypeInfo(typ)
+        self._types[info.full_name] = info
+        self._graph.add_node(info)
+        return info
 
+    def find_type_info(self, full_name: str) -> TypeInfo | None:
+        """Find typeinfo for the given name.
 
-def convert_type_hint(
-    hint: Any,
-) -> ProperType:
-    # pylint:disable=too-many-return-statements
-    """Converts a type hint to a proper type.
-    Probably will need a lot of special cases.
+        Args:
+            full_name: The name to search for.
 
-    Handles type hints from different versions, e.g.:
-    - dict[K, V] == typing.Dict[K, V]
-    - tuple[T1, T2, ...] == typing.Tuple[T1, T2, ...]
-    - set[V] == typing.Set[V]
-    - list[V] == typing.List[V]
+        Returns:
+            Type info, if any.
+        """
+        return self._types[full_name]
 
-    Args:
-        hint: The type hint
+    def convert_type_hint(
+        self,
+        hint: Any,
+    ) -> ProperType:
+        # pylint:disable=too-many-return-statements
+        """Python's builtin functionality makes handling types during runtime really
+        hard, because 1) this is not intended to be used at runtime and 2) there are a
+        lot of different notations, due to the constantly evolving type hint system.
+        We also cannot easily use mypy type abstraction but it is 1) strongly
+        encapsulated and not part of mypy's public API and 2) is designed to be used
+        for static type checking. This method tries to translate type hints into our
+        own type abstraction in order to make handling types less painful.
 
-    Returns:
-        A proper type.
-    """
-    if hint is typing.Any or hint is None:
+        This conversion is naive when compared to what sophisticated type checkers like
+        mypy do, but it is hopefully sufficient for our purposes.
+        This method only handles a very small subset of the types that we may
+        encounter in the wild, but at least it allows use to better reason about types.
+        This should be extended in the future to handle more cases.
+
+        Args:
+            hint: The type hint
+
+        Returns:
+            A proper type.
+        """
+        # We must handle a lot of special cases, so try to give an example for each one.
+
+        if hint is typing.Any or hint is None:
+            # typing.Any or empty
+            return AnyType()
+        if hint is type(None):  # noqa: E721
+            # None
+            return NoneType()
+        if hint is tuple:
+            # tuple
+            # TODO(fk) Tuple without size. Should use tuple[Any, ...] ?
+            #  But ... (ellipsis) is not a type.
+            return TupleType([AnyType()], unknown_size=True)
+        if typing.get_origin(hint) is tuple:
+            # tuple[int, str] or typing.Tuple[int, str]
+            return TupleType([self.convert_type_hint(t) for t in hint.__args__])
+        if is_union_type(hint) or isinstance(hint, types.UnionType):
+            # int | str or typing.Union[int, str]
+            return UnionType([self.convert_type_hint(t) for t in hint.__args__])
+        if isinstance(
+            hint, (typing._BaseGenericAlias, types.GenericAlias)  # type:ignore
+        ):
+            # list[int, str] or List[int, str] or Dict[int, str] or set[str]
+            return Instance(
+                self.to_type_info(hint.__origin__),
+                [self.convert_type_hint(t) for t in hint.__args__],
+            )
+        if isinstance(hint, type):
+            # int or str or MyClass
+            return Instance(self.to_type_info(hint), [])
+        # TODO(fk) log unknown hints to so we can better understand what
+        #  we should add next
+        _LOGGER.info("Unknown type hint: %s", hint)
+        # Should raise an error in the future.
         return AnyType()
-    if hint is type(None):  # noqa: E721
-        return NoneType()
-    if hint is tuple:
-        # Tuple without size. Should use tuple[Any, ...] ?
-        # But ... (ellipsis) is not a type.
-        return TupleType([AnyType()], unknown_size=True)
-    if typing.get_origin(hint) is tuple:
-        return TupleType([convert_type_hint(t) for t in hint.__args__])
-    if isinstance(hint, types.GenericAlias):
-        return Instance(
-            TypeInfo(hint.__origin__),
-            [convert_type_hint(t) for t in hint.__args__],
-        )
-    if is_union_type(hint) or isinstance(hint, types.UnionType):
-        return UnionType([convert_type_hint(t) for t in hint.__args__])
-    if isinstance(hint, type):
-        return Instance(TypeInfo(hint), [])
-    # Fallback for now. Should raise an error in the future.
-    return AnyType()

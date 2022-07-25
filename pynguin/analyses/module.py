@@ -21,6 +21,7 @@ from statistics import mean, median
 from types import (
     BuiltinFunctionType,
     FunctionType,
+    GenericAlias,
     MethodDescriptorType,
     ModuleType,
     WrapperDescriptorType,
@@ -224,7 +225,7 @@ def parse_module(
             path=source_file if source_file is not None else "",
         )
         linenos = len(source_code.splitlines())
-    except OSError as error:
+    except (TypeError, OSError) as error:
         LOGGER.warning(
             f"Could not retrieve source code for module {module_name} ({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
@@ -646,7 +647,10 @@ class FilteredModuleTestCluster(ModuleTestCluster):
 def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
     if tree is None:
         return None
-    return mccabe_complexity(astroid_to_ast(tree))
+    try:
+        return mccabe_complexity(astroid_to_ast(tree))
+    except SyntaxError:
+        return None
 
 
 def __is_constructor(method_name: str) -> bool:
@@ -722,7 +726,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 ) -> None:
     LOGGER.info("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
-    __find_attributes(class_ast, type_info)
+    __add_symbols(class_ast, type_info)
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
@@ -751,7 +755,6 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         cyclomatic_complexity=cyclomatic_complexity,
     )
     if not type_info.is_abstract:
-        # TODO adding an abstract class constructor makes no sense?
         test_cluster.add_generator(generic)
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
@@ -770,12 +773,15 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
-def __find_attributes(class_ast, type_info):
+def __add_symbols(class_ast: astroid.ClassDef, type_info: TypeInfo):
     if class_ast is not None:
-        type_info.add_instance_attrs(*list(class_ast.instance_attrs))
+        type_info.instance_attributes.update(list(class_ast.instance_attrs))
     if issubclass(type_info.raw_type, tuple) and hasattr(type_info.raw_type, "_fields"):
         # Handle Named Tuple
-        type_info.add_instance_attrs(*type_info.raw_type._fields)
+        type_info.instance_attributes.update(type_info.raw_type._fields)  # type:ignore
+    type_info.symbols.update(type_info.instance_attributes)
+    # TODO(fk) filter?
+    type_info.symbols.update(list(vars(type_info.raw_type)))
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments
@@ -863,8 +869,6 @@ def __resolve_dependencies(
             # Don't include anything from the blacklist
             continue
 
-        tree = parse_results[root_module.module_name].syntax_tree
-
         # Analyze all classes found in the current module
         __analyse_included_classes(
             module=current_module,
@@ -872,7 +876,7 @@ def __resolve_dependencies(
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
             seen_classes=seen_classes,
-            syntax_tree=tree,
+            parse_results=parse_results,
         )
 
         # Analyze all functions found in the current module
@@ -882,7 +886,7 @@ def __resolve_dependencies(
             type_inference_strategy=type_inference_strategy,
             test_cluster=test_cluster,
             seen_functions=seen_functions,
-            syntax_tree=tree,
+            parse_results=parse_results,
         )
 
         # Collect the modules that are included by this module and add
@@ -905,8 +909,8 @@ def __analyse_included_classes(
     root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    syntax_tree: astroid.Module | None,
-    seen_classes: set,
+    parse_results: dict[str, _ModuleParseResult],
+    seen_classes: set[TypeInfo],
 ) -> None:
     work_list = list(
         filter(
@@ -915,31 +919,38 @@ def __analyse_included_classes(
         )
     )
 
+    # TODO(fk) inner classes?
+    # TODO(fk) builtin classes should be put in the inheritance tree
+    # TODO(fk) consider numeric tower int <: float <: complex.
+    #  https://peps.python.org/pep-0484/#the-numeric-tower
+
     while len(work_list) > 0:
         current = work_list.pop(0)
         if current in seen_classes:
             continue
         seen_classes.add(current)
 
-        type_info = TypeInfo(current)
+        type_info = test_cluster.inheritance_graph.to_type_info(current)
 
         __analyse_class(
             type_info=type_info,
             type_inference_strategy=type_inference_strategy,
-            module_tree=syntax_tree,
+            module_tree=parse_results[current.__module__].syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
 
-        # TODO(fk) apply blacklist on bases?
-        #  -> perform another filtering pass after we analysed everything.
-        test_cluster.inheritance_graph.add_class(type_info)
         if hasattr(current, "__bases__"):
             for base in current.__bases__:
-                base_wrapper = TypeInfo(base)
-                test_cluster.inheritance_graph.add_class(base_wrapper)
+                # TODO(fk) base might be an instance.
+                #  Ignored for now.
+                #  Probably store Instance in graph instead of TypeInfo?
+                if isinstance(base, GenericAlias):
+                    base = base.__origin__
+
+                base_info = test_cluster.inheritance_graph.to_type_info(base)
                 test_cluster.inheritance_graph.add_edge(
-                    super_class=base_wrapper, sub_class=type_info
+                    super_class=base_info, sub_class=type_info
                 )
                 work_list.append(base)
 
@@ -950,7 +961,7 @@ def __analyse_included_functions(
     root_module_name: str,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    syntax_tree: astroid.Module | None,
+    parse_results: dict[str, _ModuleParseResult],
     seen_functions: set,
 ) -> None:
     for current in filter(
@@ -964,7 +975,7 @@ def __analyse_included_functions(
             func_name=current.__qualname__,
             func=current,
             type_inference_strategy=type_inference_strategy,
-            module_tree=syntax_tree,
+            module_tree=parse_results[current.__module__].syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )

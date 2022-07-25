@@ -5,22 +5,24 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, Tuple, Union
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import pytest
 
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import (
     AnyType,
     InferredSignature,
+    InheritanceGraph,
     Instance,
     NoneType,
     TupleType,
     TypeInferenceStrategy,
     TypeInfo,
     UnionType,
-    convert_type_hint,
     infer_type_info,
 )
+from tests.fixtures.types.subtyping import Sub, Super
 
 
 def __dummy(x: int, y: int) -> int:
@@ -154,19 +156,31 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
             Instance(TypeInfo(list), [Instance(TypeInfo(int))]),
         ),
         (
+            List[int],
+            Instance(TypeInfo(list), [Instance(TypeInfo(int))]),
+        ),
+        (
+            set[int],
+            Instance(TypeInfo(set), [Instance(TypeInfo(int))]),
+        ),
+        (
+            Set[int],
+            Instance(TypeInfo(set), [Instance(TypeInfo(int))]),
+        ),
+        (
             dict[int, str],
             Instance(
                 TypeInfo(dict),
                 [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
             ),
         ),
-        # (
-        #     Dict[int, str],
-        #     Instance(
-        #         TypeInfo(dict),
-        #         [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
-        #     ),
-        # ), TODO(fk) does not work yet
+        (
+            Dict[int, str],
+            Instance(
+                TypeInfo(dict),
+                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+            ),
+        ),
         (
             int | str,
             UnionType(
@@ -198,6 +212,10 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
             ),
         ),
         (
+            tuple,
+            TupleType([AnyType()], unknown_size=True),
+        ),
+        (
             Any,
             AnyType(),
         ),
@@ -208,5 +226,44 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     ],
 )
 def test_convert_type_hints(hint, expected):
-    assert convert_type_hint(hint) == expected
-    assert repr(convert_type_hint(hint)) == repr(expected)
+    graph = InheritanceGraph()
+    assert graph.convert_type_hint(hint) == expected
+    assert repr(graph.convert_type_hint(hint)) == repr(expected)
+
+
+@pytest.fixture(scope="module")
+def subtyping_cluster():
+    return generate_test_cluster("tests.fixtures.types.subtyping")
+
+
+@pytest.mark.parametrize(
+    "left_hint,right_hint,result",
+    [
+        (int, int, True),
+        (int, str, False),
+        (str, str, True),
+        (tuple[int, str], tuple[int, str], True),
+        (tuple[int, int], tuple[int, str], False),
+        (tuple[Any, Any], tuple[int, int], True),
+        (tuple[int, int], tuple[Any, Any], True),
+        (tuple[Any, Any], tuple[Any, Any], True),
+        (int, int | str, True),
+        (float, int | str, False),
+        (int | str, int | str, True),
+        (int | str | float, int | str, False),
+        (int | str, int | str | float, True),
+        (int, Union[int, None], True),
+        (Sub, Super, True),
+        (Sub, Super | int, True),
+        (Sub, Sub | int, True),
+        (Sub, object | int, True),
+        (object, Sub | int, False),
+        (Sub, float | int, False),
+        (Super, Sub, False),
+    ],
+)
+def test_is_subtype(subtyping_cluster, left_hint, right_hint, result):
+    graph = subtyping_cluster.inheritance_graph
+    left = graph.convert_type_hint(left_hint)
+    right = graph.convert_type_hint(right_hint)
+    assert graph.is_subtype(left, right) is result

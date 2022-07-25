@@ -543,7 +543,11 @@ def get_function_description(
         return None
 
     function_analysis = FunctionAnalysisVisitor()
-    function_analysis.visit(astroid_to_ast(func))
+    try:
+        function_analysis.visit(astroid_to_ast(func))
+    except SyntaxError:
+        _LOGGER.debug("Analysis of %s failed", func.name)
+        return None
 
     has_return = bool(function_analysis.returns)
     has_empty_return = False

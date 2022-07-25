@@ -423,6 +423,7 @@ def test_inheritance_graph():
 def test_instance_attrs(mod, typ, attributes):
     cluster = generate_test_cluster(mod)
     assert (
-        cluster.inheritance_graph.types[f"{mod}.{typ}"].instance_attributes
+        cluster.inheritance_graph.find_type_info(f"{mod}.{typ}").instance_attributes
         == attributes
     )
+    print(cluster.inheritance_graph.dot)
