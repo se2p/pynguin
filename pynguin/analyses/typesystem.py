@@ -654,7 +654,7 @@ class InheritanceGraph:
         """Python's builtin functionality makes handling types during runtime really
         hard, because 1) this is not intended to be used at runtime and 2) there are a
         lot of different notations, due to the constantly evolving type hint system.
-        We also cannot easily use mypy type abstraction but it is 1) strongly
+        We also cannot easily use mypy's type abstraction because it is 1) strongly
         encapsulated and not part of mypy's public API and 2) is designed to be used
         for static type checking. This method tries to translate type hints into our
         own type abstraction in order to make handling types less painful.
