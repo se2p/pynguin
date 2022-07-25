@@ -408,11 +408,6 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         return False
 
     def visit_instance(self, left: Instance) -> bool:
-        if isinstance(self.right, UnionType):
-            return any(
-                self.graph.is_subtype(left, right_elem)
-                for right_elem in self.right.items
-            )
         if isinstance(self.right, Instance):
             # We only check for subclasses relation currently.
             # TODO(fk) handle generics :(
@@ -608,6 +603,9 @@ class InheritanceGraph:
         if isinstance(right, AnyType):
             # trivial case
             return True
+        if isinstance(right, UnionType) and not isinstance(left, UnionType):
+            # Case that would be duplicated for each type, so we put it here.
+            return any(self.is_subtype(left, right_elem) for right_elem in right.items)
         return left.accept(_SubtypeVisitor(self, right))
 
     @property
