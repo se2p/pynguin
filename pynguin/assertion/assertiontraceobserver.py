@@ -13,10 +13,8 @@ from types import ModuleType
 from typing import Sized, cast
 
 from _pytest.outcomes import Failed
-from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
-import pynguin.assertion.assertion_to_ast as ata
 import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
@@ -196,7 +194,8 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         value = exec_ctx.get_reference_value(ref)
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(ref, value))
-        elif is_assertable(value):
+            return
+        if is_assertable(value):
             trace.add_entry(position, ass.ObjectAssertion(ref, copy.deepcopy(value)))
         else:
             # No precise assertion possible, so assert on type.
@@ -207,9 +206,16 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
                 )
             if isinstance(value, Sized):
-                trace.add_entry(
-                    position, ass.CollectionLengthAssertion(ref, len(value))
-                )
+                if isinstance(value, Sized):
+                    try:
+                        length = len(value)
+                        trace.add_entry(
+                            position, ass.CollectionLengthAssertion(ref, length)
+                        )
+                        return
+                    except BaseException:  # pylint: disable=broad-except
+                        # Could not get len, so continue down.
+                        pass
             if depth < max_depth and hasattr(value, "__dict__"):
                 # Reference is a complex object.
                 # Try to assert something on its fields.
@@ -267,18 +273,8 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
     def before_statement_execution(
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
-        if self.__is_only_exception_assertion(statement.assertions):
-            commons_modules: set[str] = set()
-            visitor = ata.PyTestAssertionToAstVisitor(
-                exec_ctx.variable_names, exec_ctx.module_aliases, commons_modules, node
-            )
-            statement.assertions[0].accept(visitor)
-
-            for common in commons_modules:
-                if common not in exec_ctx.global_namespace:
-                    exec_ctx.add_new_module_alias(common, common)
-            assert len(visitor.nodes) == 1
-            return visitor.nodes[0]
+        if statement.has_only_exception_assertion():
+            return exec_ctx.node_for_assertion(statement.assertions[0], node)
         return node
 
     def after_statement_execution(
@@ -288,7 +284,7 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
         exec_ctx: ex.ExecutionContext,
         exception: BaseException | None,
     ) -> None:
-        if self.__is_only_exception_assertion(statement.assertions):
+        if statement.has_only_exception_assertion():
             if exception is None:
                 return
             # If we have an exception assertion, all we have to do is check the
@@ -302,33 +298,16 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
 
-                commons_modules: set[str] = set()
-                visitor = ata.PyTestAssertionToAstVisitor(
-                    exec_ctx.variable_names,
-                    exec_ctx.module_aliases,
-                    commons_modules,
-                    ast.stmt(),  # Node is a dummy here
+                exc = executor.execute_ast(
+                    exec_ctx.wrap_node_in_module(
+                        exec_ctx.node_for_assertion(assertion, ast.stmt())
+                    ),
+                    exec_ctx,
                 )
-                assertion.accept(visitor)
+                if exc is None:
+                    continue
 
-                for common in commons_modules:
-                    if common not in exec_ctx.global_namespace:
-                        exec_ctx.add_new_module_alias(common, common)
-
-                for node in visitor.assertion_nodes:
-                    exc = executor.execute_ast(
-                        exec_ctx.wrap_node_in_module(node), exec_ctx
-                    )
-                    if exc is None:
-                        continue
-
-                    if isinstance(exc, AssertionError):
-                        self.state.trace.failed[statement.get_position()].append(idx)
-                    else:
-                        self.state.trace.error[statement.get_position()].append(idx)
-
-    @staticmethod
-    def __is_only_exception_assertion(assertions: OrderedSet[ass.Assertion]) -> bool:
-        return len(assertions) == 1 and isinstance(
-            assertions[0], ass.ExceptionAssertion
-        )
+                if isinstance(exc, AssertionError):
+                    self.state.trace.failed[statement.get_position()].append(idx)
+                else:
+                    self.state.trace.error[statement.get_position()].append(idx)

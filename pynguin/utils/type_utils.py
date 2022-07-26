@@ -228,52 +228,52 @@ def is_bytes(value: Any) -> bool:
     return isinstance(value, (bytes, bytearray))
 
 
-def is_list(value: Any) -> bool:
+def is_list(typ: type) -> bool:
     """Check if the given value is a list.
 
     Args:
-        value: an arbitrary value
+        typ: a type
 
     Returns:
-        Whether or not the given value is of type list.
+        Whether the given value is of type list.
     """
-    return isinstance(value, list)
+    return typ is list
 
 
-def is_set(value: Any) -> bool:
+def is_set(typ: type) -> bool:
     """Check if the given value is a set.
 
     Args:
-        value: an arbitrary value
+        typ: a type
 
     Returns:
-        Whether or not the given value is of type set.
+        Whether the given value is of type set.
     """
-    return isinstance(value, set)
+    return typ is set
 
 
-def is_dict(value: Any) -> bool:
+def is_dict(typ: type) -> bool:
     """Check if the given value is a dict.
 
     Args:
-        value: an arbitrary value
+        typ: a type
 
     Returns:
-        Whether or not the given value is of type dict.
+        Whether the given value is of type dict.
     """
-    return isinstance(value, dict)
+    return typ is dict
 
 
-def is_tuple(value: Any) -> bool:
+def is_tuple(typ: type) -> bool:
     """Check if the given value is a tuple.
 
     Args:
-        value: an arbitrary value
+        typ: a type
 
     Returns:
-        Whether or not the given value is of type tuple.
+        Whether the given value is of type tuple.
     """
-    return isinstance(value, tuple)
+    return typ is tuple
 
 
 def is_enum(value: Any) -> bool:
@@ -283,7 +283,7 @@ def is_enum(value: Any) -> bool:
         value: an arbitrary value
 
     Returns:
-        Whether or not the given value is of type enum.
+        Whether the given value is of type enum.
     """
     return issubclass(value, enum.Enum)
 
@@ -317,9 +317,9 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
     tp_ = type(obj)
     if is_enum(tp_) or is_primitive_type(tp_) or is_none_type(tp_):
         return True
-    if is_set(obj) or is_list(obj) or is_tuple(obj):
+    if is_set(tp_) or is_list(tp_) or is_tuple(tp_):
         return all(is_assertable(elem, recursion_depth + 1) for elem in obj)
-    if is_dict(obj):
+    if is_dict(tp_):
         return all(
             is_assertable(key, recursion_depth + 1)
             and is_assertable(value, recursion_depth + 1)

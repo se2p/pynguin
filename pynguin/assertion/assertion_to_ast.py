@@ -187,20 +187,20 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
         Raises:
             AssertionError: If we encounter an object that we can't construct.
         """
-        tp_ = type(value)
-        if tu.is_enum(tp_):
+        typ = type(value)
+        if tu.is_enum(typ):
             enum_attr = self._construct_enum_attr(value)
             return au.create_ast_attribute(value.name, enum_attr)
-        if tu.is_primitive_type(tp_) or tu.is_none_type(tp_):
+        if tu.is_primitive_type(typ) or tu.is_none_type(typ):
             return au.create_ast_constant(value)
-        if tu.is_set(value) or tu.is_list(value) or tu.is_tuple(value):
+        if tu.is_set(typ) or tu.is_list(typ) or tu.is_tuple(typ):
             elements = [self._create_assertable_object(v) for v in value]
-            if tu.is_set(value):
+            if tu.is_set(typ):
                 return au.create_ast_set(elements)
-            if tu.is_list(value):
+            if tu.is_list(typ):
                 return au.create_ast_list(elements)
             return au.create_ast_tuple(elements)
-        if tu.is_dict(value):
+        if tu.is_dict(typ):
             keys = [self._create_assertable_object(v) for v in value]
             values = [self._create_assertable_object(v) for v in value.values()]
             return au.create_ast_dict(keys, values)

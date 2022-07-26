@@ -61,9 +61,6 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 out trivially flaky assertions, e.g., str representations based on
                 memory locations.
         """
-        # Must be loaded for assertions, so they can use it.
-        import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
-
         self._filtering_executions = filtering_executions
         self._plain_executor = plain_executor
 

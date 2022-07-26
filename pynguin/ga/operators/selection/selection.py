@@ -53,13 +53,13 @@ class SelectionFunction(Generic[T]):
         """Do we maximize fitness?
 
         Returns:
-            Whether or not this is a maximising fitness function
+            Whether this is a maximising fitness function
         """
         return self._maximize
 
     @maximize.setter
     def maximize(self, new_value: bool) -> None:
-        """Sets whether or not this is a maximising fitness function
+        """Sets whether this is a maximising fitness function
 
         Args:
             new_value: The new value

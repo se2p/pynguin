@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import contextlib
 import dataclasses
+import inspect
 import logging
 import os
 import sys
@@ -19,17 +20,28 @@ from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
 from queue import Empty, Queue
-from types import CodeType, ModuleType
-from typing import TYPE_CHECKING, Any, Sized, TypeVar
+from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
+from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union
 
-from bytecode import Compare
+import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
+from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
+from opcode import opname
 from ordered_set import OrderedSet
 
+import pynguin.assertion.assertion as ass
+import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
-from pynguin.analyses.controlflow import CFG, ControlDependenceGraph, ProgramGraphNode
+import pynguin.utils.opcodes as op
+from pynguin.instrumentation.instrumentation import (
+    ArtificialInstr,
+    CheckedCoverageInstrumentation,
+    CodeObjectMetaData,
+    InstrumentationTransformer,
+    PredicateMetaData,
+)
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -37,10 +49,15 @@ from pynguin.utils.type_utils import (
     is_string,
 )
 
+immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
+
 if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+
+
+_logger = logging.getLogger(__name__)
 
 
 class ExecutionContext:
@@ -124,7 +141,7 @@ class ExecutionContext:
         """
         return self._global_namespace
 
-    def node_for(
+    def node_for_statement(
         self,
         statement: stmt.Statement,
     ) -> ast.stmt:
@@ -134,13 +151,41 @@ class ExecutionContext:
             statement: The statement that should be converted.
 
         Returns:
-            An executable ast node.
+            An ast node.
         """
-        visitor = stmt_to_ast.StatementToAstVisitor(
+        stmt_visitor = stmt_to_ast.StatementToAstVisitor(
             self._module_aliases, self._variable_names
         )
-        statement.accept(visitor)
-        return visitor.ast_node
+        statement.accept(stmt_visitor)
+        ast_stmt = stmt_visitor.ast_node
+        return ast_stmt
+
+    def node_for_assertion(
+        self, assertion: ass.Assertion, statement_node: ast.stmt
+    ) -> ast.stmt:
+        """Transforms the given assertion in an executable ast node.
+
+        Args:
+            assertion: The assertion that should be converted.
+            statement_node: The ast node of the statement for the assertion.
+
+        Returns:
+            An ast node.
+        """
+        common_modules: set[str] = set()
+        ass_visitor = ass_to_ast.PyTestAssertionToAstVisitor(
+            self._variable_names, self._module_aliases, common_modules, statement_node
+        )
+        assertion.accept(ass_visitor)
+        for common in common_modules:
+            if common not in self.global_namespace:
+                self.add_new_module_alias(common, common)
+
+        if isinstance(assertion, ass.ExceptionAssertion):
+            assert len(ass_visitor.nodes) == 1
+            return ass_visitor.nodes[0]
+        assert len(ass_visitor.assertion_nodes) == 1
+        return ass_visitor.assertion_nodes[0]
 
     @staticmethod
     def wrap_node_in_module(node: ast.stmt) -> ast.Module:
@@ -150,7 +195,7 @@ class ExecutionContext:
             node: The node to wrap
 
         Returns:
-            The module wrapping the node
+            The module wrapping the nodes
         """
         ast.fix_missing_locations(node)
         return ast.Module(body=[node], type_ignores=[])
@@ -262,6 +307,80 @@ class ExecutionObserver:
         """
 
 
+class CheckedCoverageObserver(ExecutionObserver):
+    """An observer for checked coverage which executes assertions after statements."""
+
+    def __init__(self, tracer: ExecutionTracer):
+        self._tracer = tracer
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        pass
+
+    def after_test_case_execution_inside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        pass
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        pass
+
+    def before_statement_execution(
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        executor: TestCaseExecutor,
+        exec_ctx: ExecutionContext,
+        exception: BaseException | None,
+    ) -> None:
+        # This is a bit cumbersome, because the tracer is disabled by default.
+        enabled = False
+        try:
+            if self._tracer.is_disabled():
+                enabled = True
+                self._tracer.enable()
+
+            if statement.has_only_exception_assertion():
+                if exception is not None:
+                    self._tracer.register_exception_assertion()
+                return
+
+            for assertion in statement.assertions:
+                assertion_node = exec_ctx.wrap_node_in_module(
+                    exec_ctx.node_for_assertion(assertion, ast.stmt())  # Dummy node
+                )
+                executor.execute_ast(assertion_node, exec_ctx, True)
+
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
+                self._tracer.register_assertion_position(code_object_id, node_id)
+        finally:
+            if enabled:
+                # Restore old state
+                self._tracer.disable()
+
+    def _get_assertion_node_and_code_object_ids(self) -> tuple[int, int]:
+        existing_code_objects = self._tracer.get_known_data().existing_code_objects
+        code_object_id = len(existing_code_objects) - 1
+        code_object = existing_code_objects[code_object_id]
+        assert_node = None
+        for node in code_object.cfg.nodes:
+            if node.is_artificial:
+                continue
+            bb_node: BasicBlock = node.basic_block
+            if (
+                not isinstance(bb_node[-1], ArtificialInstr)
+                and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE
+            ):
+                assert_node = node
+        assert assert_node
+        return code_object_id, assert_node.index
+
+
 class ReturnTypeObserver(ExecutionObserver):
     """Observes the runtime types seen during execution."""
 
@@ -313,17 +432,21 @@ class ReturnTypeObserver(ExecutionObserver):
 
 
 @dataclass
-class ExecutionTrace:
+class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     """Stores trace information about the execution."""
+
+    _logger = logging.getLogger(__name__)
 
     executed_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_predicates: dict[int, int] = field(default_factory=dict)
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
+    executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
+    executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
 
     def merge(self, other: ExecutionTrace) -> None:
-        """Merge the values from the other trace.
+        """Merge the values from the other execution trace.
 
         Args:
             other: Merges the other traces into this trace
@@ -334,6 +457,16 @@ class ExecutionTrace:
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
+        shift: int = len(self.executed_instructions)
+        self.executed_instructions.extend(other.executed_instructions)
+        for traced_assertion in other.executed_assertions:
+            self.executed_assertions.append(
+                ExecutedAssertion(
+                    traced_assertion.code_object_id,
+                    traced_assertion.node_id,
+                    traced_assertion.trace_position + shift,
+                )
+            )
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:
@@ -365,6 +498,191 @@ class ExecutionTrace:
         self.false_distances[predicate] = min(
             self.false_distances.get(predicate, inf), distance_false
         )
+
+    def add_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Creates a new ExecutedInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+        """
+        executed_instr = ExecutedInstruction(
+            module, code_object_id, node_id, opcode, None, lineno, offset
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_memory_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg_name: str,
+        arg_address: int,
+        is_mutable_type: bool,
+        object_creation: bool,
+    ) -> None:
+        """Creates a new ExecutedMemoryInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg_name: the name of the argument
+            arg_address: the memory address of the argument
+            is_mutable_type: if the argument is mutable
+            object_creation: if the instruction creates the object used
+        """
+        executed_instr = ExecutedMemoryInstruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            arg_name,
+            lineno,
+            offset,
+            arg_address,
+            is_mutable_type,
+            object_creation,
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_attribute_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        attr_name: str,
+        src_address: int,
+        arg_address: int,
+        is_mutable_type: bool,
+    ) -> None:
+        """Creates a new ExecutedAttributeInstruction object and
+        adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            attr_name: the name of the accessed attribute
+            src_address: the memory address of the attribute
+            arg_address: the memory address of the argument
+            is_mutable_type: if the attribute is mutable
+        """
+        executed_instr = ExecutedAttributeInstruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            attr_name,
+            lineno,
+            offset,
+            src_address,
+            arg_address,
+            is_mutable_type,
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_jump_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        target_id: int,
+    ) -> None:
+        """Creates a new ExecutedControlInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            target_id: the target offset to jump to
+        """
+        executed_instr = ExecutedControlInstruction(
+            module, code_object_id, node_id, opcode, target_id, lineno, offset
+        )
+        self.executed_instructions.append(executed_instr)
+
+    def add_call_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        """Creates a new ExecutedCallInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the argument to the instruction
+        """
+        executed_instr = ExecutedCallInstruction(
+            module, code_object_id, node_id, opcode, arg, lineno, offset
+        )
+
+        self.executed_instructions.append(executed_instr)
+
+    def add_return_instruction(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Creates a new ExecutedReturnInstruction object and adds it to the trace.
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+        """
+        executed_instr = ExecutedReturnInstruction(
+            module, code_object_id, node_id, opcode, None, lineno, offset
+        )
+
+        self.executed_instructions.append(executed_instr)
 
 
 @dataclasses.dataclass
@@ -470,37 +788,6 @@ class ExecutionResult:
 
 
 @dataclass
-class CodeObjectMetaData:
-    """Stores meta data of a code object."""
-
-    # The raw code object.
-    code_object: CodeType
-
-    # Id of the parent code object, if any
-    parent_code_object_id: int | None
-
-    # CFG of this Code Object
-    cfg: CFG
-
-    # CDG of this Code Object
-    cdg: ControlDependenceGraph
-
-
-@dataclass
-class PredicateMetaData:
-    """Stores meta data of a predicate."""
-
-    # Line number where the predicate is defined.
-    line_no: int
-
-    # Id of the code object where the predicate was defined.
-    code_object_id: int
-
-    # The node in the program graph, that defines this predicate.
-    node: ProgramGraphNode
-
-
-@dataclass
 class LineMetaData:
     """Stores meta data of a line."""
 
@@ -550,7 +837,11 @@ class KnownData:
     # stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
+    # stores known memory attribute object addresses
+    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
 
+
+# pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
     """Tracks branch distances and covered statements during execution.
     The results are stored in an execution trace."""
@@ -639,7 +930,7 @@ class ExecutionTracer:
         new_trace.merge(self._import_trace)
         self._thread_local_state.trace = new_trace
 
-    def _is_disabled(self) -> bool:
+    def is_disabled(self) -> bool:
         """Should we track anything?
 
         We might have to disable tracing, e.g. when calling __eq__ ourselves.
@@ -738,7 +1029,7 @@ class ExecutionTracer:
                 "The current thread shall not be executed any more, thus I kill it."
             )
 
-        if self._is_disabled():
+        if self.is_disabled():
             return
 
         try:
@@ -801,7 +1092,7 @@ class ExecutionTracer:
         finally:
             self.enable()
 
-    def executed_bool_predicate(self, value, predicate: int):
+    def executed_bool_predicate(self, value, predicate: int) -> None:
         """A predicate that is based on a boolean value was executed.
 
         Args:
@@ -816,7 +1107,7 @@ class ExecutionTracer:
                 "The current thread shall not be executed any more, thus I kill it."
             )
 
-        if self._is_disabled():
+        if self.is_disabled():
             return
 
         try:
@@ -864,7 +1155,7 @@ class ExecutionTracer:
                 "The current thread shall not be executed any more, thus I kill it."
             )
 
-        if self._is_disabled():
+        if self.is_disabled():
             return
 
         try:
@@ -897,7 +1188,7 @@ class ExecutionTracer:
                 "The current thread shall not be executed any more, thus I kill it."
             )
 
-        if self._is_disabled():
+        if self.is_disabled():
             return
 
         self._thread_local_state.trace.covered_line_ids.add(line_id)
@@ -941,6 +1232,409 @@ class ExecutionTracer:
             predicate=predicate,
         )
 
+    def track_generic(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Track a generic instruction inside the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        self._thread_local_state.trace.add_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+    def track_memory_access(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: Union[str, CellVar, FreeVar],
+        arg_address: int,
+        arg_type: type,
+    ) -> None:
+        """Track a memory access instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the used variable
+            arg_address: the memory address of the variable
+            arg_type: the type of the variable
+
+        Raises:
+            ValueError: when no argument is given
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        if not arg:
+            if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
+                raise ValueError("A memory access instruction must have an argument")
+        if isinstance(arg, (CellVar, FreeVar)):
+            arg = arg.name
+
+        # Determine if this is a mutable type
+        mutable_type = True
+        if arg_type in immutable_types:
+            mutable_type = False
+
+        # Determine if this is a definition of a completely new object
+        # (required later during slicing)
+        object_creation = False
+        if arg_address and arg_address not in self.get_known_data().object_addresses:
+            object_creation = True
+            self._known_data.object_addresses.append(arg_address)
+
+        self._thread_local_state.trace.add_memory_instruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            arg,
+            arg_address,
+            mutable_type,
+            object_creation,
+        )
+
+    def track_attribute_access(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        attr_name: str,
+        src_address: int,
+        arg_address: int,
+        arg_type: type,
+    ) -> None:
+        """Track an attribute access instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            attr_name: the name of the accessed attribute
+            src_address: the memory address of the attribute
+            arg_address: the memory address of the argument
+            arg_type: the type of argument
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        # Different built-in methods and functions often have the same address when
+        # accessed sequentially.
+        # The address is not recorded in such cases.
+        if arg_type is BuiltinMethodType or arg_type is BuiltinFunctionType:
+            arg_address = -1
+
+        # Determine if this is a mutable type
+        mutable_type = True
+        if arg_type in immutable_types:
+            mutable_type = False
+
+        self._thread_local_state.trace.add_attribute_instruction(
+            module,
+            code_object_id,
+            node_id,
+            opcode,
+            lineno,
+            offset,
+            attr_name,
+            src_address,
+            arg_address,
+            mutable_type,
+        )
+
+    def track_jump(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        target_id: int,
+    ) -> None:
+        """Track a jump instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            target_id: the offset of the target of the jump
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        self._thread_local_state.trace.add_jump_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset, target_id
+        )
+
+    def track_call(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        arg: int,
+    ) -> None:
+        """Track a method call instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+            arg: the argument used in the method call
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        self._thread_local_state.trace.add_call_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset, arg
+        )
+
+    def track_return(  # pylint: disable=too-many-arguments
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+    ) -> None:
+        """Track a return instruction in the trace.
+
+        Note: This method is referenced by name in the instrumentation
+        for checked coverage. To avoid circular imports, the name is simply written
+        as string, so if this method is renamed, please adjust the string in the
+        instrumentation. Otherwise, the checked coverage instrumentation breaks!
+
+        Args:
+            module: File name of the module containing the instruction
+            code_object_id: code object containing the instruction
+            node_id: the node of the code object containing the instruction
+            opcode: the opcode of the instruction
+            lineno: the line number of the instruction
+            offset: the offset of the instruction
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        self._thread_local_state.trace.add_return_instruction(
+            module, code_object_id, node_id, opcode, lineno, offset
+        )
+
+    def register_exception_assertion(self) -> None:
+        """Track the position of an exception assertion in the trace.
+
+        Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
+        contained by each assertion. The pytest exception assertion does not use
+        an assertion containing this instruction.
+        Therefore, we trace the instruction that was last executed before
+        the exception.
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        trace = self._thread_local_state.trace
+        error_call_position = len(trace.executed_instructions) - 1
+        error_causing_instr = trace.executed_instructions[error_call_position]
+        code_object_id = error_causing_instr.code_object_id
+        node_id = error_causing_instr.node_id
+        trace.executed_assertions.append(
+            ExecutedAssertion(code_object_id, node_id, error_call_position)
+        )
+
+    def register_assertion_position(self, code_object_id: int, node_id: int) -> None:
+        """Track the position of an assertion in the trace.
+
+        Args:
+            code_object_id: code object containing the assertion to register
+            node_id: the id of the node containing the assertion to register
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError(
+                "The current thread shall not be executed any more, thus I kill it."
+            )
+
+        if self.is_disabled():
+            return
+
+        exec_instr = self.get_trace().executed_instructions
+        pop_jump_if_true_position = len(exec_instr) - 1
+        for instr in reversed(exec_instr):
+            if instr.opcode == op.POP_JUMP_IF_TRUE:
+                break
+            pop_jump_if_true_position -= 1
+        assert (
+            pop_jump_if_true_position != -1
+        ), "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
+
+        self._thread_local_state.trace.executed_assertions.append(
+            ExecutedAssertion(
+                code_object_id,
+                node_id,
+                pop_jump_if_true_position,
+            )
+        )
+
+    @staticmethod
+    def attribute_lookup(object_type, attribute: str) -> int:
+        """Check the dictionary of classes making up the MRO (_PyType_Lookup)
+        The attribute must be a data descriptor to be prioritized here
+
+        Args:
+            object_type: The type object to check
+            attribute: the attribute to check for in the class
+
+        Returns:
+            The id of the object type or the class if it has the attribute, -1 otherwise
+        """
+
+        for cls in type(object_type).__mro__:
+            if attribute in cls.__dict__:
+                # Class in the MRO hierarchy has attribute
+                if inspect.isdatadescriptor(cls.__dict__.get(attribute)):
+                    # Class has attribute and attribute is a data descriptor
+                    return id(cls)
+
+        # This would lead to an infinite recursion and thus a crash of the program
+        if attribute in ("__getattr__", "__getitem__"):
+            return -1
+        # Check if the dictionary of the object on which lookup is performed
+        if hasattr(object_type, "__dict__") and object_type.__dict__:
+            if attribute in object_type.__dict__:
+                return id(object_type)
+        if hasattr(object_type, "__slots__") and object_type.__slots__:
+            if attribute in object_type.__slots__:
+                return id(object_type)
+
+        # Check if attribute in MRO hierarchy (no need for data descriptor)
+        for cls in type(object_type).__mro__:
+            if attribute in cls.__dict__:
+                return id(cls)
+
+        return -1
+
     def __repr__(self) -> str:
         return "ExecutionTracer"
 
@@ -958,6 +1652,146 @@ class ExecutionTracer:
                 self._known_data.existing_lines[line_id].line_number
                 for line_id in line_ids
             ]
+        )
+
+
+@dataclass
+class ExecutedAssertion:
+    """Data class for assertions of a testcase traced during execution for slicing"""
+
+    code_object_id: int
+    node_id: int
+    trace_position: int
+
+
+@dataclass(frozen=True)
+class ExecutedInstruction:
+    """Represents an executed bytecode instruction with additional information."""
+
+    file: str
+    code_object_id: int
+    node_id: int
+    opcode: int
+    argument: int | str | None
+    lineno: int
+    offset: int
+
+    @property
+    def name(self) -> str:
+        """Returns the name of the executed instruction.
+
+        Returns:
+            The name of the executed instruction.
+        """
+        return opname[self.opcode]
+
+    @staticmethod
+    def is_jump() -> bool:
+        """Returns whether the executed instruction is a jump condition.
+
+        Returns:
+            True, if the instruction is a jump condition, False otherwise.
+        """
+        return False
+
+    def __str__(self) -> str:
+        return (
+            f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+@dataclass(frozen=True)
+class ExecutedMemoryInstruction(ExecutedInstruction):
+    """Represents an executed instructions which read from or wrote to memory."""
+
+    arg_address: int
+    is_mutable_type: bool
+    object_creation: bool
+
+    def __str__(self) -> str:
+        if not self.arg_address:
+            arg_address = -1
+        else:
+            arg_address = self.arg_address
+        return (
+            f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+@dataclass(frozen=True)
+class ExecutedAttributeInstruction(ExecutedInstruction):
+    """
+    Represents an executed instructions which accessed an attribute.
+
+    We prepend each accessed attribute with the address of the object the attribute
+    is taken from. This allows to build correct def-use pairs during backward traversal.
+    """
+
+    src_address: int
+    arg_address: int
+    is_mutable_type: bool
+
+    @property
+    def combined_attr(self):
+        """Format the source address and the argument
+        for an ExecutedAttributeInstruction.
+
+        Returns:
+            A string representation of the attribute in memory
+        """
+        return f"{hex(self.src_address)}_{self.argument}"
+
+    def __str__(self) -> str:
+        return (
+            f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.combined_attr:<51} {self.code_object_id:02d} "
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+@dataclass(frozen=True)
+class ExecutedControlInstruction(ExecutedInstruction):
+    """Represents an executed control flow instruction."""
+
+    @staticmethod
+    def is_jump() -> bool:
+        """Returns whether the executed instruction is a jump condition.
+
+        Returns:
+            True, if the instruction is a jump condition, False otherwise.
+        """
+        return True
+
+    def __str__(self) -> str:
+        return (
+            f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{self.argument:<51} {self.code_object_id:02d} "
+            f"@ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+@dataclass(frozen=True)
+class ExecutedCallInstruction(ExecutedInstruction):
+    """Represents an executed call instruction."""
+
+    def __str__(self) -> str:
+        return (
+            f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+        )
+
+
+@dataclass(frozen=True)
+class ExecutedReturnInstruction(ExecutedInstruction):
+    """Represents an executed return instruction."""
+
+    def __str__(self) -> str:
+        return (
+            f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
         )
 
 
@@ -1150,8 +1984,6 @@ class ModuleProvider:
 class TestCaseExecutor:
     """An executor that executes the generated test cases."""
 
-    _logger = logging.getLogger(__name__)
-
     def __init__(
         self, tracer: ExecutionTracer, module_provider: ModuleProvider | None = None
     ) -> None:
@@ -1172,9 +2004,13 @@ class TestCaseExecutor:
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
+        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+        self._checked_transformer = InstrumentationTransformer(
+            self._tracer, [checked_adapter]
+        )
 
         def log_thread_exception(arg):
-            self._logger.error(
+            _logger.error(
                 "Exception in Thread: %s",
                 arg.thread,
                 exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
@@ -1229,11 +2065,17 @@ class TestCaseExecutor:
         """
         return self._tracer
 
-    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+    def execute(
+        self,
+        test_case: tc.TestCase,
+        instrument_test: bool = False,
+    ) -> ExecutionResult:
         """Executes all statements of the given test case.
 
         Args:
             test_case: the test case that should be executed.
+            instrument_test: if the test case itself needs to be
+                instrumented before execution
 
         Raises:
             RuntimeError: If something goes wrong inside Pynguin during execution.
@@ -1246,7 +2088,7 @@ class TestCaseExecutor:
                 return_queue: Queue[ExecutionResult] = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case,
-                    args=(test_case, return_queue),
+                    args=(test_case, return_queue, instrument_test),
                     daemon=True,
                 )
                 thread.start()
@@ -1257,12 +2099,12 @@ class TestCaseExecutor:
                     # kills the thread
                     self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
-                    self._logger.warning("Experienced timeout from test-case execution")
+                    _logger.warning("Experienced timeout from test-case execution")
                 else:
                     try:
                         result = return_queue.get(block=False)
                     except Empty as ex:
-                        self._logger.error("Finished thread did not return a result.")
+                        _logger.error("Finished thread did not return a result.")
                         raise RuntimeError("Bug in Pynguin!") from ex
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
@@ -1273,9 +2115,7 @@ class TestCaseExecutor:
             observer.before_test_case_execution(test_case)
 
     def _execute_test_case(
-        self,
-        test_case: tc.TestCase,
-        result_queue: Queue,
+        self, test_case: tc.TestCase, result_queue: Queue, instrument_test: bool
     ) -> None:
         self._before_test_case_execution(test_case)
         result = ExecutionResult()
@@ -1283,7 +2123,7 @@ class TestCaseExecutor:
         self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             ast_node = self._before_statement_execution(statement, exec_ctx)
-            exception = self.execute_ast(ast_node, exec_ctx)
+            exception = self.execute_ast(ast_node, exec_ctx, instrument=instrument_test)
             self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
@@ -1332,7 +2172,7 @@ class TestCaseExecutor:
         # is not caused by the test case and should therefore not be in the trace.
         self._tracer.disable()
 
-        ast_node = exec_ctx.node_for(statement)
+        ast_node = exec_ctx.node_for_statement(statement)
         try:
             for observer in self._observers:
                 ast_node = observer.before_statement_execution(
@@ -1342,9 +2182,11 @@ class TestCaseExecutor:
             self._tracer.enable()
         return ExecutionContext.wrap_node_in_module(ast_node)
 
-    @staticmethod
     def execute_ast(
-        ast_node: ast.Module, exec_ctx: ExecutionContext
+        self,
+        ast_node: ast.Module,
+        exec_ctx: ExecutionContext,
+        instrument: bool = False,
     ) -> BaseException | None:
         """Execute the given ast_node in the given context.
         You can use this in an observer if you also need to execute an AST Node.
@@ -1352,21 +2194,24 @@ class TestCaseExecutor:
         Args:
             ast_node: The node to execute.
             exec_ctx: The execution context
+            instrument: Instrument execution of the given node.
 
         Returns:
             The raised exception, if any.
         """
-        if TestCaseExecutor._logger.isEnabledFor(logging.DEBUG):
-            TestCaseExecutor._logger.debug("Executing %s", ast.unparse(ast_node))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug("Executing %s", ast.unparse(ast_node))
+
         code = compile(ast_node, "<ast>", "exec")
+        if instrument:
+            code = self._checked_transformer.instrument_module(code)
+
         try:
             # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
         except BaseException as err:  # pylint: disable=broad-except
             failed_stmt = ast.unparse(ast_node)
-            TestCaseExecutor._logger.debug(
-                "Failed to execute statement:\n%s%s", failed_stmt, err.args
-            )
+            _logger.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
         return None
 
