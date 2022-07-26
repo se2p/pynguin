@@ -26,7 +26,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericField,

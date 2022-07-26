@@ -21,7 +21,7 @@ import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.exceptions import ConstructionFailedException
 from tests.fixtures.examples.monkey import Monkey
 

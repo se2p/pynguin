@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import (
     extract_non_generic_class,
     filter_type_vars,

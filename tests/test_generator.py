@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.types as types
+import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
 import pynguin.generator as gen
 from pynguin.instrumentation.machinery import install_import_hook
