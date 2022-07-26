@@ -773,15 +773,19 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
-def __add_symbols(class_ast: astroid.ClassDef, type_info: TypeInfo):
+def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> None:
+    """Tries to infer what symbols can be found on an instance of the given class.
+    We also try to infer what attributes are defined in '__init__'.
+
+    Args:
+        class_ast: The AST Node of the class.
+        type_info: The type info.
+    """
     if class_ast is not None:
-        type_info.instance_attributes.update(list(class_ast.instance_attrs))
-    if issubclass(type_info.raw_type, tuple) and hasattr(type_info.raw_type, "_fields"):
-        # Handle Named Tuple
-        type_info.instance_attributes.update(type_info.raw_type._fields)  # type:ignore
+        type_info.instance_attributes.update(tuple(class_ast.instance_attrs))
     type_info.symbols.update(type_info.instance_attributes)
     # TODO(fk) filter?
-    type_info.symbols.update(list(vars(type_info.raw_type)))
+    type_info.symbols.update(tuple(vars(type_info.raw_type)))
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments

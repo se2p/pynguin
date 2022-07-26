@@ -275,3 +275,20 @@ def test_is_subtype(subtyping_cluster, left_hint, right_hint, result):
     left = graph.convert_type_hint(left_hint)
     right = graph.convert_type_hint(right_hint)
     assert graph.is_subtype(left, right) is result
+
+
+@pytest.mark.parametrize(
+    "subclass,superclass,result",
+    [
+        (int, int, True),
+        (int, str, False),
+        (Sub, Super, True),
+        (Super, Sub, False),
+    ],
+)
+def test_is_subclass(subtyping_cluster, subclass, superclass, result):
+    graph = subtyping_cluster.inheritance_graph
+    assert (
+        graph.is_subclass(graph.to_type_info(subclass), graph.to_type_info(superclass))
+        == result
+    )

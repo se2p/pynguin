@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
 import networkx as nx
-from networkx import has_path
 from networkx.drawing.nx_pydot import to_pydot
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
@@ -582,7 +581,7 @@ class InheritanceGraph:
         Returns:
             True, if there is a subclassing path from left to right.
         """
-        return has_path(self._graph, right, left)
+        return nx.has_path(self._graph, right, left)
 
     def is_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' a subtype of 'right'?
@@ -644,7 +643,7 @@ class InheritanceGraph:
         Returns:
             Type info, if any.
         """
-        return self._types[full_name]
+        return self._types.get(full_name)
 
     def convert_type_hint(
         self,

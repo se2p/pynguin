@@ -417,7 +417,6 @@ def test_inheritance_graph():
     [
         ("tests.fixtures.cluster.attributes", "SomeClass", {"foo", "bar"}),
         ("tests.fixtures.cluster.attributes", "SomeDataClass", {"baz", "box"}),
-        ("tests.fixtures.cluster.attributes", "SomeNamedTuple", {"a", "b", "c"}),
     ],
 )
 def test_instance_attrs(mod, typ, attributes):
