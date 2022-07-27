@@ -25,7 +25,7 @@ from typing_inspect import (
 )
 
 if typing.TYPE_CHECKING:
-    from pynguin.analyses.types import InferredSignature
+    from pynguin.analyses.typesystem import InferredSignature
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
 COLLECTIONS = OrderedSet([list, set, tuple, dict])
