@@ -307,8 +307,9 @@ class ExecutionObserver:
         """
 
 
-class CheckedCoverageObserver(ExecutionObserver):
-    """An observer for checked coverage which executes assertions after statements."""
+class AssertionSlicingObserver(ExecutionObserver):
+    """An observer which executes the assertions of statements to enable slicing on
+    the recorded data."""
 
     def __init__(self, tracer: ExecutionTracer):
         self._tracer = tracer

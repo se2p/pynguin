@@ -4,11 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from unittest.mock import MagicMock
-
 import pytest
 
-import pynguin.assertion.assertion_trace as at
 from pynguin.testcase.execution import ExecutionResult
 
 
@@ -44,12 +41,6 @@ def test_get_first_position_of_ex_none(execution_result):
 
 def test_timeout(execution_result):
     assert execution_result.timeout
-
-
-def test_output_traces(execution_result):
-    trace = MagicMock(at.AssertionTrace)
-    execution_result.assertion_trace = trace
-    assert execution_result.assertion_trace == trace
 
 
 @pytest.mark.parametrize(
