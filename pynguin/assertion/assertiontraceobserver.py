@@ -116,7 +116,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 type(exec_ctx.get_reference_value(statement.ret_val)).__module__
                 != "builtins"
             ):
-                # Everything else is continually checked, unless it is from builltins.
+                # Everything else is continually checked, unless it is from builtins.
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
         for var in self._assertion_local_state.watch_list:

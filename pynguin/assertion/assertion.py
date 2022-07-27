@@ -116,7 +116,7 @@ class TypeNameAssertion(ReferenceAssertion):
         return hash((self._source, self._module, self._qualname))
 
     def __repr__(self):
-        return f"NotNoneAssertion({self._source!r}, {self._module}, {self._qualname})"
+        return f"TypeNameAssertion({self._source!r}, {self._module}, {self._qualname})"
 
 
 class FloatAssertion(ReferenceAssertion):

@@ -23,6 +23,7 @@ from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
 from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union
 
+# Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
 from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
