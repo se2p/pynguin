@@ -6,7 +6,7 @@
 #
 from unittest.mock import MagicMock
 
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,

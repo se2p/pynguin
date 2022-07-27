@@ -14,6 +14,7 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
+from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import ExecutionTrace
 
 if TYPE_CHECKING:
@@ -37,19 +38,23 @@ class TestCaseChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test case chromosome."""
 
-    def _run_test_case_chromosome(self, individual) -> ExecutionResult:
+    def _run_test_case_chromosome(
+        self, individual, instrument_test: bool = False
+    ) -> ExecutionResult:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
+            instrument_test: whether the test needs to be
+                instrumented before the execution
 
         Returns:
             A list of execution results
         """
         if individual.has_changed() or individual.get_last_execution_result() is None:
             individual.set_last_execution_result(
-                self._executor.execute(individual.test_case)
+                self._executor.execute(individual.test_case, instrument_test)
             )
             individual.set_changed(False)
         result = individual.get_last_execution_result()
@@ -62,12 +67,16 @@ class TestSuiteChromosomeComputation(
 ):  # pylint:disable=too-few-public-methods
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
+    def _run_test_suite_chromosome(
+        self, individual, instrument_test_suite: bool = False
+    ) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results for
         all test cases that were changed.
 
         Args:
             individual: The individual to run
+            instrument_test_suite: whether the test suite needs to be
+                instrumented before the execution
 
         Returns:
             A list of execution results
@@ -79,7 +88,9 @@ class TestSuiteChromosomeComputation(
                 or test_case_chromosome.get_last_execution_result() is None
             ):
                 test_case_chromosome.set_last_execution_result(
-                    self._executor.execute(test_case_chromosome.test_case)
+                    self._executor.execute(
+                        test_case_chromosome.test_case, instrument_test_suite
+                    )
                 )
                 test_case_chromosome.set_changed(False)
                 # If we execute a suite which in turn executes it's test cases,
@@ -320,6 +331,28 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_line_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestSuiteCheckedCoverageFunction(TestSuiteCoverageFunction):
+    """Computes checked coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        results = self._run_test_suite_chromosome(
+            individual, instrument_test_suite=True
+        )
+        merged_trace = analyze_results(results)
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
+
+
+class TestCaseCheckedCoverageFunction(TestCaseCoverageFunction):
+    """Computes checked coverage on test suites."""
+
+    def compute_coverage(self, individual) -> float:
+        result = self._run_test_case_chromosome(individual, instrument_test=True)
+        merged_trace = analyze_results([result])
+        tracer = self._executor.tracer
+        return compute_checked_coverage(merged_trace, tracer.get_known_data())
 
 
 class ComputationCache:
@@ -770,6 +803,47 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
         coverage = 1.0
     else:
         covered = len(trace.covered_line_ids)
+        coverage = covered / existing
+    assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
+    return coverage
+
+
+def compute_checked_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+    """Computes checked coverage on bytecode instructions.
+    Each assertion can be sliced, returning a list of instructions
+    that are checked by an assertion.
+    If we combine all lists of instructions returned by slicing all assertions,
+    we get the combined dynamic slice of the test execution's assertions.
+    We then can map all instructions inside the slice to lines
+    that are checked covered of the module under test.
+    To calculate the coverage we can then divide the amount of lines checked
+    covered through the test execution by the lines overall available in the
+    module under test.
+
+    Args:
+        trace: The execution trace
+        known_data: All known data
+
+    Returns:
+        The computed coverage value
+    """
+    existing = len(known_data.existing_lines)
+
+    if existing == 0:
+        # Nothing to cover => everything is covered.
+        coverage = 1.0
+    else:
+        assertion_slicer = AssertionSlicer(known_data.existing_code_objects)
+        checked_instructions = []
+        for assertion in trace.executed_assertions:
+            checked_instructions.extend(
+                assertion_slicer.slice_assertion(assertion, trace)
+            )
+
+        # reduce coverage to lines instead of instructions
+        checked_lines = assertion_slicer.map_instructions_to_lines(checked_instructions)
+
+        covered = len(checked_lines)
         coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

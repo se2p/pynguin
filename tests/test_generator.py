@@ -4,15 +4,19 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+import importlib
+import threading
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.types as types
+import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
 import pynguin.generator as gen
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 
 
 def test_init_with_configuration():
@@ -116,6 +120,48 @@ def test_setup_hook():
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
         assert gen._setup_import_hook(None)
         hook_mock.assert_called_once()
+
+
+def test__track_resulting_checked_coverage_exchanges_loader():
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.BRANCH,
+    ]
+    config.configuration.seeding.dynamic_constant_seeding = False
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    result = MagicMock()
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        old_loader = module.__loader__
+
+        gen._track_resulting_checked_coverage(executor, result, None)
+
+        new_metrics = config.configuration.statistics_output.coverage_metrics
+        assert len(new_metrics) == 1
+        assert config.CoverageMetric.CHECKED in new_metrics
+
+        assert old_loader is not module.__loader__
+
+
+def test__reset_cache_for_result():
+    test_case = MagicMock()
+    result = MagicMock(test_case_chromosomes=[test_case])
+    with mock.patch.object(test_case, "invalidate_cache") as test_case_cache_mock:
+        with mock.patch.object(
+            test_case, "remove_last_execution_result"
+        ) as test_case_result_mock:
+            with mock.patch.object(result, "invalidate_cache") as result_cache_mock:
+                gen._reset_cache_for_result(result)
+                result_cache_mock.assert_called_once()
+                test_case_cache_mock.assert_called_once()
+                test_case_result_mock.assert_called_once()
 
 
 def test__setup_report_dir(tmp_path: Path):

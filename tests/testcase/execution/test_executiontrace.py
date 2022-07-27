@@ -5,7 +5,11 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
-from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.execution import (
+    ExecutedAssertion,
+    ExecutedInstruction,
+    ExecutionTrace,
+)
 
 
 def test_merge():
@@ -16,6 +20,10 @@ def test_merge():
 
 
 def test_merge_full():
+
+    instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
+    assert0 = ExecutedAssertion(0, 1, 2)
+
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
     trace0.executed_code_objects.add(1)
@@ -26,7 +34,11 @@ def test_merge_full():
     trace0.false_distances[0] = 0
     trace0.false_distances[1] = 1
     trace0.covered_line_ids = {0}
+    trace0.executed_instructions = [instr0]
+    trace0.executed_assertions = [assert0]
 
+    instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
+    assert1 = ExecutedAssertion(1, 2, 3)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -37,6 +49,11 @@ def test_merge_full():
     trace1.false_distances[1] = 234
     trace1.false_distances[2] = 0
     trace1.covered_line_ids = {1}
+    trace1.executed_instructions = [instr0, instr1]
+    trace1.executed_assertions = [assert1]
+
+    # Shifted by one
+    assert2 = ExecutedAssertion(1, 2, 4)
 
     result = ExecutionTrace()
     result.executed_code_objects.add(0)
@@ -52,6 +69,9 @@ def test_merge_full():
     result.false_distances[1] = 1
     result.false_distances[2] = 0
     result.covered_line_ids = {0, 1}
+    # instr0 is prepended
+    result.executed_instructions = [instr0, instr0, instr1]
+    result.executed_assertions = [assert0, assert2]
 
     trace0.merge(trace1)
     assert trace0 == result

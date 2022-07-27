@@ -175,7 +175,7 @@ float_0 = module_0.foo(int_0)""",
             "tests.fixtures.mutation.exception",
             """def test_case_0():
     float_0 = module_0.foo(int_0)""",
-            """module_0.foo()""",
+            """none_type_0 = module_0.foo()""",
             [
                 "def foo() -> None:\n"
                 "    alist = [2, 2]\n"

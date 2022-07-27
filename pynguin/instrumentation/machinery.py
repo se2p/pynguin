@@ -26,6 +26,7 @@ from pynguin.analyses.constants import (
 )
 from pynguin.instrumentation.instrumentation import (
     BranchCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
     DynamicSeedingInstrumentation,
     InstrumentationTransformer,
     LineCoverageInstrumentation,
@@ -90,6 +91,8 @@ def build_transformer(
         adapters.append(BranchCoverageInstrumentation(tracer))
     if config.CoverageMetric.LINE in coverage_metrics:
         adapters.append(LineCoverageInstrumentation(tracer))
+    if config.CoverageMetric.CHECKED in coverage_metrics:
+        adapters.append(CheckedCoverageInstrumentation(tracer))
 
     if config.configuration.seeding.dynamic_constant_seeding:
         assert dynamic_constant_provider is not None
@@ -162,7 +165,7 @@ class InstrumentationFinder(MetaPathFinder):
                     return spec
                 self._logger.error(
                     "Loader for module under test is not a FileLoader,"
-                    " cannot instrument."
+                    " can not instrument."
                 )
 
         return None
