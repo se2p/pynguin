@@ -18,7 +18,7 @@ import pynguin.ga.testsuitechromosome as tsc
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.ga.computations import (
     TestCaseStatementCheckedCoverageFunction,
     TestSuiteStatementCheckedCoverageFunction,
