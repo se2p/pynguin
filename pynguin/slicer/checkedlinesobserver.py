@@ -55,6 +55,8 @@ class CheckedLineObserver(ex.ExecutionObserver):
             assert isinstance(statement, st.VariableCreatingStatement)
             trace = self._tracer.get_trace()
             last_traced_instr = trace.executed_instructions[-2]
+            # TODO(SiL) handle test cases that do not have a store instruction here
+            #  example: apimd.compiler, s=0, MOSA, first iteration triggers this assert
             assert last_traced_instr.opcode == op.STORE_NAME
 
             code_object = self._tracer.get_known_data().existing_code_objects[
