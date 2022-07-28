@@ -13,6 +13,8 @@ import logging
 from abc import ABC
 from typing import TYPE_CHECKING
 
+from ordered_set import OrderedSet
+
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion, ExceptionAssertion
@@ -46,12 +48,12 @@ class AssertionMinimization(cv.ChromosomeVisitor):
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._remaining_assertions: set[Assertion] = set()
-        self._deleted_assertions: set[Assertion] = set()
-        self._checked_lines: set[int] = set()
+        self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
+        self._deleted_assertions: OrderedSet[Assertion] = OrderedSet()
+        self._checked_lines: OrderedSet[int] = OrderedSet()
 
     @property
-    def remaining_assertions(self) -> set[Assertion]:
+    def remaining_assertions(self) -> OrderedSet[Assertion]:
         """Provides a set of remaining assertions
 
         Returns:
@@ -60,7 +62,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         return self._remaining_assertions
 
     @property
-    def deleted_assertions(self) -> set[Assertion]:
+    def deleted_assertions(self) -> OrderedSet[Assertion]:
         """Provides a set of deleted assertions
 
         Returns:
@@ -73,14 +75,13 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             test_case_chromosome.accept(self)
 
         self._logger.debug(
-            "Removed %s assertion from test suite that"
-            "do not increase checked coverage",
-            len(self._deleted_assertions),
+            f"Removed {len(self._deleted_assertions)} assertion(s) from "
+            f"test suite that do not increase checked coverage",
         )
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         for stmt in chromosome.test_case.statements:
-            to_remove: set[Assertion] = set()
+            to_remove: OrderedSet[Assertion] = OrderedSet()
             for assertion in stmt.assertions:
                 new_checked_lines = AssertionSlicer.map_instructions_to_lines(
                     assertion.checked_instructions

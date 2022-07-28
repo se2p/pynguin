@@ -1535,7 +1535,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def register_exception_assertion(self, statement) -> None:
+    def register_exception_assertion(self, statement: stmt.Statement) -> None:
         """Track the position of an exception assertion in the trace.
 
         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
