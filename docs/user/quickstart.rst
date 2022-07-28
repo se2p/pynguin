@@ -94,7 +94,7 @@ the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
 Pynguin created assertions using :ref:`Mutation Analysis <mutation_analysis>`.
 The output then concludes with its results:
-Four test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -152,7 +152,7 @@ The command yields the following output:
 
 We can see that the *DYNAMOSA* algorithm had to perform eight iterations to fully cover
 the ``Queue`` example with the given seed.
-We can also see that Pynguin generated seven test cases:
+We can also see that Pynguin generated eight test cases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:

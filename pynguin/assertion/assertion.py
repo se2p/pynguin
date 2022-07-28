@@ -62,29 +62,61 @@ class ReferenceAssertion(Assertion, ABC):
         return self._source
 
 
-class NotNoneAssertion(ReferenceAssertion):
-    """An assertion that a reference is not None.
+class TypeNameAssertion(ReferenceAssertion):
+    """An assertion that a reference has a type with a certain name.
+    We compare the string representation of the fully qualified name.
+    Using an isinstance check would also be possible, but classes might not always
+    be accessible, for example when nested inside a function.
 
     For example:
-        assert var_0 is not None
+        int_0 = 42
+        assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int"
     """
 
+    def __init__(self, source: vr.Reference, module: str, qualname: str):
+        super().__init__(source)
+        self._module = module
+        self._qualname = qualname
+
+    @property
+    def module(self) -> str:
+        """Provides the module name
+
+        Returns:
+            The module name
+        """
+        return self._module
+
+    @property
+    def qualname(self) -> str:
+        """Provides the qualname name
+
+        Returns:
+            The qualname
+        """
+        return self._qualname
+
     def accept(self, visitor: AssertionVisitor) -> None:
-        visitor.visit_not_none_assertion(self)
+        visitor.visit_type_name_assertion(self)
 
     def clone(
         self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> NotNoneAssertion:
-        return NotNoneAssertion(self._source.clone(memo))
+    ) -> TypeNameAssertion:
+        return TypeNameAssertion(self._source.clone(memo), self._module, self._qualname)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NotNoneAssertion) and self._source == other._source
+        return (
+            isinstance(other, TypeNameAssertion)
+            and self._source == other._source
+            and self._module == other._module
+            and self._qualname == other._qualname
+        )
 
     def __hash__(self) -> int:
-        return hash(self._source)
+        return hash((self._source, self._module, self._qualname))
 
     def __repr__(self):
-        return f"NotNoneAssertion({self._source!r})"
+        return f"TypeNameAssertion({self._source!r}, {self._module}, {self._qualname})"
 
 
 class FloatAssertion(ReferenceAssertion):
@@ -280,36 +312,12 @@ class ExceptionAssertion(Assertion):
         return f"ExceptionAssertion({self._module}, {self._exception_type_name})"
 
 
-class NothingRaisedAssertion(Assertion):
-    """An assertion that no exception was raised.
-    This is a pseudo assertion used for mutation analysis to indicate
-    that the execution of a routine did not raise an exception.
-    It has no meaning otherwise and is not exported to AST."""
-
-    def accept(self, visitor: AssertionVisitor) -> None:
-        visitor.visit_nothing_raised_assertion(self)
-
-    def clone(
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> NothingRaisedAssertion:
-        return NothingRaisedAssertion()
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NothingRaisedAssertion)
-
-    def __hash__(self) -> int:
-        return 0
-
-    def __repr__(self):
-        return "NothingRaisedAssertion()"
-
-
 class AssertionVisitor:
     """Abstract visitor for assertions."""
 
     @abstractmethod
-    def visit_not_none_assertion(self, assertion: NotNoneAssertion) -> None:
-        """Visit a none assertion.
+    def visit_type_name_assertion(self, assertion: TypeNameAssertion) -> None:
+        """Visit a type name assertion.
 
         Args:
             assertion: the visited assertion
@@ -348,14 +356,6 @@ class AssertionVisitor:
     @abstractmethod
     def visit_exception_assertion(self, assertion: ExceptionAssertion) -> None:
         """Visit an exception assertion.
-
-        Args:
-            assertion: the visited assertion
-
-        """
-
-    def visit_nothing_raised_assertion(self, assertion: NothingRaisedAssertion) -> None:
-        """Visit a nothing raised assertion
 
         Args:
             assertion: the visited assertion

@@ -345,7 +345,7 @@ def plus_test_with_float_assertion() -> tc.TestCase:
 
 
 @pytest.fixture()
-def plus_test_with_not_none_assertion() -> tc.TestCase:
+def plus_test_with_type_name_assertion() -> tc.TestCase:
     """
     Generated testcase:
         int_0 = 42
@@ -367,7 +367,7 @@ def plus_test_with_not_none_assertion() -> tc.TestCase:
     test_case = transformer.testcases[0]
 
     test_case.statements[-1].add_assertion(
-        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
+        ass.TypeNameAssertion(test_case.statements[-1].ret_val, "builtins", "int")
     )
     return test_case
 

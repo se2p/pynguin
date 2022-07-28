@@ -109,3 +109,13 @@ The main reason for this is to prevent circular imports.
 During type checking, these imports do not harm the type checker as it uses much more
 sophisticated techniques to handle the circular imports (like a compiler does) in
 contrast to the simple handling of the interpreter.
+
+
+Debugging test case execution
+-----------------------------
+
+We execute test cases in a separate thread.
+To track data on the test case execution, e.g., line or branch coverage, we use thread-local storage.
+Usage of threading.local may interfere with debugging tools, such as pydevd.
+In such a case, disable Cython by setting the following environment variable:
+``PYDEVD_USE_CYTHON=NO``

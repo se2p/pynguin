@@ -22,7 +22,7 @@ def test_progress():
     strategy = DummyTestStrategy()
     stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
-    stopping.before_statement_execution(None, None)
+    stopping.before_statement_execution(None, None, None)
     strategy.stopping_conditions = [stopping]
     assert strategy.progress() == 0.1
 
