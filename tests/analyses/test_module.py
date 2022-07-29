@@ -76,7 +76,7 @@ def test_parse_c_module():
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
-    module.LOGGER.warning.assert_called_once()
+    module.LOGGER.debug.assert_called_once()
 
 
 def test_analyse_module(parsed_module_no_dependencies):
