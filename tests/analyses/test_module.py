@@ -244,7 +244,12 @@ def test_nothing_from_blacklist():
 
 def test_blacklist_is_valid():
     # Naive test without assert, checks if the module names are valid.
+    allowed_to_fail = ("six",)
     for item in MODULE_BLACKLIST:
+        if item in allowed_to_fail:
+            # We have modules in our blacklist that are not a dependency of Pynguin,
+            # thus the import might fail.
+            continue
         importlib.import_module(item)
 
 
