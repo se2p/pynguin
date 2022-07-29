@@ -16,13 +16,7 @@ from inspect import isclass
 from typing import Any
 
 from ordered_set import OrderedSet
-from typing_inspect import (
-    get_args,
-    get_origin,
-    is_generic_type,
-    is_typevar,
-    is_union_type,
-)
+from typing_inspect import get_origin
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import InferredSignature
@@ -95,101 +89,6 @@ def is_none_type(typ: type | None) -> bool:
         Whether or not the given type is NoneType
     """
     return typ is type(None)  # noqa: E721
-
-
-def is_type_unknown(typ: type | None) -> bool:
-    """Is the type of this variable unknown?
-
-    Args:
-        typ: a type to check
-
-    Returns:
-        Whether or not the given type is unknown
-    """
-    return typ is None
-
-
-def is_subtype_of(typ1: type | None, typ2: type | None) -> bool:
-    """A naive implementation to check if typ1 is a subtype of typ2.
-
-    Currently, only handles simple class types and Union.
-    Should be gradually extended to support more complex structures, e.g.,
-    generics.
-
-    See https://peps.python.org/pep-0483/ for more details on this relation.
-
-    Args:
-        typ1: first type
-        typ2: second type
-
-    Returns:
-        True, if typ1 is a subtype of typ2
-    """
-    if typ1 == typ2:
-        # Trivial case
-        return True
-    if (non_generic_tp1 := extract_non_generic_class(typ1)) is not None and (
-        non_generic_tp2 := extract_non_generic_class(typ2)
-    ) is not None:
-        # Hacky way to handle generics by trying to extract non-generic classes
-        # and checking for subclass relation
-        return issubclass(non_generic_tp1, non_generic_tp2)
-    if is_union_type(typ2):
-        if is_union_type(typ1):
-            # Union[int, str] is a subtype of Union[str, float, int]
-            return all(is_subtype_of(t1_element, typ2) for t1_element in get_args(typ1))
-        # Check type separately
-        return any(is_subtype_of(typ1, t2_element) for t2_element in get_args(typ2))
-    return False
-
-
-def is_consistent_with(typ1: type | None, typ2: type | None) -> bool:
-    """Is typ1 is consistent with typ2.
-
-    The notion of this relation is taken from https://peps.python.org/pep-0483/
-
-    Args:
-        typ1: The type that is used as the source.
-        typ2: The type which should be assigned to.
-
-    Returns:
-        True if tp1 is compatible with tp2
-    """
-    if (
-        typ1 is typing.Any or typ2 is typing.Any
-    ):  # pylint:disable=comparison-with-callable
-        return True
-    return is_subtype_of(typ1, typ2)
-
-
-def extract_non_generic_class(obj) -> type | None:
-    """Extract non-generic origin.
-
-    Args:
-        obj: The object to check
-
-    Returns:
-        True if it is a non-generic class
-    """
-    if not isclass(obj):
-        return None
-    if is_generic_type(obj):
-        return get_origin(obj)
-    return obj
-
-
-def filter_type_vars(obj):
-    """We cannot handle typevars yet, so we erase them for now.
-
-    Args:
-        obj: maybe a type var
-
-    Returns:
-        Any, if obj was a typevar, otherwise return obj
-    """
-    if is_typevar(obj):
-        return Any
-    return obj
 
 
 def is_numeric(value: Any) -> bool:
@@ -379,28 +278,6 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
         )
         or parameter.default is not inspect.Parameter.empty
     )
-
-
-def wrap_var_param_type(typ: type | None, param_kind) -> type | None:
-    """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
-    respectively.
-
-    Args:
-        typ: The type to be wrapped.
-        param_kind: the kind of parameter.
-
-    Returns:
-        The wrapped type, or the original type, if no wrapping is required.
-    """
-    if param_kind == inspect.Parameter.VAR_POSITIONAL:
-        if typ is None:
-            return list[typing.Any]
-        return list[typ]  # type: ignore
-    if param_kind == inspect.Parameter.VAR_KEYWORD:
-        if typ is None:
-            return dict[str, typing.Any]
-        return dict[str, typ]  # type: ignore
-    return typ
 
 
 def given_exception_matches(err, exc) -> bool:

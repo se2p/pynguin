@@ -104,8 +104,8 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.Attribute(
                 value=ast.Attribute(
-                    value=self._create_module_alias(owner.__module__),
-                    attr=owner.__name__,
+                    value=self._create_module_alias(owner.module),
+                    attr=owner.name,
                     ctx=ast.Load(),
                 ),
                 attr=stmt.value_name,
@@ -122,9 +122,9 @@ class StatementToAstVisitor(StatementVisitor):
         args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
-                attr=owner.__name__,
+                attr=owner.name,
                 ctx=ast.Load(),
-                value=self._create_module_alias(owner.__module__),
+                value=self._create_module_alias(owner.module),
             ),
             args=args,
             keywords=kwargs,

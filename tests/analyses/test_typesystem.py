@@ -13,14 +13,13 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import (
     AnyType,
     InferredSignature,
-    InheritanceGraph,
     Instance,
     NoneType,
     TupleType,
     TypeInferenceStrategy,
     TypeInfo,
+    TypeSystem,
     UnionType,
-    infer_type_info,
 )
 from tests.fixtures.types.subtyping import Sub, Super
 
@@ -226,7 +225,7 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     ],
 )
 def test_convert_type_hints(hint, expected):
-    graph = InheritanceGraph()
+    graph = TypeSystem()
     assert graph.convert_type_hint(hint) == expected
     assert repr(graph.convert_type_hint(hint)) == repr(expected)
 
@@ -271,10 +270,10 @@ def subtyping_cluster():
     ],
 )
 def test_is_subtype(subtyping_cluster, left_hint, right_hint, result):
-    graph = subtyping_cluster.inheritance_graph
-    left = graph.convert_type_hint(left_hint)
-    right = graph.convert_type_hint(right_hint)
-    assert graph.is_subtype(left, right) is result
+    type_system = subtyping_cluster.type_system
+    left = type_system.convert_type_hint(left_hint)
+    right = type_system.convert_type_hint(right_hint)
+    assert type_system.is_subtype(left, right) is result
 
 
 @pytest.mark.parametrize(
@@ -287,8 +286,10 @@ def test_is_subtype(subtyping_cluster, left_hint, right_hint, result):
     ],
 )
 def test_is_subclass(subtyping_cluster, subclass, superclass, result):
-    graph = subtyping_cluster.inheritance_graph
+    type_system = subtyping_cluster.type_system
     assert (
-        graph.is_subclass(graph.to_type_info(subclass), graph.to_type_info(superclass))
+        type_system.is_subclass(
+            type_system.to_type_info(subclass), type_system.to_type_info(superclass)
+        )
         == result
     )

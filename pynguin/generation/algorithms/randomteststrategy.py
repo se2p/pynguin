@@ -101,7 +101,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 for chromosome in test_chromosome.test_case_chromosomes
             ]
         )
-        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase())
+        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase(self.test_cluster))
         for test in tests:
             new_test.test_case.append_test_case(test)
 

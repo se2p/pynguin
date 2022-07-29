@@ -8,30 +8,31 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from ordered_set import OrderedSet
-from typing_inspect import get_args, get_origin
 
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
+from pynguin.analyses.typesystem import (
+    AnyType,
+    InferredSignature,
+    Instance,
+    ProperType,
+    TupleType,
+    is_collection_type,
+    is_primitive_type,
+)
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import (
-    is_collection_type,
-    is_consistent_with,
-    is_optional_parameter,
-    is_primitive_type,
-    is_type_unknown,
-)
+from pynguin.utils.type_utils import is_optional_parameter
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.analyses.typesystem import InferredSignature
 
 
 # TODO(fk) find better name for this?
@@ -275,7 +276,11 @@ class TestFactory:
         length = test_case.size()
         if callee is None:
             callee = self._create_or_reuse_variable(
-                test_case, method.owner, position, recursion_depth, allow_none=False
+                test_case,
+                Instance(method.owner),
+                position,
+                recursion_depth,
+                allow_none=False,
             )
         assert callee, "The callee must not be None"
         parameters: dict[str, vr.VariableReference] = self.satisfy_parameters(
@@ -336,7 +341,11 @@ class TestFactory:
         length = test_case.size()
         if callee is None:
             callee = self._create_or_reuse_variable(
-                test_case, field.owner, position, recursion_depth, allow_none=False
+                test_case,
+                Instance(field.owner),
+                position,
+                recursion_depth,
+                allow_none=False,
             )
         assert callee, "The callee must not be None"
         position = position + test_case.size() - length
@@ -592,7 +601,6 @@ class TestFactory:
             var
             for var in test_case.get_all_objects(position)
             if not var.is_primitive()
-            and not var.is_type_unknown()
             and not isinstance(
                 test_case.get_statement(var.get_statement_position()),
                 stmt.NoneStatement,
@@ -733,14 +741,10 @@ class TestFactory:
             statement: The new statement
 
         Returns:
-            Whether or not the operation was successful
+            Whether the operation was successful
         """
-        if statement.ret_val.is_type_unknown():
-            return False
-
         objects = test_case.get_all_objects(statement.get_position())
         type_ = statement.ret_val.type
-        assert type_, "Cannot change change call, when type is unknown"
         calls = self._get_possible_calls(type_, objects)
         acc_object = statement.accessible_object()
         if acc_object in calls:
@@ -779,7 +783,9 @@ class TestFactory:
         if call.is_method():
             method = cast(gao.GenericMethod, call)
             assert method.owner
-            callee = self._get_random_non_none_object(test_case, method.owner, position)
+            callee = self._get_random_non_none_object(
+                test_case, Instance(method.owner), position
+            )
             parameters = self._get_reuse_parameters(
                 test_case, method.inferred_signature, position
             )
@@ -835,7 +841,7 @@ class TestFactory:
 
     @staticmethod
     def _get_random_non_none_object(
-        test_case: tc.TestCase, type_: type, position: int
+        test_case: tc.TestCase, type_: ProperType, position: int
     ) -> vr.VariableReference:
         variables = test_case.get_objects(type_, position)
         variables = [
@@ -853,7 +859,7 @@ class TestFactory:
         return randomness.choice(variables)
 
     def _get_possible_calls(
-        self, return_type: type, objects: list[vr.VariableReference]
+        self, return_type: ProperType, objects: list[vr.VariableReference]
     ) -> list[gao.GenericAccessibleObject]:
         """Retrieve all the replacement calls that can be inserted at this position
          without changing the length.
@@ -875,9 +881,8 @@ class TestFactory:
                 calls.append(i)
         return calls
 
-    @staticmethod
     def _dependencies_satisfied(
-        dependencies: set[type], objects: list[vr.VariableReference]
+        self, dependencies: OrderedSet[ProperType], objects: list[vr.VariableReference]
     ) -> bool:
         """Determine if the set of objects is sufficient to satisfy the set of
         dependencies.
@@ -892,7 +897,7 @@ class TestFactory:
         for type_ in dependencies:
             found = False
             for var in objects:
-                if is_consistent_with(var.type, type_):
+                if self._test_cluster.type_system.is_subtype(var.type, type_):
                     found = True
             if not found:
                 return False
@@ -987,7 +992,7 @@ class TestFactory:
         return parameters
 
     def _reuse_variable(
-        self, test_case: tc.TestCase, parameter_type: type | None, position: int
+        self, test_case: tc.TestCase, parameter_type: ProperType, position: int
     ) -> vr.VariableReference | None:
         """Reuse an existing variable, if possible.
 
@@ -1001,9 +1006,9 @@ class TestFactory:
         """
 
         objects = test_case.get_objects(parameter_type, position)
-        probability = (
+        probability: float = (
             config.configuration.test_creation.primitive_reuse_probability
-            if is_primitive_type(parameter_type)
+            if parameter_type.accept(is_primitive_type)
             else config.configuration.test_creation.object_reuse_probability
         )
         if objects and randomness.next_float() <= probability:
@@ -1015,7 +1020,7 @@ class TestFactory:
     def _get_variable_fallback(
         self,
         test_case: tc.TestCase,
-        parameter_type: type | None,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
         allow_none: bool,
@@ -1066,20 +1071,12 @@ class TestFactory:
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: type | None,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
         allow_none: bool,
         exclude: vr.VariableReference | None = None,
     ) -> vr.VariableReference | None:
-        if is_type_unknown(parameter_type):
-            if config.configuration.type_inference.guess_unknown_types:
-                parameter_type = randomness.choice(
-                    self._test_cluster.get_all_generatable_types()
-                )
-            else:
-                return None
-
         if (
             reused_variable := self._reuse_variable(test_case, parameter_type, position)
         ) is not None:
@@ -1103,7 +1100,7 @@ class TestFactory:
     def _create_variable(
         self,
         test_case: tc.TestCase,
-        parameter_type: type | None,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
         allow_none: bool,
@@ -1117,7 +1114,7 @@ class TestFactory:
     def _attempt_generation(
         self,
         test_case: tc.TestCase,
-        parameter_type: type | None,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
         allow_none: bool,
@@ -1127,9 +1124,6 @@ class TestFactory:
         # choose one.
         parameter_type = self._test_cluster.select_concrete_type(parameter_type)
 
-        if not parameter_type:
-            return None
-
         if (
             allow_none
             and randomness.next_float()
@@ -1138,15 +1132,15 @@ class TestFactory:
             return self._create_none(
                 test_case, parameter_type, position, recursion_depth
             )
-        if is_primitive_type(parameter_type):
+        if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
                 test_case,
-                parameter_type,
+                cast(Instance, parameter_type),
                 position,
                 recursion_depth,
                 constant_provider=self._constant_provider,
             )
-        if is_collection_type(parameter_type):
+        if parameter_type.accept(is_collection_type):
             return self._create_collection(
                 test_case,
                 parameter_type,
@@ -1196,7 +1190,7 @@ class TestFactory:
     @staticmethod
     def _create_none(
         test_case: tc.TestCase,
-        parameter_type: type | None,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
@@ -1208,22 +1202,22 @@ class TestFactory:
     @staticmethod
     def _create_primitive(
         test_case: tc.TestCase,
-        parameter_type: type,
+        parameter_type: Instance,
         position: int,
         recursion_depth: int,
         constant_provider: ConstantProvider,
     ) -> vr.VariableReference:
-        if parameter_type == int:
+        if parameter_type.type.raw_type == int:
             statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(
                 test_case, constant_provider=constant_provider
             )
-        elif parameter_type == float:
+        elif parameter_type.type.raw_type == float:
             statement = stmt.FloatPrimitiveStatement(
                 test_case, constant_provider=constant_provider
             )
-        elif parameter_type == bool:
+        elif parameter_type.type.raw_type == bool:
             statement = stmt.BooleanPrimitiveStatement(test_case)
-        elif parameter_type == bytes:
+        elif parameter_type.type.raw_type == bytes:
             statement = stmt.BytesPrimitiveStatement(
                 test_case, constant_provider=constant_provider
             )
@@ -1238,38 +1232,43 @@ class TestFactory:
     def _create_collection(
         self,
         test_case: tc.TestCase,
-        parameter_type: type,
+        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        if parameter_type in (list, set) or get_origin(parameter_type) in (list, set):
-            return self._create_list_or_set(
-                test_case, parameter_type, position, recursion_depth
-            )
-        if parameter_type == tuple or get_origin(parameter_type) == tuple:
+        if isinstance(parameter_type, Instance):
+            if parameter_type.type.raw_type in (list, set):
+                return self._create_list_or_set(
+                    test_case, parameter_type, position, recursion_depth
+                )
+            if parameter_type.type.raw_type == tuple:
+                return self._create_tuple(
+                    test_case, parameter_type, position, recursion_depth
+                )
+            if parameter_type.type.raw_type == dict:
+                return self._create_dict(
+                    test_case, parameter_type, position, recursion_depth
+                )
+        if isinstance(parameter_type, TupleType):
             return self._create_tuple(
-                test_case, parameter_type, position, recursion_depth
-            )
-        if parameter_type == dict or get_origin(parameter_type) == dict:
-            return self._create_dict(
                 test_case, parameter_type, position, recursion_depth
             )
         raise RuntimeError("Unknown collection type")
 
     # TODO(fk) Methods below should be refactored asap,
-    # as they contain a lot of duplicate code
+    #  as they contain a lot of duplicate code.
+    # TODO(fk) improve generic support.
     def _create_list_or_set(
         self,
         test_case: tc.TestCase,
-        parameter_type: type,
+        parameter_type: Instance,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        args = get_args(parameter_type)
-        if len(args) == 1:
-            element_type = args[0]
+        if len(parameter_type.args) == 1:
+            element_type = parameter_type.args[0]
         else:
-            element_type = Any
+            element_type = AnyType()
         size = randomness.next_int(
             0, config.configuration.test_creation.collection_size
         )
@@ -1284,7 +1283,7 @@ class TestFactory:
             position += test_case.size() - previous_length
         collection_stmt = (
             stmt.ListStatement(test_case, parameter_type, elements)
-            if parameter_type == list or get_origin(parameter_type) == list
+            if parameter_type.type.raw_type == list
             else stmt.SetStatement(test_case, parameter_type, elements)
         )
         ret = test_case.add_variable_creating_statement(collection_stmt, position)
@@ -1294,20 +1293,20 @@ class TestFactory:
     def _create_tuple(
         self,
         test_case: tc.TestCase,
-        parameter_type: type,
+        parameter_type: TupleType | Instance,  # TODO(fk) annoying.
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        args = get_args(parameter_type)
+        args = parameter_type.args
         if len(args) == 0:
             # Untyped tuple, time to guess...
             size = randomness.next_int(
                 0, config.configuration.test_creation.collection_size
             )
-            args = [
+            args = tuple(
                 randomness.choice(self._test_cluster.get_all_generatable_types())
                 for _ in range(size)
-            ]
+            )
         elements = []
         for arg_type in args:
             previous_length = test_case.size()
@@ -1326,17 +1325,17 @@ class TestFactory:
     def _create_dict(
         self,
         test_case: tc.TestCase,
-        parameter_type: type,
+        parameter_type: Instance,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        args = get_args(parameter_type)
+        args = parameter_type.args
         if len(args) == 2:
             key_type = args[0]
             value_type = args[1]
         else:
-            key_type = Any
-            value_type = Any
+            key_type = AnyType()
+            value_type = AnyType()
         size = randomness.next_int(
             0, config.configuration.test_creation.collection_size
         )
@@ -1368,7 +1367,7 @@ class TestFactory:
             test_case: the test case to check.
 
         Returns:
-            True, iff the test case has a call on the SUT.
+            True, if the test case has a call on the SUT.
         """
         for statement in test_case.statements:
             if (

@@ -10,8 +10,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from pynguin.utils import type_utils
-from pynguin.utils.type_utils import is_type_unknown
+from pynguin.analyses.typesystem import NoneType, ProperType, is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
@@ -30,11 +29,11 @@ class Reference(metaclass=ABCMeta):
     Here, foo_0, int_0 and foo_0.bar are references.
     """
 
-    def __init__(self, typ: type | None) -> None:
+    def __init__(self, typ: ProperType) -> None:
         self._type = typ
 
     @property
-    def type(self) -> type | None:
+    def type(self) -> ProperType:
         """Provides the type of this reference.
 
         Returns:
@@ -48,7 +47,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if the variable is a primitive
         """
-        return type_utils.is_primitive_type(self.type)
+        return self.type.accept(is_primitive_type)
 
     def is_none_type(self) -> bool:
         """Is this variable reference of type none, i.e. it does not return anything.
@@ -56,15 +55,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if this variable is a none type
         """
-        return type_utils.is_none_type(self.type)
-
-    def is_type_unknown(self) -> bool:
-        """Is the type of this variable unknown?
-
-        Returns:
-            True if this variable has unknown type
-        """
-        return is_type_unknown(self.type)
+        return isinstance(self.type, NoneType)
 
     @abstractmethod
     def get_names(
@@ -152,7 +143,7 @@ class VariableReference(Reference):
     to check for equality. The other reference do implement eq/hash.
     """
 
-    def __init__(self, test_case: tc.TestCase, typ: type | None):
+    def __init__(self, test_case: tc.TestCase, typ: ProperType):
         super().__init__(typ)
         self._test_case = test_case
         self._distance = 0
@@ -260,11 +251,11 @@ class CallBasedVariableReference(VariableReference):
         test_case: tc.TestCase,
         generic_callable: gao.GenericCallableAccessibleObject,
     ):
-        super().__init__(test_case, None)
+        super().__init__(test_case, NoneType())  # dummy
         self._callable = generic_callable
 
     @property
-    def type(self) -> type | None:
+    def type(self) -> ProperType:
         # Dynamically look up type instead of using fixed type given at
         # construction time.
         return self._callable.generated_type()
@@ -373,8 +364,8 @@ class StaticFieldReference(Reference):
     ) -> list[str]:
         assert self._field.owner is not None
         return [
-            module_names.get_name(self._field.owner.__module__),
-            self._field.owner.__name__,
+            module_names.get_name(self._field.owner.module),
+            self._field.owner.name,
             self._field.field,
         ]
 

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses.module import TestCluster
 
 
 # pylint:disable=too-many-public-methods
@@ -29,8 +30,8 @@ class DefaultTestCase(tc.TestCase):
     _logger = logging.getLogger(__name__)
 
     # pylint: disable=invalid-name
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, test_cluster: TestCluster) -> None:
+        super().__init__(test_cluster)
         self._id = self._id_generator.inc()
 
     @property
@@ -110,7 +111,7 @@ class DefaultTestCase(tc.TestCase):
         return 0 <= position < len(self._statements)
 
     def clone(self, limit: int | None = None) -> tc.TestCase:
-        test_case = DefaultTestCase()
+        test_case = DefaultTestCase(self.test_cluster)
         memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in islice(self._statements, limit):
             copy = statement.clone(test_case, memo)

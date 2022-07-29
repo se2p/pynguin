@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.module import TestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.utils import randomness
 
@@ -44,8 +45,12 @@ class TestCaseFactory:
 class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
+    def __init__(self, test_factory: tf.TestFactory, test_cluster: TestCluster):
+        super().__init__(test_factory)
+        self._test_cluster = test_cluster
+
     def get_test_case(self) -> tc.TestCase:
-        test_case = dtc.DefaultTestCase()
+        test_case = dtc.DefaultTestCase(self._test_cluster)
         attempts = 0
         size = randomness.next_int(
             1, config.configuration.search_algorithm.chromosome_length + 1

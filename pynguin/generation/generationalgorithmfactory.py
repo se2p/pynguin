@@ -161,7 +161,7 @@ class TestSuiteGenerationAlgorithmFactory(
         """
         # TODO add conditional returns/other factories here
         test_case_factory: tcf.TestCaseFactory = tcf.RandomLengthTestCaseFactory(
-            strategy.test_factory
+            strategy.test_factory, strategy.test_cluster
         )
         if config.configuration.seeding.initial_population_seeding:
             self._logger.info("Using population seeding")
@@ -312,7 +312,7 @@ class TestSuiteGenerationAlgorithmFactory(
                 strategy.test_case_fitness_functions,
                 initial_size=size,
             )
-        # Use CoverageArchive as default, even if it the algorithm does not use it.
+        # Use CoverageArchive as default, even if the algorithm does not use it.
         self._logger.info("Using CoverageArchive")
         if config.configuration.algorithm == config.Algorithm.DYNAMOSA:
             # DynaMOSA gradually adds its fitness functions, so we initialize

@@ -12,16 +12,17 @@ from typing import TYPE_CHECKING
 
 from ordered_set import OrderedSet
 
+from pynguin.analyses.typesystem import ProperType
 from pynguin.utils import randomness
 from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_consistent_with, is_type_unknown
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses.module import TestCluster
 
 
 # pylint: disable=too-many-public-methods
@@ -33,8 +34,9 @@ class TestCase(metaclass=ABCMeta):
 
     _id_generator = AtomicInteger()
 
-    def __init__(self) -> None:
+    def __init__(self, test_cluster: TestCluster) -> None:
         self._statements: list[stmt.Statement] = []
+        self.test_cluster: TestCluster = test_cluster
 
     @property
     def statements(self) -> list[stmt.Statement]:
@@ -222,7 +224,7 @@ class TestCase(metaclass=ABCMeta):
         """
 
     def get_objects(
-        self, parameter_type: type | None, position: int
+        self, parameter_type: ProperType, position: int
     ) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type before a
         given position.
@@ -241,9 +243,6 @@ class TestCase(metaclass=ABCMeta):
         Returns:
             A list of variable references satisfying the parameter type
         """
-        if is_type_unknown(parameter_type):
-            return self.get_all_objects(position)
-
         variables: list[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
@@ -251,7 +250,9 @@ class TestCase(metaclass=ABCMeta):
             var = statement.ret_val
             if var is None:
                 continue
-            if not var.is_none_type() and is_consistent_with(var.type, parameter_type):
+            if not var.is_none_type() and self.test_cluster.type_system.is_subtype(
+                var.type, parameter_type
+            ):
                 variables.append(var)
 
         return variables
@@ -276,7 +277,7 @@ class TestCase(metaclass=ABCMeta):
         return variables
 
     def get_random_object(
-        self, parameter_type: type | None, position: int
+        self, parameter_type: ProperType, position: int
     ) -> vr.VariableReference:
         """Get a random object of the given type up to the given position (exclusive).
 

@@ -20,6 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.typesystem import AnyType, NoneType, ProperType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -341,7 +342,7 @@ def create_stmt_from_constant(
         The corresponding statement.
     """
     if constant.value is None:
-        return stmt.NoneStatement(testcase, constant.value)
+        return stmt.NoneStatement(testcase, NoneType())
 
     val = constant.value
     if isinstance(val, bool):
@@ -671,7 +672,7 @@ def create_elements(
     return coll_elems
 
 
-def get_collection_type(coll_elems: list[vr.VariableReference]) -> Any:
+def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
     """Returns the type of a collection. If objects of multiple types are in the
     collection, this function returns None.
 
@@ -682,11 +683,11 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> Any:
         The type of the collection.
     """
     if len(coll_elems) == 0:
-        return None
+        return AnyType()
     coll_type = coll_elems[0].type
     for elem in coll_elems:
         if not elem.type == coll_type:
-            coll_type = None
+            coll_type = AnyType()
             break
     return coll_type
 
@@ -826,7 +827,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         create_assertions: bool,
         constant_provider: ConstantProvider,
     ):
-        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
+        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase(test_cluster)
         self._current_parsable: bool = True
         self._var_refs: dict[str, vr.VariableReference] = {}
         self._testcases: list[dtc.DefaultTestCase] = []
@@ -837,7 +838,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._number_found_testcases += 1
-        self._current_testcase = dtc.DefaultTestCase()
+        self._current_testcase = dtc.DefaultTestCase(self._test_cluster)
         self._current_parsable = True
         self._var_refs.clear()
         self.generic_visit(node)

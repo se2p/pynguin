@@ -19,14 +19,14 @@ import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses import constants
+from pynguin.analyses.typesystem import InferredSignature, Instance, ProperType
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
-from pynguin.utils.type_utils import is_consistent_with, is_optional_parameter
+from pynguin.utils.type_utils import is_optional_parameter
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.testcase as tc
-    from pynguin.analyses.typesystem import InferredSignature
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 
@@ -481,7 +481,7 @@ class CollectionStatement(Generic[T], VariableCreatingStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        type_: type | None,
+        type_: ProperType,
         elements: list[T],
     ):
         super().__init__(
@@ -1138,7 +1138,7 @@ class ParametrizedStatement(
         self._args[param_name] = replacement
         return True
 
-    def _param_count_of_type(self, type_: type | None) -> int:
+    def _param_count_of_type(self, type_: ProperType) -> int:
         """Return the number of parameters that have the specified type.
 
         Args:
@@ -1151,7 +1151,7 @@ class ParametrizedStatement(
         if not type_:
             return 0
         for var_ref in self.args.values():
-            if is_consistent_with(var_ref.type, type_):
+            if self.test_case.test_cluster.type_system.is_subtype(var_ref.type, type_):
                 count += 1
         return count
 
@@ -1372,7 +1372,7 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
     def __init__(
         self,
         test_case: tc.TestCase,
-        variable_type: type | None,
+        variable_type: ProperType,
         value: T | None = None,
         constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
@@ -1459,7 +1459,12 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         value: int | None = None,
         constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
-        super().__init__(test_case, int, value, constant_provider=constant_provider)
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(int)),
+            value,
+            constant_provider=constant_provider,
+        )
 
     def randomize_value(self) -> None:
         if (
@@ -1510,7 +1515,12 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         value: float | None = None,
         constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
-        super().__init__(test_case, float, value, constant_provider=constant_provider)
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(float)),
+            value,
+            constant_provider=constant_provider,
+        )
 
     def randomize_value(self) -> None:
         if (
@@ -1569,7 +1579,12 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         value: str | None = None,
         constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
-        super().__init__(test_case, str, value, constant_provider=constant_provider)
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(str)),
+            value,
+            constant_provider=constant_provider,
+        )
 
     def randomize_value(self) -> None:
         if (
@@ -1657,7 +1672,12 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         value: bytes | None = None,
         constant_provider: constants.ConstantProvider | None = None,
     ) -> None:
-        super().__init__(test_case, bytes, value, constant_provider=constant_provider)
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(bytes)),
+            value,
+            constant_provider=constant_provider,
+        )
 
     def randomize_value(self) -> None:
         if (
@@ -1740,7 +1760,11 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
     """Primitive Statement that creates a boolean."""
 
     def __init__(self, test_case: tc.TestCase, value: bool | None = None) -> None:
-        super().__init__(test_case, bool, value)
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(bool)),
+            value,
+        )
 
     def randomize_value(self) -> None:
         self._value = bool(randomness.RNG.getrandbits(1))
