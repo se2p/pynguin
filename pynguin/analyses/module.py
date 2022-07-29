@@ -226,7 +226,7 @@ def parse_module(
         )
         linenos = len(source_code.splitlines())
     except (TypeError, OSError) as error:
-        LOGGER.warning(
+        LOGGER.debug(
             f"Could not retrieve source code for module {module_name} ({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
