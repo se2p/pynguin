@@ -349,7 +349,7 @@ class AssertionSlicingObserver(ExecutionObserver):
 
             if statement.has_only_exception_assertion():
                 if exception is not None:
-                    self._tracer.register_exception_assertion()
+                    self._tracer.register_exception_assertion(statement)
                 return
 
             for assertion in statement.assertions:
@@ -359,7 +359,9 @@ class AssertionSlicingObserver(ExecutionObserver):
                 executor.execute_ast(assertion_node, exec_ctx, True)
 
                 code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
-                self._tracer.register_assertion_position(code_object_id, node_id)
+                self._tracer.register_assertion_position(
+                    code_object_id, node_id, assertion
+                )
         finally:
             if enabled:
                 # Restore old state
