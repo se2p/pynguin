@@ -26,13 +26,6 @@ from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import __feed_typesystem
 
 
-@pytest.fixture()
-def test_cluster_mock():
-    cluster = MagicMock(ModuleTestCluster)
-    cluster.get_generators_for.return_value = set()
-    return cluster
-
-
 def test_append_statement_unknown_type(test_case_mock):
     with pytest.raises(ConstructionFailedException):
         factory = tf.TestFactory(MagicMock(ModuleTestCluster))
