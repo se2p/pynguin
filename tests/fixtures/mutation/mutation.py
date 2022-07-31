@@ -10,6 +10,6 @@ from random import uniform
 def foo(param) -> float:
     """This is flaky"""
     if param == 0:
-        return uniform(0, 5)
+        return uniform(5, 10)
     else:
-        return 3.0
+        return 2.0

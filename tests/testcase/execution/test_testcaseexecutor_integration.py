@@ -13,7 +13,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testcase.defaulttestcase as dtc
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
@@ -22,33 +21,31 @@ from pynguin.testcase.execution import ExecutionTracer, ModuleProvider, TestCase
 from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
 
 
-def test_simple_execution():
+def test_simple_execution(default_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
-        test_case = dtc.DefaultTestCase()
-        test_case.add_statement(IntPrimitiveStatement(test_case, 5))
+        default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
         executor = TestCaseExecutor(tracer)
-        assert not executor.execute(test_case).has_test_exceptions()
+        assert not executor.execute(default_test_case).has_test_exceptions()
 
 
-def test_illegal_call(method_mock):
+def test_illegal_call(method_mock, default_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    test_case = dtc.DefaultTestCase()
-    int_stmt = IntPrimitiveStatement(test_case, 5)
-    method_stmt = MethodStatement(test_case, method_mock, int_stmt.ret_val)
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(method_stmt)
+    int_stmt = IntPrimitiveStatement(default_test_case, 5)
+    method_stmt = MethodStatement(default_test_case, method_mock, int_stmt.ret_val)
+    default_test_case.add_statement(int_stmt)
+    default_test_case.add_statement(method_stmt)
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         executor = TestCaseExecutor(tracer)
-        result = executor.execute(test_case)
+        result = executor.execute(default_test_case)
         assert result.has_test_exceptions()
 
 
@@ -82,6 +79,7 @@ def test_observers(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
+    observer.before_statement_execution.side_effect = lambda x, y, z: y
     executor.add_observer(observer)
     executor.execute(short_test_case)
     assert observer.before_test_case_execution.call_count == 1

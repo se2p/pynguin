@@ -18,21 +18,20 @@ from pynguin.testcase.statement import ConstructorStatement, IntPrimitiveStateme
 
 
 @pytest.fixture
-def test_case_chromosome():
-    return tcc.TestCaseChromosome(dtc.DefaultTestCase())
+def test_case_chromosome(default_test_case):
+    return tcc.TestCaseChromosome(default_test_case)
 
 
 @pytest.fixture
-def test_case_chromosome_with_test():
-    test_case = dtc.DefaultTestCase()
-    return tcc.TestCaseChromosome(test_case), test_case
+def test_case_chromosome_with_test(default_test_case):
+    return tcc.TestCaseChromosome(default_test_case), default_test_case
 
 
 def test_has_changed_default(test_case_chromosome):
     assert test_case_chromosome.has_changed()
 
 
-@pytest.mark.parametrize("value", [pytest.param(True), pytest.param(False)])
+@pytest.mark.parametrize("value", [True, False])
 def test_has_changed(test_case_chromosome, value):
     test_case_chromosome.set_changed(value)
     assert test_case_chromosome.has_changed() == value
@@ -86,7 +85,7 @@ def test_mutation_insert_none(test_case_chromosome):
     assert not test_case_chromosome._mutation_insert()
 
 
-def test_mutation_insert_two():
+def test_mutation_insert_two(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
     def side_effect(tc, pos):
@@ -94,38 +93,36 @@ def test_mutation_insert_two():
         return 0
 
     test_factory.insert_random_statement.side_effect = side_effect
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=test_factory)
     config.configuration.search_algorithm.statement_insertion_probability = 0.5
     config.configuration.search_algorithm.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
-        [call(test_case, 0), call(test_case, 1)]
+        [call(default_test_case, 0), call(default_test_case, 1)]
     )
 
 
-def test_mutation_insert_twice_no_success():
+def test_mutation_insert_twice_no_success(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
     def side_effect(tc, pos):
         return -1
 
     test_factory.insert_random_statement.side_effect = side_effect
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=test_factory)
     config.configuration.search_algorithm.statement_insertion_probability = 0.5
     config.configuration.search_algorithm.chromosome_length = 10
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert not chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
-        [call(test_case, 0), call(test_case, 0)]
+        [call(default_test_case, 0), call(default_test_case, 0)]
     )
 
 
-def test_mutation_insert_max_length():
+def test_mutation_insert_max_length(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
     def side_effect(tc, pos):
@@ -133,15 +130,14 @@ def test_mutation_insert_max_length():
         return 0
 
     test_factory.insert_random_statement.side_effect = side_effect
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=test_factory)
     config.configuration.search_algorithm.statement_insertion_probability = 0.5
     config.configuration.search_algorithm.chromosome_length = 1
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0, 0.0]
         assert chromosome._mutation_insert()
-    test_factory.insert_random_statement.assert_has_calls([call(test_case, 0)])
-    assert test_case.size() == 1
+    test_factory.insert_random_statement.assert_has_calls([call(default_test_case, 0)])
+    assert default_test_case.size() == 1
 
 
 def test_mutation_change_nothing_to_change(test_case_chromosome):
@@ -159,15 +155,14 @@ def test_mutation_change_single_prim(test_case_chromosome_with_test):
         assert int0.ret_val.distance == 5
 
 
-@pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
-def test_mutation_change_call_success(constructor_mock, result):
+@pytest.mark.parametrize("result", [True, False])
+def test_mutation_change_call_success(constructor_mock, result, default_test_case):
     factory = MagicMock(tf.TestFactory)
     factory.change_random_call.return_value = result
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case, test_factory=factory)
-    const0 = ConstructorStatement(test_case, constructor_mock)
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=factory)
+    const0 = ConstructorStatement(default_test_case, constructor_mock)
     const0.ret_val.distance = 5
-    test_case.add_statement(const0)
+    default_test_case.add_statement(const0)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
         with mock.patch.object(const0, "mutate") as mutate_mock:
@@ -185,28 +180,26 @@ def test_mutation_change_no_change(test_case_chromosome_with_test):
         assert not chromosome._mutation_change()
 
 
-@pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
-def test_delete_statement(result):
+@pytest.mark.parametrize("result", [True, False])
+def test_delete_statement(result, default_test_case):
     test_factory = MagicMock(tf.TestFactory)
     test_factory.delete_statement_gracefully.return_value = result
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case, test_factory=test_factory)
-    test_case.add_statement(IntPrimitiveStatement(test_case, 5))
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=test_factory)
+    default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
     assert chromosome._delete_statement(0) == result
-    test_factory.delete_statement_gracefully.assert_called_with(test_case, 0)
+    test_factory.delete_statement_gracefully.assert_called_with(default_test_case, 0)
 
 
 def test_mutation_delete_empty(test_case_chromosome):
     assert not test_case_chromosome._mutation_delete()
 
 
-def test_mutation_delete_not_empty():
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case)
-    int0 = IntPrimitiveStatement(test_case, 5)
-    int1 = IntPrimitiveStatement(test_case, 5)
-    test_case.add_statement(int0)
-    test_case.add_statement(int1)
+def test_mutation_delete_not_empty(default_test_case):
+    chromosome = tcc.TestCaseChromosome(default_test_case)
+    int0 = IntPrimitiveStatement(default_test_case, 5)
+    int1 = IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+    default_test_case.add_statement(int1)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.0, 1.0]
         with mock.patch.object(chromosome, "_delete_statement") as delete_mock:
@@ -216,9 +209,8 @@ def test_mutation_delete_not_empty():
             assert delete_mock.call_count == 1
 
 
-def test_mutation_delete_skipping():
-    test_case = dtc.DefaultTestCase()
-    chromosome = tcc.TestCaseChromosome(test_case)
+def test_mutation_delete_skipping(default_test_case):
+    chromosome = tcc.TestCaseChromosome(default_test_case)
     with mock.patch.object(chromosome, "_delete_statement") as delete_mock:
         delete_mock.return_value = True
         with mock.patch.object(chromosome, "get_last_mutatable_statement") as mut_mock:
@@ -266,12 +258,12 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
 @pytest.mark.parametrize(
     "func,rand,result",
     [
-        pytest.param("_mutation_delete", [0, 1, 1], True),
-        pytest.param("_mutation_delete", [0, 1, 1], False),
-        pytest.param("_mutation_change", [1, 0, 1], True),
-        pytest.param("_mutation_change", [1, 0, 1], False),
-        pytest.param("_mutation_insert", [1, 1, 0], True),
-        pytest.param("_mutation_insert", [1, 1, 0], False),
+        ("_mutation_delete", [0, 1, 1], False),
+        ("_mutation_delete", [0, 1, 1], True),
+        ("_mutation_change", [1, 0, 1], True),
+        ("_mutation_change", [1, 0, 1], False),
+        ("_mutation_insert", [1, 1, 0], True),
+        ("_mutation_insert", [1, 1, 0], False),
     ],
 )
 def test_mutate_all(test_case_chromosome, func, rand, result):

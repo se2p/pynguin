@@ -77,71 +77,78 @@ def signature():
 def inferred_signature(signature):
     return InferredSignature(
         signature=signature,
-        parameters={"x": int, "y": int},
-        return_type=int,
+        parameters={"x": Instance(TypeInfo(int)), "y": Instance(TypeInfo(int))},
+        return_type=Instance(TypeInfo(int)),
     )
-
-
-def test_update_parameter_type(inferred_signature):
-    inferred_signature.update_parameter_type("x", Union[int, float])
-    assert inferred_signature.parameters["x"] == Union[int, float]
-    assert inferred_signature.signature.parameters["x"] == inspect.Parameter(
-        name="x",
-        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        annotation=Union[int, float],
-    )
-
-
-def test_update_return_type(inferred_signature):
-    inferred_signature.update_return_type(Union[int, float])
-    assert inferred_signature.return_type == Union[int, float]
-    assert inferred_signature.signature.return_annotation == Union[int, float]
-
-
-def test_update_non_existing_parameter(inferred_signature):
-    with pytest.raises(AssertionError):
-        inferred_signature.update_parameter_type("b", bool)
 
 
 @pytest.mark.parametrize(
     "func, infer_types, expected_parameters, expected_return",
     [
-        pytest.param(__func_1, TypeInferenceStrategy.TYPE_HINTS, {"x": int}, int),
-        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": Any}, Any),
+        pytest.param(
+            __func_1,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {"x": Instance(TypeInfo(int))},
+            Instance(TypeInfo(int)),
+        ),
+        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": AnyType()}, AnyType()),
         pytest.param(
             __typed_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
-            {"a": int, "b": float, "c": Any},
-            str,
+            {
+                "a": Instance(TypeInfo(int)),
+                "b": Instance(TypeInfo(float)),
+                "c": AnyType(),
+            },
+            Instance(TypeInfo(str)),
         ),
         pytest.param(
             __untyped_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
-            {"a": Any, "b": Any, "c": Any},
-            Any,
+            {"a": AnyType(), "b": AnyType(), "c": AnyType()},
+            AnyType(),
         ),
         pytest.param(
             __union_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
-            {"a": Union[int, float], "b": Union[int, float]},
-            Union[int, float],
+            {
+                "a": UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
+                "b": UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
+            },
+            UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
         ),
         pytest.param(
-            __return_tuple, TypeInferenceStrategy.TYPE_HINTS, {}, tuple[int, int]
+            __return_tuple,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {},
+            TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(int)))),
         ),
         pytest.param(
-            __return_tuple_no_annotation, TypeInferenceStrategy.TYPE_HINTS, {}, Any
+            __return_tuple_no_annotation,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {},
+            AnyType(),
         ),
         pytest.param(
-            __TypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": Any}, type(None)
+            __TypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": AnyType()}, NoneType()
         ),
-        pytest.param(__UntypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": Any}, Any),
-        pytest.param(__TypedDummy, TypeInferenceStrategy.NONE, {"a": Any}, Any),
-        pytest.param(__UntypedDummy, TypeInferenceStrategy.NONE, {"a": Any}, Any),
+        pytest.param(
+            __UntypedDummy,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {"a": AnyType()},
+            AnyType(),
+        ),
+        pytest.param(
+            __TypedDummy, TypeInferenceStrategy.NONE, {"a": AnyType()}, AnyType()
+        ),
+        pytest.param(
+            __UntypedDummy, TypeInferenceStrategy.NONE, {"a": AnyType()}, AnyType()
+        ),
     ],
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
-    result = infer_type_info(func, infer_types)
+    type_system = TypeSystem()
+    result = type_system.infer_type_info(func, infer_types)
     assert result.parameters == expected_parameters
     assert result.return_type == expected_return
 
@@ -152,67 +159,67 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
         (list, Instance(TypeInfo(list))),
         (
             list[int],
-            Instance(TypeInfo(list), [Instance(TypeInfo(int))]),
+            Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
         ),
         (
             List[int],
-            Instance(TypeInfo(list), [Instance(TypeInfo(int))]),
+            Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
         ),
         (
             set[int],
-            Instance(TypeInfo(set), [Instance(TypeInfo(int))]),
+            Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
         ),
         (
             Set[int],
-            Instance(TypeInfo(set), [Instance(TypeInfo(int))]),
+            Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
         ),
         (
             dict[int, str],
             Instance(
                 TypeInfo(dict),
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             Dict[int, str],
             Instance(
                 TypeInfo(dict),
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             int | str,
             UnionType(
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             Union[int, str],
             UnionType(
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             Union[int, type(None)],
             UnionType(
-                [Instance(TypeInfo(int)), NoneType()],
+                (Instance(TypeInfo(int)), NoneType()),
             ),
         ),
         (
             tuple[int, str],
             TupleType(
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             Tuple[int, str],
             TupleType(
-                [Instance(TypeInfo(int)), Instance(TypeInfo(str))],
+                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
             tuple,
-            TupleType([AnyType()], unknown_size=True),
+            TupleType((AnyType(),), unknown_size=True),
         ),
         (
             Any,
@@ -293,3 +300,19 @@ def test_is_subclass(subtyping_cluster, subclass, superclass, result):
         )
         == result
     )
+
+
+@pytest.mark.parametrize(
+    "kind,type_,result",
+    [
+        (inspect.Parameter.VAR_POSITIONAL, None, list[Any]),
+        (inspect.Parameter.VAR_POSITIONAL, str, list[str]),
+        (inspect.Parameter.VAR_KEYWORD, None, dict[str, Any]),
+        (inspect.Parameter.VAR_KEYWORD, str, dict[str, str]),
+        (inspect.Parameter.POSITIONAL_OR_KEYWORD, dict, dict),
+    ],
+)
+def test_wrap_var_param_type(kind, type_, result):
+    system = TypeSystem()
+    proper = system.convert_type_hint(type_)
+    assert system.wrap_var_param_type(proper, kind) == system.convert_type_hint(result)

@@ -24,9 +24,15 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import (
+    InferredSignature,
+    Instance,
+    NoneType,
+    TypeInfo,
+    TypeSystem,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericField,
@@ -54,6 +60,11 @@ def reset_configuration():
 @pytest.fixture(scope="function")
 def test_case_mock():
     return MagicMock(tc.TestCase)
+
+
+@pytest.fixture(scope="function")
+def default_test_case():
+    return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
 @pytest.fixture(scope="function")
@@ -96,7 +107,7 @@ def provide_callables_from_fixtures_modules(
 @pytest.fixture()
 def constructor_mock() -> GenericConstructor:
     return GenericConstructor(
-        owner=SomeType,
+        owner=TypeInfo(SomeType),
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
                 parameters=[
@@ -107,8 +118,8 @@ def constructor_mock() -> GenericConstructor:
                     ),
                 ]
             ),
-            return_type=type(None),
-            parameters={"y": float},
+            return_type=NoneType(),
+            parameters={"y": Instance(TypeInfo(float))},
         ),
     )
 
@@ -116,7 +127,7 @@ def constructor_mock() -> GenericConstructor:
 @pytest.fixture()
 def method_mock() -> GenericMethod:
     return GenericMethod(
-        owner=SomeType,
+        owner=TypeInfo(SomeType),
         method=SomeType.simple_method,
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
@@ -128,8 +139,8 @@ def method_mock() -> GenericMethod:
                     ),
                 ]
             ),
-            return_type=float,
-            parameters={"x": int},
+            return_type=Instance(TypeInfo(float)),
+            parameters={"x": Instance(TypeInfo(int))},
         ),
     )
 
@@ -148,20 +159,27 @@ def function_mock() -> GenericFunction:
                     ),
                 ]
             ),
-            return_type=float,
-            parameters={"z": float},
+            return_type=Instance(TypeInfo(float)),
+            parameters={"z": Instance(TypeInfo(float))},
         ),
     )
 
 
 @pytest.fixture()
 def field_mock() -> GenericField:
-    return GenericField(owner=SomeType, field="y", field_type=float)
+    return GenericField(
+        owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float))
+    )
+
+
+@pytest.fixture
+def type_system():
+    return TypeSystem()
 
 
 @pytest.fixture
 def short_test_case(constructor_mock):
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
@@ -345,7 +363,7 @@ def plus_test_with_float_assertion() -> tc.TestCase:
 
 
 @pytest.fixture()
-def plus_test_with_not_none_assertion() -> tc.TestCase:
+def plus_test_with_type_name_assertion() -> tc.TestCase:
     """
     Generated testcase:
         int_0 = 42
@@ -367,7 +385,7 @@ def plus_test_with_not_none_assertion() -> tc.TestCase:
     test_case = transformer.testcases[0]
 
     test_case.statements[-1].add_assertion(
-        ass.NotNoneAssertion(test_case.statements[-1].ret_val)
+        ass.TypeNameAssertion(test_case.statements[-1].ret_val, "builtins", "int")
     )
     return test_case
 
@@ -422,7 +440,9 @@ def list_test_with_len_assertion() -> tc.TestCase:
         ass.CollectionLengthAssertion(
             vr.FieldReference(
                 test_case.statements[-1].ret_val,
-                gao.GenericField(ListTest, "attribute", list),
+                gao.GenericField(
+                    TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))
+                ),
             ),
             3,
         )
@@ -464,7 +484,9 @@ def plus_test_with_multiple_assertions():
         ass.ObjectAssertion(
             vr.FieldReference(
                 test_case.statements[1].ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    TypeInfo(Plus), "calculations", Instance(TypeInfo(int))
+                ),
             ),
             1,
         )

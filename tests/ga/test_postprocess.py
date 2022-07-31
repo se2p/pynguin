@@ -12,6 +12,7 @@ import pytest
 import pynguin.ga.postprocess as pp
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
+from pynguin.analyses.module import ModuleTestCluster
 
 
 def test_not_failing():
@@ -67,13 +68,17 @@ def test_unused_primitives_visitor():
     assert statement.accept.call_count == 1
 
 
+# TODO(fk) replace with ast_to_stmt
 def test_remove_integration(constructor_mock):
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     test_case.add_statement(stmt.IntPrimitiveStatement(test_case))
     test_case.add_statement(stmt.FloatPrimitiveStatement(test_case))
     int0 = stmt.IntPrimitiveStatement(test_case)
     test_case.add_statement(int0)
-    list0 = stmt.ListStatement(test_case, list[int], [int0.ret_val])
+    list0 = stmt.ListStatement(
+        test_case, cluster.type_system.convert_type_hint(list[int]), [int0.ret_val]
+    )
     test_case.add_statement(list0)
     float0 = stmt.FloatPrimitiveStatement(test_case)
     test_case.add_statement(float0)

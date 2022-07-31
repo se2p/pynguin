@@ -157,7 +157,7 @@ class _VariableNameTypeVisitor(TypeVisitor[str]):
         return "none_type"
 
     def visit_instance(self, left: Instance) -> str:
-        return left.type.full_name
+        return left.type.name
 
     def visit_tuple_type(self, left: TupleType) -> str:
         return "tuple"

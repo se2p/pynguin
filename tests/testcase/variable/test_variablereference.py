@@ -55,29 +55,20 @@ def test_type(dummy_reference):
 
 @pytest.mark.parametrize(
     "type_,result",
-    [pytest.param(int, True), pytest.param(MagicMock, False)],
+    [(int, True), (MagicMock, False)],
 )
-def test_is_primitive(dummy_reference, test_case_mock, type_, result):
-    dummy_reference._type = type_
+def test_is_primitive(dummy_reference, type_, result, type_system):
+    dummy_reference._type = type_system.convert_type_hint(type_)
     assert dummy_reference.is_primitive() == result
-
-
-@pytest.mark.parametrize(
-    "type_,result",
-    [pytest.param(None, True), pytest.param(MagicMock, False)],
-)
-def test_is_type_unknown(dummy_reference, type_, result):
-    dummy_reference._type = type_
-    assert dummy_reference.is_type_unknown() == result
 
 
 @pytest.mark.parametrize(
     "type_,result",
     [pytest.param(type(None), True), pytest.param(MagicMock, False)],
 )
-def test_is_none_type(dummy_reference, type_, result):
+def test_is_none_type(dummy_reference, type_, result, type_system):
     ref = dummy_reference
-    ref._type = type_
+    ref._type = type_system.convert_type_hint(type_)
     assert ref.is_none_type() == result
 
 
@@ -221,8 +212,10 @@ def test_field_replace_var(field_mock):
 
 
 @pytest.fixture()
-def static_field_mock():
-    return gao.GenericStaticField(MagicMock, "foo", int)
+def static_field_mock(type_system):
+    return gao.GenericStaticField(
+        type_system.to_type_info(MagicMock), "foo", type_system.convert_type_hint(int)
+    )
 
 
 def test_static_field_field(static_field_mock):

@@ -14,7 +14,6 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
@@ -22,7 +21,11 @@ from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.ga.computations import TestSuiteCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.execution import (
+    AssertionSlicingObserver,
+    ExecutionTracer,
+    TestCaseExecutor,
+)
 from pynguin.testcase.variablereference import FieldReference, StaticFieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
@@ -56,7 +59,11 @@ def full_cover_plus_three_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -67,7 +74,11 @@ def full_cover_plus_three_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -105,7 +116,11 @@ def full_cover_plus_four_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -116,7 +131,11 @@ def full_cover_plus_four_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -147,7 +166,11 @@ def test_case_1():
     tc_0.statements[1].add_assertion(
         ass.ObjectAssertion(
             StaticFieldReference(
-                gao.GenericStaticField(Plus, "calculations", int),
+                gao.GenericStaticField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -157,7 +180,11 @@ def test_case_1():
         ass.ObjectAssertion(
             FieldReference(
                 tc_0.statements[1].ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -167,7 +194,11 @@ def test_case_1():
     tc_1.statements[1].add_assertion(
         ass.ObjectAssertion(
             StaticFieldReference(
-                gao.GenericStaticField(Plus, "calculations", int),
+                gao.GenericStaticField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -207,9 +238,9 @@ def partial_cover_plus_testsuite(
 
 
 @pytest.fixture
-def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
     test_suite = tsc.TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(default_test_case))
     return test_suite
 
 
@@ -218,7 +249,7 @@ def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
     [
         ("tests.fixtures.linecoverage.plus", "plus_test_with_object_assertion", 1),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_float_assertion", 1),
-        ("tests.fixtures.linecoverage.plus", "plus_test_with_not_none_assertion", 1),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_type_name_assertion", 1),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_multiple_assertions", 3),
         (
             "tests.fixtures.linecoverage.exception",
@@ -244,6 +275,7 @@ def test_assertion_detection_on_test_case(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
+        executor.add_observer(AssertionSlicingObserver(tracer))
         result = executor.execute(test_case, instrument_test=True)
         assert result.execution_trace.executed_assertions
         assert len(result.execution_trace.executed_assertions) == expected_assertions
@@ -285,6 +317,7 @@ def test_slicing_after_test_execution(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
+        executor.add_observer(AssertionSlicingObserver(tracer))
         result = executor.execute(test_case, instrument_test=True)
         assert result.execution_trace.executed_assertions
 
@@ -348,7 +381,7 @@ def test_testsuite_checked_execution_and_calculation(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-
+        executor.add_observer(AssertionSlicingObserver(tracer))
         ff = TestSuiteCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(
             expected_coverage, 0.1, 0.1

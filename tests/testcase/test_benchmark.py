@@ -9,12 +9,13 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
+from pynguin.analyses.module import ModuleTestCluster
 
 
 @pytest.fixture
 def benchmark_test_case(constructor_mock, function_mock):
     """Create a test case with a moderately large structure."""
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(
         test_case,

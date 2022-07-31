@@ -20,7 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.typesystem import AnyType, NoneType, ProperType
+from pynguin.analyses.typesystem import AnyType, Instance, NoneType, ProperType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -470,7 +470,8 @@ def find_gen_callable(
     call_name = str(call.func.attr)  # type: ignore
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
-            owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0]
+            assert obj.owner
+            owner = str(obj.owner.name)
             call_id = call.func.value.id  # type: ignore
             if call_name == owner and call_id not in ref_dict:
                 return obj
@@ -481,7 +482,7 @@ def find_gen_callable(
             if call_name == obj.method_name and call_id in ref_dict:
                 obj_from_ast = str(call.func.value.id)  # type: ignore
                 var_type = ref_dict[obj_from_ast].type
-                if var_type == obj.owner:
+                if isinstance(var_type, Instance) and var_type.type == obj.owner:
                     return obj
         elif isinstance(obj, GenericFunction):
             if call_name == obj.function_name:

@@ -55,6 +55,7 @@ from pynguin.instrumentation.machinery import (
     install_import_hook,
 )
 from pynguin.testcase.execution import (
+    AssertionSlicingObserver,
     ExecutionTracer,
     ReturnTypeObserver,
     TestCaseExecutor,
@@ -371,6 +372,7 @@ def _track_resulting_checked_coverage(
     _LOGGER.info("Calculating resulting checked coverage")
 
     _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
+    executor.add_observer(AssertionSlicingObserver(executor.tracer))
 
     checked_coverage_ff = ff.TestSuiteCheckedCoverageFunction(executor)
     generation_result.add_coverage_function(checked_coverage_ff)

@@ -13,7 +13,6 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 
 
@@ -22,8 +21,8 @@ def chromosome() -> tsc.TestSuiteChromosome:
     return tsc.TestSuiteChromosome()
 
 
-def test_clone(chromosome):
-    chromosome.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
+def test_clone(chromosome, default_test_case):
+    chromosome.add_test_case_chromosome(tcc.TestCaseChromosome(default_test_case))
     result = chromosome.clone()
     assert result == chromosome
     assert result is not chromosome
@@ -101,9 +100,9 @@ def test_crossover_wrong_type(chromosome):
         chromosome.cross_over(0, 0, 0)
 
 
-def test_crossover(chromosome):
-    cases_a = [tcc.TestCaseChromosome(dtc.DefaultTestCase()) for _ in range(5)]
-    cases_b = [tcc.TestCaseChromosome(dtc.DefaultTestCase()) for _ in range(5)]
+def test_crossover(chromosome, default_test_case):
+    cases_a = [tcc.TestCaseChromosome(default_test_case.clone()) for _ in range(5)]
+    cases_b = [tcc.TestCaseChromosome(default_test_case.clone()) for _ in range(5)]
 
     chromosome.add_test_case_chromosomes(cases_a)
 

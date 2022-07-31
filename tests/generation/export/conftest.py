@@ -10,6 +10,7 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.testcase.statement import (
     ConstructorStatement,
     FloatPrimitiveStatement,
@@ -20,7 +21,7 @@ from pynguin.testcase.statement import (
 
 @pytest.fixture
 def exportable_test_case(constructor_mock, function_mock):
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = IntPrimitiveStatement(test_case, 5)
     constructor_stmt = ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
@@ -40,7 +41,7 @@ def exportable_test_case(constructor_mock, function_mock):
 
 @pytest.fixture
 def exportable_test_case_with_expected_exception(function_mock):
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_mock._raised_exceptions = {"ValueError"}
     function_stmt = FunctionStatement(
@@ -54,7 +55,7 @@ def exportable_test_case_with_expected_exception(function_mock):
 
 @pytest.fixture
 def exportable_test_case_with_unexpected_exception(function_mock):
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_stmt = FunctionStatement(
         test_case, function_mock, {"z": float_stmt.ret_val}

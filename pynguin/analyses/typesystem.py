@@ -52,8 +52,11 @@ class ProperType(ABC):
             visitor: the visitor
         """
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.accept(TypeStringVisitor())
+
+    def __repr__(self) -> str:
+        return self.accept(TypeReprVisitor())
 
 
 class AnyType(ProperType):
@@ -112,6 +115,8 @@ class Instance(ProperType):
 class TupleType(ProperType):
     """Tuple type Tuple[T1, ..., Tn]. At least one argument."""
 
+    # TODO(fk) this is a bit problematic. Merge with instance?
+    #  i.e., there can be TupleType(unknown_size=True) and Instance(TypeInfo(tuple))
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
         assert len(self.args) > 0
@@ -240,6 +245,31 @@ class TypeStringVisitor(TypeVisitor[str]):
         return ", ".join(t.accept(self) for t in typs)
 
 
+class TypeReprVisitor(TypeVisitor[str]):
+    """A simple visitor to create a repr from a proper type."""
+
+    def visit_any_type(self, left: AnyType) -> str:
+        return "AnyType()"
+
+    def visit_none_type(self, left: NoneType) -> str:
+        return "NoneType()"
+
+    def visit_instance(self, left: Instance) -> str:
+        rep = f"Instance({left.type!r}"
+        if len(left.args) > 0:
+            rep += "(" + self._sequence_str(left.args) + ")"
+        return rep + ")"
+
+    def visit_tuple_type(self, left: TupleType) -> str:
+        return f"TupleType({self._sequence_str(left.args)})"
+
+    def visit_union_type(self, left: UnionType) -> str:
+        return f"UnionType({self._sequence_str(left.items)})"
+
+    def _sequence_str(self, typs: Sequence[ProperType]) -> str:
+        return ", ".join(t.accept(self) for t in typs)
+
+
 class _SubtypeVisitor(TypeVisitor[bool]):
     """A visitor to check the subtyping relationship between two types, i.e.,
     is left a subtype of right?
@@ -338,6 +368,7 @@ class _PrimitiveTypeVisitor(TypeVisitor[bool]):
 is_primitive_type = _PrimitiveTypeVisitor()
 
 
+# pylint:disable=too-many-instance-attributes
 class TypeInfo:
     """A small wrapper around type, i.e., classes.
     Corresponds 1:1 to a class."""
@@ -391,6 +422,9 @@ class TypeInfo:
             f"\ninstance-attributes {self.instance_attributes}"
         )
 
+    def __repr__(self):
+        return f"TypeInfo({self.full_name})"
+
 
 @dataclass
 class InferredSignature:
@@ -407,7 +441,15 @@ class InferredSignature:
 
     signature: inspect.Signature
     return_type: ProperType
-    parameters: dict[str, ProperType] = field(default_factory=dict)
+    parameters: dict[str, ProperType]
+
+    # Stores the original types.
+    orig_return_type: ProperType = field(init=False)
+    orig_parameters: dict[str, ProperType] = field(init=False)
+
+    def __post_init__(self):
+        self.orig_return_type = self.return_type
+        self.orig_parameters = dict(self.parameters)
 
 
 class TypeSystem:
@@ -549,14 +591,14 @@ class TypeSystem:
             return Instance(self.to_type_info(list), (typ,))
         if param_kind == inspect.Parameter.VAR_KEYWORD:
             return Instance(
-                self.to_type_info(dict), (Instance(self.to_type_info(dict)), typ)
+                self.to_type_info(dict), (Instance(self.to_type_info(str)), typ)
             )
         return typ
 
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+        type_inference_strategy=TypeInferenceStrategy.TYPE_HINTS,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
@@ -568,7 +610,8 @@ class TypeSystem:
             The inference result
 
         Raises:
-            ConfigurationException: in case an unknown type-inference strategy was selected
+            ConfigurationException: in case an unknown type-inference strategy was
+                selected
         """
         match type_inference_strategy:
             case TypeInferenceStrategy.TYPE_HINTS:

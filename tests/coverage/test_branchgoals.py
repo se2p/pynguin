@@ -21,6 +21,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import (
@@ -282,8 +283,10 @@ def test_compute_fitness_values_nested_branches():
         assert fitness == pytest.approx(5.90782493)
 
 
+# TODO(fk) replace with ast_to_testcase
 def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
     function_call = stmt.FunctionStatement(
         test_case,
@@ -291,8 +294,8 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
             module.identity,
             InferredSignature(
                 signature=inspect.signature(module.identity),
-                parameters={"a": int},
-                return_type=int,
+                parameters={"a": cluster.type_system.convert_type_hint(int)},
+                return_type=cluster.type_system.convert_type_hint(int),
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -300,11 +303,11 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
     constructor_call = stmt.ConstructorStatement(
         test_case,
         gao.GenericConstructor(
-            module.DummyClass,
+            cluster.type_system.to_type_info(module.DummyClass),
             InferredSignature(
                 signature=inspect.signature(module.DummyClass.__init__),
-                parameters={"x": int},
-                return_type=module.DummyClass,
+                parameters={"x": cluster.type_system.convert_type_hint(int)},
+                return_type=cluster.type_system.convert_type_hint(module.DummyClass),
             ),
         ),
         {"x": function_call.ret_val},
@@ -312,9 +315,13 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
     method_call = stmt.MethodStatement(
         test_case,
         gao.GenericMethod(
-            module.DummyClass,
+            cluster.type_system.to_type_info(module.DummyClass),
             module.DummyClass.get_x,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
+            InferredSignature(
+                signature=MagicMock(),
+                parameters={},
+                return_type=cluster.type_system.convert_type_hint(int),
+            ),
         ),
         constructor_call.ret_val,
     )
@@ -326,7 +333,8 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
 
 
 def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
     function_call = stmt.FunctionStatement(
         test_case,
@@ -334,8 +342,8 @@ def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromos
             module.first,
             InferredSignature(
                 signature=inspect.signature(module.first),
-                parameters={"a": int},
-                return_type=int,
+                parameters={"a": cluster.type_system.convert_type_hint(int)},
+                return_type=cluster.type_system.convert_type_hint(int),
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -346,7 +354,8 @@ def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromos
 
 
 def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     int_stmt = stmt.IntPrimitiveStatement(test_case, -5)
     function_call = stmt.FunctionStatement(
         test_case,
@@ -354,8 +363,8 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
             module.first,
             InferredSignature(
                 signature=inspect.signature(module.first),
-                parameters={"a": int},
-                return_type=int,
+                parameters={"a": cluster.type_system.convert_type_hint(int)},
+                return_type=cluster.type_system.convert_type_hint(int),
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -366,7 +375,8 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
 
 
 def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     int_stmt = stmt.IntPrimitiveStatement(test_case, -50)
     function_call = stmt.FunctionStatement(
         test_case,
@@ -374,8 +384,8 @@ def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
             module.nested_branches,
             InferredSignature(
                 signature=inspect.signature(module.nested_branches),
-                parameters={"a": int},
-                return_type=int,
+                parameters={"a": cluster.type_system.convert_type_hint(int)},
+                return_type=cluster.type_system.convert_type_hint(int),
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -486,5 +496,6 @@ def _get_lines_data_for_plus_module():
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     return tcc.TestCaseChromosome(test_case=test_case)

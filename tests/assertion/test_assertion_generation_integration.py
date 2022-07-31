@@ -31,7 +31,7 @@ from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
             """str_0 = 'foo bar'
 float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
-assert human_0 is not None
+assert f'{type(human_0).__module__}.{type(human_0).__qualname__}' == 'tests.fixtures.examples.assertions.Human'
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
 assert str_1 == 'foo bar'""",
@@ -91,83 +91,71 @@ _MUTANTS = [
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if not param == 0:\n"
-    "        return uniform(0, 5)\n"
+    "        return uniform(5, 10)\n"
     "    else:\n"
-    "        return 3.0",
+    "        return 2.0",
     "from random import uniform\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 1:\n"
-    "        return uniform(0, 5)\n"
+    "        return uniform(5, 10)\n"
     "    else:\n"
-    "        return 3.0",
+    "        return 2.0",
     "from random import uniform\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 0:\n"
-    "        return uniform(1, 5)\n"
+    "        return uniform(6, 10)\n"
     "    else:\n"
-    "        return 3.0",
+    "        return 2.0",
     "from random import uniform\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 0:\n"
-    "        return uniform(0, 6)\n"
+    "        return uniform(5, 11)\n"
     "    else:\n"
-    "        return 3.0",
+    "        return 2.0",
     "from random import uniform\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 0:\n"
-    "        return uniform(0, 5)\n"
+    "        return uniform(5, 10)\n"
     "    else:\n"
-    "        return 4.0",
+    "        return 3.0",
     "from random import uniform\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param != 0:\n"
-    "        return uniform(0, 5)\n"
+    "        return uniform(5, 10)\n"
     "    else:\n"
-    "        return 3.0",
+    "        return 2.0",
 ]
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 @pytest.mark.parametrize(
-    "module,test_case_str,test_case_str_with_assertions,mutants,killed_mut,created_mut,timeout_mut,mut_score,killed,timeout",
+    "module,test_case_str,test_case_str_with_assertions,mutants,metrics,killed,timeout",
     [
         (
             "tests.fixtures.mutation.mutation",
-            """def test_case_0():
-    int_0 = 1
-    float_0 = module_0.foo(int_0)""",
-            """int_0 = 1
-float_0 = module_0.foo(int_0)
-assert float_0 == pytest.approx(3.0, abs=0.01, rel=0.01)""",
+            "def test_case_0():\n    int_0 = 1\n    float_0 = module_0.foo(int_0)",
+            "int_0 = 1\nfloat_0 = module_0.foo(int_0)\nassert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)",
             _MUTANTS,
-            4,
-            6,
-            0,
-            0.666,
+            ag._MutationMetrics(6, 4, 0),
             {0, 1, 4, 5},
             set(),
         ),
         (
             "tests.fixtures.mutation.mutation",
-            """def test_case_0():
-    int_0 = 0
-    float_0 = module_0.foo(int_0)""",
-            """int_0 = 0
-float_0 = module_0.foo(int_0)""",
+            "def test_case_0():\n    int_0 = 0\n    float_0 = module_0.foo(int_0)",
+            "int_0 = 0\nfloat_0 = module_0.foo(int_0)",
             _MUTANTS,
-            0,
-            6,
-            0,
-            0.0,
+            ag._MutationMetrics(6, 0, 0),
             set(),
             set(),
         ),
@@ -178,28 +166,87 @@ float_0 = module_0.foo(int_0)""",
             """none_type_0 = module_0.foo()""",
             [
                 "def foo() -> None:\n"
+                "    alist = [1, 2]\n"
+                "    if not len(alist) != 2:\n"
+                "        raise ValueError()\n"
+                "    return None",
+                "def foo() -> None:\n"
                 "    alist = [2, 2]\n"
-                "    assert len(alist) == 2\n"
+                "    if len(alist) != 2:\n"
+                "        raise ValueError()\n"
                 "    return None",
                 "def foo() -> None:\n"
                 "    alist = [1, 3]\n"
-                "    assert len(alist) == 2\n"
+                "    if len(alist) != 2:\n"
+                "        raise ValueError()\n"
                 "    return None",
                 "def foo() -> None:\n"
                 "    alist = [1, 2]\n"
-                "    assert len(alist) == 3\n"
+                "    if len(alist) != 3:\n"
+                "        raise ValueError()\n"
                 "    return None",
                 "def foo() -> None:\n"
                 "    alist = [1, 2]\n"
-                "    assert len(alist) != 2\n"
+                "    if len(alist) == 2:\n"
+                "        raise ValueError()\n"
                 "    return None",
             ],
-            2,
-            4,
-            0,
-            0.5,
-            {2, 3},
+            ag._MutationMetrics(5, 3, 0),
+            {0, 3, 4},
             set(),
+        ),
+        (
+            "tests.fixtures.mutation.expected",
+            "def test_case_0():\n    int_0 = 2\n    var_0 = module_0.bar(int_0)",
+            "int_0 = 2\nwith pytest.raises(ValueError):\n    var_0 = module_0.bar(int_0)",
+            [
+                "def bar(foo):\n    if not foo == 2:\n        raise ValueError()",
+                "def bar(foo):\n    if foo == 3:\n        raise ValueError()",
+                "def bar(foo):\n    if foo != 2:\n        raise ValueError()",
+            ],
+            ag._MutationMetrics(3, 3, 0),
+            {0, 1, 2},
+            set(),
+        ),
+        (
+            "tests.fixtures.mutation.timeout",
+            "def test_case_0():\n    int_0 = 1\n    var_0 = module_0.timeout(int_0)",
+            "int_0 = 1\nvar_0 = module_0.timeout(int_0)\nassert var_0 == 5",
+            [
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if not foo == 2:\n"
+                "        time.sleep(4)\n"
+                "    return 5",
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if foo == 3:\n"
+                "        time.sleep(4)\n"
+                "    return 5",
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if foo == 2:\n"
+                "        time.sleep(5)\n"
+                "    return 5",
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if foo == 2:\n"
+                "        time.sleep(4)\n"
+                "    return 6",
+                "import time\n"
+                "\n"
+                "def timeout(foo):\n"
+                "    if foo != 2:\n"
+                "        time.sleep(4)\n"
+                "    return 5",
+            ],
+            ag._MutationMetrics(5, 1, 2),
+            {3},
+            {0, 4},
         ),
     ],
 )
@@ -208,10 +255,7 @@ def test_mutation_analysis_integration_full(
     test_case_str,
     test_case_str_with_assertions,
     mutants,
-    killed_mut,
-    created_mut,
-    timeout_mut,
-    mut_score,
+    metrics,
     killed,
     timeout,
 ):
@@ -235,15 +279,18 @@ def test_mutation_analysis_integration_full(
         )
         suite.accept(gen)
 
-        mut_info = gen._testing_mutation_info
-        assert {i for i, mut in enumerate(mut_info) if mut.killed_by} == killed
-        assert {i for i, mut in enumerate(mut_info) if mut.timed_out_by} == timeout
+        summary = gen._testing_mutation_summary
+        kills = {k.mut_num for k in summary.get_killed()}
+        timeouts = {k.mut_num for k in summary.get_timeout()}
+        survived = {k.mut_num for k in summary.get_survived()}
+        assert kills == killed
+        assert timeouts == timeout
+        # Test for disjoint
+        assert len(kills | survived | timeouts) == len(kills) + len(timeouts) + len(
+            survived
+        )
 
-        metrics = gen._compute_mutation_metrics(mut_info)
-        assert metrics.num_timeout_mutants == timeout_mut
-        assert metrics.num_killed_mutants == killed_mut
-        assert metrics.num_created_mutants == created_mut
-        assert metrics.get_score() == pytest.approx(mut_score, abs=1e-2)
+        assert summary.get_metrics() == metrics
         assert gen._testing_created_mutants == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
@@ -253,3 +300,7 @@ def test_mutation_analysis_integration_full(
             )
         )
         assert source == test_case_str_with_assertions
+        for thread in threading.enumerate():
+            if "_execute_test_case" in thread.name:
+                thread.join()
+        assert len(threading.enumerate()) == 1  # Only main thread should be alive.

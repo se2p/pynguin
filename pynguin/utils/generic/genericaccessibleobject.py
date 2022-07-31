@@ -302,7 +302,7 @@ class GenericMethod(GenericCallableAccessibleObject):
     def get_dependencies(self) -> OrderedSet[ProperType]:
         assert self.owner, "Method must have an owner"
         dependencies = super().get_dependencies()
-        dependencies.add(self._generated_type)
+        dependencies.add(Instance(self.owner))
         return dependencies
 
     def __eq__(self, other):

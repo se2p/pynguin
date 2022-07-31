@@ -406,7 +406,7 @@ class TestCluster(abc.ABC):
 
     @abc.abstractmethod
     def update_return_type(
-        self, accessible: GenericCallableAccessibleObject, new_type: type
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
         """Update the return for the given accessible to the new seen type.
 
@@ -438,6 +438,7 @@ class ModuleTestCluster(TestCluster):
     dependencies.
     """
 
+    # pylint:disable=too-many-instance-attributes
     def __init__(self, linenos: int) -> None:
         self.__type_system = TypeSystem()
         self.__linenos = linenos
@@ -449,10 +450,10 @@ class ModuleTestCluster(TestCluster):
         # without needing a generator. We store them here, so we don't have to generate
         # them all the time.
         self.__primitive_proper_types = [
-            Instance(self.__type_system.to_type_info(prim)) for prim in PRIMITIVES
+            self.__type_system.convert_type_hint(prim) for prim in PRIMITIVES
         ]
         self.__collection_proper_types = [
-            Instance(self.__type_system.to_type_info(coll)) for coll in COLLECTIONS
+            self.__type_system.convert_type_hint(coll) for coll in COLLECTIONS
         ]
 
         # Modifier belong to a certain class, not type.
@@ -476,35 +477,35 @@ class ModuleTestCluster(TestCluster):
             self.__generators.pop(accessible.generated_type())
 
     def update_return_type(
-        self, accessible: GenericCallableAccessibleObject, new_type: type
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
         # Loosely map runtime type to proper type
         # TODO(fk) what about tuple?
-        new_proper: ProperType = Instance(self.__type_system.to_type_info(new_type))
+        #  Think about updates, only Any?
         old_type = accessible.generated_type()
-        if new_proper == old_type:
+        if new_type == old_type:
             return
 
-        if new_proper.accept(is_primitive_type):
+        if new_type.accept(is_primitive_type):
             # We don't want to generate primitives.
             self._drop_generator(accessible)
             return
 
         if isinstance(old_type, UnionType):
             items = old_type.items
-            if len(items) >= 5 or new_proper in items:
+            if len(items) >= 5 or new_type in items:
                 # Don't create unions exceeding five elements.
                 return
-            new_proper = UnionType(old_type.items + (new_proper,))
+            new_type = UnionType(old_type.items + (new_type,))
         elif not isinstance(old_type, AnyType):
-            new_proper = UnionType(
+            new_type = UnionType(
                 (
                     old_type,
-                    new_proper,
+                    new_type,
                 )
             )
         self._drop_generator(accessible)
-        self.__generators[new_proper].append(accessible)
+        self.__generators[new_type].append(accessible)
 
     def update_parameter_knowledge(
         self,
@@ -700,7 +701,7 @@ class FilteredModuleTestCluster(TestCluster):
         return self.__delegate.type_system
 
     def update_return_type(
-        self, accessible: GenericCallableAccessibleObject, new_type: type
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
         self.__delegate.update_return_type(accessible, new_type)
 
