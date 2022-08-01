@@ -17,4 +17,3 @@ def mirror():
 def test_mirror(mirror):
     assert mirror[5] == 5
     assert mirror["5"] == "5"
-
