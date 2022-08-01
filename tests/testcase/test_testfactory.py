@@ -51,11 +51,11 @@ def test_check_recursion_depth_guard(test_case_mock, method):
 @pytest.mark.parametrize(
     "statement",
     [
-        pytest.param(MagicMock(stmt.ConstructorStatement)),
-        pytest.param(MagicMock(stmt.MethodStatement)),
-        pytest.param(MagicMock(stmt.FunctionStatement)),
-        pytest.param(MagicMock(stmt.FieldStatement)),
-        pytest.param(MagicMock(stmt.PrimitiveStatement)),
+        (MagicMock(stmt.ConstructorStatement)),
+        (MagicMock(stmt.MethodStatement)),
+        (MagicMock(stmt.FunctionStatement)),
+        (MagicMock(stmt.FieldStatement)),
+        (MagicMock(stmt.PrimitiveStatement)),
     ],
 )
 def test_append_statement(test_case_mock, statement):
@@ -78,10 +78,10 @@ def test_append_statement(test_case_mock, statement):
 @pytest.mark.parametrize(
     "statement",
     [
-        pytest.param(MagicMock(gao.GenericConstructor)),
-        pytest.param(MagicMock(gao.GenericMethod)),
-        pytest.param(MagicMock(gao.GenericFunction)),
-        pytest.param(MagicMock(gao.GenericField)),
+        (MagicMock(gao.GenericConstructor)),
+        (MagicMock(gao.GenericMethod)),
+        (MagicMock(gao.GenericFunction)),
+        (MagicMock(gao.GenericField)),
     ],
 )
 def test_append_generic_statement(test_case_mock, statement):
@@ -733,7 +733,7 @@ def test_insert_random_call_on_object_at_assertion(
         )
 
 
-@pytest.mark.parametrize("result", [pytest.param(True), pytest.param(False)])
+@pytest.mark.parametrize("result", [True, False])
 def test_insert_random_call_on_object_at_success(
     test_case_mock, variable_reference_mock, result
 ):
