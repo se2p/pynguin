@@ -276,6 +276,7 @@ def test_attempt_generation_for_type(test_case_mock):
 
 
 def test_attempt_generation_for_unknown_type(default_test_case):
+    config.configuration.test_creation.none_probability = 0.0
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
         default_test_case,
