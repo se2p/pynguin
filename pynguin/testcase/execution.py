@@ -37,11 +37,12 @@ import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import Instance, ProperType
+from pynguin.analyses.typesystem import AnyType, Instance, ProperType
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     CheckedCoverageInstrumentation,
@@ -49,6 +50,7 @@ from pynguin.instrumentation.instrumentation import (
     InstrumentationTransformer,
     PredicateMetaData,
 )
+from pynguin.utils.mirror import Mirror
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -60,7 +62,6 @@ immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variablereference as vr
     from pynguin.analyses import module
 
 
@@ -2373,9 +2374,6 @@ class TypeTracingObserver(ExecutionObserver):
             super().__init__()
             # Active proxies per statement position and argument name.
             self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
-            # We need to temporarily replace the value that is used for the call.
-            # Store the old value here to replace it after statement execution.
-            self.shadow_locals: dict[vr.VariableReference, Any] = {}
 
     def __init__(self, cluster: module.TestCluster):
         self._local_state = TypeTracingObserver.TypeTracingLocalState()
@@ -2410,16 +2408,41 @@ class TypeTracingObserver(ExecutionObserver):
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
         if isinstance(statement, stmt.ParametrizedStatement):
+            modified_args = {}
+            real_params = {}
             for name, param in statement.args.items():
-                old = self._local_state.shadow_locals[
-                    param
-                ] = exec_ctx.get_reference_value(param)
+                mod_param = vr.VariableReference(statement.test_case, AnyType())
+                modified_args[name] = mod_param
+                real_params[(name, mod_param)] = param
+
+            # We must rewrite the statement as follows:
+            # foo(arg1, arg2, arg2)
+            #
+            # n_arg1 = Proxy(arg1)
+            # n_arg2 = Proxy(arg2)
+            # n_arg3 = Proxy(arg2)
+            # foo(n_arg1, n_arg2, n_arg3)
+            modified = cast(
+                stmt.ParametrizedStatement,
+                statement.clone(statement.test_case, Mirror()),
+            )
+            modified.args = modified_args
+            modified.ret_val = statement.ret_val
+            visitor = stmt_to_ast.StatementToAstVisitor(
+                exec_ctx.module_aliases, exec_ctx.variable_names
+            )
+            modified.accept(visitor)
+            # Now we know the names.
+            for (name, modified_param), original_param in real_params.items():
                 # TODO(fk) use proxy only with some chance?
                 #  May be necessary for functions that don't like proxies, e.g.,
                 #  open(...).
+                old = exec_ctx.get_reference_value(original_param)
                 proxy = tt.ObjectProxy(old)
-                exec_ctx.replace_variable_value(param, proxy)
+                exec_ctx.replace_variable_value(modified_param, proxy)
                 self._local_state.proxies[(statement.get_position(), name)] = proxy
+
+            return visitor.ast_node
         return node
 
     def after_statement_execution(
@@ -2429,13 +2452,4 @@ class TypeTracingObserver(ExecutionObserver):
         exec_ctx: ExecutionContext,
         exception: BaseException | None = None,
     ) -> None:
-        if isinstance(statement, stmt.ParametrizedStatement):
-            for param in statement.args.values():
-                if param in self._local_state.shadow_locals:
-                    exec_ctx.replace_variable_value(
-                        param, self._local_state.shadow_locals[param]
-                    )
-                    del self._local_state.shadow_locals[param]
-        assert (
-            len(self._local_state.shadow_locals) == 0
-        ), "Shadow store must be empty after statement execution."
+        pass
