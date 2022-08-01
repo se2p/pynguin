@@ -528,6 +528,7 @@ class ModuleTestCluster(TestCluster):
         if len(random_types) == 0:
             return
         selected = Instance(randomness.choice(random_types))
+        LOGGER.debug("Selected %s from symbol %s", selected, random_symbol)
         accessible.inferred_signature.parameters[param_name] = selected
 
     @property
