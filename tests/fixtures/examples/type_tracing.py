@@ -7,7 +7,7 @@
 from tests.fixtures.examples.type_tracing_classes import *  # noqa: F403,F401
 
 
-def execute_me(a, b, c):
+def try_to_test_me(a, b, c):
     if a.foo_96 > b.foo_30 + c:
         return 42
     return 0
