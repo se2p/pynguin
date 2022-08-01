@@ -513,8 +513,22 @@ class ModuleTestCluster(TestCluster):
         param_name: str,
         knowledge: tt.ProxyKnowledge,
     ) -> None:
-        # TODO(fk) implement search/update here.
-        pass
+        updated_knowledge = accessible.inferred_signature.knowledge[param_name]
+        # Store new data
+        updated_knowledge.merge(knowledge)
+
+        # Try another guess?
+        # TODO(fk) make this more elaborate
+        #  e.g., type checks, 'known' generics (list,...)
+        #  use compare types and so on.
+        if len(updated_knowledge.symbol_table) == 0:
+            return
+        random_symbol = randomness.choice(list(updated_knowledge.symbol_table))
+        random_types = list(self.__type_system.find_by_symbol(random_symbol))
+        if len(random_types) == 0:
+            return
+        selected = Instance(randomness.choice(random_types))
+        accessible.inferred_signature.parameters[param_name] = selected
 
     @property
     def type_system(self) -> TypeSystem:
@@ -935,9 +949,9 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
-    LOGGER.info("Analysing class %s", type_info)
+    LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
-    __add_symbols(class_ast, type_info)
+    __add_symbols(test_cluster, class_ast, type_info)
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
@@ -992,11 +1006,14 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
-def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> None:
+def __add_symbols(
+    test_cluster: TestCluster, class_ast: astroid.ClassDef | None, type_info: TypeInfo
+) -> None:
     """Tries to infer what symbols can be found on an instance of the given class.
     We also try to infer what attributes are defined in '__init__'.
 
     Args:
+        test_cluster: The test cluster
         class_ast: The AST Node of the class.
         type_info: The type info.
     """
@@ -1005,6 +1022,7 @@ def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> No
     type_info.symbols.update(type_info.instance_attributes)
     # TODO(fk) filter?
     type_info.symbols.update(tuple(vars(type_info.raw_type)))
+    test_cluster.type_system.update_symbol_map(type_info)
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments

@@ -140,7 +140,7 @@ class TestSuiteGenerationAlgorithmFactory(
         test_cluster: ModuleTestCluster,
         constant_provider: ConstantProvider | None = None,
     ):
-        if config.configuration.type_inference.use_type_tracing:
+        if config.configuration.type_inference.type_tracing:
             executor = TypeTracingTestCaseExecutor(executor, test_cluster)
         self._executor = executor
         self._test_cluster = test_cluster

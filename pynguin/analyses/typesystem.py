@@ -13,6 +13,7 @@ import logging
 import types
 import typing
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
@@ -21,6 +22,7 @@ from networkx.drawing.nx_pydot import to_pydot
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
+import pynguin.utils.typetracing as tt
 from pynguin.utils.exceptions import ConfigurationException
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,6 +119,7 @@ class TupleType(ProperType):
 
     # TODO(fk) this is a bit problematic. Merge with instance?
     #  i.e., there can be TupleType(unknown_size=True) and Instance(TypeInfo(tuple))
+    #  tuple is special because it is varargs generic.
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
         assert len(self.args) > 0
@@ -428,22 +431,23 @@ class TypeInfo:
 
 @dataclass
 class InferredSignature:
-    """Encapsulates the types inferred for a method.
+    """Encapsulates the types inferred for a method."""
 
-    The fields contain the following:
-
-    * ``signature``: Holds an :py:class:`inspect.Signature` object as generated from
-      the :py:func:`inspect.signature` function. This is mainly useful for checking
-      the argument kind, e.g., positional or keyword and checking for default values.
-    * ``return_type``: The return-type.
-    * ``parameters``: A dictionary mapping parameter names to their type.
-    """
-
+    # Signature inferred from inspect, only useful to get non-type related information
+    # on parameters
     signature: inspect.Signature
+    # The return type
     return_type: ProperType
+    # A dict mapping every parameter name to its type
     parameters: dict[str, ProperType]
 
-    # Stores the original types.
+    # Proxy knowledge learned from executions
+    knowledge: dict[str, tt.ProxyKnowledge] = field(
+        default_factory=lambda: defaultdict(lambda: tt.ProxyKnowledge("ROOT")),
+        init=False,
+    )
+
+    # Return and parameter types might be updated, so we store the original ones.
     orig_return_type: ProperType = field(init=False)
     orig_parameters: dict[str, ProperType] = field(init=False)
 
@@ -461,7 +465,10 @@ class TypeSystem:
 
     def __init__(self):
         self._graph = nx.DiGraph()
+        # Maps all known types from their full name to their type info.
         self._types: dict[str, TypeInfo] = {}
+        # Maps symbols to type which have that symbol
+        self._symbol_map: dict[str, OrderedSet[TypeInfo]] = defaultdict(OrderedSet)
 
     def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add an edge between two types.
@@ -575,6 +582,26 @@ class TypeSystem:
             Type info, if any.
         """
         return self._types.get(full_name)
+
+    def update_symbol_map(self, type_info: TypeInfo) -> None:
+        """Update the symbol map for the given type.
+
+        Args:
+            type_info: the type to update.
+        """
+        for symbol in type_info.symbols:
+            self._symbol_map[symbol].add(type_info)
+
+    def find_by_symbol(self, symbol: str) -> OrderedSet[TypeInfo]:
+        """Search for all types that have the given symbol.
+
+        Args:
+            symbol: the symbol to search for.
+
+        Returns:
+            All types (or supertypes thereof) who have the given symbol.
+        """
+        return self._symbol_map[symbol]
 
     def wrap_var_param_type(self, typ: ProperType, param_kind) -> ProperType:
         """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],

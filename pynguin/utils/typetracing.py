@@ -64,7 +64,6 @@ class ProxyKnowledge:
     symbol_table: dict[str, ProxyKnowledge] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
-    # Weak vs strong type checks?
     # TODO(fk) do not record type checks originating from other proxies?
     # TODO(fk) do not record anything if it involves another proxy
     type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
