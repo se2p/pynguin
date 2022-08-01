@@ -9,8 +9,8 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.typesystem import Instance, ProperType, TypeSystem
 
 
-def __feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
-    """Small helper because TypeInfos need to be aligned, because we don't have one
+def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
+    """Small helper because TypeInfos need to be aligned, and we don't have one
     large typesystem during testing but create them in various places."""
 
     # TODO(fk) think about making this less hacky.

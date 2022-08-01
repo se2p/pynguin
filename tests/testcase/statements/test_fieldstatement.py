@@ -10,7 +10,7 @@ import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from tests.testutils import __feed_typesystem
+from tests.testutils import feed_typesystem
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
@@ -163,7 +163,7 @@ def test_mutate_no_replacements(field_mock, constructor_mock, default_test_case)
     field = stmt.FieldStatement(default_test_case, field_mock, const.ret_val)
     default_test_case.add_statement(const)
     default_test_case.add_statement(field)
-    __feed_typesystem(default_test_case.test_cluster.type_system, field_mock)
+    feed_typesystem(default_test_case.test_cluster.type_system, field_mock)
     assert not field.mutate()
 
 
@@ -177,6 +177,6 @@ def test_mutate_success(field_mock, constructor_mock, default_test_case):
     default_test_case.add_statement(const2)
     default_test_case.add_statement(field)
     default_test_case.add_statement(const3)
-    __feed_typesystem(default_test_case.test_cluster.type_system, field_mock)
+    feed_typesystem(default_test_case.test_cluster.type_system, field_mock)
     assert field.mutate()
     assert field.source == const2.ret_val

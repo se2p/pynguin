@@ -23,7 +23,7 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType, InferredSignature, NoneType
 from pynguin.utils.exceptions import ConstructionFailedException
 from tests.fixtures.examples.monkey import Monkey
-from tests.testutils import __feed_typesystem
+from tests.testutils import feed_typesystem
 
 
 def test_append_statement_unknown_type(test_case_mock):
@@ -1011,8 +1011,8 @@ def test_change_call_method(constructor_mock, method_mock, default_test_case):
     )
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
-    __feed_typesystem(test_cluster.type_system, constructor_mock)
-    __feed_typesystem(test_cluster.type_system, method_mock)
+    feed_typesystem(test_cluster.type_system, constructor_mock)
+    feed_typesystem(test_cluster.type_system, method_mock)
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(default_test_case, to_replace, method_mock)
     assert default_test_case.statements[2].accessible_object() == method_mock
@@ -1029,7 +1029,7 @@ def test_change_call_constructor(constructor_mock, default_test_case):
     )
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
-    __feed_typesystem(test_cluster.type_system, constructor_mock)
+    feed_typesystem(test_cluster.type_system, constructor_mock)
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(default_test_case, to_replace, constructor_mock)
     assert default_test_case.statements[1].accessible_object() == constructor_mock
@@ -1046,7 +1046,7 @@ def test_change_call_function(function_mock, default_test_case):
     )
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
-    __feed_typesystem(test_cluster.type_system, function_mock)
+    feed_typesystem(test_cluster.type_system, function_mock)
     test_factory = tf.TestFactory(test_cluster)
     test_factory.change_call(default_test_case, to_replace, function_mock)
     assert default_test_case.statements[1].accessible_object() == function_mock
