@@ -372,7 +372,7 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    type_tracing: bool = True
+    type_tracing: bool = False
     """Trace usage of parameters with unknown types to improve type guesses."""
 
     stub_dir: str = ""
