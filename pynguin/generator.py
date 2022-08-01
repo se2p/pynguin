@@ -54,9 +54,9 @@ from pynguin.instrumentation.machinery import (
     build_transformer,
     install_import_hook,
 )
-from pynguin.slicer.checkedlinesobserver import CheckedLineObserver
+from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import (
-    AssertionSlicingObserver,
+    AssertionExecutionObserver,
     ExecutionTracer,
     ReturnTypeObserver,
     TestCaseExecutor,
@@ -373,7 +373,7 @@ def _track_resulting_assertion_checked_coverage(
     _LOGGER.info("Calculating resulting checked coverage")
 
     _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
-    executor.add_observer(AssertionSlicingObserver(executor.tracer))
+    executor.add_observer(AssertionExecutionObserver(executor.tracer))
 
     assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
         executor
@@ -398,7 +398,7 @@ def _run() -> ReturnCode:
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        executor.add_observer(CheckedLineObserver(executor.tracer))
+        executor.add_observer(StatementSlicingObserver(executor.tracer))
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider

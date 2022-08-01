@@ -31,6 +31,7 @@ from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
+import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -53,7 +54,6 @@ from pynguin.utils.type_utils import (
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
-    import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
@@ -309,7 +309,7 @@ class ExecutionObserver:
         """
 
 
-class AssertionSlicingObserver(ExecutionObserver):
+class AssertionExecutionObserver(ExecutionObserver):
     """An observer which executes the assertions of statements to enable slicing on
     the recorded data."""
 
@@ -357,7 +357,7 @@ class AssertionSlicingObserver(ExecutionObserver):
                 assertion_node = exec_ctx.wrap_node_in_module(
                     exec_ctx.node_for_assertion(assertion, ast.stmt())  # Dummy node
                 )
-                executor.execute_ast(assertion_node, exec_ctx, True)
+                executor.execute_ast(assertion_node, exec_ctx)
 
                 code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
                 self._tracer.register_assertion_position(
@@ -1899,10 +1899,15 @@ class TestCaseExecutor:
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
-        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
-        self._checked_transformer = InstrumentationTransformer(
-            self._tracer, [checked_adapter]
+        self._instrument = (
+            config.CoverageMetric.CHECKED
+            in config.configuration.statistics_output.coverage_metrics
         )
+        if self._instrument:
+            checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+            self._checked_transformer = InstrumentationTransformer(
+                self._tracer, [checked_adapter]
+            )
 
         def log_thread_exception(arg):
             _logger.error(
@@ -2013,7 +2018,7 @@ class TestCaseExecutor:
         self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             ast_node = self._before_statement_execution(statement, exec_ctx)
-            exception = self.execute_ast(ast_node, exec_ctx, instrument=instrument_test)
+            exception = self.execute_ast(ast_node, exec_ctx)
             self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
@@ -2076,7 +2081,6 @@ class TestCaseExecutor:
         self,
         ast_node: ast.Module,
         exec_ctx: ExecutionContext,
-        instrument: bool = False,
     ) -> BaseException | None:
         """Execute the given ast_node in the given context.
         You can use this in an observer if you also need to execute an AST Node.
@@ -2084,7 +2088,6 @@ class TestCaseExecutor:
         Args:
             ast_node: The node to execute.
             exec_ctx: The execution context
-            instrument: Instrument execution of the given node.
 
         Returns:
             The raised exception, if any.
@@ -2093,7 +2096,7 @@ class TestCaseExecutor:
             _logger.debug("Executing %s", ast.unparse(ast_node))
 
         code = compile(ast_node, "<ast>", "exec")
-        if instrument:
+        if self._instrument:
             code = self._checked_transformer.instrument_module(code)
 
         try:

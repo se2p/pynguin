@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 """Provides an observer that can be used to calculate the checked lines of a test."""
+import ast
 import logging
 import threading
 
@@ -15,17 +16,18 @@ import pynguin.utils.opcodes as op
 from pynguin.ga.computations import compute_statement_checked_lines
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
-from pynguin.testcase.execution import ExecutionContext
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class CheckedLineObserver(ex.ExecutionObserver):
+class StatementSlicingObserver(ex.ExecutionObserver):
     """Observer that updates the checked lines of a testcase.
     Observes the execution of a test case and calculates the
     slices of its statements."""
 
-    class CheckedLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    _STORE_INSTRUCTION_OFFSET = 3
+
+    class SlicingLocalState(threading.local):  # pylint:disable=too-few-public-methods
         """Stores thread-local slicing data."""
 
         def __init__(self):
@@ -34,22 +36,22 @@ class CheckedLineObserver(ex.ExecutionObserver):
 
     def __init__(self, tracer: ex.ExecutionTracer) -> None:
         self._tracer = tracer
-        self._checked_local_state = CheckedLineObserver.CheckedLocalState()
+        self._slicing_local_state = StatementSlicingObserver.SlicingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
 
     def before_statement_execution(
-        self, statement: st.Statement, exec_ctx: ExecutionContext
-    ):
-        # Nothing to do before statement.
-        pass
+        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
+    ) -> ast.stmt:
+        return node
 
     def after_statement_execution(
         self,
         statement: st.Statement,
+        executor: ex.TestCaseExecutor,
         exec_ctx: ex.ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         if exception is None:
             assert isinstance(statement, st.VariableCreatingStatement)
@@ -72,24 +74,24 @@ class CheckedLineObserver(ex.ExecutionObserver):
             )
             slicing_criterion = SlicingCriterion(
                 slicing_instruction,
-                len(trace.executed_instructions) - 3,
+                len(trace.executed_instructions) - self._STORE_INSTRUCTION_OFFSET,
             )
-            self._checked_local_state.slicing_criteria[
+            self._slicing_local_state.slicing_criteria[
                 statement.get_position()
             ] = slicing_criterion
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ):
+    ) -> None:
         checked_lines = compute_statement_checked_lines(
             test_case.statements,
             result.execution_trace,
             self._tracer.get_known_data(),
-            self._checked_local_state.slicing_criteria,
+            self._slicing_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ):
+    ) -> None:
         pass

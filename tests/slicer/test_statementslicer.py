@@ -24,8 +24,8 @@ from pynguin.ga.computations import (
     TestSuiteStatementCheckedCoverageFunction,
 )
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.checkedlinesobserver import CheckedLineObserver
 from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.testcase.statement import MethodStatement
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
@@ -66,7 +66,7 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(tracer))
+        executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestSuiteStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(4 / 8, 0.1, 0.1)
@@ -87,7 +87,7 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(tracer))
+        executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
@@ -148,7 +148,7 @@ def test_only_void_function(setter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(tracer))
+        executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
@@ -211,7 +211,7 @@ def test_getter_before_setter(getter_setter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(tracer))
+        executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
@@ -289,7 +289,7 @@ def test_getter_after_setter(setter_getter_test):
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(CheckedLineObserver(tracer))
+        executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_case_chromosome) == pytest.approx(

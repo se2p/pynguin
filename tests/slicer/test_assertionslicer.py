@@ -22,7 +22,7 @@ from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import (
-    AssertionSlicingObserver,
+    AssertionExecutionObserver,
     ExecutionTracer,
     TestCaseExecutor,
 )
@@ -240,7 +240,7 @@ def test_assertion_detection_on_test_case(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
+        executor.add_observer(AssertionExecutionObserver(tracer))
         result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
         assert len(result.execution_trace.executed_assertions) == expected_assertions
@@ -282,7 +282,7 @@ def test_slicing_after_test_execution(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
+        executor.add_observer(AssertionExecutionObserver(tracer))
         result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
 
@@ -346,7 +346,7 @@ def test_testsuite_assertion_checked_coverage_calculation(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
+        executor.add_observer(AssertionExecutionObserver(tracer))
         ff = TestSuiteAssertionCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(
             expected_coverage, 0.1, 0.1
