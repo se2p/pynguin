@@ -446,16 +446,6 @@ class ModuleTestCluster(TestCluster):
             ProperType, OrderedSet[GenericAccessibleObject]
         ] = defaultdict(OrderedSet)
 
-        # These types are intrinsic for Pynguin, i.e., we can generate them ourselves
-        # without needing a generator. We store them here, so we don't have to generate
-        # them all the time.
-        self.__primitive_proper_types = [
-            self.__type_system.convert_type_hint(prim) for prim in PRIMITIVES
-        ]
-        self.__collection_proper_types = [
-            self.__type_system.convert_type_hint(coll) for coll in COLLECTIONS
-        ]
-
         # Modifier belong to a certain class, not type.
         self.__modifiers: dict[
             TypeInfo, OrderedSet[GenericAccessibleObject]
@@ -526,9 +516,24 @@ class ModuleTestCluster(TestCluster):
         random_symbol = randomness.choice(list(updated_knowledge.symbol_table))
         random_types = list(self.__type_system.find_by_symbol(random_symbol))
         if len(random_types) == 0:
+            # TODO(fk) retry sampling symbol?
             return
-        selected = Instance(randomness.choice(random_types))
-        LOGGER.debug("Selected %s from symbol %s", selected, random_symbol)
+        selected: ProperType = Instance(randomness.choice(random_types))
+
+        old_parameter_type = accessible.inferred_signature.parameters[param_name]
+        if isinstance(old_parameter_type, UnionType):
+            if selected not in old_parameter_type.items:
+                selected = UnionType(old_parameter_type.items + (selected,))
+            else:
+                selected = old_parameter_type
+        else:
+            selected = UnionType((selected,))
+
+        if selected != old_parameter_type:
+            # TODO(fk) something strange is happening here.
+            LOGGER.info(
+                "Selected %s from symbol %s for %s", selected, random_symbol, param_name
+            )
         accessible.inferred_signature.parameters[param_name] = selected
 
     @property
@@ -646,8 +651,8 @@ class ModuleTestCluster(TestCluster):
 
     def get_all_generatable_types(self) -> list[ProperType]:
         generatable = OrderedSet(self.__generators.keys())
-        generatable.update(self.__primitive_proper_types)
-        generatable.update(self.__collection_proper_types)
+        generatable.update(self.type_system.primitive_proper_types)
+        generatable.update(self.type_system.collection_proper_types)
         return list(generatable)
 
     def select_concrete_type(self, typ: ProperType) -> ProperType:
@@ -952,7 +957,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 ) -> None:
     LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
-    __add_symbols(test_cluster, class_ast, type_info)
+    __add_symbols(class_ast, type_info)
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
@@ -1007,23 +1012,29 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
-def __add_symbols(
-    test_cluster: TestCluster, class_ast: astroid.ClassDef | None, type_info: TypeInfo
-) -> None:
+# Some symbols are not interesting for us.
+IGNORED_SYMBOLS: set[str] = {
+    "__new__",
+    "__repr__",
+    "__str__",
+    "__sizeof__",
+    "__getattribute__",
+}
+
+
+def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> None:
     """Tries to infer what symbols can be found on an instance of the given class.
     We also try to infer what attributes are defined in '__init__'.
 
     Args:
-        test_cluster: The test cluster
         class_ast: The AST Node of the class.
         type_info: The type info.
     """
     if class_ast is not None:
         type_info.instance_attributes.update(tuple(class_ast.instance_attrs))
     type_info.symbols.update(type_info.instance_attributes)
-    # TODO(fk) filter?
     type_info.symbols.update(tuple(vars(type_info.raw_type)))
-    test_cluster.type_system.update_symbol_map(type_info)
+    type_info.symbols.difference_update(IGNORED_SYMBOLS)
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments
@@ -1156,6 +1167,8 @@ def __resolve_dependencies(
     LOGGER.info("Modules:   %5i", len(seen_modules))
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
+
+    test_cluster.type_system.push_symbols_up()
 
 
 def __enable_numeric_tower(test_cluster):

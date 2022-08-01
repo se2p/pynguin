@@ -1199,32 +1199,46 @@ class TestFactory:
         ret.distance = recursion_depth
         return ret
 
-    @staticmethod
     def _create_primitive(
+        self,
         test_case: tc.TestCase,
         parameter_type: Instance,
         position: int,
         recursion_depth: int,
         constant_provider: ConstantProvider,
     ) -> vr.VariableReference:
-        if parameter_type.type.raw_type == int:
-            statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(
-                test_case, constant_provider=constant_provider
-            )
-        elif parameter_type.type.raw_type == float:
-            statement = stmt.FloatPrimitiveStatement(
-                test_case, constant_provider=constant_provider
-            )
-        elif parameter_type.type.raw_type == bool:
-            statement = stmt.BooleanPrimitiveStatement(test_case)
-        elif parameter_type.type.raw_type == bytes:
-            statement = stmt.BytesPrimitiveStatement(
-                test_case, constant_provider=constant_provider
-            )
-        else:
-            statement = stmt.StringPrimitiveStatement(
-                test_case, constant_provider=constant_provider
-            )
+        # Need to adhere to numeric tower.
+        parameter_type = cast(
+            Instance,
+            randomness.choice(
+                [
+                    typ
+                    for typ in self._test_cluster.type_system.primitive_proper_types
+                    if self._test_cluster.type_system.is_subtype(typ, parameter_type)
+                ]
+            ),
+        )
+
+        match parameter_type.type.name:
+            case "int":
+                statement: stmt.PrimitiveStatement = stmt.IntPrimitiveStatement(
+                    test_case, constant_provider=constant_provider
+                )
+            case "float":
+                statement = stmt.FloatPrimitiveStatement(
+                    test_case, constant_provider=constant_provider
+                )
+            case "bool":
+                statement = stmt.BooleanPrimitiveStatement(test_case)
+            case "bytes":
+                statement = stmt.BytesPrimitiveStatement(
+                    test_case, constant_provider=constant_provider
+                )
+            case _:
+                # TODO(fk) add complexprimitive.
+                statement = stmt.StringPrimitiveStatement(
+                    test_case, constant_provider=constant_provider
+                )
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
         return ret

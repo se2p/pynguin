@@ -24,6 +24,7 @@ from typing_inspect import is_union_type
 
 import pynguin.utils.typetracing as tt
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -155,13 +156,13 @@ class UnionType(ProperType):
 
     def __hash__(self):
         if self._hash is None:
-            self._hash = hash(frozenset(self.items))
+            self._hash = hash(self.items)
         return self._hash
 
     def __eq__(self, other):
         if not isinstance(other, UnionType):
             return False
-        return frozenset(self.items) == frozenset(other.items)
+        return self.items == other.items
 
 
 class TypeVisitor(Generic[T]):
@@ -242,7 +243,7 @@ class TypeStringVisitor(TypeVisitor[str]):
         return f"tuple[{self._sequence_str(left.args)}]"
 
     def visit_union_type(self, left: UnionType) -> str:
-        return f"Union{self._sequence_str(left.items)}"
+        return f"Union[{self._sequence_str(left.items)}]"
 
     def _sequence_str(self, typs: Sequence[ProperType]) -> str:
         return ", ".join(t.accept(self) for t in typs)
@@ -469,6 +470,15 @@ class TypeSystem:
         self._types: dict[str, TypeInfo] = {}
         # Maps symbols to type which have that symbol
         self._symbol_map: dict[str, OrderedSet[TypeInfo]] = defaultdict(OrderedSet)
+        # These types are intrinsic for Pynguin, i.e., we can generate them ourselves
+        # without needing a generator. We store them here, so we don't have to generate
+        # them all the time.
+        self.primitive_proper_types = [
+            self.convert_type_hint(prim) for prim in PRIMITIVES
+        ]
+        self.collection_proper_types = [
+            self.convert_type_hint(coll) for coll in COLLECTIONS
+        ]
 
     def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add an edge between two types.
@@ -583,15 +593,6 @@ class TypeSystem:
         """
         return self._types.get(full_name)
 
-    def update_symbol_map(self, type_info: TypeInfo) -> None:
-        """Update the symbol map for the given type.
-
-        Args:
-            type_info: the type to update.
-        """
-        for symbol in type_info.symbols:
-            self._symbol_map[symbol].add(type_info)
-
     def find_by_symbol(self, symbol: str) -> OrderedSet[TypeInfo]:
         """Search for all types that have the given symbol.
 
@@ -602,6 +603,35 @@ class TypeSystem:
             All types (or supertypes thereof) who have the given symbol.
         """
         return self._symbol_map[symbol]
+
+    def push_symbols_up(self) -> None:
+        """We don't want to see symbols multiple times, e.g., in subclasses, so only the
+        first class in the hierarchy which adds the symbol can retain it. This
+        creates a graph where every TypeInfo only has the symbols that it adds but
+        none that are inherited.
+        """
+        reach_in_sets: dict[TypeInfo, set[str]] = defaultdict(set)
+        reach_out_sets: dict[TypeInfo, set[str]] = defaultdict(set)
+
+        # While object sits at the top, it is not particularly useful
+        object_info = self.find_type_info("builtins.object")
+        assert object_info is not None
+        object_info.symbols.clear()
+
+        work_list = list(self._graph.nodes)
+        while len(work_list) > 0:
+            current = work_list.pop()
+            old_val = set(reach_out_sets[current])
+            for pred in self._graph.predecessors(current):
+                reach_in_sets[current].update(reach_out_sets[pred])
+            current.symbols.difference_update(reach_in_sets[current])
+            reach_out_sets[current] = set(reach_in_sets[current])
+            reach_out_sets[current].update(current.symbols)
+            if old_val != reach_out_sets[current]:
+                work_list.extend(self._graph.successors(current))
+        for type_info in self._graph.nodes:
+            for symbol in type_info.symbols:
+                self._symbol_map[symbol].add(type_info)
 
     def wrap_var_param_type(self, typ: ProperType, param_kind) -> ProperType:
         """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
