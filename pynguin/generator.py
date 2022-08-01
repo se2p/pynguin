@@ -390,8 +390,9 @@ def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
-    # Observe return types during execution.
-    executor.add_observer(ReturnTypeObserver(test_cluster))
+    if config.configuration.type_inference.type_tracing:
+        # Observe return types during execution.
+        executor.add_observer(ReturnTypeObserver(test_cluster))
 
     algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
