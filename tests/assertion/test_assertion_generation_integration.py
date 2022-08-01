@@ -243,9 +243,9 @@ _MUTANTS = [
                 "        time.sleep(4)\n"
                 "    return 5",
             ],
-            ag._MutationMetrics(5, 1, 2),
+            ag._MutationMetrics(5, 1, 0),
             {3},
-            {0, 4},
+            set(),
         ),
     ],
 )
