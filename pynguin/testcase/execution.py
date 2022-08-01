@@ -1560,19 +1560,20 @@ class ExecutionTracer:
         if self.is_disabled():
             return
 
-        assert len(statement.assertions) == 1
-        assert isinstance(statement.assertions[0], ass.ExceptionAssertion)
-
-        trace = self._thread_local_state.trace
-        error_call_position = len(trace.executed_instructions) - 1
-        error_causing_instr = trace.executed_instructions[error_call_position]
-        code_object_id = error_causing_instr.code_object_id
-        node_id = error_causing_instr.node_id
-        trace.executed_assertions.append(
-            ExecutedAssertion(
-                code_object_id, node_id, error_call_position, statement.assertions[0]
+        if statement.has_only_exception_assertion():
+            trace = self._thread_local_state.trace
+            error_call_position = len(trace.executed_instructions) - 1
+            error_causing_instr = trace.executed_instructions[error_call_position]
+            code_object_id = error_causing_instr.code_object_id
+            node_id = error_causing_instr.node_id
+            trace.executed_assertions.append(
+                ExecutedAssertion(
+                    code_object_id,
+                    node_id,
+                    error_call_position,
+                    statement.assertions[0],
+                )
             )
-        )
 
     def register_assertion_position(
         self, code_object_id: int, node_id: int, assertion: ass.Assertion

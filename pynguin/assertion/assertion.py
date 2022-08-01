@@ -19,6 +19,7 @@ class Assertion:
     """Base class for assertions."""
 
     def __init__(self):
+        # this makes an assertion stateful, but is required for caching in slicing
         self._checked_instructions: list[UniqueInstruction] = []
 
     @property
