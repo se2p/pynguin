@@ -12,7 +12,7 @@ from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
-from pynguin.testcase.statement import StatementVisitor, ComplexPrimitiveStatement
+from pynguin.testcase.statement import ComplexPrimitiveStatement, StatementVisitor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -82,7 +82,9 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_float_primitive_statement(self, stmt: FloatPrimitiveStatement) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_complex_primitive_statement(self, stmt: ComplexPrimitiveStatement) -> None:
+    def visit_complex_primitive_statement(
+        self, stmt: ComplexPrimitiveStatement
+    ) -> None:
         self._ast_node = self._create_constant(stmt)
 
     def visit_string_primitive_statement(self, stmt: StringPrimitiveStatement) -> None:

@@ -55,7 +55,7 @@ def test_primitive_statement_value_none(statement_type, default_test_case):
         (stmt.StringPrimitiveStatement, "foo", "bar"),
         (stmt.BytesPrimitiveStatement, b"foo", b"bar"),
         (stmt.BooleanPrimitiveStatement, True, False),
-        (stmt.ComplexPrimitiveStatement, 4+1j, 1+4j),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j, 1 + 4j),
     ],
 )
 def test_primitive_statement_set_value(
@@ -91,7 +91,7 @@ def test_primitive_statement_set_value(
         ),
         (
             stmt.ComplexPrimitiveStatement,
-            4+1j,
+            4 + 1j,
         ),
     ],
 )
@@ -134,7 +134,7 @@ def test_primitive_statement_clone(statement_type, default_test_case, value):
         ),
         (
             stmt.ComplexPrimitiveStatement,
-            4+1j,
+            4 + 1j,
             "visit_complex_primitive_statement",
         ),
     ],
@@ -156,7 +156,7 @@ def test_primitive_statement_accept(
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
-        (stmt.ComplexPrimitiveStatement, 4+1j),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
 def test_primitive_statement_equals_same(statement_type, default_test_case, value):
@@ -172,7 +172,7 @@ def test_primitive_statement_equals_same(statement_type, default_test_case, valu
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
-        (stmt.ComplexPrimitiveStatement, 4+1j),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
 def test_primitive_statement_equals_other_type(
@@ -190,7 +190,7 @@ def test_primitive_statement_equals_other_type(
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
-        (stmt.ComplexPrimitiveStatement, 4+1j),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
 def test_primitive_statement_equals_clone(statement_type, default_test_case, value):
@@ -218,7 +218,7 @@ def test_none_statement_equals_clone():
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
-        (stmt.ComplexPrimitiveStatement, 4+1j),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
 def test_primitive_statement_hash(statement_type, default_test_case, value):
