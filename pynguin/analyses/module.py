@@ -1168,7 +1168,7 @@ def __resolve_dependencies(
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
-    test_cluster.type_system.push_symbols_up()
+    test_cluster.type_system.push_symbols_down()
 
 
 def __enable_numeric_tower(test_cluster):

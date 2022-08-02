@@ -604,16 +604,17 @@ class TypeSystem:
         """
         return self._symbol_map[symbol]
 
-    def push_symbols_up(self) -> None:
+    def push_symbols_down(self) -> None:
         """We don't want to see symbols multiple times, e.g., in subclasses, so only the
-        first class in the hierarchy which adds the symbol can retain it. This
+        first class in the hierarchy which adds the symbol should retain it. This
         creates a graph where every TypeInfo only has the symbols that it adds but
         none that are inherited.
         """
         reach_in_sets: dict[TypeInfo, set[str]] = defaultdict(set)
         reach_out_sets: dict[TypeInfo, set[str]] = defaultdict(set)
 
-        # While object sits at the top, it is not particularly useful
+        # While object sits at the top, it is not particularly useful, so we delete
+        # all of its symbols.
         object_info = self.find_type_info("builtins.object")
         assert object_info is not None
         object_info.symbols.clear()
