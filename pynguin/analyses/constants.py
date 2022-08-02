@@ -23,10 +23,10 @@ from setuptools import find_packages
 from pynguin.utils import randomness
 
 # Used for type hinting and for restricting stored types
-ConstantTypes = float | int | str | bytes
+ConstantTypes = float | int | str | bytes | complex
 
 # Used for generic type hinting
-T = typing.TypeVar("T", float, int, str, bytes)
+T = typing.TypeVar("T", float, int, str, bytes, complex)
 
 
 logger = logging.getLogger(__name__)

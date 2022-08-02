@@ -1228,6 +1228,10 @@ class TestFactory:
                 statement = stmt.FloatPrimitiveStatement(
                     test_case, constant_provider=constant_provider
                 )
+            case "complex":
+                statement = stmt.ComplexPrimitiveStatement(
+                    test_case, constant_provider=constant_provider
+                )
             case "bool":
                 statement = stmt.BooleanPrimitiveStatement(test_case)
             case "bytes":

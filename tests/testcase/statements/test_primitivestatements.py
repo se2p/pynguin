@@ -23,6 +23,7 @@ import pynguin.testcase.variablereference as vr
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"test"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 3j),
     ],
 )
 def test_primitive_statement_value(statement_type, default_test_case, value):
@@ -38,6 +39,7 @@ def test_primitive_statement_value(statement_type, default_test_case, value):
         stmt.StringPrimitiveStatement,
         stmt.BytesPrimitiveStatement,
         stmt.BooleanPrimitiveStatement,
+        stmt.ComplexPrimitiveStatement,
     ],
 )
 def test_primitive_statement_value_none(statement_type, default_test_case):
@@ -53,6 +55,7 @@ def test_primitive_statement_value_none(statement_type, default_test_case):
         (stmt.StringPrimitiveStatement, "foo", "bar"),
         (stmt.BytesPrimitiveStatement, b"foo", b"bar"),
         (stmt.BooleanPrimitiveStatement, True, False),
+        (stmt.ComplexPrimitiveStatement, 4+1j, 1+4j),
     ],
 )
 def test_primitive_statement_set_value(
@@ -85,6 +88,10 @@ def test_primitive_statement_set_value(
         (
             stmt.BooleanPrimitiveStatement,
             True,
+        ),
+        (
+            stmt.ComplexPrimitiveStatement,
+            4+1j,
         ),
     ],
 )
@@ -125,6 +132,11 @@ def test_primitive_statement_clone(statement_type, default_test_case, value):
             True,
             "visit_boolean_primitive_statement",
         ),
+        (
+            stmt.ComplexPrimitiveStatement,
+            4+1j,
+            "visit_complex_primitive_statement",
+        ),
     ],
 )
 def test_primitive_statement_accept(
@@ -144,6 +156,7 @@ def test_primitive_statement_accept(
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4+1j),
     ],
 )
 def test_primitive_statement_equals_same(statement_type, default_test_case, value):
@@ -159,6 +172,7 @@ def test_primitive_statement_equals_same(statement_type, default_test_case, valu
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4+1j),
     ],
 )
 def test_primitive_statement_equals_other_type(
@@ -176,6 +190,7 @@ def test_primitive_statement_equals_other_type(
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4+1j),
     ],
 )
 def test_primitive_statement_equals_clone(statement_type, default_test_case, value):
@@ -203,6 +218,7 @@ def test_none_statement_equals_clone():
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4+1j),
     ],
 )
 def test_primitive_statement_hash(statement_type, default_test_case, value):
@@ -220,6 +236,12 @@ def test_float_primitive_statement_randomize_value(default_test_case):
     statement = stmt.FloatPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert isinstance(statement.value, float)
+
+
+def test_complex_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.ComplexPrimitiveStatement(default_test_case)
+    statement.randomize_value()
+    assert isinstance(statement.value, complex)
 
 
 def test_bool_primitive_statement_randomize_value(default_test_case):

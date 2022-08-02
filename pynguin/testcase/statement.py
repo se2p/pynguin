@@ -280,6 +280,14 @@ class StatementVisitor(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def visit_complex_primitive_statement(self, stmt) -> None:
+        """Visit complex primitive.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
     def visit_string_primitive_statement(self, stmt) -> None:
         """Visit string primitive.
 
@@ -1578,6 +1586,101 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
 
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_float_primitive_statement(self)
+
+
+class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
+    """Primitive Statement that creates a complex."""
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        value: complex | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(complex)),
+            value,
+            constant_provider=constant_provider,
+        )
+
+    def randomize_value(self) -> None:
+        if (
+            self._constant_provider
+            and randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(complex))
+            is not None
+        ):
+            self._value = seeded_value
+        else:
+            real = (
+                randomness.next_gaussian() * config.configuration.test_creation.max_int
+            )
+            precision_real = randomness.next_int(0, 7)
+            imag = (
+                randomness.next_gaussian() * config.configuration.test_creation.max_int
+            )
+            precision_imag = randomness.next_int(0, 7)
+            self._value = complex(
+                round(real, precision_real), round(imag, precision_imag)
+            )
+
+    def delta(self) -> None:
+        assert self._value is not None
+        probability = randomness.next_float()
+        real_or_imag = randomness.next_bool()
+        if probability < 1.0 / 3.0:
+            if real_or_imag:
+                self._value = complex(
+                    self._value.real
+                    + randomness.next_gaussian()
+                    * config.configuration.test_creation.max_delta,
+                    self._value.imag,
+                )
+            else:
+                self._value = complex(
+                    self._value.real,
+                    self._value.imag
+                    + randomness.next_gaussian()
+                    * config.configuration.test_creation.max_delta,
+                )
+        elif probability < 2.0 / 3.0:
+            if real_or_imag:
+                self._value = complex(
+                    self._value.real + randomness.next_gaussian(), self._value.imag
+                )
+            else:
+                self._value = complex(
+                    self._value.real, self._value.imag + +randomness.next_gaussian()
+                )
+        else:
+            if real_or_imag:
+                self._value = complex(
+                    round(self._value.real, randomness.next_int(0, 7)), self._value.imag
+                )
+            else:
+                self._value = complex(
+                    self._value.real, round(self._value.imag, randomness.next_int(0, 7))
+                )
+
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> ComplexPrimitiveStatement:
+        return ComplexPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
+
+    def __repr__(self) -> str:
+        return f"ComplexPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: complex"
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_complex_primitive_statement(self)
 
 
 class StringPrimitiveStatement(PrimitiveStatement[str]):
