@@ -2357,7 +2357,10 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
             # Only execute with proxies if the test case doesn't time out.
             # There is no need to stall another threads.
             with self._delegate.temporarily_add_observer(self._observer):
-                self._delegate.execute(test_case)
+                with tt.shim_isinstance():
+                    # TODO(fk) Do we record wrong stuff, i.e., type checks from
+                    #  observers?
+                    self._delegate.execute(test_case)
         return result
 
 

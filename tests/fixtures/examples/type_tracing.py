@@ -11,3 +11,10 @@ def try_to_test_me(a, b, c):
     if a.foo_96 > b.foo_30 + c:
         return 42
     return 0
+
+
+def instance_check(x, y):
+    some_list = [x]
+    for foo in some_list:
+        if isinstance(foo, str) and len(foo * y) > 5:
+            return 42
