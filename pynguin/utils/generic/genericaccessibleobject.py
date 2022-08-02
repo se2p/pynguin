@@ -63,10 +63,10 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         return self._owner
 
     def is_enum(self) -> bool:
-        """Is this a enum?
+        """Is this an enum?
 
         Returns:
-            Whether or not this is an enum
+            Whether this is an enum
         """
         return False
 
@@ -74,7 +74,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """Is this a method?
 
         Returns:
-            Whether or not this is a method
+            Whether this is a method
         """
         return False
 
@@ -82,7 +82,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """Is this a constructor?
 
         Returns:
-            Whether or not this is a constructor
+            Whether this is a constructor
         """
         return False
 
@@ -90,7 +90,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """Is this a function?
 
         Returns:
-            Whether or not this is a function
+            Whether this is a function
         """
         return False
 
@@ -98,7 +98,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """Is this a field?
 
         Returns:
-            Whether or not this is a field
+            Whether this is a field
         """
         return False
 
@@ -106,7 +106,7 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         """Is this static?
 
         Returns:
-            Whether or not this is static
+            Whether this is static
         """
         return False
 
