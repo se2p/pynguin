@@ -899,6 +899,7 @@ class TestFactory:
             for var in objects:
                 if self._test_cluster.type_system.is_subtype(var.type, type_):
                     found = True
+                    break
             if not found:
                 return False
         return True
