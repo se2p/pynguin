@@ -1238,11 +1238,12 @@ class TestFactory:
                 statement = stmt.BytesPrimitiveStatement(
                     test_case, constant_provider=constant_provider
                 )
-            case _:
-                # TODO(fk) add complexprimitive.
+            case "str":
                 statement = stmt.StringPrimitiveStatement(
                     test_case, constant_provider=constant_provider
                 )
+            case _:
+                raise RuntimeError(f"Unknown primitive {parameter_type}")
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
         return ret
