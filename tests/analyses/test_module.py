@@ -75,7 +75,7 @@ def test_parse_c_module():
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
-    module.LOGGER.warning.assert_called_once()
+    module.LOGGER.debug.assert_called_once()
 
 
 def test_analyse_module(parsed_module_no_dependencies):
@@ -286,7 +286,12 @@ def test_nothing_from_blacklist():
 
 def test_blacklist_is_valid():
     # Naive test without assert, checks if the module names are valid.
+    allowed_to_fail = ("six",)
     for item in MODULE_BLACKLIST:
+        if item in allowed_to_fail:
+            # We have modules in our blacklist that are not a dependency of Pynguin,
+            # thus the import might fail.
+            continue
         importlib.import_module(item)
 
 
