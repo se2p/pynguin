@@ -648,9 +648,7 @@ class TypeSystem:
         if param_kind == inspect.Parameter.VAR_POSITIONAL:
             return Instance(self.to_type_info(list), (typ,))
         if param_kind == inspect.Parameter.VAR_KEYWORD:
-            return Instance(
-                self.to_type_info(dict), (Instance(self.to_type_info(str)), typ)
-            )
+            return Instance(self.to_type_info(dict), (self.convert_type_hint(str), typ))
         return typ
 
     def infer_type_info(
