@@ -1044,10 +1044,7 @@ class TestFactory:
 
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
-            if (
-                config.configuration.type_inference.guess_unknown_types
-                and randomness.next_float() <= 0.85
-            ):
+            if randomness.next_float() <= 0.85:
                 return self._create_random_type_variable(
                     test_case, position, recursion_depth, allow_none
                 )

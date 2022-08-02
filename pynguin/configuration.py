@@ -362,13 +362,6 @@ class RandomConfiguration:
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
 
-    guess_unknown_types: bool = True
-    """Should we guess unknown types while constructing parameters?
-    This might happen in the following cases:
-    The parameter type is unknown, e.g. a parameter is missing a type hint.
-    The parameter is not primitive and cannot be created from the test cluster,
-    e.g. Callable[...]"""
-
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
