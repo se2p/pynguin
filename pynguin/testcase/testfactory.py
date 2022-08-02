@@ -68,7 +68,7 @@ class TestFactory:
             statement: The statement to append
             position: The position to insert the statement, default is at the end
                 of the test case
-            allow_none: Whether or not parameter variables can hold None values
+            allow_none: Whether parameter variables can hold None values
 
         Raises:
             ConstructionFailedException: if construction of an object failed
@@ -123,7 +123,7 @@ class TestFactory:
             position: The position to insert the statement, default is at the end
                 of the test case
             recursion_depth: The recursion depth for search
-            allow_none: Whether or not parameter variables can hold None values
+            allow_none: Whether parameter variables can hold None values
 
         Returns:
             An optional variable reference to the added statement
@@ -193,7 +193,7 @@ class TestFactory:
             position: The position where to put the statement in the test case,
                 defaults to the end of the test case
             recursion_depth: A recursion limit for the search of parameter values
-            allow_none: Whether or not a variable can be an None value
+            allow_none: Whether a variable can be a None value
 
         Returns:
             A variable reference to the constructor
@@ -255,7 +255,7 @@ class TestFactory:
             position: The position where to put the statement in the test case,
                 defaults to the end of the test case
             recursion_depth: A recursion limit for the search of parameter values
-            allow_none: Whether or not a variable can hold a None value
+            allow_none: Whether a variable can hold a None value
             callee: The callee, if it is already known.
 
         Returns:
@@ -410,7 +410,7 @@ class TestFactory:
             position: the position where to put the statement in the test case,
                 defaults to the end of the test case
             recursion_depth: A recursion limit for the search of parameter values
-            allow_none: Whether or not a variable can hold a None value
+            allow_none: Whether a variable can hold a None value
 
         Returns:
             A variable reference to the function call's result
@@ -512,7 +512,7 @@ class TestFactory:
             position: The last position before that the call is inserted
 
         Returns:
-            Whether or not the insertion was successful
+            Whether the insertion was successful
         """
         variable = self._select_random_variable_for_call(test_case, position)
         success = False
@@ -536,7 +536,7 @@ class TestFactory:
             position: The last position before that the call is inserted
 
         Returns:
-            Whether or not the insertion was successful
+            Whether the insertion was successful
         """
         assert variable.type, "Cannot insert random call on variable of unknown type."
         try:
@@ -562,7 +562,7 @@ class TestFactory:
             position: The last position
 
         Returns:
-            Whether or not the insertion was successful
+            Whether the insertion was successful
 
         Raises:
             RuntimeError: in case of an unknown accessible
@@ -620,7 +620,7 @@ class TestFactory:
             position: The position of the insertion
 
         Returns:
-            Whether or not the insertion was successful
+            Whether the insertion was successful
         """
         previous_length = test_case.size()
         accessible = self._test_cluster.get_random_accessible()
@@ -662,7 +662,7 @@ class TestFactory:
             position: The position
 
         Returns:
-            Whether or not the deletion was successful
+            Whether the deletion was successful
         """
         variable = test_case.get_statement(position).ret_val
 
@@ -693,7 +693,7 @@ class TestFactory:
             position: The position
 
         Returns:
-            Whether or not the deletion was successful
+            Whether the deletion was successful
         """
         to_delete: set[int] = set()
         TestFactory._recursive_delete_inclusion(test_case, to_delete, position)
@@ -892,7 +892,7 @@ class TestFactory:
             objects: A list of objects
 
         Returns:
-            Whether or not the objects are sufficient to satisfy the dependencies
+            Whether the objects are sufficient to satisfy the dependencies
         """
         for type_ in dependencies:
             found = False
@@ -922,8 +922,8 @@ class TestFactory:
             callee: The callee of the method
             position: The current position in the test case
             recursion_depth: The recursion depth
-            allow_none: Whether or not a variable can be a None value
-            can_reuse_existing_variables: Whether or not existing variables shall
+            allow_none: Whether a variable can be a None value
+            can_reuse_existing_variables: Whether existing variables shall
                 be reused.
 
         Returns:
@@ -1032,7 +1032,7 @@ class TestFactory:
             parameter_type: the type of the variable that is needed
             position: the position to limit the search
             recursion_depth: the current recursion level
-            allow_none: whether or not a None value is allowed
+            allow_none: whether a None value is allowed
 
         Returns:
             A variable if found
