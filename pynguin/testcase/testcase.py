@@ -182,7 +182,7 @@ class TestCase(metaclass=ABCMeta):
         """Provides a deep copy of the test case.
 
         Args:
-            limit: Clone this test case only upto the given number of statements.
+            limit: Clone this test case only up to the given number of statements.
 
         Returns:
             A deep copy of this test case  # noqa: DAR202
