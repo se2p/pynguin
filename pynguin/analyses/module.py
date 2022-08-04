@@ -487,14 +487,10 @@ class ModuleTestCluster(TestCluster):
                 # Don't create unions exceeding five elements.
                 return
             new_type = UnionType(old_type.items + (new_type,))
-        elif not isinstance(old_type, AnyType):
-            new_type = UnionType(
-                (
-                    old_type,
-                    new_type,
-                )
-            )
+        else:
+            new_type = UnionType((new_type,))
         self._drop_generator(accessible)
+        accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].append(accessible)
 
     def update_parameter_knowledge(
@@ -503,50 +499,8 @@ class ModuleTestCluster(TestCluster):
         param_name: str,
         knowledge: tt.ProxyKnowledge,
     ) -> None:
-        updated_knowledge = accessible.inferred_signature.knowledge[param_name]
         # Store new data
-        updated_knowledge.merge(knowledge)
-
-        old_parameter_type = accessible.inferred_signature.parameters[param_name]
-
-        from_type_check = False
-        if updated_knowledge.type_checks and randomness.next_float() < 0.5:
-            random_type = randomness.choice(updated_knowledge.type_checks)
-            selected: ProperType = self.__type_system.convert_type_hint(random_type)
-            from_type_check = True
-        else:
-            # Try another guess?
-            # TODO(fk) make this more elaborate
-            #  e.g., type checks, 'known' generics (list,...)
-            #  use compare types and so on.
-            if len(updated_knowledge.symbol_table) == 0:
-                return
-            random_symbol = randomness.choice(list(updated_knowledge.symbol_table))
-            random_types = list(self.__type_system.find_by_symbol(random_symbol))
-            if len(random_types) == 0:
-                # TODO(fk) retry sampling symbol?
-                return
-            selected = Instance(randomness.choice(random_types))
-
-        if isinstance(old_parameter_type, UnionType):
-            if selected not in old_parameter_type.items:
-                selected = UnionType(old_parameter_type.items + (selected,))
-            else:
-                selected = old_parameter_type
-        else:
-            selected = UnionType((selected,))
-
-        if selected != old_parameter_type:
-            if from_type_check:
-                LOGGER.info("Selected %s from type check for %s", selected, param_name)
-            else:
-                LOGGER.info(
-                    "Selected %s from symbol %s for %s",
-                    selected,
-                    random_symbol,
-                    param_name,
-                )
-        accessible.inferred_signature.parameters[param_name] = selected
+        accessible.inferred_signature.knowledge[param_name].merge(knowledge)
 
     @property
     def type_system(self) -> TypeSystem:
@@ -599,7 +553,7 @@ class ModuleTestCluster(TestCluster):
             return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
         results: OrderedSet[GenericAccessibleObject] = OrderedSet()
         for gen_type, generators in self.__generators.items():
-            if self.__type_system.is_subtype(gen_type, typ):
+            if self.__type_system.is_maybe_subtype(gen_type, typ):
                 results.update(generators)
         return results
 
@@ -1027,10 +981,12 @@ def __analyse_class(  # pylint: disable=too-many-arguments
 # Some symbols are not interesting for us.
 IGNORED_SYMBOLS: set[str] = {
     "__new__",
+    "__init__",
     "__repr__",
     "__str__",
     "__sizeof__",
     "__getattribute__",
+    "__getattr__",
 }
 
 

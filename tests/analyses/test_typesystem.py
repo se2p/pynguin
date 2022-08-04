@@ -74,11 +74,15 @@ def signature():
 
 
 @pytest.fixture
-def inferred_signature(signature):
+def inferred_signature(signature, type_system):
     return InferredSignature(
         signature=signature,
-        parameters={"x": Instance(TypeInfo(int)), "y": Instance(TypeInfo(int))},
-        return_type=Instance(TypeInfo(int)),
+        original_parameters={
+            "x": type_system.convert_type_hint(int),
+            "y": type_system.convert_type_hint(int),
+        },
+        original_return_type=type_system.convert_type_hint(int),
+        type_system=type_system,
     )
 
 
@@ -149,7 +153,7 @@ def inferred_signature(signature):
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
     type_system = TypeSystem()
     result = type_system.infer_type_info(func, infer_types)
-    assert result.parameters == expected_parameters
+    assert result.original_parameters == expected_parameters
     assert result.return_type == expected_return
 
 
@@ -243,44 +247,51 @@ def subtyping_cluster():
 
 
 @pytest.mark.parametrize(
-    "left_hint,right_hint,result",
+    "left_hint,right_hint,subtype_result, maybe_subtype_result",
     [
-        (int, int, True),
-        (int, str, False),
-        (str, str, True),
-        (str, tuple[str], False),
-        (tuple, int, False),
-        (int, type(None), False),
-        (tuple[str], tuple[str, int], False),
-        (tuple[int, str], tuple[int, str], True),
-        (tuple[int, int], tuple[int, str], False),
-        (tuple[Any, Any], tuple[int, int], True),
-        (tuple[int, int], tuple[Any, Any], True),
-        (tuple[Any, Any], tuple[Any, Any], True),
-        (tuple[int, str], tuple[int, str] | str, True),
-        (int, int | str, True),
-        (int | str, str, False),
-        (float, int | str, False),
-        (int | str, int | str, True),
-        (int | str | float, int | str, False),
-        (int | str, int | str | float, True),
-        (int, Union[int, None], True),
-        (Sub, Super, True),
-        (Sub, Super | int, True),
-        (Sub, Sub | int, True),
-        (Sub, object | int, True),
-        (object, Sub | int, False),
-        (Sub, float | int, False),
-        (Super, Sub, False),
-        (Sub, Sub, True),
-        (Super, Super, True),
+        (int, int, True, True),
+        (int, str, False, False),
+        (str, str, True, True),
+        (str, tuple[str], False, False),
+        (tuple, int, False, False),
+        (int, type(None), False, False),
+        (tuple[str], tuple[str, int], False, False),
+        (tuple[int, str], tuple[int, str], True, True),
+        (tuple[int, int], tuple[int, str], False, False),
+        (tuple[Any, Any], tuple[int, int], True, True),
+        (tuple[int, int], tuple[Any, Any], True, True),
+        (tuple[Any, Any], tuple[Any, Any], True, True),
+        (tuple[int, str], tuple[int, str] | str, True, True),
+        (int, int | str, True, True),
+        (int | str, str, False, True),
+        (float, int | str, False, False),
+        (int | str, int | str, True, True),
+        (int | str | float, int | str, False, True),
+        (int | str, int | str | float, True, True),
+        (int, Union[int, None], True, True),
+        (Sub, Super, True, True),
+        (Sub, Super | int, True, True),
+        (Sub, Sub | int, True, True),
+        (Sub, object | int, True, True),
+        (object, Sub | int, False, False),
+        (Sub, float | int, False, False),
+        (Super, Sub, False, False),
+        (Sub, Sub, True, True),
+        (Super, Super, True, True),
+        (tuple[int | str | bytes, int | str | bytes], tuple[int, int], False, True),
+        (int | float, float, True, True),
+        (int | str, float, False, True),
+        (float | bool, int, False, True),
     ],
 )
-def test_is_subtype(subtyping_cluster, left_hint, right_hint, result):
+def test_is_subtype(
+    subtyping_cluster, left_hint, right_hint, subtype_result, maybe_subtype_result
+):
     type_system = subtyping_cluster.type_system
     left = type_system.convert_type_hint(left_hint)
     right = type_system.convert_type_hint(right_hint)
-    assert type_system.is_subtype(left, right) is result
+    assert type_system.is_subtype(left, right) is subtype_result
+    assert type_system.is_maybe_subtype(left, right) is maybe_subtype_result
 
 
 @pytest.mark.parametrize(

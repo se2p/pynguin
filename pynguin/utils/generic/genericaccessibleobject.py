@@ -119,7 +119,9 @@ class GenericAccessibleObject(metaclass=abc.ABCMeta):
         return 0
 
     @abc.abstractmethod
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         """A set of types that are required to use this accessible.
 
         Returns:
@@ -156,7 +158,9 @@ class GenericEnum(GenericAccessibleObject):
     def is_enum(self) -> bool:
         return True
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         return OrderedSet()
 
     def __eq__(self, other):
@@ -223,10 +227,12 @@ class GenericCallableAccessibleObject(
         return self._callable
 
     def get_num_parameters(self) -> int:
-        return len(self.inferred_signature.parameters)
+        return len(self.inferred_signature.original_parameters)
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
-        return OrderedSet(self.inferred_signature.parameters.values())
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
+        return OrderedSet(self.inferred_signature.get_parameters_types(memo).values())
 
 
 class GenericConstructor(GenericCallableAccessibleObject):
@@ -299,9 +305,11 @@ class GenericMethod(GenericCallableAccessibleObject):
     def is_method(self) -> bool:
         return True
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         assert self.owner, "Method must have an owner"
-        dependencies = super().get_dependencies()
+        dependencies = super().get_dependencies(memo)
         dependencies.add(Instance(self.owner))
         return dependencies
 
@@ -397,7 +405,9 @@ class GenericField(GenericAbstractField):
         super().__init__(owner, field, field_type)
         assert owner, "Field must have an owner"
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         assert self._owner, "Field must have an owner"
         return OrderedSet([Instance(self._owner)])
 
@@ -433,7 +443,9 @@ class GenericStaticField(GenericAbstractField):
     def is_static(self) -> bool:
         return True
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         return OrderedSet()
 
     def __eq__(self, other):
@@ -470,7 +482,9 @@ class GenericStaticModuleField(GenericAbstractField):
     def is_static(self) -> bool:
         return True
 
-    def get_dependencies(self) -> OrderedSet[ProperType]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         return OrderedSet()
 
     @property

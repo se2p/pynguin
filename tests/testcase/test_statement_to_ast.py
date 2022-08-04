@@ -141,7 +141,7 @@ def test_statement_to_ast_field(statement_to_ast_visitor, default_test_case):
     )
 
 
-def all_param_types_signature():
+def all_param_types_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -172,12 +172,19 @@ def all_param_types_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float, "d": float, "e": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+            "d": type_system.convert_type_hint(float),
+            "e": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
-def default_args_signature():
+def default_args_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -201,12 +208,17 @@ def default_args_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
-def no_default_args_signature():
+def no_default_args_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -228,8 +240,13 @@ def no_default_args_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
@@ -237,40 +254,40 @@ def no_default_args_signature():
 def all_types_constructor(type_system):
     return GenericConstructor(
         owner=type_system.to_type_info(MagicMock),
-        inferred_signature=all_param_types_signature(),
+        inferred_signature=all_param_types_signature(type_system),
     )
 
 
 @pytest.fixture()
-def all_types_method():
+def all_types_method(type_system):
     return GenericMethod(
         owner=MagicMock(),
-        inferred_signature=all_param_types_signature(),
+        inferred_signature=all_param_types_signature(type_system),
         method=MagicMock(__name__="method"),
     )
 
 
 @pytest.fixture()
-def all_types_function():
+def all_types_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=all_param_types_signature(),
+        inferred_signature=all_param_types_signature(type_system),
     )
 
 
 @pytest.fixture()
-def default_args_function():
+def default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=default_args_signature(),
+        inferred_signature=default_args_signature(type_system),
     )
 
 
 @pytest.fixture()
-def no_default_args_function():
+def no_default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=no_default_args_signature(),
+        inferred_signature=no_default_args_signature(type_system),
     )
 
 

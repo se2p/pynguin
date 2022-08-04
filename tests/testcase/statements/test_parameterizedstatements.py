@@ -74,8 +74,9 @@ def test_function_different_callables_different_hashes(
                     ),
                 ]
             ),
-            return_type=type_system.convert_type_hint(float),
-            parameters={"z": type_system.convert_type_hint(float)},
+            original_return_type=type_system.convert_type_hint(float),
+            original_parameters={"z": type_system.convert_type_hint(float)},
+            type_system=type_system,
         ),
     )
     function_statement = stmt.FunctionStatement(default_test_case, function_mock, {})
@@ -201,7 +202,7 @@ def test_constructor_mutate_parameters_nothing(
 def test_constructor_mutate_parameters_args(
     test_case_mock, constructor_mock, variable_reference_mock
 ):
-    signature = MagicMock(parameters={"a": float, "b": int})
+    signature = MagicMock(original_parameters={"a": float, "b": int})
     const = stmt.ConstructorStatement(
         test_case_mock,
         MagicMock(inferred_signature=signature),
@@ -226,17 +227,22 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock, default_test
         tc.get_objects.return_value = [float0.ret_val]
         tc.statements = [float0, const]
         with mock.patch(
-            "pynguin.testcase.testfactory.is_optional_parameter"
+            "pynguin.testcase.statement.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter(
                 "a",
-                MagicMock(
-                    parameters={
+                InferredSignature(
+                    signature=None,
+                    original_parameters={
                         "a": default_test_case.test_cluster.type_system.convert_type_hint(
                             float
                         )
-                    }
+                    },
+                    original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+                        None
+                    ),
+                    type_system=default_test_case.test_cluster.type_system,
                 ),
             )
             tc.get_objects.assert_called_with(float0.ret_val.type, const.get_position())
@@ -252,17 +258,22 @@ def test_constructor_mutate_parameter_not_included(constructor_mock, default_tes
     with mock.patch.object(default_test_case, "get_objects") as get_objs:
         get_objs.return_value = []
         with mock.patch(
-            "pynguin.testcase.testfactory.is_optional_parameter"
+            "pynguin.testcase.statement.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter(
                 "a",
-                MagicMock(
-                    parameters={
+                InferredSignature(
+                    signature=None,
+                    original_parameters={
                         "a": default_test_case.test_cluster.type_system.convert_type_hint(
                             float
                         )
-                    }
+                    },
+                    original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+                        None
+                    ),
+                    type_system=default_test_case.test_cluster.type_system,
                 ),
             )
             get_objs.assert_called_with(float0.ret_val.type, 1)
@@ -286,17 +297,22 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
             choice_mock.side_effect = lambda coll: coll[0]
             param_count_of_type.return_value = 5
             with mock.patch(
-                "pynguin.testcase.testfactory.is_optional_parameter"
+                "pynguin.testcase.statement.is_optional_parameter"
             ) as optional_mock:
                 optional_mock.return_value = False
                 assert const._mutate_parameter(
                     "a",
-                    MagicMock(
-                        parameters={
+                    InferredSignature(
+                        signature=None,
+                        original_parameters={
                             "a": default_test_case.test_cluster.type_system.convert_type_hint(
                                 float
                             )
-                        }
+                        },
+                        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+                            None
+                        ),
+                        type_system=default_test_case.test_cluster.type_system,
                     ),
                 )
                 param_count_of_type.assert_called_with(float0.ret_val.type)

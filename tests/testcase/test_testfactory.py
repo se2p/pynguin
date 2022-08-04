@@ -133,12 +133,13 @@ def test_add_constructor(provide_callables_from_fixtures_modules, default_test_c
                     ),
                 ]
             ),
-            return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
                 None
             ),
-            parameters={
+            original_parameters={
                 "foo": default_test_case.test_cluster.type_system.convert_type_hint(int)
             },
+            type_system=default_test_case.test_cluster.type_system,
         ),
     )
     factory = tf.TestFactory(default_test_case.test_cluster)
@@ -167,14 +168,15 @@ def test_add_method(provide_callables_from_fixtures_modules, default_test_case):
                     ),
                 ]
             ),
-            return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
                 provide_callables_from_fixtures_modules["Monkey"]
             ),
-            parameters={
+            original_parameters={
                 "sentence": default_test_case.test_cluster.type_system.convert_type_hint(
                     str
                 )
             },
+            type_system=default_test_case.test_cluster.type_system,
         ),
     )
     factory = tf.TestFactory(default_test_case.test_cluster)
@@ -208,14 +210,15 @@ def test_add_function(provide_callables_from_fixtures_modules, default_test_case
                     ),
                 ]
             ),
-            return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
                 None
             ),
-            parameters={
+            original_parameters={
                 "x": default_test_case.test_cluster.type_system.convert_type_hint(int),
                 "y": default_test_case.test_cluster.type_system.convert_type_hint(int),
                 "z": default_test_case.test_cluster.type_system.convert_type_hint(int),
             },
+            type_system=default_test_case.test_cluster.type_system,
         ),
     )
     factory = tf.TestFactory(default_test_case.test_cluster)
@@ -399,10 +402,10 @@ def test__dependencies_satisfied(default_test_case, exist, req, result):
 
 def test__get_possible_calls_no_calls(type_system):
     cluster = MagicMock(ModuleTestCluster)
-    cluster.get_generators_for = MagicMock(side_effect=ConstructionFailedException())
+    cluster.get_generators_for.return_value = OrderedSet()
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
-            type_system.convert_type_hint(int), []
+            type_system.convert_type_hint(int), [], {}
         )
         == []
     )
@@ -418,6 +421,7 @@ def test__get_possible_calls_single_call(default_test_case, function_mock):
                 default_test_case, cluster.type_system.convert_type_hint(float)
             )
         ],
+        {},
     ) == [function_mock]
 
 
@@ -432,6 +436,7 @@ def test__get_possible_calls_no_match(default_test_case, function_mock):
                     default_test_case, cluster.type_system.convert_type_hint(int)
                 )
             ],
+            {},
         )
         == []
     )
@@ -541,7 +546,14 @@ def test_get_reuse_parameters(default_test_case):
         "test0": default_test_case.test_cluster.type_system.convert_type_hint(float),
         "test1": default_test_case.test_cluster.type_system.convert_type_hint(float),
     }
-    inf_sig = MagicMock(InferredSignature, parameters=params, signature=sign_mock)
+    inf_sig = InferredSignature(
+        original_parameters=params,
+        signature=sign_mock,
+        type_system=default_test_case.test_cluster.type_system,
+        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            None
+        ),
+    )
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
         with mock.patch(
@@ -549,7 +561,7 @@ def test_get_reuse_parameters(default_test_case):
         ) as optional_mock:
             optional_mock.side_effect = [False, True]
             assert tf.TestFactory._get_reuse_parameters(
-                default_test_case, inf_sig, 1
+                default_test_case, inf_sig, 1, {}
             ) == {"test0": float0.ret_val}
 
 
@@ -975,7 +987,9 @@ def test_change_random_call_success(
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "change_call") as change_mock:
         assert test_factory.change_random_call(default_test_case, float_function1)
-        change_mock.assert_called_with(default_test_case, float_function1, method_mock)
+        change_mock.assert_called_with(
+            default_test_case, float_function1, method_mock, {}
+        )
 
 
 def test_change_random_call_failed(
@@ -998,7 +1012,9 @@ def test_change_random_call_failed(
     with mock.patch.object(test_factory, "change_call") as change_mock:
         change_mock.side_effect = ConstructionFailedException()
         assert not test_factory.change_random_call(default_test_case, float_function1)
-        change_mock.assert_called_with(default_test_case, float_function1, method_mock)
+        change_mock.assert_called_with(
+            default_test_case, float_function1, method_mock, {}
+        )
 
 
 def test_change_call_method(constructor_mock, method_mock, default_test_case):
@@ -1015,7 +1031,7 @@ def test_change_call_method(constructor_mock, method_mock, default_test_case):
     feed_typesystem(test_cluster.type_system, constructor_mock)
     feed_typesystem(test_cluster.type_system, method_mock)
     test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, method_mock)
+    test_factory.change_call(default_test_case, to_replace, method_mock, {})
     assert default_test_case.statements[2].accessible_object() == method_mock
     assert default_test_case.statements[2].ret_val is to_replace.ret_val
 
@@ -1032,7 +1048,7 @@ def test_change_call_constructor(constructor_mock, default_test_case):
     test_cluster = default_test_case.test_cluster
     feed_typesystem(test_cluster.type_system, constructor_mock)
     test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, constructor_mock)
+    test_factory.change_call(default_test_case, to_replace, constructor_mock, {})
     assert default_test_case.statements[1].accessible_object() == constructor_mock
     assert default_test_case.statements[1].ret_val is to_replace.ret_val
 
@@ -1049,7 +1065,7 @@ def test_change_call_function(function_mock, default_test_case):
     test_cluster = default_test_case.test_cluster
     feed_typesystem(test_cluster.type_system, function_mock)
     test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, function_mock)
+    test_factory.change_call(default_test_case, to_replace, function_mock, {})
     assert default_test_case.statements[1].accessible_object() == function_mock
     assert default_test_case.statements[1].ret_val is to_replace.ret_val
 
@@ -1071,4 +1087,4 @@ def test_change_call_unknown(default_test_case):
     acc.is_function.return_value = False
     acc.is_enum.return_value = False
     with pytest.raises(AssertionError):
-        test_factory.change_call(default_test_case, to_replace, acc)
+        test_factory.change_call(default_test_case, to_replace, acc, {})

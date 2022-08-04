@@ -745,7 +745,9 @@ class TestFactory:
         """
         objects = test_case.get_all_objects(statement.get_position())
         type_ = statement.ret_val.type
-        calls = self._get_possible_calls(type_, objects)
+        # We need a consistent signature, otherwise nothing will match up
+        signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
+        calls = self._get_possible_calls(type_, objects, signature_memo)
         acc_object = statement.accessible_object()
         if acc_object in calls:
             calls.remove(acc_object)
@@ -755,7 +757,7 @@ class TestFactory:
 
         call = randomness.choice(calls)
         try:
-            self.change_call(test_case, statement, call)
+            self.change_call(test_case, statement, call, signature_memo)
             return True
         except ConstructionFailedException:
             self._logger.debug("Failed to change call for statement.", exc_info=True)
@@ -766,6 +768,7 @@ class TestFactory:
         test_case: tc.TestCase,
         statement: stmt.VariableCreatingStatement,
         call: gao.GenericAccessibleObject,
+        signature_memo: dict[InferredSignature, dict[str, ProperType]],
     ):
         """Change the call of the given statement to the one that is given.
 
@@ -773,6 +776,7 @@ class TestFactory:
             test_case: The test case
             statement: The given statement
             call: The new call
+            signature_memo: a memo to remember the chosen parameter types.
 
         Raises:
             AssertionError: when an unhandled call is encountered.
@@ -787,19 +791,19 @@ class TestFactory:
                 test_case, Instance(method.owner), position
             )
             parameters = self._get_reuse_parameters(
-                test_case, method.inferred_signature, position
+                test_case, method.inferred_signature, position, signature_memo
             )
             replacement = stmt.MethodStatement(test_case, method, callee, parameters)
         elif call.is_constructor():
             constructor = cast(gao.GenericConstructor, call)
             parameters = self._get_reuse_parameters(
-                test_case, constructor.inferred_signature, position
+                test_case, constructor.inferred_signature, position, signature_memo
             )
             replacement = stmt.ConstructorStatement(test_case, constructor, parameters)
         elif call.is_function():
             funktion = cast(gao.GenericFunction, call)
             parameters = self._get_reuse_parameters(
-                test_case, funktion.inferred_signature, position
+                test_case, funktion.inferred_signature, position, signature_memo
             )
             replacement = stmt.FunctionStatement(test_case, funktion, parameters)
         elif call.is_enum():
@@ -814,7 +818,10 @@ class TestFactory:
 
     @staticmethod
     def _get_reuse_parameters(
-        test_case: tc.TestCase, inf_signature: InferredSignature, position: int
+        test_case: tc.TestCase,
+        inf_signature: InferredSignature,
+        position: int,
+        signature_memo: dict[InferredSignature, dict[str, ProperType]],
     ) -> dict[str, vr.VariableReference]:
         """Find specified parameters from existing objects.
 
@@ -822,12 +829,15 @@ class TestFactory:
             test_case: The test case
             inf_signature: The inferred signature information
             position: The position
+            signature_memo: a memo to remember the chosen parameter types.
 
         Returns:
             A dict of existing objects
         """
         found = {}
-        for parameter_name, parameter_type in inf_signature.parameters.items():
+        for parameter_name, parameter_type in inf_signature.get_parameters_types(
+            signature_memo
+        ).items():
             if (
                 is_optional_parameter(inf_signature, parameter_name)
                 and randomness.next_float()
@@ -859,7 +869,10 @@ class TestFactory:
         return randomness.choice(variables)
 
     def _get_possible_calls(
-        self, return_type: ProperType, objects: list[vr.VariableReference]
+        self,
+        return_type: ProperType,
+        objects: list[vr.VariableReference],
+        signature_memo: dict[InferredSignature, dict[str, ProperType]],
     ) -> list[gao.GenericAccessibleObject]:
         """Retrieve all the replacement calls that can be inserted at this position
          without changing the length.
@@ -867,17 +880,17 @@ class TestFactory:
          Args:
             return_type: The return type
             objects: The objects that are available as parameters.
+            signature_memo: a memo to remember the chosen parameter types.
 
         Returns:
             A list of possible replacement calls
         """
         calls: list[gao.GenericAccessibleObject] = []
-        try:
-            all_calls = self._test_cluster.get_generators_for(return_type)
-        except ConstructionFailedException:
-            return calls
+        all_calls = self._test_cluster.get_generators_for(return_type)
         for i in all_calls:
-            if self._dependencies_satisfied(i.get_dependencies(), objects):
+            if self._dependencies_satisfied(
+                i.get_dependencies(signature_memo), objects
+            ):
                 calls.append(i)
         return calls
 
@@ -897,7 +910,7 @@ class TestFactory:
         for type_ in dependencies:
             found = False
             for var in objects:
-                if self._test_cluster.type_system.is_subtype(var.type, type_):
+                if self._test_cluster.type_system.is_maybe_subtype(var.type, type_):
                     found = True
                     break
             if not found:
@@ -939,11 +952,13 @@ class TestFactory:
         parameters: dict[str, vr.VariableReference] = {}
         self._logger.debug(
             "Trying to satisfy %d parameters at position %d",
-            len(signature.parameters),
+            len(signature.original_parameters),
             position,
         )
 
-        for parameter_name, parameter_type in signature.parameters.items():
+        for parameter_name, parameter_type in signature.get_parameters_types(
+            {}
+        ).items():
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()

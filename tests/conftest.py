@@ -105,7 +105,7 @@ def provide_callables_from_fixtures_modules(
 
 
 @pytest.fixture()
-def constructor_mock() -> GenericConstructor:
+def constructor_mock(type_system) -> GenericConstructor:
     return GenericConstructor(
         owner=TypeInfo(SomeType),
         inferred_signature=InferredSignature(
@@ -118,14 +118,15 @@ def constructor_mock() -> GenericConstructor:
                     ),
                 ]
             ),
-            return_type=NoneType(),
-            parameters={"y": Instance(TypeInfo(float))},
+            original_return_type=NoneType(),
+            original_parameters={"y": Instance(TypeInfo(float))},
+            type_system=type_system,
         ),
     )
 
 
 @pytest.fixture()
-def method_mock() -> GenericMethod:
+def method_mock(type_system) -> GenericMethod:
     return GenericMethod(
         owner=TypeInfo(SomeType),
         method=SomeType.simple_method,
@@ -139,14 +140,15 @@ def method_mock() -> GenericMethod:
                     ),
                 ]
             ),
-            return_type=Instance(TypeInfo(float)),
-            parameters={"x": Instance(TypeInfo(int))},
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"x": Instance(TypeInfo(int))},
+            type_system=type_system,
         ),
     )
 
 
 @pytest.fixture()
-def function_mock() -> GenericFunction:
+def function_mock(type_system) -> GenericFunction:
     return GenericFunction(
         function=simple_function,
         inferred_signature=InferredSignature(
@@ -159,8 +161,9 @@ def function_mock() -> GenericFunction:
                     ),
                 ]
             ),
-            return_type=Instance(TypeInfo(float)),
-            parameters={"z": Instance(TypeInfo(float))},
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"z": Instance(TypeInfo(float))},
+            type_system=type_system,
         ),
     )
 

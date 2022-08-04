@@ -230,7 +230,7 @@ class TestCase(metaclass=ABCMeta):
         given position.
 
         If the position value is larger than the number of statements, only these
-        statements will be considered.  Otherwise the first `position` statements of
+        statements will be considered.  Otherwise, the first `position` statements of
         the test case will be considered.
 
         If the type for which we search is not specified, all objects up to the given
@@ -250,8 +250,11 @@ class TestCase(metaclass=ABCMeta):
             var = statement.ret_val
             if var is None:
                 continue
-            if not var.is_none_type() and self.test_cluster.type_system.is_subtype(
-                var.type, parameter_type
+            if (
+                not var.is_none_type()
+                and self.test_cluster.type_system.is_maybe_subtype(
+                    var.type, parameter_type
+                )
             ):
                 variables.append(var)
 

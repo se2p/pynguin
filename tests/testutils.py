@@ -20,7 +20,7 @@ def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
 
     if isinstance(generic, gao.GenericCallableAccessibleObject):
         feed(generic.inferred_signature.return_type)
-        for para in generic.inferred_signature.parameters.values():
+        for para in generic.inferred_signature.original_parameters.values():
             feed(para)
 
     if isinstance(generic, gao.GenericConstructor):

@@ -294,8 +294,9 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
             module.identity,
             InferredSignature(
                 signature=inspect.signature(module.identity),
-                parameters={"a": cluster.type_system.convert_type_hint(int)},
-                return_type=cluster.type_system.convert_type_hint(int),
+                original_parameters={"a": cluster.type_system.convert_type_hint(int)},
+                original_return_type=cluster.type_system.convert_type_hint(int),
+                type_system=cluster.type_system,
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -306,8 +307,11 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
             cluster.type_system.to_type_info(module.DummyClass),
             InferredSignature(
                 signature=inspect.signature(module.DummyClass.__init__),
-                parameters={"x": cluster.type_system.convert_type_hint(int)},
-                return_type=cluster.type_system.convert_type_hint(module.DummyClass),
+                original_parameters={"x": cluster.type_system.convert_type_hint(int)},
+                original_return_type=cluster.type_system.convert_type_hint(
+                    module.DummyClass
+                ),
+                type_system=cluster.type_system,
             ),
         ),
         {"x": function_call.ret_val},
@@ -319,8 +323,9 @@ def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
             module.DummyClass.get_x,
             InferredSignature(
                 signature=MagicMock(),
-                parameters={},
-                return_type=cluster.type_system.convert_type_hint(int),
+                original_parameters={},
+                original_return_type=cluster.type_system.convert_type_hint(int),
+                type_system=cluster.type_system,
             ),
         ),
         constructor_call.ret_val,
@@ -342,8 +347,9 @@ def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromos
             module.first,
             InferredSignature(
                 signature=inspect.signature(module.first),
-                parameters={"a": cluster.type_system.convert_type_hint(int)},
-                return_type=cluster.type_system.convert_type_hint(int),
+                original_parameters={"a": cluster.type_system.convert_type_hint(int)},
+                original_return_type=cluster.type_system.convert_type_hint(int),
+                type_system=cluster.type_system,
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -363,8 +369,9 @@ def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChrom
             module.first,
             InferredSignature(
                 signature=inspect.signature(module.first),
-                parameters={"a": cluster.type_system.convert_type_hint(int)},
-                return_type=cluster.type_system.convert_type_hint(int),
+                original_parameters={"a": cluster.type_system.convert_type_hint(int)},
+                original_return_type=cluster.type_system.convert_type_hint(int),
+                type_system=cluster.type_system,
             ),
         ),
         {"a": int_stmt.ret_val},
@@ -384,8 +391,9 @@ def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
             module.nested_branches,
             InferredSignature(
                 signature=inspect.signature(module.nested_branches),
-                parameters={"a": cluster.type_system.convert_type_hint(int)},
-                return_type=cluster.type_system.convert_type_hint(int),
+                original_parameters={"a": cluster.type_system.convert_type_hint(int)},
+                original_return_type=cluster.type_system.convert_type_hint(int),
+                type_system=cluster.type_system,
             ),
         ),
         {"a": int_stmt.ret_val},

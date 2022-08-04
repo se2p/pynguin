@@ -396,7 +396,7 @@ def test_conditional_import_forward_ref():
     cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
     accessible_objects = list(cluster.accessible_objects_under_test)
     constructor = cast(GenericConstructor, accessible_objects[0])
-    assert constructor.inferred_signature.parameters["arg0"] == AnyType()
+    assert constructor.inferred_signature.original_parameters["arg0"] == AnyType()
 
 
 def test_enums():

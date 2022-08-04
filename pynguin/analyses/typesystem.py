@@ -15,6 +15,7 @@ import typing
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
 import networkx as nx
@@ -23,6 +24,7 @@ from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
 import pynguin.utils.typetracing as tt
+from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
@@ -281,15 +283,22 @@ class _SubtypeVisitor(TypeVisitor[bool]):
     There is no need to check 'right' for AnyType, as this is done outside.
     """
 
-    def __init__(self, graph: TypeSystem, right: ProperType):
+    def __init__(
+        self,
+        graph: TypeSystem,
+        right: ProperType,
+        sub_type_check: Callable[[ProperType, ProperType], bool],
+    ):
         """Create new visitor
 
         Args:
             graph: The inheritance graph.
             right: The right type.
+            sub_type_check: The subtype check to use
         """
         self.graph = graph
         self.right = right
+        self.sub_type_check = sub_type_check
 
     def visit_any_type(self, left: AnyType) -> bool:  # pylint:disable=unused-argument
         # Any wins always
@@ -313,17 +322,26 @@ class _SubtypeVisitor(TypeVisitor[bool]):
                 # TODO(fk) Handle unknown size.
                 return False
             return all(
-                self.graph.is_subtype(left_elem, right_elem)
+                self.sub_type_check(left_elem, right_elem)
                 for left_elem, right_elem in zip(left.args, self.right.args)
             )
         return False
 
     def visit_union_type(self, left: UnionType) -> bool:
-        if isinstance(self.right, UnionType):
-            return all(
-                self.graph.is_subtype(left_elem, self.right) for left_elem in left.items
-            )
-        return False
+        return all(
+            self.sub_type_check(left_elem, self.right) for left_elem in left.items
+        )
+
+
+class _MaybeSubtypeVisitor(_SubtypeVisitor):
+    """A weaker subtype check, which only checks if left may be a subtype of right.
+    For example, tuple[str | int | bytes, str | int | bytes] is not a subtype of
+    tuple[int, int], but the actual return value may be."""
+
+    def visit_union_type(self, left: UnionType) -> bool:
+        return any(
+            self.sub_type_check(left_elem, self.right) for left_elem in left.items
+        )
 
 
 class _CollectionTypeVisitor(TypeVisitor[bool]):
@@ -419,18 +437,11 @@ class TypeInfo:
     def __hash__(self):
         return hash(self.full_name)
 
-    def __str__(self):
-        return (
-            f"{self.full_name}"
-            f"\nsymbols {self.symbols}"
-            f"\ninstance-attributes {self.instance_attributes}"
-        )
-
     def __repr__(self):
         return f"TypeInfo({self.full_name})"
 
 
-@dataclass
+@dataclass(eq=False)
 class InferredSignature:
     """Encapsulates the types inferred for a method."""
 
@@ -438,9 +449,9 @@ class InferredSignature:
     # on parameters
     signature: inspect.Signature
     # The return type
-    return_type: ProperType
+    original_return_type: ProperType
     # A dict mapping every parameter name to its type
-    parameters: dict[str, ProperType]
+    original_parameters: dict[str, ProperType]
 
     # Proxy knowledge learned from executions
     knowledge: dict[str, tt.ProxyKnowledge] = field(
@@ -448,13 +459,84 @@ class InferredSignature:
         init=False,
     )
 
-    # Return and parameter types might be updated, so we store the original ones.
-    orig_return_type: ProperType = field(init=False)
-    orig_parameters: dict[str, ProperType] = field(init=False)
+    # Reference to the used type system.
+    type_system: TypeSystem
+
+    # Return type might be updated, which is stored here.
+    return_type: ProperType = field(init=False)
 
     def __post_init__(self):
-        self.orig_return_type = self.return_type
-        self.orig_parameters = dict(self.parameters)
+        self.return_type = self.original_return_type
+
+    def get_parameters_types(
+        self, signature_memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> dict[str, ProperType]:
+        """Get a possible type signature for the parameters.
+        This method may choose a random type signature, or return the original one or
+        create one based on the observed knowledge.
+
+        Args:
+            signature_memo: A memo that stores signature, so that we don't choose
+                another signature in the same run.
+
+        Returns:
+            A dict of chosen parameter types for each parameter.
+        """
+        if (sig := signature_memo.get(self)) is not None:
+            # We already chose a signature
+            return sig
+        if len(self.knowledge) > 0 and randomness.next_float() < 0.9:
+            return self.original_parameters
+        return {
+            param_name: self.__guess_parameter_type(param_name)
+            for param_name in self.original_parameters
+        }
+
+    # pylint:disable=too-many-return-statements
+    def __guess_parameter_type(self, param_name: str) -> ProperType:
+        """Guess a type for a parameter.
+
+        Args:
+            param_name: The name of the parameter.
+
+        Returns:
+            A guessed type for the given parameter name.
+        """
+        # TODO(fk) handle args, kwargs
+        knowledge = self.knowledge[param_name]
+        original_type = self.original_parameters[param_name]
+        if knowledge.type_checks and randomness.next_float() < 0.5:
+            random_type = randomness.choice(knowledge.type_checks)
+            if randomness.next_float() < 0.75:
+                # Either choose a type that fulfills type check
+                selected: ProperType = self.type_system.convert_type_hint(random_type)
+            else:
+                choices = self.type_system.get_type_outside_of(
+                    (self.type_system.to_type_info(random_type),)
+                )
+                if len(choices) > 0:
+                    return Instance(randomness.choice(choices))
+                return original_type
+        else:
+            # Try another guess?
+            # TODO(fk) make this more elaborate
+            #  e.g., type checks, 'known' generics (list,...)
+            #  use compare types and so on.
+            if len(knowledge.symbol_table) == 0:
+                return original_type
+            random_symbol = randomness.choice(list(knowledge.symbol_table))
+            random_types = self.type_system.find_by_symbol(random_symbol)
+            if len(random_types) == 0:
+                # TODO(fk) retry sampling symbol?
+                return original_type
+            if randomness.next_float() < 0.75:
+                selected = Instance(randomness.choice(random_types))
+            else:
+                choices = self.type_system.get_type_outside_of(tuple(random_types))
+                if len(choices) > 0:
+                    return Instance(randomness.choice(choices))
+                return original_type
+        return selected
 
 
 class TypeSystem:
@@ -489,6 +571,7 @@ class TypeSystem:
         """
         self._graph.add_edge(super_class, sub_class)
 
+    @lru_cache(maxsize=1024)
     def get_subclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all descendants of the given type. Includes klass.
 
@@ -504,6 +587,7 @@ class TypeSystem:
         result.add(klass)
         return result
 
+    @lru_cache(maxsize=1024)
     def get_superclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all ancestors of the given class.
 
@@ -519,6 +603,24 @@ class TypeSystem:
         result.add(klass)
         return result
 
+    @lru_cache(maxsize=1024)
+    def get_type_outside_of(
+        self, klasses: tuple[TypeInfo, ...]
+    ) -> OrderedSet[TypeInfo]:
+        """Find a type that does not belong to the given types or any subclasses.
+
+        Args:
+            klasses: The classes to exclude
+
+        Returns:
+            A set of klasses that don't belong the given ones.
+        """
+        results = OrderedSet(self._types.values())
+        for info in klasses:
+            results.difference_update(self.get_subclasses(info))
+        return results
+
+    @lru_cache(maxsize=4096)
     def is_subclass(self, left: TypeInfo, right: TypeInfo) -> bool:
         """Is 'left' a subclass of 'right'?
 
@@ -531,6 +633,7 @@ class TypeSystem:
         """
         return nx.has_path(self._graph, right, left)
 
+    @lru_cache(maxsize=4096)
     def is_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' a subtype of 'right'?
 
@@ -553,7 +656,37 @@ class TypeSystem:
         if isinstance(right, UnionType) and not isinstance(left, UnionType):
             # Case that would be duplicated for each type, so we put it here.
             return any(self.is_subtype(left, right_elem) for right_elem in right.items)
-        return left.accept(_SubtypeVisitor(self, right))
+        return left.accept(_SubtypeVisitor(self, right, self.is_subtype))
+
+    @lru_cache(maxsize=4096)
+    def is_maybe_subtype(self, left: ProperType, right: ProperType) -> bool:
+        """Is 'left' maybe a subtype of 'right'?
+
+        This is a more lenient check than is_subtype. Consider a function that
+        returns tuple[str | int | bytes, str | int | bytes]. Strictly speaking, we
+        cannot use such a value as argument for a function that requires an argument
+        of type tuple[int, int]. However, however, it may be possible that the returned
+        value is tuple[int, int], in which case it does work.
+        This check only differs from is_subtype in how it handles Unions.
+        Instead of requiring every type to be a subtype, it is sufficient that one
+        type of the Union is a subtype.
+
+        Args:
+            left: The left type
+            right: The right type
+
+        Returns:
+            True, if left may be a subtype of right.
+        """
+        if isinstance(right, AnyType):
+            # trivial case
+            return True
+        if isinstance(right, UnionType) and not isinstance(left, UnionType):
+            # Case that would be duplicated for each type, so we put it here.
+            return any(
+                self.is_maybe_subtype(left, right_elem) for right_elem in right.items
+            )
+        return left.accept(_MaybeSubtypeVisitor(self, right, self.is_maybe_subtype))
 
     @property
     def dot(self) -> str:
@@ -574,6 +707,7 @@ class TypeSystem:
         Returns:
             A type info object.
         """
+        # TODO(fk) what to do when we encounter a new type?
         found = self._types.get(TypeInfo.to_full_name(typ))
         if found is not None:
             return found
@@ -745,7 +879,10 @@ class TypeSystem:
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
 
         return InferredSignature(
-            signature=method_signature, parameters=parameters, return_type=return_type
+            signature=method_signature,
+            original_parameters=parameters,
+            original_return_type=return_type,
+            type_system=self,
         )
 
     def convert_type_hint(

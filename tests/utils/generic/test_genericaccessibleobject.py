@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 from ordered_set import OrderedSet
 
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature, ProperType
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,
@@ -23,7 +23,9 @@ class TestAccessibleObject(GenericAccessibleObject):
     def generated_type(self) -> type | None:
         pass  # pragma: no cover
 
-    def get_dependencies(self) -> set[type]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         pass  # pragma: no cover
 
 
@@ -68,7 +70,9 @@ def test_generic_constructor_num_parameters(constructor_mock):
 
 
 def test_generic_constructor_dependencies(constructor_mock, type_system):
-    assert constructor_mock.get_dependencies() == {type_system.convert_type_hint(float)}
+    assert constructor_mock.get_dependencies({}) == {
+        type_system.convert_type_hint(float)
+    }
 
 
 def test_generic_method_eq_self(method_mock):
@@ -97,7 +101,7 @@ def test_generic_method_is_method(method_mock):
 
 
 def test_generic_method_dependencies(method_mock, type_system):
-    assert method_mock.get_dependencies() == OrderedSet(
+    assert method_mock.get_dependencies({}) == OrderedSet(
         [type_system.convert_type_hint(int), type_system.convert_type_hint(SomeType)]
     )
 
@@ -153,7 +157,7 @@ def test_generic_field_is_field(field_mock):
 
 
 def test_generic_field_dependencies(field_mock, type_system):
-    assert field_mock.get_dependencies() == OrderedSet(
+    assert field_mock.get_dependencies({}) == OrderedSet(
         [type_system.convert_type_hint(SomeType)]
     )
 

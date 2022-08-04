@@ -1053,7 +1053,7 @@ class ParametrizedStatement(
             p_per_param: the probability per parameter
 
         Returns:
-            Whether or not mutation should be applied
+            Whether mutation should be applied
         """
         return False
 
@@ -1064,10 +1064,10 @@ class ParametrizedStatement(
             p_per_param: The probability for one parameter to be mutated.
 
         Returns:
-            Whether or not mutation changed anything
+            Whether mutation changed anything
         """
         changed = False
-        for param_name in self._generic_callable.inferred_signature.parameters:
+        for param_name in self._generic_callable.inferred_signature.original_parameters:
             if randomness.next_float() < p_per_param:
                 changed |= self._mutate_parameter(
                     param_name, self._generic_callable.inferred_signature
@@ -1087,7 +1087,7 @@ class ParametrizedStatement(
             True, if the parameter was mutated.
         """
         current = self._args.get(param_name, None)
-        param_type = inf_sig.parameters[param_name]
+        param_type = inf_sig.get_parameters_types({})[param_name]
         possible_replacements = self.test_case.get_objects(
             param_type, self.get_position()
         )
@@ -1169,7 +1169,9 @@ class ParametrizedStatement(
         if not type_:
             return 0
         for var_ref in self.args.values():
-            if self.test_case.test_cluster.type_system.is_subtype(var_ref.type, type_):
+            if self.test_case.test_cluster.type_system.is_maybe_subtype(
+                var_ref.type, type_
+            ):
                 count += 1
         return count
 
