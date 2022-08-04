@@ -232,7 +232,7 @@ class GenericCallableAccessibleObject(
     def get_dependencies(
         self, memo: dict[InferredSignature, dict[str, ProperType]]
     ) -> OrderedSet[ProperType]:
-        return OrderedSet(self.inferred_signature.get_parameters_types(memo).values())
+        return OrderedSet(self.inferred_signature.get_parameter_types(memo).values())
 
 
 class GenericConstructor(GenericCallableAccessibleObject):

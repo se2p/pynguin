@@ -835,7 +835,7 @@ class TestFactory:
             A dict of existing objects
         """
         found = {}
-        for parameter_name, parameter_type in inf_signature.get_parameters_types(
+        for parameter_name, parameter_type in inf_signature.get_parameter_types(
             signature_memo
         ).items():
             if (
@@ -956,9 +956,7 @@ class TestFactory:
             position,
         )
 
-        for parameter_name, parameter_type in signature.get_parameters_types(
-            {}
-        ).items():
+        for parameter_name, parameter_type in signature.get_parameter_types({}).items():
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()

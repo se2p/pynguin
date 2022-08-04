@@ -465,10 +465,14 @@ class InferredSignature:
     # Return type might be updated, which is stored here.
     return_type: ProperType = field(init=False)
 
+    current_guessed_parameters: dict[str, UnionType] = field(
+        init=False, default_factory=dict
+    )
+
     def __post_init__(self):
         self.return_type = self.original_return_type
 
-    def get_parameters_types(
+    def get_parameter_types(
         self, signature_memo: dict[InferredSignature, dict[str, ProperType]]
     ) -> dict[str, ProperType]:
         """Get a possible type signature for the parameters.
@@ -485,15 +489,42 @@ class InferredSignature:
         if (sig := signature_memo.get(self)) is not None:
             # We already chose a signature
             return sig
-        if len(self.knowledge) > 0 and randomness.next_float() < 0.9:
+        if len(self.knowledge) == 0:
             return self.original_parameters
-        return {
-            param_name: self.__guess_parameter_type(param_name)
-            for param_name in self.original_parameters
-        }
+        res: dict[str, ProperType] = {}
+        for param_name, orig_type in self.original_parameters.items():
+            self.__update_guess(param_name, self.__guess_parameter_type(param_name))
+            if (
+                guessed := self.current_guessed_parameters.get(param_name)
+            ) is not None and randomness.next_float() < 0.95:
+                res[param_name] = guessed
+            else:
+                res[param_name] = orig_type
+        # _LOGGER.info("Chosen: %s", res)
+        signature_memo[self] = res
+        return res
+
+    def __update_guess(self, name: str, guessed: ProperType | None):
+        if guessed is None:
+            return
+
+        if (old := self.current_guessed_parameters.get(name)) is None:
+            self.current_guessed_parameters[name] = UnionType((guessed,))
+        else:
+            if guessed in old.items:
+                return
+            if len(old.items) >= 5:
+                # Drop first guess and append current.
+                self.current_guessed_parameters[name] = UnionType(
+                    old.items[1:] + (guessed,)
+                )
+            else:
+                self.current_guessed_parameters[name] = UnionType(
+                    old.items + (guessed,)
+                )
 
     # pylint:disable=too-many-return-statements
-    def __guess_parameter_type(self, param_name: str) -> ProperType:
+    def __guess_parameter_type(self, param_name: str) -> ProperType | None:
         """Guess a type for a parameter.
 
         Args:
@@ -504,39 +535,45 @@ class InferredSignature:
         """
         # TODO(fk) handle args, kwargs
         knowledge = self.knowledge[param_name]
-        original_type = self.original_parameters[param_name]
-        if knowledge.type_checks and randomness.next_float() < 0.5:
-            random_type = randomness.choice(knowledge.type_checks)
-            if randomness.next_float() < 0.75:
-                # Either choose a type that fulfills type check
-                selected: ProperType = self.type_system.convert_type_hint(random_type)
-            else:
+
+        choose_from = []
+        if knowledge.type_checks:
+            choose_from.append("type_checks")
+        if knowledge.symbol_table:
+            choose_from.append("symbol_table")
+
+        if not choose_from:
+            return None
+
+        match randomness.choice(choose_from):
+            case "type_checks":
+                random_type = randomness.choice(knowledge.type_checks)
+                if randomness.next_float() < 0.95:
+                    # Either choose a type that fulfills type check or not
+                    return self.type_system.convert_type_hint(random_type)
                 choices = self.type_system.get_type_outside_of(
                     (self.type_system.to_type_info(random_type),)
                 )
                 if len(choices) > 0:
                     return Instance(randomness.choice(choices))
-                return original_type
-        else:
-            # Try another guess?
-            # TODO(fk) make this more elaborate
-            #  e.g., type checks, 'known' generics (list,...)
-            #  use compare types and so on.
-            if len(knowledge.symbol_table) == 0:
-                return original_type
-            random_symbol = randomness.choice(list(knowledge.symbol_table))
-            random_types = self.type_system.find_by_symbol(random_symbol)
-            if len(random_types) == 0:
-                # TODO(fk) retry sampling symbol?
-                return original_type
-            if randomness.next_float() < 0.75:
-                selected = Instance(randomness.choice(random_types))
-            else:
+            case "symbol_table":
+                # Try another guess?
+                # TODO(fk) make this more elaborate
+                #  e.g., type checks, 'known' generics (list,...)
+                #  use compare types and so on.
+                if len(knowledge.symbol_table) == 0:
+                    return None
+                random_symbol = randomness.choice(list(knowledge.symbol_table))
+
+                random_types = self.type_system.find_by_symbol(random_symbol)
+                if len(random_types) == 0:
+                    return None
+                if randomness.next_float() < 0.95:
+                    return Instance(randomness.choice(random_types))
                 choices = self.type_system.get_type_outside_of(tuple(random_types))
                 if len(choices) > 0:
                     return Instance(randomness.choice(choices))
-                return original_type
-        return selected
+        return None
 
 
 class TypeSystem:

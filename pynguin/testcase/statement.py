@@ -1087,7 +1087,7 @@ class ParametrizedStatement(
             True, if the parameter was mutated.
         """
         current = self._args.get(param_name, None)
-        param_type = inf_sig.get_parameters_types({})[param_name]
+        param_type = inf_sig.get_parameter_types({})[param_name]
         possible_replacements = self.test_case.get_objects(
             param_type, self.get_position()
         )
