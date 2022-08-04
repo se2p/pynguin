@@ -133,6 +133,7 @@ Contributors:
 - [Juan Julián Merelo Guervós](https://github.com/JJ)
 - [Lukas Steffens](https://github.com/Luki42)
 - [Florian Straubinger](https://github.com/f-str)
+- [Sara Tavares](https://github.com/stavares843)
 
 
 ### Development using PyCharm.
