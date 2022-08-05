@@ -265,6 +265,10 @@ class TestCluster(abc.ABC):
         """Provide the number of source code lines."""
 
     @abc.abstractmethod
+    def log_signatures(self) -> None:
+        """Log the signatures of all seen callables."""
+
+    @abc.abstractmethod
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
 
@@ -457,6 +461,13 @@ class ModuleTestCluster(TestCluster):
             GenericAccessibleObject, _CallableData
         ] = {}
 
+        # Keep track of all callables, this is only for statistics purposes.
+        self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
+
+    def log_signatures(self) -> None:
+        for call in self.__callables:
+            LOGGER.info("%s", call)
+
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
         if gens is None:
@@ -472,14 +483,7 @@ class ModuleTestCluster(TestCluster):
         # Loosely map runtime type to proper type
         # TODO(fk) what about tuple?
         #  Think about updates, only Any?
-        old_type = accessible.generated_type()
-        if new_type == old_type:
-            return
-
-        if new_type.accept(is_primitive_type):
-            # We don't want to generate primitives.
-            self._drop_generator(accessible)
-            return
+        old_type = accessible.inferred_signature.return_type
 
         if isinstance(old_type, UnionType):
             items = old_type.items
@@ -491,7 +495,7 @@ class ModuleTestCluster(TestCluster):
             new_type = UnionType((new_type,))
         self._drop_generator(accessible)
         accessible.inferred_signature.return_type = new_type
-        self.__generators[new_type].append(accessible)
+        self.__generators[new_type].add(accessible)
 
     def update_parameter_knowledge(
         self,
@@ -516,6 +520,9 @@ class ModuleTestCluster(TestCluster):
         return self.__linenos
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
+        if isinstance(generator, GenericCallableAccessibleObject):
+            self.__callables.add(generator)
+
         generated_type = generator.generated_type()
         if isinstance(generated_type, NoneType) or generated_type.accept(
             is_primitive_type
@@ -530,6 +537,9 @@ class ModuleTestCluster(TestCluster):
         self.__function_data_for_accessibles[objc] = data
 
     def add_modifier(self, typ: TypeInfo, obj: GenericAccessibleObject) -> None:
+        if isinstance(obj, GenericCallableAccessibleObject):
+            self.__callables.add(obj)
+
         self.__modifiers[typ].add(obj)
 
     @property
@@ -623,9 +633,9 @@ class ModuleTestCluster(TestCluster):
 
     def select_concrete_type(self, typ: ProperType) -> ProperType:
         if isinstance(typ, AnyType):
-            return randomness.choice(self.get_all_generatable_types())
-        if isinstance(typ, UnionType):
-            return randomness.choice(typ.items)
+            typ = randomness.choice(self.get_all_generatable_types())
+        while isinstance(typ, UnionType):
+            typ = randomness.choice(typ.items)
         return typ
 
     def track_statistics_values(
@@ -674,6 +684,7 @@ class ModuleTestCluster(TestCluster):
         )
 
 
+# pylint:disable=too-many-public-methods
 class FilteredModuleTestCluster(TestCluster):
     """A test cluster wrapping another test cluster.
 
@@ -702,6 +713,9 @@ class FilteredModuleTestCluster(TestCluster):
     @property
     def linenos(self) -> int:
         return self.__delegate.linenos
+
+    def log_signatures(self) -> None:
+        self.__delegate.log_signatures()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         self.__delegate.add_generator(generator)
@@ -945,6 +959,9 @@ def __analyse_class(  # pylint: disable=too-many-arguments
                 type_info.raw_type, type_inference_strategy
             ),
             raised_exceptions,
+        )
+        generic.inferred_signature.return_type = (
+            test_cluster.type_system.convert_type_hint(type_info.raw_type)
         )
 
     method_data = _CallableData(

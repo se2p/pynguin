@@ -295,6 +295,22 @@ def test_is_subtype(
 
 
 @pytest.mark.parametrize(
+    "hint, hint_str",
+    [
+        (type(None), "None"),
+        (type(None) | int, "Union[None, int]"),
+        (str, "str"),
+        (Any, "Any"),
+        (tuple[int, int], "tuple[int, int]"),
+        (list[int], "list[int]"),
+    ],
+)
+def test_str_proper_type(type_system, hint, hint_str):
+    proper = type_system.convert_type_hint(hint)
+    assert str(proper) == hint_str
+
+
+@pytest.mark.parametrize(
     "subclass,superclass,result",
     [
         (int, int, True),

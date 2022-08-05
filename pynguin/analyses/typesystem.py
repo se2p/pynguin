@@ -493,7 +493,15 @@ class InferredSignature:
             return self.original_parameters
         res: dict[str, ProperType] = {}
         for param_name, orig_type in self.original_parameters.items():
-            self.__update_guess(param_name, self.__guess_parameter_type(param_name))
+            self.__update_guess(
+                param_name,
+                self.__guess_parameter_type(
+                    self.knowledge[param_name],
+                    self.signature.parameters[param_name].kind,
+                ),
+            )
+
+            # Either reuse developer annotations or guessed types.
             if (
                 guessed := self.current_guessed_parameters.get(param_name)
             ) is not None and randomness.next_float() < 0.95:
@@ -524,56 +532,131 @@ class InferredSignature:
                 )
 
     # pylint:disable=too-many-return-statements
-    def __guess_parameter_type(self, param_name: str) -> ProperType | None:
+    def __guess_parameter_type(
+        self, knowledge: tt.ProxyKnowledge, kind
+    ) -> ProperType | None:
         """Guess a type for a parameter.
 
         Args:
-            param_name: The name of the parameter.
+            knowledge: The name of the parameter.
+            kind: the kind of parameter.
 
         Returns:
-            A guessed type for the given parameter name.
+            A guessed type for the given parameter name, or None, if no educated guess
+                can be made.
         """
-        # TODO(fk) handle args, kwargs
-        knowledge = self.knowledge[param_name]
+        match kind:
+            case inspect.Parameter.VAR_KEYWORD:
+                # Case for **kwargs parameter
+                # We know that it is always dict[str, ?].
+                # We can guess the unknown type by looking at the knowledge of
+                # __getitem__ of the proxy.
+                if (
+                    get_item_knowledge := knowledge.symbol_table.get("__getitem__")
+                ) is not None:
+                    value_type = self.__guess_parameter_type_from(get_item_knowledge)
+                    if value_type is not None:
+                        return Instance(
+                            self.type_system.to_type_info(dict),
+                            (self.type_system.convert_type_hint(str), value_type),
+                        )
+                return None
+            case inspect.Parameter.VAR_POSITIONAL:
+                # Case for *args parameter
+                # We know that it is always list[?]
+                # Similar to above.
+                if (
+                    iter_knowledge := knowledge.symbol_table.get("__iter__")
+                ) is not None:
+                    value_type = self.__guess_parameter_type_from(iter_knowledge)
+                    if value_type is not None:
+                        return Instance(
+                            self.type_system.to_type_info(list), (value_type,)
+                        )
+                return None
+            case _:
+                return self.__guess_parameter_type_from(knowledge)
 
-        choose_from = []
+    _ARGUMENT_SYMBOLS = {
+        "__eq__",
+        "__ne__",
+        "__lt__",
+        "__le__",
+        "__gt__",
+        "__ge__",
+    }
+
+    # pylint:disable=too-many-return-statements
+    def __guess_parameter_type_from(
+        self, knowledge: tt.ProxyKnowledge
+    ) -> ProperType | None:
+        guess_from = []
         if knowledge.type_checks:
-            choose_from.append("type_checks")
+            guess_from.append("type_checks")
         if knowledge.symbol_table:
-            choose_from.append("symbol_table")
+            guess_from.append("symbol_table")
 
-        if not choose_from:
+        if not guess_from:
             return None
 
-        match randomness.choice(choose_from):
+        chosen_type: ProperType | None = None
+        positive_types: OrderedSet[TypeInfo] = OrderedSet()
+        match randomness.choice(guess_from):
             case "type_checks":
+                # Type checks is not empty here.
                 random_type = randomness.choice(knowledge.type_checks)
-                if randomness.next_float() < 0.95:
-                    # Either choose a type that fulfills type check or not
-                    return self.type_system.convert_type_hint(random_type)
-                choices = self.type_system.get_type_outside_of(
-                    (self.type_system.to_type_info(random_type),)
-                )
-                if len(choices) > 0:
-                    return Instance(randomness.choice(choices))
+                chosen_type = self.type_system.convert_type_hint(random_type)
+                positive_types.add(self.type_system.to_type_info(random_type))
             case "symbol_table":
                 # Try another guess?
                 # TODO(fk) make this more elaborate
-                #  e.g., type checks, 'known' generics (list,...)
-                #  use compare types and so on.
-                if len(knowledge.symbol_table) == 0:
-                    return None
+                #  e.g., 'known' generics (list,...)
+                # Symbol table is not empty in this case.
                 random_symbol = randomness.choice(list(knowledge.symbol_table))
+                if (
+                    random_symbol in InferredSignature._ARGUMENT_SYMBOLS
+                    and knowledge.symbol_table[random_symbol].arg_types
+                    and randomness.next_float() < 0.5
+                ):
+                    possible_check = randomness.choice(
+                        knowledge.symbol_table[random_symbol].arg_types
+                    )
+                    chosen_type = self.type_system.convert_type_hint(possible_check)
+                    positive_types.add(self.type_system.to_type_info(possible_check))
+                else:
+                    positive_types = self.type_system.find_by_symbol(random_symbol)
+                    if len(positive_types) > 0:
+                        chosen_type = Instance(randomness.choice(positive_types))
 
-                random_types = self.type_system.find_by_symbol(random_symbol)
-                if len(random_types) == 0:
-                    return None
-                if randomness.next_float() < 0.95:
-                    return Instance(randomness.choice(random_types))
-                choices = self.type_system.get_type_outside_of(tuple(random_types))
-                if len(choices) > 0:
-                    return Instance(randomness.choice(choices))
+        if chosen_type and randomness.next_float() < 0.95:
+            return chosen_type
+        if positive_types:
+            # Try to negate types.
+            choices = self.type_system.get_type_outside_of(positive_types)
+            if len(choices) > 0:
+                Instance(randomness.choice(choices))
         return None
+
+    def format_guessed_signature(self) -> str:
+        """Provide a formatted signature
+
+        Returns:
+            The formatted signature.
+        """
+        parameters = []
+        for name, param in self.signature.parameters.items():
+            if name not in self.original_parameters:
+                parameters.append(param.replace(annotation=inspect.Parameter.empty))
+            elif (guessed := self.current_guessed_parameters.get(name)) is not None:
+                parameters.append(param.replace(annotation=str(guessed)))
+            else:
+                parameters.append(
+                    param.replace(annotation=str(self.original_parameters[name]))
+                )
+        return_type = str(self.return_type)
+        return str(
+            self.signature.replace(parameters=parameters, return_annotation=return_type)
+        )
 
 
 class TypeSystem:
@@ -640,9 +723,8 @@ class TypeSystem:
         result.add(klass)
         return result
 
-    @lru_cache(maxsize=1024)
     def get_type_outside_of(
-        self, klasses: tuple[TypeInfo, ...]
+        self, klasses: OrderedSet[TypeInfo]
     ) -> OrderedSet[TypeInfo]:
         """Find a type that does not belong to the given types or any subclasses.
 

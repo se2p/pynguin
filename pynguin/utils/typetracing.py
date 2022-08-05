@@ -158,7 +158,6 @@ def proxify(log_arg_type=False, no_wrap_return=False):
                 if isinstance(args[1], ObjectProxy):
                     # Only record access but nothing more, if we interact with another
                     # proxy.
-                    # TODO(fk) unproxy/disable arguments?
                     return function(*args, **kwargs)
                 if log_arg_type:
                     nested_knowledge.arg_types.add(type(args[1]))
@@ -227,13 +226,26 @@ class _ObjectProxyMetaType(type):
         return type.__new__(cls, name, bases, dictionary)
 
 
+def unwrap(obj):
+    """Unwrap the given object if it is a Proxy.
+
+    Args:
+        obj: The object to unwrap
+
+    Returns:
+        The unwrapped object
+    """
+    while isinstance(obj, ObjectProxy):
+        obj = obj.__wrapped__  # type:ignore
+    return obj
+
+
 class ObjectProxy(metaclass=_ObjectProxyMetaType):
     """A proxy for (almost) any Python object."""
 
-    # TODO(fk) Create separate class for each wrapped type and drop
-    #  __dunder_methods__ not declared in wrapped type?
-
-    def __init__(self, wrapped, knowledge: ProxyKnowledge | None = None):
+    def __init__(
+        self, wrapped, knowledge: ProxyKnowledge | None = None, is_kwargs: bool = False
+    ):
         object.__setattr__(self, "__wrapped__", wrapped)
         # What does this proxy know?
         object.__setattr__(
@@ -241,6 +253,14 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             "_self_proxy_knowledge",
             ProxyKnowledge(name="ROOT") if knowledge is None else knowledge,
         )
+        # Is this proxy passed as **kwargs? If so, we can't return proxies from 'keys'
+        # but must return the raw string objects.
+        object.__setattr__(
+            self,
+            "_self_is_kwargs",
+            is_kwargs,
+        )
+
         # Python 3.2+ has the __qualname__ attribute, but it does not
         # allow it to be overridden using a property and it must instead
         # be an actual string object instead.
@@ -284,6 +304,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __bytes__(self):
         return bytes(self.__wrapped__)  # type:ignore
 
+    # TODO(fk) remove this after debugging?
     def __repr__(self):
         return (
             f"<{type(self).__name__} at 0x{id(self):x} for "
@@ -380,6 +401,10 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             raise ValueError("wrapper has not been initialised")
         if name.startswith("_self_"):
             return object.__getattribute__(self, name)
+
+        if name == "keys" and self._self_is_kwargs:
+            # dict for **kwargs
+            return getattr(self.__wrapped__, name)  # type:ignore
 
         # Append dummy in case of failed access
         knowledge = self._self_proxy_knowledge

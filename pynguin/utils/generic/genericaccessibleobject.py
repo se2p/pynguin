@@ -271,6 +271,10 @@ class GenericConstructor(GenericCallableAccessibleObject):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.owner}, {self.inferred_signature})"
 
+    def __str__(self):
+        assert self.owner
+        return self.owner.full_name + self.inferred_signature.format_guessed_signature()
+
 
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
@@ -329,6 +333,12 @@ class GenericMethod(GenericCallableAccessibleObject):
             + f" {self._callable.__name__}, {self.inferred_signature})"
         )
 
+    def __str__(self):
+        return (
+            f"{self.owner.full_name}.{self._callable.__name__}"
+            f"{self.inferred_signature.format_guessed_signature()}"
+        )
+
 
 class GenericFunction(GenericCallableAccessibleObject):
     """A function, which does not belong to any class."""
@@ -369,6 +379,12 @@ class GenericFunction(GenericCallableAccessibleObject):
         return (
             f"{self.__class__.__name__}({self._callable.__name__}, "
             + f"{self.inferred_signature})"
+        )
+
+    def __str__(self):
+        return (
+            f"{self._callable.__module__}.{self._callable.__qualname__}"
+            f"{self.inferred_signature.format_guessed_signature()}"
         )
 
 

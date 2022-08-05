@@ -42,7 +42,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import AnyType, Instance, ProperType
+from pynguin.analyses.typesystem import AnyType, ProperType
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     CheckedCoverageInstrumentation,
@@ -66,9 +66,6 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
-
-
-_logger = logging.getLogger(__name__)
 
 
 class ExecutionContext:
@@ -439,9 +436,7 @@ class ReturnTypeObserver(ExecutionObserver):
         # We store the raw types, so we still need to convert them to proper types.
         for idx, raw_type in result.raw_return_type_trace.items():
             # Will be missing any type vars.
-            proper_type = Instance(
-                self._test_cluster.type_system.to_type_info(raw_type)
-            )
+            proper_type = self._test_cluster.type_system.convert_type_hint(raw_type)
             result.proper_return_type_trace[idx] = proper_type
             statement = test_case.get_statement(idx)
             if isinstance(statement, stmt.ParametrizedStatement):
@@ -2119,7 +2114,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         )
 
         def log_thread_exception(arg):
-            _logger.error(
+            _LOGGER.error(
                 "Exception in Thread: %s",
                 arg.thread,
                 exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
@@ -2187,12 +2182,12 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                     # kills the thread
                     self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
-                    _logger.warning("Experienced timeout from test-case execution")
+                    _LOGGER.warning("Experienced timeout from test-case execution")
                 else:
                     try:
                         result = return_queue.get(block=False)
                     except Empty as ex:
-                        _logger.error("Finished thread did not return a result.")
+                        _LOGGER.error("Finished thread did not return a result.")
                         raise RuntimeError("Bug in Pynguin!") from ex
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
@@ -2287,8 +2282,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         Returns:
             The raised exception, if any.
         """
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug("Executing %s", ast.unparse(ast_node))
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug("Executing %s", ast.unparse(ast_node))
 
         code = compile(ast_node, "<ast>", "exec")
         if instrument:
@@ -2299,7 +2294,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
         except BaseException as err:  # pylint: disable=broad-except
             failed_stmt = ast.unparse(ast_node)
-            _logger.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
+            _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
         return None
 
@@ -2360,6 +2355,7 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
                 with tt.shim_isinstance():
                     # TODO(fk) Do we record wrong stuff, i.e., type checks from
                     #  observers?
+                    #  Make use of type errors?
                     self._delegate.execute(test_case)
         return result
 
@@ -2410,6 +2406,7 @@ class TypeTracingObserver(ExecutionObserver):
     def before_statement_execution(
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
+        # pylint:disable=too-many-locals
         if isinstance(statement, stmt.ParametrizedStatement):
             modified_args = {}
             real_params = {}
@@ -2418,17 +2415,21 @@ class TypeTracingObserver(ExecutionObserver):
                 modified_args[name] = mod_param
                 real_params[(name, mod_param)] = param
 
-            # We must rewrite the statement as follows:
-            # foo(arg1, arg2, arg2)
-            #
-            # n_arg1 = Proxy(arg1)
-            # n_arg2 = Proxy(arg2)
-            # n_arg3 = Proxy(arg2)
-            # foo(n_arg1, n_arg2, n_arg3)
+            # We must rewrite calls as follows:
+            # foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)
+            # where
+            #   n_arg1 = Proxy(arg1)
+            #   n_arg2 = Proxy(arg2)
+            #   n_arg3 = Proxy(arg2)
+            # In other words, each argument is wrapped in its own proxy, even if they
+            # point to the same variable.
             modified = cast(
                 stmt.ParametrizedStatement,
                 statement.clone(statement.test_case, Mirror()),
             )
+            signature = cast(
+                gao.GenericCallableAccessibleObject, modified.accessible_object()
+            ).inferred_signature
             modified.args = modified_args
             modified.ret_val = statement.ret_val
             visitor = stmt_to_ast.StatementToAstVisitor(
@@ -2437,13 +2438,19 @@ class TypeTracingObserver(ExecutionObserver):
             modified.accept(visitor)
             # Now we know the names.
             for (name, modified_param), original_param in real_params.items():
+                old = exec_ctx.get_reference_value(original_param)
                 # TODO(fk) use proxy only with some chance?
                 #  May be necessary for functions that don't like proxies, e.g.,
                 #  open(...).
-                old = exec_ctx.get_reference_value(original_param)
-                proxy = tt.ObjectProxy(old)
-                exec_ctx.replace_variable_value(modified_param, proxy)
+                #  Record how often we get type errors to find out how often
+                #  native function are a problem?
+                proxy = tt.ObjectProxy(
+                    old,
+                    is_kwargs=signature.signature.parameters[name].kind
+                    == inspect.Parameter.VAR_KEYWORD,
+                )
                 self._local_state.proxies[(statement.get_position(), name)] = proxy
+                exec_ctx.replace_variable_value(modified_param, proxy)
 
             return visitor.ast_node
         return node
@@ -2455,4 +2462,11 @@ class TypeTracingObserver(ExecutionObserver):
         exec_ctx: ExecutionContext,
         exception: BaseException | None = None,
     ) -> None:
-        pass
+        if exception is None:
+            # It may be possible that the returned value is a proxy, but we don't
+            # want to create nested proxies, so we unwrap it.
+            # This does not solve all problems, e.g., a list containing proxies, so
+            # that's a limitation.
+            assert statement.ret_val
+            value = exec_ctx.get_reference_value(statement.ret_val)
+            exec_ctx.replace_variable_value(statement.ret_val, tt.unwrap(value))
