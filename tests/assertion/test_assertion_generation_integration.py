@@ -143,8 +143,10 @@ _MUTANTS = [
     [
         (
             "tests.fixtures.mutation.mutation",
-            "def test_case_0():\n    int_0 = 1\n    float_0 = module_0.foo(int_0)",
-            "int_0 = 1\nfloat_0 = module_0.foo(int_0)\nassert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)",
+            "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+            "    int_3 = 1\n    float_0 = module_0.foo(int_3)",
+            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 1\nfloat_0 = module_0.foo(int_3)\n"
+            "assert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)",
             _MUTANTS,
             ag._MutationMetrics(6, 4, 0),
             {0, 1, 4, 5},
@@ -152,8 +154,9 @@ _MUTANTS = [
         ),
         (
             "tests.fixtures.mutation.mutation",
-            "def test_case_0():\n    int_0 = 0\n    float_0 = module_0.foo(int_0)",
-            "int_0 = 0\nfloat_0 = module_0.foo(int_0)",
+            "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+            "    int_3 = 0\n    float_0 = module_0.foo(int_3)",
+            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 0\nfloat_0 = module_0.foo(int_3)",
             _MUTANTS,
             ag._MutationMetrics(6, 0, 0),
             set(),
