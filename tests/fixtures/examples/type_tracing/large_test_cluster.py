@@ -6,7 +6,6 @@
 #
 # Simulate a large test cluster.
 from dataclasses import dataclass
-from typing import Any
 
 for _ in range(100):
     exec(
@@ -28,15 +27,15 @@ class Bar{_}:
 
 @dataclass
 class Square:
-    a: Any
+    a: float
 
 
 @dataclass
 class Circle:
-    r: Any
+    r: float
 
 
 @dataclass
 class Triangle:
-    h: Any
-    b: Any
+    h: float
+    b: float
