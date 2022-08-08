@@ -23,6 +23,8 @@ from setuptools import find_packages
 from pynguin.utils import randomness
 
 # Used for type hinting and for restricting stored types
+from pynguin.utils.typetracing import unwrap
+
 ConstantTypes = float | int | str | bytes | complex
 
 # Used for generic type hinting
@@ -220,6 +222,8 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         Args:
             value: The observed
         """
+        # Might be a proxy.
+        value = unwrap(value)
         if type(value) in typing.get_args(ConstantTypes):
             if (
                 isinstance(value, (str, bytes))
@@ -235,6 +239,8 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The value
             name: The string
         """
+        # Might be a proxy.
+        value = unwrap(value)
         if isinstance(value, str) and name in self.STRING_FUNCTION_LOOKUP:
             self.add_value(value)
             self.add_value(self.STRING_FUNCTION_LOOKUP[name](value))

@@ -6,6 +6,7 @@
 #
 import inspect
 import operator
+from builtins import isinstance as real_isinstance
 
 import pytest
 
@@ -16,6 +17,7 @@ def test_isinstance_shim():
     assert inspect.isbuiltin(isinstance)
     with tt.shim_isinstance():
         assert not inspect.isbuiltin(isinstance)
+        assert inspect.isbuiltin(real_isinstance)
     assert inspect.isbuiltin(isinstance)
 
 

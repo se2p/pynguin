@@ -1082,6 +1082,9 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
+            value1 = tt.unwrap(value1)
+            value2 = tt.unwrap(value2)
+
             match cmp_op:
                 case Compare.EQ:
                     distance_true, distance_false = _eq(value1, value2), _neq(
@@ -1162,6 +1165,8 @@ class ExecutionTracer:
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
+            # Might be necessary when using Proxies.
+            value = tt.unwrap(value)
             if value:
                 if isinstance(value, Sized):
                     # Sized instances evaluate to False if they are empty,
@@ -1210,6 +1215,9 @@ class ExecutionTracer:
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
+            # Might be necessary when using Proxies.
+            err = tt.unwrap(err)
+            exc = tt.unwrap(exc)
             if given_exception_matches(err, exc):
                 distance_false = 1.0
             else:
