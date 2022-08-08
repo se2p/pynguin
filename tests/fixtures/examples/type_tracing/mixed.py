@@ -16,7 +16,7 @@ def multiple_unknowns(a, b, c):
 def instance_check(x, y):
     some_list = [x]
     for foo in some_list:
-        if isinstance(foo, str) and len(foo * y) > 5:
+        if isinstance(foo, Circle) and len(foo.r * y) > 100:  # noqa: F405
             return 42
     return 0
 
@@ -39,12 +39,18 @@ def only_kwargs(**kwargs):
 
 def collection_type(some_list):
     for foo in some_list:
-        if foo:
+        if isinstance(foo, Square):  # noqa: F405
             return 42
     return 0
 
 
+def collection_type_in(some_list):
+    if 42 in some_list:
+        return 42
+    return 0
+
+
 def type_from_comparison(a):
-    if a < 1000:
+    if a.a < 1000:
         return 0
     return None

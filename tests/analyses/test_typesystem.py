@@ -160,7 +160,7 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
 @pytest.mark.parametrize(
     "hint,expected",
     [
-        (list, Instance(TypeInfo(list))),
+        (list, Instance(TypeInfo(list), (AnyType(),))),
         (
             list[int],
             Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
@@ -172,6 +172,10 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
         (
             set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
+        ),
+        (
+            set,
+            Instance(TypeInfo(set), (AnyType(),)),
         ),
         (
             Set[int],

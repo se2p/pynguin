@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import enum
+import functools
 import inspect
 import logging
 import types
@@ -417,6 +418,12 @@ class TypeInfo:
         self.instance_attributes: OrderedSet[str] = OrderedSet()
         self.symbols: OrderedSet[str] = OrderedSet()
 
+        # TODO(fk) properly implement generics!
+        # For now we just store the number of generic parameters for set, dict and list.
+        self.generic_parameters: int | None = (
+            2 if raw_type is dict else 1 if raw_type in (set, list) else None
+        )
+
     @staticmethod
     def to_full_name(typ: type) -> str:
         """Get the full name of the given type
@@ -577,64 +584,219 @@ class InferredSignature:
             case _:
                 return self.__guess_parameter_type_from(knowledge)
 
-    _ARGUMENT_SYMBOLS = {
-        "__eq__",
-        "__ne__",
-        "__lt__",
-        "__le__",
-        "__gt__",
-        "__ge__",
-    }
+    # If one of these methods was called on a proxy, we can use the argument type
+    # to make guesses.
+    _ARGUMENT_SYMBOLS = OrderedSet(
+        [
+            "__eq__",
+            "__ne__",
+            "__lt__",
+            "__le__",
+            "__gt__",
+            "__ge__",
+        ]
+    )
+
+    # We can guess the element type by looking at the knowledge from these
+    _LIST_ELEMENT_SYMBOLS = OrderedSet(("__iter__", "__getitem__"))
+    _DICT_KEY_SYMBOLS = OrderedSet(("__iter__",))
+    _DICT_VALUE_SYMBOLS = OrderedSet(("__getitem__",))
+    _SET_ELEMENT_SYMBOLS = OrderedSet(("__iter__",))
+
+    # We can guess generic type(s) from the argument type(s) of these methods:
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
+    _DICT_KEY_FROM_ARGUMENT_TYPES = OrderedSet(
+        (
+            "__contains__",
+            "__delitem__",
+            "__getitem__",
+            "__setitem__",
+        )
+    )
+    _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
+
+    def __from_type_check(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+        # Type checks is not empty here.
+        return self.__choose_type_or_negate(
+            OrderedSet(
+                [
+                    self.type_system.to_type_info(
+                        randomness.choice(knowledge.type_checks)
+                    )
+                ]
+            )
+        )
+
+    def __from_symbol_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+        random_symbol = randomness.choice(list(knowledge.symbol_table))
+        if (
+            random_symbol in InferredSignature._ARGUMENT_SYMBOLS
+            and knowledge.symbol_table[random_symbol].arg_types[0]
+            and randomness.next_float() < 0.5
+        ):
+            random_arg_type = randomness.choice(
+                knowledge.symbol_table[random_symbol].arg_types[0]
+            )
+            return self.__choose_type_or_negate(
+                OrderedSet([self.type_system.to_type_info(random_arg_type)])
+            )
+        return self.__choose_type_or_negate(
+            self.type_system.find_by_symbol(random_symbol)
+        )
 
     # pylint:disable=too-many-return-statements
     def __guess_parameter_type_from(
-        self, knowledge: tt.ProxyKnowledge
+        self, knowledge: tt.ProxyKnowledge, recursion_depth: int = 0
     ) -> ProperType | None:
-        guess_from = []
+        guess_from: list[Callable[[tt.ProxyKnowledge], ProperType | None]] = []
         if knowledge.type_checks:
-            guess_from.append("type_checks")
+            guess_from.append(self.__from_type_check)
         if knowledge.symbol_table:
-            guess_from.append("symbol_table")
+            guess_from.append(self.__from_symbol_table)
 
         if not guess_from:
             return None
 
-        chosen_type: ProperType | None = None
-        positive_types: OrderedSet[TypeInfo] = OrderedSet()
-        match randomness.choice(guess_from):
-            case "type_checks":
-                # Type checks is not empty here.
-                random_type = randomness.choice(knowledge.type_checks)
-                chosen_type = self.type_system.convert_type_hint(random_type)
-                positive_types.add(self.type_system.to_type_info(random_type))
-            case "symbol_table":
-                # Try another guess?
-                # TODO(fk) make this more elaborate
-                #  e.g., 'known' generics (list,...)
-                # Symbol table is not empty in this case.
-                random_symbol = randomness.choice(list(knowledge.symbol_table))
-                if (
-                    random_symbol in InferredSignature._ARGUMENT_SYMBOLS
-                    and knowledge.symbol_table[random_symbol].arg_types
-                    and randomness.next_float() < 0.5
-                ):
-                    possible_check = randomness.choice(
-                        knowledge.symbol_table[random_symbol].arg_types
-                    )
-                    chosen_type = self.type_system.convert_type_hint(possible_check)
-                    positive_types.add(self.type_system.to_type_info(possible_check))
-                else:
-                    positive_types = self.type_system.find_by_symbol(random_symbol)
-                    if len(positive_types) > 0:
-                        chosen_type = Instance(randomness.choice(positive_types))
+        guessed_type: ProperType | None = randomness.choice(guess_from)(knowledge)
 
-        if chosen_type and randomness.next_float() < 0.95:
-            return chosen_type
-        if positive_types:
-            # Try to negate types.
-            choices = self.type_system.get_type_outside_of(positive_types)
-            if len(choices) > 0:
-                Instance(randomness.choice(choices))
+        if (
+            recursion_depth <= 1
+            and guessed_type
+            and guessed_type.accept(is_collection_type)
+        ):
+            guessed_type = self.__guess_generic_parameters_for_builtins(
+                guessed_type, knowledge, recursion_depth
+            )
+        return guessed_type
+
+    def __guess_generic_parameters_for_builtins(
+        self, guessed_type, knowledge, recursion_depth
+    ):
+        # If it is a builtin collection, we may be able to make further guesses on
+        # the generic types.
+        if isinstance(guessed_type, Instance):
+            args = guessed_type.args
+            match guessed_type.type.full_name:
+                case "builtins.list":
+                    guessed_element_type = self.__guess_generic_arguments(
+                        knowledge,
+                        recursion_depth,
+                        InferredSignature._LIST_ELEMENT_SYMBOLS,
+                        InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES,
+                        argument_idx=0,
+                    )
+                    args = (
+                        guessed_element_type
+                        if guessed_element_type
+                        else guessed_type.args[0],
+                    )
+                case "builtins.set":
+                    guessed_element_type = self.__guess_generic_arguments(
+                        knowledge,
+                        recursion_depth,
+                        InferredSignature._SET_ELEMENT_SYMBOLS,
+                        InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES,
+                        argument_idx=0,
+                    )
+                    args = (
+                        guessed_element_type
+                        if guessed_element_type
+                        else guessed_type.args[0],
+                    )
+                case "builtins.dict":
+                    guessed_key_type = self.__guess_generic_arguments(
+                        knowledge,
+                        recursion_depth,
+                        InferredSignature._DICT_KEY_SYMBOLS,
+                        InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES,
+                        argument_idx=0,
+                    )
+                    guessed_value_type = self.__guess_generic_arguments(
+                        knowledge,
+                        recursion_depth,
+                        InferredSignature._DICT_VALUE_SYMBOLS,
+                        InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES,
+                        argument_idx=1,
+                    )
+                    args = (
+                        guessed_key_type if guessed_key_type else guessed_type.args[0],
+                        guessed_value_type
+                        if guessed_value_type
+                        else guessed_type.args[1],
+                    )
+            guessed_type = Instance(guessed_type.type, args)
+        elif isinstance(guessed_type, TupleType):
+            # TODO(fk) think about tuples.
+            pass
+        return guessed_type
+
+    def __choose_type_or_negate(
+        self, positive_types: OrderedSet[TypeInfo]
+    ) -> ProperType | None:
+        if not positive_types:
+            return None
+
+        result = None
+        if randomness.next_float() < 0.95:
+            result = self.type_system.make_instance(randomness.choice(positive_types))
+        else:
+            negated_choices = self.type_system.get_type_outside_of(positive_types)
+            if len(negated_choices) > 0:
+                result = self.type_system.make_instance(
+                    randomness.choice(negated_choices)
+                )
+        return result
+
+    # pylint:disable-next=too-many-arguments
+    def __guess_generic_arguments(
+        self,
+        knowledge: tt.ProxyKnowledge,
+        recursion_depth: int,
+        element_symbols: OrderedSet[str],
+        argument_symbols: OrderedSet[str],
+        argument_idx: int,
+    ) -> ProperType | None:
+        guess_from: list[
+            Callable[
+                [],
+                ProperType | None,
+            ]
+        ] = []
+        if elem_symbols := element_symbols.intersection(knowledge.symbol_table.keys()):
+            guess_from.append(
+                functools.partial(
+                    self.__guess_parameter_type_from,
+                    knowledge.symbol_table[randomness.choice(elem_symbols)],
+                    recursion_depth + 1,
+                )
+            )
+        if arg_symbols := argument_symbols.intersection(knowledge.symbol_table.keys()):
+            guess_from.append(
+                functools.partial(
+                    self.__guess_from_argument_types,
+                    arg_symbols,
+                    knowledge,
+                    argument_idx,
+                )
+            )
+
+        if guess_from:
+            return randomness.choice(guess_from)()
+        return None
+
+    def __guess_from_argument_types(
+        self, arg_symbols: Sequence[str], knowledge: tt.ProxyKnowledge, arg_idx: int = 0
+    ) -> ProperType | None:
+        arg_types = knowledge.symbol_table[randomness.choice(arg_symbols)].arg_types[
+            arg_idx
+        ]
+        if arg_types:
+            return self.__choose_type_or_negate(
+                OrderedSet(
+                    [self.type_system.to_type_info(randomness.choice(arg_types))]
+                )
+            )
         return None
 
     def format_guessed_signature(self) -> str:
@@ -1052,15 +1214,50 @@ class TypeSystem:
             hint, (typing._BaseGenericAlias, types.GenericAlias)  # type:ignore
         ):
             # list[int, str] or List[int, str] or Dict[int, str] or set[str]
-            return Instance(
+            result = Instance(
                 self.to_type_info(hint.__origin__),
                 tuple(self.convert_type_hint(t) for t in hint.__args__),
             )
+            # TODO(fk) remove this one day.
+            #  Hardcoded support generic dict, list and set.
+            return self.__fixup_known_generics(result)
+
         if isinstance(hint, type):
             # int or str or MyClass
-            return Instance(self.to_type_info(hint))
+            return self.__fixup_known_generics(Instance(self.to_type_info(hint)))
         # TODO(fk) log unknown hints to so we can better understand what
         #  we should add next
         _LOGGER.debug("Unknown type hint: %s", hint)
         # Should raise an error in the future.
         return AnyType()
+
+    def make_instance(self, typ: TypeInfo) -> Instance | TupleType:
+        """Create an instance from the given type.
+
+        Args:
+            typ: The type info.
+
+        Returns:
+            An instance or TupleType
+        """
+        if typ.full_name == "builtins.tuple":
+            return TupleType((AnyType(),), unknown_size=True)
+        result = Instance(
+            typ,
+        )
+        return self.__fixup_known_generics(result)
+
+    @staticmethod
+    def __fixup_known_generics(result: Instance) -> Instance:
+        if result.type.generic_parameters is not None:
+            args = tuple(result.args)
+            if len(result.args) < result.type.generic_parameters:
+                # Fill with AnyType if to small
+                args = args + (AnyType(),) * (
+                    result.type.generic_parameters - len(args)
+                )
+            elif len(result.args) > result.type.generic_parameters:
+                # Remove excessive args.
+                args = args[: result.type.generic_parameters]
+            return Instance(result.type, args)
+        return result

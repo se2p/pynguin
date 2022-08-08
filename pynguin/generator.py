@@ -451,6 +451,7 @@ def _run() -> ReturnCode:
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
+    test_cluster.log_signatures()
     return ReturnCode.OK
 
 

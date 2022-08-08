@@ -13,6 +13,7 @@ import contextlib
 import dataclasses
 import logging
 import operator
+from collections import defaultdict
 
 from ordered_set import OrderedSet
 
@@ -68,7 +69,10 @@ class ProxyKnowledge:
     # TODO(fk) do not record anything if it involves another proxy
     type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
 
-    arg_types: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
+    # Maps argument positions to their types.
+    arg_types: dict[int, OrderedSet[type]] = dataclasses.field(
+        default_factory=lambda: defaultdict(OrderedSet)
+    )
 
     def __post_init__(self):
         self.symbol_table = DepthDefaultDict(self.depth)
@@ -83,7 +87,7 @@ class ProxyKnowledge:
         if len(self.type_checks) > 0:
             output += f" (type-checks: {self.type_checks}"
         if len(self.arg_types) > 0:
-            output += f" (arg-types: {self.arg_types}"
+            output += f" (arg-types: {self.arg_types.items()}"
         for children in self.symbol_table.values():
             output += "\n" + children.pretty()
         return output
@@ -92,7 +96,7 @@ class ProxyKnowledge:
     def __get_indent(depth: int) -> str:
         indent = "     " * (depth - 1)
         if depth > 0:
-            indent += "└---"
+            indent += "^---"
         return indent
 
     @staticmethod
@@ -137,11 +141,11 @@ class DepthDefaultDict(dict[str, ProxyKnowledge]):
         return res
 
 
-def proxify(log_arg_type=False, no_wrap_return=False):
+def proxify(log_arg_types=False, no_wrap_return=False):
     """Decorator to wrap the result of a dunder method in a proxy.
 
     Args:
-        log_arg_type: Should we log the argument as a type check?
+        log_arg_types: Should we log the arguments?
         no_wrap_return: Some cases, e.g., __int__ don't allow a return value that is
             not an int, so in some cases we have to disable wrapping.
 
@@ -155,12 +159,13 @@ def proxify(log_arg_type=False, no_wrap_return=False):
             knowledge = ProxyKnowledge.from_proxy(self)
             nested_knowledge = knowledge.symbol_table[function.__name__]
             if len(args) > 1:
-                if isinstance(args[1], ObjectProxy):
+                if any(isinstance(arg, ObjectProxy) for arg in args[1:]):
                     # Only record access but nothing more, if we interact with another
                     # proxy.
                     return function(*args, **kwargs)
-                if log_arg_type:
-                    nested_knowledge.arg_types.add(type(args[1]))
+                if log_arg_types:
+                    for pos, arg in enumerate(args[1:]):
+                        nested_knowledge.arg_types[pos].add(type(arg))
             if no_wrap_return:
                 return function(*args, **kwargs)
             return ObjectProxy(function(*args, **kwargs), knowledge=nested_knowledge)
@@ -322,27 +327,27 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __mro_entries__(self, bases):  # pylint:disable=unused-argument
         return (self.__wrapped__,)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __lt__(self, other):
         return self.__wrapped__ < other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __le__(self, other):
         return self.__wrapped__ <= other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __eq__(self, other):
         return self.__wrapped__ == other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __ne__(self, other):
         return self.__wrapped__ != other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __gt__(self, other):
         return self.__wrapped__ > other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True, no_wrap_return=True)
     def __ge__(self, other):
         return self.__wrapped__ >= other  # type:ignore
 
@@ -432,167 +437,167 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         else:
             delattr(self.__wrapped__, name)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __add__(self, other):
         return self.__wrapped__ + other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __sub__(self, other):
         return self.__wrapped__ - other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __mul__(self, other):
         return self.__wrapped__ * other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __truediv__(self, other):
         return operator.truediv(self.__wrapped__, other)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __floordiv__(self, other):
         return self.__wrapped__ // other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __mod__(self, other):
         return self.__wrapped__ % other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __divmod__(self, other):
         return divmod(self.__wrapped__, other)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __pow__(self, other, *args):
         return pow(self.__wrapped__, other, *args)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __lshift__(self, other):
         return self.__wrapped__ << other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rshift__(self, other):
         return self.__wrapped__ >> other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __and__(self, other):
         return self.__wrapped__ & other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __xor__(self, other):
         return self.__wrapped__ ^ other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __or__(self, other):
         return self.__wrapped__ | other  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __radd__(self, other):
         return other + self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rsub__(self, other):
         return other - self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rmul__(self, other):
         return other * self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rtruediv__(self, other):
         return operator.truediv(other, self.__wrapped__)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rfloordiv__(self, other):
         return other // self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rmod__(self, other):
         return other % self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rdivmod__(self, other):
         return divmod(other, self.__wrapped__)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rpow__(self, other, *args):
         return pow(other, self.__wrapped__, *args)  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rlshift__(self, other):
         return other << self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rrshift__(self, other):
         return other >> self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rand__(self, other):
         return other & self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __rxor__(self, other):
         return other ^ self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ror__(self, other):
         return other | self.__wrapped__  # type:ignore
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __iadd__(self, other):  # type:ignore
         self.__wrapped__ += other  # type:ignore
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __isub__(self, other):  # type:ignore
         self.__wrapped__ -= other  # type:ignore
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __imul__(self, other):  # type:ignore
         self.__wrapped__ *= other  # type:ignore
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __itruediv__(self, other):  # type:ignore
         # pylint:disable=attribute-defined-outside-init
         self.__wrapped__ = operator.itruediv(self.__wrapped__, other)  # type:ignore
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ifloordiv__(self, other):  # type:ignore
         self.__wrapped__ //= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __imod__(self, other):  # type:ignore
         self.__wrapped__ %= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ipow__(self, other):  # type:ignore
         self.__wrapped__ **= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ilshift__(self, other):  # type:ignore
         self.__wrapped__ <<= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __irshift__(self, other):  # type:ignore
         self.__wrapped__ >>= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __iand__(self, other):  # type:ignore
         self.__wrapped__ &= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ixor__(self, other):  # type:ignore
         self.__wrapped__ ^= other
         return self
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __ior__(self, other):  # type:ignore
         self.__wrapped__ |= other
         return self
@@ -634,16 +639,16 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         # len turns result into an integer
         return len(self.__wrapped__)
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __contains__(self, value):
         return value in self.__wrapped__
 
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __getitem__(self, key):
         return self.__wrapped__[key]
 
     # TODO(fk) log value?
-    @proxify(log_arg_type=True)
+    @proxify(log_arg_types=True)
     def __setitem__(self, key, value):
         self.__wrapped__[key] = value
 
