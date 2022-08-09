@@ -347,3 +347,9 @@ def test_wrap_var_param_type(kind, type_, result):
     system = TypeSystem()
     proper = system.convert_type_hint(type_)
     assert system.wrap_var_param_type(proper, kind) == system.convert_type_hint(result)
+
+
+def test_inferred_signature_idenity(type_system):
+    assert InferredSignature(None, None, {}, type_system) != InferredSignature(
+        None, None, {}, type_system
+    )
