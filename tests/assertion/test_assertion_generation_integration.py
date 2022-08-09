@@ -86,52 +86,49 @@ def test_generate_mutation_assertions(generator, expected_result):
 
 # Known mutants of tests.fixtures.mutation.mutation
 _MUTANTS = [
-    "from random import uniform\n"
+    "from time import sleep, time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if not param == 0:\n"
-    "        return uniform(5, 10)\n"
+    "        sleep(0.1)\n"
+    "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from random import uniform\n"
+    "from time import sleep, time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 1:\n"
-    "        return uniform(5, 10)\n"
+    "        sleep(0.1)\n"
+    "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from random import uniform\n"
+    "from time import sleep, time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 0:\n"
-    "        return uniform(6, 10)\n"
+    "        sleep(1.1)\n"
+    "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from random import uniform\n"
+    "from time import sleep, time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param == 0:\n"
-    "        return uniform(5, 11)\n"
-    "    else:\n"
-    "        return 2.0",
-    "from random import uniform\n"
-    "\n"
-    "def foo(param) -> float:\n"
-    '    """This is flaky"""\n'
-    "    if param == 0:\n"
-    "        return uniform(5, 10)\n"
+    "        sleep(0.1)\n"
+    "        return time_ns()\n"
     "    else:\n"
     "        return 3.0",
-    "from random import uniform\n"
+    "from time import sleep, time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
     "    if param != 0:\n"
-    "        return uniform(5, 10)\n"
+    "        sleep(0.1)\n"
+    "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
 ]
@@ -148,8 +145,8 @@ _MUTANTS = [
             "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 1\nfloat_0 = module_0.foo(int_3)\n"
             "assert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)",
             _MUTANTS,
-            ag._MutationMetrics(6, 4, 0),
-            {0, 1, 4, 5},
+            ag._MutationMetrics(5, 4, 0),
+            {0, 1, 3, 4},
             set(),
         ),
         (
@@ -158,7 +155,7 @@ _MUTANTS = [
             "    int_3 = 0\n    float_0 = module_0.foo(int_3)",
             "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 0\nfloat_0 = module_0.foo(int_3)",
             _MUTANTS,
-            ag._MutationMetrics(6, 0, 0),
+            ag._MutationMetrics(5, 0, 0),
             set(),
             set(),
         ),
