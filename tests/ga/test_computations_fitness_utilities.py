@@ -20,6 +20,7 @@ import pynguin.ga.computations as ff
 from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.execution import (
+    ExecutedAssertion,
     ExecutionResult,
     ExecutionTrace,
     KnownData,
@@ -193,7 +194,8 @@ def test_checked_coverage_half_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.executed_assertions = [MagicMock()]
+    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
@@ -206,7 +208,8 @@ def test_checked_coverage_fully_covered(known_data_mock, trace_mock):
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    trace_mock.executed_assertions = [MagicMock()]
+    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
     mock_instr_2 = MagicMock()

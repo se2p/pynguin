@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
+from unittest.mock import MagicMock
 
 from pynguin.testcase.execution import (
     ExecutedAssertion,
@@ -22,7 +23,8 @@ def test_merge():
 def test_merge_full():
 
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
-    assert0 = ExecutedAssertion(0, 1, 2)
+    stmt0 = MagicMock()
+    assert0 = ExecutedAssertion(0, 1, 2, stmt0)
 
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
@@ -38,7 +40,8 @@ def test_merge_full():
     trace0.executed_assertions = [assert0]
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
-    assert1 = ExecutedAssertion(1, 2, 3)
+    stmt1 = MagicMock()
+    assert1 = ExecutedAssertion(1, 2, 3, stmt1)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -53,7 +56,7 @@ def test_merge_full():
     trace1.executed_assertions = [assert1]
 
     # Shifted by one
-    assert2 = ExecutedAssertion(1, 2, 4)
+    assert2 = ExecutedAssertion(1, 2, 4, stmt1)
 
     result = ExecutionTrace()
     result.executed_code_objects.add(0)

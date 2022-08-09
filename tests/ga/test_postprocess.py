@@ -10,9 +10,11 @@ from unittest.mock import MagicMock, call
 import pytest
 
 import pynguin.ga.postprocess as pp
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 from pynguin.analyses.module import ModuleTestCluster
+from pynguin.assertion.assertion import ExceptionAssertion
 
 
 def test_not_failing():
@@ -34,12 +36,85 @@ def test_simple_chop():
     test_case.chop.assert_called_once_with(42)
 
 
-def test_suite():
+def test_suite_chop():
     trunc = pp.ExceptionTruncation()
     chromosome = MagicMock()
     suite = MagicMock(test_case_chromosomes=[chromosome, chromosome])
     trunc.visit_test_suite_chromosome(suite)
     chromosome.accept.assert_has_calls([call(trunc), call(trunc)])
+
+
+def test_suite_assertion_minimization():
+    ass_min = pp.AssertionMinimization()
+    chromosome = MagicMock()
+    suite = MagicMock(test_case_chromosomes=[chromosome, chromosome])
+    ass_min.visit_test_suite_chromosome(suite)
+    chromosome.accept.assert_has_calls([call(ass_min), call(ass_min)])
+
+
+def test_test_case_assertion_minimization(default_test_case):
+    ass_min = pp.AssertionMinimization()
+    statement = stmt.IntPrimitiveStatement(default_test_case)
+
+    assertion_1 = MagicMock(
+        checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
+    )
+    assertion_2 = MagicMock(checked_instructions=[MagicMock(lineno=1)])
+
+    statement.add_assertion(assertion_1)
+    statement.add_assertion(assertion_2)
+    default_test_case.add_statement(statement)
+
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
+    ass_min.visit_test_case_chromosome(chromosome)
+
+    assert ass_min.remaining_assertions == {assertion_1}
+    assert ass_min.deleted_assertions == {assertion_2}
+    assert default_test_case.get_assertions() == [assertion_1]
+
+
+def test_test_case_assertion_minimization_does_not_remove_exception_assertion(
+    default_test_case,
+):
+    ass_min = pp.AssertionMinimization()
+    statement = stmt.IntPrimitiveStatement(default_test_case)
+
+    assertion_1 = MagicMock(
+        checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
+    )
+    assertion_2 = MagicMock(
+        spec=ExceptionAssertion, checked_instructions=[MagicMock(lineno=1)]
+    )
+
+    statement.add_assertion(assertion_1)
+    statement.add_assertion(assertion_2)
+    default_test_case.add_statement(statement)
+
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
+    ass_min.visit_test_case_chromosome(chromosome)
+
+    assert ass_min.remaining_assertions == {assertion_1, assertion_2}
+    assert ass_min.deleted_assertions == set()
+    assert default_test_case.get_assertions() == [assertion_1, assertion_2]
+
+
+def test_test_case_assertion_minimization_does_not_remove_empty_assertion(
+    default_test_case,
+):
+    ass_min = pp.AssertionMinimization()
+    statement = stmt.IntPrimitiveStatement(default_test_case)
+
+    assertion_1 = MagicMock(checked_instructions=[])
+
+    statement.add_assertion(assertion_1)
+    default_test_case.add_statement(statement)
+
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
+    ass_min.visit_test_case_chromosome(chromosome)
+
+    assert ass_min.remaining_assertions == {assertion_1}
+    assert ass_min.deleted_assertions == set()
+    assert default_test_case.get_assertions() == [assertion_1]
 
 
 def test_test_case_postprocessor_suite():
