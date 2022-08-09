@@ -124,9 +124,12 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
         last_traced_instr.offset,
         lineno=last_traced_instr.lineno,
     )
-    slicing_criterion = SlicingCriterion(slicing_instruction)
+    slicing_criterion = SlicingCriterion(
+        slicing_instruction, len(trace.executed_instructions) - 2
+    )
     return dynamic_slicer.slice(
-        trace, slicing_criterion, len(trace.executed_instructions) - 2
+        trace,
+        slicing_criterion,
     )
 
 
@@ -158,8 +161,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
             lineno=last_traced_instr.lineno,
         )
         slicing_criterion = SlicingCriterion(
-            slicing_instruction, local_variables={("result", last_traced_instr.file)}
+            slicing_instruction,
+            len(trace.executed_instructions) - 2,
         )
-        return dynamic_slicer.slice(
-            trace, slicing_criterion, len(trace.executed_instructions) - 2
-        )
+        return dynamic_slicer.slice(trace, slicing_criterion)

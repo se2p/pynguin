@@ -16,6 +16,8 @@ from bytecode import Bytecode, Instr, Label
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
@@ -451,6 +453,13 @@ def list_test_with_len_assertion() -> tc.TestCase:
         )
     )
     return test_case
+
+
+@pytest.fixture()
+def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
+    return test_suite
 
 
 @pytest.fixture()

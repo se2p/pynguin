@@ -18,7 +18,6 @@ from ordered_set import OrderedSet
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion, ExceptionAssertion
-from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.testcase.statement import StatementVisitor
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
     def __init__(self):
         self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
         self._deleted_assertions: OrderedSet[Assertion] = OrderedSet()
-        self._checked_lines: OrderedSet[int] = OrderedSet()
+        self._checked_line_numbers: OrderedSet[int] = OrderedSet()
 
     @property
     def remaining_assertions(self) -> OrderedSet[Assertion]:
@@ -83,9 +82,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         for stmt in chromosome.test_case.statements:
             to_remove: OrderedSet[Assertion] = OrderedSet()
             for assertion in stmt.assertions:
-                new_checked_lines = AssertionSlicer.map_instructions_to_lines(
-                    assertion.checked_instructions
-                )
+                new_checked_lines: OrderedSet[int] = OrderedSet()
+                for instr in assertion.checked_instructions:
+                    new_checked_lines.add(instr.lineno)
                 if (
                     # keep exception assertions to catch the exceptions
                     isinstance(assertion, ExceptionAssertion)
@@ -94,9 +93,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                     # assertion that checks nothing at all
                     or not new_checked_lines
                     # keep assertions that increase checked coverage
-                    or not new_checked_lines.issubset(self._checked_lines)
+                    or not new_checked_lines.issubset(self._checked_line_numbers)
                 ):
-                    self._checked_lines.update(new_checked_lines)
+                    self._checked_line_numbers.update(new_checked_lines)
                     self._remaining_assertions.add(assertion)
                 else:
                     to_remove.add(assertion)

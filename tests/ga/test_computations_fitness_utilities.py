@@ -18,7 +18,7 @@ from hypothesis import given
 
 import pynguin.ga.computations as ff
 from pynguin.instrumentation.instrumentation import PredicateMetaData
-from pynguin.slicer.dynamicslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import (
     ExecutedAssertion,
     ExecutionResult,
@@ -177,19 +177,19 @@ def test_line_coverage_is_covered(known_data_mock, trace_mock):
     assert ff.compute_line_coverage_fitness_is_covered(trace_mock, known_data_mock)
 
 
-def test_checked_coverage_none(known_data_mock, trace_mock):
-    assert ff.compute_checked_coverage(trace_mock, known_data_mock) == 1.0
+def test_assertion_checked_coverage_none(known_data_mock, trace_mock):
+    assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 1.0
 
 
-def test_checked_coverage_zero(known_data_mock, trace_mock):
+def test_assertion_checked_coverage_zero(known_data_mock, trace_mock):
     known_data_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    assert ff.compute_checked_coverage(trace_mock, known_data_mock) == 0.0
+    assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 0.0
 
 
-def test_checked_coverage_half_covered(known_data_mock, trace_mock):
+def test_assertion_checked_coverage_half_covered(known_data_mock, trace_mock):
     known_data_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
@@ -198,12 +198,14 @@ def test_checked_coverage_half_covered(known_data_mock, trace_mock):
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1]
-        assert ff.compute_checked_coverage(trace_mock, known_data_mock) == 0.5
+        assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 0.5
 
 
-def test_checked_coverage_fully_covered(known_data_mock, trace_mock):
+def test_assertion_checked_coverage_fully_covered(known_data_mock, trace_mock):
     known_data_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
@@ -212,11 +214,66 @@ def test_checked_coverage_fully_covered(known_data_mock, trace_mock):
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
     mock_instr_2 = MagicMock()
     mock_instr_2.lineno = 1
+    mock_instr_2.code_object_id = 0
+    mock_instr_2.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1, mock_instr_2]
-        assert ff.compute_checked_coverage(trace_mock, known_data_mock) == 1
+        assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 1
+
+
+def test_statement_checked_coverage_none(known_data_mock, trace_mock):
+    assert (
+        ff.compute_statement_checked_lines([], trace_mock, known_data_mock, {}) == set()
+    )
+
+
+def test_statement_checked_coverage_half_covered(known_data_mock, trace_mock):
+    known_data_mock.existing_lines = {
+        0: LineMetaData(0, "foo", 0),
+        1: LineMetaData(0, "foo", 1),
+    }
+    mock_instr_1 = MagicMock()
+    mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
+    statement = MagicMock()
+    statements = [statement]
+    with patch.object(DynamicSlicer, "slice") as slice_mock:
+        with patch.object(statement, "get_position") as position_mock:
+            position_mock.return_value = 1
+            slice_mock.return_value = [mock_instr_1]
+            assert ff.compute_statement_checked_lines(
+                statements, trace_mock, known_data_mock, {1: MagicMock()}
+            ) == {0}
+
+
+def test_statement_checked_coverage_fully_covered(known_data_mock, trace_mock):
+    known_data_mock.existing_lines = {
+        0: LineMetaData(0, "foo", 0),
+        1: LineMetaData(0, "foo", 1),
+    }
+    mock_instr_1 = MagicMock()
+    mock_instr_1.lineno = 0
+    mock_instr_1.code_object_id = 0
+    mock_instr_1.file = "foo"
+    mock_instr_2 = MagicMock()
+    mock_instr_2.lineno = 1
+    mock_instr_2.code_object_id = 0
+    mock_instr_2.file = "foo"
+
+    statement = MagicMock()
+    statements = [statement]
+    with patch.object(DynamicSlicer, "slice") as slice_mock:
+        with patch.object(statement, "get_position") as position_mock:
+            position_mock.return_value = 1
+            slice_mock.return_value = [mock_instr_1, mock_instr_2]
+            assert ff.compute_statement_checked_lines(
+                statements, trace_mock, known_data_mock, {1: MagicMock()}
+            ) == {0, 1}
 
 
 def test_analyze_traces_empty():

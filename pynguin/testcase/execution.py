@@ -29,12 +29,13 @@ from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union, cast
 import pytest  # pylint:disable=unused-import # noqa: F401
 from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from opcode import opname
 from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
+import pynguin.configuration as config
+import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
@@ -326,7 +327,7 @@ class ExecutionObserver:
         """
 
 
-class AssertionSlicingObserver(ExecutionObserver):
+class AssertionExecutionObserver(ExecutionObserver):
     """An observer which executes the assertions of statements to enable slicing on
     the recorded data."""
 
@@ -374,7 +375,7 @@ class AssertionSlicingObserver(ExecutionObserver):
                 assertion_node = exec_ctx.wrap_node_in_module(
                     exec_ctx.node_for_assertion(assertion, ast.stmt())  # Dummy node
                 )
-                executor.execute_ast(assertion_node, exec_ctx, True)
+                executor.execute_ast(assertion_node, exec_ctx)
 
                 code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
                 self._tracer.register_assertion_position(
@@ -479,8 +480,9 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
     true_distances: dict[int, float] = field(default_factory=dict)
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
-    executed_instructions: list[ExecutedInstruction] = field(default_factory=list)
+    executed_instructions: list[ei.ExecutedInstruction] = field(default_factory=list)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
+    checked_lines: OrderedSet[int] = field(default_factory=OrderedSet)
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -494,15 +496,16 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self._merge_min(self.true_distances, other.true_distances)
         self._merge_min(self.false_distances, other.false_distances)
         self.covered_line_ids.update(other.covered_line_ids)
+        self.checked_lines.update(other.checked_lines)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
-        for traced_assertion in other.executed_assertions:
+        for executed_assertion in other.executed_assertions:
             self.executed_assertions.append(
                 ExecutedAssertion(
-                    traced_assertion.code_object_id,
-                    traced_assertion.node_id,
-                    traced_assertion.trace_position + shift,
-                    traced_assertion.assertion,
+                    executed_assertion.code_object_id,
+                    executed_assertion.node_id,
+                    executed_assertion.trace_position + shift,
+                    executed_assertion.assertion,
                 )
             )
 
@@ -556,7 +559,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
-        executed_instr = ExecutedInstruction(
+        executed_instr = ei.ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
         self.executed_instructions.append(executed_instr)
@@ -588,7 +591,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             is_mutable_type: if the argument is mutable
             object_creation: if the instruction creates the object used
         """
-        executed_instr = ExecutedMemoryInstruction(
+        executed_instr = ei.ExecutedMemoryInstruction(
             module,
             code_object_id,
             node_id,
@@ -630,7 +633,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             arg_address: the memory address of the argument
             is_mutable_type: if the attribute is mutable
         """
-        executed_instr = ExecutedAttributeInstruction(
+        executed_instr = ei.ExecutedAttributeInstruction(
             module,
             code_object_id,
             node_id,
@@ -665,7 +668,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             offset: the offset of the instruction
             target_id: the target offset to jump to
         """
-        executed_instr = ExecutedControlInstruction(
+        executed_instr = ei.ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
         self.executed_instructions.append(executed_instr)
@@ -691,7 +694,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             offset: the offset of the instruction
             arg: the argument to the instruction
         """
-        executed_instr = ExecutedCallInstruction(
+        executed_instr = ei.ExecutedCallInstruction(
             module, code_object_id, node_id, opcode, arg, lineno, offset
         )
 
@@ -716,7 +719,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             lineno: the line number of the instruction
             offset: the offset of the instruction
         """
-        executed_instr = ExecutedReturnInstruction(
+        executed_instr = ei.ExecutedReturnInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
 
@@ -1046,7 +1049,7 @@ class ExecutionTracer:
         """Declare that a predicate exists.
 
         Args:
-            meta: Meta data about the predicates
+            meta: Metadata about the predicates
 
         Returns:
             the id of the predicate, which can be used to identify the predicate
@@ -1738,137 +1741,6 @@ class ExecutedAssertion:
     assertion: ass.Assertion
 
 
-@dataclass(frozen=True)
-class ExecutedInstruction:
-    """Represents an executed bytecode instruction with additional information."""
-
-    file: str
-    code_object_id: int
-    node_id: int
-    opcode: int
-    argument: int | str | None
-    lineno: int
-    offset: int
-
-    @property
-    def name(self) -> str:
-        """Returns the name of the executed instruction.
-
-        Returns:
-            The name of the executed instruction.
-        """
-        return opname[self.opcode]
-
-    @staticmethod
-    def is_jump() -> bool:
-        """Returns whether the executed instruction is a jump condition.
-
-        Returns:
-            True, if the instruction is a jump condition, False otherwise.
-        """
-        return False
-
-    def __str__(self) -> str:
-        return (
-            f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedMemoryInstruction(ExecutedInstruction):
-    """Represents an executed instructions which read from or wrote to memory."""
-
-    arg_address: int
-    is_mutable_type: bool
-    object_creation: bool
-
-    def __str__(self) -> str:
-        if not self.arg_address:
-            arg_address = -1
-        else:
-            arg_address = self.arg_address
-        return (
-            f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedAttributeInstruction(ExecutedInstruction):
-    """
-    Represents an executed instructions which accessed an attribute.
-
-    We prepend each accessed attribute with the address of the object the attribute
-    is taken from. This allows to build correct def-use pairs during backward traversal.
-    """
-
-    src_address: int
-    arg_address: int
-    is_mutable_type: bool
-
-    @property
-    def combined_attr(self):
-        """Format the source address and the argument
-        for an ExecutedAttributeInstruction.
-
-        Returns:
-            A string representation of the attribute in memory
-        """
-        return f"{hex(self.src_address)}_{self.argument}"
-
-    def __str__(self) -> str:
-        return (
-            f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.combined_attr:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedControlInstruction(ExecutedInstruction):
-    """Represents an executed control flow instruction."""
-
-    @staticmethod
-    def is_jump() -> bool:
-        """Returns whether the executed instruction is a jump condition.
-
-        Returns:
-            True, if the instruction is a jump condition, False otherwise.
-        """
-        return True
-
-    def __str__(self) -> str:
-        return (
-            f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.argument:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedCallInstruction(ExecutedInstruction):
-    """Represents an executed call instruction."""
-
-    def __str__(self) -> str:
-        return (
-            f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
-@dataclass(frozen=True)
-class ExecutedReturnInstruction(ExecutedInstruction):
-    """Represents an executed return instruction."""
-
-    def __str__(self) -> str:
-        return (
-            f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
-        )
-
-
 def _eq(val1, val2) -> float:
     """Distance computation for '=='
 
@@ -2096,15 +1968,11 @@ class AbstractTestCaseExecutor(abc.ABC):
         """
 
     @abstractmethod
-    def execute(
-        self, test_case: tc.TestCase, instrument_test: bool = False
-    ) -> ExecutionResult:
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
         """Executes all statements of the given test case.
 
         Args:
             test_case: the test case that should be executed.
-            instrument_test: if the test case itself needs to be
-                instrumented before execution
 
         Raises:
             RuntimeError: If something goes wrong inside Pynguin during execution.
@@ -2137,10 +2005,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         )
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
-        checked_adapter = CheckedCoverageInstrumentation(self._tracer)
-        self._checked_transformer = InstrumentationTransformer(
-            self._tracer, [checked_adapter]
+        self._instrument = (
+            config.CoverageMetric.CHECKED
+            in config.configuration.statistics_output.coverage_metrics
         )
+        if self._instrument:
+            checked_adapter = CheckedCoverageInstrumentation(self._tracer)
+            self._checked_transformer = InstrumentationTransformer(
+                self._tracer, [checked_adapter]
+            )
 
         def log_thread_exception(arg):
             _LOGGER.error(
@@ -2193,19 +2066,18 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
     def execute(
         self,
         test_case: tc.TestCase,
-        instrument_test: bool = False,
     ) -> ExecutionResult:
         with contextlib.redirect_stdout(self._null_file):
             with contextlib.redirect_stderr(self._null_file):
                 return_queue: Queue[ExecutionResult] = Queue()
                 thread = threading.Thread(
                     target=self._execute_test_case,
-                    args=(test_case, return_queue, instrument_test),
+                    args=(test_case, return_queue),
                     daemon=True,
                 )
                 thread.start()
-                # Set a timeout for the thread execution of at most 5 seconds.
-                thread.join(timeout=min(5, len(test_case.statements)))
+                # Set a timeout for the thread execution of at most 300 seconds.
+                thread.join(timeout=min(300, 60 * len(test_case.statements)))
                 if thread.is_alive():
                     # Set thread ident to invalid value, such that the tracer
                     # kills the thread
@@ -2226,16 +2098,14 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         for observer in self._observers:
             observer.before_test_case_execution(test_case)
 
-    def _execute_test_case(
-        self, test_case: tc.TestCase, result_queue: Queue, instrument_test: bool
-    ) -> None:
+    def _execute_test_case(self, test_case: tc.TestCase, result_queue: Queue) -> None:
         self._before_test_case_execution(test_case)
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
         self._tracer.current_thread_identifier = threading.current_thread().ident
         for idx, statement in enumerate(test_case.statements):
             ast_node = self._before_statement_execution(statement, exec_ctx)
-            exception = self.execute_ast(ast_node, exec_ctx, instrument=instrument_test)
+            exception = self.execute_ast(ast_node, exec_ctx)
             self._after_statement_execution(statement, exec_ctx, exception)
             if exception is not None:
                 result.report_new_thrown_exception(idx, exception)
@@ -2298,7 +2168,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         ast_node: ast.Module,
         exec_ctx: ExecutionContext,
-        instrument: bool = False,
     ) -> BaseException | None:
         """Execute the given ast_node in the given context.
         You can use this in an observer if you also need to execute an AST Node.
@@ -2306,7 +2175,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         Args:
             ast_node: The node to execute.
             exec_ctx: The execution context
-            instrument: Instrument execution of the given node.
 
         Returns:
             The raised exception, if any.
@@ -2315,7 +2183,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             _LOGGER.debug("Executing %s", ast.unparse(ast_node))
 
         code = compile(ast_node, "<ast>", "exec")
-        if instrument:
+        if self._instrument:
             code = self._checked_transformer.instrument_module(code)
 
         try:
@@ -2325,6 +2193,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             failed_stmt = ast.unparse(ast_node)
             _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
+
         return None
 
     def _after_statement_execution(
@@ -2373,9 +2242,7 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     def tracer(self) -> ExecutionTracer:
         return self._delegate.tracer
 
-    def execute(
-        self, test_case: tc.TestCase, instrument_test: bool = False
-    ) -> ExecutionResult:
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
         result = self._delegate.execute(test_case)
         if not result.timeout:
             # Only execute with proxies if the test case doesn't time out.
