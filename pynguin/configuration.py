@@ -74,6 +74,9 @@ class AssertionGenerator(str, enum.Enum):
     MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
     """Use the mutation analysis approach for assertion generation."""
 
+    CHECKED_MINIMIZING = "CHECKED_MINIMIZING"
+    """All assertions that do not increase the checked coverage are removed."""
+
     SIMPLE = "SIMPLE"
     """Use the simple approach for primitive and none assertion generation."""
 

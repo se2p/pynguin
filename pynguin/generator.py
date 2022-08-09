@@ -425,6 +425,7 @@ def _run() -> ReturnCode:
         _track_resulting_checked_coverage(
             executor, generation_result, dynamic_constant_provider
         )
+        _minimize_assertions(generation_result)
 
     # Export the generated test suites
     if (
@@ -462,6 +463,21 @@ def _remove_statements_after_exceptions(generation_result):
         )
         generation_result.accept(unused_primitives_removal)
         # TODO(fk) add more postprocessing stuff.
+
+
+def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING:
+        _LOGGER.info("Minimizing assertions based on checked coverage")
+        assertion_minimizer = pp.AssertionMinimization()
+        generation_result.accept(assertion_minimizer)
+        stat.track_output_variable(
+            RuntimeVariable.Assertions, len(assertion_minimizer.remaining_assertions)
+        )
+        stat.track_output_variable(
+            RuntimeVariable.DeletedAssertions,
+            len(assertion_minimizer.deleted_assertions),
+        )
 
 
 def _generate_assertions(executor, generation_result):
