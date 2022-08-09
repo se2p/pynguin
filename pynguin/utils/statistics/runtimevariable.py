@@ -49,8 +49,11 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained line coverage
     LineCoverage = "LineCoverage"
 
-    # Obtained checked coverage
-    CheckedCoverage = "CheckedCoverage"
+    # Obtained checked coverage with no assertions
+    StatementCheckedCoverage = "StatementCheckedCoverage"
+
+    # Obtained checked coverage with assertions
+    AssertionCheckedCoverage = "AssertionCheckedCoverage"
 
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning

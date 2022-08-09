@@ -29,12 +29,12 @@ from pynguin.instrumentation.instrumentation import (
     InstrumentationTransformer,
     LineCoverageInstrumentation,
 )
-from pynguin.testcase.execution import (
+from pynguin.slicer.executedinstruction import (
     ExecutedControlInstruction,
     ExecutedMemoryInstruction,
     ExecutedReturnInstruction,
-    ExecutionTracer,
 )
+from pynguin.testcase.execution import ExecutionTracer
 
 
 @pytest.fixture()

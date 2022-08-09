@@ -14,16 +14,15 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.ga.computations import TestSuiteCheckedCoverageFunction
+from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.dynamicslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import (
-    AssertionSlicingObserver,
+    AssertionExecutionObserver,
     ExecutionTracer,
     TestCaseExecutor,
 )
@@ -210,13 +209,6 @@ def partial_cover_plus_testsuite(
     return test_suite
 
 
-@pytest.fixture
-def no_cover_plus_testsuite() -> tsc.TestSuiteChromosome:
-    test_suite = tsc.TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(dtc.DefaultTestCase()))
-    return test_suite
-
-
 @pytest.mark.parametrize(
     "module_name, test_case_name, expected_assertions",
     [
@@ -248,8 +240,8 @@ def test_assertion_detection_on_test_case(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
-        result = executor.execute(test_case, instrument_test=True)
+        executor.add_observer(AssertionExecutionObserver(tracer))
+        result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
         assert len(result.execution_trace.executed_assertions) == expected_assertions
 
@@ -260,17 +252,17 @@ def test_assertion_detection_on_test_case(
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_object_assertion",
-            {9, 16, 18},
+            {0, 3, 7},
         ),
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_float_assertion",
-            {9, 16, 18},
+            {0, 3, 7},
         ),
         (
             "tests.fixtures.linecoverage.plus",
             "plus_test_with_multiple_assertions",
-            {9, 10, 16, 17, 18},
+            {0, 1, 3, 6, 7},
         ),
     ],
 )
@@ -290,8 +282,8 @@ def test_slicing_after_test_execution(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
-        result = executor.execute(test_case, instrument_test=True)
+        executor.add_observer(AssertionExecutionObserver(tracer))
+        result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
 
         instructions_in_slice = []
@@ -304,8 +296,8 @@ def test_slicing_after_test_execution(
             )
         assert instructions_in_slice
 
-        checked_lines = assertion_slicer.map_instructions_to_lines(
-            instructions_in_slice
+        checked_lines = DynamicSlicer.map_instructions_to_lines(
+            instructions_in_slice, tracer.get_known_data()
         )
         assert checked_lines
         assert checked_lines == expected_lines
@@ -338,7 +330,7 @@ def test_slicing_after_test_execution(
         ),
     ],
 )
-def test_testsuite_checked_execution_and_calculation(
+def test_testsuite_assertion_checked_coverage_calculation(
     module_name, test_suite_name, expected_coverage, request
 ):
     test_suite = request.getfixturevalue(test_suite_name)
@@ -354,8 +346,8 @@ def test_testsuite_checked_execution_and_calculation(
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        executor.add_observer(AssertionSlicingObserver(tracer))
-        ff = TestSuiteCheckedCoverageFunction(executor)
+        executor.add_observer(AssertionExecutionObserver(tracer))
+        ff = TestSuiteAssertionCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(
             expected_coverage, 0.1, 0.1
         )

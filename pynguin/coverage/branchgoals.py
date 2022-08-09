@@ -92,6 +92,42 @@ class LineCoverageGoal(AbstractCoverageGoal):
         return self._line_id == other._line_id
 
 
+class CheckedCoverageGoal(AbstractCoverageGoal):
+    """Line to be checked covered by the search as goal."""
+
+    def __init__(self, code_object_id: int, line_id: int):
+        super().__init__(code_object_id)
+        self._line_id = line_id
+
+    @property
+    def line_id(self) -> int:
+        """Provides the line id of the targeted line.
+
+        Returns:
+            The line number of the targeted line.
+        """
+        return self._line_id
+
+    def is_covered(self, result: ExecutionResult) -> bool:
+        return self._line_id in result.execution_trace.checked_lines
+
+    def __str__(self) -> str:
+        return f"Checked Coverage Goal{self._line_id}"
+
+    def __repr__(self) -> str:
+        return f"CheckedCoverageGoal({self._line_id})"
+
+    def __hash__(self) -> int:
+        return 31 + self._line_id
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if not isinstance(other, CheckedCoverageGoal):
+            return False
+        return self._line_id == other._line_id
+
+
 class AbstractBranchCoverageGoal(AbstractCoverageGoal):
     """Abstract base class for branch coverage goals."""
 
@@ -359,6 +395,33 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
         )
 
 
+class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
+    """A statement checked coverage fitness implementation for test cases."""
+
+    def __init__(self, executor: TestCaseExecutor, goal: CheckedCoverageGoal):
+        super().__init__(executor, goal.code_object_id)
+        self._goal = goal
+
+    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+        return 0 if self.compute_is_covered(individual) else 1
+
+    def compute_is_covered(self, individual) -> bool:
+        result = self._run_test_case_chromosome(individual)
+        return self._goal.is_covered(result)
+
+    def is_maximisation_function(self) -> bool:
+        return False
+
+    def __str__(self) -> str:
+        return f"CheckedCoverageTestFitness for {self._goal}"
+
+    def __repr__(self) -> str:
+        return (
+            f"CheckedCoverageTestFitness(executor={self._executor}, "
+            f"goal={self._goal})"
+        )
+
+
 def create_branch_coverage_fitness_functions(
     executor: TestCaseExecutor, branch_goal_pool: BranchGoalPool
 ) -> OrderedSet[BranchCoverageTestFitness]:
@@ -388,12 +451,37 @@ def create_line_coverage_fitness_functions(
         executor: The test case executor for the fitness functions to use.
 
     Returns:
-        All branch coverage related fitness functions.
+        All line coverage related fitness functions.
     """
     return OrderedSet(
         [
             LineCoverageTestFitness(
                 executor, LineCoverageGoal(line_meta.code_object_id, line_id)
+            )
+            for (
+                line_id,
+                line_meta,
+            ) in executor.tracer.get_known_data().existing_lines.items()
+        ]
+    )
+
+
+def create_checked_coverage_fitness_functions(
+    executor: TestCaseExecutor,
+) -> OrderedSet[StatementCheckedCoverageTestFitness]:
+    """Create fitness functions for each statement checked coverage goal.
+
+    Args:
+        executor: The test case executor for the fitness functions to use.
+
+    Returns:
+        All checked coverage related fitness functions.
+    """
+    return OrderedSet(
+        [
+            StatementCheckedCoverageTestFitness(
+                executor,
+                CheckedCoverageGoal(line_meta.code_object_id, line_id),
             )
             for (
                 line_id,

@@ -162,7 +162,7 @@ _MUTANTS = [
         (
             "tests.fixtures.mutation.exception",
             "def test_case_0():\n    float_0 = module_0.foo()",
-            "module_0.foo()",
+            "none_type_0 = module_0.foo()",
             [
                 "def foo() -> None:\n"
                 "    alist = [1, 2]\n"
@@ -243,9 +243,9 @@ _MUTANTS = [
                 "        time.sleep(4)\n"
                 "    return 5",
             ],
-            ag._MutationMetrics(5, 1, 2),
+            ag._MutationMetrics(5, 1, 0),
             {3},
-            {0, 4},
+            set(),
         ),
     ],
 )

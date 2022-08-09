@@ -18,13 +18,13 @@ from typing import TYPE_CHECKING, Union
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
-from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
-from pynguin.slicer.stack.stackeffect import StackEffect
-from pynguin.slicer.stack.stacksimulation import TraceStack
-from pynguin.testcase.execution import (
+from pynguin.slicer.executedinstruction import (
     ExecutedAttributeInstruction,
     ExecutedMemoryInstruction,
 )
+from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
+from pynguin.slicer.stack.stackeffect import StackEffect
+from pynguin.slicer.stack.stacksimulation import TraceStack
 from pynguin.utils.exceptions import (
     InstructionNotFoundException,
     SlicingTimeoutException,
@@ -39,24 +39,18 @@ if TYPE_CHECKING:
         ProgramGraphNode,
     )
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+    from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
-    from pynguin.testcase.execution import (
-        ExecutedAssertion,
-        ExecutedInstruction,
-        ExecutionTrace,
-    )
+    from pynguin.testcase.execution import ExecutedAssertion, ExecutionTrace, KnownData
 
 
 @dataclass
 class SlicingCriterion:
     """Slicing criterion data class holding the instruction
-    and variables to slice for."""
+    and position in the trace to slice for."""
 
     unique_instr: UniqueInstruction
-
-    local_variables: set | None = None
-
-    global_variables: set | None = None
+    trace_position: int
 
 
 @dataclass
@@ -140,11 +134,10 @@ class DynamicSlicer:
     ):
         self._known_code_objects = known_code_objects
 
-    def slice(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals
+    def slice(  # pylint: disable=too-many-branches, too-many-locals
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
-        trace_position: int,
     ) -> list[UniqueInstruction]:
         """Main routine to perform the dynamic slicing.
 
@@ -152,13 +145,6 @@ class DynamicSlicer:
             trace: Execution trace object containing slicing information
                 with collected instructions.
             slicing_criterion: Slicing criterion object where slicing is started
-                (must have correct `occurrence` attribute if
-                `trace_position` is not given).
-            trace_position: The position in the trace where
-                slicing is started. Can be given directly (as in the case of internal
-                traced assertions). In case it is not given it has to be determined
-                based on the occurrence of the instruction of the slicing criterion
-                in the trace.
 
         Returns:
             A `DynamicSlice` object containing the included instructions.
@@ -167,9 +153,7 @@ class DynamicSlicer:
             SlicingTimeoutException: when the slicing takes longer than the
                 configured budget
         """
-        slc = self._setup_slicing_configuration(
-            slicing_criterion, trace, trace_position
-        )
+        slc = self._setup_slicing_configuration(slicing_criterion, trace)
 
         while True:
             criterion_in_slice = imp_data_dep = False
@@ -271,15 +255,6 @@ class DynamicSlicer:
             # next iteration
             slc.curr_instr = last_state.last_instr
 
-            self._debug_output(
-                slc.context,
-                control_dependency,
-                slc.curr_instr,
-                exp_data_dep,
-                imp_data_dep,
-                criterion_in_slice,
-            )
-
             if time.time() > slc.timeout:
                 raise SlicingTimeoutException
 
@@ -349,7 +324,6 @@ class DynamicSlicer:
         self,
         slicing_criterion: SlicingCriterion,
         trace: ExecutionTrace,
-        trace_position: int,
     ):
         new_attribute_object_uses: set[str] = set()
         # Build slicing criterion
@@ -363,9 +337,7 @@ class DynamicSlicer:
         pops, pushes, trace_stack = self._init_stack(
             last_ex_instruction,
         )
-        context = self._init_context(
-            code_object_id, last_ex_instruction, slicing_criterion
-        )
+        context = self._init_context(code_object_id, last_ex_instruction)
         timeout = time.time() + config.configuration.stopping.maximum_slicing_time
         return SlicingState(
             basic_block_id,
@@ -379,7 +351,7 @@ class DynamicSlicer:
             pops,
             pushes,
             timeout,
-            trace_position,
+            slicing_criterion.trace_position,
             trace_stack,
         )
 
@@ -396,46 +368,11 @@ class DynamicSlicer:
         )  # The slicing criterion is in the slice
         return pops, pushes, trace_stack
 
-    def _init_context(
-        self, code_object_id, last_ex_instruction, slicing_criterion
-    ) -> SlicingContext:
+    def _init_context(self, code_object_id, last_ex_instruction) -> SlicingContext:
         context = SlicingContext()
         context.instr_in_slice.append(last_ex_instruction)
-        if slicing_criterion.global_variables:
-            for tup in slicing_criterion.global_variables:
-                context.var_uses_global.add(tup)
         self.add_control_dependencies(context, last_ex_instruction, code_object_id)
         return context
-
-    def _debug_output(  # pylint: disable=too-many-arguments
-        self,
-        context,
-        control_dependency,
-        curr_instr,
-        exp_data_dep,
-        imp_data_dep,
-        in_slice,
-    ):
-        self._logger.debug(curr_instr)
-        self._logger.debug("\tIn slice: %s", in_slice)
-        if in_slice:
-            self._logger.debug("\t(Reason: ")
-            if exp_data_dep:
-                self._logger.debug("explicit data dependency, ")
-            if imp_data_dep:
-                self._logger.debug("implicit data dependency, ")
-            if control_dependency:
-                self._logger.debug("control dependency")
-            self._logger.debug(")")
-        self._logger.debug("\n")
-        self._logger.debug("\tlocal_variables: %s", context.var_uses_local)
-        self._logger.debug("\tglobal_variables: %s", context.var_uses_global)
-        self._logger.debug("\tcell_free_variables: %s", context.var_uses_nonlocal)
-        self._logger.debug("\taddresses: %s", context.var_uses_addresses)
-        self._logger.debug("\tattributes: %s", context.attr_uses)
-        self._logger.debug("\tattribute_variables: %s", context.attribute_variables)
-        self._logger.debug("\tS_C: %s", context.instr_ctrl_deps)
-        self._logger.debug("\n")
 
     def _locate_unique_in_bytecode(
         self, instr: UniqueInstruction, code_object_id: int, basic_block_id: int
@@ -830,6 +767,57 @@ class DynamicSlicer:
         if not traced_instr.arg_address or traced_instr.opcode == op.IMPORT_FROM:
             context.var_uses_addresses.add(hex(traced_instr.src_address))
 
+    @staticmethod
+    def get_line_id_by_instruction(
+        instruction: UniqueInstruction, known_data: KnownData
+    ) -> int:
+        """Get the line id of the line an instruction belongs to.
+
+        Args:
+            instruction: the instruction the line id is needed for
+            known_data: the known data about the module under test
+
+        Returns:
+            the line id used by the line of an instruction
+
+        Raises:
+            ValueError: If the line of the instruction is not part of the known data.
+        """
+        for (line_id, line_meta) in known_data.existing_lines.items():
+            if (
+                line_meta.file_name == instruction.file
+                and line_meta.line_number == instruction.lineno
+            ):
+                return line_id
+        raise ValueError("The instruction's line is not registered in the known data")
+
+    @staticmethod
+    def map_instructions_to_lines(
+        instructions: list[UniqueInstruction], known_data: KnownData
+    ) -> set[int]:
+        """Map the list of instructions in a slice to a set of lines of the module
+        under test. Instructions of the test case statements are ignored.
+
+        Args:
+            instructions: list of unique instructions
+            known_data: the known data about the module under test
+
+        Returns:
+            a set of line ids used in the given list of instructions
+        """
+        line_ids = set()
+        curr_line = -1
+        for instruction in instructions:
+            if instruction.file == "<ast>":  # do not include test statements
+                continue
+            if instruction.lineno == curr_line:  # only add new lines
+                continue
+            curr_line = instruction.lineno
+            line_ids.add(
+                DynamicSlicer.get_line_id_by_instruction(instruction, known_data)
+            )
+        return line_ids
+
 
 # pylint:disable=too-few-public-methods
 class AssertionSlicer:
@@ -875,7 +863,7 @@ class AssertionSlicer:
             traced_instr.lineno,
         )
 
-        return SlicingCriterion(unique_instr)
+        return SlicingCriterion(unique_instr, assertion.trace_position - 1)
 
     def slice_assertion(
         self, assertion: ExecutedAssertion, trace: ExecutionTrace
@@ -892,22 +880,4 @@ class AssertionSlicer:
 
         slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
         slicer = DynamicSlicer(self._known_code_objects)
-        return slicer.slice(trace, slicing_criterion, assertion.trace_position - 1)
-
-    @staticmethod
-    def map_instructions_to_lines(instructions: list[UniqueInstruction]) -> set[int]:
-        """Map the list of instructions in a slice to a set of lines of the module
-        under test. Instructions of the test case statements are ignored.
-
-        Args:
-            instructions: list of unique instructions
-
-        Returns:
-            a set of line numbers used in the given list of instructions
-        """
-        lines = set()
-        for instruction in instructions:
-            if instruction.file != "<ast>":  # do not include test statements
-                lines.add(instruction.lineno)
-
-        return lines
+        return slicer.slice(trace, slicing_criterion)
