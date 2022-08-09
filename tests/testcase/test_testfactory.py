@@ -988,7 +988,17 @@ def test_change_random_call_success(
     with mock.patch.object(test_factory, "change_call") as change_mock:
         assert test_factory.change_random_call(default_test_case, float_function1)
         change_mock.assert_called_with(
-            default_test_case, float_function1, method_mock, {}
+            default_test_case,
+            float_function1,
+            method_mock,
+            {
+                function_mock.inferred_signature: function_mock.inferred_signature.get_parameter_types(
+                    {}
+                ),
+                method_mock.inferred_signature: method_mock.inferred_signature.get_parameter_types(
+                    {}
+                ),
+            },
         )
 
 
@@ -1013,7 +1023,17 @@ def test_change_random_call_failed(
         change_mock.side_effect = ConstructionFailedException()
         assert not test_factory.change_random_call(default_test_case, float_function1)
         change_mock.assert_called_with(
-            default_test_case, float_function1, method_mock, {}
+            default_test_case,
+            float_function1,
+            method_mock,
+            {
+                function_mock.inferred_signature: function_mock.inferred_signature.get_parameter_types(
+                    {}
+                ),
+                method_mock.inferred_signature: method_mock.inferred_signature.get_parameter_types(
+                    {}
+                ),
+            },
         )
 
 

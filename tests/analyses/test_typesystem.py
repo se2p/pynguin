@@ -349,7 +349,17 @@ def test_wrap_var_param_type(kind, type_, result):
     assert system.wrap_var_param_type(proper, kind) == system.convert_type_hint(result)
 
 
-def test_inferred_signature_idenity(type_system):
+def test_inferred_signature_identity(type_system):
     assert InferredSignature(None, None, {}, type_system) != InferredSignature(
         None, None, {}, type_system
     )
+
+
+def test_get_parameter_types_consistent(inferred_signature):
+    assert inferred_signature.get_parameter_types({inferred_signature: 42}) == 42
+
+
+def test_get_parameter_types_consistent_2(inferred_signature):
+    cache = {}
+    assert inferred_signature.get_parameter_types(cache)
+    assert cache

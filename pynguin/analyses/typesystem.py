@@ -496,26 +496,27 @@ class InferredSignature:
         if (sig := signature_memo.get(self)) is not None:
             # We already chose a signature
             return sig
-        if len(self.knowledge) == 0:
-            return self.original_parameters
         res: dict[str, ProperType] = {}
-        for param_name, orig_type in self.original_parameters.items():
-            self.__update_guess(
-                param_name,
-                self.__guess_parameter_type(
-                    self.knowledge[param_name],
-                    self.signature.parameters[param_name].kind,
-                ),
-            )
+        if len(self.knowledge) == 0:
+            # No knowledge, so just reuse original parameter types.
+            res = self.original_parameters
+        else:
+            for param_name, orig_type in self.original_parameters.items():
+                self.__update_guess(
+                    param_name,
+                    self.__guess_parameter_type(
+                        self.knowledge[param_name],
+                        self.signature.parameters[param_name].kind,
+                    ),
+                )
 
-            # Either reuse developer annotations or guessed types.
-            if (
-                guessed := self.current_guessed_parameters.get(param_name)
-            ) is not None and randomness.next_float() < 0.95:
-                res[param_name] = guessed
-            else:
-                res[param_name] = orig_type
-        # _LOGGER.info("Chosen: %s", res)
+                # Either reuse developer annotations or guessed types.
+                if (
+                    guessed := self.current_guessed_parameters.get(param_name)
+                ) is not None and randomness.next_float() < 0.95:
+                    res[param_name] = guessed
+                else:
+                    res[param_name] = orig_type
         signature_memo[self] = res
         return res
 
