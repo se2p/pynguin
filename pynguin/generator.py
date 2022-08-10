@@ -265,7 +265,13 @@ def _setup_and_check() -> tuple[
         return None
     tracer.enable()
 
-    executor = TestCaseExecutor(tracer)
+    # Make alias to make the following lines shorter...
+    stop = config.configuration.stopping
+    executor = TestCaseExecutor(
+        tracer,
+        maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
+        test_execution_time_per_statement=stop.test_execution_time_per_statement,
+    )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
     return executor, test_cluster, wrapped_constant_provider
