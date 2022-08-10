@@ -1880,19 +1880,30 @@ class TestCaseExecutor:
     """An executor that executes the generated test cases."""
 
     def __init__(
-        self, tracer: ExecutionTracer, module_provider: ModuleProvider | None = None
+        self,
+        tracer: ExecutionTracer,
+        module_provider: ModuleProvider | None = None,
+        maximum_test_execution_timeout: int = 5,
+        test_execution_time_per_statement: int = 1,
     ) -> None:
         """Create new test case executor.
 
         Args:
             tracer: the execution tracer
             module_provider: The used module provider
+            maximum_test_execution_timeout: The minimum timeout time (in seconds)
+                before a test case execution times out.
+            test_execution_time_per_statement: The amount of time (in seconds) that is
+                added to the timeout per statement, up to minimum_test_execution_timeout
         """
         # Repeatedly opening/closing devnull caused problems.
         # This is closed when Pynguin terminates, since we don't need this output
         # anyway this is ok.
         # pylint:disable=unspecified-encoding,consider-using-with
         self._null_file = open(os.devnull, mode="w")
+
+        self._maximum_test_execution_timeout = maximum_test_execution_timeout
+        self._test_execution_time_per_statement = test_execution_time_per_statement
 
         self._module_provider = (
             module_provider if module_provider is not None else ModuleProvider()
@@ -1989,8 +2000,13 @@ class TestCaseExecutor:
                     daemon=True,
                 )
                 thread.start()
-                # Set a timeout for the thread execution of at most 300 seconds.
-                thread.join(timeout=min(300, 60 * len(test_case.statements)))
+                thread.join(
+                    timeout=min(
+                        self._maximum_test_execution_timeout,
+                        self._test_execution_time_per_statement
+                        * len(test_case.statements),
+                    )
+                )
                 if thread.is_alive():
                     # Set thread ident to invalid value, such that the tracer
                     # kills the thread

@@ -519,6 +519,13 @@ class StoppingConfiguration:
     maximum_iterations: int = -1
     """Maximum iterations"""
 
+    maximum_test_execution_timeout: int = 5
+    """The maximum time (in seconds) after which a test case times out."""
+
+    test_execution_time_per_statement: int = 1
+    """The time (in seconds) per statement that a test is allowed to run
+    (up to maximum_test_execution_timeout)."""
+
 
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
