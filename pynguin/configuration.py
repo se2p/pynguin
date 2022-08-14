@@ -527,6 +527,26 @@ class StoppingConfiguration:
     (up to maximum_test_execution_timeout)."""
 
 
+@dataclasses.dataclass
+class DeepTyperConfiguration:
+    """Configuration for the use of DeepTyper. Besides the original module,
+    n additional modules containing the predictions should exist.
+    Their filename must correspond to the format name_x.py,
+    where name equals the name of the original module,
+    x starts at 0 (for the most probable prediction) and ends
+    at n-1 (for the least probable prediction)."""
+
+    deeptyper: bool = False
+    """Enables the use of DeepTyper. Default value is False."""
+
+    random_type_probability: float = 0.1
+    """Probability of using a random chosen type for a parameter when DeepTyper
+    is enabled. Default value is 0.1. Expects values in [0,1]"""
+
+    number_of_predictions: int = 5
+    """The number of used files containing predictions."""
+
+
 # pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
 class Configuration:
@@ -579,6 +599,11 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    deeptyper: DeepTyperConfiguration = dataclasses.field(
+        default_factory=DeepTyperConfiguration
+    )
+    """Configuration used for DeepTyper."""
 
 
 # Singleton instance of the configuration.
