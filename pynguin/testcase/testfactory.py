@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.analyses.types import InferredSignature
+    from pynguin.analyses.typesystem import InferredSignature
 
 
 # TODO(fk) find better name for this?
@@ -754,7 +754,7 @@ class TestFactory:
             self.change_call(test_case, statement, call)
             return True
         except ConstructionFailedException:
-            self._logger.exception("Failed to change call for statement.")
+            self._logger.debug("Failed to change call for statement.", exc_info=True)
         return False
 
     def change_call(

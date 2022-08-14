@@ -20,6 +20,8 @@ from networkx.drawing.nx_pydot import to_pydot
 # Key for storing branch value in networkx edge.
 from ordered_set import OrderedSet
 
+import pynguin.utils.opcodes as op
+
 EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 
@@ -29,10 +31,12 @@ class ProgramGraphNode:
     def __init__(
         self,
         index: int,
+        offset: int = 0,
         basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
     ) -> None:
         self._index = index
+        self._offset = offset
         self._basic_block = basic_block
         self._is_artificial = is_artificial
         self._predicate_id: int | None = None
@@ -45,6 +49,24 @@ class ProgramGraphNode:
             The index of the node
         """
         return self._index
+
+    @property
+    def offset(self) -> int:
+        """Provides the offset of the node the first instruction of the node.
+
+        Returns:
+            The offset of the node
+        """
+        return self._offset
+
+    @offset.setter
+    def offset(self, offset: int) -> None:
+        """Set a new offset.
+
+        Args:
+            offset: The offset
+        """
+        self._offset = offset
 
     @property
     def basic_block(self) -> BasicBlock | None:
@@ -421,8 +443,14 @@ class CFG(ProgramGraph[ProgramGraphNode]):
     ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramGraphNode]]:
         nodes: dict[int, ProgramGraphNode] = {}
         edges: dict[int, list[tuple[int, dict]]] = {}
+        offset = 0
         for node_index, block in enumerate(blocks):
-            node = ProgramGraphNode(index=node_index, basic_block=block)
+            node = ProgramGraphNode(index=node_index, basic_block=block, offset=offset)
+            # each instruction increases the offset by 2, therefore the offset at the
+            # beginning of the next block is the current offset plus twice the length
+            # of the current block
+            offset += len(block) * 2
+
             nodes[node_index] = node
             if node_index not in edges:
                 edges[node_index] = []
@@ -432,17 +460,17 @@ class CFG(ProgramGraph[ProgramGraphNode]):
 
             last_instr = block[-1]
             if isinstance(last_instr, Instr) and (
-                last_instr.is_cond_jump() or last_instr.name == "FOR_ITER"
+                last_instr.is_cond_jump() or last_instr.opcode == op.FOR_ITER
             ):
-                if last_instr.name in ("POP_JUMP_IF_TRUE", "JUMP_IF_TRUE_OR_POP"):
+                if last_instr.opcode in (op.POP_JUMP_IF_TRUE, op.JUMP_IF_TRUE_OR_POP):
                     # These jump to arg if ToS is True
                     true_branch = target_block
                     false_branch = next_block
-                elif last_instr.name in (
-                    "POP_JUMP_IF_FALSE",
-                    "JUMP_IF_FALSE_OR_POP",
-                    "JUMP_IF_NOT_EXC_MATCH",
-                    "FOR_ITER",
+                elif last_instr.opcode in (
+                    op.POP_JUMP_IF_FALSE,
+                    op.JUMP_IF_FALSE_OR_POP,
+                    op.JUMP_IF_NOT_EXC_MATCH,
+                    op.FOR_ITER,
                 ):
                     # These jump to arg if ToS is False, is Empty or if Exc does
                     # not match.

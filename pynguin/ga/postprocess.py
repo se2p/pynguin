@@ -13,8 +13,11 @@ import logging
 from abc import ABC
 from typing import TYPE_CHECKING
 
+from ordered_set import OrderedSet
+
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
+from pynguin.assertion.assertion import Assertion, ExceptionAssertion
 from pynguin.testcase.statement import StatementVisitor
 
 if TYPE_CHECKING:
@@ -34,6 +37,71 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
             chop_position = chromosome.get_last_mutatable_statement()
             if chop_position is not None:
                 chromosome.test_case.chop(chop_position)
+
+
+class AssertionMinimization(cv.ChromosomeVisitor):
+    """Calculates the checked lines of each assertion.
+    If an assertion does not cover new lines,
+    it is removed from the resulting test case."""
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self):
+        self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
+        self._deleted_assertions: OrderedSet[Assertion] = OrderedSet()
+        self._checked_line_numbers: OrderedSet[int] = OrderedSet()
+
+    @property
+    def remaining_assertions(self) -> OrderedSet[Assertion]:
+        """Provides a set of remaining assertions
+
+        Returns:
+            The remaining assertions
+        """
+        return self._remaining_assertions
+
+    @property
+    def deleted_assertions(self) -> OrderedSet[Assertion]:
+        """Provides a set of deleted assertions
+
+        Returns:
+            The deleted assertions
+        """
+        return self._deleted_assertions
+
+    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+        for test_case_chromosome in chromosome.test_case_chromosomes:
+            test_case_chromosome.accept(self)
+
+        self._logger.debug(
+            f"Removed {len(self._deleted_assertions)} assertion(s) from "
+            f"test suite that do not increase checked coverage",
+        )
+
+    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+        for stmt in chromosome.test_case.statements:
+            to_remove: OrderedSet[Assertion] = OrderedSet()
+            for assertion in stmt.assertions:
+                new_checked_lines: OrderedSet[int] = OrderedSet()
+                for instr in assertion.checked_instructions:
+                    new_checked_lines.add(instr.lineno)
+                if (
+                    # keep exception assertions to catch the exceptions
+                    isinstance(assertion, ExceptionAssertion)
+                    # keep assertions when they check "nothing", since this is
+                    # more likely due to pyChecco's limitation, rather than an actual
+                    # assertion that checks nothing at all
+                    or not new_checked_lines
+                    # keep assertions that increase checked coverage
+                    or not new_checked_lines.issubset(self._checked_line_numbers)
+                ):
+                    self._checked_line_numbers.update(new_checked_lines)
+                    self._remaining_assertions.add(assertion)
+                else:
+                    to_remove.add(assertion)
+            for assertion in to_remove:
+                stmt.assertions.remove(assertion)
+                self._deleted_assertions.add(assertion)
 
 
 class TestCasePostProcessor(cv.ChromosomeVisitor):

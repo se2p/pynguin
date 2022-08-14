@@ -14,7 +14,7 @@ import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
-from pynguin.analyses.types import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 
 
@@ -154,13 +154,13 @@ def test_constructor_mutate_simple(
         arg_count.return_value = 5
         with mock.patch.object(
             const, "_mutate_special_parameters"
-        ) as mutate_special_paramaters:
-            mutate_special_paramaters.return_value = s_param
+        ) as mutate_special_parameters:
+            mutate_special_parameters.return_value = s_param
             with mock.patch.object(const, "_mutate_parameters") as mutate_parameters:
                 mutate_parameters.return_value = param
                 assert const.mutate() == result
                 arg_count.assert_called_once()
-                mutate_special_paramaters.assert_called_with(0.2)
+                mutate_special_parameters.assert_called_with(0.2)
                 mutate_parameters.assert_called_with(0.2)
 
 

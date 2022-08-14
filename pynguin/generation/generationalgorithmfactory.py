@@ -350,6 +350,11 @@ class TestSuiteGenerationAlgorithmFactory(
                         self._executor, strategy.branch_goal_pool
                     )
                 )
+
+            if config.CoverageMetric.CHECKED in coverage_metrics:
+                fitness_functions.update(
+                    bg.create_checked_coverage_fitness_functions(self._executor)
+                )
             self._logger.info(
                 "Instantiated %d fitness functions", len(fitness_functions)
             )
@@ -367,6 +372,10 @@ class TestSuiteGenerationAlgorithmFactory(
             test_suite_ffs.update(
                 [ff.BranchDistanceTestSuiteFitnessFunction(self._executor)]
             )
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            test_suite_ffs.update(
+                [ff.StatementCheckedTestSuiteFitnessFunction(self._executor)]
+            )
         return test_suite_ffs
 
     def _get_test_suite_coverage_functions(
@@ -378,6 +387,12 @@ class TestSuiteGenerationAlgorithmFactory(
             test_suite_ffs.update([ff.TestSuiteLineCoverageFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteBranchCoverageFunction(self._executor)])
+        if config.CoverageMetric.CHECKED in coverage_metrics:
+            test_suite_ffs.update(
+                [ff.TestSuiteStatementCheckedCoverageFunction(self._executor)]
+            )
+        # do not add TestSuiteAssertionCheckedCoverageFunction here, since it must
+        # be added and calculated after the assertion generation
         return test_suite_ffs
 
     def _get_test_cluster(self, strategy: TestGenerationStrategy):

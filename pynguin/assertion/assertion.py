@@ -12,10 +12,24 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 class Assertion:
     """Base class for assertions."""
+
+    def __init__(self):
+        # this makes an assertion stateful, but is required for caching in slicing
+        self._checked_instructions: list[UniqueInstruction] = []
+
+    @property
+    def checked_instructions(self) -> list[UniqueInstruction]:
+        """The instructions that were checked by the execution of the assertion.
+
+        Returns:
+            The instructions that were checked by the execution of the assertion.
+        """
+        return self._checked_instructions
 
     @abstractmethod
     def accept(self, visitor: AssertionVisitor) -> None:
@@ -50,6 +64,7 @@ class ReferenceAssertion(Assertion, ABC):
     """An assertion on a single reference."""
 
     def __init__(self, source: vr.Reference):
+        super().__init__()
         self._source = source
 
     @property
@@ -62,29 +77,61 @@ class ReferenceAssertion(Assertion, ABC):
         return self._source
 
 
-class NotNoneAssertion(ReferenceAssertion):
-    """An assertion that a reference is not None.
+class TypeNameAssertion(ReferenceAssertion):
+    """An assertion that a reference has a type with a certain name.
+    We compare the string representation of the fully qualified name.
+    Using an isinstance check would also be possible, but classes might not always
+    be accessible, for example when nested inside a function.
 
     For example:
-        assert var_0 is not None
+        int_0 = 42
+        assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int"
     """
 
+    def __init__(self, source: vr.Reference, module: str, qualname: str):
+        super().__init__(source)
+        self._module = module
+        self._qualname = qualname
+
+    @property
+    def module(self) -> str:
+        """Provides the module name
+
+        Returns:
+            The module name
+        """
+        return self._module
+
+    @property
+    def qualname(self) -> str:
+        """Provides the qualname name
+
+        Returns:
+            The qualname
+        """
+        return self._qualname
+
     def accept(self, visitor: AssertionVisitor) -> None:
-        visitor.visit_not_none_assertion(self)
+        visitor.visit_type_name_assertion(self)
 
     def clone(
         self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> NotNoneAssertion:
-        return NotNoneAssertion(self._source.clone(memo))
+    ) -> TypeNameAssertion:
+        return TypeNameAssertion(self._source.clone(memo), self._module, self._qualname)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, NotNoneAssertion) and self._source == other._source
+        return (
+            isinstance(other, TypeNameAssertion)
+            and self._source == other._source
+            and self._module == other._module
+            and self._qualname == other._qualname
+        )
 
     def __hash__(self) -> int:
-        return hash(self._source)
+        return hash((self._source, self._module, self._qualname))
 
     def __repr__(self):
-        return f"NotNoneAssertion({self._source!r})"
+        return f"TypeNameAssertion({self._source!r}, {self._module}, {self._qualname})"
 
 
 class FloatAssertion(ReferenceAssertion):
@@ -234,6 +281,7 @@ class ExceptionAssertion(Assertion):
             module: The module of the raised exception.
             exception_type_name: The name of the raised exception.
         """
+        super().__init__()
         self._module: str = module
         # We use the name here because the type may be defined multiple times,
         # for example during mutation analysis, however, equality on such types does not
@@ -284,8 +332,8 @@ class AssertionVisitor:
     """Abstract visitor for assertions."""
 
     @abstractmethod
-    def visit_not_none_assertion(self, assertion: NotNoneAssertion) -> None:
-        """Visit a none assertion.
+    def visit_type_name_assertion(self, assertion: TypeNameAssertion) -> None:
+        """Visit a type name assertion.
 
         Args:
             assertion: the visited assertion

@@ -19,12 +19,12 @@ from pynguin.analyses.module import (
     MODULE_BLACKLIST,
     ModuleTestCluster,
     TypeInferenceStrategy,
-    _ParseResult,
+    _ModuleParseResult,
     analyse_module,
     generate_test_cluster,
     parse_module,
 )
-from pynguin.analyses.types import ClassWrapper
+from pynguin.analyses.typesystem import TypeInfo
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -37,24 +37,24 @@ from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
 @pytest.fixture(scope="module")
-def parsed_module_no_dependencies() -> list[_ParseResult]:
+def parsed_module_no_dependencies() -> list[_ModuleParseResult]:
     parsed_results = [parse_module("tests.fixtures.cluster.no_dependencies")]
     return parsed_results
 
 
 @pytest.fixture(scope="module")
-def parsed_module_complex_dependencies() -> list[_ParseResult]:
+def parsed_module_complex_dependencies() -> list[_ModuleParseResult]:
     parsed_results = [parse_module("tests.fixtures.cluster.complex_dependencies")]
     return parsed_results
 
 
 @pytest.fixture(scope="module")
-def parsed_module_no_any_annotation() -> _ParseResult:
+def parsed_module_no_any_annotation() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.no_any_annotations")
 
 
 @pytest.fixture(scope="module")
-def parsed_module_nested_functions() -> list[_ParseResult]:
+def parsed_module_nested_functions() -> list[_ModuleParseResult]:
     parsed_results = [parse_module("tests.fixtures.cluster.nested_functions")]
     return parsed_results
 
@@ -79,7 +79,7 @@ def test_parse_c_module():
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
     assert parse_result.syntax_tree is None
-    module.LOGGER.warning.assert_called_once()
+    module.LOGGER.debug.assert_called_once()
 
 
 def test_analyse_module(parsed_module_no_dependencies):
@@ -247,7 +247,12 @@ def test_nothing_from_blacklist():
 
 def test_blacklist_is_valid():
     # Naive test without assert, checks if the module names are valid.
+    allowed_to_fail = ("six",)
     for item in MODULE_BLACKLIST:
+        if item in allowed_to_fail:
+            # We have modules in our blacklist that are not a dependency of Pynguin,
+            # thus the import might fail.
+            continue
         importlib.import_module(item)
 
 
@@ -412,7 +417,20 @@ def test_no_abstract_class():
 
 def test_inheritance_graph():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
+    assert len(cluster.inheritance_graph.get_subclasses(TypeInfo(object))) == 3
+
+
+@pytest.mark.parametrize(
+    "mod,typ,attributes",
+    [
+        ("tests.fixtures.cluster.attributes", "SomeClass", {"foo", "bar"}),
+        ("tests.fixtures.cluster.attributes", "SomeDataClass", {"baz", "box"}),
+    ],
+)
+def test_instance_attrs(mod, typ, attributes):
+    cluster = generate_test_cluster(mod)
     assert (
-        len(cluster.inheritance_graph.get_subclasses(ClassWrapper.from_type(object)))
-        == 3
+        cluster.inheritance_graph.find_type_info(f"{mod}.{typ}").instance_attributes
+        == attributes
     )
+    print(cluster.inheritance_graph.dot)

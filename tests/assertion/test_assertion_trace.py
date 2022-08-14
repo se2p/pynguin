@@ -63,3 +63,20 @@ def test_get_assertions(assertion_trace):
     statement = MagicMock()
     statement.get_position.return_value = 3
     assert assertion_trace.get_assertions(statement) == {entry}
+
+
+def test_merge():
+    ver_trace = at.AssertionVerificationTrace()
+    assert not ver_trace.was_violated(0, 0)
+
+
+def test_merge_2():
+    ver_trace = at.AssertionVerificationTrace()
+    ver_trace.error[0].add(0)
+    assert ver_trace.was_violated(0, 0)
+
+
+def test_merge_3():
+    ver_trace = at.AssertionVerificationTrace()
+    ver_trace.failed[0].add(0)
+    assert ver_trace.was_violated(0, 0)

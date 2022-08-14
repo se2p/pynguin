@@ -7,6 +7,7 @@
 """Provides an interface for a stopping condition of the algorithm."""
 from __future__ import annotations
 
+import ast
 import time
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
@@ -18,7 +19,11 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution import ExecutionContext, ExecutionResult
+    from pynguin.testcase.execution import (
+        ExecutionContext,
+        ExecutionResult,
+        TestCaseExecutor,
+    )
 
 
 class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
@@ -86,15 +91,16 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         pass
 
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ):
-        pass
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node
 
     def after_statement_execution(
         self,
         statement: stmt.Statement,
+        executor: TestCaseExecutor,
         exec_ctx: ExecutionContext,
-        exception: Exception | None = None,
+        exception: BaseException | None,
     ) -> None:
         pass
 
@@ -222,9 +228,10 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
         self._num_executed_statements = 0
 
     def before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ):
         self._num_executed_statements += 1
+        return node
 
     def __str__(self):
         return f"Executed statements: {self.current_value()}/{self.limit()}"

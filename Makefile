@@ -141,8 +141,11 @@ black:
 darglint:
 	poetry run darglint -v 2 pynguin/**/*.py
 
+update-docs-requirements:
+	poetry export -o docs/requirements.txt --dev --without-hashes
+
 .PHONY: check
-check: isort black mypy flake8 pylint darglint test
+check: update-docs-requirements isort black mypy flake8 pylint darglint test
 
 .PHONY: lint
 lint: test check-safety check-style

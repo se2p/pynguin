@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_args
 
 from ordered_set import OrderedSet
 
+import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -24,9 +25,8 @@ from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.type_utils import is_consistent_with, is_optional_parameter
 
 if TYPE_CHECKING:
-    import pynguin.assertion.assertion as ass
     import pynguin.testcase.testcase as tc
-    from pynguin.analyses.types import InferredSignature
+    from pynguin.analyses.typesystem import InferredSignature
 
 T = TypeVar("T")  # pylint:disable=invalid-name
 
@@ -180,6 +180,16 @@ class Statement(metaclass=ABCMeta):
         for assertion in self._assertions:
             copy.add(assertion.clone(memo))
         return copy
+
+    def has_only_exception_assertion(self) -> bool:
+        """Does this statement only have an exception assertion?
+
+        Returns:
+            True, if there is only an exception assertion.
+        """
+        return len(self._assertions) == 1 and isinstance(
+            self._assertions[0], ass.ExceptionAssertion
+        )
 
     @property
     def assertions(self) -> OrderedSet[ass.Assertion]:

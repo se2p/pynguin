@@ -22,7 +22,7 @@ from types import (
 )
 
 if typing.TYPE_CHECKING:
-    from pynguin.analyses.types import InferredSignature
+    from pynguin.analyses.typesystem import InferredSignature
 
 
 TypesOfCallables = typing.Union[

@@ -23,10 +23,6 @@ general-purpose programs in a dynamically typed language.
 Pynguin is, to the best of our knowledge, the first tool that fills this gap
 and allows the automated generation of unit tests for Python programs.
 
-Pynguin is developed at the
-[Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
-of the [University of Passau](https://www.uni-passau.de).
-
 <details>
 <summary>Internal Pipeline Status</summary>
 
@@ -119,6 +115,27 @@ To start developing, follow these steps:
 
    Please see the [`poetry` documentation](https://python-poetry.org/docs/) for more information on this tool.
 
+## Contributors
+
+Pynguin is developed at the
+[Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
+of the [University of Passau](https://www.uni-passau.de).
+
+Maintainer: [Stephan Lukasczyk](https://github.com/stephanlukasczyk)
+
+Contributors:
+- [Tucker Blue](https://github.com/tuckcodes)
+- [Gordon Fraser](https://github.com/gofraser)
+- [Abdur-Rahmaan Janhangeer](https://github.com/Abdur-rahmaanJ)
+- [Florian Kroiß](https://github.com/Wooza)
+- [Simon Labrenz](https://github.com/labrenz)
+- [Roman Levin](https://github.com/romanlevin)
+- [Juan Julián Merelo Guervós](https://github.com/JJ)
+- [Lukas Steffens](https://github.com/Luki42)
+- [Florian Straubinger](https://github.com/f-str)
+- [Sara Tavares](https://github.com/stavares843)
+
+
 ### Development using PyCharm.
 
 If you want to use the PyCharm IDE you have to set up a few things:
@@ -134,3 +151,7 @@ If you want to use the PyCharm IDE you have to set up a few things:
 
 This project is licensed under the terms of the
 [GNU Lesser General Public License](LICENSE.rst).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=se2p/pynguin&type=Date)](https://star-history.com/#se2p/pynguin)

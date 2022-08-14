@@ -74,6 +74,9 @@ class AssertionGenerator(str, enum.Enum):
     MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
     """Use the mutation analysis approach for assertion generation."""
 
+    CHECKED_MINIMIZING = "CHECKED_MINIMIZING"
+    """All assertions that do not increase the checked coverage are removed."""
+
     SIMPLE = "SIMPLE"
     """Use the simple approach for primitive and none assertion generation."""
 
@@ -143,6 +146,10 @@ class CoverageMetric(str, enum.Enum):
 
     LINE = "LINE"
     """Calculate how many of the possible lines in the code were executed"""
+
+    CHECKED = "CHECKED"
+    """Calculate how many of the possible lines in the
+    code are checked by an assertion."""
 
 
 class Selection(str, enum.Enum):
@@ -506,8 +513,18 @@ class StoppingConfiguration:
     maximum_statement_executions: int = -1
     """Maximum number of test cases to be executed."""
 
+    maximum_slicing_time: int = 600
+    """Time budget (in seconds) that can be used for slicing."""
+
     maximum_iterations: int = -1
     """Maximum iterations"""
+
+    maximum_test_execution_timeout: int = 5
+    """The maximum time (in seconds) after which a test case times out."""
+
+    test_execution_time_per_statement: int = 1
+    """The time (in seconds) per statement that a test is allowed to run
+    (up to maximum_test_execution_timeout)."""
 
 
 @dataclasses.dataclass

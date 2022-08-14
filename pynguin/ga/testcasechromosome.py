@@ -264,6 +264,10 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         self._last_execution_result = result
 
+    def remove_last_execution_result(self) -> None:
+        """Removes the last execution result."""
+        self._last_execution_result = None
+
     def is_failing(self) -> bool:
         """Returns whether or not the encapsulated test case is a failing test.
 
