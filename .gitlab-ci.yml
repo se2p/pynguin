@@ -43,7 +43,7 @@ before_script:
         report.xml
     paths:
       - cov_html
-  needs: ["build"]
+  needs: ["isort", "black", "reuse"]
 
 unit-tests:python-3.10:
   <<: *unit-tests
@@ -68,7 +68,7 @@ unit-tests:python-3.10:
     - poetry add --dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; done
-  needs: ["build"]
+  needs: ["unit-tests:python-3.10"]
 
 nightly-tests:python-3.10:
   extends: .nightly-tests
@@ -93,35 +93,35 @@ memory-profile:
     - poetry add --dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/
-  needs: ["build"]
+  needs: ["isort", "black", "reuse"]
 
 mypy:
   stage: lint
   image: python:3.10-bullseye
   script:
     - poetry run mypy pynguin
-  needs: ["build"]
+  needs: ["isort", "black"]
 
 flake8:
   stage: lint
   image: python:3.10-bullseye
   script:
     - poetry run flake8 .
-  needs: ["build"]
+  needs: ["isort", "black"]
 
 pylint:
   stage: lint
   image: python:3.10-bullseye
   script:
     - poetry run pylint pynguin
-  needs: ["build"]
+  needs: ["isort", "black"]
 
 darglint:
   stage: lint
   image: python:3.10-bullseye
   script:
     - poetry run darglint -v 2 pynguin/**/*.py
-  needs: ["build"]
+  needs: ["isort", "black"]
 
 isort:
   stage: build
@@ -150,14 +150,14 @@ safety:
   image: python:3.10-bullseye
   script:
     - poetry run safety check --full-report
-  needs: ["build"]
+  needs: ["unit-tests:python-3.10"]
 
 bandit:
   stage: security
   image: python:3.10-bullseye
   script:
     - poetry run bandit -ll -r pynguin
-  needs: ["build"]
+  needs: ["unit-tests:python-3.10"]
 
 # check license declarations etc.
 reuse:
