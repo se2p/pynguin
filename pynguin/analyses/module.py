@@ -33,7 +33,6 @@ import astroid
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
-import pynguin.configuration as config
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
@@ -239,7 +238,7 @@ def parse_module(
     )
 
 
-class ModuleTestCluster:
+class ModuleTestCluster:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """A test cluster for a module.
 
     Contains all methods/constructors/functions and all required transitive
@@ -259,6 +258,7 @@ class ModuleTestCluster:
         self.__predicted_signatures: dict[
             GenericAccessibleObject, Sequence[GenericCallableAccessibleObject]
         ] = {}
+        self.__deeptyper_config = None
         self.__inheritance_graph = InheritanceGraph()
 
     @property
@@ -322,7 +322,25 @@ class ModuleTestCluster:
         """
         self.__predicted_signatures[objc] = predictions
 
-    def get_predicted_signatures(self):
+    def add_deeptyper_config(self, config) -> None:
+        """Add the deeptyper config.
+
+        Args:
+            config: The deeptyper configuration
+        """
+        self.__deeptyper_config = config
+
+    @property
+    def deeptyper_config(self):
+        """Get the deeptyper config.
+
+        Returns:
+            The deeptyper configuration
+        """
+        return self.__deeptyper_config
+
+    @property
+    def predicted_signatures(self):
         """Get all predicted signatures.
 
         Returns:
@@ -446,18 +464,19 @@ class ModuleTestCluster:
         if self.num_accessible_objects_under_test() == 0:
             return None
         accessible = randomness.choice(self.__accessible_objects_under_test)
-        if config.configuration.deeptyper.deeptyper:
+        if self.__deeptyper_config is not None and self.__deeptyper_config.deeptyper:
             # get according deeptyper predictions
             predicted_signatures = self.__predicted_signatures.get(accessible)
             modified_accessible = copy.deepcopy(accessible)
             if predicted_signatures is not None:
+                modified_signature = modified_accessible.inferred_signature
                 for (
                     parameter_name,
                     _,
-                ) in accessible.inferred_signature.parameters.items():  # type: ignore
+                ) in accessible.inferred_signature.parameters.items():
                     if (
                         randomness.next_float()
-                        >= config.configuration.deeptyper.random_type_probability
+                        >= self.__deeptyper_config.random_type_probability
                     ):
                         # get predictions for parameter type
                         type_predictions = [
@@ -470,20 +489,18 @@ class ModuleTestCluster:
                         # likely deeptyper prediction
                         weights = []
                         for count in range(len(type_predictions)):
-                            weights.append(5 - count)
-                        (
-                            modified_accessible.inferred_signature  # type: ignore
-                        ).update_parameter_type(
+                            weights.append(
+                                self.__deeptyper_config.number_of_predictions - count
+                            )
+                        modified_signature.update_parameter_type(
                             parameter_name,
                             randomness.choices(type_predictions, weights=weights)[0],
                         )
                     else:
-                        (
-                            modified_accessible.inferred_signature  # type: ignore
-                        ).update_parameter_type(parameter_name, None)
+                        modified_signature.update_parameter_type(parameter_name, None)
                 if (
                     randomness.next_float()
-                    >= config.configuration.deeptyper.random_type_probability
+                    >= self.__deeptyper_config.random_type_probability
                 ):
                     # get predictions for parameter type
                     type_predictions = [
@@ -493,16 +510,14 @@ class ModuleTestCluster:
                     # update parameter type with the most likely deeptyper prediction
                     weights = []
                     for count in range(len(type_predictions)):
-                        weights.append(5 - count)
-                    (
-                        modified_accessible.inferred_signature  # type: ignore
-                    ).update_return_type(
+                        weights.append(
+                            self.deeptyper_config.number_of_predictions - count
+                        )
+                    modified_signature.update_return_type(
                         randomness.choices(type_predictions, weights=weights)[0]
                     )
                 else:
-                    (
-                        modified_accessible.inferred_signature  # type: ignore
-                    ).update_return_type(None)
+                    modified_signature.update_return_type(None)
             return modified_accessible
         return accessible
 
@@ -801,7 +816,9 @@ def __analyse_function(
         predicted_signatures = [
             GenericFunction(
                 func,
-                infer_type_info(prediction[1], type_inference_strategy),
+                infer_type_info(
+                    prediction[1], type_inference_strategy
+                ),  # extract function value for each function
                 raised_exceptions,
                 func_name,
             )
@@ -860,7 +877,9 @@ def __analyse_class(  # pylint: disable=too-many-arguments, too-many-locals
     predicted_methods = None
     if predictions is not None:
         predicted_methods = [
-            inspect.getmembers(prediction[1], inspect.isfunction)
+            inspect.getmembers(
+                prediction[1], inspect.isfunction
+            )  # extract function value for each function
             for prediction in predictions
         ]
     for i, (method_name, method) in enumerate(
@@ -869,7 +888,12 @@ def __analyse_class(  # pylint: disable=too-many-arguments, too-many-locals
         # extract according predictions
         method_predictions = None
         if predicted_methods is not None:
-            method_predictions = [predicted_methods[j][i][1] for j in range(5)]
+            # extract the top j predictions for the specific
+            # method i out of all predictions
+            method_predictions = [
+                predicted_methods[j][i][1]
+                for j in range(test_cluster.deeptyper_config.number_of_predictions)
+            ]
 
         __analyse_method(
             type_info=type_info,
@@ -998,7 +1022,7 @@ def __resolve_dependencies(
             # Don't include anything from the blacklist
             continue
 
-        if config.configuration.deeptyper.deeptyper:
+        if test_cluster.deeptyper_config:
             # Analyze all classes found in the current module
             __analyse_included_classes(
                 module=current_module,
@@ -1074,18 +1098,22 @@ def __analyse_included_classes(  # pylint: disable=too-many-locals, cell-var-fro
 
     predicted_classes = original_classes = None
     if (
-        config.configuration.deeptyper.deeptyper
+        test_cluster.deeptyper_config is not None
+        and test_cluster.deeptyper_config.deeptyper
         and parsed_modules is not None
         and len(parsed_modules) > 1
     ):
+        number_of_predictions = test_cluster.deeptyper_config.number_of_predictions
         predicted_classes = [
             inspect.getmembers(
                 parsed_modules[i].module,
                 lambda member: inspect.isclass(member)
                 and member.__module__ == parsed_modules[i].module_name,  # type: ignore
             )
-            for i in range(1, 6)
-        ]
+            for i in range(
+                len(parsed_modules) - number_of_predictions, number_of_predictions + 1
+            )
+        ]  # range starts at second module to skip the original one
         o_classes = inspect.getmembers(
             module,
             lambda member: inspect.isclass(member)
@@ -1108,7 +1136,10 @@ def __analyse_included_classes(  # pylint: disable=too-many-locals, cell-var-fro
             and original_classes is not None
             and current in original_classes
         ):
-            predictions = [predicted_classes[i].pop(0) for i in range(5)]
+            predictions = [
+                predicted_classes[i].pop(0)
+                for i in range(test_cluster.deeptyper_config.number_of_predictions)
+            ]
         else:
             predictions = None
         type_info = test_cluster.inheritance_graph.to_type_info(current)
@@ -1150,24 +1181,30 @@ def __analyse_included_functions(  # pylint: disable=cell-var-from-loop
 
     predicted_functions = original_functions = None
     if (
-        config.configuration.deeptyper.deeptyper
+        test_cluster.deeptyper_config is not None
+        and test_cluster.deeptyper_config.deeptyper
         and parsed_modules is not None
         and len(parsed_modules) > 1
     ):
+        number_of_predictions = test_cluster.deeptyper_config.number_of_predictions
         predicted_functions = [
             inspect.getmembers(
                 parsed_modules[i].module,
                 lambda member: inspect.isfunction(member)
                 and member.__module__ == parsed_modules[i].module_name,  # type: ignore
             )
-            for i in range(1, 6)
-        ]
+            for i in range(
+                len(parsed_modules) - number_of_predictions, number_of_predictions + 1
+            )
+        ]  # start at 1 to skip original module
         o_functions = inspect.getmembers(
             module,
             lambda member: inspect.isfunction(member)
             and member.__module__ == root_module_name,
         )
-        original_functions = [c[1] for c in o_functions]
+        original_functions = [
+            c[1] for c in o_functions
+        ]  # extract function value for each function
 
     func_count = 0
     for current in filter(
@@ -1183,7 +1220,10 @@ def __analyse_included_functions(  # pylint: disable=cell-var-from-loop
             and original_functions is not None
             and current in original_functions
         ):
-            predictions = [predicted_functions[i][func_count] for i in range(5)]
+            predictions = [
+                predicted_functions[i][func_count]
+                for i in range(test_cluster.deeptyper_config.number_of_predictions)
+            ]
         else:
             predictions = None
 
@@ -1202,12 +1242,14 @@ def __analyse_included_functions(  # pylint: disable=cell-var-from-loop
 def analyse_module(
     parsed_modules: list[_ModuleParseResult],
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    deeptyper_config=None,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
         parsed_modules: The parsed modules
         type_inference_strategy: The type inference strategy to use.
+        deeptyper_config: The deeptyper configuration
 
     Returns:
         A test cluster for the module
@@ -1215,6 +1257,8 @@ def analyse_module(
     # select original module as general one
     parsed_module = parsed_modules[0]
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
+    if deeptyper_config is not None:
+        test_cluster.add_deeptyper_config(deeptyper_config)
 
     __resolve_dependencies(
         root_module=parsed_module,
@@ -1228,21 +1272,26 @@ def analyse_module(
 def generate_test_cluster(
     module_name: str,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    deeptyper_config=None,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
     Args:
         module_name: The name of the module
         type_inference_strategy: Which type-inference strategy to use
+        deeptyper_config: The used deeptyper configuration
 
     Returns:
         A new test cluster for the given module
     """
     # parse original file and all deeptyper predictions files
     parsed_results = [parse_module(module_name)]
-    if config.configuration.deeptyper.deeptyper:
+    if deeptyper_config is not None and deeptyper_config.deeptyper:
         parsed_results.extend(
-            [parse_module(module_name + "_" + str(i)) for i in range(5)]
+            [
+                parse_module(module_name + "_" + str(i))
+                for i in range(deeptyper_config.number_of_predictions)
+            ]
         )
 
-    return analyse_module(parsed_results, type_inference_strategy)
+    return analyse_module(parsed_results, type_inference_strategy, deeptyper_config)

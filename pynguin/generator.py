@@ -126,7 +126,9 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
             strategy = TypeInferenceStrategy.NONE
         case _:
             strategy = TypeInferenceStrategy.TYPE_HINTS
-    test_cluster = generate_test_cluster(config.configuration.module_name, strategy)
+    test_cluster = generate_test_cluster(
+        config.configuration.module_name, strategy, config.configuration.deeptyper
+    )
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
