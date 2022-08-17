@@ -380,6 +380,7 @@ def _track_resulting_assertion_checked_coverage(
     """
     _LOGGER.info("Calculating resulting checked coverage")
 
+    executor.set_instrument(True)
     _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
     executor.add_observer(AssertionExecutionObserver(executor.tracer))
 

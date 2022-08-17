@@ -1914,11 +1914,9 @@ class TestCaseExecutor:
             config.CoverageMetric.CHECKED
             in config.configuration.statistics_output.coverage_metrics
         )
-        if self._instrument:
-            checked_adapter = CheckedCoverageInstrumentation(self._tracer)
-            self._checked_transformer = InstrumentationTransformer(
-                self._tracer, [checked_adapter]
-            )
+        self._checked_transformer = InstrumentationTransformer(
+            self._tracer, [CheckedCoverageInstrumentation(self._tracer)]
+        )
 
         def log_thread_exception(arg):
             _logger.error(
@@ -1975,6 +1973,14 @@ class TestCaseExecutor:
             The execution tracer
         """
         return self._tracer
+
+    def set_instrument(self, instrument: bool) -> None:
+        """Set if the test is to be instrumented as well.
+
+        Args:
+            instrument: Whether to instrument the test and its assertions.
+        """
+        self._instrument = instrument
 
     def execute(
         self,
