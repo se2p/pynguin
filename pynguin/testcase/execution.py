@@ -1914,8 +1914,9 @@ class TestCaseExecutor:
             config.CoverageMetric.CHECKED
             in config.configuration.statistics_output.coverage_metrics
         )
+        checked_instrumentation = CheckedCoverageInstrumentation(self._tracer)
         self._checked_transformer = InstrumentationTransformer(
-            self._tracer, [CheckedCoverageInstrumentation(self._tracer)]
+            self._tracer, [checked_instrumentation]
         )
 
         def log_thread_exception(arg):

@@ -123,13 +123,14 @@ def test_setup_hook():
         hook_mock.assert_called_once()
 
 
-def test__track_resulting_checked_coverage_exchanges_loader():
+def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.BRANCH,
     ]
     config.configuration.seeding.dynamic_constant_seeding = False
     tracer = ExecutionTracer()
     executor = TestCaseExecutor(tracer)
+    assert not executor._instrument
     result = MagicMock()
 
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -146,7 +147,8 @@ def test__track_resulting_checked_coverage_exchanges_loader():
 
         new_metrics = config.configuration.statistics_output.coverage_metrics
         assert len(new_metrics) == 1
-        assert config.CoverageMetric.CHECKED in new_metrics
+        assert config.CoverageMetric.BRANCH in new_metrics
+        assert not executor._instrument
 
         assert old_loader is not module.__loader__
 
