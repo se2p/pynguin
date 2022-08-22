@@ -963,7 +963,7 @@ class TestFactory:
                 self._logger.debug(
                     "Cannot re-use variables: attempt to creating new one"
                 )
-                var = self._create_variable(
+                var = self._attempt_generation(
                     test_case,
                     parameter_type,
                     position,
@@ -1072,7 +1072,7 @@ class TestFactory:
         ) is not None:
             return reused_variable
         if (
-            created_variable := self._create_variable(
+            created_variable := self._attempt_generation(
                 test_case,
                 parameter_type,
                 position,
@@ -1084,20 +1084,6 @@ class TestFactory:
             return created_variable
         return self._get_variable_fallback(
             test_case, parameter_type, position, recursion_depth, allow_none
-        )
-
-    # pylint: disable=too-many-arguments
-    def _create_variable(
-        self,
-        test_case: tc.TestCase,
-        parameter_type: ProperType,
-        position: int,
-        recursion_depth: int,
-        allow_none: bool,
-        exclude: vr.VariableReference | None = None,
-    ) -> vr.VariableReference | None:
-        return self._attempt_generation(
-            test_case, parameter_type, position, recursion_depth, allow_none, exclude
         )
 
     # pylint: disable=too-many-arguments
