@@ -539,7 +539,6 @@ class TestFactory:
         Returns:
             Whether the insertion was successful
         """
-        assert variable.type, "Cannot insert random call on variable of unknown type."
         try:
             accessible = self._test_cluster.get_random_call_for(variable.type)
             return self.add_call_for(test_case, variable, accessible, position)
