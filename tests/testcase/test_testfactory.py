@@ -716,18 +716,6 @@ def test_insert_random_call_on_object_at_no_accessible(
     )
 
 
-def test_insert_random_call_on_object_at_assertion(
-    test_case_mock, variable_reference_mock
-):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.type = None
-    with pytest.raises(AssertionError):
-        test_factory.insert_random_call_on_object_at(
-            test_case_mock, variable_reference_mock, 0
-        )
-
-
 @pytest.mark.parametrize("result", [True, False])
 def test_insert_random_call_on_object_at_success(
     test_case_mock, variable_reference_mock, result
