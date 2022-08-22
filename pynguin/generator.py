@@ -333,10 +333,6 @@ def _get_coverage_ff_from_algorithm(
 def _add_checked_coverage_instrumentation(
     constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
 ):
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED,
-    ]
-
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
     spec = module.__spec__
@@ -378,9 +374,15 @@ def _track_resulting_assertion_checked_coverage(
     """
     _LOGGER.info("Calculating resulting checked coverage")
 
+    original_coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    # change the configuration for the re-instrumentation
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.CHECKED,
+    ]
+    executor.set_instrument(True)
+
     _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
     executor.add_observer(AssertionExecutionObserver(executor.tracer))
-
     assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
         executor
     )
@@ -393,6 +395,11 @@ def _track_resulting_assertion_checked_coverage(
         RuntimeVariable.AssertionCheckedCoverage,
         generation_result.get_coverage_for(assertion_checked_coverage_ff),
     )
+
+    # reset the config to its original state
+    config.configuration.statistics_output.coverage_metrics = original_coverage_metrics
+    instrument_test = config.CoverageMetric.CHECKED in original_coverage_metrics
+    executor.set_instrument(instrument_test)
 
 
 def _run() -> ReturnCode:

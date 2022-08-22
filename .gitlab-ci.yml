@@ -9,22 +9,12 @@ workflow:
     - if: $CI_MERGE_REQUEST_ID         # Execute jobs in merge request context
     - if: $CI_COMMIT_BRANCH == 'main'  # Execute jobs when a new commit is pushed to main branch
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
 cache:
   key: virtualenv
   paths:
     - .venv/
     - .cache/pip
     - .cache/pypoetry
-
-.python-cache: &python-cache
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .cache/pip
-      - .cache/pypoetry
 
 stages:
   - build
@@ -43,16 +33,17 @@ before_script:
   stage: test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
-    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report xml:coverage.xml --cov-report=term-missing tests/
+    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report xml:coverage.xml --cov-report=term-missing --junitxml=report.xml tests/
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+      junit:
+        report.xml
     paths:
       - cov_html
-  needs: ["build"]
-  <<: *python-cache
+  needs: ["isort", "black", "reuse"]
 
 unit-tests:python-3.10:
   <<: *unit-tests
@@ -77,8 +68,7 @@ unit-tests:python-3.10:
     - poetry add --dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; done
-  needs: ["build"]
-  <<: *python-cache
+  needs: ["unit-tests:python-3.10"]
 
 nightly-tests:python-3.10:
   extends: .nightly-tests
@@ -94,7 +84,7 @@ nightly-tests:python-3.10:
 memory-profile:
   only:
     - schedules
-  stage: test
+  stage: lint
   image: python:3.10-bullseye
   before_script:
     - pip install poetry
@@ -103,41 +93,71 @@ memory-profile:
     - poetry add --dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/
-  needs: ["build"]
-  <<: *python-cache
+  needs: ["isort", "black", "reuse"]
 
-lint:
+mypy:
   stage: lint
   image: python:3.10-bullseye
   script:
     - poetry run mypy pynguin
-    - poetry run flake8 .
-    - poetry run pylint pynguin
-    - poetry run darglint -v 2 pynguin/**/*.py
-  needs: ["build"]
-  <<: *python-cache
+  needs: ["isort", "black"]
 
-build:
+flake8:
+  stage: lint
+  image: python:3.10-bullseye
+  script:
+    - poetry run flake8 .
+  needs: ["isort", "black"]
+
+pylint:
+  stage: lint
+  image: python:3.10-bullseye
+  script:
+    - poetry run pylint pynguin
+  needs: ["isort", "black"]
+
+darglint:
+  stage: lint
+  image: python:3.10-bullseye
+  script:
+    - poetry run darglint -v 2 pynguin/**/*.py
+  needs: ["isort", "black"]
+
+isort:
   stage: build
   image: python:3.10-bullseye
   script:
     - poetry run isort **/*.py -c -v --profile black
+
+black:
+  stage: build
+  image: python:3.10-bullseye
+  script:
     - poetry run black --check .
+
+sphinx:
+  stage: build
+  image: python:3.10-bullseye
+  script:
     - poetry run sphinx-build docs docs/_build
   artifacts:
     expire_in: 1 week
     paths:
       - docs/_build
-  <<: *python-cache
 
-security:
+safety:
   stage: security
   image: python:3.10-bullseye
   script:
     - poetry run safety check --full-report
+  needs: ["unit-tests:python-3.10"]
+
+bandit:
+  stage: security
+  image: python:3.10-bullseye
+  script:
     - poetry run bandit -ll -r pynguin
-  needs: ["build"]
-  <<: *python-cache
+  needs: ["unit-tests:python-3.10"]
 
 # check license declarations etc.
 reuse:

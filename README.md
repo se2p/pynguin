@@ -127,6 +127,7 @@ Contributors:
 - [Tucker Blue](https://github.com/tuckcodes)
 - [Gordon Fraser](https://github.com/gofraser)
 - [Abdur-Rahmaan Janhangeer](https://github.com/Abdur-rahmaanJ)
+- [Maximilian Königseder](https://github.com/mak1ng)
 - [Florian Kroiß](https://github.com/Wooza)
 - [Simon Labrenz](https://github.com/labrenz)
 - [Roman Levin](https://github.com/romanlevin)

@@ -342,6 +342,7 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .nt { color: #268bd2 } /* Name.Tag */\n",
             ".highlight .nv { color: #268bd2 } /* Name.Variable */\n",
             ".highlight .ow { color: #859900 } /* Operator.Word */\n",
+            ".highlight .pm { color: #839496 } /* Punctuation.Marker */\n",
             ".highlight .w { color: #839496 } /* Text.Whitespace */\n",
             ".highlight .mb { color: #2aa198 } /* Literal.Number.Bin */\n",
             ".highlight .mf { color: #2aa198 } /* Literal.Number.Float */\n",
