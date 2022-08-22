@@ -308,7 +308,7 @@ class _SubtypeVisitor(TypeVisitor[bool]):
     def visit_none_type(self, left: NoneType) -> bool:  # pylint:disable=unused-argument
         # None cannot be subtyped
         # TODO(fk) handle protocols, e.g., hashable.
-        return False
+        return isinstance(left, NoneType)
 
     def visit_instance(self, left: Instance) -> bool:
         if isinstance(self.right, Instance):

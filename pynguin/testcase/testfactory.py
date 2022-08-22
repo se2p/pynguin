@@ -20,6 +20,7 @@ from pynguin.analyses.typesystem import (
     AnyType,
     InferredSignature,
     Instance,
+    NoneType,
     ProperType,
     TupleType,
     is_collection_type,
@@ -277,7 +278,7 @@ class TestFactory:
         if callee is None:
             callee = self._create_or_reuse_variable(
                 test_case,
-                Instance(method.owner),
+                self._test_cluster.type_system.make_instance(method.owner),
                 position,
                 recursion_depth,
                 allow_none=False,
@@ -342,7 +343,7 @@ class TestFactory:
         if callee is None:
             callee = self._create_or_reuse_variable(
                 test_case,
-                Instance(field.owner),
+                self._test_cluster.type_system.make_instance(field.owner),
                 position,
                 recursion_depth,
                 allow_none=False,
@@ -787,8 +788,8 @@ class TestFactory:
         if call.is_method():
             method = cast(gao.GenericMethod, call)
             assert method.owner
-            callee = self._get_random_non_none_object(
-                test_case, Instance(method.owner), position
+            callee = test_case.get_random_object(
+                self._test_cluster.type_system.make_instance(method.owner), position
             )
             parameters = self._get_reuse_parameters(
                 test_case, method.inferred_signature, position, signature_memo
@@ -848,25 +849,6 @@ class TestFactory:
                 parameter_type, position
             )
         return found
-
-    @staticmethod
-    def _get_random_non_none_object(
-        test_case: tc.TestCase, type_: ProperType, position: int
-    ) -> vr.VariableReference:
-        variables = test_case.get_objects(type_, position)
-        variables = [
-            var
-            for var in variables
-            if not isinstance(
-                test_case.get_statement(var.get_statement_position()),
-                stmt.NoneStatement,
-            )
-        ]
-        if len(variables) == 0:
-            raise ConstructionFailedException(
-                f"Found no variables of type {type_} at position {position}"
-            )
-        return randomness.choice(variables)
 
     def _get_possible_calls(
         self,
@@ -1063,9 +1045,7 @@ class TestFactory:
                     test_case, position, recursion_depth, allow_none
                 )
             if allow_none:
-                return self._create_none(
-                    test_case, parameter_type, position, recursion_depth
-                )
+                return self._create_none(test_case, position, recursion_depth)
             raise ConstructionFailedException(f"No objects for type {parameter_type}")
 
         # Could not create, so re-use an existing variable.
@@ -1139,10 +1119,8 @@ class TestFactory:
             allow_none
             and randomness.next_float()
             <= config.configuration.test_creation.none_probability
-        ):
-            return self._create_none(
-                test_case, parameter_type, position, recursion_depth
-            )
+        ) or isinstance(parameter_type, NoneType):
+            return self._create_none(test_case, position, recursion_depth)
         if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
                 test_case,
@@ -1201,11 +1179,11 @@ class TestFactory:
     @staticmethod
     def _create_none(
         test_case: tc.TestCase,
-        parameter_type: ProperType,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        statement = stmt.NoneStatement(test_case, parameter_type)
+        # todo(fk) Search for existing NoneStatement as they are only aliases to None?
+        statement = stmt.NoneStatement(test_case)
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
         return ret

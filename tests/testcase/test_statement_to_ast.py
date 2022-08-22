@@ -82,10 +82,7 @@ def test_statement_to_ast_bool(statement_to_ast_visitor, default_test_case):
 
 
 def test_statement_to_ast_none(statement_to_ast_visitor, default_test_case):
-    none_stmt = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(int),
-    )
+    none_stmt = stmt.NoneStatement(default_test_case)
     statement_to_ast_visitor.visit_none_statement(none_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = None"
 

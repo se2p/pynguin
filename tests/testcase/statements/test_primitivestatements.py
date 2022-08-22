@@ -203,7 +203,7 @@ def test_primitive_statement_equals_clone(statement_type, default_test_case, val
 
 def test_none_statement_equals_clone():
     test_case = MagicMock(tc.TestCase)
-    statement = stmt.NoneStatement(test_case, type(None))
+    statement = stmt.NoneStatement(test_case)
     test_case.statements = [statement]
     test_case2 = MagicMock(tc.TestCase)
     clone = statement.clone(test_case2, {})
@@ -264,13 +264,13 @@ def test_bytes_primitive_statement_randomize_value(default_test_case):
 
 
 def test_none_statement_randomize_value(default_test_case):
-    statement = stmt.NoneStatement(default_test_case, type(None))
+    statement = stmt.NoneStatement(default_test_case)
     statement.randomize_value()
     assert statement.value is None
 
 
 def test_none_statement_delta(test_case_mock):
-    statement = stmt.NoneStatement(test_case_mock, type(None))
+    statement = stmt.NoneStatement(test_case_mock)
     statement.delta()
     assert statement.value is None
 

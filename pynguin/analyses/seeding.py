@@ -20,7 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.typesystem import AnyType, Instance, NoneType, ProperType
+from pynguin.analyses.typesystem import AnyType, Instance, ProperType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -342,7 +342,7 @@ def create_stmt_from_constant(
         The corresponding statement.
     """
     if constant.value is None:
-        return stmt.NoneStatement(testcase, NoneType())
+        return stmt.NoneStatement(testcase)
 
     val = constant.value
     if isinstance(val, bool):

@@ -634,8 +634,8 @@ class ModuleTestCluster(TestCluster):
     def select_concrete_type(self, typ: ProperType) -> ProperType:
         if isinstance(typ, AnyType):
             typ = randomness.choice(self.get_all_generatable_types())
-        while isinstance(typ, UnionType):
-            typ = randomness.choice(typ.items)
+        if isinstance(typ, UnionType):
+            typ = self.select_concrete_type(randomness.choice(typ.items))
         return typ
 
     def track_statistics_values(

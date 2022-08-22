@@ -20,7 +20,12 @@ import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses import constants
-from pynguin.analyses.typesystem import InferredSignature, Instance, ProperType
+from pynguin.analyses.typesystem import (
+    InferredSignature,
+    Instance,
+    NoneType,
+    ProperType,
+)
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.type_utils import is_optional_parameter
@@ -1139,7 +1144,7 @@ class ParametrizedStatement(
         # to make the selection broader, but this requires access to
         # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.
-        none_statement = NoneStatement(self.test_case, current.type)
+        none_statement = NoneStatement(self.test_case)
         possible_replacements.append(none_statement.ret_val)
 
         replacement = randomness.choice(possible_replacements)
@@ -1972,15 +1977,18 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         visitor.visit_enum_statement(self)
 
 
-class NoneStatement(PrimitiveStatement):
+class NoneStatement(PrimitiveStatement[None]):
     """A statement serving as a None reference."""
+
+    def __init__(self, test_case: tc.TestCase):
+        super().__init__(test_case, NoneType())
 
     def clone(
         self,
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> NoneStatement:
-        return NoneStatement(test_case, self.ret_val.type)
+        return NoneStatement(test_case)
 
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_none_statement(self)

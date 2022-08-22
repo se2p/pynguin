@@ -291,17 +291,35 @@ def test_attempt_generation_for_unknown_type(default_test_case):
     assert result is None
 
 
-def test_attempt_generation_for_none_type(default_test_case):
+def test_attempt_generation_for_int_using_none(default_test_case):
     config.configuration.test_creation.none_probability = 1.0
+    factory = tf.TestFactory(default_test_case.test_cluster)
+    result = factory._attempt_generation(
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
+        0,
+        0,
+        True,
+    )
+    assert result.distance == 0
+
+
+def test_attempt_generation_for_none_type(default_test_case):
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(default_test_case, NoneType(), 0, 0, True)
     assert result.distance == 0
 
 
-def test_attempt_generation_for_none_type_with_no_probability(default_test_case):
+def test_attempt_generation_for_int_with_no_probability(default_test_case):
     config.configuration.test_creation.none_probability = 0.0
     factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(default_test_case, NoneType(), 0, 0, True)
+    result = factory._attempt_generation(
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
+        0,
+        0,
+        True,
+    )
     assert result is None
 
 
@@ -498,42 +516,6 @@ def test_delete_statement_reverse(test_case_mock):
         rec_mock.side_effect = lambda t, delete, position: delete.update({1, 2, 3})
         tf.TestFactory.delete_statement(test_case_mock, 0)
         test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
-
-
-def test_get_random_non_none_object_empty(default_test_case):
-    with pytest.raises(ConstructionFailedException):
-        tf.TestFactory._get_random_non_none_object(default_test_case, AnyType(), 0)
-
-
-def test_get_random_non_none_object_none_statement(default_test_case):
-    none_statement = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-    )
-    default_test_case.add_statement(none_statement)
-    with pytest.raises(ConstructionFailedException):
-        tf.TestFactory._get_random_non_none_object(
-            default_test_case,
-            default_test_case.test_cluster.type_system.convert_type_hint(float),
-            0,
-        )
-
-
-def test_get_random_non_none_object_success(default_test_case):
-    float0 = stmt.FloatPrimitiveStatement(default_test_case, 2.0)
-    float1 = stmt.FloatPrimitiveStatement(default_test_case, 3.0)
-    float2 = stmt.FloatPrimitiveStatement(default_test_case, 4.0)
-    default_test_case.add_statement(float0)
-    default_test_case.add_statement(float1)
-    default_test_case.add_statement(float2)
-    assert tf.TestFactory._get_random_non_none_object(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-        1,
-    ) in {
-        float0.ret_val,
-        float1.ret_val,
-    }
 
 
 def test_get_reuse_parameters(default_test_case):
@@ -822,7 +804,6 @@ def test_select_random_variable_for_call_one(
     default_test_case.add_statement(
         stmt.NoneStatement(
             default_test_case,
-            default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
         )
     )
     default_test_case.add_statement(
@@ -844,12 +825,7 @@ def test_select_random_variable_for_call_one(
 def test_select_random_variable_for_call_none(
     constructor_mock, function_mock, default_test_case
 ):
-    default_test_case.add_statement(
-        stmt.NoneStatement(
-            default_test_case,
-            default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        )
-    )
+    default_test_case.add_statement(stmt.NoneStatement(default_test_case))
     default_test_case.add_statement(
         stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     )
@@ -939,7 +915,7 @@ def test_delete_statement_gracefully_no_dependencies(function_mock, default_test
 def test_change_random_call_unknown_type(default_test_case):
     test_cluster = MagicMock(ModuleTestCluster)
     test_factory = tf.TestFactory(test_cluster)
-    none_statement = stmt.NoneStatement(default_test_case, AnyType())
+    none_statement = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(none_statement)
     assert not test_factory.change_random_call(default_test_case, none_statement)
 
@@ -1042,10 +1018,7 @@ def test_change_call_method(constructor_mock, method_mock, default_test_case):
         stmt.ConstructorStatement(default_test_case, constructor_mock)
     )
     default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 3))
-    to_replace = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-    )
+    to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
     feed_typesystem(test_cluster.type_system, constructor_mock)
@@ -1060,10 +1033,7 @@ def test_change_call_constructor(constructor_mock, default_test_case):
     default_test_case.add_statement(
         stmt.FloatPrimitiveStatement(default_test_case, 3.5)
     )
-    to_replace = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-    )
+    to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
     feed_typesystem(test_cluster.type_system, constructor_mock)
@@ -1077,10 +1047,7 @@ def test_change_call_function(function_mock, default_test_case):
     default_test_case.add_statement(
         stmt.FloatPrimitiveStatement(default_test_case, 3.5)
     )
-    to_replace = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-    )
+    to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
     feed_typesystem(test_cluster.type_system, function_mock)
@@ -1094,10 +1061,7 @@ def test_change_call_unknown(default_test_case):
     default_test_case.add_statement(
         stmt.FloatPrimitiveStatement(default_test_case, 3.5)
     )
-    to_replace = stmt.NoneStatement(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(float),
-    )
+    to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
     test_factory = tf.TestFactory(test_cluster)
