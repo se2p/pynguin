@@ -907,7 +907,6 @@ class TestFactory:
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
-        can_reuse_existing_variables: bool = True,
     ) -> dict[str, vr.VariableReference]:
         """Satisfy a list of parameters by reusing or creating variables.
 
@@ -918,8 +917,6 @@ class TestFactory:
             position: The current position in the test case
             recursion_depth: The recursion depth
             allow_none: Whether a variable can be a None value
-            can_reuse_existing_variables: Whether existing variables shall
-                be reused.
 
         Returns:
             A dict of variable references for the parameters
@@ -949,28 +946,14 @@ class TestFactory:
             ):
                 continue
 
-            if can_reuse_existing_variables:
-                self._logger.debug("Can re-use variables")
-                var = self._create_or_reuse_variable(
-                    test_case,
-                    parameter_type,
-                    position,
-                    recursion_depth,
-                    allow_none,
-                    callee,
-                )
-            else:
-                self._logger.debug(
-                    "Cannot re-use variables: attempt to creating new one"
-                )
-                var = self._attempt_generation(
-                    test_case,
-                    parameter_type,
-                    position,
-                    recursion_depth,
-                    allow_none,
-                    callee,
-                )
+            var = self._create_or_reuse_variable(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+                allow_none,
+            )
+
             if not var:
                 raise ConstructionFailedException(
                     (
@@ -1065,7 +1048,6 @@ class TestFactory:
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        exclude: vr.VariableReference | None = None,
     ) -> vr.VariableReference | None:
         if (
             reused_variable := self._reuse_variable(test_case, parameter_type, position)
@@ -1078,7 +1060,6 @@ class TestFactory:
                 position,
                 recursion_depth,
                 allow_none,
-                exclude,
             )
         ) is not None:
             return created_variable
@@ -1094,7 +1075,6 @@ class TestFactory:
         position: int,
         recursion_depth: int,
         allow_none: bool,
-        exclude: vr.VariableReference | None = None,
     ) -> vr.VariableReference | None:
         # We only select a concrete type e.g. from a union, when we are forced to
         # choose one.
