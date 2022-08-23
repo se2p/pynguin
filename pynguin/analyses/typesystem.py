@@ -498,11 +498,9 @@ class InferredSignature:
             # We already chose a signature
             return sig
         res: dict[str, ProperType] = {}
-        if len(self.knowledge) == 0:
-            # No knowledge, so just reuse original parameter types.
-            res = self.original_parameters
-        else:
-            for param_name, orig_type in self.original_parameters.items():
+        for param_name, orig_type in self.original_parameters.items():
+            if param_name in self.knowledge:
+                # If we have information from proxies, update guess.
                 self.__update_guess(
                     param_name,
                     self.__guess_parameter_type(
@@ -511,13 +509,19 @@ class InferredSignature:
                     ),
                 )
 
-                # Either reuse developer annotations or guessed types.
-                if (
-                    guessed := self.current_guessed_parameters.get(param_name)
-                ) is not None and randomness.next_float() < 0.95:
-                    res[param_name] = guessed
-                else:
-                    res[param_name] = orig_type
+            # Choose from:
+            # - Reusing developer annotated types
+            # - Guessed types from proxies
+            # - NoneType
+            # - AnyType, i.e., disregard type
+            choices: list[ProperType] = [NoneType(), AnyType(), orig_type]
+            weights: list[float] = [1, 1, 10]
+            if (
+                guessed := self.current_guessed_parameters.get(param_name)
+            ) is not None:
+                choices.append(guessed)
+                weights.append(200)
+            res[param_name] = randomness.choices(choices, weights)[0]
         signature_memo[self] = res
         return res
 

@@ -1081,11 +1081,7 @@ class TestFactory:
         # choose one.
         parameter_type = self._test_cluster.select_concrete_type(parameter_type)
 
-        if (
-            allow_none
-            and randomness.next_float()
-            <= config.configuration.test_creation.none_probability
-        ) or isinstance(parameter_type, NoneType):
+        if isinstance(parameter_type, NoneType):
             return self._create_none(test_case, position, recursion_depth)
         if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
