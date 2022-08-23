@@ -1020,8 +1020,12 @@ class TestFactory:
         # No objects to choose from, so either create random type variable or use None.
         if not objects:
             if randomness.next_float() <= 0.85:
-                return self._create_random_type_variable(
-                    test_case, position, recursion_depth, allow_none
+                return self._create_or_reuse_variable(
+                    test_case=test_case,
+                    parameter_type=randomness.choice(self._test_cluster.get_all_generatable_types()),
+                    position=position,
+                    recursion_depth=recursion_depth + 1,
+                    allow_none=allow_none,
                 )
             if allow_none:
                 return self._create_none(test_case, position, recursion_depth)
@@ -1099,44 +1103,15 @@ class TestFactory:
                 recursion_depth,
             )
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
-            return self._attempt_generation_for_type(
-                test_case, position, recursion_depth, allow_none, type_generators
+            type_generator = randomness.choice(type_generators)
+            return self.append_generic_accessible(
+                test_case,
+                type_generator,
+                position=position,
+                recursion_depth=recursion_depth + 1,
+                allow_none=allow_none,
             )
         return None
-
-    def _attempt_generation_for_type(
-        self,
-        test_case: tc.TestCase,
-        position: int,
-        recursion_depth: int,
-        allow_none: bool,
-        type_generators: OrderedSet[gao.GenericAccessibleObject],
-    ) -> vr.VariableReference | None:
-        type_generator = randomness.choice(type_generators)
-        return self.append_generic_accessible(
-            test_case,
-            type_generator,
-            position=position,
-            recursion_depth=recursion_depth + 1,
-            allow_none=allow_none,
-        )
-
-    def _create_random_type_variable(
-        self,
-        test_case: tc.TestCase,
-        position: int,
-        recursion_depth: int,
-        allow_none: bool,
-    ) -> vr.VariableReference | None:
-        return self._create_or_reuse_variable(
-            test_case=test_case,
-            parameter_type=randomness.choice(
-                self._test_cluster.get_all_generatable_types()
-            ),
-            position=position,
-            recursion_depth=recursion_depth + 1,
-            allow_none=allow_none,
-        )
 
     @staticmethod
     def _create_none(
