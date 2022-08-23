@@ -142,9 +142,7 @@ class TupleType(ProperType):
         return self._hash
 
     def __eq__(self, other):
-        if not isinstance(other, TupleType):
-            return False
-        return self.args == other.args and self.unknown_size == other.unknown_size
+        return isinstance(other, TupleType) and self.args == other.args and self.unknown_size == other.unknown_size
 
 
 class UnionType(ProperType):
@@ -165,9 +163,7 @@ class UnionType(ProperType):
         return self._hash
 
     def __eq__(self, other):
-        if not isinstance(other, UnionType):
-            return False
-        return self.items == other.items
+        return isinstance(other, UnionType) and self.items == other.items
 
 
 class TypeVisitor(Generic[T]):

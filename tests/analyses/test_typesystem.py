@@ -20,6 +20,8 @@ from pynguin.analyses.typesystem import (
     TypeInfo,
     TypeSystem,
     UnionType,
+    is_collection_type,
+    is_primitive_type,
 )
 from tests.fixtures.types.subtyping import Sub, Super
 
@@ -364,3 +366,59 @@ def test_get_parameter_types_consistent_2(inferred_signature):
     cache = {}
     assert inferred_signature.get_parameter_types(cache)
     assert cache
+
+
+@pytest.mark.parametrize(
+    "left,right,result",
+    [
+        (AnyType(), AnyType(), True),
+        (AnyType(), NoneType(), False),
+        (NoneType(), NoneType(), True),
+        (NoneType(), AnyType(), False),
+        (TupleType((AnyType(),)), TupleType((AnyType(),)), True),
+        (TupleType((AnyType(),)), TupleType((NoneType(),)), False),
+        (Instance(TypeInfo(int), ()), Instance(TypeInfo(int), ()), True),
+        (Instance(TypeInfo(int), ()), AnyType(), False),
+        (UnionType((AnyType(),)), UnionType((AnyType(),)), True),
+        (UnionType((AnyType(),)), UnionType((NoneType(),)), False),
+    ],
+)
+def test_types_equality_self(left, right, result):
+    assert (left == right) == result
+
+
+@pytest.mark.parametrize(
+    "typ,result",
+    [
+        (AnyType(), False),
+        (TupleType((AnyType(),)), False),
+        (Instance(TypeInfo(int)), True),
+        (Instance(TypeInfo(float)), True),
+        (Instance(TypeInfo(str)), True),
+        (Instance(TypeInfo(complex)), True),
+        (Instance(TypeInfo(bool)), True),
+        (Instance(TypeInfo(bytes)), True),
+        (Instance(TypeInfo(type)), False),
+        (UnionType((AnyType(),)), False),
+        (NoneType(), False),
+    ],
+)
+def test_is_primitive_type(typ, result):
+    assert typ.accept(is_primitive_type) is result
+
+
+@pytest.mark.parametrize(
+    "typ,result",
+    [
+        (AnyType(), False),
+        (TupleType((AnyType(),)), True),
+        (Instance(TypeInfo(list)), True),
+        (Instance(TypeInfo(set)), True),
+        (Instance(TypeInfo(dict)), True),
+        (Instance(TypeInfo(int)), False),
+        (UnionType((AnyType(),)), False),
+        (NoneType(), False),
+    ],
+)
+def test_is_collection_type(typ, result):
+    assert typ.accept(is_collection_type) is result
