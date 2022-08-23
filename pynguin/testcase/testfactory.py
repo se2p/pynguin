@@ -17,7 +17,6 @@ import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.typesystem import (
-    AnyType,
     InferredSignature,
     Instance,
     NoneType,
@@ -903,7 +902,6 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         signature: InferredSignature,
-        callee: vr.VariableReference | None = None,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -913,7 +911,6 @@ class TestFactory:
         Args:
             test_case: The test case
             signature: The inferred signature of the method
-            callee: The callee of the method
             position: The current position in the test case
             recursion_depth: The recursion depth
             allow_none: Whether a variable can be a None value
@@ -1214,10 +1211,6 @@ class TestFactory:
                 return self._create_list_or_set(
                     test_case, parameter_type, position, recursion_depth
                 )
-            if parameter_type.type.raw_type == tuple:
-                return self._create_tuple(
-                    test_case, parameter_type, position, recursion_depth
-                )
             if parameter_type.type.raw_type == dict:
                 return self._create_dict(
                     test_case, parameter_type, position, recursion_depth
@@ -1238,10 +1231,7 @@ class TestFactory:
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        if len(parameter_type.args) == 1:
-            element_type = parameter_type.args[0]
-        else:
-            element_type = AnyType()
+        element_type = parameter_type.args[0]
         size = randomness.next_int(
             0, config.configuration.test_creation.collection_size
         )
@@ -1266,12 +1256,11 @@ class TestFactory:
     def _create_tuple(
         self,
         test_case: tc.TestCase,
-        parameter_type: TupleType | Instance,  # TODO(fk) annoying.
+        parameter_type: TupleType,
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        args = parameter_type.args
-        if len(args) == 0:
+        if parameter_type.unknown_size:
             # Untyped tuple, time to guess...
             size = randomness.next_int(
                 0, config.configuration.test_creation.collection_size
@@ -1280,6 +1269,8 @@ class TestFactory:
                 randomness.choice(self._test_cluster.get_all_generatable_types())
                 for _ in range(size)
             )
+        else:
+            args = parameter_type.args
         elements = []
         for arg_type in args:
             previous_length = test_case.size()
@@ -1303,12 +1294,8 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         args = parameter_type.args
-        if len(args) == 2:
-            key_type = args[0]
-            value_type = args[1]
-        else:
-            key_type = AnyType()
-            value_type = AnyType()
+        key_type = args[0]
+        value_type = args[1]
         size = randomness.next_int(
             0, config.configuration.test_creation.collection_size
         )
