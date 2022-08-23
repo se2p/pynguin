@@ -97,6 +97,7 @@ class Instance(ProperType):
     Args can be empty."""
 
     def __init__(self, typ: TypeInfo, args: tuple[ProperType, ...] = None):
+        assert typ.raw_type is not tuple, "Use TupleType instead!"
         self.type = typ
         if args is None:
             args = ()

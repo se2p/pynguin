@@ -938,6 +938,9 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
     __add_symbols(class_ast, type_info)
+    if type_info.raw_type is tuple:
+        # Tuple is problematic...
+        return
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
