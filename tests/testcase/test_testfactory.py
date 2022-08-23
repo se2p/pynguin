@@ -265,19 +265,6 @@ def test_create_primitive(type_, default_test_case):
     assert result.type == proper
 
 
-def test_attempt_generation_for_type(test_case_mock):
-    def mock_method(t, g, position, recursion_depth, allow_none):
-        assert position == 0
-        assert recursion_depth == 1
-        assert allow_none
-
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    factory.append_generic_accessible = mock_method
-    factory._attempt_generation_for_type(
-        test_case_mock, 0, 0, True, OrderedSet([MagicMock(gao.GenericAccessibleObject)])
-    )
-
-
 def test_attempt_generation_for_unknown_type(default_test_case):
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
@@ -288,19 +275,6 @@ def test_attempt_generation_for_unknown_type(default_test_case):
         True,
     )
     assert result is None
-
-
-def test_attempt_generation_for_int_using_none(default_test_case):
-    config.configuration.test_creation.none_probability = 1.0
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        0,
-        0,
-        True,
-    )
-    assert result.distance == 0
 
 
 def test_attempt_generation_for_none_type(default_test_case):
