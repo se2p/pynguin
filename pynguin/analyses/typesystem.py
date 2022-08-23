@@ -142,7 +142,11 @@ class TupleType(ProperType):
         return self._hash
 
     def __eq__(self, other):
-        return isinstance(other, TupleType) and self.args == other.args and self.unknown_size == other.unknown_size
+        return (
+            isinstance(other, TupleType)
+            and self.args == other.args
+            and self.unknown_size == other.unknown_size
+        )
 
 
 class UnionType(ProperType):
