@@ -118,9 +118,6 @@ class TypeInferenceStrategy(str, enum.Enum):
     NONE = "NONE"
     """Ignore any type information given in the module under test."""
 
-    STUB_FILES = "STUB_FILES"
-    """Use type information from stub files."""
-
     TYPE_HINTS = "TYPE_HINTS"
     """Use type information from type hints in the module under test."""
 
