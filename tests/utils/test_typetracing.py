@@ -652,3 +652,13 @@ def test_setitem_list():
         int
         in tt.ProxyKnowledge.from_proxy(proxy).symbol_table["__setitem__"].arg_types[0]
     )
+
+
+def test_unwrap():
+    foo = object()
+    assert tt.unwrap(foo) is foo
+
+
+def test_unwrap_2():
+    foo = object()
+    assert tt.unwrap(tt.ObjectProxy(tt.ObjectProxy(foo))) is foo

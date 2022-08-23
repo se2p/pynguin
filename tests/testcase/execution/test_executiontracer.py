@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Compare
 
+import pynguin.utils.typetracing as tt
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.testcase.execution import ExecutionTracer, _le, _lt
 
@@ -169,6 +170,26 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer.executed_compare_predicate(val1, val2, 0, cmp)
     assert (0, true_dist) in tracer.get_trace().true_distances.items()
     assert (0, false_dist) in tracer.get_trace().false_distances.items()
+
+
+def test_compare_ignores_proxy():
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_compare_predicate(
+        tt.ObjectProxy(5), tt.ObjectProxy(0), 0, Compare.EQ
+    )
+    assert (0, 5) in tracer.get_trace().true_distances.items()
+    assert (0, 0) in tracer.get_trace().false_distances.items()
+
+
+def test_bool_ignores_proxy():
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_bool_predicate(tt.ObjectProxy([1, 2, 3]), 0)
+    assert (0, 0.0) in tracer.get_trace().true_distances.items()
+    assert (0, 3.0) in tracer.get_trace().false_distances.items()
 
 
 def test_unknown_comp():

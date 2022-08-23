@@ -6,6 +6,7 @@
 #
 import pytest
 
+import pynguin.utils.typetracing as tt
 from pynguin.analyses.constants import (
     ConstantPool,
     DynamicConstantProvider,
@@ -85,3 +86,15 @@ def test_dynamic_constant_pool_max_size(rpool):
     provider.add_value("abcde")
     provider.add_value("abcdef")
     assert rpool.get_all_constants_for(str) == {"abcd", "abcde"}
+
+
+def test_constant_pool_ignores_proxy(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 5)
+    provider.add_value(tt.ObjectProxy(5))
+    assert rpool.get_all_constants_for(int) == {5}
+
+
+def test_constant_pool_ignores_proxy_2(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 5)
+    provider.add_value_for_strings(tt.ObjectProxy("foo"), "isupper")
+    assert rpool.get_all_constants_for(str) == {"foo", "FOO"}
