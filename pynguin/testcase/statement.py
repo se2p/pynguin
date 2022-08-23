@@ -11,7 +11,7 @@ import abc
 import logging
 import math
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from ordered_set import OrderedSet
 
@@ -608,9 +608,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
     the key or the value of an item."""
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
-        arg_type = (
-            get_args(self.ret_val.type)[0] if get_args(self.ret_val.type) else None
-        )
+        arg_type = cast(Instance, self.ret_val.type).args[0]
         # TODO(fk) what if the current type is not correct?
         possible_insertions = self.test_case.get_objects(arg_type, self.get_position())
         if len(possible_insertions) == 0:
@@ -783,12 +781,8 @@ class DictStatement(
         self,
     ) -> tuple[vr.VariableReference, vr.VariableReference] | None:
         # TODO(fk) what if the current type is not correct?
-        key_type = (
-            get_args(self.ret_val.type)[0] if get_args(self.ret_val.type) else None
-        )
-        val_type = (
-            get_args(self.ret_val.type)[1] if get_args(self.ret_val.type) else None
-        )
+        key_type = cast(Instance, self.ret_val.type).args[0]
+        val_type = cast(Instance, self.ret_val.type).args[1]
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
         if len(possibles_keys) == 0 or len(possibles_values) == 0:
