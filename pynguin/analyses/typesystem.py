@@ -24,6 +24,7 @@ from networkx.drawing.nx_pydot import to_pydot
 from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
+import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -473,6 +474,8 @@ class InferredSignature:
     # Return type might be updated, which is stored here.
     return_type: ProperType = field(init=False)
 
+    # The currently guessed parameter types. Guessing will never result as that is
+    # not a useful guess.
     current_guessed_parameters: dict[str, UnionType] = field(
         init=False, default_factory=dict
     )
@@ -498,6 +501,7 @@ class InferredSignature:
             # We already chose a signature
             return sig
         res: dict[str, ProperType] = {}
+        test_conf = config.configuration.test_creation
         for param_name, orig_type in self.original_parameters.items():
             if param_name in self.knowledge:
                 # If we have information from proxies, update guess.
@@ -514,13 +518,16 @@ class InferredSignature:
             # - Guessed types from proxies
             # - NoneType
             # - AnyType, i.e., disregard type
+            # TODO(fk) add choices from other source here, e.g., DeepTyper.
             choices: list[ProperType] = [NoneType(), AnyType(), orig_type]
-            weights: list[float] = [1, 1, 10]
-            if (
-                guessed := self.current_guessed_parameters.get(param_name)
-            ) is not None:
+            weights: list[float] = [
+                test_conf.none_weight,
+                test_conf.any_weight,
+                test_conf.original_type_weight,
+            ]
+            if (guessed := self.current_guessed_parameters.get(param_name)) is not None:
                 choices.append(guessed)
-                weights.append(200)
+                weights.append(test_conf.type_tracing_weight)
             res[param_name] = randomness.choices(choices, weights)[0]
         signature_memo[self] = res
         return res

@@ -57,6 +57,9 @@ def reset_configuration():
         test_case_output=config.TestCaseOutputConfiguration(output_path=""),
         module_name="",
     )
+    # Easier to put this here than to have it scattered in all tests.
+    config.configuration.test_creation.none_weight = 0
+    config.configuration.test_creation.any_weight = 0
 
 
 @pytest.fixture(scope="function")

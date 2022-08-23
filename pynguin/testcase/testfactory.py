@@ -1022,7 +1022,9 @@ class TestFactory:
             if randomness.next_float() <= 0.85:
                 return self._create_or_reuse_variable(
                     test_case=test_case,
-                    parameter_type=randomness.choice(self._test_cluster.get_all_generatable_types()),
+                    parameter_type=randomness.choice(
+                        self._test_cluster.get_all_generatable_types()
+                    ),
                     position=position,
                     recursion_depth=recursion_depth + 1,
                     allow_none=allow_none,

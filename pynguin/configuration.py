@@ -402,9 +402,19 @@ class TestCreationConfiguration:
     """Probability to reuse an existing object in a test case, if available.
     Expects values in [0,1]"""
 
-    none_probability: float = 0.1
-    """Probability to use None in a test case instead of constructing an object.
-    Expects values in [0,1]"""
+    none_weight: float = 1
+    """Weight to use None as parameter type during test generation."""
+
+    any_weight: float = 1
+    """Weight to use Any as parameter type during test generation."""
+
+    original_type_weight: float = 10
+    """Weight to use the originally annotated type as parameter type during test
+    generation."""
+
+    type_tracing_weight: float = 200
+    """Weight to use the type guessed from type tracing as parameter type during
+    test generation."""
 
     skip_optional_parameter_probability: float = 0.7
     """Probability to skip an optional parameter, i.e., do not fill this parameter."""
