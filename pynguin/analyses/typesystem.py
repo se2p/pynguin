@@ -128,7 +128,6 @@ class TupleType(ProperType):
     #  tuple is special because it is varargs generic.
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
-        assert len(self.args) > 0
         self.unknown_size = unknown_size
         # Cached hash value
         self._hash: int | None = None
