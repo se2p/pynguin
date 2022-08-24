@@ -1034,19 +1034,22 @@ class TypeSystem:
 
     def push_symbols_down(self) -> None:
         """We don't want to see symbols multiple times, e.g., in subclasses, so only the
-        first class in the hierarchy which adds the symbol should retain it. This
-        creates a graph where every TypeInfo only has the symbols that it adds but
-        none that are inherited.
+        first class in the hierarchy which adds the symbol should have it listed as an
+        attribute, i.e., when searching for a class with that attribute we only want to
+        retrieve the top-most class(es) in the hierarchy which define it, and not every
+        (sub)class that inherited it.
         """
         reach_in_sets: dict[TypeInfo, set[str]] = defaultdict(set)
         reach_out_sets: dict[TypeInfo, set[str]] = defaultdict(set)
 
         # While object sits at the top, it is not particularly useful, so we delete
         # all of its symbols.
+        # TODO(fk) does this make sense?
         object_info = self.find_type_info("builtins.object")
         assert object_info is not None
         object_info.symbols.clear()
 
+        # Use fix point iteration with reach-in/out to push elements down.
         work_list = list(self._graph.nodes)
         while len(work_list) > 0:
             current = work_list.pop()
@@ -1134,6 +1137,9 @@ class TypeSystem:
             # Sadly there is no guarantee that resolving the type hints actually works.
             # If the developers annotated something with an erroneous type hint we fall
             # back to no type hints, i.e., use Any.
+            # The import used in the type hint could also be conditional on
+            # typing.TYPE_CHECKING, e.g., to avoid circular imports, in which case this
+            # also fails.
         except NameError:
             hints = {}
         return hints
