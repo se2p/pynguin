@@ -1134,7 +1134,6 @@ class ParametrizedStatement(
             )
             possible_replacements.append(copy.ret_val)
 
-        # TODO(fk) Use param_type instead of to_mutate.variable_type,
         # to make the selection broader, but this requires access to
         # the test cluster, to select a concrete type.
         # Using None as parameter value is also a possibility.

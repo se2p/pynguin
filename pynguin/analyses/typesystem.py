@@ -490,8 +490,9 @@ class InferredSignature:
         create one based on the observed knowledge.
 
         Args:
-            signature_memo: A memo that stores signature, so that we don't choose
-                another signature in the same run.
+            signature_memo: A memo that stores already chosen signatures, so that
+                we don't choose another signature in the same run. This is required for
+                certain operations in the test factory to be consistent.
 
         Returns:
             A dict of chosen parameter types for each parameter.
