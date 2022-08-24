@@ -2302,7 +2302,8 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster
     ):
         self._delegate = delegate
-        self._observer = TypeTracingObserver(cluster)
+        self._type_tracing_observer = TypeTracingObserver(cluster)
+        self._return_type_observer = ReturnTypeObserver(cluster)
 
     @property
     def module_provider(self) -> ModuleProvider:
@@ -2319,11 +2320,12 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return self._delegate.tracer
 
     def execute(self, test_case: tc.TestCase) -> ExecutionResult:
-        result = self._delegate.execute(test_case)
+        with self._delegate.temporarily_add_observer(self._return_type_observer):
+            result = self._delegate.execute(test_case)
         if not result.timeout:
             # Only execute with proxies if the test case doesn't time out.
             # There is no need to stall another thread.
-            with self._delegate.temporarily_add_observer(self._observer):
+            with self._delegate.temporarily_add_observer(self._type_tracing_observer):
                 with tt.shim_isinstance():
                     # TODO(fk) Do we record wrong stuff, i.e., type checks from
                     #  observers?

@@ -58,7 +58,6 @@ from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import (
     AssertionExecutionObserver,
     ExecutionTracer,
-    ReturnTypeObserver,
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
@@ -406,9 +405,6 @@ def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
-    if config.configuration.type_inference.type_tracing:
-        # Observe return types during execution.
-        executor.add_observer(ReturnTypeObserver(test_cluster))
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
