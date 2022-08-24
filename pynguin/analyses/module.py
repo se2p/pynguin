@@ -1165,8 +1165,12 @@ def __enable_numeric_tower(test_cluster):
     int_info = test_cluster.type_system.to_type_info(int)
     float_info = test_cluster.type_system.to_type_info(float)
     complex_info = test_cluster.type_system.to_type_info(complex)
-    test_cluster.type_system.add_edge(super_class=float_info, sub_class=int_info)
-    test_cluster.type_system.add_edge(super_class=complex_info, sub_class=float_info)
+    test_cluster.type_system.add_subclass_edge(
+        super_class=float_info, sub_class=int_info
+    )
+    test_cluster.type_system.add_subclass_edge(
+        super_class=complex_info, sub_class=float_info
+    )
 
 
 def __analyse_included_classes(
@@ -1211,7 +1215,7 @@ def __analyse_included_classes(
                     base = base.__origin__
 
                 base_info = test_cluster.type_system.to_type_info(base)
-                test_cluster.type_system.add_edge(
+                test_cluster.type_system.add_subclass_edge(
                     super_class=base_info, sub_class=type_info
                 )
                 work_list.append(base)

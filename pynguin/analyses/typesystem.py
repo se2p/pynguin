@@ -857,8 +857,8 @@ class TypeSystem:
             self.convert_type_hint(coll) for coll in COLLECTIONS
         ]
 
-    def add_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
-        """Add an edge between two types.
+    def add_subclass_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
+        """Add a subclass edge between two types.
 
         Args:
             super_class: superclass
