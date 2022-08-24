@@ -958,8 +958,8 @@ class TypeSystem:
 
         This is a more lenient check than is_subtype. Consider a function that
         returns tuple[str | int | bytes, str | int | bytes]. Strictly speaking, we
-        cannot use such a value as argument for a function that requires an argument
-        of type tuple[int, int]. However, however, it may be possible that the returned
+        cannot use such a value as an argument for a function that requires an argument
+        of type tuple[int, int]. However, it may be possible that the returned
         value is tuple[int, int], in which case it does work.
         This check only differs from is_subtype in how it handles Unions.
         Instead of requiring every type to be a subtype, it is sufficient that one
