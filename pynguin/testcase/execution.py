@@ -43,7 +43,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import AnyType, ProperType
+from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     CheckedCoverageInstrumentation,
@@ -416,6 +416,7 @@ class ReturnTypeObserver(ExecutionObserver):
         def __init__(self):
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
+            self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
 
     def __init__(self, test_cluster: module.TestCluster):
         self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
@@ -429,23 +430,48 @@ class ReturnTypeObserver(ExecutionObserver):
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        result.raw_return_type_trace = dict(
-            self._return_type_local_state.return_type_trace
+        result.raw_return_types = dict(self._return_type_local_state.return_type_trace)
+        result.raw_return_type_generic_args = dict(
+            self._return_type_local_state.return_type_generic_args
         )
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         # We store the raw types, so we still need to convert them to proper types.
-        for idx, raw_type in result.raw_return_type_trace.items():
-            # Will be missing any type vars.
+        # This must be done outside the executing thread.
+        for idx, raw_type in result.raw_return_types.items():
             proper_type = self._test_cluster.type_system.convert_type_hint(raw_type)
+            proper_type = self.__infer_known_generics(result, idx, proper_type)
             result.proper_return_type_trace[idx] = proper_type
             statement = test_case.get_statement(idx)
             if isinstance(statement, stmt.ParametrizedStatement):
                 call_acc = statement.accessible_object()
                 assert isinstance(call_acc, gao.GenericCallableAccessibleObject)
                 self._test_cluster.update_return_type(call_acc, proper_type)
+
+    def __infer_known_generics(
+        self, result: ExecutionResult, idx: int, proper: ProperType
+    ) -> ProperType:
+        if idx not in result.raw_return_type_generic_args:
+            return proper
+
+        if isinstance(proper, TupleType):
+            return TupleType(
+                tuple(
+                    self._test_cluster.type_system.convert_type_hint(t)
+                    for t in result.raw_return_type_generic_args[idx]
+                )
+            )
+        if isinstance(proper, Instance) and proper.type.raw_type in (list, set, dict):
+            return Instance(
+                proper.type,
+                tuple(
+                    self._test_cluster.type_system.convert_type_hint(t)
+                    for t in result.raw_return_type_generic_args[idx]
+                ),
+            )
+        return proper
 
     def before_statement_execution(
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
@@ -464,9 +490,26 @@ class ReturnTypeObserver(ExecutionObserver):
             and (ret_val := statement.ret_val) is not None
             and not ret_val.is_none_type()
         ):
-            self._return_type_local_state.return_type_trace[
-                statement.get_position()
-            ] = type(exec_ctx.get_reference_value(ret_val))
+            value = exec_ctx.get_reference_value(ret_val)
+            position = statement.get_position()
+            self._return_type_local_state.return_type_trace[position] = type(value)
+            # TODO(fk) Hardcoded support for generics.
+            # Try to guess generic arguments from elements.
+            # pylint:disable=unidiomatic-typecheck
+            if type(value) in (set, list) and len(value) > 0:
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(next(iter(value))),
+                )
+            elif type(value) is dict and len(value) > 0:
+                first_item = list(value.items())[0]
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(first_item[0]),
+                    type(first_item[1]),
+                )
+            elif type(value) is tuple:
+                self._return_type_local_state.return_type_generic_args[
+                    position
+                ] = tuple(type(v) for v in value)
 
 
 @dataclass
@@ -744,12 +787,19 @@ class ExecutionResult:
     execution_trace: ExecutionTrace = dataclasses.field(
         default_factory=ExecutionTrace, init=False
     )
-    raw_return_type_trace: dict[int, type] = dataclasses.field(
+
+    # Observation of return types.
+    raw_return_types: dict[int, type] = dataclasses.field(
         default_factory=dict, init=False
     )
+    raw_return_type_generic_args: dict[int, tuple[type, ...]] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    # Observed return types converted to proper types.
     proper_return_type_trace: dict[int, ProperType] = dataclasses.field(
         default_factory=dict, init=False
     )
+
     proxy_knowledge: dict[tuple[int, str], tt.ProxyKnowledge] = dataclasses.field(
         default_factory=dict, init=False
     )
@@ -789,8 +839,11 @@ class ExecutionResult:
         Args:
             deleted_statements: The indexes of the deleted statements
         """
-        self.raw_return_type_trace = ExecutionResult.shift_dict(
-            self.raw_return_type_trace, deleted_statements
+        self.raw_return_types = ExecutionResult.shift_dict(
+            self.raw_return_types, deleted_statements
+        )
+        self.raw_return_type_generic_args = ExecutionResult.shift_dict(
+            self.raw_return_type_generic_args, deleted_statements
         )
         self.proper_return_type_trace = ExecutionResult.shift_dict(
             self.proper_return_type_trace, deleted_statements
@@ -2269,7 +2322,7 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         result = self._delegate.execute(test_case)
         if not result.timeout:
             # Only execute with proxies if the test case doesn't time out.
-            # There is no need to stall another threads.
+            # There is no need to stall another thread.
             with self._delegate.temporarily_add_observer(self._observer):
                 with tt.shim_isinstance():
                     # TODO(fk) Do we record wrong stuff, i.e., type checks from
@@ -2363,6 +2416,8 @@ class TypeTracingObserver(ExecutionObserver):
                 #  open(...).
                 #  Record how often we get type errors to find out how often
                 #  native function are a problem?
+                #  can't really do that, because we use proxies as markers for
+                #  interactions we don't want to record.
                 proxy = tt.ObjectProxy(
                     old,
                     is_kwargs=signature.signature.parameters[name].kind
