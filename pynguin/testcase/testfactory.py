@@ -1117,7 +1117,14 @@ class TestFactory:
         position: int,
         recursion_depth: int,
     ) -> vr.VariableReference:
-        # todo(fk) Search for existing NoneStatement as they are only aliases to None?
+        # If there already is a None alias just return it.
+        # TODO(fk) better way?
+        for statement in test_case.statements[
+            : min(len(test_case.statements), position)
+        ]:
+            if isinstance(statement, stmt.NoneStatement):
+                return statement.ret_val
+
         statement = stmt.NoneStatement(test_case)
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
