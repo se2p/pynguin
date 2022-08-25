@@ -1231,11 +1231,11 @@ class TypeSystem:
             )
             # TODO(fk) remove this one day.
             #  Hardcoded support generic dict, list and set.
-            return self.__fixup_known_generics(result)
+            return self._fixup_known_generics(result)
 
         if isinstance(hint, type):
             # int or str or MyClass
-            return self.__fixup_known_generics(Instance(self.to_type_info(hint)))
+            return self._fixup_known_generics(Instance(self.to_type_info(hint)))
         # TODO(fk) log unknown hints to so we can better understand what
         #  we should add next
         _LOGGER.debug("Unknown type hint: %s", hint)
@@ -1256,10 +1256,10 @@ class TypeSystem:
         result = Instance(
             typ,
         )
-        return self.__fixup_known_generics(result)
+        return self._fixup_known_generics(result)
 
     @staticmethod
-    def __fixup_known_generics(result: Instance) -> Instance:
+    def _fixup_known_generics(result: Instance) -> Instance:
         if result.type.generic_parameters is not None:
             args = tuple(result.args)
             if len(result.args) < result.type.generic_parameters:

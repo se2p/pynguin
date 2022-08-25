@@ -541,3 +541,27 @@ def test_make_instance(tp, expected):
     tps = TypeSystem()
     type_info = tps.to_type_info(tp)
     assert tps.make_instance(type_info) == expected
+
+
+@pytest.mark.parametrize(
+    "tp, expected",
+    [
+        (Instance(TypeInfo(list)), Instance(TypeInfo(list), (AnyType(),))),
+        (
+            Instance(TypeInfo(list), (AnyType(), AnyType())),
+            Instance(TypeInfo(list), (AnyType(),)),
+        ),
+        (Instance(TypeInfo(set)), Instance(TypeInfo(set), (AnyType(),))),
+        (
+            Instance(TypeInfo(set), (AnyType(), AnyType())),
+            Instance(TypeInfo(set), (AnyType(),)),
+        ),
+        (Instance(TypeInfo(dict)), Instance(TypeInfo(dict), (AnyType(), AnyType()))),
+        (
+            Instance(TypeInfo(dict), (AnyType(), AnyType(), AnyType())),
+            Instance(TypeInfo(dict), (AnyType(), AnyType())),
+        ),
+    ],
+)
+def test_fixup_generics(tp, expected):
+    assert TypeSystem._fixup_known_generics(tp) == expected
