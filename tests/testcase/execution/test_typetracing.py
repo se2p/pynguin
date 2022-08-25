@@ -64,9 +64,9 @@ def test_type_tracing_observer_separate_proxies_for_args():
     observer = TypeTracingObserver(test_cluster)
     executor.add_observer(observer)
     result = executor.execute(test_case)
-    assert "__rmul__" in result.proxy_knowledge[(1, "a")].symbol_table
-    assert "__radd__" in result.proxy_knowledge[(1, "b")].symbol_table
-    assert "__truediv__" in result.proxy_knowledge[(1, "c")].symbol_table
+    assert {"__rmul__"} == set(result.proxy_knowledge[(1, "a")].symbol_table.keys())
+    assert {"__radd__"} == set(result.proxy_knowledge[(1, "b")].symbol_table.keys())
+    assert {"__truediv__"} == set(result.proxy_knowledge[(1, "c")].symbol_table.keys())
 
 
 def test_type_tracing_test_case_executor_integration():
