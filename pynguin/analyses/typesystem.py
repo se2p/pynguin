@@ -1034,8 +1034,8 @@ class TypeSystem:
 
     def push_symbols_down(self) -> None:
         """We don't want to see symbols multiple times, e.g., in subclasses, so only the
-        first class in the hierarchy which adds the symbol should have it listed as an
-        attribute, i.e., when searching for a class with that attribute we only want to
+        first class in the hierarchy which adds the symbol should have it listed as a
+        symbol, i.e., when searching for a class with that symbol we only want to
         retrieve the top-most class(es) in the hierarchy which define it, and not every
         (sub)class that inherited it.
         """
