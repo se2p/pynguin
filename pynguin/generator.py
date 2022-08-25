@@ -47,7 +47,6 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import TypeInferenceStrategy
 from pynguin.generation import export
 from pynguin.instrumentation.machinery import (
     InstrumentationLoader,
@@ -117,15 +116,10 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
-    # TODO this is ugly and needs to be reworked...
-    match config.configuration.type_inference.type_inference_strategy:
-        case config.TypeInferenceStrategy.TYPE_HINTS:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-        case config.TypeInferenceStrategy.NONE:
-            strategy = TypeInferenceStrategy.NONE
-        case _:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-    test_cluster = generate_test_cluster(config.configuration.module_name, strategy)
+    test_cluster = generate_test_cluster(
+        config.configuration.module_name,
+        config.configuration.type_inference.type_inference_strategy,
+    )
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None

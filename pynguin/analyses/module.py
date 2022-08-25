@@ -48,13 +48,13 @@ from pynguin.analyses.typesystem import (
     NoneType,
     ProperType,
     TupleType,
-    TypeInferenceStrategy,
     TypeInfo,
     TypeSystem,
     TypeVisitor,
     UnionType,
     is_primitive_type,
 )
+from pynguin.configuration import TypeInferenceStrategy
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException

@@ -7,7 +7,6 @@
 """Provides analyses for a module's type information."""
 from __future__ import annotations
 
-import enum
 import functools
 import inspect
 import logging
@@ -31,13 +30,6 @@ from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class TypeInferenceStrategy(enum.Enum):
-    """The type-inference strategy."""
-
-    NONE = 0
-    TYPE_HINTS = 1
 
 
 # The following classes are inspired by
@@ -1085,7 +1077,7 @@ class TypeSystem:
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_strategy=TypeInferenceStrategy.TYPE_HINTS,
+        type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
@@ -1101,9 +1093,9 @@ class TypeSystem:
                 selected
         """
         match type_inference_strategy:
-            case TypeInferenceStrategy.TYPE_HINTS:
+            case config.TypeInferenceStrategy.TYPE_HINTS:
                 return self.infer_signature(method, self.type_hints_provider)
-            case TypeInferenceStrategy.NONE:
+            case config.TypeInferenceStrategy.NONE:
                 return self.infer_signature(method, self.no_type_hints_provider)
             case _:
                 raise ConfigurationException(

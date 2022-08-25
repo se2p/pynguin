@@ -17,13 +17,13 @@ from pynguin.analyses.typesystem import (
     Instance,
     NoneType,
     TupleType,
-    TypeInferenceStrategy,
     TypeInfo,
     TypeSystem,
     UnionType,
     is_collection_type,
     is_primitive_type,
 )
+from pynguin.configuration import TypeInferenceStrategy
 from tests.fixtures.types.subtyping import Sub, Super
 
 
