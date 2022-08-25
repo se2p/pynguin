@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 
 import pytest
 from ordered_set import OrderedSet
@@ -160,6 +160,9 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     assert result.return_type == expected_return
 
 
+A = TypeVar("A")
+
+
 @pytest.mark.parametrize(
     "hint,expected",
     [
@@ -240,6 +243,7 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
             type(None),
             NoneType(),
         ),
+        (A, AnyType()),
     ],
 )
 def test_convert_type_hints(hint, expected):
