@@ -520,7 +520,11 @@ class InferredSignature:
             if (guessed := self.current_guessed_parameters.get(param_name)) is not None:
                 choices.append(guessed)
                 weights.append(test_conf.type_tracing_weight)
-            res[param_name] = randomness.choices(choices, weights)[0]
+            # Make sure var-positional or var-keyword are wrapped in list/dict
+            res[param_name] = self.type_system.wrap_var_param_type(
+                randomness.choices(choices, weights)[0],
+                self.signature.parameters[param_name].kind,
+            )
         signature_memo[self] = res
         return res
 
@@ -566,13 +570,7 @@ class InferredSignature:
                 if (
                     get_item_knowledge := knowledge.symbol_table.get("__getitem__")
                 ) is not None:
-                    value_type = self.__guess_parameter_type_from(get_item_knowledge)
-                    if value_type is not None:
-                        return Instance(
-                            self.type_system.to_type_info(dict),
-                            (self.type_system.convert_type_hint(str), value_type),
-                        )
-                return None
+                    return self.__guess_parameter_type_from(get_item_knowledge)
             case inspect.Parameter.VAR_POSITIONAL:
                 # Case for *args parameter
                 # We know that it is always list[?]
@@ -580,14 +578,10 @@ class InferredSignature:
                 if (
                     iter_knowledge := knowledge.symbol_table.get("__iter__")
                 ) is not None:
-                    value_type = self.__guess_parameter_type_from(iter_knowledge)
-                    if value_type is not None:
-                        return Instance(
-                            self.type_system.to_type_info(list), (value_type,)
-                        )
-                return None
+                    return self.__guess_parameter_type_from(iter_knowledge)
             case _:
                 return self.__guess_parameter_type_from(knowledge)
+        return None
 
     # If one of these methods was called on a proxy, we can use the argument type
     # to make guesses.
@@ -1160,12 +1154,6 @@ class TypeSystem:
                 #  for example cls for @classmethod.
                 continue
             hint: ProperType = self.convert_type_hint(hints.get(param_name))
-            # var-positional and var-keyword need a dict or list/tuple,
-            # which is technically not encoded in the type, but the kind of parameter,
-            # so we also wrap this here.
-            hint = self.wrap_var_param_type(
-                hint, method_signature.parameters[param_name].kind
-            )
             parameters[param_name] = hint
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))

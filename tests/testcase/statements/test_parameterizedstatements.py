@@ -219,7 +219,7 @@ def test_constructor_mutate_parameters_args(
 def test_constructor_mutate_parameter_get_objects(constructor_mock, default_test_case):
     float0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     const = stmt.ConstructorStatement(
-        default_test_case, constructor_mock, {"a": float0.ret_val}
+        default_test_case, constructor_mock, {"y": float0.ret_val}
     )
     default_test_case.add_statement(float0)
     default_test_case.add_statement(const)
@@ -231,11 +231,11 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock, default_test
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter(
-                "a",
+                "y",
                 InferredSignature(
-                    signature=None,
+                    signature=constructor_mock.inferred_signature.signature,
                     original_parameters={
-                        "a": default_test_case.test_cluster.type_system.convert_type_hint(
+                        "y": default_test_case.test_cluster.type_system.convert_type_hint(
                             float
                         )
                     },
@@ -251,7 +251,7 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock, default_test
 def test_constructor_mutate_parameter_not_included(constructor_mock, default_test_case):
     float0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     const = stmt.ConstructorStatement(
-        default_test_case, constructor_mock, {"a": float0.ret_val}
+        default_test_case, constructor_mock, {"y": float0.ret_val}
     )
     default_test_case.add_statement(float0)
     default_test_case.add_statement(const)
@@ -262,11 +262,11 @@ def test_constructor_mutate_parameter_not_included(constructor_mock, default_tes
         ) as optional_mock:
             optional_mock.return_value = False
             assert const._mutate_parameter(
-                "a",
+                "y",
                 InferredSignature(
-                    signature=None,
+                    signature=constructor_mock.inferred_signature.signature,
                     original_parameters={
-                        "a": default_test_case.test_cluster.type_system.convert_type_hint(
+                        "y": default_test_case.test_cluster.type_system.convert_type_hint(
                             float
                         )
                     },
@@ -279,7 +279,7 @@ def test_constructor_mutate_parameter_not_included(constructor_mock, default_tes
             get_objs.assert_called_with(float0.ret_val.type, 1)
             assert isinstance(
                 default_test_case.get_statement(
-                    const.args["a"].get_statement_position()
+                    const.args["y"].get_statement_position()
                 ),
                 stmt.NoneStatement,
             )
@@ -288,7 +288,7 @@ def test_constructor_mutate_parameter_not_included(constructor_mock, default_tes
 def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_case):
     float0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     const = stmt.ConstructorStatement(
-        default_test_case, constructor_mock, {"a": float0.ret_val}
+        default_test_case, constructor_mock, {"y": float0.ret_val}
     )
     default_test_case.add_statement(float0)
     default_test_case.add_statement(const)
@@ -301,11 +301,11 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
             ) as optional_mock:
                 optional_mock.return_value = False
                 assert const._mutate_parameter(
-                    "a",
+                    "y",
                     InferredSignature(
-                        signature=None,
+                        signature=constructor_mock.inferred_signature.signature,
                         original_parameters={
-                            "a": default_test_case.test_cluster.type_system.convert_type_hint(
+                            "y": default_test_case.test_cluster.type_system.convert_type_hint(
                                 float
                             )
                         },
@@ -316,7 +316,7 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
                     ),
                 )
                 param_count_of_type.assert_called_with(float0.ret_val.type)
-                assert const.args["a"] != float0.ret_val
+                assert const.args["y"] != float0.ret_val
 
 
 def test_constructor_mutate_parameter_choose_none(constructor_mock, default_test_case):
