@@ -8,6 +8,7 @@ import inspect
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import pytest
+from ordered_set import OrderedSet
 
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import (
@@ -459,3 +460,64 @@ def test_find_by_symbols(symbol, types):
     assert test_cluster.type_system.find_by_symbol(symbol) == {
         tps.find_type_info("" + t) for t in types
     }
+
+
+@pytest.mark.parametrize(
+    "outside_of,expected_types",
+    [
+        (
+            ("tests.fixtures.types.outside.Foo",),
+            (
+                "builtins.int",
+                "builtins.str",
+                "builtins.bool",
+                "builtins.float",
+                "builtins.bytes",
+                "builtins.complex",
+                "builtins.list",
+                "builtins.set",
+                "builtins.dict",
+                "builtins.tuple",
+                "builtins.object",
+            ),
+        ),
+        (
+            ("tests.fixtures.types.outside.Bar",),
+            (
+                "tests.fixtures.types.outside.Foo",
+                "builtins.int",
+                "builtins.str",
+                "builtins.bool",
+                "builtins.float",
+                "builtins.bytes",
+                "builtins.complex",
+                "builtins.list",
+                "builtins.set",
+                "builtins.dict",
+                "builtins.tuple",
+                "builtins.object",
+            ),
+        ),
+        (
+            ("tests.fixtures.types.outside.Bar", "builtins.complex"),
+            (
+                "tests.fixtures.types.outside.Foo",
+                "builtins.str",
+                "builtins.bytes",
+                "builtins.list",
+                "builtins.set",
+                "builtins.dict",
+                "builtins.tuple",
+                "builtins.object",
+            ),
+        ),
+        (("builtins.object",), ()),
+    ],
+)
+def test_get_type_outside_of(outside_of, expected_types):
+    test_cluster = generate_test_cluster("tests.fixtures.types.outside")
+    tps = test_cluster.type_system
+    outside_set = OrderedSet(tps.find_type_info(t) for t in outside_of)
+    assert set(tps.get_type_outside_of(outside_set)) == set(
+        tps.find_type_info(t) for t in expected_types
+    )
