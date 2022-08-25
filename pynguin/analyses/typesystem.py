@@ -145,6 +145,7 @@ class UnionType(ProperType):
 
     def __init__(self, items: tuple[ProperType, ...]):
         self.items = items
+        # TODO(fk) think about flattening Unions, also order should not matter.
         assert len(self.items) > 0
         # Cached hash value
         self._hash: int | None = None
@@ -239,10 +240,12 @@ class TypeStringVisitor(TypeVisitor[str]):
         return f"tuple[{self._sequence_str(left.args)}]"
 
     def visit_union_type(self, left: UnionType) -> str:
-        return f"Union[{self._sequence_str(left.items)}]"
+        if len(left.items) == 1:
+            return left.items[0].accept(self)
+        return f"{self._sequence_str(left.items, sep=' | ')}"
 
-    def _sequence_str(self, typs: Sequence[ProperType]) -> str:
-        return ", ".join(t.accept(self) for t in typs)
+    def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:
+        return sep.join(t.accept(self) for t in typs)
 
 
 class TypeReprVisitor(TypeVisitor[str]):

@@ -310,7 +310,7 @@ def test_is_subtype(
     "hint, hint_str",
     [
         (type(None), "None"),
-        (type(None) | int, "Union[None, int]"),
+        (type(None) | int, "None | int"),
         (str, "str"),
         (Any, "Any"),
         (tuple[int, int], "tuple[int, int]"),
