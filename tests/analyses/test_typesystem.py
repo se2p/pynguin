@@ -528,3 +528,16 @@ def test_get_type_outside_of(outside_of, expected_types):
     assert set(tps.get_type_outside_of(outside_set)) == set(
         tps.find_type_info(t) for t in expected_types
     )
+
+
+@pytest.mark.parametrize(
+    "tp, expected",
+    [
+        (tuple, TupleType((AnyType(),), unknown_size=True)),
+        (int, Instance(TypeInfo(int))),
+    ],
+)
+def test_make_instance(tp, expected):
+    tps = TypeSystem()
+    type_info = tps.to_type_info(tp)
+    assert tps.make_instance(type_info) == expected
