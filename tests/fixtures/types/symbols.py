@@ -37,3 +37,17 @@ class Baz:
 
     def a(self):
         pass
+
+
+class E:
+    e = 42
+
+
+class F:
+    f = 42
+
+
+class G(E, F):
+    e = 30
+    f = 40
+    g = 50

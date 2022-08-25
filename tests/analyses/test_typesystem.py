@@ -452,6 +452,9 @@ def test_is_collection_type(typ, result):
             ),
         ),
         ("isspace", ("builtins.str", "builtins.bytes")),
+        ("e", ("tests.fixtures.types.symbols.E",)),
+        ("f", ("tests.fixtures.types.symbols.F",)),
+        ("g", ("tests.fixtures.types.symbols.G",)),
     ],
 )
 def test_find_by_symbols(symbol, types):
