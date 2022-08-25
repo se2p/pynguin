@@ -422,3 +422,40 @@ def test_is_primitive_type(typ, result):
 )
 def test_is_collection_type(typ, result):
     assert typ.accept(is_collection_type) is result
+
+
+@pytest.mark.parametrize(
+    "symbol,types",
+    [
+        ("a", ("tests.fixtures.types.symbols.Foo", "tests.fixtures.types.symbols.Baz")),
+        ("b", ("tests.fixtures.types.symbols.Bar",)),
+        ("foo", ("tests.fixtures.types.symbols.Foo",)),
+        (
+            "bar",
+            (
+                "tests.fixtures.types.symbols.Foo",
+                "tests.fixtures.types.symbols.Baz",
+            ),
+        ),
+        ("not_defined", ()),
+        (
+            "__lt__",
+            (
+                "builtins.str",
+                "builtins.bytes",
+                "builtins.complex",
+                "builtins.list",
+                "builtins.set",
+                "builtins.dict",
+                "builtins.tuple",
+            ),
+        ),
+        ("isspace", ("builtins.str", "builtins.bytes")),
+    ],
+)
+def test_find_by_symbols(symbol, types):
+    test_cluster = generate_test_cluster("tests.fixtures.types.symbols")
+    tps = test_cluster.type_system
+    assert test_cluster.type_system.find_by_symbol(symbol) == {
+        tps.find_type_info("" + t) for t in types
+    }
