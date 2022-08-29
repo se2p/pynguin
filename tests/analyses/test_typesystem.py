@@ -815,3 +815,43 @@ def test__guess_parameter_type_3(inferred_signature):
     with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
         inferred_signature._guess_parameter_type(knowledge, 42)
         guess.assert_called_with(knowledge)
+
+
+def test_from_symbol_table(inferred_signature):
+    knowledge = ProxyKnowledge("ROOT")
+    assert knowledge.symbol_table["foo"]
+    assert inferred_signature._from_symbol_table(knowledge) is None
+
+
+def test_from_symbol_table_2(inferred_signature):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    assert knowledge.symbol_table["foo"]
+    inferred_signature.type_system._symbol_map["foo"].add(
+        inferred_signature.type_system.to_type_info(int)
+    )
+    assert inferred_signature._from_symbol_table(
+        knowledge
+    ) == inferred_signature.type_system.convert_type_hint(int)
+
+
+def test_from_symbol_table_3(inferred_signature):
+    config.configuration.test_creation.negate_type = 0.0
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        knowledge = ProxyKnowledge("ROOT")
+        knowledge.symbol_table["__eq__"].arg_types[0].add(int)
+        assert inferred_signature._from_symbol_table(
+            knowledge
+        ) == inferred_signature.type_system.convert_type_hint(int)
+
+
+def test_from_symbol_table_4(inferred_signature):
+    config.configuration.test_creation.negate_type = 1.0
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = 0.0
+        knowledge = ProxyKnowledge("ROOT")
+        knowledge.symbol_table["__eq__"].arg_types[0].add(int)
+        assert inferred_signature._from_symbol_table(
+            knowledge
+        ) != inferred_signature.type_system.convert_type_hint(int)
