@@ -548,6 +548,12 @@ def test_primitive_statement_get_position(default_test_case):
     assert statement.get_position() == 0
 
 
+def test_primitive_statement_get_position_not_found(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 5)
+    with pytest.raises(Exception):
+        statement.get_position()
+
+
 def test_enum_statement_accessible_object(default_test_case):
     enum_ = MagicMock(names=["FOO"])
     statement = stmt.EnumPrimitiveStatement(default_test_case, enum_)
