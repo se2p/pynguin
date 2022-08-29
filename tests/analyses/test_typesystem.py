@@ -698,7 +698,7 @@ def test_guess_generic_types_list_set_from_arguments(
     ) == inferred_signature.type_system.convert_type_hint(result)
 
 
-@pytest.mark.parametrize("inp, result", [(int, int), (tuple, tuple)])
+@pytest.mark.parametrize("inp, result", [(int, int), (tuple, tuple), (Any, Any)])
 def test_guess_generic_types_falltrough(inferred_signature, inp, result):
     assert inferred_signature._guess_generic_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(inp), None, None
