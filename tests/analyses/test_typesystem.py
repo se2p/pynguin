@@ -785,3 +785,33 @@ def test_update_guess_multi_drop(inferred_signature):
     ] == inferred_signature.type_system.convert_type_hint(
         float | str | bytes | bool | complex
     )
+
+
+@pytest.mark.parametrize(
+    "symbol,kind",
+    [
+        ("__getitem__", inspect.Parameter.VAR_KEYWORD),
+        ("__iter__", inspect.Parameter.VAR_POSITIONAL),
+    ],
+)
+def test__guess_parameter_type(inferred_signature, symbol, kind):
+    knowledge = ProxyKnowledge("ROOT")
+    assert knowledge.symbol_table[symbol]
+    with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
+        inferred_signature._guess_parameter_type(knowledge, kind)
+        guess.assert_called_with(knowledge.symbol_table[symbol])
+
+
+@pytest.mark.parametrize(
+    "kind", [inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL]
+)
+def test__guess_parameter_type_2(inferred_signature, kind):
+    knowledge = ProxyKnowledge("ROOT")
+    assert inferred_signature._guess_parameter_type(knowledge, kind) is None
+
+
+def test__guess_parameter_type_3(inferred_signature):
+    knowledge = ProxyKnowledge("ROOT")
+    with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
+        inferred_signature._guess_parameter_type(knowledge, 42)
+        guess.assert_called_with(knowledge)
