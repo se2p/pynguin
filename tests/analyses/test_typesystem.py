@@ -569,3 +569,24 @@ def test_fixup_generics(tp, expected):
 
 def test_union_single_element():
     assert str(UnionType((NoneType(),))) == "None"
+
+
+def test_inferred_signature_format(inferred_signature):
+    assert (
+        inferred_signature.format_guessed_signature() == "(x: 'int', y: 'int') -> 'int'"
+    )
+
+
+def test_inferred_signature_format_2(inferred_signature):
+    inferred_signature.original_parameters.pop("x")
+    assert inferred_signature.format_guessed_signature() == "(x, y: 'int') -> 'int'"
+
+
+def test_inferred_signature_format_3(inferred_signature):
+    inferred_signature.current_guessed_parameters["x"] = UnionType(
+        (inferred_signature.type_system.convert_type_hint(float),)
+    )
+    assert (
+        inferred_signature.format_guessed_signature()
+        == "(x: 'float', y: 'int') -> 'int'"
+    )
