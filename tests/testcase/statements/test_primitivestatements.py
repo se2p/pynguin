@@ -382,36 +382,75 @@ def test_int_primitive_statement_delta(default_test_case):
     assert statement.value == 6
 
 
-def test_float_primitive_statement_delta_max(default_test_case):
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.5, None, 6.5),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, True, 6.5 + 1j),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, False, 1.5 + 6j),
+    ],
+)
+def test_float_complex_primitive_statement_delta_max(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
     config.configuration.test_creation.max_delta = 10
-    statement = stmt.FloatPrimitiveStatement(default_test_case, 1.5)
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 0.0
-            statement.delta()
-            assert statement.value == 6.5
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 0.0
+                statement.delta()
+                assert statement.value == expected
 
 
-def test_float_primitive_statement_delta_gauss(default_test_case):
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.5, None, 2.0),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, True, 2.0 + 1j),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, False, 1.5 + 1.5j),
+    ],
+)
+def test_float_primitive_statement_delta_gauss(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
     config.configuration.test_creation.max_delta = 10
-    statement = stmt.FloatPrimitiveStatement(default_test_case, 1.0)
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 1.0 / 3.0
-            statement.delta()
-            assert statement.value == 1.5
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 1.0 / 3.0
+                statement.delta()
+                assert statement.value == expected
 
 
-def test_float_primitive_statement_delta_round(default_test_case):
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.2345, None, 1.23),
+        (stmt.ComplexPrimitiveStatement, 1.2345 + 1.2345j, True, 1.23 + 1.2345j),
+        (stmt.ComplexPrimitiveStatement, 1.2345 + 1.2345j, False, 1.2345 + 1.23j),
+    ],
+)
+def test_float_primitive_statement_delta_round(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
     statement = stmt.FloatPrimitiveStatement(default_test_case, 1.2345)
     with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
         int_mock.return_value = 2
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 2.0 / 3.0
-            statement.delta()
-            assert statement.value == 1.23
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 2.0 / 3.0
+                statement.delta()
+                assert statement.value == 1.23
 
 
 def test_boolean_primitive_statement_delta(default_test_case):
