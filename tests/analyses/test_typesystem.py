@@ -297,6 +297,13 @@ def subtyping_cluster():
         (int | float, float, True, True),
         (int | str, float, False, True),
         (float | bool, int, False, True),
+        (list[int], list[bool], False, False),
+        (list[int], list[int], True, True),
+        (set[int], set[bool], False, False),
+        (set[bool], set[bool], True, True),
+        (dict[str, int], dict[str, bool], False, False),
+        (dict[int, int], dict[float, int], False, False),
+        (dict[str, int], dict[str, int], True, True),
     ],
 )
 def test_is_subtype(

@@ -308,9 +308,22 @@ class _SubtypeVisitor(TypeVisitor[bool]):
 
     def visit_instance(self, left: Instance) -> bool:
         if isinstance(self.right, Instance):
-            # We only check for subclasses relation currently.
-            # TODO(fk) handle generics :(
-            return self.graph.is_subclass(left.type, self.right.type)
+            if not self.graph.is_subclass(left.type, self.right.type):
+                return False
+            if (
+                left.type.generic_parameters
+                == self.right.type.generic_parameters
+                is not None
+            ):
+                # TODO(fk) handle generics properly :(
+                # We only check hard coded generics for now and treat them as invariant,
+                # i.e., A <: B and B <: A
+                return all(
+                    self.sub_type_check(left_elem, right_elem)
+                    and self.sub_type_check(right_elem, left_elem)
+                    for left_elem, right_elem in zip(left.args, self.right.args)
+                )
+            return True
         return False
 
     def visit_tuple_type(self, left: TupleType) -> bool:
