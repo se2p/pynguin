@@ -733,3 +733,55 @@ def test_choose_type_or_negate_empty_2(inferred_signature):
         assert inferred_signature._choose_type_or_negate(
             OrderedSet((inferred_signature.type_system.to_type_info(object),))
         ) == inferred_signature.type_system.convert_type_hint(object)
+
+
+def test_update_guess(inferred_signature):
+    inferred_signature._update_guess("x", None)
+    assert "x" not in inferred_signature.current_guessed_parameters
+
+
+def test_update_guess_single(inferred_signature):
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(int)
+    )
+    assert inferred_signature.current_guessed_parameters["x"] == UnionType(
+        (inferred_signature.type_system.convert_type_hint(int),)
+    )
+
+
+def test_update_guess_multi(inferred_signature):
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(int)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(int)
+    )
+    assert inferred_signature.current_guessed_parameters["x"] == UnionType(
+        (inferred_signature.type_system.convert_type_hint(int),)
+    )
+
+
+def test_update_guess_multi_drop(inferred_signature):
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(int)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(float)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(str)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(bytes)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(bool)
+    )
+    inferred_signature._update_guess(
+        "x", inferred_signature.type_system.convert_type_hint(complex)
+    )
+    assert inferred_signature.current_guessed_parameters[
+        "x"
+    ] == inferred_signature.type_system.convert_type_hint(
+        float | str | bytes | bool | complex
+    )
