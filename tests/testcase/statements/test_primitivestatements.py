@@ -442,7 +442,7 @@ def test_float_complex_primitive_statement_delta_max(
         (stmt.ComplexPrimitiveStatement, 1.5 + 1j, False, 1.5 + 1.5j),
     ],
 )
-def test_float_primitive_statement_delta_gauss(
+def test_float_complex_primitive_statement_delta_gauss(
     default_test_case, stmt_type, value, real_or_imag, expected
 ):
     config.configuration.test_creation.max_delta = 10
@@ -466,10 +466,10 @@ def test_float_primitive_statement_delta_gauss(
         (stmt.ComplexPrimitiveStatement, 1.2345 + 1.2345j, False, 1.2345 + 1.23j),
     ],
 )
-def test_float_primitive_statement_delta_round(
+def test_float_complex_primitive_statement_delta_round(
     default_test_case, stmt_type, value, real_or_imag, expected
 ):
-    statement = stmt.FloatPrimitiveStatement(default_test_case, 1.2345)
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
         int_mock.return_value = 2
         with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
@@ -478,7 +478,7 @@ def test_float_primitive_statement_delta_round(
             with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
                 float_mock.return_value = 2.0 / 3.0
                 statement.delta()
-                assert statement.value == 1.23
+                assert statement.value == expected
 
 
 def test_boolean_primitive_statement_delta(default_test_case):
