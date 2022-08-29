@@ -810,6 +810,7 @@ class InferredSignature:
         parameters = []
         for name, param in self.signature.parameters.items():
             if name not in self.original_parameters:
+                # e.g., 'self' is not in original parameters.
                 parameters.append(param.replace(annotation=inspect.Parameter.empty))
             elif (guessed := self.current_guessed_parameters.get(name)) is not None:
                 parameters.append(param.replace(annotation=str(guessed)))
