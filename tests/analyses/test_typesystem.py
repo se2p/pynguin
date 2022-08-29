@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 from unittest import mock
 
 import pytest
-import pynguin.configuration as config
 from ordered_set import OrderedSet
 
+import pynguin.configuration as config
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import (
     AnyType,
@@ -712,31 +712,24 @@ def test_choose_type_or_negate_empty(inferred_signature):
 
 def test_choose_type_or_negate(inferred_signature):
     config.configuration.test_creation.negate_type = 0.0
-    assert (
-        inferred_signature._choose_type_or_negate(
-            OrderedSet((inferred_signature.type_system.to_type_info(int),))
-        )
-        == inferred_signature.type_system.convert_type_hint(int)
-    )
+    assert inferred_signature._choose_type_or_negate(
+        OrderedSet((inferred_signature.type_system.to_type_info(int),))
+    ) == inferred_signature.type_system.convert_type_hint(int)
 
 
 def test_choose_type_or_negate_negate(inferred_signature):
     config.configuration.test_creation.negate_type = 1.0
-    assert (
-        inferred_signature._choose_type_or_negate(
-            OrderedSet((inferred_signature.type_system.to_type_info(int),))
-        )
-        != inferred_signature.type_system.convert_type_hint(int)
-    )
+    assert inferred_signature._choose_type_or_negate(
+        OrderedSet((inferred_signature.type_system.to_type_info(int),))
+    ) != inferred_signature.type_system.convert_type_hint(int)
 
 
 def test_choose_type_or_negate_empty_2(inferred_signature):
     config.configuration.test_creation.negate_type = 1.0
-    with mock.patch.object(inferred_signature.type_system, "get_type_outside_of") as outside_mock:
+    with mock.patch.object(
+        inferred_signature.type_system, "get_type_outside_of"
+    ) as outside_mock:
         outside_mock.return_value = OrderedSet()
-        assert (
-            inferred_signature._choose_type_or_negate(
-                OrderedSet((inferred_signature.type_system.to_type_info(object),))
-            )
-            == inferred_signature.type_system.convert_type_hint(object)
-        )
+        assert inferred_signature._choose_type_or_negate(
+            OrderedSet((inferred_signature.type_system.to_type_info(object),))
+        ) == inferred_signature.type_system.convert_type_hint(object)
