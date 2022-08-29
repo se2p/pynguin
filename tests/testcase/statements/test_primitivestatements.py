@@ -13,6 +13,11 @@ import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DelegatingConstantProvider,
+    EmptyConstantProvider,
+)
 
 
 @pytest.mark.parametrize(
@@ -28,6 +33,29 @@ import pynguin.testcase.variablereference as vr
 )
 def test_primitive_statement_value(statement_type, default_test_case, value):
     statement = statement_type(default_test_case, value)
+    assert statement.value == value
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        (stmt.IntPrimitiveStatement, 42),
+        (stmt.FloatPrimitiveStatement, 42.23),
+        (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.BytesPrimitiveStatement, b"test"),
+        (stmt.ComplexPrimitiveStatement, 4 + 3j),
+    ],
+)
+def test_primitive_statement_value_from_seeding(
+    statement_type, default_test_case, value
+):
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    pool = ConstantPool()
+    pool.add_constant(value)
+    provider = DelegatingConstantProvider(
+        pool=pool, delegate=EmptyConstantProvider(), probability=1.0
+    )
+    statement = statement_type(default_test_case, constant_provider=provider)
     assert statement.value == value
 
 
