@@ -441,6 +441,8 @@ class ReturnTypeObserver(ExecutionObserver):
         # We store the raw types, so we still need to convert them to proper types.
         # This must be done outside the executing thread.
         for idx, raw_type in result.raw_return_types.items():
+            if raw_type is type(NotImplemented):
+                continue
             proper_type = self._test_cluster.type_system.convert_type_hint(raw_type)
             proper_type = self.__infer_known_generics(result, idx, proper_type)
             result.proper_return_type_trace[idx] = proper_type
