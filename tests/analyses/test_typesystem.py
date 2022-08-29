@@ -565,3 +565,7 @@ def test_make_instance(tp, expected):
 )
 def test_fixup_generics(tp, expected):
     assert TypeSystem._fixup_known_generics(tp) == expected
+
+
+def test_union_single_element():
+    assert str(UnionType((NoneType(),))) == "None"
