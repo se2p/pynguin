@@ -270,6 +270,8 @@ def subtyping_cluster():
         (tuple, int, False, False),
         (int, type(None), False, False),
         (type(None), type(None), True, True),
+        (int, type(None), False, False),
+        (type(None), int, False, False),
         (tuple[str], tuple[str, int], False, False),
         (tuple[int, str], tuple[int, str], True, True),
         (tuple[int, int], tuple[int, str], False, False),
