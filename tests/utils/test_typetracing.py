@@ -662,3 +662,14 @@ def test_unwrap():
 def test_unwrap_2():
     foo = object()
     assert tt.unwrap(tt.ObjectProxy(tt.ObjectProxy(foo))) is foo
+
+
+def test_pretty():
+    knowledge = tt.ProxyKnowledge("ROOT")
+    knowledge.symbol_table["foo"].arg_types[0].add(int)
+    knowledge.type_checks.add(str)
+    assert (
+        knowledge.pretty()
+        == "'ROOT' (type-checks: OrderedSet([<class 'str'>])\n"
+           "^---'foo' (arg-types: dict_items([(0, OrderedSet([<class 'int'>]))])"
+    )
