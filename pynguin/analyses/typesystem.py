@@ -500,9 +500,9 @@ class InferredSignature:
         for param_name, orig_type in self.original_parameters.items():
             if param_name in self.knowledge:
                 # If we have information from proxies, update guess.
-                self.__update_guess(
+                self._update_guess(
                     param_name,
-                    self.__guess_parameter_type(
+                    self._guess_parameter_type(
                         self.knowledge[param_name],
                         self.signature.parameters[param_name].kind,
                     ),
@@ -531,7 +531,7 @@ class InferredSignature:
         signature_memo[self] = res
         return res
 
-    def __update_guess(self, name: str, guessed: ProperType | None):
+    def _update_guess(self, name: str, guessed: ProperType | None):
         if guessed is None:
             return
 
@@ -551,7 +551,7 @@ class InferredSignature:
                 )
 
     # pylint:disable=too-many-return-statements
-    def __guess_parameter_type(
+    def _guess_parameter_type(
         self, knowledge: tt.ProxyKnowledge, kind
     ) -> ProperType | None:
         """Guess a type for a parameter.
@@ -573,7 +573,7 @@ class InferredSignature:
                 if (
                     get_item_knowledge := knowledge.symbol_table.get("__getitem__")
                 ) is not None:
-                    return self.__guess_parameter_type_from(get_item_knowledge)
+                    return self._guess_parameter_type_from(get_item_knowledge)
             case inspect.Parameter.VAR_POSITIONAL:
                 # Case for *args parameter
                 # We know that it is always list[?]
@@ -581,9 +581,9 @@ class InferredSignature:
                 if (
                     iter_knowledge := knowledge.symbol_table.get("__iter__")
                 ) is not None:
-                    return self.__guess_parameter_type_from(iter_knowledge)
+                    return self._guess_parameter_type_from(iter_knowledge)
             case _:
-                return self.__guess_parameter_type_from(knowledge)
+                return self._guess_parameter_type_from(knowledge)
         return None
 
     # If one of these methods was called on a proxy, we can use the argument type
@@ -618,9 +618,9 @@ class InferredSignature:
     )
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
 
-    def __from_type_check(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+    def _from_type_check(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
         # Type checks is not empty here.
-        return self.__choose_type_or_negate(
+        return self._choose_type_or_negate(
             OrderedSet(
                 [
                     self.type_system.to_type_info(
@@ -630,7 +630,7 @@ class InferredSignature:
             )
         )
 
-    def __from_symbol_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+    def _from_symbol_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
         random_symbol = randomness.choice(list(knowledge.symbol_table))
         if (
             random_symbol in InferredSignature._ARGUMENT_SYMBOLS
@@ -640,22 +640,22 @@ class InferredSignature:
             random_arg_type = randomness.choice(
                 knowledge.symbol_table[random_symbol].arg_types[0]
             )
-            return self.__choose_type_or_negate(
+            return self._choose_type_or_negate(
                 OrderedSet([self.type_system.to_type_info(random_arg_type)])
             )
-        return self.__choose_type_or_negate(
+        return self._choose_type_or_negate(
             self.type_system.find_by_symbol(random_symbol)
         )
 
     # pylint:disable=too-many-return-statements
-    def __guess_parameter_type_from(
+    def _guess_parameter_type_from(
         self, knowledge: tt.ProxyKnowledge, recursion_depth: int = 0
     ) -> ProperType | None:
         guess_from: list[Callable[[tt.ProxyKnowledge], ProperType | None]] = []
         if knowledge.type_checks:
-            guess_from.append(self.__from_type_check)
+            guess_from.append(self._from_type_check)
         if knowledge.symbol_table:
-            guess_from.append(self.__from_symbol_table)
+            guess_from.append(self._from_symbol_table)
 
         if not guess_from:
             return None
@@ -667,13 +667,16 @@ class InferredSignature:
             and guessed_type
             and guessed_type.accept(is_collection_type)
         ):
-            guessed_type = self.__guess_generic_parameters_for_builtins(
+            guessed_type = self._guess_generic_parameters_for_builtins(
                 guessed_type, knowledge, recursion_depth
             )
         return guessed_type
 
-    def __guess_generic_parameters_for_builtins(
-        self, guessed_type, knowledge, recursion_depth
+    def _guess_generic_parameters_for_builtins(
+        self,
+        guessed_type: ProperType,
+        knowledge: tt.ProxyKnowledge,
+        recursion_depth: int,
     ):
         # If it is a builtin collection, we may be able to make further guesses on
         # the generic types.
@@ -681,7 +684,7 @@ class InferredSignature:
             args = guessed_type.args
             match guessed_type.type.full_name:
                 case "builtins.list":
-                    guessed_element_type = self.__guess_generic_arguments(
+                    guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
                         InferredSignature._LIST_ELEMENT_SYMBOLS,
@@ -694,7 +697,7 @@ class InferredSignature:
                         else guessed_type.args[0],
                     )
                 case "builtins.set":
-                    guessed_element_type = self.__guess_generic_arguments(
+                    guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
                         InferredSignature._SET_ELEMENT_SYMBOLS,
@@ -707,14 +710,14 @@ class InferredSignature:
                         else guessed_type.args[0],
                     )
                 case "builtins.dict":
-                    guessed_key_type = self.__guess_generic_arguments(
+                    guessed_key_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
                         InferredSignature._DICT_KEY_SYMBOLS,
                         InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES,
                         argument_idx=0,
                     )
-                    guessed_value_type = self.__guess_generic_arguments(
+                    guessed_value_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
                         InferredSignature._DICT_VALUE_SYMBOLS,
@@ -733,7 +736,7 @@ class InferredSignature:
             pass
         return guessed_type
 
-    def __choose_type_or_negate(
+    def _choose_type_or_negate(
         self, positive_types: OrderedSet[TypeInfo]
     ) -> ProperType | None:
         if not positive_types:
@@ -751,7 +754,7 @@ class InferredSignature:
         return result
 
     # pylint:disable-next=too-many-arguments
-    def __guess_generic_arguments(
+    def _guess_generic_arguments(
         self,
         knowledge: tt.ProxyKnowledge,
         recursion_depth: int,
@@ -768,7 +771,7 @@ class InferredSignature:
         if elem_symbols := element_symbols.intersection(knowledge.symbol_table.keys()):
             guess_from.append(
                 functools.partial(
-                    self.__guess_parameter_type_from,
+                    self._guess_parameter_type_from,
                     knowledge.symbol_table[randomness.choice(elem_symbols)],
                     recursion_depth + 1,
                 )
@@ -776,7 +779,7 @@ class InferredSignature:
         if arg_symbols := argument_symbols.intersection(knowledge.symbol_table.keys()):
             guess_from.append(
                 functools.partial(
-                    self.__guess_from_argument_types,
+                    self._guess_from_argument_types,
                     arg_symbols,
                     knowledge,
                     argument_idx,
@@ -787,14 +790,14 @@ class InferredSignature:
             return randomness.choice(guess_from)()
         return None
 
-    def __guess_from_argument_types(
+    def _guess_from_argument_types(
         self, arg_symbols: Sequence[str], knowledge: tt.ProxyKnowledge, arg_idx: int = 0
     ) -> ProperType | None:
         arg_types = knowledge.symbol_table[randomness.choice(arg_symbols)].arg_types[
             arg_idx
         ]
         if arg_types:
-            return self.__choose_type_or_negate(
+            return self._choose_type_or_negate(
                 OrderedSet(
                     [self.type_system.to_type_info(randomness.choice(arg_types))]
                 )

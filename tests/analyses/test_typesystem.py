@@ -8,6 +8,7 @@ import inspect
 from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 
 import pytest
+import pynguin.configuration as config
 from ordered_set import OrderedSet
 
 from pynguin.analyses.module import generate_test_cluster
@@ -24,6 +25,7 @@ from pynguin.analyses.typesystem import (
     is_primitive_type,
 )
 from pynguin.configuration import TypeInferenceStrategy
+from pynguin.utils.typetracing import ProxyKnowledge
 from tests.fixtures.types.subtyping import Sub, Super
 
 
@@ -590,3 +592,114 @@ def test_inferred_signature_format_3(inferred_signature):
         inferred_signature.format_guessed_signature()
         == "(x: 'float', y: 'int') -> 'int'"
     )
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_SYMBOLS]
+    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_SYMBOLS],
+)
+def test_guess_generic_types_list_set_from_elements(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].type_checks.add(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_SYMBOLS],
+)
+def test_guess_generic_types_dict_key_from_elements(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].type_checks.add(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [
+        (sym, dict, dict[int, Any])
+        for sym in InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES
+    ],
+)
+def test_guess_generic_types_dict_key_from_arguments(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].arg_types[0].append(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_SYMBOLS],
+)
+def test_guess_generic_types_dict_value_from_elements(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].type_checks.add(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [
+        (sym, dict, dict[Any, int])
+        for sym in InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES
+    ],
+)
+def test_guess_generic_types_dict_value_from_arguments(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].arg_types[1].append(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize(
+    "symbol, typ, result",
+    [
+        (sym, list, list[int])
+        for sym in InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES
+    ]
+    + [
+        (sym, set, set[int])
+        for sym in InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES
+    ],
+)
+def test_guess_generic_types_list_set_from_arguments(
+    inferred_signature, symbol, typ, result
+):
+    config.configuration.test_creation.negate_type = 0.0
+    knowledge = ProxyKnowledge("ROOT")
+    knowledge.symbol_table[symbol].arg_types[0].append(int)
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+    ) == inferred_signature.type_system.convert_type_hint(result)
+
+
+@pytest.mark.parametrize("inp, result", [(int, int), (tuple, tuple)])
+def test_guess_generic_types_falltrough(inferred_signature, inp, result):
+    assert inferred_signature._guess_generic_parameters_for_builtins(
+        inferred_signature.type_system.convert_type_hint(inp), None, None
+    ) == inferred_signature.type_system.convert_type_hint(result)
