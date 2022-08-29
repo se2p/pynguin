@@ -740,14 +740,14 @@ class InferredSignature:
             return None
 
         result = None
-        if randomness.next_float() < 0.95:
-            result = self.type_system.make_instance(randomness.choice(positive_types))
-        else:
+        if randomness.next_float() < config.configuration.test_creation.negate_type:
             negated_choices = self.type_system.get_type_outside_of(positive_types)
             if len(negated_choices) > 0:
                 result = self.type_system.make_instance(
                     randomness.choice(negated_choices)
                 )
+        else:
+            result = self.type_system.make_instance(randomness.choice(positive_types))
         return result
 
     # pylint:disable-next=too-many-arguments

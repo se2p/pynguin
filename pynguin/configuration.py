@@ -416,6 +416,11 @@ class TestCreationConfiguration:
     """Weight to use the type guessed from type tracing as parameter type during
     test generation."""
 
+    negate_type: float = 0.05
+    """When inferring a type from proxies, it may also be desirable to negate the chosen
+    type, e.g., such that an instance check or a getattr() evaluate to False.
+    Expects values in [0,1]"""
+
     skip_optional_parameter_probability: float = 0.7
     """Probability to skip an optional parameter, i.e., do not fill this parameter."""
 
