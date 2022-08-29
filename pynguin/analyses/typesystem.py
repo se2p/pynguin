@@ -311,8 +311,8 @@ class _SubtypeVisitor(TypeVisitor[bool]):
             if not self.graph.is_subclass(left.type, self.right.type):
                 return False
             if (
-                left.type.generic_parameters
-                == self.right.type.generic_parameters
+                left.type.num_hardcoded_generic_parameters
+                == self.right.type.num_hardcoded_generic_parameters
                 is not None
             ):
                 # TODO(fk) handle generics properly :(
@@ -429,7 +429,7 @@ class TypeInfo:
 
         # TODO(fk) properly implement generics!
         # For now we just store the number of generic parameters for set, dict and list.
-        self.generic_parameters: int | None = (
+        self.num_hardcoded_generic_parameters: int | None = (
             2 if raw_type is dict else 1 if raw_type in (set, list) else None
         )
 
@@ -1265,15 +1265,15 @@ class TypeSystem:
 
     @staticmethod
     def _fixup_known_generics(result: Instance) -> Instance:
-        if result.type.generic_parameters is not None:
+        if result.type.num_hardcoded_generic_parameters is not None:
             args = tuple(result.args)
-            if len(result.args) < result.type.generic_parameters:
+            if len(result.args) < result.type.num_hardcoded_generic_parameters:
                 # Fill with AnyType if to small
                 args = args + (AnyType(),) * (
-                    result.type.generic_parameters - len(args)
+                    result.type.num_hardcoded_generic_parameters - len(args)
                 )
-            elif len(result.args) > result.type.generic_parameters:
+            elif len(result.args) > result.type.num_hardcoded_generic_parameters:
                 # Remove excessive args.
-                args = args[: result.type.generic_parameters]
+                args = args[: result.type.num_hardcoded_generic_parameters]
             return Instance(result.type, args)
         return result
