@@ -9,8 +9,9 @@ to apply pynguin to itself."""
 import os
 import shutil
 import typing
-import libcst as cst
 from pathlib import Path
+
+import libcst as cst
 
 SOURCE_PACKAGE_PREFIX = "pynguin"
 TARGET_PACKAGE_PREFIX = "pynguin_self"
@@ -41,11 +42,13 @@ class ImportTransformer(cst.CSTTransformer):
             if isinstance(node, cst.Name) and node.value == SOURCE_PACKAGE_PREFIX:
                 to_replace.append(node)
         for replacement in to_replace:
-            updated_node = updated_node.deep_replace(replacement, cst.Name(TARGET_PACKAGE_PREFIX))
+            updated_node = updated_node.deep_replace(
+                replacement, cst.Name(TARGET_PACKAGE_PREFIX)
+            )
         return updated_node
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Required for 3.10 parser support
     os.environ["LIBCST_PARSER_TYPE"] = "native"
 
@@ -62,5 +65,3 @@ if __name__ == '__main__':
         parsed = cst.parse_module(content)
         changed_imports = parsed.visit(transformer)
         python_file.write_text(changed_imports.code, "UTF-8")
-
-
