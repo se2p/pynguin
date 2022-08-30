@@ -279,6 +279,8 @@ def subtyping_cluster():
         (tuple[int, int], tuple[Any, Any], True, True),
         (tuple[Any, Any], tuple[Any, Any], True, True),
         (tuple[int, str], tuple[int, str] | str, True, True),
+        (tuple[bool, bool], tuple[int, int], True, True),
+        (tuple[int, int], tuple[bool, bool], False, False),
         (int, int | str, True, True),
         (int | str, str, False, True),
         (float, int | str, False, False),
