@@ -317,7 +317,7 @@ class _SubtypeVisitor(TypeVisitor[bool]):
             ):
                 # TODO(fk) handle generics properly :(
                 # We only check hard coded generics for now and treat them as invariant,
-                # i.e., A <: B and B <: A
+                # e.g., set[T1] <: set[T2] <=> T1 <: T2 and T2 <: T1
                 return all(
                     self.sub_type_check(left_elem, right_elem)
                     and self.sub_type_check(right_elem, left_elem)
