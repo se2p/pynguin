@@ -20,7 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.typesystem import AnyType, Instance, ProperType
+from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -583,7 +583,10 @@ def create_stmt_from_collection(
         )
         if keys is None or values is None:
             return None
-        coll_elems_type = get_collection_type(values)
+        coll_elems_type: ProperType = Instance(
+            testcase.test_cluster.type_system.to_type_info(dict),
+            (get_collection_type(keys), get_collection_type(values)),
+        )
         coll_elems = list(zip(keys, values))
     else:
         elements = coll_node.elts
@@ -596,7 +599,18 @@ def create_stmt_from_collection(
         )
         if coll_elems is None:
             return None
-        coll_elems_type = get_collection_type(coll_elems)
+        if isinstance(coll_node, ast.Tuple):
+            coll_elems_type = TupleType(tuple(tp.type for tp in coll_elems))
+        elif isinstance(coll_node, ast.List):
+            coll_elems_type = Instance(
+                testcase.test_cluster.type_system.to_type_info(list),
+                (get_collection_type(coll_elems),),
+            )
+        else:
+            coll_elems_type = Instance(
+                testcase.test_cluster.type_system.to_type_info(set),
+                (get_collection_type(coll_elems),),
+            )
     return create_specific_collection_stmt(
         testcase, coll_node, coll_elems_type, coll_elems
     )
@@ -696,7 +710,7 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
 def create_specific_collection_stmt(
     testcase: tc.TestCase,
     coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
-    coll_elems_type: Any,
+    coll_elems_type: ProperType,
     coll_elems: list[Any],
 ) -> None | (
     stmt.ListStatement | stmt.SetStatement | stmt.DictStatement | stmt.TupleStatement
