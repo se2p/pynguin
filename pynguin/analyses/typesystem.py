@@ -113,11 +113,10 @@ class Instance(ProperType):
 
 
 class TupleType(ProperType):
-    """Tuple type Tuple[T1, ..., Tn]. At least one argument."""
+    """Tuple type Tuple[T1, ..., Tn]. At least one argument.
+    Note that tuple is a special case and intentionally not
+    `Instance(TypeInfo(tuple))` because tuple is varargs generic."""
 
-    # TODO(fk) this is a bit problematic. Merge with instance?
-    #  i.e., there can be TupleType(unknown_size=True) and Instance(TypeInfo(tuple))
-    #  tuple is special because it is varargs generic.
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
         self.unknown_size = unknown_size
@@ -163,7 +162,11 @@ class UnionType(ProperType):
 
 
 class TypeVisitor(Generic[T]):
-    """A type visitor"""
+    """A type visitor.
+    Note that the parameter of the visit_* methods is called 'left',
+    because it makes the implementations of _SubTypeVisitor and _MaybeSubTypeVisitor
+    more clear and Python does not like changing the names of parameters in subclasses,
+    thus we renamed them in this class."""
 
     @abstractmethod
     def visit_any_type(self, left: AnyType) -> T:
