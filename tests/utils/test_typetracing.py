@@ -672,3 +672,9 @@ def test_pretty():
         knowledge.pretty() == "'ROOT' (type-checks: OrderedSet([<class 'str'>])\n"
         "^---'foo' (arg-types: dict_items([(0, OrderedSet([<class 'int'>]))])"
     )
+
+
+def test_getattr():
+    proxy = tt.ObjectProxy([1])
+    proxy.count(1)
+    assert "count" in tt.ProxyKnowledge.from_proxy(proxy).symbol_table
