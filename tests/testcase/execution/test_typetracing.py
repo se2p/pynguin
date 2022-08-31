@@ -28,18 +28,21 @@ from pynguin.utils.generic.genericaccessibleobject import (
 @pytest.mark.parametrize(
     "test_func,return_type",
     [
-        ("return_tuple()", tuple[int, int]),
-        ("return_list()", list[int]),
-        ("return_dict()", dict[str, int]),
-        ("return_set()", set[str]),
-        ("return_int()", int),
+        ("return_tuple", tuple[int, int]),
+        ("return_list", list[int]),
+        ("return_dict", dict[str, int]),
+        ("return_set", set[str]),
+        ("return_int", int),
+        ("return_none", type(None)),
     ],
 )
 def test_type_reconstruction(test_func, return_type):
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.return_types")
     executor = TestCaseExecutor(ExecutionTracer())
     visitor = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
-    visitor.visit(ast.parse("def test_case():\n   var_0 = module_0." + test_func))
+    visitor.visit(
+        ast.parse("def test_case():\n   var_0 = module_0." + test_func + "()")
+    )
     test_case = visitor.testcases[0]
     observer = ReturnTypeObserver(test_cluster)
     executor.add_observer(observer)

@@ -22,3 +22,7 @@ def return_set():
 
 def return_int():
     return 42
+
+
+def return_none():
+    return None
