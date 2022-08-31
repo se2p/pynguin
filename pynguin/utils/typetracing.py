@@ -307,13 +307,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __bytes__(self):
         return bytes(self.__wrapped__)  # type:ignore
 
-    # TODO(fk) remove this after debugging?
     def __repr__(self):
-        return (
-            f"<{type(self).__name__} at 0x{id(self):x} for "
-            f"{type(self.__wrapped__).__name__} "  # type: ignore
-            f"at 0x{id(self.__wrapped__):x}>"  # type: ignore
-        )
+        return repr(self.__wrapped__)  # type:ignore
 
     def __reversed__(self):
         return reversed(self.__wrapped__)  # type:ignore
