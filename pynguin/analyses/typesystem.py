@@ -245,7 +245,7 @@ class TypeStringVisitor(TypeVisitor[str]):
     def visit_union_type(self, left: UnionType) -> str:
         if len(left.items) == 1:
             return left.items[0].accept(self)
-        return f"{self._sequence_str(left.items, sep=' | ')}"
+        return self._sequence_str(left.items, sep=" | ")
 
     def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:
         return sep.join(t.accept(self) for t in typs)
