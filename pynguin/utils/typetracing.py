@@ -404,14 +404,14 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             # dict for **kwargs
             return getattr(self.__wrapped__, name)  # type:ignore
 
-        # Append dummy in case of failed access
         knowledge = self._self_proxy_knowledge
-        nested_knowledge = knowledge.symbol_table[name]
-        proxy = ObjectProxy(
+        # Done before getattr, to make sure we store the access in case of an
+        # exception
+        child_knowledge = knowledge.symbol_table[name]
+        return ObjectProxy(
             getattr(self.__wrapped__, name),  # type:ignore
-            knowledge=nested_knowledge,
+            knowledge=child_knowledge,
         )
-        return proxy
 
     def __delattr__(self, name):
         if name.startswith("_self_"):
