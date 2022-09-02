@@ -640,7 +640,6 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __getitem__(self, key):
         return self.__wrapped__[key]
 
-    # TODO(fk) log value?
     @proxify(log_arg_types=True)
     def __setitem__(self, key, value):
         self.__wrapped__[key] = value
