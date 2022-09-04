@@ -113,7 +113,7 @@ class Instance(ProperType):
 
 
 class TupleType(ProperType):
-    """Tuple type Tuple[T1, ..., Tn]. At least one argument.
+    """Tuple type Tuple[T1, ..., Tn].
     Note that tuple is a special case and intentionally not
     `Instance(TypeInfo(tuple))` because tuple is varargs generic."""
 
