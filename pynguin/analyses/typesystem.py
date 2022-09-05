@@ -1249,7 +1249,7 @@ class TypeSystem:
         # TODO(fk) log unknown hints to so we can better understand what
         #  we should add next
         #  Remove this or log to statistics?
-        _LOGGER.info("Unknown type hint: %s", hint)
+        _LOGGER.debug("Unknown type hint: %s", hint)
         # Should raise an error in the future.
         return AnyType()
 
