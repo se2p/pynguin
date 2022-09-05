@@ -245,6 +245,9 @@ class TestCaseOutputConfiguration:
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
+    format_with_black: bool = True
+    """Format the generated test cases using black."""
+
 
 # pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
