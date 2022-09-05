@@ -609,5 +609,9 @@ def _export_chromosome(
     )
     export_visitor = export.PyTestChromosomeToAstVisitor()
     chromosome.accept(export_visitor)
-    export.save_module_to_file(export_visitor.to_module(), target_file)
+    export.save_module_to_file(
+        export_visitor.to_module(),
+        target_file,
+        config.configuration.test_case_output.format_with_black,
+    )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)
