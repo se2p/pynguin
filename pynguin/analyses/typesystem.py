@@ -1211,7 +1211,6 @@ class TypeSystem:
             A proper type.
         """
         # We must handle a lot of special cases, so try to give an example for each one.
-
         if hint is typing.Any or hint is None:
             # typing.Any or empty
             return AnyType()
@@ -1224,18 +1223,21 @@ class TypeSystem:
             #  But ... (ellipsis) is not a type.
             return TupleType((AnyType(),), unknown_size=True)
         if typing.get_origin(hint) is tuple:
-            # tuple[int, str] or typing.Tuple[int, str]
-            return TupleType(tuple(self.convert_type_hint(t) for t in hint.__args__))
+            # tuple[int, str] or typing.Tuple[int, str] or typing.Tuple
+            args = self.__convert_args_if_exists(hint)
+            if not args:
+                return TupleType((AnyType(),), unknown_size=True)
+            return TupleType(args)
         if is_union_type(hint) or isinstance(hint, types.UnionType):
             # int | str or typing.Union[int, str]
-            return UnionType(tuple(self.convert_type_hint(t) for t in hint.__args__))
+            return UnionType(tuple(self.__convert_args_if_exists(hint)))
         if isinstance(
             hint, (typing._BaseGenericAlias, types.GenericAlias)  # type:ignore
         ):
             # list[int, str] or List[int, str] or Dict[int, str] or set[str]
             result = Instance(
                 self.to_type_info(hint.__origin__),
-                tuple(self.convert_type_hint(t) for t in hint.__args__),
+                self.__convert_args_if_exists(hint),
             )
             # TODO(fk) remove this one day.
             #  Hardcoded support generic dict, list and set.
@@ -1246,9 +1248,15 @@ class TypeSystem:
             return self._fixup_known_generics(Instance(self.to_type_info(hint)))
         # TODO(fk) log unknown hints to so we can better understand what
         #  we should add next
-        _LOGGER.debug("Unknown type hint: %s", hint)
+        #  Remove this or log to statistics?
+        _LOGGER.info("Unknown type hint: %s", hint)
         # Should raise an error in the future.
         return AnyType()
+
+    def __convert_args_if_exists(self, hint: Any) -> tuple[ProperType, ...]:
+        if hasattr(hint, "__args__"):
+            return tuple(self.convert_type_hint(t) for t in hint.__args__)
+        return ()
 
     def make_instance(self, typ: TypeInfo) -> Instance | TupleType:
         """Create an instance from the given type.

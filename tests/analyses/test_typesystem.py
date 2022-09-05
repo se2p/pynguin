@@ -247,6 +247,11 @@ A = TypeVar("A")
             NoneType(),
         ),
         (A, AnyType()),
+        (
+            List,
+            Instance(TypeInfo(list), (AnyType(),)),
+        ),
+        (Tuple, TupleType((AnyType(),), unknown_size=True)),
     ],
 )
 def test_convert_type_hints(hint, expected):
