@@ -466,7 +466,7 @@ class ModuleTestCluster(TestCluster):
 
     def log_signatures(self) -> None:
         for call in self.__callables:
-            LOGGER.info("%s", call)
+            LOGGER.debug("%s", call)
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
