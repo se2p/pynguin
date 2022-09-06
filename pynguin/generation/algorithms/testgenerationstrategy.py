@@ -12,10 +12,9 @@ from abc import abstractmethod
 from statistics import mean
 from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.algorithms.archive as arch
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.coverage.branchgoals as bg

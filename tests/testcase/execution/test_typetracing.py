@@ -87,7 +87,8 @@ def test_type_tracing_test_case_executor_integration():
     t_executor = TypeTracingTestCaseExecutor(executor, test_cluster)
     t_executor.execute(test_case)
     acc = cast(
-        GenericCallableAccessibleObject, test_cluster.accessible_objects_under_test[0]
+        GenericCallableAccessibleObject,
+        list(test_cluster.accessible_objects_under_test)[0],
     )
     assert "__rmul__" in acc.inferred_signature.knowledge["a"].symbol_table
     assert int in acc.inferred_signature.knowledge["a"].type_checks

@@ -13,8 +13,6 @@ import math
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
-from ordered_set import OrderedSet
-
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
@@ -28,6 +26,7 @@ from pynguin.analyses.typesystem import (
 )
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
 if TYPE_CHECKING:
@@ -193,7 +192,7 @@ class Statement(metaclass=ABCMeta):
             True, if there is only an exception assertion.
         """
         return len(self._assertions) == 1 and isinstance(
-            self._assertions[0], ass.ExceptionAssertion
+            list(self._assertions)[0], ass.ExceptionAssertion
         )
 
     @property

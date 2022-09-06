@@ -17,10 +17,10 @@ from abc import ABC
 from pathlib import Path
 from pkgutil import iter_modules
 
-from ordered_set import OrderedSet
 from setuptools import find_packages
 
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 # Used for type hinting and for restricting stored types
 from pynguin.utils.typetracing import unwrap
@@ -116,7 +116,7 @@ class RestrictedConstantPool(ConstantPool):
         values = self._constants[type(constant)]
         values.add(constant)
         if len(values) > self._max_size:
-            values.pop(0)
+            values.remove(list(values)[0])
 
 
 class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods

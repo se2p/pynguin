@@ -15,7 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 
-from ordered_set import OrderedSet
+from pynguin.utils.orderedset import OrderedSet
 
 LOGGER = logging.getLogger(__name__)
 

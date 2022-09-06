@@ -31,7 +31,6 @@ from types import (
 from typing import Any, Callable, NamedTuple
 
 import astroid
-from ordered_set import OrderedSet
 
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.modulecomplexity import mccabe_complexity
@@ -66,6 +65,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
@@ -617,13 +617,13 @@ class ModuleTestCluster(TestCluster):
     def get_random_accessible(self) -> GenericAccessibleObject | None:
         if self.num_accessible_objects_under_test() == 0:
             return None
-        return randomness.choice(self.__accessible_objects_under_test)
+        return randomness.choice(list(self.__accessible_objects_under_test))
 
     def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         accessible_objects = self.get_modifiers_for(typ)
         if len(accessible_objects) == 0:
             raise ConstructionFailedException(f"No modifiers for {typ}")
-        return randomness.choice(accessible_objects)
+        return randomness.choice(list(accessible_objects))
 
     def get_all_generatable_types(self) -> list[ProperType]:
         generatable = OrderedSet(self.__generators.keys())
@@ -841,7 +841,7 @@ class FilteredModuleTestCluster(TestCluster):
         accessibles = self.__accessible_to_targets.keys()
         if len(accessibles) == 0:
             return self.__delegate.get_random_accessible()
-        return randomness.choice(OrderedSet(accessibles))
+        return randomness.choice(list(OrderedSet(accessibles)))
 
     def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         return self.__delegate.get_random_call_for(typ)

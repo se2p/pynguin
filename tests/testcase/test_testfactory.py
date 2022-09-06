@@ -11,7 +11,6 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
@@ -22,6 +21,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType, InferredSignature, NoneType
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
 

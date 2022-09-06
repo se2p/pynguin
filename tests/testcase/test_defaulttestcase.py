@@ -14,6 +14,7 @@ import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture
@@ -57,10 +58,6 @@ def test_add_statements(default_test_case):
     default_test_case._statements.append(stmt_1)
     default_test_case.add_statements([stmt_2, stmt_3])
     assert default_test_case._statements == [stmt_1, stmt_2, stmt_3]
-
-
-def test_id(default_test_case):
-    assert default_test_case.id >= 0
 
 
 def test_chop(default_test_case):
@@ -205,7 +202,6 @@ def test_clone(default_test_case):
     default_test_case._statements = [stmt]
     result = default_test_case.clone()
     assert isinstance(result, dtc.DefaultTestCase)
-    assert result.id != default_test_case.id
     assert result.size() == 1
     assert result.get_statement(0) == stmt
 
@@ -264,7 +260,7 @@ def test_get_dependencies_self_empty(default_test_case, constructor_mock):
     const0 = st.ConstructorStatement(default_test_case, constructor_mock)
     default_test_case.add_statement(const0)
     dependencies = default_test_case.get_dependencies(const0.ret_val)
-    assert dependencies == {const0.ret_val}
+    assert dependencies == OrderedSet([const0.ret_val])
 
 
 def test_get_dependencies_chained(default_test_case, function_mock):
@@ -282,7 +278,7 @@ def test_get_dependencies_chained(default_test_case, function_mock):
     func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
     default_test_case.add_statement(func1)
     dependencies = default_test_case.get_dependencies(func1.ret_val)
-    assert dependencies == {float0.ret_val, func0.ret_val, func1.ret_val}
+    assert dependencies == OrderedSet([func1.ret_val, func0.ret_val, float0.ret_val])
 
 
 def test_get_assertions_empty(default_test_case):

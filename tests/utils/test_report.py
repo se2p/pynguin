@@ -12,11 +12,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.report import (
     CoverageEntry,
     CoverageReport,

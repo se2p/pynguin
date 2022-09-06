@@ -6,8 +6,6 @@
 #
 from unittest.mock import MagicMock
 
-from ordered_set import OrderedSet
-
 from pynguin.analyses.typesystem import InferredSignature, ProperType
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -16,6 +14,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.accessibles.accessible import SomeType
 
 
@@ -70,9 +69,9 @@ def test_generic_constructor_num_parameters(constructor_mock):
 
 
 def test_generic_constructor_dependencies(constructor_mock, type_system):
-    assert constructor_mock.get_dependencies({}) == {
-        type_system.convert_type_hint(float)
-    }
+    assert constructor_mock.get_dependencies({}) == OrderedSet(
+        [type_system.convert_type_hint(float)]
+    )
 
 
 def test_generic_method_eq_self(method_mock):

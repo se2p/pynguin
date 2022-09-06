@@ -14,6 +14,7 @@ from bytecode import Compare
 import pynguin.utils.typetracing as tt
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.testcase.execution import ExecutionTracer, _le, _lt
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_functions_exists():
@@ -53,7 +54,7 @@ def test_line_visit():
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
-    assert tracer.get_trace().covered_line_ids == {42, 43}
+    assert tracer.get_trace().covered_line_ids == OrderedSet([42, 43])
 
 
 def test_update_metrics_covered():
@@ -300,7 +301,7 @@ def test_lt(val1, val2, result):
 def test_default_branchless_code_object():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock())
-    assert tracer.get_known_data().branch_less_code_objects == {0}
+    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([0])
 
 
 def test_no_branchless_code_object():
@@ -316,7 +317,7 @@ def test_no_branchless_code_object_register_multiple():
     tracer.register_code_object(MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert tracer.get_known_data().branch_less_code_objects == {1}
+    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([1])
 
 
 def test_code_object_executed_other_thread():
@@ -331,7 +332,7 @@ def test_code_object_executed_other_thread():
     thread = threading.Thread(target=wrapper, args=(0,))
     thread.start()
     thread.join()
-    assert tracer.get_trace().executed_code_objects == set()
+    assert tracer.get_trace().executed_code_objects == OrderedSet()
 
 
 def test_bool_predicate_executed_other_thread():

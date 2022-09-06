@@ -10,9 +10,8 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.ga.chromosome as chrom
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

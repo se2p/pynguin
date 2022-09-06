@@ -10,12 +10,10 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
-
 from pynguin.analyses.typesystem import ProperType
 from pynguin.utils import randomness
-from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -31,8 +29,6 @@ class TestCase(metaclass=ABCMeta):
 
     Serves as an interface for test-case implementations
     """
-
-    _id_generator = AtomicInteger()
 
     def __init__(self, test_cluster: TestCluster) -> None:
         self._statements: list[stmt.Statement] = []

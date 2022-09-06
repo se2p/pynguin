@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 from unittest import mock
 
 import pytest
-from ordered_set import OrderedSet
 
 import pynguin.configuration as config
 from pynguin.analyses.module import generate_test_cluster
@@ -26,6 +25,7 @@ from pynguin.analyses.typesystem import (
     is_primitive_type,
 )
 from pynguin.configuration import TypeInferenceStrategy
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typetracing import ProxyKnowledge
 from tests.fixtures.types.subtyping import Sub, Super
 
@@ -483,9 +483,9 @@ def test_is_collection_type(typ, result):
 def test_find_by_symbols(symbol, types):
     test_cluster = generate_test_cluster("tests.fixtures.types.symbols")
     tps = test_cluster.type_system
-    assert test_cluster.type_system.find_by_symbol(symbol) == {
-        tps.find_type_info("" + t) for t in types
-    }
+    assert test_cluster.type_system.find_by_symbol(symbol) == OrderedSet(
+        [tps.find_type_info("" + t) for t in types]
+    )
 
 
 @pytest.mark.parametrize(
@@ -654,7 +654,7 @@ def test_guess_generic_types_dict_key_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[0].append(int)
+    knowledge.symbol_table[symbol].arg_types[0].add(int)
     assert inferred_signature._guess_generic_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
     ) == inferred_signature.type_system.convert_type_hint(result)
@@ -687,7 +687,7 @@ def test_guess_generic_types_dict_value_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[1].append(int)
+    knowledge.symbol_table[symbol].arg_types[1].add(int)
     assert inferred_signature._guess_generic_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
     ) == inferred_signature.type_system.convert_type_hint(result)
@@ -709,7 +709,7 @@ def test_guess_generic_types_list_set_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[0].append(int)
+    knowledge.symbol_table[symbol].arg_types[0].add(int)
     assert inferred_signature._guess_generic_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
     ) == inferred_signature.type_system.convert_type_hint(result)

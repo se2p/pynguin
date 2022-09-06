@@ -21,14 +21,13 @@ from types import (
     WrapperDescriptorType,
 )
 
-from ordered_set import OrderedSet
-
 from pynguin.analyses.typesystem import (
     InferredSignature,
     Instance,
     ProperType,
     TypeInfo,
 )
+from pynguin.utils.orderedset import OrderedSet
 
 TypesOfCallables = typing.Union[
     FunctionType,

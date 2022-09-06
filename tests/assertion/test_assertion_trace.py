@@ -7,9 +7,9 @@
 from unittest.mock import MagicMock
 
 import pytest
-from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion_trace as at
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture
@@ -26,14 +26,14 @@ def test_add_entry(assertion_trace):
     variable.get_statement_position.return_value = 42
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
-    assert assertion_trace._trace == {1337: {entry}}
+    assert assertion_trace._trace == {1337: OrderedSet([entry])}
 
 
 def test_add_entry_same_position(assertion_trace):
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
     assertion_trace.add_entry(1337, entry)
-    assert assertion_trace._trace == {1337: {entry}}
+    assert assertion_trace._trace == {1337: OrderedSet([entry])}
 
 
 def test_clear(assertion_trace):
@@ -54,7 +54,7 @@ def test_clone(assertion_trace):
 def test_get_assertions_empty(assertion_trace):
     statement = MagicMock()
     statement.get_position.return_value = 3
-    assert assertion_trace.get_assertions(statement) == set()
+    assert assertion_trace.get_assertions(statement) == OrderedSet()
 
 
 def test_get_assertions(assertion_trace):
@@ -62,7 +62,7 @@ def test_get_assertions(assertion_trace):
     assertion_trace.add_entry(3, entry)
     statement = MagicMock()
     statement.get_position.return_value = 3
-    assert assertion_trace.get_assertions(statement) == {entry}
+    assert assertion_trace.get_assertions(statement) == OrderedSet([entry])
 
 
 def test_merge():

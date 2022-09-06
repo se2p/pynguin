@@ -45,13 +45,13 @@ class TestCaseChromosome(chrom.Chromosome):
             ), "Cannot create test case chromosome without test case"
             self._test_case: tc.TestCase = test_case
             self._test_factory: tf.TestFactory | None = test_factory
-            self._changed = True
+            self.changed = True
             self._last_execution_result: ExecutionResult | None = None
             self._num_mutations = 0
         else:
             self._test_case = orig._test_case.clone()
             self._test_factory = orig._test_factory
-            self._changed = orig._changed
+            self.changed = orig.changed
             self._last_execution_result = orig._last_execution_result
             self._num_mutations = orig._num_mutations
 
@@ -98,7 +98,7 @@ class TestCaseChromosome(chrom.Chromosome):
             < config.configuration.search_algorithm.chromosome_length
         ):
             self._test_case = offspring_test_case
-            self.set_changed(True)
+            self.changed = True
 
     def mutate(self) -> None:
         changed = False
@@ -142,7 +142,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self._mutation_insert()
 
         if changed:
-            self.set_changed(True)
+            self.changed = True
             self._num_mutations += 1
 
     def _mutation_delete(self) -> bool:

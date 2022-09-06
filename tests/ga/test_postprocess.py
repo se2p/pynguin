@@ -15,6 +15,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_not_failing():
@@ -68,8 +69,8 @@ def test_test_case_assertion_minimization(default_test_case):
     chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1}
-    assert ass_min.deleted_assertions == {assertion_2}
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1])
+    assert ass_min.deleted_assertions == OrderedSet([assertion_2])
     assert default_test_case.get_assertions() == [assertion_1]
 
 
@@ -93,8 +94,8 @@ def test_test_case_assertion_minimization_does_not_remove_exception_assertion(
     chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1, assertion_2}
-    assert ass_min.deleted_assertions == set()
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1, assertion_2])
+    assert ass_min.deleted_assertions == OrderedSet()
     assert default_test_case.get_assertions() == [assertion_1, assertion_2]
 
 
@@ -112,8 +113,8 @@ def test_test_case_assertion_minimization_does_not_remove_empty_assertion(
     chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1}
-    assert ass_min.deleted_assertions == set()
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1])
+    assert ass_min.deleted_assertions == OrderedSet()
     assert default_test_case.get_assertions() == [assertion_1]
 
 

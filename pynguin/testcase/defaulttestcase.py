@@ -11,16 +11,14 @@ import logging
 from itertools import islice
 from typing import TYPE_CHECKING, Any
 
-from ordered_set import OrderedSet
-
 import pynguin.testcase.testcase as tc
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
-    from pynguin.analyses.module import TestCluster
 
 
 # pylint:disable=too-many-public-methods
@@ -30,20 +28,6 @@ class DefaultTestCase(tc.TestCase):
     _logger = logging.getLogger(__name__)
 
     # pylint: disable=invalid-name
-    def __init__(self, test_cluster: TestCluster) -> None:
-        super().__init__(test_cluster)
-        self._id = self._id_generator.inc()
-
-    @property
-    def id(self) -> int:
-        """Get an unique ID representing this test case.
-
-        Mainly useful for debugging.
-
-        Returns:
-            An unique ID representing this test case
-        """
-        return self._id
 
     def accept(self, visitor: tcv.TestCaseVisitor) -> None:
         visitor.visit_default_test_case(self)
@@ -121,7 +105,6 @@ class DefaultTestCase(tc.TestCase):
                 memo[statement.ret_val] = copy.ret_val  # type: ignore
             test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
-        test_case._id = self._id_generator.inc()
         return test_case
 
     def get_dependencies(

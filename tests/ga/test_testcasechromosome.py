@@ -28,13 +28,13 @@ def test_case_chromosome_with_test(default_test_case):
 
 
 def test_has_changed_default(test_case_chromosome):
-    assert test_case_chromosome.has_changed()
+    assert test_case_chromosome.changed
 
 
 @pytest.mark.parametrize("value", [True, False])
 def test_has_changed(test_case_chromosome, value):
-    test_case_chromosome.set_changed(value)
-    assert test_case_chromosome.has_changed() == value
+    test_case_chromosome.changed = value
+    assert test_case_chromosome.changed == value
 
 
 def test_get_last_execution_last_result_default(test_case_chromosome):
@@ -221,7 +221,7 @@ def test_mutation_delete_skipping(default_test_case):
 
 def test_mutate_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    chromosome.set_changed(False)
+    chromosome.changed = False
     for i in range(50):
         test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     config.configuration.search_algorithm.test_insert_probability = 0.0
@@ -232,7 +232,7 @@ def test_mutate_chop(test_case_chromosome_with_test):
         with mock.patch.object(chromosome, "_test_factory") as factory_mock:
             factory_mock.has_call_on_sut.return_value = True
             chromosome.mutate()
-            assert chromosome.has_changed()
+            assert chromosome.changed
             assert len(test_case.statements) == 6
             assert factory_mock.has_call_on_sut.call_count == 1
 
@@ -241,7 +241,7 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     for i in range(50):
         test_case.add_statement(IntPrimitiveStatement(test_case, 5))
-    chromosome.set_changed(False)
+    chromosome.changed = False
     config.configuration.search_algorithm.test_insert_probability = 0.0
     config.configuration.search_algorithm.test_change_probability = 0.0
     config.configuration.search_algorithm.test_delete_probability = 0.0
@@ -251,7 +251,7 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
             factory_mock.has_call_on_sut.return_value = True
             chromosome.mutate()
             assert len(test_case.statements) == 50
-            assert not chromosome.has_changed()
+            assert not chromosome.changed
             assert factory_mock.has_call_on_sut.call_count == 1
 
 
@@ -267,7 +267,7 @@ def test_mutate_no_chop(test_case_chromosome_with_test):
     ],
 )
 def test_mutate_all(test_case_chromosome, func, rand, result):
-    test_case_chromosome.set_changed(False)
+    test_case_chromosome.changed = False
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = rand
         with mock.patch.object(test_case_chromosome, func) as mock_func:
@@ -277,7 +277,7 @@ def test_mutate_all(test_case_chromosome, func, rand, result):
             ) as factory_mock:
                 factory_mock.has_call_on_sut.return_value = True
                 test_case_chromosome.mutate()
-                assert test_case_chromosome.has_changed() == result
+                assert test_case_chromosome.changed == result
                 mock_func.assert_called_once()
 
 
@@ -313,9 +313,9 @@ def test_crossover_too_large():
     left = tcc.TestCaseChromosome(test_case0, test_factory=test_factory)
     right = tcc.TestCaseChromosome(test_case1, test_factory=test_factory)
     config.configuration.search_algorithm.chromosome_length = 3
-    left.set_changed(False)
+    left.changed = False
     left.cross_over(right, 1, 2)
-    assert not left.has_changed()
+    assert not left.changed
 
 
 def test_is_failing(test_case_chromosome):

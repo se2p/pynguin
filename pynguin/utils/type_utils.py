@@ -15,8 +15,9 @@ import typing
 from inspect import isclass
 from typing import Any
 
-from ordered_set import OrderedSet
 from typing_inspect import get_origin
+
+from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import InferredSignature

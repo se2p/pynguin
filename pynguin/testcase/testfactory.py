@@ -10,8 +10,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -27,6 +25,7 @@ from pynguin.analyses.typesystem import (
 )
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
 if TYPE_CHECKING:
@@ -1101,7 +1100,7 @@ class TestFactory:
                 recursion_depth,
             )
         if type_generators := self._test_cluster.get_generators_for(parameter_type):
-            type_generator = randomness.choice(type_generators)
+            type_generator = randomness.choice(list(type_generators))
             return self.append_generic_accessible(
                 test_case,
                 type_generator,

@@ -12,8 +12,6 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
@@ -21,6 +19,7 @@ from pynguin.ga.comparators.preferencesortingcomparator import (
     PreferenceSortingComparator,
 )
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

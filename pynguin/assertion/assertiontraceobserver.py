@@ -280,7 +280,7 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         if statement.has_only_exception_assertion():
-            return exec_ctx.node_for_assertion(statement.assertions[0], node)
+            return exec_ctx.node_for_assertion(list(statement.assertions)[0], node)
         return node
 
     def after_statement_execution(
@@ -297,9 +297,9 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             # exception.
             if isinstance(exception, Failed):
                 # Failed indicates that the expected assertion was not raised
-                self.state.trace.failed[statement.get_position()].append(0)
+                self.state.trace.failed[statement.get_position()].add(0)
             else:
-                self.state.trace.error[statement.get_position()].append(0)
+                self.state.trace.error[statement.get_position()].add(0)
         else:
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
@@ -314,6 +314,6 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
                     continue
 
                 if isinstance(exc, AssertionError):
-                    self.state.trace.failed[statement.get_position()].append(idx)
+                    self.state.trace.failed[statement.get_position()].add(idx)
                 else:
-                    self.state.trace.error[statement.get_position()].append(idx)
+                    self.state.trace.error[statement.get_position()].add(idx)

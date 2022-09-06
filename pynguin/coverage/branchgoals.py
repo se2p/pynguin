@@ -10,10 +10,9 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from ordered_set import OrderedSet
-
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc

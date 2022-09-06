@@ -11,8 +11,6 @@ import logging
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.ga.chromosome as chrom
@@ -56,6 +54,7 @@ from pynguin.testcase.execution import (
     TypeTracingTestCaseExecutor,
 )
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf

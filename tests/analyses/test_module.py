@@ -11,7 +11,6 @@ from typing import Union, cast
 from unittest.mock import MagicMock
 
 import pytest
-from ordered_set import OrderedSet
 
 from pynguin.analyses import module
 from pynguin.analyses.module import (
@@ -32,6 +31,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
@@ -478,8 +478,12 @@ def test_inheritance_graph():
 @pytest.mark.parametrize(
     "mod,typ,attributes",
     [
-        ("tests.fixtures.cluster.attributes", "SomeClass", {"foo", "bar"}),
-        ("tests.fixtures.cluster.attributes", "SomeDataClass", {"baz", "box"}),
+        ("tests.fixtures.cluster.attributes", "SomeClass", OrderedSet(["foo", "bar"])),
+        (
+            "tests.fixtures.cluster.attributes",
+            "SomeDataClass",
+            OrderedSet(["baz", "box"]),
+        ),
     ],
 )
 def test_instance_attrs(mod, typ, attributes):

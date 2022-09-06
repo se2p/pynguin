@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union, cast
 import pytest  # pylint:disable=unused-import # noqa: F401
 from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -52,6 +51,7 @@ from pynguin.instrumentation.instrumentation import (
     PredicateMetaData,
 )
 from pynguin.utils.mirror import Mirror
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -1443,7 +1443,7 @@ class ExecutionTracer:
         object_creation = False
         if arg_address and arg_address not in self.get_known_data().object_addresses:
             object_creation = True
-            self._known_data.object_addresses.append(arg_address)
+            self._known_data.object_addresses.add(arg_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1680,7 +1680,7 @@ class ExecutionTracer:
                     code_object_id,
                     node_id,
                     error_call_position,
-                    statement.assertions[0],
+                    list(statement.assertions)[0],
                 )
             )
 

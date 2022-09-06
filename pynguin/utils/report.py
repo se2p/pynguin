@@ -17,12 +17,12 @@ from pathlib import Path
 
 import pygments
 from jinja2 import Template
-from ordered_set import OrderedSet
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
 
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
+from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc

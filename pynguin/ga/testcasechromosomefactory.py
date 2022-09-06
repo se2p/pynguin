@@ -9,12 +9,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
@@ -79,7 +78,7 @@ class ArchiveReuseTestCaseChromosomeFactory(
             and randomness.next_float()
             <= config.configuration.seeding.seed_from_archive_probability
         ):
-            selected = randomness.choice(pick_from).clone()
+            selected = randomness.choice(list(pick_from)).clone()
             for _ in range(config.configuration.seeding.seed_from_archive_mutations):
                 selected.mutate()
             return selected

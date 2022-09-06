@@ -20,13 +20,13 @@ from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
-from ordered_set import OrderedSet
 from typing_inspect import is_union_type
 
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 _LOGGER = logging.getLogger(__name__)
@@ -640,7 +640,7 @@ class InferredSignature:
             OrderedSet(
                 [
                     self.type_system.to_type_info(
-                        randomness.choice(knowledge.type_checks)
+                        randomness.choice(list(knowledge.type_checks))
                     )
                 ]
             )
@@ -654,7 +654,7 @@ class InferredSignature:
             and randomness.next_float() < 0.5
         ):
             random_arg_type = randomness.choice(
-                knowledge.symbol_table[random_symbol].arg_types[0]
+                list(knowledge.symbol_table[random_symbol].arg_types[0])
             )
             return self._choose_type_or_negate(
                 OrderedSet([self.type_system.to_type_info(random_arg_type)])
@@ -762,9 +762,9 @@ class InferredSignature:
             negated_choices = self.type_system.get_type_outside_of(positive_types)
             if len(negated_choices) > 0:
                 return self.type_system.make_instance(
-                    randomness.choice(negated_choices)
+                    randomness.choice(list(negated_choices))
                 )
-        return self.type_system.make_instance(randomness.choice(positive_types))
+        return self.type_system.make_instance(randomness.choice(list(positive_types)))
 
     # pylint:disable-next=too-many-arguments
     def _guess_generic_arguments(
@@ -785,7 +785,7 @@ class InferredSignature:
             guess_from.append(
                 functools.partial(
                     self._guess_parameter_type_from,
-                    knowledge.symbol_table[randomness.choice(elem_symbols)],
+                    knowledge.symbol_table[randomness.choice(list(elem_symbols))],
                     recursion_depth + 1,
                 )
             )
@@ -804,15 +804,18 @@ class InferredSignature:
         return None
 
     def _guess_from_argument_types(
-        self, arg_symbols: Sequence[str], knowledge: tt.ProxyKnowledge, arg_idx: int = 0
+        self,
+        arg_symbols: OrderedSet[str],
+        knowledge: tt.ProxyKnowledge,
+        arg_idx: int = 0,
     ) -> ProperType | None:
-        arg_types = knowledge.symbol_table[randomness.choice(arg_symbols)].arg_types[
-            arg_idx
-        ]
+        arg_types = knowledge.symbol_table[
+            randomness.choice(list(arg_symbols))
+        ].arg_types[arg_idx]
         if arg_types:
             return self._choose_type_or_negate(
                 OrderedSet(
-                    [self.type_system.to_type_info(randomness.choice(arg_types))]
+                    [self.type_system.to_type_info(randomness.choice(list(arg_types)))]
                 )
             )
         return None
