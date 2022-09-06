@@ -920,7 +920,7 @@ class TypeSystem:
             results.difference_update(self.get_subclasses(info))
         return results
 
-    @lru_cache(maxsize=4096)
+    @lru_cache(maxsize=16384)
     def is_subclass(self, left: TypeInfo, right: TypeInfo) -> bool:
         """Is 'left' a subclass of 'right'?
 
@@ -933,7 +933,7 @@ class TypeSystem:
         """
         return nx.has_path(self._graph, right, left)
 
-    @lru_cache(maxsize=4096)
+    @lru_cache(maxsize=16384)
     def is_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' a subtype of 'right'?
 
@@ -958,7 +958,7 @@ class TypeSystem:
             return any(self.is_subtype(left, right_elem) for right_elem in right.items)
         return left.accept(_SubtypeVisitor(self, right, self.is_subtype))
 
-    @lru_cache(maxsize=4096)
+    @lru_cache(maxsize=16384)
     def is_maybe_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' maybe a subtype of 'right'?
 
