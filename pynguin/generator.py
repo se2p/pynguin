@@ -27,7 +27,7 @@ import sys
 import threading
 from importlib.abc import FileLoader
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
@@ -566,30 +566,31 @@ def _track_optimisation_metrics(
         RuntimeVariable.Coverage, generation_result.get_coverage()
     )
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    if config.CoverageMetric.LINE in coverage_metrics:
-        line_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteLineCoverageFunction
-        )
-        stat.track_output_variable(
+    for metric, runtime, fitness_type in [
+        (
+            config.CoverageMetric.LINE,
             RuntimeVariable.LineCoverage,
-            generation_result.get_coverage_for(line_coverage_ff),
-        )
-    if config.CoverageMetric.BRANCH in coverage_metrics:
-        branch_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteBranchCoverageFunction
-        )
-        stat.track_output_variable(
+            ff.TestSuiteLineCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.BRANCH,
             RuntimeVariable.BranchCoverage,
-            generation_result.get_coverage_for(branch_coverage_ff),
-        )
-    if config.CoverageMetric.CHECKED in coverage_metrics:
-        checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteStatementCheckedCoverageFunction
-        )
-        stat.track_output_variable(
+            ff.TestSuiteBranchCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.CHECKED,
             RuntimeVariable.StatementCheckedCoverage,
-            generation_result.get_coverage_for(checked_coverage_ff),
-        )
+            ff.TestSuiteStatementCheckedCoverageFunction,
+        ),
+    ]:
+        if metric in coverage_metrics:
+            coverage_function: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
+                algorithm, cast(type[ff.CoverageFunction], fitness_type)
+            )
+            stat.track_output_variable(
+                runtime,
+                generation_result.get_coverage_for(coverage_function),
+            )
 
 
 def _instantiate_test_generation_strategy(
