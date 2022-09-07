@@ -14,10 +14,12 @@ import pytest
 
 import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
+import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 def test_init_with_configuration():
@@ -123,9 +125,20 @@ def test_setup_hook():
         hook_mock.assert_called_once()
 
 
+class TypeMatcher(object):
+    def __init__(self, some_obj):
+        self.type = type(some_obj)
+
+    def __eq__(self, other):
+        return isinstance(other, self.type)
+
+
 def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.BRANCH,
+    ]
+    config.configuration.statistics_output.output_variables = [
+        RuntimeVariable.AssertionCheckedCoverage,
     ]
     config.configuration.seeding.dynamic_constant_seeding = False
     tracer = ExecutionTracer()
@@ -143,7 +156,7 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
 
         old_loader = module.__loader__
 
-        gen._track_resulting_assertion_checked_coverage(executor, result, None)
+        gen._track_output_variables(executor, result, MagicMock())
 
         new_metrics = config.configuration.statistics_output.coverage_metrics
         assert len(new_metrics) == 1
@@ -151,6 +164,73 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
         assert not executor._instrument
 
         assert old_loader is not module.__loader__
+        assertion_matcher = TypeMatcher(
+            ff.TestSuiteAssertionCheckedCoverageFunction(executor)
+        )
+        result.invalidate_cache.assert_called_once()
+        result.add_coverage_function.assert_called_once_with(assertion_matcher)
+        result.get_coverage_for.assert_called_once_with(assertion_matcher)
+        result.get_coverage.assert_called_once()
+
+
+def test__track_line_coverage_while_optimising_branch_metrics():
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.BRANCH,
+    ]
+    config.configuration.statistics_output.output_variables = [
+        RuntimeVariable.LineCoverage,
+    ]
+    config.configuration.seeding.dynamic_constant_seeding = False
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    assert not executor._instrument
+    result = MagicMock()
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        gen._track_output_variables(executor, result, MagicMock())
+
+        line_matcher = TypeMatcher(ff.TestSuiteLineCoverageFunction(executor))
+        result.invalidate_cache.assert_called_once()
+        result.add_coverage_function.assert_called_once_with(line_matcher)
+        result.get_coverage_for.assert_called_once_with(line_matcher)
+        result.get_coverage.assert_called_once()
+
+
+def test__track_branch_coverage_while_optimising_line_metrics():
+    config.configuration.statistics_output.coverage_metrics = [
+        config.CoverageMetric.LINE,
+    ]
+    config.configuration.statistics_output.output_variables = [
+        RuntimeVariable.BranchCoverage,
+    ]
+    config.configuration.seeding.dynamic_constant_seeding = False
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    assert not executor._instrument
+    result = MagicMock()
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        gen._track_output_variables(executor, result, MagicMock())
+
+        branch_matcher = TypeMatcher(ff.TestSuiteBranchCoverageFunction(executor))
+        result.invalidate_cache.assert_called_once()
+        result.add_coverage_function.assert_called_once_with(branch_matcher)
+        result.get_coverage_for.assert_called_once_with(branch_matcher)
+        result.get_coverage.assert_called_once()
 
 
 def test__reset_cache_for_result():

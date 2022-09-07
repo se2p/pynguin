@@ -330,7 +330,7 @@ def _get_coverage_ff_from_algorithm(
     return test_suite_coverage_func
 
 
-def _add_checked_coverage_instrumentation(
+def _reload_instrumentation_loader(
     constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
 ):
     module_name = config.configuration.module_name
@@ -360,44 +360,95 @@ def _reset_cache_for_result(generation_result):
         test_case.remove_last_execution_result()
 
 
-def _track_resulting_assertion_checked_coverage(
+def _track_output_variables(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
-    constant_provider: DynamicConstantProvider | None,
-):
-    """Now that we have assertions generated, we execute the testsuite statement for
-    statement, while also instrumenting the executed test-statements before execution.
+    constant_provider: ConstantProvider,
+) -> None:
+    """
+    Re-loads all required instrumentations for metrics that were not already
+    calculated and tracked during the result generation.
+    These metrics are then also calculated on the result, which is executed
+    once again with the new instrumentation.
+    Afterwards, the original configuration is restored.
 
     Args:
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
+        constant_provider: the constant provider required for the
+            reloading of the builder
     """
-    _LOGGER.info("Calculating resulting checked coverage")
-
-    original_coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    # change the configuration for the re-instrumentation
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED,
+    output_variables = config.configuration.statistics_output.output_variables
+    original_coverage_metrics = config.configuration.statistics_output.coverage_metrics[
+        :
     ]
-    executor.set_instrument(True)
 
-    _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
-    executor.add_observer(AssertionExecutionObserver(executor.tracer))
-    assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
-        executor
-    )
-    generation_result.add_coverage_function(assertion_checked_coverage_ff)
+    to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
+
+    if RuntimeVariable.AssertionCheckedCoverage in output_variables:
+        _LOGGER.info("Calculating resulting checked coverage")
+        config.configuration.statistics_output.coverage_metrics.append(
+            config.CoverageMetric.CHECKED
+        )
+        executor.set_instrument(True)
+        executor.add_observer(AssertionExecutionObserver(executor.tracer))
+        assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
+            executor
+        )
+        to_calculate.append(
+            (RuntimeVariable.AssertionCheckedCoverage, assertion_checked_coverage_ff)
+        )
+
+        ass_gen = config.configuration.test_case_output.assertion_generation
+        if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING:
+            _minimize_assertions(generation_result)
+
+    if (
+        RuntimeVariable.LineCoverage in output_variables
+        and config.CoverageMetric.LINE not in original_coverage_metrics
+    ):
+        _LOGGER.info("Calculating resulting line coverage")
+        config.configuration.statistics_output.coverage_metrics.append(
+            config.CoverageMetric.LINE
+        )
+        line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.LineCoverage, line_cov_ff))
+
+    if (
+        RuntimeVariable.BranchCoverage in output_variables
+        and config.CoverageMetric.BRANCH not in original_coverage_metrics
+    ):
+        _LOGGER.info("Calculating resulting branch coverage")
+        config.configuration.statistics_output.coverage_metrics.append(
+            config.CoverageMetric.BRANCH
+        )
+        branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.BranchCoverage, branch_cov_ff))
+
+    # re-instrument the files
+    dynamic_constant_provider = None
+    if isinstance(constant_provider, DynamicConstantProvider):
+        dynamic_constant_provider = constant_provider
+    _reload_instrumentation_loader(dynamic_constant_provider, executor.tracer)
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)
 
+    # set value for each newly calculated variable
+    for runtime_variable, coverage_ff in to_calculate:
+        generation_result.add_coverage_function(coverage_ff)
+        stat.track_output_variable(
+            runtime_variable, generation_result.get_coverage_for(coverage_ff)
+        )
+
+    # set new overall coverage
     stat.track_output_variable(
-        RuntimeVariable.AssertionCheckedCoverage,
-        generation_result.get_coverage_for(assertion_checked_coverage_ff),
+        RuntimeVariable.Coverage, generation_result.get_coverage()
     )
 
     # reset the config to its original state
     config.configuration.statistics_output.coverage_metrics = original_coverage_metrics
+    # reset whether to instrument tests and assertions as well as the SUT
     instrument_test = config.CoverageMetric.CHECKED in original_coverage_metrics
     executor.set_instrument(instrument_test)
 
@@ -430,22 +481,10 @@ def _run() -> ReturnCode:
     # search statistics
     executor.clear_observers()
 
-    _track_coverage_metrics(algorithm, generation_result)
+    _track_optimisation_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
-
-    # only call checked coverage calculation after assertion generation
-    if (
-        RuntimeVariable.AssertionCheckedCoverage
-        in config.configuration.statistics_output.output_variables
-    ):
-        dynamic_constant_provider = None
-        if isinstance(constant_provider, DynamicConstantProvider):
-            dynamic_constant_provider = constant_provider
-        _track_resulting_assertion_checked_coverage(
-            executor, generation_result, dynamic_constant_provider
-        )
-        _minimize_assertions(generation_result)
+    _track_output_variables(executor, generation_result, constant_provider)
 
     # Export the generated test suites
     if (
@@ -486,18 +525,16 @@ def _remove_statements_after_exceptions(generation_result):
 
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
-    ass_gen = config.configuration.test_case_output.assertion_generation
-    if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING:
-        _LOGGER.info("Minimizing assertions based on checked coverage")
-        assertion_minimizer = pp.AssertionMinimization()
-        generation_result.accept(assertion_minimizer)
-        stat.track_output_variable(
-            RuntimeVariable.Assertions, len(assertion_minimizer.remaining_assertions)
-        )
-        stat.track_output_variable(
-            RuntimeVariable.DeletedAssertions,
-            len(assertion_minimizer.deleted_assertions),
-        )
+    _LOGGER.info("Minimizing assertions based on checked coverage")
+    assertion_minimizer = pp.AssertionMinimization()
+    generation_result.accept(assertion_minimizer)
+    stat.track_output_variable(
+        RuntimeVariable.Assertions, len(assertion_minimizer.remaining_assertions)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.DeletedAssertions,
+        len(assertion_minimizer.deleted_assertions),
+    )
 
 
 def _generate_assertions(executor, generation_result):
@@ -513,7 +550,7 @@ def _generate_assertions(executor, generation_result):
         generation_result.accept(generator)
 
 
-def _track_coverage_metrics(
+def _track_optimisation_metrics(
     algorithm: TestGenerationStrategy, generation_result: tsc.TestSuiteChromosome
 ) -> None:
     """Track multiple set coverage metrics of the generated test suites.
