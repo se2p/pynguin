@@ -151,6 +151,7 @@ def _setup_path() -> bool:
 
 
 def _setup_import_hook(
+    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
 ) -> ExecutionTracer:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
@@ -159,6 +160,7 @@ def _setup_import_hook(
     install_import_hook(
         config.configuration.module_name,
         tracer,
+        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     return tracer
@@ -253,7 +255,10 @@ def _setup_and_check() -> tuple[
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
-    tracer = _setup_import_hook(dynamic_constant_provider)
+    tracer = _setup_import_hook(
+        set(config.configuration.statistics_output.coverage_metrics),
+        dynamic_constant_provider,
+    )
     if not _load_sut(tracer):
         return None
     if not _setup_report_dir():
@@ -331,7 +336,9 @@ def _get_coverage_ff_from_algorithm(
 
 
 def _reload_instrumentation_loader(
-    constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
+    coverage_metrics: set[config.CoverageMetric],
+    dynamic_constant_provider: DynamicConstantProvider | None,
+    tracer: ExecutionTracer,
 ):
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
@@ -342,7 +349,7 @@ def _reload_instrumentation_loader(
             spec.loader.name,
             spec.loader.path,
             tracer,
-            build_transformer(tracer, constant_provider),
+            build_transformer(tracer, coverage_metrics, dynamic_constant_provider),
         )
         spec.loader = new_loader
         module.__loader__ = new_loader
@@ -379,17 +386,15 @@ def _track_output_variables(
             reloading of the builder
     """
     output_variables = config.configuration.statistics_output.output_variables
-    original_coverage_metrics = config.configuration.statistics_output.coverage_metrics[
-        :
-    ]
+    # Alias for shorter lines
+    cov_metrics = config.configuration.statistics_output.coverage_metrics
+    metrics_for_reinstrumenation: set[config.CoverageMetric] = set(cov_metrics)
 
     to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
 
     if RuntimeVariable.AssertionCheckedCoverage in output_variables:
         _LOGGER.info("Calculating resulting checked coverage")
-        config.configuration.statistics_output.coverage_metrics.append(
-            config.CoverageMetric.CHECKED
-        )
+        metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
         executor.set_instrument(True)
         executor.add_observer(AssertionExecutionObserver(executor.tracer))
         assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
@@ -405,23 +410,19 @@ def _track_output_variables(
 
     if (
         RuntimeVariable.LineCoverage in output_variables
-        and config.CoverageMetric.LINE not in original_coverage_metrics
+        and config.CoverageMetric.LINE not in cov_metrics
     ):
         _LOGGER.info("Calculating resulting line coverage")
-        config.configuration.statistics_output.coverage_metrics.append(
-            config.CoverageMetric.LINE
-        )
+        metrics_for_reinstrumenation.add(config.CoverageMetric.LINE)
         line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
         to_calculate.append((RuntimeVariable.LineCoverage, line_cov_ff))
 
     if (
         RuntimeVariable.BranchCoverage in output_variables
-        and config.CoverageMetric.BRANCH not in original_coverage_metrics
+        and config.CoverageMetric.BRANCH not in cov_metrics
     ):
         _LOGGER.info("Calculating resulting branch coverage")
-        config.configuration.statistics_output.coverage_metrics.append(
-            config.CoverageMetric.BRANCH
-        )
+        metrics_for_reinstrumenation.add(config.CoverageMetric.BRANCH)
         branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
         to_calculate.append((RuntimeVariable.BranchCoverage, branch_cov_ff))
 
@@ -429,7 +430,9 @@ def _track_output_variables(
     dynamic_constant_provider = None
     if isinstance(constant_provider, DynamicConstantProvider):
         dynamic_constant_provider = constant_provider
-    _reload_instrumentation_loader(dynamic_constant_provider, executor.tracer)
+    _reload_instrumentation_loader(
+        metrics_for_reinstrumenation, dynamic_constant_provider, executor.tracer
+    )
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)
@@ -446,10 +449,8 @@ def _track_output_variables(
         RuntimeVariable.Coverage, generation_result.get_coverage()
     )
 
-    # reset the config to its original state
-    config.configuration.statistics_output.coverage_metrics = original_coverage_metrics
     # reset whether to instrument tests and assertions as well as the SUT
-    instrument_test = config.CoverageMetric.CHECKED in original_coverage_metrics
+    instrument_test = config.CoverageMetric.CHECKED in cov_metrics
     executor.set_instrument(instrument_test)
 
 

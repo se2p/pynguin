@@ -266,6 +266,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         self._transformer = build_transformer(
             self._mutation_tracer,
+            {config.CoverageMetric.BRANCH},
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
         # Some debug information

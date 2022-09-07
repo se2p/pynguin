@@ -73,6 +73,7 @@ class InstrumentationLoader(SourceFileLoader):
 
 def build_transformer(
     tracer: ExecutionTracer,
+    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
     """Create an instrumentation transformer that applies the configured
@@ -80,13 +81,15 @@ def build_transformer(
 
     Args:
         tracer: The tracer to use.
-        dynamic_constant_provider: The constant provider to use.
+        coverage_metrics: The coverage metrics to use.
+        dynamic_constant_provider: The dynamic constant provider to use.
+            When such a provider is passed, we apply the instrumentation for dynamic
+            constant seeding.
 
     Returns:
         An instrumentation transformer.
     """
     adapters: list[InstrumentationAdapter] = []
-    coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.BRANCH in coverage_metrics:
         adapters.append(BranchCoverageInstrumentation(tracer))
     if config.CoverageMetric.LINE in coverage_metrics:
@@ -94,8 +97,7 @@ def build_transformer(
     if config.CoverageMetric.CHECKED in coverage_metrics:
         adapters.append(CheckedCoverageInstrumentation(tracer))
 
-    if config.configuration.seeding.dynamic_constant_seeding:
-        assert dynamic_constant_provider is not None
+    if dynamic_constant_provider is not None:
         adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
 
     return InstrumentationTransformer(tracer, adapters)
@@ -103,31 +105,35 @@ def build_transformer(
 
 class InstrumentationFinder(MetaPathFinder):
     """
-    A meta path finder which wraps another pathfinder.
+    A meta pathfinder which wraps another pathfinder.
     It receives all import requests and intercepts the ones for the modules that
     should be instrumented.
     """
 
     _logger = logging.getLogger(__name__)
 
+    # pylint:disable=too-many-arguments
     def __init__(
         self,
         original_pathfinder,
         module_to_instrument: str,
         tracer: ExecutionTracer,
+        coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
-        """Wraps the given path finder.
+        """Wraps the given pathfinder.
 
         Args:
             original_pathfinder: the original pathfinder that is wrapped.
             module_to_instrument: the name of the module, that should be instrumented.
             tracer: the execution tracer
+            coverage_metrics: the coverage metrics to be used for instrumentation.
             dynamic_constant_provider: Used for dynamic constant seeding
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
         self._tracer = tracer
+        self._coverage_metrics = coverage_metrics
         self._dynamic_constant_provider = dynamic_constant_provider
 
     def _should_instrument(self, module_name: str):
@@ -159,7 +165,9 @@ class InstrumentationFinder(MetaPathFinder):
                         spec.loader.path,
                         self._tracer,
                         build_transformer(
-                            self._tracer, self._dynamic_constant_provider
+                            self._tracer,
+                            self._coverage_metrics,
+                            self._dynamic_constant_provider,
                         ),
                     )
                     return spec
@@ -194,6 +202,7 @@ class ImportHookContextManager:
 def install_import_hook(
     module_to_instrument: str,
     tracer: ExecutionTracer,
+    coverage_metrics: set[config.CoverageMetric] | None = None,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
@@ -201,6 +210,8 @@ def install_import_hook(
     Args:
         module_to_instrument: The module that shall be instrumented.
         tracer: The tracer where the instrumentation should report its data.
+        coverage_metrics: the coverage metrics to be used for instrumentation, falls
+            back to the configured metrics in the configuration, if not specified.
         dynamic_constant_provider: Used for dynamic constant seeding
 
     Returns:
@@ -218,6 +229,8 @@ def install_import_hook(
             probability=0,
             max_constant_length=1,
         )
+    if coverage_metrics is None:
+        coverage_metrics = set(config.configuration.statistics_output.coverage_metrics)
 
     to_wrap = None
     for finder in sys.meta_path:
@@ -236,6 +249,7 @@ def install_import_hook(
         to_wrap,
         module_to_instrument,
         tracer,
+        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     sys.meta_path.insert(0, hook)
