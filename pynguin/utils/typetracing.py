@@ -6,6 +6,15 @@
 #
 """Provides utilities to trace the usage of objects."""
 
+# Parts of the following code were taken from the awesome
+# https://github.com/GrahamDumpleton/wrapt module and modified for our purposes.
+
+# The wrapt library is under BSD 2-Clause "Simplified" License:
+# Copyright (c) 2013-2022, Graham Dumpleton
+# All rights reserved.
+#  SPDX-FileCopyrightText: 2013-2022 Graham Dumpleton
+#  SPDX-License-Identifier: BSD-2-Clause
+
 from __future__ import annotations
 
 import builtins
@@ -141,15 +150,6 @@ def proxify(log_arg_types=False, no_wrap_return=False):
 
     return wrap
 
-
-# Parts of the following code were taken from the awesome
-# https://github.com/GrahamDumpleton/wrapt module and modified for our purposes.
-
-# The wrapt library is under BSD 2-Clause "Simplified" License:
-# Copyright (c) 2013-2022, Graham Dumpleton
-# All rights reserved.
-# SPDX-FileCopyrightText: 2013-2022 Graham Dumpleton
-# SPDX-License-Identifier: BSD-2-Clause
 
 class _ObjectProxyMethods:
 
