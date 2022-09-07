@@ -125,14 +125,6 @@ def test_setup_hook():
         hook_mock.assert_called_once()
 
 
-class TypeMatcher(object):
-    def __init__(self, some_obj):
-        self.type = type(some_obj)
-
-    def __eq__(self, other):
-        return isinstance(other, self.type)
-
-
 def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.BRANCH,
@@ -164,21 +156,39 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
         assert not executor._instrument
 
         assert old_loader is not module.__loader__
-        assertion_matcher = TypeMatcher(
-            ff.TestSuiteAssertionCheckedCoverageFunction(executor)
+        result.invalidate_cache.assert_called_once()
+        assert (
+            type(result.add_coverage_function.call_args.args[0])
+            == ff.TestSuiteAssertionCheckedCoverageFunction
         )
-        result.invalidate_cache.assert_called_once()
-        result.add_coverage_function.assert_called_once_with(assertion_matcher)
-        result.get_coverage_for.assert_called_once_with(assertion_matcher)
+        assert (
+            type(result.get_coverage_for.call_args.args[0])
+            == ff.TestSuiteAssertionCheckedCoverageFunction
+        )
         result.get_coverage.assert_called_once()
 
 
-def test__track_line_coverage_while_optimising_branch_metrics():
+@pytest.mark.parametrize(
+    "optimize,track,func_type",
+    [
+        (
+            config.CoverageMetric.BRANCH,
+            RuntimeVariable.LineCoverage,
+            ff.TestSuiteLineCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.LINE,
+            RuntimeVariable.BranchCoverage,
+            ff.TestSuiteBranchCoverageFunction,
+        ),
+    ],
+)
+def test__track_one_coverage_while_optimising_for_other(optimize, track, func_type):
     config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.BRANCH,
+        optimize,
     ]
     config.configuration.statistics_output.output_variables = [
-        RuntimeVariable.LineCoverage,
+        track,
     ]
     config.configuration.seeding.dynamic_constant_seeding = False
     tracer = ExecutionTracer()
@@ -196,40 +206,9 @@ def test__track_line_coverage_while_optimising_branch_metrics():
 
         gen._track_output_variables(executor, result, MagicMock())
 
-        line_matcher = TypeMatcher(ff.TestSuiteLineCoverageFunction(executor))
         result.invalidate_cache.assert_called_once()
-        result.add_coverage_function.assert_called_once_with(line_matcher)
-        result.get_coverage_for.assert_called_once_with(line_matcher)
-        result.get_coverage.assert_called_once()
-
-
-def test__track_branch_coverage_while_optimising_line_metrics():
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.LINE,
-    ]
-    config.configuration.statistics_output.output_variables = [
-        RuntimeVariable.BranchCoverage,
-    ]
-    config.configuration.seeding.dynamic_constant_seeding = False
-    tracer = ExecutionTracer()
-    executor = TestCaseExecutor(tracer)
-    assert not executor._instrument
-    result = MagicMock()
-
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    module_name = "tests.fixtures.linecoverage.plus"
-    config.configuration.module_name = module_name
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        gen._track_output_variables(executor, result, MagicMock())
-
-        branch_matcher = TypeMatcher(ff.TestSuiteBranchCoverageFunction(executor))
-        result.invalidate_cache.assert_called_once()
-        result.add_coverage_function.assert_called_once_with(branch_matcher)
-        result.get_coverage_for.assert_called_once_with(branch_matcher)
+        assert type(result.add_coverage_function.call_args.args[0]) == func_type
+        assert type(result.get_coverage_for.call_args.args[0]) == func_type
         result.get_coverage.assert_called_once()
 
 
