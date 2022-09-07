@@ -5,16 +5,30 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 
-# Copyright 2020 Pants project contributors (see CONTRIBUTORS.md).
-# Licensed under the Apache License, Version 2.0 (see LICENSE).
+"""
+The following code is taken from https://github.com/pantsbuild/pants
+We made minor changes so that our linting pipeline is accepts the code.
 
-"""An OrderedSet is a set that remembers its insertion order, and a FrozenOrderedSet is
-one that is also immutable.
-Based on the library `ordered-set` developed by Robyn Speer and released under the MIT
-license: https://github.com/LuminosoInsight/ordered-set.
+Copyright 2020 Pants project contributors.
+Licensed under the Apache License, Version 2.0.
+SPDX-FileCopyrightText: 2020 Pants project contributors
+SPDX-License-Identifier: Apache-2.0
+
+An OrderedSet is a set that remembers its insertion order, and a FrozenOrderedSet is
+one that is also immutable. Based on the library `ordered-set` developed by
+Elia Robyn Lake (Robyn Speer) and released under the MIT license:
+https://github.com/LuminosoInsight/ordered-set.
+Copyright (c) 2012-2022 Elia Robyn Lake
+SPDX-FileCopyrightText: 2012-2022 Elia Robyn Lake
+SPDX-License-Identifier: MIT
+
+
 The library `ordered-set` is itself originally based on a recipe originally posted to
 ActivateState Recipes by Raymond Hettiger and released under the MIT license:
 http://code.activestate.com/recipes/576694/.
+Copyright (c) 2009 Raymond Hettiger
+SPDX-FileCopyrightText: 2009 Raymond Hettiger
+SPDX-License-Identifier: MIT
 """
 
 from __future__ import annotations
