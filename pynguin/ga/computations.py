@@ -298,7 +298,7 @@ class CoverageFunction:  # pylint:disable=too-few-public-methods
 
     @abstractmethod
     def get_name(self) -> str:
-        """ Returns the name of the coverage function.
+        """Returns the name of the coverage function.
 
         Returns:
             The name of the coverage function.

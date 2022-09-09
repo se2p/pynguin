@@ -148,7 +148,7 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
 
         old_loader = module.__loader__
 
-        gen._track_output_variables(executor, result, MagicMock())
+        gen._track_coverage_metrics(executor, result, MagicMock())
 
         new_metrics = config.configuration.statistics_output.coverage_metrics
         assert len(new_metrics) == 1
@@ -204,7 +204,7 @@ def test__track_one_coverage_while_optimising_for_other(optimize, track, func_ty
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        gen._track_output_variables(executor, result, MagicMock())
+        gen._track_coverage_metrics(executor, result, MagicMock())
 
         result.invalidate_cache.assert_called_once()
         assert type(result.add_coverage_function.call_args.args[0]) == func_type

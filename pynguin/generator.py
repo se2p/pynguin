@@ -367,7 +367,7 @@ def _reset_cache_for_result(generation_result):
         test_case.remove_last_execution_result()
 
 
-def _track_output_variables(
+def _track_coverage_metrics(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
     constant_provider: ConstantProvider,
@@ -445,8 +445,8 @@ def _track_output_variables(
 
     ass_gen = config.configuration.test_case_output.assertion_generation
     if (
-        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING and
-        RuntimeVariable.AssertionCheckedCoverage in output_variables
+        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING
+        and RuntimeVariable.AssertionCheckedCoverage in output_variables
     ):
         _minimize_assertions(generation_result)
 
@@ -483,10 +483,10 @@ def _run() -> ReturnCode:
     # search statistics
     executor.clear_observers()
 
-    _track_optimisation_metrics(algorithm, generation_result)
+    _track_search_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
-    _track_output_variables(executor, generation_result, constant_provider)
+    _track_coverage_metrics(executor, generation_result, constant_provider)
 
     # Export the generated test suites
     if (
@@ -505,8 +505,7 @@ def _run() -> ReturnCode:
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
             datetime.datetime.now(),
         )
-    _track_statistics(generation_result)
-    _collect_statistics()
+    _collect_statistics(generation_result)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
     if generation_result.size() == 0:
@@ -552,7 +551,7 @@ def _generate_assertions(executor, generation_result):
         generation_result.accept(generator)
 
 
-def _track_optimisation_metrics(
+def _track_search_metrics(
     algorithm: TestGenerationStrategy, generation_result: tsc.TestSuiteChromosome
 ) -> None:
     """Track multiple set coverage metrics of the generated test suites.
@@ -605,7 +604,11 @@ def _instantiate_test_generation_strategy(
     return factory.get_search_algorithm()
 
 
-def _collect_statistics() -> None:
+def _collect_statistics(result: chrom.Chromosome) -> None:
+    stat.current_individual(result)
+    stat.track_output_variable(RuntimeVariable.Size, result.size())
+    stat.track_output_variable(RuntimeVariable.Length, result.length())
+
     stat.track_output_variable(
         RuntimeVariable.TargetModule, config.configuration.module_name
     )
@@ -619,12 +622,6 @@ def _collect_statistics() -> None:
     )
     for runtime_variable, value in stat.variables_generator:
         stat.set_output_variable_for_runtime_variable(runtime_variable, value)
-
-
-def _track_statistics(result: chrom.Chromosome) -> None:
-    stat.current_individual(result)
-    stat.track_output_variable(RuntimeVariable.Size, result.size())
-    stat.track_output_variable(RuntimeVariable.Length, result.length())
 
 
 def _export_chromosome(
