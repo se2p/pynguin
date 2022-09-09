@@ -443,6 +443,13 @@ def _track_output_variables(
         RuntimeVariable.Coverage, generation_result.get_coverage()
     )
 
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if (
+        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING and
+        RuntimeVariable.AssertionCheckedCoverage in output_variables
+    ):
+        _minimize_assertions(generation_result)
+
     # reset whether to instrument tests and assertions as well as the SUT
     instrument_test = config.CoverageMetric.CHECKED in cov_metrics
     executor.set_instrument(instrument_test)
