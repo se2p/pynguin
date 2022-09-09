@@ -296,6 +296,14 @@ class CoverageFunction:  # pylint:disable=too-few-public-methods
             The computed coverage.
         """
 
+    @abstractmethod
+    def get_name(self) -> str:
+        """ Returns the name of the coverage function.
+
+        Returns:
+            The name of the coverage function.
+        """
+
 
 # pylint: disable=too-few-public-methods
 class TestSuiteCoverageFunction(
@@ -319,6 +327,9 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
         tracer = self._executor.tracer
         return compute_branch_coverage(merged_trace, tracer.get_known_data())
 
+    def get_name(self) -> str:
+        return "TestSuiteBranchCoverage"
+
 
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
     """Computes branch coverage on test cases."""
@@ -328,6 +339,9 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_branch_coverage(merged_trace, tracer.get_known_data())
+
+    def get_name(self) -> str:
+        return "TestCaseBranchCoverage"
 
 
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
@@ -339,6 +353,9 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
         tracer = self._executor.tracer
         return compute_line_coverage(merged_trace, tracer.get_known_data())
 
+    def get_name(self) -> str:
+        return "TestSuiteLineCoverage"
+
 
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
     """Computes line coverage on test cases."""
@@ -348,6 +365,9 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_line_coverage(merged_trace, tracer.get_known_data())
+
+    def get_name(self) -> str:
+        return "TestSuiteLineCoverage"
 
 
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
@@ -369,6 +389,9 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 
+    def get_name(self) -> str:
+        return "TestSuiteStatementCheckedCoverage"
+
 
 class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on the statements of test cases."""
@@ -388,6 +411,9 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 
+    def get_name(self) -> str:
+        return "TestCaseStatementCheckedCoverage"
+
 
 class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on test suites with assertions."""
@@ -398,6 +424,9 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
         tracer = self._executor.tracer
         return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
 
+    def get_name(self) -> str:
+        return "TestSuiteCheckedCoverage"
+
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on test cases with assertions."""
@@ -407,6 +436,9 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
         return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
+
+    def get_name(self) -> str:
+        return "TestCaseCheckedCoverage"
 
 
 class ComputationCache:

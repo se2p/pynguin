@@ -392,8 +392,23 @@ def _track_output_variables(
 
     to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
 
+    if (
+        RuntimeVariable.LineCoverage in output_variables
+        and config.CoverageMetric.LINE not in cov_metrics
+    ):
+        metrics_for_reinstrumenation.add(config.CoverageMetric.LINE)
+        line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.LineCoverage, line_cov_ff))
+
+    if (
+        RuntimeVariable.BranchCoverage in output_variables
+        and config.CoverageMetric.BRANCH not in cov_metrics
+    ):
+        metrics_for_reinstrumenation.add(config.CoverageMetric.BRANCH)
+        branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.BranchCoverage, branch_cov_ff))
+
     if RuntimeVariable.AssertionCheckedCoverage in output_variables:
-        _LOGGER.info("Calculating resulting checked coverage")
         metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
         executor.set_instrument(True)
         executor.add_observer(AssertionExecutionObserver(executor.tracer))
@@ -403,28 +418,6 @@ def _track_output_variables(
         to_calculate.append(
             (RuntimeVariable.AssertionCheckedCoverage, assertion_checked_coverage_ff)
         )
-
-        ass_gen = config.configuration.test_case_output.assertion_generation
-        if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING:
-            _minimize_assertions(generation_result)
-
-    if (
-        RuntimeVariable.LineCoverage in output_variables
-        and config.CoverageMetric.LINE not in cov_metrics
-    ):
-        _LOGGER.info("Calculating resulting line coverage")
-        metrics_for_reinstrumenation.add(config.CoverageMetric.LINE)
-        line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
-        to_calculate.append((RuntimeVariable.LineCoverage, line_cov_ff))
-
-    if (
-        RuntimeVariable.BranchCoverage in output_variables
-        and config.CoverageMetric.BRANCH not in cov_metrics
-    ):
-        _LOGGER.info("Calculating resulting branch coverage")
-        metrics_for_reinstrumenation.add(config.CoverageMetric.BRANCH)
-        branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
-        to_calculate.append((RuntimeVariable.BranchCoverage, branch_cov_ff))
 
     # re-instrument the files
     dynamic_constant_provider = None
@@ -440,6 +433,7 @@ def _track_output_variables(
     # set value for each newly calculated variable
     for runtime_variable, coverage_ff in to_calculate:
         generation_result.add_coverage_function(coverage_ff)
+        _LOGGER.info(f"Calculating resulting {coverage_ff.get_name()}")
         stat.track_output_variable(
             runtime_variable, generation_result.get_coverage_for(coverage_ff)
         )
