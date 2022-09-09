@@ -25,7 +25,6 @@ import logging
 import os
 import sys
 import threading
-from importlib.abc import FileLoader
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -49,11 +48,7 @@ from pynguin.analyses.constants import (
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import TypeInferenceStrategy
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import (
-    InstrumentationLoader,
-    build_transformer,
-    install_import_hook,
-)
+from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import (
     AssertionExecutionObserver,
@@ -62,7 +57,6 @@ from pynguin.testcase.execution import (
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.report import get_coverage_report, render_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -342,22 +336,17 @@ def _reload_instrumentation_loader(
 ):
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
-    spec = module.__spec__
     tracer.current_thread_identifier = threading.current_thread().ident
-    if spec is not None and isinstance(spec.loader, FileLoader):
-        new_loader = InstrumentationLoader(
-            spec.loader.name,
-            spec.loader.path,
-            tracer,
-            build_transformer(tracer, coverage_metrics, dynamic_constant_provider),
-        )
-        spec.loader = new_loader
-        module.__loader__ = new_loader
-        importlib.reload(module)
-    else:
-        raise ConfigurationException(
-            "Loader for module under test is not a FileLoader can not instrument."
-        )
+    first_finder = sys.meta_path[0]
+    assert isinstance(first_finder, InstrumentationFinder)
+    finder: InstrumentationFinder = first_finder
+    # pylint:disable=no-member
+    finder.update_instrumentation_metrics(
+        tracer=tracer,
+        coverage_metrics=coverage_metrics,
+        dynamic_constant_provider=dynamic_constant_provider,
+    )
+    importlib.reload(module)
 
 
 def _reset_cache_for_result(generation_result):

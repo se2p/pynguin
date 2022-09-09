@@ -136,6 +136,24 @@ class InstrumentationFinder(MetaPathFinder):
         self._coverage_metrics = coverage_metrics
         self._dynamic_constant_provider = dynamic_constant_provider
 
+    def update_instrumentation_metrics(
+        self,
+        tracer: ExecutionTracer,
+        coverage_metrics: set[config.CoverageMetric],
+        dynamic_constant_provider: DynamicConstantProvider | None,
+    ) -> None:
+        """Update the coverage instrumentation. Useful for re-applying a different
+        instrumentation.
+
+        Args:
+            tracer: The new execution tracer
+            coverage_metrics: The new coverage metrics
+            dynamic_constant_provider: The dynamic constant provider, if any.
+        """
+        self._tracer = tracer
+        self._coverage_metrics = coverage_metrics
+        self._dynamic_constant_provider = dynamic_constant_provider
+
     def _should_instrument(self, module_name: str):
         return module_name == self._module_to_instrument
 
