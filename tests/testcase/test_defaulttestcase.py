@@ -28,9 +28,9 @@ def get_default_test_case():
 
 
 def test_add_statement_end(default_test_case):
-    stmt_1 = MagicMock(st.Statement)
-    stmt_2 = MagicMock(st.Statement)
-    stmt_3 = MagicMock(st.Statement)
+    stmt_1 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_2 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_3 = MagicMock(st.Statement, ret_val=MagicMock())
     stmt_3.return_value = MagicMock(vr.VariableReference)
     default_test_case._statements.extend([stmt_1, stmt_2])
 
@@ -40,10 +40,10 @@ def test_add_statement_end(default_test_case):
 
 
 def test_add_statement_middle(default_test_case):
-    stmt_1 = MagicMock(st.Statement)
-    stmt_2 = MagicMock(st.Statement)
+    stmt_1 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_2 = MagicMock(st.Statement, ret_val=MagicMock())
     stmt_2.return_value = MagicMock(vr.VariableReference)
-    stmt_3 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement, ret_val=MagicMock())
     default_test_case._statements.extend([stmt_1, stmt_3])
 
     reference = default_test_case.add_statement(stmt_2, position=1)
@@ -171,16 +171,19 @@ def test_eq_statements_2(default_test_case):
 
 
 def test_eq_statements_3(default_test_case):
-    stmt1 = MagicMock()
+    stmt1 = MagicMock(ret_val=MagicMock())
     stmt1.structural_eq.return_value = False
     default_test_case._statements = [stmt1]
     other = dtc.DefaultTestCase(ModuleTestCluster(0))
-    other._statements = [MagicMock(st.Statement)]
+    other._statements = [MagicMock(st.Statement, ret_val=MagicMock())]
     assert default_test_case != other
 
 
 def test_eq_statements_4(default_test_case):
-    statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
+    statements = [
+        MagicMock(st.Statement, ret_val=MagicMock()),
+        MagicMock(st.Statement, ret_val=MagicMock()),
+    ]
     default_test_case._statements = statements
     other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = statements
@@ -195,7 +198,7 @@ def test_eq_statements_5(default_test_case):
 
 
 def test_clone(default_test_case):
-    stmt = MagicMock(st.Statement)
+    stmt = MagicMock(st.Statement, ret_val=MagicMock())
     ref = MagicMock(vr.VariableReference)
     stmt.clone.return_value = stmt
     stmt.return_value.clone.return_value = ref
@@ -211,7 +214,7 @@ def test_statements(default_test_case):
 
 
 def test_append_test_case(default_test_case):
-    stmt = MagicMock(st.Statement)
+    stmt = MagicMock(st.Statement, ret_val=MagicMock())
     stmt.clone.return_value = stmt
     other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = [stmt]

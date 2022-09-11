@@ -252,6 +252,7 @@ def test_add_enum(default_test_case):
     ],
 )
 def test_create_primitive(type_, default_test_case):
+    default_test_case.test_cluster.type_system.enable_numeric_tower()
     proper = default_test_case.test_cluster.type_system.convert_type_hint(type_)
     factory = tf.TestFactory(default_test_case.test_cluster)
     provider = EmptyConstantProvider()
@@ -266,6 +267,7 @@ def test_create_primitive(type_, default_test_case):
 
 
 def test_attempt_generation_for_unknown_type(default_test_case):
+    default_test_case.test_cluster.type_system.enable_numeric_tower()
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
         default_test_case,

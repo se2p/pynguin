@@ -47,6 +47,8 @@ def test_integrate_mosa(module_name: str, algorithm):
     config.configuration.search_algorithm.max_initial_tests = 1
     config.configuration.search_algorithm.test_insertion_probability = 0.5
     config.configuration.search_algorithm.population = 3
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 1
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident

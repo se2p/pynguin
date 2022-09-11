@@ -408,18 +408,18 @@ class TestCreationConfiguration:
     none_weight: float = 1
     """Weight to use None as parameter type during test generation."""
 
-    any_weight: float = 1
+    any_weight: float = 5
     """Weight to use Any as parameter type during test generation."""
 
-    original_type_weight: float = 10
+    original_type_weight: float = 25
     """Weight to use the originally annotated type as parameter type during test
     generation."""
 
-    type_tracing_weight: float = 200
+    type_tracing_weight: float = 50
     """Weight to use the type guessed from type tracing as parameter type during
     test generation."""
 
-    negate_type: float = 0.05
+    negate_type: float = 0.01
     """When inferring a type from proxies, it may also be desirable to negate the chosen
     type, e.g., such that an instance check or a getattr() evaluate to False.
     Expects values in [0,1]"""

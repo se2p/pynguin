@@ -487,11 +487,7 @@ class ReturnTypeObserver(ExecutionObserver):
         exec_ctx: ExecutionContext,
         exception: BaseException | None,
     ) -> None:
-        if (
-            exception is None
-            and (ret_val := statement.ret_val) is not None
-            and not ret_val.is_none_type()
-        ):
+        if exception is None and (ret_val := statement.ret_val) is not None:
             value = exec_ctx.get_reference_value(ret_val)
             position = statement.get_position()
             self._return_type_local_state.return_type_trace[position] = type(value)

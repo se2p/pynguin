@@ -44,28 +44,10 @@ class Statement(metaclass=ABCMeta):
         self._test_case = test_case
         self._assertions: OrderedSet[ass.Assertion] = OrderedSet()
 
-    @property
-    def ret_val(self) -> vr.VariableReference | None:
-        """Provides the variable defined by this statement, if any.
-        This is intentionally not named 'return_value' because that name is reserved by
-        the mocking framework which is used in our tests.
-
-        Returns:
-            The variable defined by this statement, if any.
-        """
-        return None
-
-    @ret_val.setter
-    def ret_val(
-        self,
-        reference: vr.VariableReference,  # pylint:disable=unused-argument,
-    ) -> None:
-        """Updates the return value of this statement.
-
-        Args:
-            reference: The new return value
-        """
-        return
+        # The variable defined by this statement, if any.
+        # This is intentionally not named 'return_value' because that name is reserved
+        # by the mocking framework which is used in our tests.
+        self.ret_val: vr.VariableReference | None = None
 
     @property
     def test_case(self) -> tc.TestCase:
@@ -253,15 +235,7 @@ class VariableCreatingStatement(Statement, metaclass=abc.ABCMeta):
 
     def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference):
         super().__init__(test_case)
-        self._ret_val = ret_val
-
-    @property
-    def ret_val(self) -> vr.VariableReference:
-        return self._ret_val
-
-    @ret_val.setter
-    def ret_val(self, ret_val: vr.VariableReference) -> None:
-        self._ret_val = ret_val
+        self.ret_val: vr.VariableReference = ret_val
 
 
 class StatementVisitor(metaclass=ABCMeta):
@@ -421,16 +395,6 @@ class AssignmentStatement(Statement):
         super().__init__(test_case)
         self._lhs = lhs
         self._rhs = rhs
-
-    @property
-    def ret_val(self) -> vr.VariableReference | None:
-        return None
-
-    @ret_val.setter
-    def ret_val(
-        self, ret_val: vr.VariableReference | None  # pylint:disable=unused-argument
-    ) -> None:
-        return
 
     @property
     def lhs(self) -> vr.Reference:
@@ -625,7 +589,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         return hash(
             (
-                self._ret_val.structural_hash(memo),
+                self.ret_val.structural_hash(memo),
                 frozenset((v.structural_hash(memo)) for v in self._elements),
             )
         )
@@ -636,7 +600,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
         if not isinstance(other, self.__class__):
             return False
         return (
-            self._ret_val.structural_eq(other._ret_val, memo)
+            self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)
             and all(
                 {
@@ -808,7 +772,7 @@ class DictStatement(
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         return hash(
             (
-                self._ret_val.structural_hash(memo),
+                self.ret_val.structural_hash(memo),
                 frozenset(
                     (k.structural_hash(memo), v.structural_hash(memo))
                     for k, v in self._elements
@@ -822,7 +786,7 @@ class DictStatement(
         if not isinstance(other, self.__class__):
             return False
         return (
-            self._ret_val.structural_eq(other._ret_val, memo)
+            self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)
             and all(
                 {
@@ -920,8 +884,8 @@ class FieldStatement(VariableCreatingStatement):
             self._source = new
         else:
             self._source.replace_variable_reference(old, new)
-        if self._ret_val == old:
-            self._ret_val = new
+        if self.ret_val == old:
+            self.ret_val = new
 
     def structural_eq(
         self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
@@ -930,12 +894,12 @@ class FieldStatement(VariableCreatingStatement):
             return False
         return (
             self._field == other._field
-            and self._ret_val.structural_eq(other._ret_val, memo)
+            and self.ret_val.structural_eq(other.ret_val, memo)
             and self._source.structural_eq(other._source, memo)
         )
 
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
-        return hash((self._field, self._ret_val.structural_hash(memo)))
+        return hash((self._field, self.ret_val.structural_hash(memo)))
 
 
 class ParametrizedStatement(
@@ -1176,7 +1140,7 @@ class ParametrizedStatement(
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         return hash(
             (
-                self._ret_val.structural_hash(memo),
+                self.ret_val.structural_hash(memo),
                 self._generic_callable,
                 frozenset((k, v.structural_hash(memo)) for k, v in self._args.items()),
             )
@@ -1188,7 +1152,7 @@ class ParametrizedStatement(
         if not isinstance(other, self.__class__):
             return False
         return (
-            self._ret_val.structural_eq(other._ret_val, memo)
+            self.ret_val.structural_eq(other.ret_val, memo)
             and self._generic_callable == other._generic_callable
             and self._args.keys() == other._args.keys()
             and all(
@@ -1370,13 +1334,13 @@ class FunctionStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"FunctionStatement({self._test_case}, "
-            f"{self._generic_callable}, {self._ret_val.type}, "
+            f"{self._generic_callable}, {self.ret_val.type}, "
             f"args={self._args})"
         )
 
     def __str__(self) -> str:
         return (
-            f"{self._generic_callable}(args={self._args}) -> " + f"{self._ret_val.type}"
+            f"{self._generic_callable}(args={self._args}) -> " + f"{self.ret_val.type}"
         )
 
 
@@ -1441,12 +1405,12 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
 
     def __repr__(self) -> str:
         return (
-            f"PrimitiveStatement({self._test_case}, {self._ret_val}, "
+            f"PrimitiveStatement({self._test_case}, {self.ret_val}, "
             + f"{self._value})"
         )
 
     def __str__(self) -> str:
-        return f"{self._value}: {self._ret_val}"
+        return f"{self._value}: {self.ret_val}"
 
     def structural_eq(
         self,
@@ -1456,12 +1420,12 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
         if not isinstance(other, self.__class__):
             return False
         return (
-            self._ret_val.structural_eq(other._ret_val, memo)
+            self.ret_val.structural_eq(other.ret_val, memo)
             and self._value == other._value
         )
 
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
-        return hash((self._ret_val.structural_hash(memo), hash(self._value)))
+        return hash((self.ret_val.structural_hash(memo), hash(self._value)))
 
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):

@@ -246,12 +246,7 @@ class TestCase(metaclass=ABCMeta):
             var = statement.ret_val
             if var is None:
                 continue
-            if (
-                not var.is_none_type()
-                and self.test_cluster.type_system.is_maybe_subtype(
-                    var.type, parameter_type
-                )
-            ):
+            if self.test_cluster.type_system.is_maybe_subtype(var.type, parameter_type):
                 variables.append(var)
 
         return variables

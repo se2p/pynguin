@@ -128,7 +128,7 @@ def test_generate_sequence(has_exceptions, executor, default_test_case):
         executor, test_cluster
     ).get_search_algorithm()
     algorithm._random_public_method = lambda x: None  # pragma: no cover
-    default_test_case.add_statement(MagicMock(stmt.Statement))
+    default_test_case.add_statement(MagicMock(stmt.Statement, ret_val=MagicMock()))
     algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomTestStrategy)
     with pytest.raises(GenerationException):

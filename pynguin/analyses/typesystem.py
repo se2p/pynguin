@@ -95,12 +95,16 @@ class Instance(ProperType):
         if args is None:
             args = ()
         self.args = tuple(args)
+        # Cached hash value
+        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_instance(self)
 
     def __hash__(self):
-        return hash((self.type, self.args))
+        if self._hash is None:
+            self._hash = hash((self.type, self.args))
+        return self._hash
 
     def __eq__(self, other):
         return (
@@ -118,12 +122,16 @@ class TupleType(ProperType):
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
         self.unknown_size = unknown_size
+        # Cached hash value
+        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_tuple_type(self)
 
     def __hash__(self):
-        return hash((self.args, self.unknown_size))
+        if self._hash is None:
+            self._hash = hash((self.args, self.unknown_size))
+        return self._hash
 
     def __eq__(self, other):
         return (
@@ -140,12 +148,16 @@ class UnionType(ProperType):
         self.items = items
         # TODO(fk) think about flattening Unions, also order should not matter.
         assert len(self.items) > 0
+        # Cached hash value
+        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_union_type(self)
 
     def __hash__(self):
-        return hash(self.items)
+        if self._hash is None:
+            self._hash = hash(self.items)
+        return self._hash
 
     def __eq__(self, other):
         return isinstance(other, UnionType) and self.items == other.items
@@ -420,6 +432,7 @@ class TypeInfo:
         self.qualname = raw_type.__qualname__
         self.module = raw_type.__module__
         self.full_name = TypeInfo.to_full_name(raw_type)
+        self.hash = hash(self.full_name)
         self.is_abstract = inspect.isabstract(raw_type)
         # TODO(fk) store more information on attributes
         self.instance_attributes: OrderedSet[str] = OrderedSet()
@@ -447,7 +460,7 @@ class TypeInfo:
         return isinstance(other, TypeInfo) and other.full_name == self.full_name
 
     def __hash__(self):
-        return hash(self.full_name)
+        return self.hash
 
     def __repr__(self):
         return f"TypeInfo({self.full_name})"
@@ -523,12 +536,13 @@ class InferredSignature:
             # - NoneType
             # - AnyType, i.e., disregard type
             # TODO(fk) add choices from other source here, e.g., DeepTyper.
-            choices: list[ProperType] = [NONE_TYPE, ANY, orig_type]
-            weights: list[float] = [
-                test_conf.none_weight,
-                test_conf.any_weight,
-                test_conf.original_type_weight,
-            ]
+            choices: list[ProperType] = [NONE_TYPE, ANY]
+            weights: list[float] = [test_conf.none_weight, test_conf.any_weight]
+            # Only add the original type to the choices, if it is not Any.
+            if not isinstance(orig_type, AnyType):
+                choices.append(orig_type)
+                weights.append(test_conf.original_type_weight)
+
             if (guessed := self.current_guessed_parameters.get(param_name)) is not None:
                 choices.append(guessed)
                 weights.append(test_conf.type_tracing_weight)
