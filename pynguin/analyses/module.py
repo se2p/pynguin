@@ -1108,7 +1108,7 @@ def __resolve_dependencies(
         seen_classes=seen_classes,
         parse_results=parse_results,
     )
-    __enable_numeric_tower(test_cluster)
+    test_cluster.type_system.enable_numeric_tower()
 
     # Start with root module, i.e., the module under test.
     wait_list: queue.SimpleQueue[ModuleType] = queue.SimpleQueue()
@@ -1157,20 +1157,6 @@ def __resolve_dependencies(
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
     test_cluster.type_system.push_symbols_down()
-
-
-def __enable_numeric_tower(test_cluster):
-    # Enable numeric tower int <: float <: complex.
-    # https://peps.python.org/pep-0484/#the-numeric-tower
-    int_info = test_cluster.type_system.to_type_info(int)
-    float_info = test_cluster.type_system.to_type_info(float)
-    complex_info = test_cluster.type_system.to_type_info(complex)
-    test_cluster.type_system.add_subclass_edge(
-        super_class=float_info, sub_class=int_info
-    )
-    test_cluster.type_system.add_subclass_edge(
-        super_class=complex_info, sub_class=float_info
-    )
 
 
 def __analyse_included_classes(

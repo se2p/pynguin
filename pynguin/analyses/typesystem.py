@@ -858,6 +858,29 @@ class TypeSystem:
         self.collection_proper_types = [
             self.convert_type_hint(coll) for coll in COLLECTIONS
         ]
+        # Pre-compute numeric tower
+        numeric = [complex, float, int, bool]
+        self.numeric_tower: dict[Instance, list[Instance]] = typing.cast(
+            dict[Instance, list[Instance]],
+            {
+                self.convert_type_hint(typ): [
+                    self.convert_type_hint(tp) for tp in numeric[idx:]
+                ]
+                for idx, typ in enumerate(numeric)
+            },
+        )
+
+    def enable_numeric_tower(self):
+        """Enable the numeric tower on this type system."""
+        # Enable numeric tower int <: float <: complex.
+        # https://peps.python.org/pep-0484/#the-numeric-tower
+        bool_info = self.to_type_info(bool)
+        int_info = self.to_type_info(int)
+        float_info = self.to_type_info(float)
+        complex_info = self.to_type_info(complex)
+        self.add_subclass_edge(super_class=int_info, sub_class=bool_info)
+        self.add_subclass_edge(super_class=float_info, sub_class=int_info)
+        self.add_subclass_edge(super_class=complex_info, sub_class=float_info)
 
     def add_subclass_edge(self, *, super_class: TypeInfo, sub_class: TypeInfo) -> None:
         """Add a subclass edge between two types.

@@ -262,7 +262,7 @@ def test_create_primitive(type_, default_test_case):
         recursion_depth=0,
         constant_provider=provider,
     )
-    assert result.type == proper
+    assert default_test_case.test_cluster.type_system.is_subtype(result.type, proper)
 
 
 def test_attempt_generation_for_unknown_type(default_test_case):

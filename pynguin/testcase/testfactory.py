@@ -1138,16 +1138,10 @@ class TestFactory:
         constant_provider: ConstantProvider,
     ) -> vr.VariableReference:
         # Need to adhere to numeric tower.
-        parameter_type = cast(
-            Instance,
-            randomness.choice(
-                [
-                    typ
-                    for typ in self._test_cluster.type_system.primitive_proper_types
-                    if self._test_cluster.type_system.is_subtype(typ, parameter_type)
-                ]
-            ),
-        )
+        if (
+            subtypes := self._test_cluster.type_system.numeric_tower.get(parameter_type)
+        ) is not None:
+            parameter_type = randomness.choice(subtypes)
 
         match parameter_type.type.name:
             case "int":

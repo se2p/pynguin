@@ -871,3 +871,18 @@ def test_from_symbol_table_4(inferred_signature):
         assert inferred_signature._from_symbol_table(
             knowledge
         ) != inferred_signature.type_system.convert_type_hint(int)
+
+
+@pytest.mark.parametrize(
+    "numeric,subtypes",
+    [
+        (complex, [complex, float, int, bool]),
+        (float, [float, int, bool]),
+        (int, [int, bool]),
+        (bool, [bool]),
+    ],
+)
+def test_numeric_tower(type_system, numeric, subtypes):
+    assert type_system.numeric_tower[type_system.convert_type_hint(numeric)] == [
+        type_system.convert_type_hint(typ) for typ in subtypes
+    ]
