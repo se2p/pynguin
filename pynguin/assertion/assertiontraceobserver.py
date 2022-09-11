@@ -21,7 +21,7 @@ import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.typesystem import AnyType, TypeInfo
+from pynguin.analyses.typesystem import ANY, TypeInfo
 from pynguin.utils.type_utils import (
     is_assertable,
     is_collection_type,
@@ -139,7 +139,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     exec_ctx,
                     vr.StaticModuleFieldReference(
                         # Type information is not used here, so use Any.
-                        gao.GenericStaticModuleField(module_name, field, AnyType())
+                        gao.GenericStaticModuleField(module_name, field, ANY)
                     ),
                     position,
                     trace,
@@ -167,7 +167,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     exec_ctx,
                     vr.StaticFieldReference(
                         # Type information is not used here, so use Any.
-                        gao.GenericStaticField(TypeInfo(seen_type), field, AnyType())
+                        gao.GenericStaticField(TypeInfo(seen_type), field, ANY)
                     ),
                     position,
                     trace,
@@ -229,9 +229,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             vr.FieldReference(
                                 ref,
                                 # Type information is not used here, so use Any.
-                                gao.GenericField(
-                                    TypeInfo(type(value)), field, AnyType()
-                                ),
+                                gao.GenericField(TypeInfo(type(value)), field, ANY),
                             ),
                             position,
                             trace,

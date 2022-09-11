@@ -95,21 +95,19 @@ class Instance(ProperType):
         if args is None:
             args = ()
         self.args = tuple(args)
-        # Cached hash value
-        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_instance(self)
 
     def __hash__(self):
-        if self._hash is None:
-            self._hash = hash((self.type, self.args))
-        return self._hash
+        return hash((self.type, self.args))
 
     def __eq__(self, other):
-        if not isinstance(other, Instance):
-            return False
-        return self.type == other.type and self.args == other.args
+        return (
+            isinstance(other, Instance)
+            and self.type == other.type
+            and self.args == other.args
+        )
 
 
 class TupleType(ProperType):
@@ -120,16 +118,12 @@ class TupleType(ProperType):
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
         self.args = args
         self.unknown_size = unknown_size
-        # Cached hash value
-        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_tuple_type(self)
 
     def __hash__(self):
-        if self._hash is None:
-            self._hash = hash((self.args, self.unknown_size))
-        return self._hash
+        return hash((self.args, self.unknown_size))
 
     def __eq__(self, other):
         return (
@@ -146,19 +140,20 @@ class UnionType(ProperType):
         self.items = items
         # TODO(fk) think about flattening Unions, also order should not matter.
         assert len(self.items) > 0
-        # Cached hash value
-        self._hash: int | None = None
 
     def accept(self, visitor: TypeVisitor[T]) -> T:
         return visitor.visit_union_type(self)
 
     def __hash__(self):
-        if self._hash is None:
-            self._hash = hash(self.items)
-        return self._hash
+        return hash(self.items)
 
     def __eq__(self, other):
         return isinstance(other, UnionType) and self.items == other.items
+
+
+# Static to instances to avoid repeated construction.
+ANY = AnyType()
+NONE_TYPE = NoneType()
 
 
 class TypeVisitor(Generic[T]):
@@ -449,9 +444,7 @@ class TypeInfo:
         return f"{typ.__module__}.{typ.__qualname__}"
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, TypeInfo):
-            return False
-        return other.full_name == self.full_name
+        return isinstance(other, TypeInfo) and other.full_name == self.full_name
 
     def __hash__(self):
         return hash(self.full_name)
@@ -530,7 +523,7 @@ class InferredSignature:
             # - NoneType
             # - AnyType, i.e., disregard type
             # TODO(fk) add choices from other source here, e.g., DeepTyper.
-            choices: list[ProperType] = [NoneType(), AnyType(), orig_type]
+            choices: list[ProperType] = [NONE_TYPE, ANY, orig_type]
             weights: list[float] = [
                 test_conf.none_weight,
                 test_conf.any_weight,
@@ -1216,20 +1209,20 @@ class TypeSystem:
         # We must handle a lot of special cases, so try to give an example for each one.
         if hint is typing.Any or hint is None:
             # typing.Any or empty
-            return AnyType()
+            return ANY
         if hint is type(None):  # noqa: E721
             # None
-            return NoneType()
+            return NONE_TYPE
         if hint is tuple:
             # tuple
             # TODO(fk) Tuple without size. Should use tuple[Any, ...] ?
             #  But ... (ellipsis) is not a type.
-            return TupleType((AnyType(),), unknown_size=True)
+            return TupleType((ANY,), unknown_size=True)
         if typing.get_origin(hint) is tuple:
             # tuple[int, str] or typing.Tuple[int, str] or typing.Tuple
             args = self.__convert_args_if_exists(hint)
             if not args:
-                return TupleType((AnyType(),), unknown_size=True)
+                return TupleType((ANY,), unknown_size=True)
             return TupleType(args)
         if is_union_type(hint) or isinstance(hint, types.UnionType):
             # int | str or typing.Union[int, str]
@@ -1254,7 +1247,7 @@ class TypeSystem:
         #  Remove this or log to statistics?
         _LOGGER.debug("Unknown type hint: %s", hint)
         # Should raise an error in the future.
-        return AnyType()
+        return ANY
 
     def __convert_args_if_exists(self, hint: Any) -> tuple[ProperType, ...]:
         if hasattr(hint, "__args__"):
@@ -1271,7 +1264,7 @@ class TypeSystem:
             An instance or TupleType
         """
         if typ.full_name == "builtins.tuple":
-            return TupleType((AnyType(),), unknown_size=True)
+            return TupleType((ANY,), unknown_size=True)
         result = Instance(
             typ,
         )
@@ -1283,7 +1276,7 @@ class TypeSystem:
             args = tuple(result.args)
             if len(result.args) < result.type.num_hardcoded_generic_parameters:
                 # Fill with AnyType if to small
-                args = args + (AnyType(),) * (
+                args = args + (ANY,) * (
                     result.type.num_hardcoded_generic_parameters - len(args)
                 )
             elif len(result.args) > result.type.num_hardcoded_generic_parameters:

@@ -42,7 +42,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
+from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     CheckedCoverageInstrumentation,
@@ -2387,7 +2387,7 @@ class TypeTracingObserver(ExecutionObserver):
             modified_args = {}
             real_params = {}
             for name, param in statement.args.items():
-                mod_param = vr.VariableReference(statement.test_case, AnyType())
+                mod_param = vr.VariableReference(statement.test_case, ANY)
                 modified_args[name] = mod_param
                 real_params[(name, mod_param)] = param
 

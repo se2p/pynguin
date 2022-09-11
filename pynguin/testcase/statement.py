@@ -1014,10 +1014,7 @@ class ParametrizedStatement(
         Returns:
             A dictionary of key-value argument references
         """
-        new_args = {}
-        for name, var in self._args.items():
-            new_args[name] = var.clone(memo)
-        return new_args
+        return {name: var.clone(memo) for name, var in self._args.items()}
 
     def mutate(self) -> bool:
         if (

@@ -20,7 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
+from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -698,11 +698,11 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
         The type of the collection.
     """
     if len(coll_elems) == 0:
-        return AnyType()
+        return ANY
     coll_type = coll_elems[0].type
     for elem in coll_elems:
         if not elem.type == coll_type:
-            coll_type = AnyType()
+            coll_type = ANY
             break
     return coll_type
 
