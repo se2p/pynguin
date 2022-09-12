@@ -11,6 +11,7 @@ import abc
 import builtins
 import dataclasses
 import enum
+import functools
 import importlib
 import inspect
 import itertools
@@ -494,6 +495,9 @@ class ModuleTestCluster(TestCluster):
         else:
             new_type = UnionType((new_type,))
         self._drop_generator(accessible)
+        # Must invalidate entire cache, because subtype relationship might also change
+        # the return values which are not new_type or old_type.
+        self.get_generators_for.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
 
@@ -555,6 +559,7 @@ class ModuleTestCluster(TestCluster):
     def num_accessible_objects_under_test(self) -> int:
         return len(self.__accessible_objects_under_test)
 
+    @functools.lru_cache(maxsize=1024)
     def get_generators_for(
         self, typ: ProperType
     ) -> OrderedSet[GenericAccessibleObject]:
