@@ -422,7 +422,7 @@ def _track_coverage_metrics(
     # set value for each newly calculated variable
     for runtime_variable, coverage_ff in to_calculate:
         generation_result.add_coverage_function(coverage_ff)
-        _LOGGER.info(f"Calculating resulting {coverage_ff.get_name()}")
+        _LOGGER.info(f"Calculating resulting {runtime_variable.value}")
         stat.track_output_variable(
             runtime_variable, generation_result.get_coverage_for(coverage_ff)
         )
