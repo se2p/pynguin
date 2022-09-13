@@ -408,7 +408,7 @@ class TestCreationConfiguration:
     none_weight: float = 1
     """Weight to use None as parameter type during test generation."""
 
-    any_weight: float = 5
+    any_weight: float = 10
     """Weight to use Any as parameter type during test generation."""
 
     original_type_weight: float = 25
