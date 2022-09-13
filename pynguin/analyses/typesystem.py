@@ -1263,6 +1263,7 @@ class TypeSystem:
             return TupleType(args)
         if is_union_type(hint) or isinstance(hint, types.UnionType):
             # int | str or typing.Union[int, str]
+            # TODO(fk) don't make a union including Any.
             return UnionType(tuple(self.__convert_args_if_exists(hint)))
         if isinstance(
             hint, (typing._BaseGenericAlias, types.GenericAlias)  # type:ignore
