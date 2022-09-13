@@ -322,14 +322,16 @@ class TestCluster(abc.ABC):
     @abc.abstractmethod
     def get_generators_for(
         self, typ: ProperType
-    ) -> OrderedSet[GenericAccessibleObject]:
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
         """Retrieve all known generators for the given type.
 
         Args:
             typ: The type we want to have the generators for
 
         Returns:
-            The set of all generators for that type  # noqa: DAR202
+            The set of all generators for that type, as well as a boolean
+              that indicates if all generators have been matched through Any.
+              # noqa: DAR202
         """
 
     @abc.abstractmethod
@@ -569,15 +571,24 @@ class ModuleTestCluster(TestCluster):
     @functools.lru_cache(maxsize=1024)
     def get_generators_for(
         self, typ: ProperType
-    ) -> OrderedSet[GenericAccessibleObject]:
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
         if isinstance(typ, AnyType):
-            # No need to check when it's Any
-            return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
+            # Just take everything when it's Any.
+            return (
+                OrderedSet(itertools.chain.from_iterable(self.__generators.values())),
+                False,
+            )
+
         results: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        only_any = True
         for gen_type, generators in self.__generators.items():
             if self.__type_system.is_maybe_subtype(gen_type, typ):
                 results.update(generators)
-        return results
+                # Set flag to False as soon as we encounter a generator that is not
+                # for Any.
+                only_any &= gen_type == ANY
+
+        return results, only_any
 
     class _FindModifiers(TypeVisitor[OrderedSet[GenericAccessibleObject]]):
         """A visitor to find all modifiers for the given type."""
@@ -835,7 +846,7 @@ class FilteredModuleTestCluster(TestCluster):
 
     def get_generators_for(
         self, typ: ProperType
-    ) -> OrderedSet[GenericAccessibleObject]:
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
         return self.__delegate.get_generators_for(typ)
 
     def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:

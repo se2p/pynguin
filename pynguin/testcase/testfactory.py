@@ -865,7 +865,7 @@ class TestFactory:
             A list of possible replacement calls
         """
         calls: list[gao.GenericAccessibleObject] = []
-        all_calls = self._test_cluster.get_generators_for(return_type)
+        all_calls, _ = self._test_cluster.get_generators_for(return_type)
         for i in all_calls:
             if self._dependencies_satisfied(
                 i.get_dependencies(signature_memo), objects
@@ -1099,7 +1099,10 @@ class TestFactory:
                 position,
                 recursion_depth,
             )
-        if type_generators := self._test_cluster.get_generators_for(parameter_type):
+        type_generators, only_any = self._test_cluster.get_generators_for(
+            parameter_type
+        )
+        if type_generators and not only_any:
             type_generator = randomness.choice(list(type_generators))
             return self.append_generic_accessible(
                 test_case,
