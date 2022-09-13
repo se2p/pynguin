@@ -43,6 +43,7 @@ from pynguin.analyses.syntaxtree import (
     get_function_node_from_ast,
 )
 from pynguin.analyses.typesystem import (
+    ANY,
     AnyType,
     Instance,
     NoneType,
@@ -493,11 +494,17 @@ class ModuleTestCluster(TestCluster):
                 return
             new_type = UnionType(old_type.items + (new_type,))
         else:
-            new_type = UnionType((new_type,))
+            if old_type == ANY:
+                # Drop Any if it was the old type.
+                new_type = UnionType((new_type,))
+            else:
+                # Otherwise keep the old type
+                new_type = UnionType((old_type, new_type))
         self._drop_generator(accessible)
         # Must invalidate entire cache, because subtype relationship might also change
         # the return values which are not new_type or old_type.
         self.get_generators_for.cache_clear()
+        self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
 
