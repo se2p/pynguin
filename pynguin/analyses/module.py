@@ -648,6 +648,7 @@ class ModuleTestCluster(TestCluster):
             raise ConstructionFailedException(f"No modifiers for {typ}")
         return randomness.choice(list(accessible_objects))
 
+    @functools.lru_cache()
     def get_all_generatable_types(self) -> list[ProperType]:
         generatable = OrderedSet(self.__generators.keys())
         generatable.update(self.type_system.primitive_proper_types)
