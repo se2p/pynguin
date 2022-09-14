@@ -13,6 +13,7 @@ import importlib.resources
 import inspect
 import sys
 import typing
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pygments
@@ -253,6 +254,110 @@ def render_coverage_report(
                 date=timestamp,
             )
         )
+
+
+def render_xml_coverage_report(
+    cov_report: CoverageReport, report_path: Path, timestamp: datetime.datetime
+) -> None:
+    """Render the given coverage report to the given file using Cobertura XML style.
+
+    Args:
+        cov_report: The coverage report to render
+        report_path: The file the report should be rendered to
+        timestamp: When the report was created.
+    """
+    line_rate = f"{cov_report.line_coverage}"
+    branch_rate = f"{cov_report.branch_coverage}"
+    lines_covered = f"{cov_report.lines.covered}"
+    lines_valid = f"{cov_report.lines.existing}"
+    branches_covered = (
+        f"{cov_report.branches.covered + cov_report.branchless_code_objects.covered}"
+    )
+    branches_valid = (
+        f"{cov_report.branches.existing + cov_report.branchless_code_objects.existing}"
+    )
+    complexity = "0.0"
+    version = "pynguin"
+
+    report_time = f"{int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())}"
+    coverage = ET.Element(
+        "coverage",
+        attrib={
+            "line-rate": line_rate,
+            "branch-rate": branch_rate,
+            "lines-covered": lines_covered,
+            "lines-valid": lines_valid,
+            "branches-covered": branches_covered,
+            "branches-valid": branches_valid,
+            "complexity": complexity,
+            "version": version,
+            "timestamp": report_time,
+        },
+    )
+    sources = ET.SubElement(coverage, "sources")
+    source = ET.SubElement(sources, "source")
+    source.text = cov_report.module
+    packages = ET.SubElement(coverage, "packages")
+    package = ET.SubElement(
+        packages,
+        "package",
+        attrib={
+            "name": "",
+            "line-rate": line_rate,
+            "branch-rate": branch_rate,
+            "complexity": complexity,
+        },
+    )
+    classes = ET.SubElement(package, "classes")
+    class_ = ET.SubElement(
+        classes,
+        "class",
+        attrib={
+            "name": "",
+            "filename": cov_report.module,
+            "line-rate": line_rate,
+            "branch-rate": branch_rate,
+            "complexity": complexity,
+        },
+    )
+    ET.SubElement(class_, "methods")
+    lines = ET.SubElement(class_, "lines")
+    for line_annotation in cov_report.line_annotations:
+        if line_annotation.total.existing == 0:
+            continue
+        if line_annotation.branches.existing > 0:
+            covered = line_annotation.branches.covered
+            existing = line_annotation.branches.existing
+            cov = covered / existing
+            cov_string = f"{cov:.0%} ({covered}/{existing})"
+            ET.SubElement(
+                lines,
+                "line",
+                attrib={
+                    "number": f"{line_annotation.line_no}",
+                    "hits": "1" if line_annotation.branches.covered > 0 else "0",
+                    "branch": "true",
+                    "condition-coverage": cov_string,
+                },
+            )
+        elif line_annotation.lines.existing > 0:
+            ET.SubElement(
+                lines,
+                "line",
+                attrib={
+                    "number": f"{line_annotation.line_no}",
+                    "hits": "1" if line_annotation.lines.covered > 0 else "0",
+                    "branch": "false",
+                },
+            )
+    tree = ET.ElementTree(coverage)
+    with report_path.open(mode="w", encoding="utf-8") as xml_file:
+        xml_file.write('<?xml version="1.0" encoding="UTF-8"?>')
+        xml_file.write(
+            "<!DOCTYPE coverage SYSTEM "
+            '"http://cobertura.sourceforge.net/xml/coverage-04.dtd">'
+        )
+        tree.write(xml_file, encoding="unicode")
 
 
 def _get_line_to_branch_coverage(known_data, trace):
