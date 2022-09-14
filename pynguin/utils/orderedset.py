@@ -7,7 +7,7 @@
 
 """
 The following code is taken from https://github.com/pantsbuild/pants
-We made minor changes so that our linting pipeline is accepts the code.
+We made minor changes so that our linting pipeline accepts the code.
 
 Copyright 2020 Pants project contributors.
 Licensed under the Apache License, Version 2.0.
