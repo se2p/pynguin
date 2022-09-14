@@ -489,7 +489,7 @@ def test_render_xml_coverage_report(sample_report, tmp_path: Path):
         + 'complexity="0.0">'
         + "<methods />"
         + "<lines>"
-        + '<line number="1" hits="1" branch="false" />'
+        + '<line number="1" hits="1" branch="true" condition-coverage="50% (1/2)" />'
         + '<line number="2" hits="0" branch="false" />'
         + '<line number="5" hits="1" branch="false" />'
         + '<line number="6" hits="1" branch="true" condition-coverage="50% (2/4)" />'

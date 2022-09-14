@@ -325,31 +325,33 @@ def render_xml_coverage_report(
     for line_annotation in cov_report.line_annotations:
         if line_annotation.total.existing == 0:
             continue
-        if line_annotation.branches.existing > 0:
-            covered = line_annotation.branches.covered
-            existing = line_annotation.branches.existing
+        attrib = {
+            "number": f"{line_annotation.line_no}",
+            "hits": "0",
+            "branch": "false",
+        }
+
+        if line_annotation.lines.existing > 0 and line_annotation.lines.covered > 0:
+            attrib["hits"] = "1"
+        if (
+            line_annotation.branches.existing > 0
+            or line_annotation.branchless_code_objects.existing > 0
+        ):
+            covered = (
+                line_annotation.branches.covered
+                + line_annotation.branchless_code_objects.covered
+            )
+            existing = (
+                line_annotation.branches.existing
+                + line_annotation.branchless_code_objects.existing
+            )
             cov = covered / existing
             cov_string = f"{cov:.0%} ({covered}/{existing})"
-            ET.SubElement(
-                lines,
-                "line",
-                attrib={
-                    "number": f"{line_annotation.line_no}",
-                    "hits": "1" if line_annotation.branches.covered > 0 else "0",
-                    "branch": "true",
-                    "condition-coverage": cov_string,
-                },
-            )
-        elif line_annotation.lines.existing > 0:
-            ET.SubElement(
-                lines,
-                "line",
-                attrib={
-                    "number": f"{line_annotation.line_no}",
-                    "hits": "1" if line_annotation.lines.covered > 0 else "0",
-                    "branch": "false",
-                },
-            )
+            attrib["condition-coverage"] = cov_string
+            attrib["branch"] = "true"
+            if covered > 0:
+                attrib["hits"] = "1"
+        ET.SubElement(lines, "line", attrib=attrib)
     tree = ET.ElementTree(coverage)
     with report_path.open(mode="w", encoding="utf-8") as xml_file:
         xml_file.write('<?xml version="1.0" encoding="UTF-8"?>')
