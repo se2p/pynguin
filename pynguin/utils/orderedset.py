@@ -89,7 +89,9 @@ class _AbstractOrderedSet(AbstractSet[T]):
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
-        return all(x == y for x, y in itertools.zip_longest(self._items, other._items))
+        return len(self._items) == len(other._items) and all(
+            x == y for x, y in zip(self._items, other._items, strict=True)
+        )
 
     # pylint:disable-next=line-too-long, arguments-renamed
     def __or__(self: _TAbstractOrderedSet, other: Iterable[T]) -> _TAbstractOrderedSet:  # type: ignore[override]
