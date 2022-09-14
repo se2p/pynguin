@@ -7,18 +7,18 @@
 # Simulate a large test cluster.
 from dataclasses import dataclass
 
-for _ in range(100):
+for i in range(100):
     exec(
         f"""
-class Foo{_}:
-    attribute_{_} = {_}
+class Foo{i}:
+    attribute_{i} = {i}
 
     def __init__(self):
         pass
 
 
-class Bar{_}:
-    attribute_{_} = {100 - _}
+class Bar{i}:
+    attribute_{i} = {100 - i}
 
     def __init__(self):
         pass"""
