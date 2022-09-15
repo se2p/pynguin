@@ -63,7 +63,11 @@ from pynguin.testcase.execution import (
 )
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.report import get_coverage_report, render_coverage_report
+from pynguin.utils.report import (
+    get_coverage_report,
+    render_coverage_report,
+    render_xml_coverage_report,
+)
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -455,13 +459,19 @@ def _run() -> ReturnCode:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
+        coverage_report = get_coverage_report(
+            generation_result,
+            executor,
+            config.configuration.statistics_output.coverage_metrics,
+        )
         render_coverage_report(
-            get_coverage_report(
-                generation_result,
-                executor,
-                config.configuration.statistics_output.coverage_metrics,
-            ),
+            coverage_report,
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+            datetime.datetime.now(),
+        )
+        render_xml_coverage_report(
+            coverage_report,
+            Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
             datetime.datetime.now(),
         )
     _track_statistics(generation_result)
