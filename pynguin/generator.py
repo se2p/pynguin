@@ -57,7 +57,11 @@ from pynguin.testcase.execution import (
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
-from pynguin.utils.report import get_coverage_report, render_coverage_report
+from pynguin.utils.report import (
+    get_coverage_report,
+    render_coverage_report,
+    render_xml_coverage_report,
+)
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -360,19 +364,21 @@ def _track_coverage_metrics(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
     constant_provider: ConstantProvider,
-) -> None:
+) -> set[config.CoverageMetric]:
     """
     Re-loads all required instrumentations for metrics that were not already
     calculated and tracked during the result generation.
     These metrics are then also calculated on the result, which is executed
     once again with the new instrumentation.
-    Afterwards, the original configuration is restored.
 
     Args:
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
         constant_provider: the constant provider required for the
-            reloading of the builder
+            reloading of the module
+
+    Returns:
+        The set of tracked coverage metrics, including the ones that we optimised for.
     """
     output_variables = config.configuration.statistics_output.output_variables
     # Alias for shorter lines
@@ -442,6 +448,7 @@ def _track_coverage_metrics(
     # reset whether to instrument tests and assertions as well as the SUT
     instrument_test = config.CoverageMetric.CHECKED in cov_metrics
     executor.set_instrument(instrument_test)
+    return metrics_for_reinstrumenation
 
 
 def _run() -> ReturnCode:
@@ -475,7 +482,9 @@ def _run() -> ReturnCode:
     _track_search_metrics(algorithm, generation_result)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
-    _track_coverage_metrics(executor, generation_result, constant_provider)
+    tracked_metrics = _track_coverage_metrics(
+        executor, generation_result, constant_provider
+    )
 
     # Export the generated test suites
     if (
@@ -485,13 +494,19 @@ def _run() -> ReturnCode:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
+        coverage_report = get_coverage_report(
+            generation_result,
+            executor,
+            tracked_metrics,
+        )
         render_coverage_report(
-            get_coverage_report(
-                generation_result,
-                executor,
-                config.configuration.statistics_output.coverage_metrics,
-            ),
+            coverage_report,
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+            datetime.datetime.now(),
+        )
+        render_xml_coverage_report(
+            coverage_report,
+            Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
             datetime.datetime.now(),
         )
     _collect_statistics(generation_result)
