@@ -354,6 +354,7 @@ def render_xml_coverage_report(
                 attrib["hits"] = "1"
         ET.SubElement(lines, "line", attrib=attrib)
     tree = ET.ElementTree(coverage)
+    ET.indent(tree)
     with report_path.open(mode="w", encoding="utf-8") as xml_file:
         xml_file.write('<?xml version="1.0" encoding="UTF-8"?>')
         xml_file.write(
