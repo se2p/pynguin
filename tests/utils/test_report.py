@@ -23,6 +23,7 @@ from pynguin.utils.report import (
     LineAnnotation,
     get_coverage_report,
     render_coverage_report,
+    render_xml_coverage_report,
 )
 
 
@@ -464,3 +465,45 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "</body>\n",
             "</html>",
         ]
+
+
+def test_render_xml_coverage_report(sample_report, tmp_path: Path):
+    report_path = tmp_path / "report.xml"
+    render_xml_coverage_report(
+        sample_report, report_path, datetime.datetime(year=1970, month=1, day=1)
+    )
+    expected = [
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        + "<!DOCTYPE coverage SYSTEM "
+        + '"http://cobertura.sourceforge.net/xml/coverage-04.dtd">'
+        + '<coverage line-rate="0.25" branch-rate="0.375" lines-covered="2" '
+        + 'lines-valid="8" branches-covered="3" branches-valid="8" complexity="0.0" '
+        + 'version="pynguin" timestamp="0">'
+        + "<sources>"
+        + "<source>cov_demo</source>"
+        + "</sources>"
+        + "<packages>"
+        + '<package name="" line-rate="0.25" branch-rate="0.375" complexity="0.0">'
+        + "<classes>"
+        + '<class name="" filename="cov_demo" line-rate="0.25" branch-rate="0.375" '
+        + 'complexity="0.0">'
+        + "<methods />"
+        + "<lines>"
+        + '<line number="1" hits="1" branch="true" condition-coverage="50% (1/2)" />'
+        + '<line number="2" hits="0" branch="false" />'
+        + '<line number="5" hits="1" branch="false" />'
+        + '<line number="6" hits="1" branch="true" condition-coverage="50% (2/4)" />'
+        + '<line number="9" hits="0" branch="false" />'
+        + '<line number="10" hits="0" branch="true" condition-coverage="0% (0/2)" />'
+        + '<line number="11" hits="0" branch="false" />'
+        + '<line number="13" hits="0" branch="false" />'
+        + "</lines>"
+        + "</class>"
+        + "</classes>"
+        + "</package>"
+        + "</packages>"
+        + "</coverage>",
+    ]
+    with report_path.open(encoding="utf-8", mode="r") as file:
+        content = file.readlines()
+        assert content == expected
