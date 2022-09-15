@@ -51,6 +51,7 @@ Pygments = "^2.12"
 MutPy-Pynguin = "^0.7.1"
 black = "^22.6.0"
 astroid = "^2.11.6"
+asciitree = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 coverage = "^6.4"

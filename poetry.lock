@@ -7,6 +7,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "asciitree"
+version = "0.3.3"
+description = "Draws ASCII trees."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "astmonkey"
 version = "0.3.6"
 description = "astmonkey is a set of tools to play with Python AST."
@@ -1108,12 +1116,15 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "98aaa47fecf3e5164cae31caa97d8ead16128b508127c54b33cb75b3b13b05c2"
+content-hash = "59c1d9081aa874a588d0a6c95df82013c648c8b286c00969308f1ac61a222ac7"
 
 [metadata.files]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},
     {file = "alabaster-0.7.12.tar.gz", hash = "sha256:a661d72d58e6ea8a57f7a86e37d86716863ee5e92788398526d58b26a4e4dc02"},
+]
+asciitree = [
+    {file = "asciitree-0.3.3.tar.gz", hash = "sha256:4aa4b9b649f85e3fcb343363d97564aa1fb62e249677f2e18a96765145cc0f6e"},
 ]
 astmonkey = [
     {file = "astmonkey-0.3.6.tar.gz", hash = "sha256:f82dbdd18a2d1810ef43782d3a29743bacd2b09422b8193a72a572b118c8cfb5"},

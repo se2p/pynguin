@@ -24,6 +24,9 @@ import logging
 import operator
 from collections import defaultdict
 
+from asciitree import BoxStyle, LeftAligned
+from asciitree.drawing import BOX_LIGHT
+
 from pynguin.utils.orderedset import OrderedSet
 
 LOGGER = logging.getLogger(__name__)
@@ -59,12 +62,18 @@ class ProxyKnowledge:
         Returns:
             A nicely formatted string
         """
-        output = self.__get_indent(depth=self.depth) + f"'{self.name}'"
+        tree = LeftAligned(
+            draw=BoxStyle(gfx=BOX_LIGHT, label_space=0, label_format="[{}]", indent=0)
+        )
+        return tree({self._format_str(): self._format_children()})
+
+    def _format_str(self):
+        output = f"'{self.name}'"
         if len(self.type_checks) > 0:
             output += (
-                " (type-checks: "
+                " (type-checks: {"
                 + ", ".join([check.__name__ for check in self.type_checks])
-                + ")"
+                + "})"
             )
         if len(self.arg_types) > 0:
             output += (
@@ -80,16 +89,13 @@ class ProxyKnowledge:
                 )
                 + "})"
             )
-        for children in self.symbol_table.values():
-            output += "\n" + children.pretty()
         return output
 
-    @staticmethod
-    def __get_indent(depth: int) -> str:
-        indent = "     " * (depth - 1)
-        if depth > 0:
-            indent += "┖───"
-        return indent
+    def _format_children(self):
+        return {
+            child._format_str(): child._format_children()
+            for child in self.symbol_table.values()
+        }
 
     @staticmethod
     def from_proxy(obj: ObjectProxy) -> ProxyKnowledge:
