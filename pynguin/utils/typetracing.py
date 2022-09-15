@@ -61,9 +61,25 @@ class ProxyKnowledge:
         """
         output = self.__get_indent(depth=self.depth) + f"'{self.name}'"
         if len(self.type_checks) > 0:
-            output += f" (type-checks: {self.type_checks}"
+            output += (
+                " (type-checks: "
+                + ", ".join([check.__name__ for check in self.type_checks])
+                + ")"
+            )
         if len(self.arg_types) > 0:
-            output += f" (arg-types: {self.arg_types.items()}"
+            output += (
+                " (arg-types: {"
+                + ", ".join(
+                    [
+                        str(idx)
+                        + ": {"
+                        + ", ".join([tp.__name__ for tp in types])
+                        + "}"
+                        for idx, types in self.arg_types.items()
+                    ]
+                )
+                + "})"
+            )
         for children in self.symbol_table.values():
             output += "\n" + children.pretty()
         return output
@@ -72,7 +88,7 @@ class ProxyKnowledge:
     def __get_indent(depth: int) -> str:
         indent = "     " * (depth - 1)
         if depth > 0:
-            indent += "^---"
+            indent += "┖───"
         return indent
 
     @staticmethod

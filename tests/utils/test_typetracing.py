@@ -669,8 +669,8 @@ def test_pretty():
     knowledge.symbol_table["foo"].arg_types[0].add(int)
     knowledge.type_checks.add(str)
     assert (
-        knowledge.pretty() == "'ROOT' (type-checks: OrderedSet([<class 'str'>])\n"
-        "^---'foo' (arg-types: dict_items([(0, OrderedSet([<class 'int'>]))])"
+        knowledge.pretty()
+        == "'ROOT' (type-checks: str)\n┖───'foo' (arg-types: {0: {int}})"
     )
 
 
