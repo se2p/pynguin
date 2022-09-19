@@ -11,6 +11,43 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.26.0
 
+- Allow the calculation of coverage values regardless of optimisation.
+
+  Allows to yield, for example, the resulting line coverage of the test suite, while 
+  the optimisation during test generation was done for branch coverage.  Add the 
+  required coverage values to your `--output-variables` list to activate this feature.
+
+  *Note:* when doing this, the `Coverage` output variable will contain the average 
+  value of the incorporated coverage values!
+- Provide a Cobertura-like coverage report
+
+  Pynguin already provides an HTML report that can be activated by setting 
+  `--create-coverage-report True`.  This report is nice for human users but not very 
+  usable if one wants to automatically reason about the achieved coverage using 
+  tools.  We thus also emit an XML report in the style of the
+  [Cobertura](https://cobertura.github.io/cobertura/) tool that can be used for 
+  further automated tools.
+- Fix typo on `test_parameterizedstatements.py` (see #27, thanks to @stavares843)
+- Fix typo on `testcase.py` (see #26, thanks to @stavares843)
+- Improve mutation-based assertion generation
+
+  The assertion generation now does not more compare the recorded assertion traces 
+  but actually executes the assertions to make the whole process more reliable.  
+  Besides, we do not check for `is not None` as a fallback for object checks any 
+  more, but use an `isinstance` check on the object's type to have a more precise 
+  assertion.
+- Make statistics tests debuggable
+
+  Some accidental circular import made it impossible to run a debugger on tests in 
+  `pynguin.utils`.  We resolved this by moving tests to another package.
+- Partial rework of internal type system
+
+  We added an abstraction layer over the existing type hints from a module to make 
+  handling and reasoning with types easier.  This abstraction is based on the one 
+  used by [`mypy`](http://mypy-lang.org), however, we only cover a small part of 
+  what [PEP-484](https://peps.python.org/pep-0484/) actually defines.
+- Make assertion generation more strict
+
 ## Pynguin 0.25.2
 
 - Fix bugs in mutation analysis and assertion generation
