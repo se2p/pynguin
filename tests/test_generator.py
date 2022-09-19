@@ -10,6 +10,8 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
