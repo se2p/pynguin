@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import time
 from abc import abstractmethod
+from collections.abc import Iterable
 from statistics import mean
-from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from ordered_set import OrderedSet
 

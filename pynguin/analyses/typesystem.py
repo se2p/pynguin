@@ -13,8 +13,9 @@ import logging
 import types
 import typing
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
+from typing import Any, Generic, TypeVar, get_type_hints
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot

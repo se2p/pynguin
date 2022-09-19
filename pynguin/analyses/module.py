@@ -17,6 +17,7 @@ import logging
 import queue
 import typing
 from collections import namedtuple
+from collections.abc import Callable
 from statistics import mean, median
 from types import (
     BuiltinFunctionType,
@@ -26,7 +27,7 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
-from typing import Any, Callable, NamedTuple, get_args
+from typing import Any, NamedTuple, get_args
 
 import astroid
 from ordered_set import OrderedSet

@@ -23,7 +23,7 @@ from pynguin.slicer.dynamicslicer import DynamicSlicer, SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 from pynguin.testcase.execution import ExecutionTracer
 
-dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, bytes(), (), (), (), "", "", 0, bytes())
+dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
 
 
 def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr]):

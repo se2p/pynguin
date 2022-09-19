@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import random
 import string
-from typing import Any, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Any, TypeVar
 
 
 class Random(random.Random):

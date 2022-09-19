@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Iterator
+from collections.abc import Iterator
 
 
 class Foo:

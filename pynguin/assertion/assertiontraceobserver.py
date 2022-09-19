@@ -9,8 +9,9 @@ import ast
 import copy
 import logging
 import threading
+from collections.abc import Sized
 from types import ModuleType
-from typing import Sized, cast
+from typing import cast
 
 from _pytest.outcomes import Failed
 

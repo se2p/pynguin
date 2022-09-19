@@ -16,12 +16,13 @@ import os
 import sys
 import threading
 from abc import abstractmethod
+from collections.abc import Sized
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
-from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
@@ -1287,7 +1288,7 @@ class ExecutionTracer:
         opcode: int,
         lineno: int,
         offset: int,
-        arg: Union[str, CellVar, FreeVar],
+        arg: str | CellVar | FreeVar,
         arg_address: int,
         arg_type: type,
     ) -> None:

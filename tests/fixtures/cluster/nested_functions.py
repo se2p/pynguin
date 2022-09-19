@@ -6,7 +6,7 @@
 #
 # Adapted from
 # https://github.com/KmolYuan/apimd/blob/f23060a996adcc30552b4e93c49804640e4c4c95/apimd/compiler.py#L119
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def table_row(*items: Iterable[str]) -> str:

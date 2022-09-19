@@ -6,7 +6,8 @@
 #
 import enum
 import inspect
-from typing import Any, Sized, TypeVar, Union
+from collections.abc import Sized
+from typing import Any, TypeVar, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -95,7 +96,7 @@ class Sub(Super):
         (Super, Sub, False),
         (Union[int, str], Union[float, int, str], True),
         (Union[float, int], Union[int, None], False),
-        (list, Sized, False),  # Should be if when we support protocols
+        (list, Sized, True),
     ],
 )
 def test_is_subtype_of(t1, t2, result):
@@ -123,7 +124,7 @@ T = TypeVar("T")
 
 
 @pytest.mark.parametrize(
-    "from_type,result", [(list[int], list), (int, int), (Sized, None), (T, None)]
+    "from_type,result", [(list[int], list), (int, int), (Sized, Sized), (T, None)]
 )
 def test_extract_non_generic_class(from_type, result):
     assert extract_non_generic_class(from_type) == result

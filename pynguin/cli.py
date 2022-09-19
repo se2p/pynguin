@@ -23,7 +23,7 @@ from rich.logging import RichHandler
 from rich.traceback import install
 
 import pynguin.configuration as config
-from pynguin import __version__
+from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin, set_configuration
 
 

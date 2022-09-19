@@ -12,7 +12,8 @@ import dataclasses
 import math
 import statistics
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pynguin.utils.opcodes as op
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer

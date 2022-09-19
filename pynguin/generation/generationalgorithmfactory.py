@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from ordered_set import OrderedSet
 

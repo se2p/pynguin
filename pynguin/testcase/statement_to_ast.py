@@ -365,11 +365,9 @@ class StatementToAstVisitor(StatementVisitor):
                         # has a default, and we did not pass a value, we must pass the
                         # current value by keyword, otherwise by position.
                         if any(
-                            (
-                                parameters[left].default is not Parameter.empty
-                                and left not in stmt.args
-                                for left in left_of_current
-                            )
+                            parameters[left].default is not Parameter.empty
+                            and left not in stmt.args
+                            for left in left_of_current
                         ):
                             kwargs.append(
                                 ast.keyword(
