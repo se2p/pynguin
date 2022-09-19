@@ -526,7 +526,6 @@ def test_instance_attrs(mod, typ, attributes):
         cluster.type_system.find_type_info(f"{mod}.{typ}").instance_attributes
         == attributes
     )
-    print(cluster.type_system.dot)
 
 
 @pytest.mark.parametrize(
