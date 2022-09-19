@@ -15,7 +15,7 @@ import pynguin  # noqa  # isort:skip
 project = "pynguin"
 author = "Pynguin Contributors"
 copyright = f"2019–2022, {author}"
-version = pynguin.__version__
+version = pynguin.__version__.__version__
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
