@@ -247,7 +247,10 @@ class TypeStringVisitor(TypeVisitor[str]):
         return rep
 
     def visit_tuple_type(self, left: TupleType) -> str:
-        return f"tuple[{self._sequence_str(left.args)}]"
+        rep = "tuple"
+        if len(left.args) > 0:
+            rep += "[" + self._sequence_str(left.args) + "]"
+        return rep
 
     def visit_union_type(self, left: UnionType) -> str:
         if len(left.items) == 1:
