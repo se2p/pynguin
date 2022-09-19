@@ -22,7 +22,7 @@ from pynguin.analyses.module import (
     generate_test_cluster,
     parse_module,
 )
-from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo
+from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -527,3 +527,24 @@ def test_instance_attrs(mod, typ, attributes):
         == attributes
     )
     print(cluster.type_system.dot)
+
+
+@pytest.mark.parametrize(
+    "first, second, result",
+    [
+        (int, bool, int | bool),
+        (int | bool, bool, int | bool),
+        (int | bool, float, int | bool | float),
+        (int | str | bool | bytes | float, bool, int | str | bool | bytes | float),
+    ],
+)
+def test__add_or_make_union(type_system, first, second, result):
+    assert ModuleTestCluster._add_or_make_union(
+        type_system.convert_type_hint(first), type_system.convert_type_hint(second)
+    ) == type_system.convert_type_hint(result)
+
+
+def test__add_or_make_union_2(type_system):
+    assert ModuleTestCluster._add_or_make_union(
+        ANY, type_system.convert_type_hint(int)
+    ) == UnionType((type_system.convert_type_hint(int),))

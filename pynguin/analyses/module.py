@@ -481,6 +481,22 @@ class ModuleTestCluster(TestCluster):
         if len(gens) == 0:
             self.__generators.pop(accessible.generated_type())
 
+    @staticmethod
+    def _add_or_make_union(
+        old_type: ProperType, new_type: ProperType, max_size: int = 5
+    ) -> UnionType:
+        if isinstance(old_type, UnionType):
+            items = old_type.items
+            if len(items) >= max_size or new_type in items:
+                return old_type
+            new_type = UnionType(old_type.items + (new_type,))
+        else:
+            if old_type in (ANY, new_type):
+                new_type = UnionType((new_type,))
+            else:
+                new_type = UnionType((old_type, new_type))
+        return new_type
+
     def update_return_type(
         self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
@@ -489,19 +505,10 @@ class ModuleTestCluster(TestCluster):
         #  Think about updates, only Any?
         old_type = accessible.inferred_signature.return_type
 
-        if isinstance(old_type, UnionType):
-            items = old_type.items
-            if len(items) >= 5 or new_type in items:
-                # Don't create unions exceeding five elements.
-                return
-            new_type = UnionType(old_type.items + (new_type,))
-        else:
-            if old_type == ANY:
-                # Drop Any if it was the old type.
-                new_type = UnionType((new_type,))
-            else:
-                # Otherwise keep the old type
-                new_type = UnionType((old_type, new_type))
+        new_type = self._add_or_make_union(old_type, new_type)
+        if old_type == new_type:
+            # No change
+            return
         self._drop_generator(accessible)
         # Must invalidate entire cache, because subtype relationship might also change
         # the return values which are not new_type or old_type.
