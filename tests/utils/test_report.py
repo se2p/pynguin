@@ -259,7 +259,7 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
         get_coverage_report(
             test_suite,
             executor,
-            [config.CoverageMetric.LINE, config.CoverageMetric.BRANCH],
+            {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
         )
         == sample_report
     )
@@ -473,36 +473,39 @@ def test_render_xml_coverage_report(sample_report, tmp_path: Path):
         sample_report, report_path, datetime.datetime(year=1970, month=1, day=1)
     )
     expected = [
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        + "<!DOCTYPE coverage SYSTEM "
-        + '"http://cobertura.sourceforge.net/xml/coverage-04.dtd">'
-        + '<coverage line-rate="0.25" branch-rate="0.375" lines-covered="2" '
-        + 'lines-valid="8" branches-covered="3" branches-valid="8" complexity="0.0" '
-        + 'version="pynguin" timestamp="0">'
-        + "<sources>"
-        + "<source>cov_demo</source>"
-        + "</sources>"
-        + "<packages>"
-        + '<package name="" line-rate="0.25" branch-rate="0.375" complexity="0.0">'
-        + "<classes>"
-        + '<class name="" filename="cov_demo" line-rate="0.25" branch-rate="0.375" '
-        + 'complexity="0.0">'
-        + "<methods />"
-        + "<lines>"
-        + '<line number="1" hits="1" branch="true" condition-coverage="50% (1/2)" />'
-        + '<line number="2" hits="0" branch="false" />'
-        + '<line number="5" hits="1" branch="false" />'
-        + '<line number="6" hits="1" branch="true" condition-coverage="50% (2/4)" />'
-        + '<line number="9" hits="0" branch="false" />'
-        + '<line number="10" hits="0" branch="true" condition-coverage="0% (0/2)" />'
-        + '<line number="11" hits="0" branch="false" />'
-        + '<line number="13" hits="0" branch="false" />'
-        + "</lines>"
-        + "</class>"
-        + "</classes>"
-        + "</package>"
-        + "</packages>"
-        + "</coverage>",
+        '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE coverage SYSTEM '
+        '"http://cobertura.sourceforge.net/xml/coverage-04.dtd"><coverage '
+        'line-rate="0.25" branch-rate="0.375" lines-covered="2" lines-valid="8" '
+        'branches-covered="3" branches-valid="8" complexity="0.0" version="pynguin" '
+        'timestamp="0">\n',
+        "  <sources>\n",
+        "    <source>cov_demo</source>\n",
+        "  </sources>\n",
+        "  <packages>\n",
+        '    <package name="" line-rate="0.25" branch-rate="0.375" '
+        'complexity="0.0">\n',
+        "      <classes>\n",
+        '        <class name="" filename="cov_demo" line-rate="0.25" '
+        'branch-rate="0.375" complexity="0.0">\n',
+        "          <methods />\n",
+        "          <lines>\n",
+        '            <line number="1" hits="1" branch="true" condition-coverage="50% '
+        '(1/2)" />\n',
+        '            <line number="2" hits="0" branch="false" />\n',
+        '            <line number="5" hits="1" branch="false" />\n',
+        '            <line number="6" hits="1" branch="true" condition-coverage="50% '
+        '(2/4)" />\n',
+        '            <line number="9" hits="0" branch="false" />\n',
+        '            <line number="10" hits="0" branch="true" condition-coverage="0% '
+        '(0/2)" />\n',
+        '            <line number="11" hits="0" branch="false" />\n',
+        '            <line number="13" hits="0" branch="false" />\n',
+        "          </lines>\n",
+        "        </class>\n",
+        "      </classes>\n",
+        "    </package>\n",
+        "  </packages>\n",
+        "</coverage>",
     ]
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()

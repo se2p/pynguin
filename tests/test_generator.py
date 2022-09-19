@@ -11,10 +11,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.configuration as config
+import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 def test_init_with_configuration():
@@ -91,13 +93,16 @@ def test_setup_hook():
         configuration=MagicMock(log_file=None, module_name=module_name)
     )
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
-        assert gen._setup_import_hook(None)
+        assert gen._setup_import_hook(None, None)
         hook_mock.assert_called_once()
 
 
 def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.BRANCH,
+    ]
+    config.configuration.statistics_output.output_variables = [
+        RuntimeVariable.AssertionCheckedCoverage,
     ]
     config.configuration.seeding.dynamic_constant_seeding = False
     tracer = ExecutionTracer()
@@ -115,7 +120,7 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
 
         old_loader = module.__loader__
 
-        gen._track_resulting_assertion_checked_coverage(executor, result, None)
+        gen._track_coverage_metrics(executor, result, MagicMock())
 
         new_metrics = config.configuration.statistics_output.coverage_metrics
         assert len(new_metrics) == 1
@@ -123,6 +128,60 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
         assert not executor._instrument
 
         assert old_loader is not module.__loader__
+        result.invalidate_cache.assert_called_once()
+        assert (
+            type(result.add_coverage_function.call_args.args[0])
+            == ff.TestSuiteAssertionCheckedCoverageFunction
+        )
+        assert (
+            type(result.get_coverage_for.call_args.args[0])
+            == ff.TestSuiteAssertionCheckedCoverageFunction
+        )
+        result.get_coverage.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "optimize,track,func_type",
+    [
+        (
+            config.CoverageMetric.BRANCH,
+            RuntimeVariable.LineCoverage,
+            ff.TestSuiteLineCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.LINE,
+            RuntimeVariable.BranchCoverage,
+            ff.TestSuiteBranchCoverageFunction,
+        ),
+    ],
+)
+def test__track_one_coverage_while_optimising_for_other(optimize, track, func_type):
+    config.configuration.statistics_output.coverage_metrics = [
+        optimize,
+    ]
+    config.configuration.statistics_output.output_variables = [
+        track,
+    ]
+    config.configuration.seeding.dynamic_constant_seeding = False
+    tracer = ExecutionTracer()
+    executor = TestCaseExecutor(tracer)
+    assert not executor._instrument
+    result = MagicMock()
+
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        gen._track_coverage_metrics(executor, result, MagicMock())
+
+        result.invalidate_cache.assert_called_once()
+        assert type(result.add_coverage_function.call_args.args[0]) == func_type
+        assert type(result.get_coverage_for.call_args.args[0]) == func_type
+        result.get_coverage.assert_called_once()
 
 
 def test__reset_cache_for_result():

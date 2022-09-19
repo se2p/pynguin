@@ -128,12 +128,13 @@ class CoverageReport:  # pylint:disable=too-many-instance-attributes
     # Information about total covered lines
     lines: CoverageEntry
 
+    # Coverage information per line
     line_annotations: list[LineAnnotation]
 
     # Achieved branch coverage
     branch_coverage: float | None = None
 
-    # Line coverage
+    # Achieved line coverage
     line_coverage: float | None = None
 
 
@@ -141,7 +142,7 @@ class CoverageReport:  # pylint:disable=too-many-instance-attributes
 def get_coverage_report(
     suite: tsc.TestSuiteChromosome,
     executor: TestCaseExecutor,
-    metrics: list[config.CoverageMetric],
+    metrics: set[config.CoverageMetric],
 ) -> CoverageReport:
     """Create a coverage report for the given test suite
 
@@ -353,6 +354,7 @@ def render_xml_coverage_report(
                 attrib["hits"] = "1"
         ET.SubElement(lines, "line", attrib=attrib)
     tree = ET.ElementTree(coverage)
+    ET.indent(tree)
     with report_path.open(mode="w", encoding="utf-8") as xml_file:
         xml_file.write('<?xml version="1.0" encoding="UTF-8"?>')
         xml_file.write(
