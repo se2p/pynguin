@@ -16,7 +16,8 @@ import ast
 import dataclasses
 import logging
 from collections import deque
-from typing import Any, Iterable, TypeAlias
+from collections.abc import Iterable
+from typing import Any, TypeAlias
 
 import astroid
 from astroid.nodes.as_string import to_code

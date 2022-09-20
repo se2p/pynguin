@@ -20,6 +20,7 @@ import logging
 import queue
 import typing
 from collections import defaultdict, namedtuple
+from collections.abc import Callable
 from statistics import mean, median
 from types import (
     BuiltinFunctionType,
@@ -29,7 +30,7 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
-from typing import Any, Callable, NamedTuple
+from typing import Any, NamedTuple
 
 import astroid
 

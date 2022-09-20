@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pynguin.testcase.variablereference as vr
 from pynguin.analyses.typesystem import (

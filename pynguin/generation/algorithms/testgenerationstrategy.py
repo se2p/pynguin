@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import time
 from abc import abstractmethod
+from collections.abc import Iterable
 from statistics import mean
-from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.algorithms.archive as arch

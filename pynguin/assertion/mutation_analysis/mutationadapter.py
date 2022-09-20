@@ -8,8 +8,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from types import ModuleType
-from typing import Callable
 
 import mutpy.controller as mc
 import mutpy.operators as mo

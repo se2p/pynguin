@@ -14,9 +14,9 @@ import types
 import typing
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from functools import lru_cache
-from typing import Any, Callable, Generic, Sequence, TypeVar, get_type_hints
+from typing import Any, Generic, TypeVar, get_type_hints
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
@@ -908,7 +908,7 @@ class TypeSystem:
         """
         self._graph.add_edge(super_class, sub_class)
 
-    @lru_cache(maxsize=1024)
+    @functools.lru_cache(maxsize=1024)
     def get_subclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all descendants of the given type. Includes klass.
 
@@ -924,7 +924,7 @@ class TypeSystem:
         result.add(klass)
         return result
 
-    @lru_cache(maxsize=1024)
+    @functools.lru_cache(maxsize=1024)
     def get_superclasses(self, klass: TypeInfo) -> OrderedSet[TypeInfo]:
         """Provides all ancestors of the given class.
 
@@ -956,7 +956,7 @@ class TypeSystem:
             results.difference_update(self.get_subclasses(info))
         return results
 
-    @lru_cache(maxsize=16384)
+    @functools.lru_cache(maxsize=16384)
     def is_subclass(self, left: TypeInfo, right: TypeInfo) -> bool:
         """Is 'left' a subclass of 'right'?
 
@@ -969,7 +969,7 @@ class TypeSystem:
         """
         return nx.has_path(self._graph, right, left)
 
-    @lru_cache(maxsize=16384)
+    @functools.lru_cache(maxsize=16384)
     def is_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' a subtype of 'right'?
 
@@ -994,7 +994,7 @@ class TypeSystem:
             return any(self.is_subtype(left, right_elem) for right_elem in right.items)
         return left.accept(_SubtypeVisitor(self, right, self.is_subtype))
 
-    @lru_cache(maxsize=16384)
+    @functools.lru_cache(maxsize=16384)
     def is_maybe_subtype(self, left: ProperType, right: ProperType) -> bool:
         """Is 'left' maybe a subtype of 'right'?
 

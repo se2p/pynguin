@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
+from typing import Any, List, Set, Tuple, TypeVar, Union
 from unittest import mock
 
 import pytest
@@ -174,10 +174,7 @@ A = TypeVar("A")
             list[int],
             Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
         ),
-        (
-            List[int],
-            Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
-        ),
+        (List[int], Instance(TypeInfo(list), (Instance(TypeInfo(int)),))),
         (
             set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
@@ -186,8 +183,9 @@ A = TypeVar("A")
             set,
             Instance(TypeInfo(set), (AnyType(),)),
         ),
+        (Set[int], Instance(TypeInfo(set), (Instance(TypeInfo(int)),))),
         (
-            Set[int],
+            set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
         ),
         (
@@ -198,7 +196,7 @@ A = TypeVar("A")
             ),
         ),
         (
-            Dict[int, str],
+            dict[int, str],
             Instance(
                 TypeInfo(dict),
                 (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
@@ -229,7 +227,7 @@ A = TypeVar("A")
             ),
         ),
         (
-            Tuple[int, str],
+            tuple[int, str],
             TupleType(
                 (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
