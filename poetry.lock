@@ -951,6 +951,29 @@ testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "diff-cover (>=6.5.1)", 
 type_comments = ["typed-ast (>=1.5.4)"]
 
 [[package]]
+name = "sphinx-hoverxref"
+version = "1.1.3"
+description = "Sphinx extension to show tooltips with content embedded when hover a reference."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+sphinx = ">=1.8"
+
+[package.extras]
+doc = ["sphinx", "sphinx-autoapi", "sphinx-autobuild", "sphinx-notfound-page", "sphinx-prompt", "sphinx-rtd-theme", "sphinx-tabs (==3.3.1)", "sphinx-version-warning", "sphinxcontrib-bibtex"]
+test = ["tox"]
+
+[[package]]
+name = "sphinx-selective-exclude"
+version = "1.0.3"
+description = "Sphinx eager \".. only::\" directive and other selective rendition extensions"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "sphinxcontrib-applehelp"
 version = "1.0.2"
 description = "sphinxcontrib-applehelp is a sphinx extension which outputs Apple help books"
@@ -1136,7 +1159,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "0204d88e72963b266754de09fcfd5fb0f3edcd21e8e6c7be4b9b11c4a828a91b"
+content-hash = "af5219151f7ef535f12bac790afef5780762dd702ab9e9a43ca2c85979a8182c"
 
 [metadata.files]
 alabaster = [
@@ -1693,6 +1716,13 @@ Sphinx = [
 sphinx-autodoc-typehints = [
     {file = "sphinx_autodoc_typehints-1.19.2-py3-none-any.whl", hash = "sha256:3d761de928d5a86901331133d6d4a2552afa2e798ebcfc0886791792aeb4dd9a"},
     {file = "sphinx_autodoc_typehints-1.19.2.tar.gz", hash = "sha256:872fb2d7b3d794826c28e36edf6739e93549491447dcabeb07c58855e9f914de"},
+]
+sphinx-hoverxref = [
+    {file = "sphinx-hoverxref-1.1.3.tar.gz", hash = "sha256:3d4d764a253e3dae759de4f5429d4e364e02fc423a455a392b648089be311c0a"},
+    {file = "sphinx_hoverxref-1.1.3-py2.py3-none-any.whl", hash = "sha256:eb530e95efca051a1ba4ad9f45f940207487b7e0de695060b67d445b91c2fbb8"},
+]
+sphinx-selective-exclude = [
+    {file = "sphinx_selective_exclude-1.0.3.tar.gz", hash = "sha256:76fc8fd7c24311e0ca2199a9e4db2156585acd7652a5cead98b07ef4f70f9b78"},
 ]
 sphinxcontrib-applehelp = [
     {file = "sphinxcontrib-applehelp-1.0.2.tar.gz", hash = "sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58"},
