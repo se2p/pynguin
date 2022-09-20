@@ -85,7 +85,7 @@ endif
 
 .PHONY: download-poetry
 download-poetry:
-	curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+	curl -sSL https://install.python-poetry.org | python3 -
 
 .PHONY: install
 install:
@@ -142,7 +142,7 @@ darglint:
 	poetry run darglint -v 2 pynguin/**/*.py
 
 update-docs-requirements:
-	poetry export -o docs/requirements.txt --dev --without-hashes
+	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
 check: update-docs-requirements isort black mypy flake8 pylint darglint test
