@@ -419,6 +419,10 @@ class TestCreationConfiguration:
     """Weight to use the type guessed from type tracing as parameter type during
     test generation."""
 
+    wrap_var_param_type_probability: float = 0.7
+    """Probability to wrap the type required for a *arg or **kwargs parameter
+    in a list or dict, respectively. Expects values in [0,1]"""
+
     negate_type: float = 0.01
     """When inferring a type from proxies, it may also be desirable to negate the chosen
     type, e.g., such that an instance check or a getattr() evaluate to False.

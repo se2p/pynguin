@@ -549,11 +549,21 @@ class InferredSignature:
             if (guessed := self.current_guessed_parameters.get(param_name)) is not None:
                 choices.append(guessed)
                 weights.append(test_conf.type_tracing_weight)
-            # Make sure var-positional or var-keyword are wrapped in list/dict
-            res[param_name] = self.type_system.wrap_var_param_type(
-                randomness.choices(choices, weights)[0],
-                self.signature.parameters[param_name].kind,
-            )
+            chosen = randomness.choices(choices, weights)[0]
+
+            if (
+                randomness.next_float()
+                < config.configuration.test_creation.wrap_var_param_type_probability
+            ):
+                # Wrap var-positional or var-keyword parameters in list/dict,
+                # with a certain probability, as there might also be other data
+                # structures suitable for being passed by * and **, e.g.,
+                # generators, tuples, etc.
+                chosen = self.type_system.wrap_var_param_type(
+                    chosen,
+                    self.signature.parameters[param_name].kind,
+                )
+            res[param_name] = chosen
         signature_memo[self] = res
         return res
 
