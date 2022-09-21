@@ -429,7 +429,7 @@ class TestCreationConfiguration:
     Expects values in [0,1]"""
 
     skip_optional_parameter_probability: float = 0.7
-    """Probability to skip an optional parameter, i.e., do not fill this parameter."""
+    """Probability to skip an optional parameter, i.e., do not fill such a parameter."""
 
     max_attempts: int = 1000
     """Number of attempts when generating an object before giving up"""
