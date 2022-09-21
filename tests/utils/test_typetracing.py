@@ -63,6 +63,28 @@ def test_dont_record_objectproxy_instance_check():
     assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
 
 
+def test_dont_record_objectproxy_instance_check_2():
+    proxy = tt.ObjectProxy(42)
+    with tt.shim_isinstance():
+        assert isinstance(proxy, (tt.ObjectProxy, bytes))
+    assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
+
+
+def test_dont_record_objectproxy_instance_check_3():
+    proxy = tt.ObjectProxy(42)
+    with pytest.raises(TypeError):
+        with tt.shim_isinstance():
+            assert isinstance(proxy, tt.ObjectProxy(int))
+    assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
+
+
+def test_objectproxy_instance_check():
+    proxy = tt.ObjectProxy(42)
+    with tt.shim_isinstance():
+        assert isinstance(proxy, (int, float))
+    assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 2
+
+
 def test_setattr():
     class Foo:
         def __init__(self):

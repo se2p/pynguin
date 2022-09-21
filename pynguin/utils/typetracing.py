@@ -693,10 +693,11 @@ def shim_isinstance():
 
     def shim(inst, types):
         # pylint:disable=unidiomatic-typecheck
-        if type(inst) is ObjectProxy and types is not ObjectProxy:
+        if type(inst) is ObjectProxy and not orig_isinstance(types, ObjectProxy):
             if orig_isinstance(types, tuple):
-                ProxyKnowledge.from_proxy(inst).type_checks.update(types)
-            else:
+                if ObjectProxy not in types:
+                    ProxyKnowledge.from_proxy(inst).type_checks.update(types)
+            elif types is not ObjectProxy:
                 ProxyKnowledge.from_proxy(inst).type_checks.add(types)
         return orig_isinstance(inst, types)
 
