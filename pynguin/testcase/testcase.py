@@ -31,6 +31,13 @@ class TestCase(metaclass=ABCMeta):
     """
 
     def __init__(self, test_cluster: TestCluster) -> None:
+        """Create a new test case.
+
+        Args:
+            test_cluster: The used test cluster. We need this cluster to have access
+                to the typesystem, in order to search through the statements of this
+                test case which provide values of certain (sub)types.
+        """
         self._statements: list[stmt.Statement] = []
         self.test_cluster: TestCluster = test_cluster
 
