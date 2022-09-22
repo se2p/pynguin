@@ -4,8 +4,6 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import importlib
-import threading
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
@@ -17,8 +15,6 @@ import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
-from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -125,89 +121,47 @@ def test_setup_hook():
         hook_mock.assert_called_once()
 
 
-def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.BRANCH,
-    ]
-    config.configuration.statistics_output.output_variables = [
-        RuntimeVariable.AssertionCheckedCoverage,
-    ]
-    config.configuration.seeding.dynamic_constant_seeding = False
-    tracer = ExecutionTracer()
-    executor = TestCaseExecutor(tracer)
-    assert not executor._instrument
-    result = MagicMock()
-
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    module_name = "tests.fixtures.linecoverage.plus"
-    config.configuration.module_name = module_name
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        old_loader = module.__loader__
-
-        gen._track_coverage_metrics(executor, result, MagicMock())
-
-        new_metrics = config.configuration.statistics_output.coverage_metrics
-        assert len(new_metrics) == 1
-        assert config.CoverageMetric.BRANCH in new_metrics
-        assert not executor._instrument
-
-        assert old_loader is not module.__loader__
-        result.invalidate_cache.assert_called_once()
-        assert (
-            type(result.add_coverage_function.call_args.args[0])
-            == ff.TestSuiteAssertionCheckedCoverageFunction
-        )
-        assert (
-            type(result.get_coverage_for.call_args.args[0])
-            == ff.TestSuiteAssertionCheckedCoverageFunction
-        )
-
-
 @pytest.mark.parametrize(
-    "optimize,track,func_type",
+    "optimize,track,existing,added",
     [
         (
             config.CoverageMetric.BRANCH,
-            RuntimeVariable.LineCoverage,
-            ff.TestSuiteLineCoverageFunction,
+            {RuntimeVariable.FinalLineCoverage},
+            ff.TestSuiteBranchCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction, ff.TestSuiteBranchCoverageFunction],
         ),
         (
             config.CoverageMetric.LINE,
-            RuntimeVariable.BranchCoverage,
+            {RuntimeVariable.FinalBranchCoverage},
+            ff.TestSuiteLineCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction, ff.TestSuiteBranchCoverageFunction],
+        ),
+        (
+            config.CoverageMetric.LINE,
+            {},
+            ff.TestSuiteLineCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction],
+        ),
+        (
+            config.CoverageMetric.BRANCH,
+            {},
             ff.TestSuiteBranchCoverageFunction,
+            [ff.TestSuiteBranchCoverageFunction],
         ),
     ],
 )
-def test__track_one_coverage_while_optimising_for_other(optimize, track, func_type):
-    config.configuration.statistics_output.coverage_metrics = [
-        optimize,
-    ]
+def test__track_one_coverage_while_optimising_for_other(
+    optimize, track, existing, added
+):
     config.configuration.statistics_output.output_variables = [
         track,
     ]
-    config.configuration.seeding.dynamic_constant_seeding = False
-    tracer = ExecutionTracer()
-    executor = TestCaseExecutor(tracer)
-    assert not executor._instrument
-    result = MagicMock()
-
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    module_name = "tests.fixtures.linecoverage.plus"
-    config.configuration.module_name = module_name
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        gen._track_coverage_metrics(executor, result, MagicMock())
-
-        result.invalidate_cache.assert_called_once()
-        assert type(result.add_coverage_function.call_args.args[0]) == func_type
-        assert type(result.get_coverage_for.call_args.args[0]) == func_type
+    algorithm = MagicMock(test_suite_coverage_functions=[existing(MagicMock())])
+    to_calculate = []
+    gen._add_additional_metrics(
+        algorithm, {optimize}, MagicMock(), set(), track, to_calculate
+    )
+    assert [type(elem[1]) for elem in to_calculate] == added
 
 
 def test__reset_cache_for_result():
@@ -284,49 +238,3 @@ def test_integrate(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
-
-
-@pytest.mark.parametrize(
-    "cov_func, cov_metrics, expected_value",
-    [
-        pytest.param("BRANCH", [config.CoverageMetric.BRANCH], 0.75),
-        pytest.param(
-            "BRANCH,LINE",
-            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
-            0.87,
-        ),
-        pytest.param(
-            "BRANCH,LINE,CHECKED",
-            [
-                config.CoverageMetric.BRANCH,
-                config.CoverageMetric.LINE,
-                config.CoverageMetric.CHECKED,
-            ],
-            0.43,
-        ),
-    ],
-)
-def test__track_search_metrics(mocker, cov_func, cov_metrics, expected_value):
-    def get_coverage_for(coverage_function):
-        if coverage_function == "BRANCH":
-            return 0.75
-        if coverage_function == "BRANCH,LINE":
-            return 0.87
-        if coverage_function == "BRANCH,LINE,CHECKED":
-            return 0.43
-        raise AssertionError("Unhandled case.")
-
-    coverage_ff = mocker.patch("pynguin.generator._get_coverage_ff_from_algorithm")
-    coverage_ff.return_value = cov_func
-    gen_result = mocker.patch("pynguin.generator.tsc.TestSuiteChromosome")
-    gen_result.get_coverage_for.side_effect = get_coverage_for
-
-    import pynguin.utils.statistics.statistics as stat
-
-    spy = mocker.spy(stat, "track_output_variable")
-
-    gen._track_search_metrics(MagicMock(), gen_result, cov_metrics)
-
-    rv, val = spy.call_args[0]
-    assert rv == RuntimeVariable.Coverage
-    assert val == pytest.approx(expected_value)
