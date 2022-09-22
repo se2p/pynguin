@@ -165,7 +165,6 @@ def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics()
             type(result.get_coverage_for.call_args.args[0])
             == ff.TestSuiteAssertionCheckedCoverageFunction
         )
-        result.get_coverage.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -209,7 +208,6 @@ def test__track_one_coverage_while_optimising_for_other(optimize, track, func_ty
         result.invalidate_cache.assert_called_once()
         assert type(result.add_coverage_function.call_args.args[0]) == func_type
         assert type(result.get_coverage_for.call_args.args[0]) == func_type
-        result.get_coverage.assert_called_once()
 
 
 def test__reset_cache_for_result():
@@ -286,3 +284,49 @@ def test_integrate(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
+
+
+@pytest.mark.parametrize(
+    "cov_func, cov_metrics, expected_value",
+    [
+        pytest.param("BRANCH", [config.CoverageMetric.BRANCH], 0.75),
+        pytest.param(
+            "BRANCH,LINE",
+            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+            0.87,
+        ),
+        pytest.param(
+            "BRANCH,LINE,CHECKED",
+            [
+                config.CoverageMetric.BRANCH,
+                config.CoverageMetric.LINE,
+                config.CoverageMetric.CHECKED,
+            ],
+            0.43,
+        ),
+    ],
+)
+def test__track_search_metrics(mocker, cov_func, cov_metrics, expected_value):
+    def get_coverage_for(coverage_function):
+        if coverage_function == "BRANCH":
+            return 0.75
+        if coverage_function == "BRANCH,LINE":
+            return 0.87
+        if coverage_function == "BRANCH,LINE,CHECKED":
+            return 0.43
+        raise AssertionError("Unhandled case.")
+
+    coverage_ff = mocker.patch("pynguin.generator._get_coverage_ff_from_algorithm")
+    coverage_ff.return_value = cov_func
+    gen_result = mocker.patch("pynguin.generator.tsc.TestSuiteChromosome")
+    gen_result.get_coverage_for.side_effect = get_coverage_for
+
+    import pynguin.utils.statistics.statistics as stat
+
+    spy = mocker.spy(stat, "track_output_variable")
+
+    gen._track_search_metrics(MagicMock(), gen_result, cov_metrics)
+
+    rv, val = spy.call_args[0]
+    assert rv == RuntimeVariable.Coverage
+    assert val == pytest.approx(expected_value)

@@ -23,6 +23,7 @@ import enum
 import importlib
 import logging
 import os
+import statistics
 import sys
 import threading
 from pathlib import Path
@@ -433,11 +434,6 @@ def _track_coverage_metrics(
             runtime_variable, generation_result.get_coverage_for(coverage_ff)
         )
 
-    # set new overall coverage
-    stat.track_output_variable(
-        RuntimeVariable.Coverage, generation_result.get_coverage()
-    )
-
     ass_gen = config.configuration.test_case_output.assertion_generation
     if (
         ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING
@@ -479,7 +475,7 @@ def _run() -> ReturnCode:
     # search statistics
     executor.clear_observers()
 
-    _track_search_metrics(algorithm, generation_result)
+    _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
     tracked_metrics = _track_coverage_metrics(
@@ -556,7 +552,9 @@ def _generate_assertions(executor, generation_result):
 
 
 def _track_search_metrics(
-    algorithm: TestGenerationStrategy, generation_result: tsc.TestSuiteChromosome
+    algorithm: TestGenerationStrategy,
+    generation_result: tsc.TestSuiteChromosome,
+    coverage_metrics: list[config.CoverageMetric],
 ) -> None:
     """Track multiple set coverage metrics of the generated test suites.
     This possibly re-executes the test suites.
@@ -564,12 +562,9 @@ def _track_search_metrics(
     Args:
         algorithm: The test generation strategy
         generation_result:  The resulting chromosome of the generation strategy
+        coverage_metrics: The selected coverage metrics to guide the search
     """
-
-    stat.track_output_variable(
-        RuntimeVariable.Coverage, generation_result.get_coverage()
-    )
-    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    coverage_values: list[float] = []
     for metric, runtime, fitness_type in [
         (
             config.CoverageMetric.LINE,
@@ -591,10 +586,13 @@ def _track_search_metrics(
             coverage_function: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
                 algorithm, cast(type[ff.CoverageFunction], fitness_type)
             )
-            stat.track_output_variable(
-                runtime,
-                generation_result.get_coverage_for(coverage_function),
-            )
+            coverage_value = generation_result.get_coverage_for(coverage_function)
+            stat.track_output_variable(runtime, coverage_value)
+            coverage_values.append(coverage_value)
+    assert len(coverage_values) > 0, "You ran search without an optimisation criterion?"
+    stat.track_output_variable(
+        RuntimeVariable.Coverage, statistics.mean(coverage_values)
+    )
 
 
 def _instantiate_test_generation_strategy(
