@@ -176,6 +176,7 @@ def test_remove_integration(constructor_mock):
         ("visit_string_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_boolean_primitive_statement", "_handle_collection_or_primitive"),
+        ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_enum_statement", "_handle_collection_or_primitive"),
         ("visit_none_statement", "_handle_collection_or_primitive"),
         ("visit_constructor_statement", "_handle_remaining"),
