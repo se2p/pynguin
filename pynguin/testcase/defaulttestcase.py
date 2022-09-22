@@ -27,8 +27,6 @@ class DefaultTestCase(tc.TestCase):
 
     _logger = logging.getLogger(__name__)
 
-    # pylint: disable=invalid-name
-
     def accept(self, visitor: tcv.TestCaseVisitor) -> None:
         visitor.visit_default_test_case(self)
 
