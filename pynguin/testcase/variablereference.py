@@ -10,12 +10,13 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from pynguin.analyses.typesystem import NoneType, ProperType, is_primitive_type
+from pynguin.analyses.typesystem import NoneType, is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.utils.generic.genericaccessibleobject as gao
     import pynguin.utils.namingscope as ns
+    from pynguin.analyses.typesystem import ProperType
 
 
 class Reference(metaclass=ABCMeta):

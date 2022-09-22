@@ -12,7 +12,7 @@ from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
-from pynguin.testcase.statement import ComplexPrimitiveStatement, StatementVisitor
+from pynguin.testcase.statement import StatementVisitor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         AssignmentStatement,
         BooleanPrimitiveStatement,
         BytesPrimitiveStatement,
+        ComplexPrimitiveStatement,
         ConstructorStatement,
         DictStatement,
         EnumPrimitiveStatement,

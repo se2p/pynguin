@@ -10,7 +10,6 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
-from pynguin.analyses.typesystem import ProperType
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
     from pynguin.analyses.module import TestCluster
+    from pynguin.analyses.typesystem import ProperType
 
 
 # pylint: disable=too-many-public-methods

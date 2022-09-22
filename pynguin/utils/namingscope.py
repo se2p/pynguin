@@ -7,21 +7,24 @@
 """Provides a naming scope."""
 from __future__ import annotations
 
+import typing
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
 import pynguin.testcase.variablereference as vr
-from pynguin.analyses.typesystem import (
-    AnyType,
-    Instance,
-    NoneType,
-    ProperType,
-    TupleType,
-    TypeVisitor,
-    UnionType,
-)
+from pynguin.analyses.typesystem import TypeVisitor
+
+if typing.TYPE_CHECKING:
+    from pynguin.analyses.typesystem import (
+        AnyType,
+        Instance,
+        NoneType,
+        ProperType,
+        TupleType,
+        UnionType,
+    )
 
 
 class AbstractNamingScope:

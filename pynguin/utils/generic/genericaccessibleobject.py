@@ -21,12 +21,7 @@ from types import (
     WrapperDescriptorType,
 )
 
-from pynguin.analyses.typesystem import (
-    InferredSignature,
-    Instance,
-    ProperType,
-    TypeInfo,
-)
+from pynguin.analyses.typesystem import InferredSignature, Instance
 from pynguin.utils.orderedset import OrderedSet
 
 TypesOfCallables = typing.Union[
@@ -36,6 +31,9 @@ TypesOfCallables = typing.Union[
     MethodDescriptorType,
     ClassMethodDescriptorType,
 ]
+
+if typing.TYPE_CHECKING:
+    from pynguin.analyses.typesystem import ProperType, TypeInfo
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):
