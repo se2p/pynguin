@@ -244,7 +244,9 @@ def unwrap(obj):
 
 
 class ObjectProxy(metaclass=_ObjectProxyMetaType):
-    """A proxy for (almost) any Python object."""
+    """A proxy for (almost) any Python object.
+
+    Native types implemented in C might be problematic."""
 
     def __init__(
         self, wrapped, knowledge: ProxyKnowledge | None = None, is_kwargs: bool = False
