@@ -1590,7 +1590,7 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
         assert self._value is not None
         probability = randomness.next_float()
         real_or_imag = randomness.next_bool()
-        if probability < 1.0 / 3.0:
+        if probability < 1 / 3:
             if real_or_imag:
                 self._value = complex(
                     self._value.real
@@ -1605,7 +1605,7 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
                     + randomness.next_gaussian()
                     * config.configuration.test_creation.max_delta,
                 )
-        elif probability < 2.0 / 3.0:
+        elif probability < 2 / 3:
             if real_or_imag:
                 self._value = complex(
                     self._value.real + randomness.next_gaussian(), self._value.imag
