@@ -648,13 +648,13 @@ class ModuleTestCluster(TestCluster):
     def get_random_accessible(self) -> GenericAccessibleObject | None:
         if self.num_accessible_objects_under_test() == 0:
             return None
-        return randomness.choice(list(self.__accessible_objects_under_test))
+        return randomness.choice(self.__accessible_objects_under_test)
 
     def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         accessible_objects = self.get_modifiers_for(typ)
         if len(accessible_objects) == 0:
             raise ConstructionFailedException(f"No modifiers for {typ}")
-        return randomness.choice(list(accessible_objects))
+        return randomness.choice(accessible_objects)
 
     @functools.lru_cache()
     def get_all_generatable_types(self) -> list[ProperType]:
@@ -873,7 +873,7 @@ class FilteredModuleTestCluster(TestCluster):
         accessibles = self.__accessible_to_targets.keys()
         if len(accessibles) == 0:
             return self.__delegate.get_random_accessible()
-        return randomness.choice(list(OrderedSet(accessibles)))
+        return randomness.choice(OrderedSet(accessibles))
 
     def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         return self.__delegate.get_random_call_for(typ)

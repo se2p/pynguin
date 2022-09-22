@@ -78,7 +78,7 @@ class ArchiveReuseTestCaseChromosomeFactory(
             and randomness.next_float()
             <= config.configuration.seeding.seed_from_archive_probability
         ):
-            selected = randomness.choice(list(pick_from)).clone()
+            selected = randomness.choice(pick_from).clone()
             for _ in range(config.configuration.seeding.seed_from_archive_mutations):
                 selected.mutate()
             return selected

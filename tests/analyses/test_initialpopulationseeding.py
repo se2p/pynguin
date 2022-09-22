@@ -134,7 +134,7 @@ def test_collect_different_types(
 
     seeded_testcase = provider.random_testcase()
     assert seeded_testcase is not None
-    assert list(seeded_testcase.statements[position].assertions)[0].object == result
+    assert seeded_testcase.statements[position].assertions[0].object == result
 
 
 @pytest.mark.parametrize(
@@ -210,9 +210,7 @@ def test_seeded_test_case_factory_no_delegation(
     test_case_factory = tcf.SeededTestCaseFactory(delegate, provider)
 
     seeded_testcase = test_case_factory.get_test_case()
-    assert (
-        list(seeded_testcase.statements[2].assertions)[0].object == "Bools are equal!"
-    )
+    assert seeded_testcase.statements[2].assertions[0].object == "Bools are equal!"
 
 
 @mock.patch("pynguin.utils.randomness.choice")

@@ -41,9 +41,11 @@ from typing import (
     Iterable,
     Iterator,
     MutableSet,
+    Sequence,
     Set,
     TypeVar,
     cast,
+    overload,
 )
 
 T = TypeVar("T")
@@ -52,8 +54,36 @@ T_co = TypeVar("T_co", covariant=True)
 _TAbstractOrderedSet = TypeVar("_TAbstractOrderedSet", bound="_AbstractOrderedSet")
 
 
-class _AbstractOrderedSet(AbstractSet[T]):
+class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
     """Common functionality shared between OrderedSet and FrozenOrderedSet."""
+
+    @overload
+    def __getitem__(self, index: int) -> T:
+        pass
+
+    @overload
+    def __getitem__(self, index: slice) -> _AbstractOrderedSet[T]:
+        pass
+
+    def __getitem__(self, index: int | slice) -> T:  # type:ignore
+        """Lookup item at given position. Caution, as this runs in O(n).
+
+        Args:
+            index: The index whose value we want to retrieve.
+
+        Returns:
+            The value of the given index.
+
+        Raises:
+            NotImplementedError: When given a slice.
+            IndexError: When the index is out of range.
+        """
+        if isinstance(index, slice):
+            raise NotImplementedError("Slicing currently not supported.")
+        for i, key in enumerate(self._items.keys()):
+            if i == index:
+                return key
+        raise IndexError("Index out of range.")
 
     def __init__(self, iterable: Iterable[T] | None = None) -> None:
         # Using a dictionary, rather than using the recipe's original

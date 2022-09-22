@@ -71,7 +71,7 @@ class AbstractMOSATestStrategy(
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
             else:
-                tch = randomness.choice(list(self._archive.solutions)).clone()
+                tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
 
             if tch.changed and tch.size() > 0:

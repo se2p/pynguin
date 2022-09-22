@@ -1103,7 +1103,7 @@ class TestFactory:
             parameter_type
         )
         if type_generators and not only_any:
-            type_generator = randomness.choice(list(type_generators))
+            type_generator = randomness.choice(type_generators)
             return self.append_generic_accessible(
                 test_case,
                 type_generator,

@@ -116,7 +116,7 @@ class RestrictedConstantPool(ConstantPool):
         values = self._constants[type(constant)]
         values.add(constant)
         if len(values) > self._max_size:
-            values.remove(list(values)[0])
+            values.remove(values[0])
 
 
 class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
