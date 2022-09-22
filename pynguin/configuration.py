@@ -406,18 +406,20 @@ class TestCreationConfiguration:
     Expects values in [0,1]"""
 
     none_weight: float = 1
-    """Weight to use None as parameter type during test generation."""
+    """Weight to use None as parameter type during test generation.
+    Expects values > 0."""
 
     any_weight: float = 10
-    """Weight to use Any as parameter type during test generation."""
+    """Weight to use Any as parameter type during test generation.
+    Expects values > 0."""
 
     original_type_weight: float = 25
     """Weight to use the originally annotated type as parameter type during test
-    generation."""
+    generation. Expects values > 0."""
 
     type_tracing_weight: float = 50
     """Weight to use the type guessed from type tracing as parameter type during
-    test generation."""
+    test generation. Expects values > 0."""
 
     wrap_var_param_type_probability: float = 0.7
     """Probability to wrap the type required for a *arg or **kwargs parameter
