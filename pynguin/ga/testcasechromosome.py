@@ -35,7 +35,7 @@ class TestCaseChromosome(chrom.Chromosome):
 
         Args:
             test_case: The test case that is encoded by this chromosome.
-            test_factory: Test test factory used to manipulate the underlying test case.
+            test_factory: Test factory used to manipulate the underlying test case.
             orig: Original, if we clone an existing chromosome.
         """
         super().__init__(orig=orig)
