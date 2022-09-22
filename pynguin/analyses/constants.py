@@ -17,16 +17,18 @@ from abc import ABC
 from pathlib import Path
 from pkgutil import iter_modules
 
-from ordered_set import OrderedSet
 from setuptools import find_packages
 
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 # Used for type hinting and for restricting stored types
-ConstantTypes = float | int | str | bytes
+from pynguin.utils.typetracing import unwrap
+
+ConstantTypes = float | int | str | bytes | complex
 
 # Used for generic type hinting
-T = typing.TypeVar("T", float, int, str, bytes)
+T = typing.TypeVar("T", float, int, str, bytes, complex)
 
 
 logger = logging.getLogger(__name__)
@@ -114,7 +116,7 @@ class RestrictedConstantPool(ConstantPool):
         values = self._constants[type(constant)]
         values.add(constant)
         if len(values) > self._max_size:
-            values.pop(0)
+            values.remove(values[0])
 
 
 class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
@@ -220,6 +222,8 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         Args:
             value: The observed
         """
+        # Might be a proxy.
+        value = unwrap(value)
         if type(value) in typing.get_args(ConstantTypes):
             if (
                 isinstance(value, (str, bytes))
@@ -235,6 +239,8 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             value: The value
             name: The string
         """
+        # Might be a proxy.
+        value = unwrap(value)
         if isinstance(value, str) and name in self.STRING_FUNCTION_LOOKUP:
             self.add_value(value)
             self.add_value(self.STRING_FUNCTION_LOOKUP[name](value))

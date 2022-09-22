@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         AssignmentStatement,
         BooleanPrimitiveStatement,
         BytesPrimitiveStatement,
+        ComplexPrimitiveStatement,
         ConstructorStatement,
         DictStatement,
         EnumPrimitiveStatement,
@@ -82,6 +83,11 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_float_primitive_statement(self, stmt: FloatPrimitiveStatement) -> None:
         self._ast_node = self._create_constant(stmt)
 
+    def visit_complex_primitive_statement(
+        self, stmt: ComplexPrimitiveStatement
+    ) -> None:
+        self._ast_node = self._create_constant(stmt)
+
     def visit_string_primitive_statement(self, stmt: StringPrimitiveStatement) -> None:
         self._ast_node = self._create_constant(stmt)
 
@@ -104,8 +110,8 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.Attribute(
                 value=ast.Attribute(
-                    value=self._create_module_alias(owner.__module__),
-                    attr=owner.__name__,
+                    value=self._create_module_alias(owner.module),
+                    attr=owner.name,
                     ctx=ast.Load(),
                 ),
                 attr=stmt.value_name,
@@ -122,9 +128,9 @@ class StatementToAstVisitor(StatementVisitor):
         args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
-                attr=owner.__name__,
+                attr=owner.name,
                 ctx=ast.Load(),
-                value=self._create_module_alias(owner.__module__),
+                value=self._create_module_alias(owner.module),
             ),
             args=args,
             keywords=kwargs,

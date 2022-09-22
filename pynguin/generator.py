@@ -46,14 +46,12 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import TypeInferenceStrategy
 from pynguin.generation import export
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import (
     AssertionExecutionObserver,
     ExecutionTracer,
-    ReturnTypeObserver,
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
@@ -116,15 +114,10 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
-    # TODO this is ugly and needs to be reworked...
-    match config.configuration.type_inference.type_inference_strategy:
-        case config.TypeInferenceStrategy.TYPE_HINTS:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-        case config.TypeInferenceStrategy.NONE:
-            strategy = TypeInferenceStrategy.NONE
-        case _:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-    test_cluster = generate_test_cluster(config.configuration.module_name, strategy)
+    test_cluster = generate_test_cluster(
+        config.configuration.module_name,
+        config.configuration.type_inference.type_inference_strategy,
+    )
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
@@ -455,8 +448,6 @@ def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
-    # Observe return types during execution.
-    executor.add_observer(ReturnTypeObserver())
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
@@ -515,6 +506,7 @@ def _run() -> ReturnCode:
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
+    test_cluster.log_signatures()
     return ReturnCode.OK
 
 

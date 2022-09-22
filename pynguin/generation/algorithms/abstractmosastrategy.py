@@ -53,12 +53,12 @@ class AbstractMOSATestStrategy(
 
             # Apply mutation on offspring_1
             self._mutate(offspring_1)
-            if offspring_1.has_changed() and offspring_1.size() > 0:
+            if offspring_1.changed and offspring_1.size() > 0:
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
             self._mutate(offspring_2)
-            if offspring_2.has_changed() and offspring_2.size() > 0:
+            if offspring_2.changed and offspring_2.size() > 0:
                 offspring_population.append(offspring_2)
 
         # Add new randomly generated tests
@@ -74,7 +74,7 @@ class AbstractMOSATestStrategy(
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
 
-            if tch.has_changed() and tch.size() > 0:
+            if tch.changed and tch.size() > 0:
                 offspring_population.append(tch)
 
         self._logger.debug("Number of offsprings = %d", len(offspring_population))
@@ -83,7 +83,7 @@ class AbstractMOSATestStrategy(
     @staticmethod
     def _mutate(offspring: tcc.TestCaseChromosome) -> None:
         offspring.mutate()
-        if not offspring.has_changed():
+        if not offspring.changed:
             # if offspring is not changed, we try to mutate it once again
             offspring.mutate()
 

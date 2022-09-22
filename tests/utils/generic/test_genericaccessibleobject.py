@@ -6,7 +6,7 @@
 #
 from unittest.mock import MagicMock
 
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import InferredSignature, ProperType
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,
@@ -14,6 +14,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.accessibles.accessible import SomeType
 
 
@@ -21,7 +22,9 @@ class TestAccessibleObject(GenericAccessibleObject):
     def generated_type(self) -> type | None:
         pass  # pragma: no cover
 
-    def get_dependencies(self) -> set[type]:
+    def get_dependencies(
+        self, memo: dict[InferredSignature, dict[str, ProperType]]
+    ) -> OrderedSet[ProperType]:
         pass  # pragma: no cover
 
 
@@ -42,8 +45,10 @@ def test_generic_constructor_eq_self(constructor_mock):
     assert constructor_mock == constructor_mock
 
 
-def test_generic_constructor_eq_modified(constructor_mock):
-    second = GenericConstructor(MagicMock, MagicMock(InferredSignature))
+def test_generic_constructor_eq_modified(constructor_mock, type_system):
+    second = GenericConstructor(
+        type_system.to_type_info(MagicMock), MagicMock(InferredSignature)
+    )
     assert constructor_mock != second
 
 
@@ -63,16 +68,22 @@ def test_generic_constructor_num_parameters(constructor_mock):
     assert constructor_mock.get_num_parameters() == 1
 
 
-def test_generic_constructor_dependencies(constructor_mock):
-    assert constructor_mock.get_dependencies() == {float}
+def test_generic_constructor_dependencies(constructor_mock, type_system):
+    assert constructor_mock.get_dependencies({}) == OrderedSet(
+        [type_system.convert_type_hint(float)]
+    )
 
 
 def test_generic_method_eq_self(method_mock):
     assert method_mock == method_mock
 
 
-def test_generic_method_eq_modified(method_mock):
-    second = GenericMethod(MagicMock, int, MagicMock(InferredSignature))
+def test_generic_method_eq_modified(method_mock, type_system):
+    second = GenericMethod(
+        type_system.to_type_info(MagicMock),
+        type_system.convert_type_hint(int),
+        MagicMock(return_type=type_system.convert_type_hint(None)),
+    )
     assert method_mock != second
 
 
@@ -88,16 +99,20 @@ def test_generic_method_is_method(method_mock):
     assert method_mock.is_method()
 
 
-def test_generic_method_dependencies(method_mock):
-    assert method_mock.get_dependencies() == {int, SomeType}
+def test_generic_method_dependencies(method_mock, type_system):
+    assert method_mock.get_dependencies({}) == OrderedSet(
+        [type_system.convert_type_hint(int), type_system.convert_type_hint(SomeType)]
+    )
 
 
 def test_generic_function_eq_self(function_mock):
     assert function_mock == function_mock
 
 
-def test_generic_function_eq_modified(function_mock):
-    second = GenericFunction(int, MagicMock(InferredSignature))
+def test_generic_function_eq_modified(function_mock, type_system):
+    second = GenericFunction(
+        type_system.convert_type_hint(int), MagicMock(InferredSignature)
+    )
     assert function_mock != second
 
 
@@ -117,8 +132,10 @@ def test_generic_field_eq_self(field_mock):
     assert field_mock == field_mock
 
 
-def test_generic_field_eq_modified(field_mock):
-    second = GenericField(MagicMock, "xyz", str)
+def test_generic_field_eq_modified(field_mock, type_system):
+    second = GenericField(
+        type_system.to_type_info(MagicMock), "xyz", type_system.convert_type_hint(str)
+    )
     assert field_mock != second
 
 
@@ -138,8 +155,10 @@ def test_generic_field_is_field(field_mock):
     assert field_mock.is_field()
 
 
-def test_generic_field_dependencies(field_mock):
-    assert field_mock.get_dependencies() == {SomeType}
+def test_generic_field_dependencies(field_mock, type_system):
+    assert field_mock.get_dependencies({}) == OrderedSet(
+        [type_system.convert_type_hint(SomeType)]
+    )
 
 
 def test_generic_function_raised_exceptions():

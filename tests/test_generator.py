@@ -12,7 +12,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
@@ -69,31 +68,6 @@ def test_setup_test_cluster_not_empty():
         tc.num_accessible_objects_under_test.return_value = 1
         gen_mock.return_value = tc
         assert gen._setup_test_cluster()
-
-
-@pytest.mark.parametrize(
-    "conf_strategy, expected",
-    [
-        pytest.param(
-            config.TypeInferenceStrategy.TYPE_HINTS,
-            types.TypeInferenceStrategy.TYPE_HINTS,
-        ),
-        pytest.param(
-            config.TypeInferenceStrategy.NONE,
-            types.TypeInferenceStrategy.NONE,
-        ),
-        pytest.param(MagicMock(), types.TypeInferenceStrategy.TYPE_HINTS),
-    ],
-)
-def test_setup_test_cluster_type_inference_strategy(conf_strategy, expected):
-    gen.set_configuration(
-        configuration=MagicMock(
-            type_inference=MagicMock(type_inference_strategy=conf_strategy),
-        )
-    )
-    with mock.patch("pynguin.generator.generate_test_cluster") as gen_mock:
-        gen._setup_test_cluster()
-        assert gen_mock.call_args.args[1] == expected
 
 
 def test_setup_path_invalid_dir(tmp_path):

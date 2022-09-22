@@ -8,7 +8,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from ordered_set import OrderedSet
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
@@ -18,6 +17,7 @@ from pynguin.generation.algorithms.archive import (
     MIOPopulation,
     MIOPopulationPair,
 )
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def test_reset(objectives):
     archive = CoverageArchive(objectives)
     archive.reset()
     assert archive.uncovered_goals == objectives
-    assert archive.covered_goals == set()
+    assert archive.covered_goals == OrderedSet()
     assert archive.solutions == OrderedSet()
 
 
@@ -330,7 +330,7 @@ def test_mio_archive_initial_empty():
     fitness = MagicMock()
     archive = MIOArchive(OrderedSet([fitness]), 3)
     assert archive.num_covered_targets == 0
-    assert archive.solutions == []
+    assert archive.solutions == OrderedSet([])
 
 
 def test_mio_archive_update_no_ex():
@@ -403,7 +403,7 @@ def test_mio_archive_get_solutions():
     solution.clone.return_value = clone
     clone.get_fitness_for.return_value = 0.0
     archive.update([solution])
-    assert archive.solutions == [clone]
+    assert archive.solutions == OrderedSet([clone])
 
 
 def test_mio_archive_num_covered_targets():

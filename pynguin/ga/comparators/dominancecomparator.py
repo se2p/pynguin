@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
+from pynguin.utils.orderedset import OrderedSet
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

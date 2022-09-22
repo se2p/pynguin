@@ -46,12 +46,12 @@ def chromosome():
 
 
 def test_has_changed_default(chromosome):
-    assert chromosome.has_changed()
+    assert chromosome.changed
 
 
 def test_has_changed(chromosome):
-    chromosome.set_changed(False)
-    assert not chromosome.has_changed()
+    chromosome.changed = False
+    assert not chromosome.changed
 
 
 def test_get_fitness_functions(chromosome):

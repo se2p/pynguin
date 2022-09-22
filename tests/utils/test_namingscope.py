@@ -62,13 +62,13 @@ def test_naming_scope_known_indices_has_name(naming_scope):
         (dict[int, str], "dict_0"),
         (list[str], "list_0"),
         (list, "list_0"),
-        (Union[int, str, bool], "var_0"),  # For union we get var0
+        (Union[int, str, bool], "var_0"),  # For a union we get var0
         (Iterable[int], "iterable_0"),
         (MagicMock, "magic_mock_0"),
     ],
 )
-def test_variable_type_conversion(variable_type_naming_scope, tp, name):
-    var = vr.VariableReference(MagicMock(), tp)
+def test_variable_type_conversion(variable_type_naming_scope, tp, name, type_system):
+    var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(tp))
     assert variable_type_naming_scope.get_name(var) == name
 
 
@@ -81,23 +81,29 @@ def test_variable_type_conversion(variable_type_naming_scope, tp, name):
         (dict[int, str], "dict_0", "dict_1"),
     ],
 )
-def test_variable_type_counter(variable_type_naming_scope, tp, name0, name1):
-    var = vr.VariableReference(MagicMock(), tp)
+def test_variable_type_counter(
+    variable_type_naming_scope, tp, name0, name1, type_system
+):
+    var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(tp))
     assert variable_type_naming_scope.get_name(var) == name0
-    var = vr.VariableReference(MagicMock(), tp)
+    var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(tp))
     assert variable_type_naming_scope.get_name(var) == name1
 
 
-def test_variable_type_runtime():
-    scope = ns.VariableTypeNamingScope(return_type_trace={0: int})
-    var = MagicMock(type=None)
+def test_variable_type_runtime(type_system):
+    scope = ns.VariableTypeNamingScope(
+        return_type_trace={0: type_system.convert_type_hint(int)}
+    )
+    var = MagicMock(type=type_system.convert_type_hint(None))
     var.get_statement_position.return_value = 1
     assert scope.get_name(var) == "var_0"
 
 
-def test_variable_type_runtime_2():
-    scope = ns.VariableTypeNamingScope(return_type_trace={0: MagicMock})
-    var = MagicMock(type=None)
+def test_variable_type_runtime_2(type_system):
+    scope = ns.VariableTypeNamingScope(
+        return_type_trace={0: type_system.convert_type_hint(MagicMock)}
+    )
+    var = MagicMock(type=type_system.convert_type_hint(None))
     var.get_statement_position.return_value = 0
     assert scope.get_name(var) == "magic_mock_0"
 
@@ -106,14 +112,14 @@ def test_variable_type_empty(variable_type_naming_scope):
     assert len(variable_type_naming_scope) == 0
 
 
-def test_variable_type_not_empty(variable_type_naming_scope):
-    var = vr.VariableReference(MagicMock(), int)
+def test_variable_type_not_empty(variable_type_naming_scope, type_system):
+    var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(int))
     variable_type_naming_scope.get_name(var)
     assert dict(variable_type_naming_scope) == {var: "int_0"}
 
 
-def test_variable_type_has_name(variable_type_naming_scope):
-    var = vr.VariableReference(MagicMock(), int)
+def test_variable_type_has_name(variable_type_naming_scope, type_system):
+    var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(int))
     variable_type_naming_scope.get_name(var)
     assert variable_type_naming_scope.is_known_name(var)
 

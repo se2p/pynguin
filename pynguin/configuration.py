@@ -118,9 +118,6 @@ class TypeInferenceStrategy(str, enum.Enum):
     NONE = "NONE"
     """Ignore any type information given in the module under test."""
 
-    STUB_FILES = "STUB_FILES"
-    """Use type information from stub files."""
-
     TYPE_HINTS = "TYPE_HINTS"
     """Use type information from type hints in the module under test."""
 
@@ -368,19 +365,11 @@ class RandomConfiguration:
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
 
-    guess_unknown_types: bool = True
-    """Should we guess unknown types while constructing parameters?
-    This might happen in the following cases:
-    The parameter type is unknown, e.g. a parameter is missing a type hint.
-    The parameter is not primitive and cannot be created from the test cluster,
-    e.g. Callable[...]"""
-
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    max_cluster_recursion: int = 10
-    """The maximum level of recursion when calculating the dependencies in the test
-    cluster."""
+    type_tracing: bool = False
+    """Trace usage of parameters with unknown types to improve type guesses."""
 
     stub_dir: str = ""
     """Path to the pyi-stub files for the StubInferenceStrategy"""
@@ -416,12 +405,33 @@ class TestCreationConfiguration:
     """Probability to reuse an existing object in a test case, if available.
     Expects values in [0,1]"""
 
-    none_probability: float = 0.1
-    """Probability to use None in a test case instead of constructing an object.
+    none_weight: float = 1
+    """Weight to use None as parameter type during test generation.
+    Expects values > 0."""
+
+    any_weight: float = 10
+    """Weight to use Any as parameter type during test generation.
+    Expects values > 0."""
+
+    original_type_weight: float = 25
+    """Weight to use the originally annotated type as parameter type during test
+    generation. Expects values > 0."""
+
+    type_tracing_weight: float = 50
+    """Weight to use the type guessed from type tracing as parameter type during
+    test generation. Expects values > 0."""
+
+    wrap_var_param_type_probability: float = 0.7
+    """Probability to wrap the type required for a *arg or **kwargs parameter
+    in a list or dict, respectively. Expects values in [0,1]"""
+
+    negate_type: float = 0.01
+    """When inferring a type from proxies, it may also be desirable to negate the chosen
+    type, e.g., such that an instance check or a getattr() evaluate to False.
     Expects values in [0,1]"""
 
     skip_optional_parameter_probability: float = 0.7
-    """Probability to skip an optional parameter, i.e., do not fill this parameter."""
+    """Probability to skip an optional parameter, i.e., do not fill such a parameter."""
 
     max_attempts: int = 1000
     """Number of attempts when generating an object before giving up"""

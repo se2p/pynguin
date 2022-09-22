@@ -11,9 +11,8 @@ import logging
 from itertools import islice
 from typing import TYPE_CHECKING, Any
 
-from ordered_set import OrderedSet
-
 import pynguin.testcase.testcase as tc
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -27,22 +26,6 @@ class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
     _logger = logging.getLogger(__name__)
-
-    # pylint: disable=invalid-name
-    def __init__(self) -> None:
-        super().__init__()
-        self._id = self._id_generator.inc()
-
-    @property
-    def id(self) -> int:
-        """Get an unique ID representing this test case.
-
-        Mainly useful for debugging.
-
-        Returns:
-            An unique ID representing this test case
-        """
-        return self._id
 
     def accept(self, visitor: tcv.TestCaseVisitor) -> None:
         visitor.visit_default_test_case(self)
@@ -110,7 +93,7 @@ class DefaultTestCase(tc.TestCase):
         return 0 <= position < len(self._statements)
 
     def clone(self, limit: int | None = None) -> tc.TestCase:
-        test_case = DefaultTestCase()
+        test_case = DefaultTestCase(self.test_cluster)
         memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in islice(self._statements, limit):
             copy = statement.clone(test_case, memo)
@@ -120,7 +103,6 @@ class DefaultTestCase(tc.TestCase):
                 memo[statement.ret_val] = copy.ret_val  # type: ignore
             test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
-        test_case._id = self._id_generator.inc()
         return test_case
 
     def get_dependencies(
@@ -169,7 +151,7 @@ class DefaultTestCase(tc.TestCase):
             if len(self._statements) != len(other._statements):
                 return False
             memo: dict[vr.VariableReference, vr.VariableReference] = {}
-            for left, right in zip(self._statements, other._statements):
+            for left, right in zip(self._statements, other._statements, strict=True):
                 if ((lret := left.ret_val) is None) ^ ((rret := right.ret_val) is None):
                     # One is None but the other isn't, i.e., one creates a variable
                     # but the other doesn't -> they are different.
@@ -183,4 +165,9 @@ class DefaultTestCase(tc.TestCase):
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum(17 * s.structural_hash() for s in self._statements)
+        memo: dict[vr.VariableReference, int] = {
+            statement.ret_val: idx
+            for idx, statement in enumerate(self._statements)
+            if statement.ret_val is not None
+        }
+        return hash(tuple(s.structural_hash(memo) for s in self._statements))

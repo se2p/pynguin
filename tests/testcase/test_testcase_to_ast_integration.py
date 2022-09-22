@@ -10,23 +10,21 @@ from ast import Module
 import pytest
 
 import pynguin.assertion.assertion as ass
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
 
 
 @pytest.fixture()
-def simple_test_case(constructor_mock):
-    test_case = dtc.DefaultTestCase()
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
+def simple_test_case(constructor_mock, default_test_case):
+    int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(
-        test_case, constructor_mock, {"y": int_stmt.ret_val}
+        default_test_case, constructor_mock, {"y": int_stmt.ret_val}
     )
     constructor_stmt.add_assertion(ass.ObjectAssertion(constructor_stmt.ret_val, 3))
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(constructor_stmt)
-    return test_case
+    default_test_case.add_statement(int_stmt)
+    default_test_case.add_statement(constructor_stmt)
+    return default_test_case
 
 
 def test_test_case_to_ast_once(simple_test_case):

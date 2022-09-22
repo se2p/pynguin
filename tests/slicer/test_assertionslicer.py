@@ -59,7 +59,11 @@ def full_cover_plus_three_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -70,7 +74,11 @@ def full_cover_plus_three_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -108,7 +116,11 @@ def full_cover_plus_four_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -119,7 +131,11 @@ def full_cover_plus_four_test():
         ass.ObjectAssertion(
             FieldReference(
                 constructor_call.ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -150,7 +166,11 @@ def test_case_1():
     tc_0.statements[1].add_assertion(
         ass.ObjectAssertion(
             StaticFieldReference(
-                gao.GenericStaticField(Plus, "calculations", int),
+                gao.GenericStaticField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -160,7 +180,11 @@ def test_case_1():
         ass.ObjectAssertion(
             FieldReference(
                 tc_0.statements[1].ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             1,
         )
@@ -170,7 +194,11 @@ def test_case_1():
     tc_1.statements[1].add_assertion(
         ass.ObjectAssertion(
             StaticFieldReference(
-                gao.GenericStaticField(Plus, "calculations", int),
+                gao.GenericStaticField(
+                    cluster.type_system.to_type_info(Plus),
+                    "calculations",
+                    cluster.type_system.convert_type_hint(int),
+                ),
             ),
             0,
         )
@@ -206,6 +234,13 @@ def partial_cover_plus_testsuite(
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_1)
     test_suite.add_test_case_chromosome(test_case_2)
+    return test_suite
+
+
+@pytest.fixture
+def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
+    test_suite = tsc.TestSuiteChromosome()
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(default_test_case))
     return test_suite
 
 

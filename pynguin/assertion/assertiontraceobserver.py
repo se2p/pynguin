@@ -22,6 +22,7 @@ import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+from pynguin.analyses.typesystem import ANY, TypeInfo
 from pynguin.utils.type_utils import (
     is_assertable,
     is_collection_type,
@@ -138,7 +139,8 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 self._check_reference(
                     exec_ctx,
                     vr.StaticModuleFieldReference(
-                        gao.GenericStaticModuleField(module_name, field, type(value))
+                        # Type information is not used here, so use Any.
+                        gao.GenericStaticModuleField(module_name, field, ANY)
                     ),
                     position,
                     trace,
@@ -165,7 +167,8 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 self._check_reference(
                     exec_ctx,
                     vr.StaticFieldReference(
-                        gao.GenericStaticField(seen_type, field, type(value))
+                        # Type information is not used here, so use Any.
+                        gao.GenericStaticField(TypeInfo(seen_type), field, ANY)
                     ),
                     position,
                     trace,
@@ -226,7 +229,8 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             exec_ctx,
                             vr.FieldReference(
                                 ref,
-                                gao.GenericField(type(value), field, type(field_value)),
+                                # Type information is not used here, so use Any.
+                                gao.GenericField(TypeInfo(type(value)), field, ANY),
                             ),
                             position,
                             trace,
@@ -275,7 +279,7 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         if statement.has_only_exception_assertion():
-            return exec_ctx.node_for_assertion(statement.assertions[0], node)
+            return exec_ctx.node_for_assertion(list(statement.assertions)[0], node)
         return node
 
     def after_statement_execution(
@@ -292,9 +296,9 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             # exception.
             if isinstance(exception, Failed):
                 # Failed indicates that the expected assertion was not raised
-                self.state.trace.failed[statement.get_position()].append(0)
+                self.state.trace.failed[statement.get_position()].add(0)
             else:
-                self.state.trace.error[statement.get_position()].append(0)
+                self.state.trace.error[statement.get_position()].add(0)
         else:
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
@@ -309,6 +313,6 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
                     continue
 
                 if isinstance(exc, AssertionError):
-                    self.state.trace.failed[statement.get_position()].append(idx)
+                    self.state.trace.failed[statement.get_position()].add(idx)
                 else:
-                    self.state.trace.error[statement.get_position()].append(idx)
+                    self.state.trace.error[statement.get_position()].add(idx)

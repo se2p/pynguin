@@ -7,8 +7,11 @@
 """Provides analyses for the subject module, based on the module and its AST."""
 from __future__ import annotations
 
+import abc
+import builtins
 import dataclasses
 import enum
+import functools
 import importlib
 import inspect
 import itertools
@@ -16,7 +19,7 @@ import json
 import logging
 import queue
 import typing
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from collections.abc import Callable
 from statistics import mean, median
 from types import (
@@ -27,12 +30,11 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
-from typing import Any, NamedTuple, get_args
+from typing import Any, NamedTuple
 
 import astroid
-from ordered_set import OrderedSet
-from typing_inspect import is_union_type
 
+import pynguin.utils.typetracing as tt
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
@@ -42,26 +44,35 @@ from pynguin.analyses.syntaxtree import (
     get_function_node_from_ast,
 )
 from pynguin.analyses.typesystem import (
-    InheritanceGraph,
-    TypeInferenceStrategy,
+    ANY,
+    AnyType,
+    Instance,
+    NoneType,
+    ProperType,
+    TupleType,
     TypeInfo,
-    infer_type_info,
+    TypeSystem,
+    TypeVisitor,
+    UnionType,
+    is_primitive_type,
 )
+from pynguin.configuration import TypeInferenceStrategy
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
-from pynguin.utils import randomness, type_utils
+from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericEnum,
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
-    extract_non_generic_class,
     get_class_that_defined_method,
 )
 
@@ -69,7 +80,6 @@ if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
     from pynguin.testcase.execution import KnownData
-    from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
@@ -83,6 +93,7 @@ LOGGER = logging.getLogger(__name__)
 MODULE_BLACKLIST = frozenset(
     (
         "__future__",
+        "_frozen_importlib",
         "_thread",
         "abc",
         "argparse",
@@ -178,6 +189,11 @@ def _is_blacklisted(element: Any) -> bool:
     if inspect.ismodule(element):
         return element.__name__ in MODULE_BLACKLIST
     if inspect.isclass(element):
+        if element.__module__ == "builtins" and (
+            element in PRIMITIVES or element in COLLECTIONS
+        ):
+            # Allow some builtin types
+            return False
         return element.__module__ in MODULE_BLACKLIST
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
@@ -238,61 +254,32 @@ def parse_module(
     )
 
 
-class ModuleTestCluster:
-    """A test cluster for a module.
-
-    Contains all methods/constructors/functions and all required transitive
-    dependencies.
-    """
-
-    def __init__(self, linenos: int) -> None:
-        self.__linenos = linenos
-        self.__generators: dict[type, OrderedSet[GenericAccessibleObject]] = {}
-        self.__modifiers: dict[type, OrderedSet[GenericAccessibleObject]] = {}
-        self.__accessible_objects_under_test: OrderedSet[
-            GenericAccessibleObject
-        ] = OrderedSet()
-        self.__function_data_for_accessibles: dict[
-            GenericAccessibleObject, _CallableData
-        ] = {}
-        self.__inheritance_graph = InheritanceGraph()
+class TestCluster(abc.ABC):
+    """Interface for a test cluster"""
 
     @property
-    def inheritance_graph(self) -> InheritanceGraph:
-        """Provides the inheritance graph.
-
-        Returns:
-            The inheritance graph.
-        """
-        return self.__inheritance_graph
+    @abc.abstractmethod
+    def type_system(self) -> TypeSystem:
+        """Provides the inheritance graph."""
 
     @property
+    @abc.abstractmethod
     def linenos(self) -> int:
-        """Provide the number of source code lines.
+        """Provide the number of source code lines."""
 
-        Returns:
-            The number of source code lines
-        """
-        return self.__linenos
+    @abc.abstractmethod
+    def log_signatures(self) -> None:
+        """Log the signatures of all seen callables."""
 
+    @abc.abstractmethod
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         """Add the given accessible as a generator.
 
         Args:
             generator: The accessible object
         """
-        generated_type = generator.generated_type()
-        if (
-            generated_type is None
-            or type_utils.is_none_type(generated_type)
-            or type_utils.is_primitive_type(generated_type)
-        ):
-            return
-        if generated_type in self.__generators:
-            self.__generators[generated_type].add(generator)
-        else:
-            self.__generators[generated_type] = OrderedSet([generator])
 
+    @abc.abstractmethod
     def add_accessible_object_under_test(
         self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
@@ -302,10 +289,9 @@ class ModuleTestCluster:
             objc: The accessible object
             data: The function-description data
         """
-        self.__accessible_objects_under_test.add(objc)
-        self.__function_data_for_accessibles[objc] = data
 
-    def add_modifier(self, typ: type, obj: GenericAccessibleObject) -> None:
+    @abc.abstractmethod
+    def add_modifier(self, typ: TypeInfo, obj: GenericAccessibleObject) -> None:
         """Add a modifier.
 
         A modifier is something that can be used to modify the given type,
@@ -315,144 +301,96 @@ class ModuleTestCluster:
             typ: The type that can be modified
             obj: The accessible that can modify
         """
-        if typ in self.__modifiers:
-            self.__modifiers[typ].add(obj)
-        else:
-            self.__modifiers[typ] = OrderedSet([obj])
 
     @property
+    @abc.abstractmethod
     def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
-        """Provides all accessible objects under test.
-
-        Returns:
-            The set of all accessible objects under test
-        """
-        return self.__accessible_objects_under_test
+        """Provides all accessible objects under test."""
 
     @property
+    @abc.abstractmethod
     def function_data_for_accessibles(
         self,
     ) -> dict[GenericAccessibleObject, _CallableData]:
-        """Provides all function data for all accessibles.
+        """Provides all function data for all accessibles."""
 
-        Returns:
-            A dictionary of accessibles to their function data
-        """
-        return self.__function_data_for_accessibles
-
+    @abc.abstractmethod
     def num_accessible_objects_under_test(self) -> int:
         """Provide the number of accessible objects under test.
 
-        Useful to check whether there is even something to test.
+        Useful to check whether there is even something to test."""
 
-        Returns:
-            The number of all accessibles under test
-        """
-        return len(self.__accessible_objects_under_test)
-
-    def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+    @abc.abstractmethod
+    def get_generators_for(
+        self, typ: ProperType
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
         """Retrieve all known generators for the given type.
 
         Args:
             typ: The type we want to have the generators for
 
         Returns:
-            The set of all generators for that type
+            The set of all generators for that type, as well as a boolean
+              that indicates if all generators have been matched through Any.
+              # noqa: DAR202
         """
-        if typ is typing.Any:
-            return OrderedSet(itertools.chain.from_iterable(self.__generators.values()))
-        if (non_generic_type := extract_non_generic_class(typ)) is not None:
-            generators: OrderedSet[GenericAccessibleObject] = OrderedSet()
-            for subclass in self.__inheritance_graph.get_subclasses(
-                TypeInfo(non_generic_type)
-            ):
-                if subclass.raw_type in self.__generators:
-                    generators.update(self.__generators[subclass.raw_type])
-            return generators
-        return self.__generators.get(typ, OrderedSet())
 
-    def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+    @abc.abstractmethod
+    def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
         """Get all known modifiers for a type.
-
-        TODO: Incorporate inheritance
 
         Args:
             typ: The type
 
         Returns:
-            The set of all accessibles that can modify the type
+            The set of all accessibles that can modify the type  # noqa: DAR202
         """
-        if typ is typing.Any:
-            return OrderedSet(itertools.chain.from_iterable(self.__modifiers.values()))
-        if (non_generic_type := extract_non_generic_class(typ)) is not None:
-            modifiers: OrderedSet[GenericAccessibleObject] = OrderedSet()
-            for super_class in self.__inheritance_graph.get_superclasses(
-                TypeInfo(non_generic_type)
-            ):
-                if super_class.raw_type in self.__modifiers:
-                    modifiers.update(self.__modifiers[super_class.raw_type])
-            return modifiers
-        return self.__modifiers.get(typ, OrderedSet())
 
     @property
-    def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
-        """Provides all available generators.
-
-        Returns:
-            A dictionary of types and their generating accessibles
-        """
-        return self.__generators
+    @abc.abstractmethod
+    def generators(self) -> dict[ProperType, OrderedSet[GenericAccessibleObject]]:
+        """Provides all available generators."""
 
     @property
-    def modifiers(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
-        """Provides all available modifiers.
+    @abc.abstractmethod
+    def modifiers(self) -> dict[TypeInfo, OrderedSet[GenericAccessibleObject]]:
+        """Provides all available modifiers."""
 
-        Returns:
-            A dictionary of types and their modifying accessibles
-        """
-        return self.__modifiers
-
+    @abc.abstractmethod
     def get_random_accessible(self) -> GenericAccessibleObject | None:
         """Provides a random accessible of the unit under test.
 
         Returns:
-            A random accessible, or None if there is none
+            A random accessible, or None if there is none  # noqa: DAR202
         """
-        if self.num_accessible_objects_under_test() == 0:
-            return None
-        return randomness.choice(self.__accessible_objects_under_test)
 
-    def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
+    @abc.abstractmethod
+    def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         """Get a random modifier for the given type.
 
         Args:
             typ: The type
 
         Returns:
-            A random modifier for that type
+            A random modifier for that type  # noqa: DAR202
 
         Raises:
-            ConstructionFailedException: if no modifiers for the type exist
+            ConstructionFailedException: if no modifiers for the type
+                exist# noqa: DAR402
         """
-        accessible_objects = self.get_modifiers_for(typ)
-        if len(accessible_objects) == 0:
-            raise ConstructionFailedException(f"No modifiers for {typ}")
-        return randomness.choice(accessible_objects)
 
-    def get_all_generatable_types(self) -> list[type]:
+    @abc.abstractmethod
+    def get_all_generatable_types(self) -> list[ProperType]:
         """Provides all types that can be generated.
 
         This includes primitives and collections.
 
         Returns:
-            A list of all types that can be generated
+            A list of all types that can be generated  # noqa: DAR202
         """
-        generatable = OrderedSet(self.__generators.keys())
-        generatable.update(PRIMITIVES)
-        generatable.update(COLLECTIONS)
-        return list(generatable)
 
-    def select_concrete_type(self, typ: type | None) -> type | None:
+    @abc.abstractmethod
+    def select_concrete_type(self, typ: ProperType) -> ProperType:
         """Select a concrete type from the given type.
 
         This is required, for example, when handling union types.  Currently, only
@@ -462,17 +400,10 @@ class ModuleTestCluster:
             typ: An optional type
 
         Returns:
-            An optional type
+            An optional type  # noqa: DAR202
         """
-        if typ == Any:  # pylint: disable=comparison-with-callable
-            return randomness.choice(self.get_all_generatable_types())
-        if is_union_type(typ):
-            candidates = get_args(typ)
-            if candidates is not None and len(candidates) > 0:
-                return randomness.choice(candidates)
-            return None
-        return typ
 
+    @abc.abstractmethod
     def track_statistics_values(
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
     ) -> None:
@@ -481,6 +412,267 @@ class ModuleTestCluster:
         Args:
             tracking_fun: The tracking function as a callback.
         """
+
+    @abc.abstractmethod
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
+    ) -> None:
+        """Update the return for the given accessible to the new seen type.
+
+        Args:
+            accessible: the accessible that was observed
+            new_type: the new return type
+        """
+
+    @abc.abstractmethod
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        """Update the knowledge about the parameter of the given accessible.
+
+        Args:
+            accessible: the accessible that was observed.
+            param_name: the parameter name for which we have new information.
+            knowledge: the new information.
+        """
+
+
+class ModuleTestCluster(TestCluster):
+    """A test cluster for a module.
+
+    Contains all methods/constructors/functions and all required transitive
+    dependencies.
+    """
+
+    # pylint:disable=too-many-instance-attributes
+    def __init__(self, linenos: int) -> None:
+        self.__type_system = TypeSystem()
+        self.__linenos = linenos
+        self.__generators: dict[
+            ProperType, OrderedSet[GenericAccessibleObject]
+        ] = defaultdict(OrderedSet)
+
+        # Modifier belong to a certain class, not type.
+        self.__modifiers: dict[
+            TypeInfo, OrderedSet[GenericAccessibleObject]
+        ] = defaultdict(OrderedSet)
+        self.__accessible_objects_under_test: OrderedSet[
+            GenericAccessibleObject
+        ] = OrderedSet()
+        self.__function_data_for_accessibles: dict[
+            GenericAccessibleObject, _CallableData
+        ] = {}
+
+        # Keep track of all callables, this is only for statistics purposes.
+        self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
+
+    def log_signatures(self) -> None:
+        for call in self.__callables:
+            LOGGER.debug("%s", call)
+
+    def _drop_generator(self, accessible: GenericCallableAccessibleObject):
+        gens = self.__generators.get(accessible.generated_type())
+        if gens is None:
+            return
+
+        gens.discard(accessible)
+        if len(gens) == 0:
+            self.__generators.pop(accessible.generated_type())
+
+    @staticmethod
+    def _add_or_make_union(
+        old_type: ProperType, new_type: ProperType, max_size: int = 5
+    ) -> UnionType:
+        if isinstance(old_type, UnionType):
+            items = old_type.items
+            if len(items) >= max_size or new_type in items:
+                return old_type
+            new_type = UnionType(old_type.items + (new_type,))
+        else:
+            if old_type in (ANY, new_type):
+                new_type = UnionType((new_type,))
+            else:
+                new_type = UnionType((old_type, new_type))
+        return new_type
+
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
+    ) -> None:
+        # Loosely map runtime type to proper type
+        # TODO(fk) what about tuple?
+        #  Think about updates, only Any?
+        old_type = accessible.inferred_signature.return_type
+
+        new_type = self._add_or_make_union(old_type, new_type)
+        if old_type == new_type:
+            # No change
+            return
+        self._drop_generator(accessible)
+        # Must invalidate entire cache, because subtype relationship might also change
+        # the return values which are not new_type or old_type.
+        self.get_generators_for.cache_clear()
+        self.get_all_generatable_types.cache_clear()
+        accessible.inferred_signature.return_type = new_type
+        self.__generators[new_type].add(accessible)
+
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        # Store new data
+        accessible.inferred_signature.knowledge[param_name].merge(knowledge)
+
+    @property
+    def type_system(self) -> TypeSystem:
+        """Provides the type system.
+
+        Returns:
+            The type system.
+        """
+        return self.__type_system
+
+    @property
+    def linenos(self) -> int:
+        return self.__linenos
+
+    def add_generator(self, generator: GenericAccessibleObject) -> None:
+        if isinstance(generator, GenericCallableAccessibleObject):
+            self.__callables.add(generator)
+
+        generated_type = generator.generated_type()
+        if isinstance(generated_type, NoneType) or generated_type.accept(
+            is_primitive_type
+        ):
+            return
+        self.__generators[generated_type].add(generator)
+
+    def add_accessible_object_under_test(
+        self, objc: GenericAccessibleObject, data: _CallableData
+    ) -> None:
+        self.__accessible_objects_under_test.add(objc)
+        self.__function_data_for_accessibles[objc] = data
+
+    def add_modifier(self, typ: TypeInfo, obj: GenericAccessibleObject) -> None:
+        if isinstance(obj, GenericCallableAccessibleObject):
+            self.__callables.add(obj)
+
+        self.__modifiers[typ].add(obj)
+
+    @property
+    def accessible_objects_under_test(self) -> OrderedSet[GenericAccessibleObject]:
+        return self.__accessible_objects_under_test
+
+    @property
+    def function_data_for_accessibles(
+        self,
+    ) -> dict[GenericAccessibleObject, _CallableData]:
+        return self.__function_data_for_accessibles
+
+    def num_accessible_objects_under_test(self) -> int:
+        return len(self.__accessible_objects_under_test)
+
+    @functools.lru_cache(maxsize=1024)
+    def get_generators_for(
+        self, typ: ProperType
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
+        if isinstance(typ, AnyType):
+            # Just take everything when it's Any.
+            return (
+                OrderedSet(itertools.chain.from_iterable(self.__generators.values())),
+                False,
+            )
+
+        results: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        only_any = True
+        for gen_type, generators in self.__generators.items():
+            if self.__type_system.is_maybe_subtype(gen_type, typ):
+                results.update(generators)
+                # Set flag to False as soon as we encounter a generator that is not
+                # for Any.
+                only_any &= gen_type == ANY
+
+        return results, only_any
+
+    class _FindModifiers(TypeVisitor[OrderedSet[GenericAccessibleObject]]):
+        """A visitor to find all modifiers for the given type."""
+
+        def __init__(self, cluster: TestCluster):
+            self.cluster = cluster
+
+        def visit_any_type(self, left: AnyType) -> OrderedSet[GenericAccessibleObject]:
+            # If it's Any just take everything.
+            return OrderedSet(
+                itertools.chain.from_iterable(self.cluster.modifiers.values())
+            )
+
+        def visit_none_type(
+            self, left: NoneType
+        ) -> OrderedSet[GenericAccessibleObject]:
+            return OrderedSet()
+
+        def visit_instance(self, left: Instance) -> OrderedSet[GenericAccessibleObject]:
+            result: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for type_info in self.cluster.type_system.get_superclasses(left.type):
+                result.update(self.cluster.modifiers[type_info])
+            return result
+
+        def visit_tuple_type(
+            self, left: TupleType
+        ) -> OrderedSet[GenericAccessibleObject]:
+            return OrderedSet()
+
+        def visit_union_type(
+            self, left: UnionType
+        ) -> OrderedSet[GenericAccessibleObject]:
+            result: OrderedSet[GenericAccessibleObject] = OrderedSet()
+            for element in left.items:
+                result.update(element.accept(self))
+            return result
+
+    def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
+        return typ.accept(self._FindModifiers(self))
+
+    @property
+    def generators(self) -> dict[ProperType, OrderedSet[GenericAccessibleObject]]:
+        return self.__generators
+
+    @property
+    def modifiers(self) -> dict[TypeInfo, OrderedSet[GenericAccessibleObject]]:
+        return self.__modifiers
+
+    def get_random_accessible(self) -> GenericAccessibleObject | None:
+        if self.num_accessible_objects_under_test() == 0:
+            return None
+        return randomness.choice(self.__accessible_objects_under_test)
+
+    def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
+        accessible_objects = self.get_modifiers_for(typ)
+        if len(accessible_objects) == 0:
+            raise ConstructionFailedException(f"No modifiers for {typ}")
+        return randomness.choice(accessible_objects)
+
+    @functools.lru_cache()
+    def get_all_generatable_types(self) -> list[ProperType]:
+        generatable = OrderedSet(self.__generators.keys())
+        generatable.update(self.type_system.primitive_proper_types)
+        generatable.update(self.type_system.collection_proper_types)
+        return list(generatable)
+
+    def select_concrete_type(self, typ: ProperType) -> ProperType:
+        if isinstance(typ, AnyType):
+            typ = randomness.choice(self.get_all_generatable_types())
+        if isinstance(typ, UnionType):
+            typ = self.select_concrete_type(randomness.choice(typ.items))
+        return typ
+
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
         tracking_fun(
             RuntimeVariable.AccessibleObjectsUnderTest,
             self.num_accessible_objects_under_test(),
@@ -524,13 +716,60 @@ class ModuleTestCluster:
         )
 
 
-class FilteredModuleTestCluster(ModuleTestCluster):
+# pylint:disable=too-many-public-methods
+class FilteredModuleTestCluster(TestCluster):
     """A test cluster wrapping another test cluster.
 
     Delegates most methods to the wrapped delegate.  This cluster filters out
     accessible objects under test that are already fully covered, in order to focus
     the search on areas that are not yet fully covered.
     """
+
+    @property
+    def type_system(self) -> TypeSystem:
+        return self.__delegate.type_system
+
+    def update_return_type(
+        self, accessible: GenericCallableAccessibleObject, new_type: ProperType
+    ) -> None:
+        self.__delegate.update_return_type(accessible, new_type)
+
+    def update_parameter_knowledge(
+        self,
+        accessible: GenericCallableAccessibleObject,
+        param_name: str,
+        knowledge: tt.ProxyKnowledge,
+    ) -> None:
+        self.__delegate.update_parameter_knowledge(accessible, param_name, knowledge)
+
+    @property
+    def linenos(self) -> int:
+        return self.__delegate.linenos
+
+    def log_signatures(self) -> None:
+        self.__delegate.log_signatures()
+
+    def add_generator(self, generator: GenericAccessibleObject) -> None:
+        self.__delegate.add_generator(generator)
+
+    def add_accessible_object_under_test(
+        self, objc: GenericAccessibleObject, data: _CallableData
+    ) -> None:
+        self.__delegate.add_accessible_object_under_test(objc, data)
+
+    def add_modifier(self, typ: TypeInfo, obj: GenericAccessibleObject) -> None:
+        self.__delegate.add_modifier(typ, obj)
+
+    @property
+    def function_data_for_accessibles(
+        self,
+    ) -> dict[GenericAccessibleObject, _CallableData]:
+        return self.__delegate.function_data_for_accessibles
+
+    def track_statistics_values(
+        self, tracking_fun: Callable[[RuntimeVariable, Any], None]
+    ) -> None:
+        self.__delegate.track_statistics_values(tracking_fun)
 
     def __init__(
         self,
@@ -539,7 +778,6 @@ class FilteredModuleTestCluster(ModuleTestCluster):
         known_data: KnownData,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
-        super().__init__(linenos=delegate.linenos)
         self.__delegate = delegate
         self.__known_data = known_data
         self.__code_object_id_to_accessible_objects: dict[
@@ -615,18 +853,20 @@ class FilteredModuleTestCluster(ModuleTestCluster):
     def num_accessible_objects_under_test(self) -> int:
         return self.__delegate.num_accessible_objects_under_test()
 
-    def get_generators_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_generators_for(
+        self, typ: ProperType
+    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
         return self.__delegate.get_generators_for(typ)
 
-    def get_modifiers_for(self, typ: type) -> OrderedSet[GenericAccessibleObject]:
+    def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
         return self.__delegate.get_modifiers_for(typ)
 
     @property
-    def generators(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
+    def generators(self) -> dict[ProperType, OrderedSet[GenericAccessibleObject]]:
         return self.__delegate.generators
 
     @property
-    def modifiers(self) -> dict[type, OrderedSet[GenericAccessibleObject]]:
+    def modifiers(self) -> dict[TypeInfo, OrderedSet[GenericAccessibleObject]]:
         return self.__delegate.modifiers
 
     def get_random_accessible(self) -> GenericAccessibleObject | None:
@@ -635,13 +875,13 @@ class FilteredModuleTestCluster(ModuleTestCluster):
             return self.__delegate.get_random_accessible()
         return randomness.choice(OrderedSet(accessibles))
 
-    def get_random_call_for(self, typ: type) -> GenericAccessibleObject:
+    def get_random_call_for(self, typ: ProperType) -> GenericAccessibleObject:
         return self.__delegate.get_random_call_for(typ)
 
-    def get_all_generatable_types(self) -> list[type]:
+    def get_all_generatable_types(self) -> list[ProperType]:
         return self.__delegate.get_all_generatable_types()
 
-    def select_concrete_type(self, typ: type | None) -> type | None:
+    def select_concrete_type(self, typ: ProperType) -> ProperType:
         return self.__delegate.select_concrete_type(typ)
 
 
@@ -698,7 +938,9 @@ def __analyse_function(
         return
 
     LOGGER.debug("Analysing function %s", func_name)
-    inferred_signature = infer_type_info(func, type_inference_strategy)
+    inferred_signature = test_cluster.type_system.infer_type_info(
+        func, type_inference_strategy
+    )
     func_ast = get_function_node_from_ast(module_tree, func_name)
     description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
@@ -725,9 +967,12 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
-    LOGGER.info("Analysing class %s", type_info)
+    LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
     __add_symbols(class_ast, type_info)
+    if type_info.raw_type is tuple:
+        # Tuple is problematic...
+        return
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
@@ -735,7 +980,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
     if issubclass(type_info.raw_type, enum.Enum):
-        generic: GenericEnum | GenericConstructor = GenericEnum(type_info.raw_type)
+        generic: GenericEnum | GenericConstructor = GenericEnum(type_info)
         if isinstance(generic, GenericEnum) and len(generic.names) == 0:
             LOGGER.debug(
                 "Skipping enum %s from test cluster, it has no fields.",
@@ -744,9 +989,14 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             return
     else:
         generic = GenericConstructor(
-            type_info.raw_type,
-            infer_type_info(type_info.raw_type, type_inference_strategy),
+            type_info,
+            test_cluster.type_system.infer_type_info(
+                type_info.raw_type, type_inference_strategy
+            ),
             raised_exceptions,
+        )
+        generic.inferred_signature.return_type = (
+            test_cluster.type_system.convert_type_hint(type_info.raw_type)
         )
 
     method_data = _CallableData(
@@ -755,7 +1005,13 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    if not type_info.is_abstract:
+    if not (
+        type_info.is_abstract
+        or type_info.raw_type in COLLECTIONS
+        or type_info.raw_type in PRIMITIVES
+    ):
+        # Don't add constructors for abstract classes and for builtins. We generate
+        # the latter ourselves.
         test_cluster.add_generator(generic)
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
@@ -774,6 +1030,18 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         )
 
 
+# Some symbols are not interesting for us.
+IGNORED_SYMBOLS: set[str] = {
+    "__new__",
+    "__init__",
+    "__repr__",
+    "__str__",
+    "__sizeof__",
+    "__getattribute__",
+    "__getattr__",
+}
+
+
 def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> None:
     """Tries to infer what symbols can be found on an instance of the given class.
     We also try to infer what attributes are defined in '__init__'.
@@ -785,8 +1053,8 @@ def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> No
     if class_ast is not None:
         type_info.instance_attributes.update(tuple(class_ast.instance_attrs))
     type_info.symbols.update(type_info.instance_attributes)
-    # TODO(fk) filter?
     type_info.symbols.update(tuple(vars(type_info.raw_type)))
+    type_info.symbols.difference_update(IGNORED_SYMBOLS)
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments
@@ -820,13 +1088,15 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         return
 
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
-    inferred_signature = infer_type_info(method, type_inference_strategy)
+    inferred_signature = test_cluster.type_system.infer_type_info(
+        method, type_inference_strategy
+    )
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
     generic_method = GenericMethod(
-        type_info.raw_type, method, inferred_signature, raised_exceptions, method_name
+        type_info, method, inferred_signature, raised_exceptions, method_name
     )
     method_data = _CallableData(
         accessible=generic_method,
@@ -835,7 +1105,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
         cyclomatic_complexity=cyclomatic_complexity,
     )
     test_cluster.add_generator(generic_method)
-    test_cluster.add_modifier(type_info.raw_type, generic_method)
+    test_cluster.add_modifier(type_info, generic_method)
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
@@ -860,6 +1130,17 @@ def __resolve_dependencies(
     seen_modules: set[ModuleType] = set()
     seen_classes: set[Any] = set()
     seen_functions: set[Any] = set()
+
+    # Always analyse builtins
+    __analyse_included_classes(
+        module=builtins,
+        root_module_name=root_module.module_name,
+        type_inference_strategy=type_inference_strategy,
+        test_cluster=test_cluster,
+        seen_classes=seen_classes,
+        parse_results=parse_results,
+    )
+    test_cluster.type_system.enable_numeric_tower()
 
     # Start with root module, i.e., the module under test.
     wait_list: queue.SimpleQueue[ModuleType] = queue.SimpleQueue()
@@ -907,6 +1188,8 @@ def __resolve_dependencies(
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
+    test_cluster.type_system.push_symbols_down()
+
 
 def __analyse_included_classes(
     *,
@@ -915,7 +1198,7 @@ def __analyse_included_classes(
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
-    seen_classes: set[TypeInfo],
+    seen_classes: set[type],
 ) -> None:
     work_list = list(
         filter(
@@ -925,17 +1208,13 @@ def __analyse_included_classes(
     )
 
     # TODO(fk) inner classes?
-    # TODO(fk) builtin classes should be put in the inheritance tree
-    # TODO(fk) consider numeric tower int <: float <: complex.
-    #  https://peps.python.org/pep-0484/#the-numeric-tower
-
     while len(work_list) > 0:
         current = work_list.pop(0)
         if current in seen_classes:
             continue
         seen_classes.add(current)
 
-        type_info = test_cluster.inheritance_graph.to_type_info(current)
+        type_info = test_cluster.type_system.to_type_info(current)
 
         __analyse_class(
             type_info=type_info,
@@ -953,8 +1232,8 @@ def __analyse_included_classes(
                 if isinstance(base, GenericAlias):
                     base = base.__origin__
 
-                base_info = test_cluster.inheritance_graph.to_type_info(base)
-                test_cluster.inheritance_graph.add_edge(
+                base_info = test_cluster.type_system.to_type_info(base)
+                test_cluster.type_system.add_subclass_edge(
                     super_class=base_info, sub_class=type_info
                 )
                 work_list.append(base)

@@ -32,7 +32,7 @@ class DummyReference(vr.Reference):
     ) -> bool:
         pass  # pragma: no cover
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         pass  # pragma: no cover
 
     def get_variable_reference(self) -> VariableReference | None:
@@ -55,29 +55,20 @@ def test_type(dummy_reference):
 
 @pytest.mark.parametrize(
     "type_,result",
-    [pytest.param(int, True), pytest.param(MagicMock, False)],
+    [(int, True), (MagicMock, False)],
 )
-def test_is_primitive(dummy_reference, test_case_mock, type_, result):
-    dummy_reference._type = type_
+def test_is_primitive(dummy_reference, type_, result, type_system):
+    dummy_reference._type = type_system.convert_type_hint(type_)
     assert dummy_reference.is_primitive() == result
-
-
-@pytest.mark.parametrize(
-    "type_,result",
-    [pytest.param(None, True), pytest.param(MagicMock, False)],
-)
-def test_is_type_unknown(dummy_reference, type_, result):
-    dummy_reference._type = type_
-    assert dummy_reference.is_type_unknown() == result
 
 
 @pytest.mark.parametrize(
     "type_,result",
     [pytest.param(type(None), True), pytest.param(MagicMock, False)],
 )
-def test_is_none_type(dummy_reference, type_, result):
+def test_is_none_type(dummy_reference, type_, result, type_system):
     ref = dummy_reference
-    ref._type = type_
+    ref._type = type_system.convert_type_hint(type_)
     assert ref.is_none_type() == result
 
 
@@ -112,18 +103,12 @@ def test_var_get_position_no_statements(test_case_mock):
 
 def test_var_hash(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
-    assert ref.structural_hash() != 0
+    assert ref.structural_hash({ref: 0}) == 0
 
 
 def test_var_eq_same(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
     assert ref.structural_eq(ref, {ref: ref})
-
-
-def test_var_eq_different_var_type(test_case_mock):
-    ref1 = vr.VariableReference(test_case_mock, int)
-    ref2 = vr.VariableReference(test_case_mock, float)
-    assert not ref1.structural_eq(ref2, {ref1: ref2})
 
 
 def test_var_eq_other_type(test_case_mock):
@@ -202,15 +187,7 @@ def test_field_structural_hash(field_mock):
     var_2 = vr.VariableReference(MagicMock(), int)
     ref = vr.FieldReference(var, field_mock)
     ref_2 = vr.FieldReference(var_2, field_mock)
-    assert ref.structural_hash() == ref_2.structural_hash()
-
-
-def test_field_structural_hash_2(field_mock):
-    var = vr.VariableReference(MagicMock(), int)
-    var_2 = vr.VariableReference(MagicMock(), str)
-    ref = vr.FieldReference(var, field_mock)
-    ref_2 = vr.FieldReference(var_2, field_mock)
-    assert ref.structural_hash() != ref_2.structural_hash()
+    assert ref.structural_hash({var: 0}) == ref_2.structural_hash({var_2: 0})
 
 
 def test_field_structural_hash_3(field_mock):
@@ -235,8 +212,10 @@ def test_field_replace_var(field_mock):
 
 
 @pytest.fixture()
-def static_field_mock():
-    return gao.GenericStaticField(MagicMock, "foo", int)
+def static_field_mock(type_system):
+    return gao.GenericStaticField(
+        type_system.to_type_info(MagicMock), "foo", type_system.convert_type_hint(int)
+    )
 
 
 def test_static_field_field(static_field_mock):

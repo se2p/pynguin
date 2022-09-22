@@ -52,7 +52,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
         self._test_case_ast = []
         return_type_trace = (
-            None if self._exec_result is None else self._exec_result.return_type_trace
+            None
+            if self._exec_result is None
+            else self._exec_result.proper_return_type_trace
         )
         variables = ns.VariableTypeNamingScope(return_type_trace=return_type_trace)
         for idx, statement in enumerate(test_case.statements):

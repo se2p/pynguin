@@ -13,12 +13,11 @@ import logging
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
-
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import Assertion, ExceptionAssertion
 from pynguin.testcase.statement import StatementVisitor
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
@@ -196,6 +195,9 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
         self._handle_collection_or_primitive(stmt)
 
     def visit_float_primitive_statement(self, stmt) -> None:
+        self._handle_collection_or_primitive(stmt)
+
+    def visit_complex_primitive_statement(self, stmt) -> None:
         self._handle_collection_or_primitive(stmt)
 
     def visit_string_primitive_statement(self, stmt) -> None:

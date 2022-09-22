@@ -11,6 +11,7 @@ import pytest
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.comparators.dominancecomparator as dc
 import pynguin.ga.computations as ff
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture
@@ -25,7 +26,7 @@ def test_constructor_no_parameter(comparator):
 def test_constructor_goal_parameter():
     goal = MagicMock(ff.FitnessFunction)
     comparator = dc.DominanceComparator(goal=goal)
-    assert comparator._objectives == {goal}
+    assert comparator._objectives == OrderedSet([goal])
 
 
 def test_constructor_goals_parameter():

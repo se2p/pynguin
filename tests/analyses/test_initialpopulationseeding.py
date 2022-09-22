@@ -206,7 +206,7 @@ def test_seeded_test_case_factory_no_delegation(
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 1.0
     provider.collect_testcases(seed_modules_path)
-    delegate = tcf.RandomLengthTestCaseFactory(test_factory)
+    delegate = tcf.RandomLengthTestCaseFactory(test_factory, dummy_test_cluster)
     test_case_factory = tcf.SeededTestCaseFactory(delegate, provider)
 
     seeded_testcase = test_case_factory.get_test_case()
@@ -227,7 +227,7 @@ def test_seeded_test_case_factory_with_delegation(
     config.configuration.seeding.initial_population_data = seed_modules_path
     config.configuration.seeding.seeded_testcases_reuse_probability = 0.0
     provider.collect_testcases(seed_modules_path)
-    delegate = tcf.RandomLengthTestCaseFactory(test_factory)
+    delegate = tcf.RandomLengthTestCaseFactory(test_factory, dummy_test_cluster)
     delegate.get_test_case = MagicMock()
     test_case_factory = tcf.SeededTestCaseFactory(delegate, provider)
     test_case_factory.get_test_case()

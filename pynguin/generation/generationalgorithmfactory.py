@@ -12,8 +12,6 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, TypeVar
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.ga.chromosome as chrom
@@ -52,8 +50,12 @@ from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
     StoppingCondition,
 )
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import (
+    AbstractTestCaseExecutor,
+    TypeTracingTestCaseExecutor,
+)
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
@@ -134,10 +136,12 @@ class TestSuiteGenerationAlgorithmFactory(
 
     def __init__(
         self,
-        executor: TestCaseExecutor,
+        executor: AbstractTestCaseExecutor,
         test_cluster: ModuleTestCluster,
         constant_provider: ConstantProvider | None = None,
     ):
+        if config.configuration.type_inference.type_tracing:
+            executor = TypeTracingTestCaseExecutor(executor, test_cluster)
         self._executor = executor
         self._test_cluster = test_cluster
         if constant_provider is None:
@@ -157,7 +161,7 @@ class TestSuiteGenerationAlgorithmFactory(
         """
         # TODO add conditional returns/other factories here
         test_case_factory: tcf.TestCaseFactory = tcf.RandomLengthTestCaseFactory(
-            strategy.test_factory
+            strategy.test_factory, strategy.test_cluster
         )
         if config.configuration.seeding.initial_population_seeding:
             self._logger.info("Using population seeding")
@@ -308,7 +312,7 @@ class TestSuiteGenerationAlgorithmFactory(
                 strategy.test_case_fitness_functions,
                 initial_size=size,
             )
-        # Use CoverageArchive as default, even if it the algorithm does not use it.
+        # Use CoverageArchive as default, even if the algorithm does not use it.
         self._logger.info("Using CoverageArchive")
         if config.configuration.algorithm == config.Algorithm.DYNAMOSA:
             # DynaMOSA gradually adds its fitness functions, so we initialize

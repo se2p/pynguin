@@ -10,10 +10,14 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DelegatingConstantProvider,
+    EmptyConstantProvider,
+)
 
 
 @pytest.mark.parametrize(
@@ -24,10 +28,34 @@ import pynguin.testcase.variablereference as vr
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"test"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 3j),
     ],
 )
-def test_primitive_statement_value(statement_type, test_case_mock, value):
-    statement = statement_type(test_case_mock, value)
+def test_primitive_statement_value(statement_type, default_test_case, value):
+    statement = statement_type(default_test_case, value)
+    assert statement.value == value
+
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        (stmt.IntPrimitiveStatement, 42),
+        (stmt.FloatPrimitiveStatement, 42.23),
+        (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.BytesPrimitiveStatement, b"test"),
+        (stmt.ComplexPrimitiveStatement, 4 + 3j),
+    ],
+)
+def test_primitive_statement_value_from_seeding(
+    statement_type, default_test_case, value
+):
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    pool = ConstantPool()
+    pool.add_constant(value)
+    provider = DelegatingConstantProvider(
+        pool=pool, delegate=EmptyConstantProvider(), probability=1.0
+    )
+    statement = statement_type(default_test_case, constant_provider=provider)
     assert statement.value == value
 
 
@@ -39,111 +67,110 @@ def test_primitive_statement_value(statement_type, test_case_mock, value):
         stmt.StringPrimitiveStatement,
         stmt.BytesPrimitiveStatement,
         stmt.BooleanPrimitiveStatement,
+        stmt.ComplexPrimitiveStatement,
     ],
 )
-def test_primitive_statement_value_none(statement_type, test_case_mock):
-    statement = statement_type(test_case_mock, None)
+def test_primitive_statement_value_none(statement_type, default_test_case):
+    statement = statement_type(default_test_case, None)
     assert statement.value is not None
 
 
 @pytest.mark.parametrize(
     "statement_type,value,new_value",
     [
-        pytest.param(stmt.IntPrimitiveStatement, 42, 23),
-        pytest.param(stmt.FloatPrimitiveStatement, 2.1, 1.2),
-        pytest.param(stmt.StringPrimitiveStatement, "foo", "bar"),
-        pytest.param(stmt.BytesPrimitiveStatement, b"foo", b"bar"),
-        pytest.param(stmt.BooleanPrimitiveStatement, True, False),
+        (stmt.IntPrimitiveStatement, 42, 23),
+        (stmt.FloatPrimitiveStatement, 2.1, 1.2),
+        (stmt.StringPrimitiveStatement, "foo", "bar"),
+        (stmt.BytesPrimitiveStatement, b"foo", b"bar"),
+        (stmt.BooleanPrimitiveStatement, True, False),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j, 1 + 4j),
     ],
 )
 def test_primitive_statement_set_value(
-    statement_type, test_case_mock, value, new_value
+    statement_type, default_test_case, value, new_value
 ):
-    statement = statement_type(test_case_mock, value)
+    statement = statement_type(default_test_case, value)
     statement.value = new_value
     assert statement.value == new_value
 
 
 @pytest.mark.parametrize(
-    "statement_type,test_case,new_test_case,value",
+    "statement_type,value",
     [
         (
             stmt.IntPrimitiveStatement,
-            MagicMock(tc.TestCase),
-            MagicMock(tc.TestCase),
             42,
         ),
         (
             stmt.FloatPrimitiveStatement,
-            MagicMock(tc.TestCase),
-            MagicMock(tc.TestCase),
             42.23,
         ),
         (
             stmt.StringPrimitiveStatement,
-            MagicMock(tc.TestCase),
-            MagicMock(tc.TestCase),
             "foo",
         ),
         (
             stmt.BytesPrimitiveStatement,
-            MagicMock(tc.TestCase),
-            MagicMock(tc.TestCase),
             b"foo",
         ),
         (
             stmt.BooleanPrimitiveStatement,
-            MagicMock(tc.TestCase),
-            MagicMock(tc.TestCase),
             True,
+        ),
+        (
+            stmt.ComplexPrimitiveStatement,
+            4 + 1j,
         ),
     ],
 )
-def test_primitive_statement_clone(statement_type, test_case, new_test_case, value):
-    statement = statement_type(test_case, value)
-    new_statement = statement.clone(new_test_case, {})
-    assert new_statement.test_case == new_test_case
+def test_primitive_statement_clone(statement_type, default_test_case, value):
+    statement = statement_type(default_test_case, value)
+    clone_case = default_test_case.clone()
+    new_statement = statement.clone(clone_case, {})
+    assert new_statement.test_case == clone_case
     assert new_statement.ret_val.type == statement.ret_val.type
     assert new_statement.value == statement.value
 
 
 @pytest.mark.parametrize(
-    "statement_type,test_case,value,visitor_method",
+    "statement_type,value,visitor_method",
     [
-        pytest.param(
+        (
             stmt.IntPrimitiveStatement,
-            MagicMock(tc.TestCase),
             42,
             "visit_int_primitive_statement",
         ),
-        pytest.param(
+        (
             stmt.FloatPrimitiveStatement,
-            MagicMock(tc.TestCase),
             2.1,
             "visit_float_primitive_statement",
         ),
-        pytest.param(
+        (
             stmt.StringPrimitiveStatement,
-            MagicMock(tc.TestCase),
             "foo",
             "visit_string_primitive_statement",
         ),
-        pytest.param(
+        (
             stmt.BytesPrimitiveStatement,
-            MagicMock(tc.TestCase),
             b"foo",
             "visit_bytes_primitive_statement",
         ),
-        pytest.param(
+        (
             stmt.BooleanPrimitiveStatement,
-            MagicMock(tc.TestCase),
             True,
             "visit_boolean_primitive_statement",
         ),
+        (
+            stmt.ComplexPrimitiveStatement,
+            4 + 1j,
+            "visit_complex_primitive_statement",
+        ),
     ],
 )
-def test_primitive_statement_accept(statement_type, test_case, value, visitor_method):
-    stmt = statement_type(test_case, value)
+def test_primitive_statement_accept(
+    statement_type, default_test_case, value, visitor_method
+):
+    stmt = statement_type(default_test_case, value)
     visitor = MagicMock()
     stmt.accept(visitor)
     getattr(visitor, visitor_method).assert_called_once_with(stmt)
@@ -157,11 +184,11 @@ def test_primitive_statement_accept(statement_type, test_case, value, visitor_me
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
-def test_primitive_statement_equals_same(statement_type, value):
-    test_case = MagicMock(tc.TestCase)
-    statement = statement_type(test_case, value)
+def test_primitive_statement_equals_same(statement_type, default_test_case, value):
+    statement = statement_type(default_test_case, value)
     assert statement.__eq__(statement)
 
 
@@ -173,12 +200,14 @@ def test_primitive_statement_equals_same(statement_type, value):
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
-def test_primitive_statement_equals_other_type(statement_type, value):
-    test_case = MagicMock(tc.TestCase)
-    statement = statement_type(test_case, value)
-    assert not statement.structural_eq(test_case, {})
+def test_primitive_statement_equals_other_type(
+    statement_type, default_test_case, value
+):
+    statement = statement_type(default_test_case, value)
+    assert not statement.structural_eq(default_test_case, {})
 
 
 @pytest.mark.parametrize(
@@ -189,20 +218,20 @@ def test_primitive_statement_equals_other_type(statement_type, value):
         (stmt.StringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
-def test_primitive_statement_equals_clone(statement_type, value):
-    test_case = MagicMock(tc.TestCase)
-    statement = statement_type(test_case, value)
-    test_case.statements = [statement]
-    test_case2 = MagicMock(tc.TestCase)
-    clone = statement.clone(test_case2, {})
+def test_primitive_statement_equals_clone(statement_type, default_test_case, value):
+    cloned_case = default_test_case.clone()
+    statement = statement_type(default_test_case, value)
+    default_test_case.add_statement(statement)
+    clone = statement.clone(cloned_case, {})
     assert statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
 def test_none_statement_equals_clone():
     test_case = MagicMock(tc.TestCase)
-    statement = stmt.NoneStatement(test_case, type(None))
+    statement = stmt.NoneStatement(test_case)
     test_case.statements = [statement]
     test_case2 = MagicMock(tc.TestCase)
     clone = statement.clone(test_case2, {})
@@ -212,57 +241,64 @@ def test_none_statement_equals_clone():
 @pytest.mark.parametrize(
     "statement_type,value",
     [
-        pytest.param(stmt.IntPrimitiveStatement, 42),
-        pytest.param(stmt.FloatPrimitiveStatement, 42.23),
-        pytest.param(stmt.StringPrimitiveStatement, "foo"),
-        pytest.param(stmt.BytesPrimitiveStatement, b"foo"),
-        pytest.param(stmt.BooleanPrimitiveStatement, True),
+        (stmt.IntPrimitiveStatement, 42),
+        (stmt.FloatPrimitiveStatement, 42.23),
+        (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.BytesPrimitiveStatement, b"foo"),
+        (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 4 + 1j),
     ],
 )
-def test_primitive_statement_hash(statement_type, value):
-    statement = statement_type(MagicMock(tc.TestCase), value)
-    assert statement.structural_hash() != 0
+def test_primitive_statement_hash(statement_type, default_test_case, value):
+    statement = statement_type(default_test_case, value)
+    assert statement.structural_hash({statement.ret_val: 0}) != 0
 
 
-def test_int_primitive_statement_randomize_value(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock)
+def test_int_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert isinstance(statement.value, int)
 
 
-def test_float_primitive_statement_randomize_value(test_case_mock):
-    statement = stmt.FloatPrimitiveStatement(test_case_mock)
+def test_float_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.FloatPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert isinstance(statement.value, float)
 
 
-def test_bool_primitive_statement_randomize_value(test_case_mock):
-    statement = stmt.BooleanPrimitiveStatement(test_case_mock)
+def test_complex_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.ComplexPrimitiveStatement(default_test_case)
+    statement.randomize_value()
+    assert isinstance(statement.value, complex)
+
+
+def test_bool_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.BooleanPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert statement.value or not statement.value
 
 
-def test_string_primitive_statement_randomize_value(test_case_mock):
-    statement = stmt.StringPrimitiveStatement(test_case_mock)
+def test_string_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.StringPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert 0 <= len(statement.value) <= config.configuration.test_creation.string_length
 
 
-def test_bytes_primitive_statement_randomize_value(test_case_mock):
-    statement = stmt.BytesPrimitiveStatement(test_case_mock)
+def test_bytes_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.BytesPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert 0 <= len(statement.value) <= config.configuration.test_creation.bytes_length
     assert isinstance(statement.value, bytes)
 
 
-def test_none_statement_randomize_value(test_case_mock):
-    statement = stmt.NoneStatement(test_case_mock, type(None))
+def test_none_statement_randomize_value(default_test_case):
+    statement = stmt.NoneStatement(default_test_case)
     statement.randomize_value()
     assert statement.value is None
 
 
 def test_none_statement_delta(test_case_mock):
-    statement = stmt.NoneStatement(test_case_mock, type(None))
+    statement = stmt.NoneStatement(test_case_mock)
     statement.delta()
     assert statement.value is None
 
@@ -291,18 +327,18 @@ def test_string_primitive_statement_random_replacement(test_case_mock):
     assert len(result) == len(sample)
 
 
-def test_string_primitive_statement_delta_none(test_case_mock):
+def test_string_primitive_statement_delta_none(default_test_case):
     value = "t"
-    statement = stmt.StringPrimitiveStatement(test_case_mock, value)
+    statement = stmt.StringPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [1.0, 1.0, 1.0]
         statement.delta()
         assert statement.value == value
 
 
-def test_string_primitive_statement_delta_all(test_case_mock):
+def test_string_primitive_statement_delta_all(default_test_case):
     value = "te"
-    statement = stmt.StringPrimitiveStatement(test_case_mock, value)
+    statement = stmt.StringPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_char") as char_mock:
         char_mock.side_effect = ["a", "b"]
         with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
@@ -340,18 +376,18 @@ def test_bytes_primitive_statement_random_replacement(test_case_mock):
     assert len(result) == len(sample)
 
 
-def test_bytes_primitive_statement_delta_none(test_case_mock):
+def test_bytes_primitive_statement_delta_none(default_test_case):
     value = b"t"
-    statement = stmt.BytesPrimitiveStatement(test_case_mock, value)
+    statement = stmt.BytesPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [1.0, 1.0, 1.0]
         statement.delta()
         assert statement.value == value
 
 
-def test_bytes_primitive_statement_delta_all(test_case_mock):
+def test_bytes_primitive_statement_delta_all(default_test_case):
     value = b"te"
-    statement = stmt.BytesPrimitiveStatement(test_case_mock, value)
+    statement = stmt.BytesPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_byte") as char_mock:
         char_mock.side_effect = [12, 128]
         with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
@@ -365,55 +401,94 @@ def test_bytes_primitive_statement_delta_all(test_case_mock):
                 assert statement.value == b"\x80\x0c"
 
 
-def test_int_primitive_statement_delta(test_case_mock):
+def test_int_primitive_statement_delta(default_test_case):
     config.configuration.test_creation.max_delta = 10
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 1)
+    statement = stmt.IntPrimitiveStatement(default_test_case, 1)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
         statement.delta()
     assert statement.value == 6
 
 
-def test_float_primitive_statement_delta_max(test_case_mock):
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.5, None, 6.5),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, True, 6.5 + 1j),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, False, 1.5 + 6j),
+    ],
+)
+def test_float_complex_primitive_statement_delta_max(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
     config.configuration.test_creation.max_delta = 10
-    statement = stmt.FloatPrimitiveStatement(test_case_mock, 1.5)
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 0.0
-            statement.delta()
-            assert statement.value == 6.5
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 0.0
+                statement.delta()
+                assert statement.value == expected
 
 
-def test_float_primitive_statement_delta_gauss(test_case_mock):
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.5, None, 2.0),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, True, 2.0 + 1j),
+        (stmt.ComplexPrimitiveStatement, 1.5 + 1j, False, 1.5 + 1.5j),
+    ],
+)
+def test_float_complex_primitive_statement_delta_gauss(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
     config.configuration.test_creation.max_delta = 10
-    statement = stmt.FloatPrimitiveStatement(test_case_mock, 1.0)
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_gaussian") as gauss_mock:
         gauss_mock.return_value = 0.5
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 1.0 / 3.0
-            statement.delta()
-            assert statement.value == 1.5
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 1.0 / 3.0
+                statement.delta()
+                assert statement.value == expected
 
 
-def test_float_primitive_statement_delta_round(test_case_mock):
-    statement = stmt.FloatPrimitiveStatement(test_case_mock, 1.2345)
+@pytest.mark.parametrize(
+    "stmt_type,value,real_or_imag, expected",
+    [
+        (stmt.FloatPrimitiveStatement, 1.2345, None, 1.23),
+        (stmt.ComplexPrimitiveStatement, 1.2345 + 1.2345j, True, 1.23 + 1.2345j),
+        (stmt.ComplexPrimitiveStatement, 1.2345 + 1.2345j, False, 1.2345 + 1.23j),
+    ],
+)
+def test_float_complex_primitive_statement_delta_round(
+    default_test_case, stmt_type, value, real_or_imag, expected
+):
+    statement = stmt_type(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
         int_mock.return_value = 2
-        with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-            float_mock.return_value = 2.0 / 3.0
-            statement.delta()
-            assert statement.value == 1.23
+        with mock.patch("pynguin.utils.randomness.next_bool") as bool_mock:
+            # Only relevant for complex.
+            bool_mock.return_value = real_or_imag
+            with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+                float_mock.return_value = 2.0 / 3.0
+                statement.delta()
+                assert statement.value == expected
 
 
-def test_boolean_primitive_statement_delta(test_case_mock):
-    statement = stmt.BooleanPrimitiveStatement(test_case_mock, True)
+def test_boolean_primitive_statement_delta(default_test_case):
+    statement = stmt.BooleanPrimitiveStatement(default_test_case, True)
     statement.delta()
     assert not statement.value
 
 
-def test_primitive_statement_mutate_delta(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 2)
+def test_primitive_statement_mutate_delta(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 2)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 1.0
         with mock.patch.object(statement, "delta") as rnd_mock:
@@ -427,8 +502,8 @@ def test_primitive_statement_mutate_delta(test_case_mock):
             assert statement.value == 42
 
 
-def test_primitive_statement_mutate_constant(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 2)
+def test_primitive_statement_mutate_constant(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 2)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
         with mock.patch.object(statement, "randomize_value") as rnd_mock:
@@ -442,41 +517,46 @@ def test_primitive_statement_mutate_constant(test_case_mock):
             assert statement.value == 42
 
 
-def test_primitive_statement_accessible(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 0)
+def test_primitive_statement_accessible(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
     assert statement.accessible_object() is None
 
 
-def test_primitive_statement_references(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 0)
+def test_primitive_statement_references(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
     assert {statement.ret_val} == statement.get_variable_references()
 
 
-def test_primitive_statement_replace(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 0)
-    new = vr.VariableReference(test_case_mock, int)
+def test_primitive_statement_replace(default_test_case, type_system):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
+    new = vr.VariableReference(default_test_case, type_system.convert_type_hint(int))
     statement.replace(statement.ret_val, new)
     assert statement.ret_val == new
 
 
-def test_primitive_statement_replace_ignore(test_case_mock):
-    statement = stmt.IntPrimitiveStatement(test_case_mock, 0)
-    new = stmt.FloatPrimitiveStatement(test_case_mock, 0).ret_val
+def test_primitive_statement_replace_ignore(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
+    new = stmt.FloatPrimitiveStatement(default_test_case, 0).ret_val
     old = statement.ret_val
     statement.replace(new, new)
     assert statement.ret_val == old
 
 
-def test_primitive_statement_get_position():
-    test_case = dtc.DefaultTestCase()
-    statement = stmt.IntPrimitiveStatement(test_case, 5)
-    test_case.add_statement(statement)
+def test_primitive_statement_get_position(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(statement)
     assert statement.get_position() == 0
 
 
-def test_enum_statement_accessible_object(test_case_mock):
+def test_primitive_statement_get_position_not_found(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 5)
+    with pytest.raises(Exception):
+        statement.get_position()
+
+
+def test_enum_statement_accessible_object(default_test_case):
     enum_ = MagicMock(names=["FOO"])
-    statement = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
+    statement = stmt.EnumPrimitiveStatement(default_test_case, enum_)
     assert statement.accessible_object() == enum_
 
 
@@ -513,23 +593,21 @@ def test_enum_statement_clone(test_case_mock):
     assert clone.value == statement.value
 
 
-def test_enum_statement_eq():
-    test_case = dtc.DefaultTestCase()
+def test_enum_statement_eq(default_test_case):
     enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
-    statement = stmt.EnumPrimitiveStatement(test_case, enum_)
-    test_case.add_statement(statement)
-    test_case2 = dtc.DefaultTestCase()
+    statement = stmt.EnumPrimitiveStatement(default_test_case, enum_)
+    test_case2 = default_test_case.clone()
+    default_test_case.add_statement(statement)
     clone = statement.clone(test_case2, {})
     test_case2.add_statement(clone)
     assert statement.structural_eq(clone, {statement.ret_val: clone.ret_val})
 
 
-def test_enum_statement_not_eq():
-    test_case = dtc.DefaultTestCase()
+def test_enum_statement_not_eq(default_test_case):
     enum_ = MagicMock(names=["FOO", "BAR", "BAZ"])
-    statement = stmt.EnumPrimitiveStatement(test_case, enum_)
-    test_case.add_statement(statement)
-    test_case2 = dtc.DefaultTestCase()
+    statement = stmt.EnumPrimitiveStatement(default_test_case, enum_)
+    test_case2 = default_test_case.clone()
+    default_test_case.add_statement(statement)
     clone = statement.clone(test_case2, {})
     test_case2.add_statement(clone)
     statement._generic_enum = MagicMock()
@@ -540,7 +618,9 @@ def test_enum_statement_hash(test_case_mock):
     enum_ = MagicMock(names=["FOO"])
     statement = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
     statement2 = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
-    assert statement.structural_hash() == statement2.structural_hash()
+    assert statement.structural_hash(
+        {statement.ret_val: 0}
+    ) == statement2.structural_hash({statement2.ret_val: 0})
 
 
 def test_enum_statement_accept(test_case_mock):

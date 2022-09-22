@@ -10,8 +10,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -20,6 +18,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
@@ -101,7 +100,7 @@ class RandomTestStrategy(TestGenerationStrategy):
                 for chromosome in test_chromosome.test_case_chromosomes
             ]
         )
-        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase())
+        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase(self.test_cluster))
         for test in tests:
             new_test.test_case.append_test_case(test)
 
@@ -119,7 +118,7 @@ class RandomTestStrategy(TestGenerationStrategy):
         # Execute new sequence
         exec_result = self._executor.execute(new_test.test_case)
         new_test.set_last_execution_result(exec_result)
-        new_test.set_changed(False)
+        new_test.changed = False
 
         # Classify new test case and outputs
         if exec_result.timeout:

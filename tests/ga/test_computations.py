@@ -33,7 +33,7 @@ def test_run_test_case_chromosome_no_result():
     executor.execute.return_value = result
     func = DummyTestCaseChromosomeComputation(executor)
     test_case = tcc.TestCaseChromosome(MagicMock())
-    test_case.set_changed(True)
+    test_case.changed = True
     assert func._run_test_case_chromosome(test_case) == result
     assert test_case.get_last_execution_result() == result
 
@@ -44,7 +44,7 @@ def test_run_test_case_chromosome_has_result():
     executor.execute.return_value = result
     func = DummyTestCaseChromosomeComputation(executor)
     test_case = tcc.TestCaseChromosome(MagicMock())
-    test_case.set_changed(False)
+    test_case.changed = False
     test_case.set_last_execution_result(result)
     assert func._run_test_case_chromosome(test_case) == result
     assert test_case.get_last_execution_result() == result
@@ -56,7 +56,7 @@ def test_resetting_test_case_chromosome_forces_execution():
     executor.execute.return_value = result
     func = DummyTestCaseChromosomeComputation(executor)
     test_case = tcc.TestCaseChromosome(MagicMock())
-    test_case.set_changed(True)
+    test_case.changed = True
     test_case.remove_last_execution_result()
     assert func._run_test_case_chromosome(test_case) == result
     assert test_case.get_last_execution_result() == result
@@ -168,11 +168,11 @@ def test_run_test_suite_chromosome():
     ff = DummyTestSuiteChromosomeComputation(executor)
     indiv = tsc.TestSuiteChromosome()
     test_case0 = tcc.TestCaseChromosome(MagicMock())
-    test_case0.set_changed(True)
+    test_case0.changed = True
     test_case1 = tcc.TestCaseChromosome(MagicMock())
-    test_case1.set_changed(False)
+    test_case1.changed = False
     test_case2 = tcc.TestCaseChromosome(MagicMock())
-    test_case2.set_changed(False)
+    test_case2.changed = False
     test_case2.set_last_execution_result(result2)
     indiv.add_test_case_chromosome(test_case0)
     indiv.add_test_case_chromosome(test_case1)
@@ -192,15 +192,15 @@ def test_run_test_suite_chromosome_cache():
     indiv = tsc.TestSuiteChromosome()
     # Executed because it was changed.
     test_case0 = tcc.TestCaseChromosome(MagicMock())
-    test_case0.set_changed(True)
+    test_case0.changed = True
     test_case0._computation_cache._fitness_cache = {"foo": "bar"}
     # Executed because it has no result
     test_case1 = tcc.TestCaseChromosome(MagicMock())
-    test_case1.set_changed(False)
+    test_case1.changed = False
     test_case1._computation_cache._fitness_cache = {"foo": "bar"}
     # Not executed.
     test_case2 = tcc.TestCaseChromosome(MagicMock())
-    test_case2.set_changed(False)
+    test_case2.changed = False
     test_case2._computation_cache._fitness_cache = {"foo": "bar"}
     test_case2.set_last_execution_result(result2)
     indiv.add_test_case_chromosome(test_case0)
