@@ -124,12 +124,6 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
 
-    # Branch coverage over time
-    BranchCoverageTimeline = "BranchCoverageTimeline"
-
-    # Line coverage over time
-    LineCoverageTimeline = "LineCoverageTimeline"
-
     # ========= Values collected at the end of the search =========
 
     # Total number of statements in the resulting test suite
