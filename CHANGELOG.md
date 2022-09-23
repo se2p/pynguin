@@ -11,6 +11,29 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.27.0
+
+- Write Pynguin version number to Cobertura XML report
+- Fix the computation of coverage values
+
+  Pynguin 0.26.0 added the possibility to optimise for, e.g., branch coverage while 
+  yielding the line coverage of the resulting test suite in the end.  This had some 
+  unintentional implications, such as the value of the `Coverage` output variable 
+  having weird values.  We fix this by providing additional output variables 
+  `FinalBranchCoverage` and `FinalLineCoverage` that contain the final coverage 
+  values *after* all generation and postprocessing.  See the
+  [runtimevariable.py](pynguin/utils/statistics/runtimevariable.py) module for details.
+- Rewrite the internal type handling in Pynguin
+
+  This is a huge internal change that improves the internal type system and adds the 
+  possibility to trace types during test execution.  Some highlights:
+  - we got rid of our internal abstraction of `type | None` to mark whether type 
+    information exists
+  - we allow to retrieve additional or new type information from the test execution
+  - enhance our internal type representation to make it more flexible
+  - add the missing primitive type `complex`
+  - a more suitable subtyping check for `Union`s
+
 ## Pynguin 0.26.0
 
 - Allow the calculation of coverage values regardless of optimisation.
