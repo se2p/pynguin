@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.__version__ as ver
 import pynguin.configuration as config
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTrace, ExecutionTracer
@@ -476,8 +477,8 @@ def test_render_xml_coverage_report(sample_report, tmp_path: Path):
         '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE coverage SYSTEM '
         '"http://cobertura.sourceforge.net/xml/coverage-04.dtd"><coverage '
         'line-rate="0.25" branch-rate="0.375" lines-covered="2" lines-valid="8" '
-        'branches-covered="3" branches-valid="8" complexity="0.0" version="pynguin" '
-        'timestamp="0">\n',
+        'branches-covered="3" branches-valid="8" complexity="0.0" '
+        f'version="pynguin-{ver.__version__}" timestamp="0">\n',
         "  <sources>\n",
         "    <source>cov_demo</source>\n",
         "  </sources>\n",

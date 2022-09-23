@@ -21,6 +21,7 @@ from jinja2 import Template
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
 
+import pynguin.__version__ as ver
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 from pynguin.utils.orderedset import OrderedSet
@@ -278,7 +279,7 @@ def render_xml_coverage_report(
         f"{cov_report.branches.existing + cov_report.branchless_code_objects.existing}"
     )
     complexity = "0.0"
-    version = "pynguin"
+    version = f"pynguin-{ver.__version__}"
 
     report_time = f"{int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())}"
     coverage = ET.Element(
