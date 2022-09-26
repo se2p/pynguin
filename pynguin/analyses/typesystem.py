@@ -57,6 +57,9 @@ class ProperType(ABC):
     def __repr__(self) -> str:
         return self.accept(TypeReprVisitor())
 
+    def __lt__(self, other):
+        return str(self) < str(other)
+
 
 class AnyType(ProperType):
     """The Any Type"""
