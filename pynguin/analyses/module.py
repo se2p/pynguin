@@ -19,7 +19,7 @@ import json
 import logging
 import queue
 import typing
-from collections import defaultdict, namedtuple
+from collections import Counter, defaultdict, namedtuple
 from collections.abc import Callable
 from statistics import mean, median
 from types import (
@@ -34,6 +34,7 @@ from typing import Any, NamedTuple
 
 import astroid
 
+import pynguin.utils.statistics.statistics as stat
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
@@ -54,6 +55,7 @@ from pynguin.analyses.typesystem import (
     TypeSystem,
     TypeVisitor,
     UnionType,
+    Unsupported,
     is_primitive_type,
 )
 from pynguin.configuration import TypeInferenceStrategy
@@ -268,7 +270,7 @@ class TestCluster(abc.ABC):
         """Provide the number of source code lines."""
 
     @abc.abstractmethod
-    def log_signatures(self) -> None:
+    def log_cluster_statistics(self) -> None:
         """Log the signatures of all seen callables."""
 
     @abc.abstractmethod
@@ -440,6 +442,20 @@ class TestCluster(abc.ABC):
         """
 
 
+@dataclasses.dataclass
+class TypeGuessingStats:
+    """Class to gather some type guessing related statistics."""
+
+    # How many parameters in the MUT
+    encountered_parameters: int = 0
+    # For how many did we have a type guess?
+    guessed_parameters_types: int = 0
+    # What are the most common type guesses?
+    all_guessed_types: Counter[str] = dataclasses.field(default_factory=Counter)
+    # What types were annotated by developers?
+    all_developer_types: Counter[str] = dataclasses.field(default_factory=Counter)
+
+
 class ModuleTestCluster(TestCluster):
     """A test cluster for a module.
 
@@ -469,9 +485,30 @@ class ModuleTestCluster(TestCluster):
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
 
-    def log_signatures(self) -> None:
-        for call in self.__callables:
-            LOGGER.debug("%s", call)
+    def log_cluster_statistics(self) -> None:
+        stats = TypeGuessingStats()
+        traced_signatures: list[str] = []
+        for accessible in self.__accessible_objects_under_test:
+            if isinstance(accessible, GenericCallableAccessibleObject):
+                traced_signatures.append(
+                    str(accessible)
+                    + accessible.inferred_signature.log_stats_and_guess_signature(stats)
+                )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfEncounteredParameters, stats.encountered_parameters
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfGuessedParameters, stats.guessed_parameters_types
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AllGuessedParameterTypes, str(stats.all_guessed_types)
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AllDeveloperParameterTypes, str(stats.all_developer_types)
+        )
+        stat.track_output_variable(
+            RuntimeVariable.GuessedSignatures, str(traced_signatures)
+        )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
@@ -490,20 +527,18 @@ class ModuleTestCluster(TestCluster):
             items = old_type.items
             if len(items) >= max_size or new_type in items:
                 return old_type
-            new_type = UnionType(old_type.items + (new_type,))
+            new_type = UnionType(tuple(sorted(items + (new_type,))))
         else:
             if old_type in (ANY, new_type):
                 new_type = UnionType((new_type,))
             else:
-                new_type = UnionType((old_type, new_type))
+                new_type = UnionType(tuple(sorted((old_type, new_type))))
         return new_type
 
     def update_return_type(
         self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
         # Loosely map runtime type to proper type
-        # TODO(fk) what about tuple?
-        #  Think about updates, only Any?
         old_type = accessible.inferred_signature.return_type
 
         new_type = self._add_or_make_union(old_type, new_type)
@@ -634,6 +669,11 @@ class ModuleTestCluster(TestCluster):
                 result.update(element.accept(self))
             return result
 
+        def visit_unsupported_type(
+            self, left: Unsupported
+        ) -> OrderedSet[GenericAccessibleObject]:
+            raise NotImplementedError("This type shall not be used during runtime")
+
     def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
         return typ.accept(self._FindModifiers(self))
 
@@ -746,8 +786,8 @@ class FilteredModuleTestCluster(TestCluster):
     def linenos(self) -> int:
         return self.__delegate.linenos
 
-    def log_signatures(self) -> None:
-        self.__delegate.log_signatures()
+    def log_cluster_statistics(self) -> None:
+        self.__delegate.log_cluster_statistics()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         self.__delegate.add_generator(generator)

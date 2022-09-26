@@ -548,13 +548,12 @@ def _run() -> ReturnCode:
             Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
             datetime.datetime.now(),
         )
-    _collect_miscellaneous_statistics()
+    _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
-    test_cluster.log_signatures()
     return ReturnCode.OK
 
 
@@ -649,7 +648,8 @@ def _instantiate_test_generation_strategy(
     return factory.get_search_algorithm()
 
 
-def _collect_miscellaneous_statistics() -> None:
+def _collect_miscellaneous_statistics(test_cluster) -> None:
+    test_cluster.log_cluster_statistics()
     stat.track_output_variable(
         RuntimeVariable.TargetModule, config.configuration.module_name
     )

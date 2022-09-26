@@ -122,10 +122,10 @@ def inferred_signature(signature, type_system):
             __union_dummy,
             TypeInferenceStrategy.TYPE_HINTS,
             {
-                "a": UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
-                "b": UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
+                "a": UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(int)))),
+                "b": UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(int)))),
             },
-            UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(float)))),
+            UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(int)))),
         ),
         pytest.param(
             __return_tuple,
@@ -217,7 +217,7 @@ A = TypeVar("A")
         (
             Union[int, type(None)],
             UnionType(
-                (Instance(TypeInfo(int)), NoneType()),
+                (NoneType(), Instance(TypeInfo(int))),
             ),
         ),
         (
@@ -588,27 +588,6 @@ def test_union_single_element():
     assert str(UnionType((NoneType(),))) == "None"
 
 
-def test_inferred_signature_format(inferred_signature):
-    assert (
-        inferred_signature.format_guessed_signature() == "(x: 'int', y: 'int') -> 'int'"
-    )
-
-
-def test_inferred_signature_format_2(inferred_signature):
-    inferred_signature.original_parameters.pop("x")
-    assert inferred_signature.format_guessed_signature() == "(x, y: 'int') -> 'int'"
-
-
-def test_inferred_signature_format_3(inferred_signature):
-    inferred_signature.current_guessed_parameters["x"] = UnionType(
-        (inferred_signature.type_system.convert_type_hint(float),)
-    )
-    assert (
-        inferred_signature.format_guessed_signature()
-        == "(x: 'float', y: 'int') -> 'int'"
-    )
-
-
 @pytest.mark.parametrize(
     "symbol, typ, result",
     [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_SYMBOLS]
@@ -713,7 +692,7 @@ def test_guess_generic_types_list_set_from_arguments(
     ) == inferred_signature.type_system.convert_type_hint(result)
 
 
-@pytest.mark.parametrize("inp, result", [(int, int), (tuple, tuple), (Any, Any)])
+@pytest.mark.parametrize("inp, result", [(int, int), (Any, Any)])
 def test_guess_generic_types_falltrough(inferred_signature, inp, result):
     assert inferred_signature._guess_generic_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(inp), None, None
@@ -758,9 +737,9 @@ def test_update_guess_single(inferred_signature):
     inferred_signature._update_guess(
         "x", inferred_signature.type_system.convert_type_hint(int)
     )
-    assert inferred_signature.current_guessed_parameters["x"] == UnionType(
-        (inferred_signature.type_system.convert_type_hint(int),)
-    )
+    assert inferred_signature.current_guessed_parameters["x"] == [
+        inferred_signature.type_system.convert_type_hint(int)
+    ]
 
 
 def test_update_guess_multi(inferred_signature):
@@ -770,9 +749,9 @@ def test_update_guess_multi(inferred_signature):
     inferred_signature._update_guess(
         "x", inferred_signature.type_system.convert_type_hint(int)
     )
-    assert inferred_signature.current_guessed_parameters["x"] == UnionType(
-        (inferred_signature.type_system.convert_type_hint(int),)
-    )
+    assert inferred_signature.current_guessed_parameters["x"] == [
+        inferred_signature.type_system.convert_type_hint(int)
+    ]
 
 
 def test_update_guess_multi_drop(inferred_signature):
@@ -794,11 +773,10 @@ def test_update_guess_multi_drop(inferred_signature):
     inferred_signature._update_guess(
         "x", inferred_signature.type_system.convert_type_hint(complex)
     )
-    assert inferred_signature.current_guessed_parameters[
-        "x"
-    ] == inferred_signature.type_system.convert_type_hint(
-        float | str | bytes | bool | complex
-    )
+    assert inferred_signature.current_guessed_parameters["x"] == [
+        inferred_signature.type_system.convert_type_hint(tp)
+        for tp in [float, str, bytes, bool, complex]
+    ]
 
 
 @pytest.mark.parametrize(

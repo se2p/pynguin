@@ -107,6 +107,21 @@ class RuntimeVariable(str, enum.Enum):
     # The mutation score
     MutationScore = "MutationScore"
 
+    # Number of encountered parameters in the MUT
+    NumberOfEncounteredParameters = "NumberOfEncounteredParameters"
+
+    # Number of parameters in the MUT for which we were able to guess something
+    NumberOfGuessedParameters = "NumberOfGuessedParameters"
+
+    # What parameter types were guessed in the MUT and how often?
+    AllGuessedParameterTypes = "AllGuessedParameterTypes"
+
+    # What parameter types were are annotated by developers in the MUT and how often?
+    AllDeveloperParameterTypes = "AllDeveloperParameterTypes"
+
+    # Guessed signatures for every callable in the MUT. Any indicates no guess.
+    GuessedSignatures = "GuessedSignatures"
+
     # ========= Values collected during search =========
 
     # Obtained coverage (of the chosen testing criterion(s)) at different points in time
