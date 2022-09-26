@@ -13,10 +13,11 @@ import logging
 import types
 import typing
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar, get_type_hints
+from typing import _BaseGenericAlias  # type:ignore
+from typing import Any, Final, Generic, TypeVar, cast, get_origin, get_type_hints
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
@@ -41,7 +42,9 @@ T = TypeVar("T")
 
 
 class ProperType(ABC):
-    """Base class for all types. Might have to add another layer, like mypy's Type?."""
+    """Base class for all types. Might have to add another layer, like mypy's Type?.
+
+    All subclasses of this class are immutable."""
 
     @abstractmethod
     def accept(self, visitor: TypeVisitor) -> T:
@@ -97,7 +100,7 @@ class Instance(ProperType):
         self.type = typ
         if args is None:
             args = ()
-        self.args = tuple(args)
+        self.args: Final[tuple[ProperType, ...]] = tuple(args)
         # Cached hash value
         self._hash: int | None = None
 
@@ -123,8 +126,8 @@ class TupleType(ProperType):
     `Instance(TypeInfo(tuple))` because tuple is varargs generic."""
 
     def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
-        self.args = args
-        self.unknown_size = unknown_size
+        self.args: Final[tuple[ProperType, ...]] = args
+        self.unknown_size: Final[bool] = unknown_size
         # Cached hash value
         self._hash: int | None = None
 
@@ -148,7 +151,7 @@ class UnionType(ProperType):
     """The union type Union[T1, ..., Tn] (at least one type argument)."""
 
     def __init__(self, items: tuple[ProperType, ...]):
-        self.items = items
+        self.items: Final[tuple[ProperType, ...]] = items
         # TODO(fk) think about flattening Unions, also order should not matter.
         assert len(self.items) > 0
         # Cached hash value
@@ -166,9 +169,25 @@ class UnionType(ProperType):
         return isinstance(other, UnionType) and self.items == other.items
 
 
+class Unsupported(ProperType):
+    """Artificial type which represents a type that is currently not supported by
+    our type abstraction. This is purely used for statistic purposes and should not
+    be encountered during regular use."""
+
+    def __eq__(self, other):
+        return isinstance(other, Unsupported)
+
+    def __hash__(self):
+        return hash(Unsupported)
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_unsupported_type(self)
+
+
 # Static to instances to avoid repeated construction.
 ANY = AnyType()
 NONE_TYPE = NoneType()
+UNSUPPORTED = Unsupported()
 
 
 class TypeVisitor(Generic[T]):
@@ -233,6 +252,17 @@ class TypeVisitor(Generic[T]):
             result of the visit
         """
 
+    @abstractmethod
+    def visit_unsupported_type(self, left: Unsupported) -> T:
+        """Visit unsupported type
+
+        Args:
+            left: unsupported
+
+        Returns:
+            result of the visit
+        """
+
 
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
@@ -263,6 +293,9 @@ class TypeStringVisitor(TypeVisitor[str]):
     def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:
         return sep.join(t.accept(self) for t in typs)
 
+    def visit_unsupported_type(self, left: Unsupported) -> str:
+        return "<?>"
+
 
 class TypeReprVisitor(TypeVisitor[str]):
     """A simple visitor to create a repr from a proper type."""
@@ -287,6 +320,9 @@ class TypeReprVisitor(TypeVisitor[str]):
 
     def _sequence_str(self, typs: Sequence[ProperType]) -> str:
         return ", ".join(t.accept(self) for t in typs)
+
+    def visit_unsupported_type(self, left: Unsupported) -> str:
+        return "Unsupported()"
 
 
 class _SubtypeVisitor(TypeVisitor[bool]):
@@ -358,6 +394,9 @@ class _SubtypeVisitor(TypeVisitor[bool]):
             self.sub_type_check(left_elem, self.right) for left_elem in left.items
         )
 
+    def visit_unsupported_type(self, left: Unsupported) -> bool:
+        raise NotImplementedError("This type shall not be used during runtime")
+
 
 class _MaybeSubtypeVisitor(_SubtypeVisitor):
     """A weaker subtype check, which only checks if left may be a subtype of right.
@@ -368,6 +407,9 @@ class _MaybeSubtypeVisitor(_SubtypeVisitor):
         return any(
             self.sub_type_check(left_elem, self.right) for left_elem in left.items
         )
+
+    def visit_unsupported_type(self, left: Unsupported) -> bool:
+        raise NotImplementedError("This type shall not be used during runtime")
 
 
 class _CollectionTypeVisitor(TypeVisitor[bool]):
@@ -388,6 +430,9 @@ class _CollectionTypeVisitor(TypeVisitor[bool]):
 
     def visit_union_type(self, left: UnionType) -> bool:
         return False
+
+    def visit_unsupported_type(self, left: Unsupported) -> bool:
+        raise NotImplementedError("This type shall not be used during runtime")
 
 
 is_collection_type = _CollectionTypeVisitor()
@@ -411,6 +456,9 @@ class _PrimitiveTypeVisitor(TypeVisitor[bool]):
 
     def visit_union_type(self, left: UnionType) -> bool:
         return False
+
+    def visit_unsupported_type(self, left: Unsupported) -> bool:
+        raise NotImplementedError("This type shall not be used during runtime")
 
 
 is_primitive_type = _PrimitiveTypeVisitor()
@@ -890,7 +938,7 @@ class TypeSystem:
         ]
         # Pre-compute numeric tower
         numeric = [complex, float, int, bool]
-        self.numeric_tower: dict[Instance, list[Instance]] = typing.cast(
+        self.numeric_tower: dict[Instance, list[Instance]] = cast(
             dict[Instance, list[Instance]],
             {
                 self.convert_type_hint(typ): [
@@ -1234,10 +1282,7 @@ class TypeSystem:
             type_system=self,
         )
 
-    def convert_type_hint(
-        self,
-        hint: Any,
-    ) -> ProperType:
+    def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:
         # pylint:disable=too-many-return-statements
         """Python's builtin functionality makes handling types during runtime really
         hard, because 1) this is not intended to be used at runtime and 2) there are a
@@ -1255,12 +1300,13 @@ class TypeSystem:
 
         Args:
             hint: The type hint
+            unsupported: The type to use when encountering an unsupported type construct
 
         Returns:
             A proper type.
         """
         # We must handle a lot of special cases, so try to give an example for each one.
-        if hint is typing.Any or hint is None:
+        if hint is Any or hint is None:
             # typing.Any or empty
             return ANY
         if hint is type(None):  # noqa: E721
@@ -1271,23 +1317,25 @@ class TypeSystem:
             # TODO(fk) Tuple without size. Should use tuple[Any, ...] ?
             #  But ... (ellipsis) is not a type.
             return TupleType((ANY,), unknown_size=True)
-        if typing.get_origin(hint) is tuple:
+        if get_origin(hint) is tuple:
             # tuple[int, str] or typing.Tuple[int, str] or typing.Tuple
-            args = self.__convert_args_if_exists(hint)
+            args = self.__convert_args_if_exists(hint, unsupported=unsupported)
             if not args:
                 return TupleType((ANY,), unknown_size=True)
             return TupleType(args)
         if is_union_type(hint) or isinstance(hint, types.UnionType):
             # int | str or typing.Union[int, str]
             # TODO(fk) don't make a union including Any.
-            return UnionType(tuple(self.__convert_args_if_exists(hint)))
-        if isinstance(
-            hint, (typing._BaseGenericAlias, types.GenericAlias)  # type:ignore
-        ):
+            return UnionType(
+                tuple(
+                    sorted(self.__convert_args_if_exists(hint, unsupported=unsupported))
+                )
+            )
+        if isinstance(hint, (_BaseGenericAlias, types.GenericAlias)):
             # list[int, str] or List[int, str] or Dict[int, str] or set[str]
             result = Instance(
                 self.to_type_info(hint.__origin__),
-                self.__convert_args_if_exists(hint),
+                self.__convert_args_if_exists(hint, unsupported=unsupported),
             )
             # TODO(fk) remove this one day.
             #  Hardcoded support generic dict, list and set.
@@ -1301,11 +1349,16 @@ class TypeSystem:
         #  Remove this or log to statistics?
         _LOGGER.debug("Unknown type hint: %s", hint)
         # Should raise an error in the future.
-        return ANY
+        return unsupported
 
-    def __convert_args_if_exists(self, hint: Any) -> tuple[ProperType, ...]:
+    def __convert_args_if_exists(
+        self, hint: Any, unsupported: ProperType
+    ) -> tuple[ProperType, ...]:
         if hasattr(hint, "__args__"):
-            return tuple(self.convert_type_hint(t) for t in hint.__args__)
+            return tuple(
+                self.convert_type_hint(t, unsupported=unsupported)
+                for t in hint.__args__
+            )
         return ()
 
     def make_instance(self, typ: TypeInfo) -> Instance | TupleType:
