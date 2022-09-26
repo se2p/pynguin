@@ -9,7 +9,7 @@ from tests.fixtures.examples.type_tracing.large_test_cluster import *  # noqa: F
 
 def compute_sum(invoice):
     summed = 0
-    for item in invoice.iter_items():
+    for item in invoice.elements:
         total = item.get_total()
         # Discount
         if total > 100:
@@ -19,17 +19,14 @@ def compute_sum(invoice):
 
 
 class Invoice:
-    def __init__(self, vat):
-        self._items = []
+    def __init__(self):
+        self.elements = []
 
     def add_item(self, item):
-        self._items.append(item)
-
-    def iter_items(self):
-        yield from self._items
+        self.elements.append(item)
 
 
-class InvoiceItem:
+class InvoiceElement:
     def __init__(self, price, amount):
         self._price = price
         self._amount = amount
