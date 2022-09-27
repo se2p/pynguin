@@ -110,8 +110,14 @@ class RuntimeVariable(str, enum.Enum):
     # What parameter types were guessed in the MUT and how often?
     AllGuessedParameterTypes = "AllGuessedParameterTypes"
 
+    # What return types were recorded in the MUT and how often?
+    AllRecordedReturnTypes = "AllRecordedReturnTypes"
+
     # What parameter types were are annotated by developers in the MUT and how often?
     AllDeveloperParameterTypes = "AllDeveloperParameterTypes"
+
+    # What return types were are annotated by developers in the MUT and how often?
+    AllDeveloperReturnTypes = "AllDeveloperReturnTypes"
 
     # Guessed signatures for every callable in the MUT. Any indicates no guess.
     GuessedSignatures = "GuessedSignatures"

@@ -447,9 +447,19 @@ class TypeGuessingStats:
     """Class to gather some type guessing related statistics."""
 
     # What are the most common type guesses?
-    all_guessed_types: Counter[str] = dataclasses.field(default_factory=Counter)
+    all_guessed_parameter_types: Counter[str] = dataclasses.field(
+        default_factory=Counter
+    )
+    # What are the most common return types?
+    all_recorded_return_types: Counter[str] = dataclasses.field(default_factory=Counter)
     # What types were annotated by developers?
-    all_developer_types: Counter[str] = dataclasses.field(default_factory=Counter)
+    all_developer_parameter_types: Counter[str] = dataclasses.field(
+        default_factory=Counter
+    )
+    # What types were annotated by developers?
+    all_developer_return_types: Counter[str] = dataclasses.field(
+        default_factory=Counter
+    )
 
 
 class ModuleTestCluster(TestCluster):
@@ -491,10 +501,19 @@ class ModuleTestCluster(TestCluster):
                     + accessible.inferred_signature.log_stats_and_guess_signature(stats)
                 )
         stat.track_output_variable(
-            RuntimeVariable.AllGuessedParameterTypes, str(stats.all_guessed_types)
+            RuntimeVariable.AllGuessedParameterTypes,
+            str(stats.all_guessed_parameter_types),
         )
         stat.track_output_variable(
-            RuntimeVariable.AllDeveloperParameterTypes, str(stats.all_developer_types)
+            RuntimeVariable.AllRecordedReturnTypes, str(stats.all_recorded_return_types)
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AllDeveloperParameterTypes,
+            str(stats.all_developer_parameter_types),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AllDeveloperReturnTypes,
+            str(stats.all_developer_return_types),
         )
         stat.track_output_variable(
             RuntimeVariable.GuessedSignatures, str(traced_signatures)

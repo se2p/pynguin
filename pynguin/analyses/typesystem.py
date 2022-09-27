@@ -557,6 +557,7 @@ class InferredSignature:
     # i.e., types that we currently cannot understand/parse. Purely used for statistics
     # purposes!
     parameters_for_statistics: dict[str, str] = field(default_factory=dict)
+    return_type_for_statistics: str = ""
 
     def __post_init__(self):
         self.return_type = self.original_return_type
@@ -936,7 +937,10 @@ class InferredSignature:
         Returns:
             The guessed signature.
         """
-        stats.all_developer_types.update(self.parameters_for_statistics.values())
+        stats.all_developer_parameter_types.update(
+            self.parameters_for_statistics.values()
+        )
+        stats.all_developer_return_types[self.return_type_for_statistics] += 1
 
         parameters = []
         for param_name, param in self.signature.parameters.items():
@@ -952,7 +956,7 @@ class InferredSignature:
                         counter[guess] += 1
                 if len(counter) > 0:
                     top_guess = counter.most_common(1)[0][0]
-                    stats.all_guessed_types[str(top_guess)] += 1
+                    stats.all_guessed_parameter_types[str(top_guess)] += 1
                     param_annotation = top_guess
             # No guess or no knowledge
             parameters.append(param.replace(annotation=str(param_annotation)))
@@ -1326,6 +1330,9 @@ class TypeSystem:
             )
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
+        return_type_for_statistics: ProperType = self.convert_type_hint(
+            hints.get("return"), unsupported=UNSUPPORTED
+        )
 
         return InferredSignature(
             signature=method_signature,
@@ -1333,6 +1340,7 @@ class TypeSystem:
             original_return_type=return_type,
             type_system=self,
             parameters_for_statistics=parameters_for_statistics,
+            return_type_for_statistics=str(return_type_for_statistics),
         )
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:
