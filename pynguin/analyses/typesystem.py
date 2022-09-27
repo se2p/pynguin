@@ -1415,7 +1415,7 @@ class TypeSystem:
             )
         return ()
 
-    def make_instance(self, typ: TypeInfo) -> Instance | TupleType:
+    def make_instance(self, typ: TypeInfo) -> Instance | TupleType | NoneType:
         """Create an instance from the given type.
 
         Args:
@@ -1426,6 +1426,8 @@ class TypeSystem:
         """
         if typ.full_name == "builtins.tuple":
             return TupleType((ANY,), unknown_size=True)
+        if typ.full_name == "builtins.NoneType":
+            return NONE_TYPE
         result = Instance(
             typ,
         )
