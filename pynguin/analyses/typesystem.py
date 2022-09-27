@@ -961,6 +961,9 @@ class InferredSignature:
             # No guess or no knowledge
             parameters.append(param.replace(annotation=str(param_annotation)))
         return_type = str(self.return_type)
+        if self.return_type != self.original_return_type:
+            # Only when we recorded something:
+            stats.all_recorded_return_types[return_type] += 1
         return str(
             self.signature.replace(parameters=parameters, return_annotation=return_type)
         )
