@@ -927,11 +927,14 @@ class InferredSignature:
             )
         return None
 
-    def log_stats_and_guess_signature(self, stats: TypeGuessingStats) -> str:
+    def log_stats_and_guess_signature(
+        self, is_constructor: bool, stats: TypeGuessingStats
+    ) -> str:
         """Logs some statistics and creates a guessed signature.
         Parameters annotated with Any could not be guessed.
 
         Parameters:
+            is_constructor: does this signature to a constructor?
             stats: stats object to log to.
 
         Returns:
@@ -940,7 +943,11 @@ class InferredSignature:
         stats.all_developer_parameter_types.update(
             self.parameters_for_statistics.values()
         )
-        stats.all_developer_return_types[self.return_type_for_statistics] += 1
+        if not is_constructor:
+            # Constructors don't need a return type, so no need to log it.
+            stats.all_developer_return_types[self.return_type_for_statistics] += 1
+        else:
+            stats.number_of_constructors += 1
 
         parameters = []
         for param_name, param in self.signature.parameters.items():
@@ -961,8 +968,8 @@ class InferredSignature:
             # No guess or no knowledge
             parameters.append(param.replace(annotation=str(param_annotation)))
         return_type = str(self.return_type)
-        if self.return_type != self.original_return_type:
-            # Only when we recorded something:
+        if not is_constructor and self.return_type != self.original_return_type:
+            # Only when we recorded something that is not a constructor:
             stats.all_recorded_return_types[return_type] += 1
         return str(
             self.signature.replace(parameters=parameters, return_annotation=return_type)

@@ -119,6 +119,9 @@ class RuntimeVariable(str, enum.Enum):
     # What return types were are annotated by developers in the MUT and how often?
     AllDeveloperReturnTypes = "AllDeveloperReturnTypes"
 
+    # Number of constructors
+    NumberOfConstructors = "NumberOfConstructors"
+
     # Guessed signatures for every callable in the MUT. Any indicates no guess.
     GuessedSignatures = "GuessedSignatures"
 

@@ -446,6 +446,9 @@ class TestCluster(abc.ABC):
 class TypeGuessingStats:
     """Class to gather some type guessing related statistics."""
 
+    # Number of constructors in the MUT.
+    number_of_constructors: int = 0
+
     # What are the most common type guesses?
     all_guessed_parameter_types: Counter[str] = dataclasses.field(
         default_factory=Counter
@@ -498,7 +501,9 @@ class ModuleTestCluster(TestCluster):
             if isinstance(accessible, GenericCallableAccessibleObject):
                 traced_signatures.append(
                     str(accessible)
-                    + accessible.inferred_signature.log_stats_and_guess_signature(stats)
+                    + accessible.inferred_signature.log_stats_and_guess_signature(
+                        accessible.is_constructor(), stats
+                    )
                 )
         stat.track_output_variable(
             RuntimeVariable.AllGuessedParameterTypes,
@@ -514,6 +519,10 @@ class ModuleTestCluster(TestCluster):
         stat.track_output_variable(
             RuntimeVariable.AllDeveloperReturnTypes,
             str(stats.all_developer_return_types),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfConstructors,
+            str(stats.number_of_constructors),
         )
         stat.track_output_variable(
             RuntimeVariable.GuessedSignatures, str(traced_signatures)
