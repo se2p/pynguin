@@ -953,7 +953,6 @@ class InferredSignature:
                 if len(counter) > 0:
                     top_guess = counter.most_common(1)[0][0]
                     stats.all_guessed_types[str(top_guess)] += 1
-                    stats.guessed_parameters_types += 1
                     param_annotation = top_guess
             # No guess or no knowledge
             parameters.append(param.replace(annotation=str(param_annotation)))

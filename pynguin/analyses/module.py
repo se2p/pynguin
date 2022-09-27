@@ -446,8 +446,6 @@ class TestCluster(abc.ABC):
 class TypeGuessingStats:
     """Class to gather some type guessing related statistics."""
 
-    # For how many did we have a type guess?
-    guessed_parameters_types: int = 0
     # What are the most common type guesses?
     all_guessed_types: Counter[str] = dataclasses.field(default_factory=Counter)
     # What types were annotated by developers?
@@ -492,9 +490,6 @@ class ModuleTestCluster(TestCluster):
                     str(accessible)
                     + accessible.inferred_signature.log_stats_and_guess_signature(stats)
                 )
-        stat.track_output_variable(
-            RuntimeVariable.NumberOfGuessedParameters, stats.guessed_parameters_types
-        )
         stat.track_output_variable(
             RuntimeVariable.AllGuessedParameterTypes, str(stats.all_guessed_types)
         )
