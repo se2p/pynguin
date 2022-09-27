@@ -942,7 +942,6 @@ class InferredSignature:
         for param_name, param in self.signature.parameters.items():
             param_annotation: ProperType = ANY
             if param_name in self.original_parameters and param_name in self.knowledge:
-                stats.encountered_parameters += 1
                 counter: Counter[ProperType] = Counter()
                 for _ in range(100):
                     guess = self._guess_parameter_type(

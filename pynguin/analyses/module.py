@@ -446,8 +446,6 @@ class TestCluster(abc.ABC):
 class TypeGuessingStats:
     """Class to gather some type guessing related statistics."""
 
-    # How many parameters in the MUT
-    encountered_parameters: int = 0
     # For how many did we have a type guess?
     guessed_parameters_types: int = 0
     # What are the most common type guesses?
@@ -494,9 +492,6 @@ class ModuleTestCluster(TestCluster):
                     str(accessible)
                     + accessible.inferred_signature.log_stats_and_guess_signature(stats)
                 )
-        stat.track_output_variable(
-            RuntimeVariable.NumberOfEncounteredParameters, stats.encountered_parameters
-        )
         stat.track_output_variable(
             RuntimeVariable.NumberOfGuessedParameters, stats.guessed_parameters_types
         )

@@ -107,9 +107,6 @@ class RuntimeVariable(str, enum.Enum):
     # The mutation score
     MutationScore = "MutationScore"
 
-    # Number of encountered parameters in the MUT
-    NumberOfEncounteredParameters = "NumberOfEncounteredParameters"
-
     # Number of parameters in the MUT for which we were able to guess something
     NumberOfGuessedParameters = "NumberOfGuessedParameters"
 
