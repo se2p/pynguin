@@ -30,6 +30,9 @@ class RuntimeVariable(str, enum.Enum):
     # An identifier for this configuration for benchmarking
     ConfigurationId = "ConfigurationId"
 
+    # An identifier of the cluster job
+    RunId = "RunId"
+
     # An identifier for the project's name for benchmarking
     ProjectName = "ProjectName"
 

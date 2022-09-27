@@ -661,6 +661,9 @@ def _collect_miscellaneous_statistics(test_cluster) -> None:
         config.configuration.statistics_output.configuration_id,
     )
     stat.track_output_variable(
+        RuntimeVariable.RunId, config.configuration.statistics_output.run_id
+    )
+    stat.track_output_variable(
         RuntimeVariable.ProjectName, config.configuration.statistics_output.project_name
     )
     for runtime_variable, value in stat.variables_generator:

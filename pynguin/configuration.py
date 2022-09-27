@@ -198,6 +198,10 @@ class StatisticsOutputConfiguration:
     """Label that identifies the used configuration of Pynguin.  This is only done
     when running experiments."""
 
+    run_id: str = ""
+    """Id of the cluster run. Useful for finding the log entries that belong to a
+    certain result."""
+
     project_name: str = ""
     """Label that identifies the project name of Pynguin.  This is useful when
     running experiments."""
