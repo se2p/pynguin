@@ -1195,11 +1195,12 @@ class TypeSystem:
         reach_out_sets: dict[TypeInfo, set[str]] = defaultdict(set)
 
         # While object sits at the top, it is not particularly useful, so we delete
-        # all of its symbols.
-        # TODO(fk) does this make sense?
+        # some of it symbols, as they are only stubs. For example, when searching for
+        # an object that supports comparison, choosing object does not make sense,
+        # because it will raise a NotImplementedError.
         object_info = self.find_type_info("builtins.object")
         assert object_info is not None
-        object_info.symbols.clear()
+        object_info.symbols.difference_update({"__lt__", "__le__", "__gt__", "__ge__"})
 
         # Use fix point iteration with reach-in/out to push elements down.
         work_list = list(self._graph.nodes)
