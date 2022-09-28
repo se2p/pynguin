@@ -371,9 +371,6 @@ class TypeInferenceConfiguration:
     type_tracing: bool = False
     """Trace usage of parameters with unknown types to improve type guesses."""
 
-    stub_dir: str = ""
-    """Path to the pyi-stub files for the StubInferenceStrategy"""
-
 
 @dataclasses.dataclass
 class TestCreationConfiguration:
