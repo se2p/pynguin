@@ -19,7 +19,7 @@ import json
 import logging
 import queue
 import typing
-from collections import Counter, defaultdict, namedtuple
+from collections import defaultdict, namedtuple
 from collections.abc import Callable
 from statistics import mean, median
 from types import (
@@ -449,19 +449,25 @@ class TypeGuessingStats:
     # Number of constructors in the MUT.
     number_of_constructors: int = 0
 
-    # What are the most common type guesses?
-    all_guessed_parameter_types: Counter[str] = dataclasses.field(
-        default_factory=Counter
+    # Developer annotated parameter types per callable, does not include self, etc.
+    annotated_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
+        default_factory=dict
     )
-    # What are the most common return types?
-    all_recorded_return_types: Counter[str] = dataclasses.field(default_factory=Counter)
-    # What types were annotated by developers?
-    all_developer_parameter_types: Counter[str] = dataclasses.field(
-        default_factory=Counter
+
+    # Developer annotated return types per callable, does not include constructors.
+    annotated_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # Guessed parameters per callable or Any, if no guess.
+    guessed_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
+        default_factory=dict
     )
-    # What types were annotated by developers?
-    all_developer_return_types: Counter[str] = dataclasses.field(
-        default_factory=Counter
+
+    # Recorded return types per callable.
+    recorded_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # Formatted signatures per callable.
+    formatted_guessed_signatures: dict[str, str] = dataclasses.field(
+        default_factory=dict
     )
 
 
@@ -496,36 +502,33 @@ class ModuleTestCluster(TestCluster):
 
     def log_cluster_statistics(self) -> None:
         stats = TypeGuessingStats()
-        traced_signatures: list[str] = []
         for accessible in self.__accessible_objects_under_test:
             if isinstance(accessible, GenericCallableAccessibleObject):
-                traced_signatures.append(
-                    str(accessible)
-                    + accessible.inferred_signature.log_stats_and_guess_signature(
-                        accessible.is_constructor(), stats
-                    )
+                accessible.inferred_signature.log_stats_and_guess_signature(
+                    accessible.is_constructor(), str(accessible), stats
                 )
         stat.track_output_variable(
-            RuntimeVariable.AllGuessedParameterTypes,
-            str(stats.all_guessed_parameter_types),
+            RuntimeVariable.GuessedParameterTypes,
+            str(stats.guessed_parameter_types),
         )
         stat.track_output_variable(
-            RuntimeVariable.AllRecordedReturnTypes, str(stats.all_recorded_return_types)
+            RuntimeVariable.RecordedReturnTypes, str(stats.recorded_return_types)
         )
         stat.track_output_variable(
-            RuntimeVariable.AllDeveloperParameterTypes,
-            str(stats.all_developer_parameter_types),
+            RuntimeVariable.AnnotatedParameterTypes,
+            str(stats.annotated_parameter_types),
         )
         stat.track_output_variable(
-            RuntimeVariable.AllDeveloperReturnTypes,
-            str(stats.all_developer_return_types),
+            RuntimeVariable.AnnotatedReturnTypes,
+            str(stats.annotated_return_types),
         )
         stat.track_output_variable(
             RuntimeVariable.NumberOfConstructors,
             str(stats.number_of_constructors),
         )
         stat.track_output_variable(
-            RuntimeVariable.GuessedSignatures, str(traced_signatures)
+            RuntimeVariable.FormattedGuessedSignatures,
+            str(stats.formatted_guessed_signatures),
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):

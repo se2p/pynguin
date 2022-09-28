@@ -928,27 +928,28 @@ class InferredSignature:
         return None
 
     def log_stats_and_guess_signature(
-        self, is_constructor: bool, stats: TypeGuessingStats
-    ) -> str:
+        self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
+    ) -> None:
         """Logs some statistics and creates a guessed signature.
         Parameters annotated with Any could not be guessed.
 
         Parameters:
+            callable_full_name: The full, unique name of the callable.
             is_constructor: does this signature to a constructor?
             stats: stats object to log to.
-
-        Returns:
-            The guessed signature.
         """
-        stats.all_developer_parameter_types.update(
-            self.parameters_for_statistics.values()
+        stats.annotated_parameter_types[callable_full_name] = dict(
+            self.parameters_for_statistics
         )
         if not is_constructor:
             # Constructors don't need a return type, so no need to log it.
-            stats.all_developer_return_types[self.return_type_for_statistics] += 1
+            stats.annotated_return_types[
+                callable_full_name
+            ] = self.return_type_for_statistics
         else:
             stats.number_of_constructors += 1
 
+        parameter_types: dict[str, str] = {}
         parameters = []
         for param_name, param in self.signature.parameters.items():
             param_annotation: ProperType = ANY
@@ -963,15 +964,19 @@ class InferredSignature:
                         counter[guess] += 1
                 if len(counter) > 0:
                     top_guess = counter.most_common(1)[0][0]
-                    stats.all_guessed_parameter_types[str(top_guess)] += 1
                     param_annotation = top_guess
             # No guess or no knowledge
             parameters.append(param.replace(annotation=str(param_annotation)))
+            if param_name in self.original_parameters:
+                parameter_types[param_name] = str(param_annotation)
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
             # Only when we recorded something that is not a constructor:
-            stats.all_recorded_return_types[return_type] += 1
-        return str(
+            stats.recorded_return_types[callable_full_name] = return_type
+        stats.guessed_parameter_types[callable_full_name] = parameter_types
+        stats.formatted_guessed_signatures[
+            callable_full_name
+        ] = callable_full_name + str(
             self.signature.replace(parameters=parameters, return_annotation=return_type)
         )
 
