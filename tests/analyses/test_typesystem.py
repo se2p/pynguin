@@ -13,6 +13,7 @@ import pytest
 import pynguin.configuration as config
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import (
+    UNSUPPORTED,
     AnyType,
     InferredSignature,
     Instance,
@@ -256,6 +257,19 @@ def test_convert_type_hints(hint, expected):
     graph = TypeSystem()
     assert graph.convert_type_hint(hint) == expected
     assert repr(graph.convert_type_hint(hint)) == repr(expected)
+
+
+@pytest.mark.parametrize(
+    "hint, expected",
+    [(A, UNSUPPORTED), (list[A], Instance(TypeInfo(list), (UNSUPPORTED,)))],
+)
+def test_convert_type_hint_unsupported(hint, expected):
+    ts = TypeSystem()
+    ts.convert_type_hint(hint, unsupported=UNSUPPORTED)
+
+
+def test_unsupported_str():
+    assert str(UNSUPPORTED) == "<?>"
 
 
 @pytest.fixture(scope="module")
