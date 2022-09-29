@@ -34,6 +34,7 @@ from typing import Any, NamedTuple
 
 import astroid
 
+import pynguin.utils.statistics.statistics as stat
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
@@ -54,6 +55,7 @@ from pynguin.analyses.typesystem import (
     TypeSystem,
     TypeVisitor,
     UnionType,
+    Unsupported,
     is_primitive_type,
 )
 from pynguin.configuration import TypeInferenceStrategy
@@ -268,7 +270,7 @@ class TestCluster(abc.ABC):
         """Provide the number of source code lines."""
 
     @abc.abstractmethod
-    def log_signatures(self) -> None:
+    def log_cluster_statistics(self) -> None:
         """Log the signatures of all seen callables."""
 
     @abc.abstractmethod
@@ -440,6 +442,41 @@ class TestCluster(abc.ABC):
         """
 
 
+@dataclasses.dataclass
+class TypeGuessingStats:
+    """Class to gather some type guessing related statistics."""
+
+    # Number of constructors in the MUT.
+    number_of_constructors: int = 0
+
+    # A mapping from callable names to  a dictionary  parameter names and their
+    # developer annotated parameters types.
+    # Does not include self, etc.
+    annotated_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
+        default_factory=dict
+    )
+
+    # Similar to above, but with guessed parameters types.
+    # Any indicates no guess.
+    guessed_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
+        default_factory=dict
+    )
+
+    # A mapping from callable names to their annotated return types, if Any.
+    # Does not include constructors.
+    annotated_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # A mapping from callable names to their recorded return types, if Any.
+    # Does not include constructors.
+    recorded_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # A mapping from callable names to their formatted signature with guessed types
+    # and recorded return types.
+    formatted_guessed_signatures: dict[str, str] = dataclasses.field(
+        default_factory=dict
+    )
+
+
 class ModuleTestCluster(TestCluster):
     """A test cluster for a module.
 
@@ -469,9 +506,36 @@ class ModuleTestCluster(TestCluster):
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
 
-    def log_signatures(self) -> None:
-        for call in self.__callables:
-            LOGGER.debug("%s", call)
+    def log_cluster_statistics(self) -> None:
+        stats = TypeGuessingStats()
+        for accessible in self.__accessible_objects_under_test:
+            if isinstance(accessible, GenericCallableAccessibleObject):
+                accessible.inferred_signature.log_stats_and_guess_signature(
+                    accessible.is_constructor(), str(accessible), stats
+                )
+        stat.track_output_variable(
+            RuntimeVariable.GuessedParameterTypes,
+            str(stats.guessed_parameter_types),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.RecordedReturnTypes, str(stats.recorded_return_types)
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AnnotatedParameterTypes,
+            str(stats.annotated_parameter_types),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.AnnotatedReturnTypes,
+            str(stats.annotated_return_types),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfConstructors,
+            str(stats.number_of_constructors),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.FormattedGuessedSignatures,
+            str(stats.formatted_guessed_signatures),
+        )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
@@ -490,20 +554,18 @@ class ModuleTestCluster(TestCluster):
             items = old_type.items
             if len(items) >= max_size or new_type in items:
                 return old_type
-            new_type = UnionType(old_type.items + (new_type,))
+            new_type = UnionType(tuple(sorted(items + (new_type,))))
         else:
             if old_type in (ANY, new_type):
                 new_type = UnionType((new_type,))
             else:
-                new_type = UnionType((old_type, new_type))
+                new_type = UnionType(tuple(sorted((old_type, new_type))))
         return new_type
 
     def update_return_type(
         self, accessible: GenericCallableAccessibleObject, new_type: ProperType
     ) -> None:
         # Loosely map runtime type to proper type
-        # TODO(fk) what about tuple?
-        #  Think about updates, only Any?
         old_type = accessible.inferred_signature.return_type
 
         new_type = self._add_or_make_union(old_type, new_type)
@@ -634,6 +696,11 @@ class ModuleTestCluster(TestCluster):
                 result.update(element.accept(self))
             return result
 
+        def visit_unsupported_type(
+            self, left: Unsupported
+        ) -> OrderedSet[GenericAccessibleObject]:
+            raise NotImplementedError("This type shall not be used during runtime")
+
     def get_modifiers_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
         return typ.accept(self._FindModifiers(self))
 
@@ -746,8 +813,8 @@ class FilteredModuleTestCluster(TestCluster):
     def linenos(self) -> int:
         return self.__delegate.linenos
 
-    def log_signatures(self) -> None:
-        self.__delegate.log_signatures()
+    def log_cluster_statistics(self) -> None:
+        self.__delegate.log_cluster_statistics()
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:
         self.__delegate.add_generator(generator)

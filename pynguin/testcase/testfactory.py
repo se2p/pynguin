@@ -15,6 +15,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.typesystem import (
+    ANY,
     InferredSignature,
     Instance,
     NoneType,
@@ -538,7 +539,13 @@ class TestFactory:
             Whether the insertion was successful
         """
         try:
-            accessible = self._test_cluster.get_random_call_for(variable.type)
+            typ = (
+                ANY
+                if randomness.next_float()
+                < config.configuration.test_creation.use_random_object_for_call
+                else variable.type
+            )
+            accessible = self._test_cluster.get_random_call_for(typ)
             return self.add_call_for(test_case, variable, accessible, position)
         except ConstructionFailedException:
             pass
@@ -667,7 +674,13 @@ class TestFactory:
         changed = False
         if variable is not None:
             for i in range(position + 1, test_case.size()):
-                alternatives = test_case.get_objects(variable.type, i)
+                typ = (
+                    ANY
+                    if randomness.next_float()
+                    < config.configuration.test_creation.use_random_object_for_call
+                    else variable.type
+                )
+                alternatives = test_case.get_objects(typ, i)
                 try:
                     alternatives.remove(variable)
                 except ValueError:

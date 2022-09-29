@@ -198,6 +198,10 @@ class StatisticsOutputConfiguration:
     """Label that identifies the used configuration of Pynguin.  This is only done
     when running experiments."""
 
+    run_id: str = ""
+    """Id of the cluster run. Useful for finding the log entries that belong to a
+    certain result."""
+
     project_name: str = ""
     """Label that identifies the project name of Pynguin.  This is useful when
     running experiments."""
@@ -438,6 +442,10 @@ class TestCreationConfiguration:
 
     max_size: int = 100
     """Maximum number of test cases in a test suite"""
+
+    use_random_object_for_call: float = 0.1
+    """When adding or modifying a call on an object, use a random modifier instead
+    of only modifiers for that type. Expects values in [0, 1]."""
 
 
 @dataclasses.dataclass

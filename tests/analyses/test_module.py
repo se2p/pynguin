@@ -531,8 +531,8 @@ def test_instance_attrs(mod, typ, attributes):
 @pytest.mark.parametrize(
     "first, second, result",
     [
-        (int, bool, int | bool),
-        (int | bool, bool, int | bool),
+        (int, bool, bool | int),
+        (int | bool, bool, bool | int),
         (int | bool, float, int | bool | float),
         (int | str | bool | bytes | float, bool, int | str | bool | bytes | float),
     ],

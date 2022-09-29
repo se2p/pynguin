@@ -30,6 +30,9 @@ class RuntimeVariable(str, enum.Enum):
     # An identifier for this configuration for benchmarking
     ConfigurationId = "ConfigurationId"
 
+    # An identifier of the cluster job
+    RunId = "RunId"
+
     # An identifier for the project's name for benchmarking
     ProjectName = "ProjectName"
 
@@ -106,6 +109,25 @@ class RuntimeVariable(str, enum.Enum):
 
     # The mutation score
     MutationScore = "MutationScore"
+
+    # What parameter types were guessed in the MUT. Excludes self, etc.
+    GuessedParameterTypes = "GuessedParameterTypes"
+
+    # What return types were recorded in the MUT, excludes constructors.
+    RecordedReturnTypes = "RecordedReturnTypes"
+
+    # What parameter types were are annotated by developers, excludes self, etc.
+    AnnotatedParameterTypes = "AnnotatedParameterTypes"
+
+    # What return types were are annotated by developers in the MUT.
+    AnnotatedReturnTypes = "AnnotatedReturnTypes"
+
+    # Number of constructors
+    NumberOfConstructors = "NumberOfConstructors"
+
+    # Guessed signatures for every callable in the MUT.
+    # Parameters of type Any indicate no guess for that parameter.
+    FormattedGuessedSignatures = "FormattedGuessedSignatures"
 
     # ========= Values collected during search =========
 

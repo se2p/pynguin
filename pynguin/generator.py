@@ -341,11 +341,13 @@ def _reload_instrumentation_loader(
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
     tracer.current_thread_identifier = threading.current_thread().ident
-    first_finder = sys.meta_path[0]
-    assert isinstance(first_finder, InstrumentationFinder)
-    finder: InstrumentationFinder = first_finder
-    # pylint:disable=no-member
-    finder.update_instrumentation_metrics(
+    first_finder: InstrumentationFinder | None = None
+    for finder in sys.meta_path:
+        if isinstance(finder, InstrumentationFinder):
+            first_finder = finder
+            break
+    assert first_finder is not None
+    first_finder.update_instrumentation_metrics(
         tracer=tracer,
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
@@ -548,13 +550,12 @@ def _run() -> ReturnCode:
             Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
             datetime.datetime.now(),
         )
-    _collect_miscellaneous_statistics()
+    _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
-    test_cluster.log_signatures()
     return ReturnCode.OK
 
 
@@ -649,7 +650,8 @@ def _instantiate_test_generation_strategy(
     return factory.get_search_algorithm()
 
 
-def _collect_miscellaneous_statistics() -> None:
+def _collect_miscellaneous_statistics(test_cluster) -> None:
+    test_cluster.log_cluster_statistics()
     stat.track_output_variable(
         RuntimeVariable.TargetModule, config.configuration.module_name
     )
@@ -657,6 +659,9 @@ def _collect_miscellaneous_statistics() -> None:
     stat.track_output_variable(
         RuntimeVariable.ConfigurationId,
         config.configuration.statistics_output.configuration_id,
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RunId, config.configuration.statistics_output.run_id
     )
     stat.track_output_variable(
         RuntimeVariable.ProjectName, config.configuration.statistics_output.project_name

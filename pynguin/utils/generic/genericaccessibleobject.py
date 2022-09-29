@@ -270,7 +270,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
 
     def __str__(self):
         assert self.owner
-        return self.owner.full_name + self.inferred_signature.format_guessed_signature()
+        return self.owner.full_name
 
 
 class GenericMethod(GenericCallableAccessibleObject):
@@ -331,10 +331,7 @@ class GenericMethod(GenericCallableAccessibleObject):
         )
 
     def __str__(self):
-        return (
-            f"{self.owner.full_name}.{self._callable.__name__}"
-            f"{self.inferred_signature.format_guessed_signature()}"
-        )
+        return f"{self.owner.full_name}.{self._callable.__name__}"
 
 
 class GenericFunction(GenericCallableAccessibleObject):
@@ -379,10 +376,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         )
 
     def __str__(self):
-        return (
-            f"{self._callable.__module__}.{self._callable.__qualname__}"
-            f"{self.inferred_signature.format_guessed_signature()}"
-        )
+        return f"{self._callable.__module__}.{self._callable.__qualname__}"
 
 
 class GenericAbstractField(GenericAccessibleObject, metaclass=abc.ABCMeta):

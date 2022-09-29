@@ -24,6 +24,7 @@ if typing.TYPE_CHECKING:
         ProperType,
         TupleType,
         UnionType,
+        Unsupported,
     )
 
 
@@ -168,6 +169,9 @@ class _VariableNameTypeVisitor(TypeVisitor[str]):
 
     def visit_union_type(self, left: UnionType) -> str:
         return self._prefix
+
+    def visit_unsupported_type(self, left: Unsupported) -> str:
+        raise NotImplementedError("This type shall not be used during runtime")
 
 
 def snake_case(name: str) -> str:

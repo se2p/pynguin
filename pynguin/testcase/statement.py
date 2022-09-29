@@ -19,6 +19,7 @@ import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses import constants
 from pynguin.analyses.typesystem import (
+    ANY,
     InferredSignature,
     Instance,
     NoneType,
@@ -1232,7 +1233,13 @@ class MethodStatement(ParametrizedStatement):
         # We mutate the callee here, as the special parameter.
         if randomness.next_float() < p_per_param:
             callee = self.callee
-            objects = self.test_case.get_objects(callee.type, self.get_position())
+            typ = (
+                ANY
+                if randomness.next_float()
+                < config.configuration.test_creation.use_random_object_for_call
+                else callee.type
+            )
+            objects = self.test_case.get_objects(typ, self.get_position())
             if callee in objects:
                 objects.remove(callee)
 
