@@ -61,6 +61,7 @@ def reset_configuration():
     # Easier to put this here than to have it scattered in all tests.
     config.configuration.test_creation.none_weight = 0
     config.configuration.test_creation.any_weight = 0
+    config.configuration.test_creation.use_random_object_for_call = 0.0
 
 
 @pytest.fixture(scope="function")
