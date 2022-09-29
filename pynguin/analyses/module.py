@@ -449,23 +449,29 @@ class TypeGuessingStats:
     # Number of constructors in the MUT.
     number_of_constructors: int = 0
 
-    # Developer annotated parameter types per callable, does not include self, etc.
+    # A mapping from callable names to  a dictionary  parameter names and their
+    # developer annotated parameters types.
+    # Does not include self, etc.
     annotated_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
         default_factory=dict
     )
 
-    # Developer annotated return types per callable, does not include constructors.
-    annotated_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
-
-    # Guessed parameters per callable or Any, if no guess.
+    # Similar to above, but with guessed parameters types.
+    # Any indicates no guess.
     guessed_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
         default_factory=dict
     )
 
-    # Recorded return types per callable.
+    # A mapping from callable names to their annotated return types, if Any.
+    # Does not include constructors.
+    annotated_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # A mapping from callable names to their recorded return types, if Any.
+    # Does not include constructors.
     recorded_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
 
-    # Formatted signatures per callable.
+    # A mapping from callable names to their formatted signature with guessed types
+    # and recorded return types.
     formatted_guessed_signatures: dict[str, str] = dataclasses.field(
         default_factory=dict
     )
