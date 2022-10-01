@@ -7,10 +7,59 @@
 import inspect
 import operator
 from builtins import isinstance as real_isinstance
+from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.utils.typetracing as tt
+
+
+def test_type_tracing_max_depth():
+    proxy = tt.ObjectProxy(MagicMock())
+    for i in range(tt._MAX_PROXY_NESTING):
+        proxy = proxy["foo"]
+    assert isinstance(proxy, tt.ObjectProxy)
+
+
+def test_type_tracing_max_depth_after():
+    proxy = tt.ObjectProxy(MagicMock())
+    for i in range(tt._MAX_PROXY_NESTING + 1):
+        proxy = proxy["foo"]
+    assert not isinstance(proxy, tt.ObjectProxy)
+
+
+def test_type_tracing_max_depth_get_attr():
+    mock = MagicMock()
+    mock.foo = mock
+    proxy = tt.ObjectProxy(mock)
+    for i in range(tt._MAX_PROXY_NESTING):
+        proxy = proxy.foo
+    assert isinstance(proxy, tt.ObjectProxy)
+
+
+def test_type_tracing_max_depth_after_get_attr():
+    mock = MagicMock()
+    mock.foo = mock
+    proxy = tt.ObjectProxy(mock)
+    for i in range(tt._MAX_PROXY_NESTING + 1):
+        proxy = proxy.foo
+    assert not isinstance(proxy, tt.ObjectProxy)
+
+
+def test_type_tracing_max_depth_iter():
+    mock = [[[[[[[MagicMock()]]]]]]]
+    proxy = tt.ObjectProxy(mock)
+    for i in range(tt._MAX_PROXY_NESTING):
+        proxy = next(iter(proxy))
+    assert isinstance(proxy, tt.ObjectProxy)
+
+
+def test_type_tracing_max_depth_after_iter():
+    mock = [[[[[[[MagicMock()]]]]]]]
+    proxy = tt.ObjectProxy(mock)
+    for i in range(tt._MAX_PROXY_NESTING + 1):
+        proxy = next(iter(proxy))
+    assert not isinstance(proxy, tt.ObjectProxy)
 
 
 def test_isinstance_shim():
