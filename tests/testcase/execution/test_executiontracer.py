@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import threading
+from decimal import Decimal
 from math import inf
 from unittest.mock import MagicMock
 
@@ -142,13 +143,15 @@ def test_passed_exception_match_not():
         pytest.param(Compare.NE, "string", 0, 0, inf),
         pytest.param(Compare.NE, "abc", "cde", 0, 3),
         pytest.param(Compare.LT, 5, 0, 6, 0),
-        pytest.param(Compare.LT, 0, 5, 0, 6),
-        pytest.param(Compare.LE, 5, 0, 6, 0),
+        pytest.param(Compare.LT, 0, 5, 0, 5),
+        pytest.param(Compare.LT, Decimal(5), Decimal(0), 6, 0),
+        pytest.param(Compare.LT, Decimal(0), Decimal(5), 0, 5),
+        pytest.param(Compare.LE, 5, 0, 5, 0),
         pytest.param(Compare.LE, 0, 5, 0, 6),
-        pytest.param(Compare.GT, 5, 0, 0, 6),
+        pytest.param(Compare.GT, 5, 0, 0, 5),
         pytest.param(Compare.GT, 0, 5, 6, 0),
         pytest.param(Compare.GE, 5, 0, 0, 6),
-        pytest.param(Compare.GE, 0, 5, 6, 0),
+        pytest.param(Compare.GE, 0, 5, 5, 0),
         pytest.param(Compare.IN, 0, [0], 0, 1),
         pytest.param(Compare.IN, 0, [1], 1, 0),
         pytest.param(Compare.IN, 0, [], inf, 0),
@@ -288,12 +291,18 @@ def test_enable_disable_bool():
     assert len(tracer.get_trace().executed_predicates) == 1
 
 
-@pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", inf)])
+@pytest.mark.parametrize(
+    "val1,val2,result",
+    [(1, 1, 0), (2, 1, 1), ("c", "b", inf), (Decimal(0.5), Decimal(0.3), 0.2)],
+)
 def test_le(val1, val2, result):
     assert _le(val1, val2) == result
 
 
-@pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", inf)])
+@pytest.mark.parametrize(
+    "val1,val2,result",
+    [(0, 1, 0), (1, 1, 1), ("b", "b", inf), (Decimal(0.5), Decimal(0.3), 1.2)],
+)
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result
 

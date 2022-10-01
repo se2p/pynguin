@@ -1233,7 +1233,7 @@ class ExecutionTracer:
                     distance_false = len(value)
                 elif is_numeric(value):
                     # For numeric value, we can use their absolute value
-                    distance_false = abs(value)
+                    distance_false = float(abs(value))
                 else:
                     # Necessary to use inf instead of 1.0 here,
                     # so that a value for which we can't compute a false distance
@@ -1806,7 +1806,7 @@ def _eq(val1, val2) -> float:
     if val1 == val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return abs(val1 - val2)
+        return float(abs(val1 - val2))
     if is_string(val1) and is_string(val2):
         return levenshtein_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
@@ -1844,7 +1844,7 @@ def _lt(val1, val2) -> float:
     if val1 < val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return (val1 - val2) + 1.0
+        return (float(val1) - float(val2)) + 1.0
     return inf
 
 
@@ -1861,7 +1861,7 @@ def _le(val1, val2) -> float:
     if val1 <= val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return (val1 - val2) + 1.0
+        return float(val1) - float(val2)
     return inf
 
 
