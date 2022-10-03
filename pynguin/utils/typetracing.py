@@ -31,6 +31,9 @@ from pynguin.utils.orderedset import OrderedSet
 
 LOGGER = logging.getLogger(__name__)
 
+# Max depth for proxies. Afterwards we don't wrap values anymore.
+_MAX_PROXY_NESTING = 5
+
 
 @dataclasses.dataclass
 class ProxyKnowledge:
@@ -164,7 +167,7 @@ def proxify(log_arg_types=False, no_wrap_return=False):
                 if log_arg_types:
                     for pos, arg in enumerate(args[1:]):
                         nested_knowledge.arg_types[pos].add(type(arg))
-            if no_wrap_return:
+            if no_wrap_return or knowledge.depth >= _MAX_PROXY_NESTING:
                 return function(*args, **kwargs)
             return ObjectProxy(function(*args, **kwargs), knowledge=nested_knowledge)
 
@@ -410,6 +413,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         # Done before getattr, to make sure we store the access in case of an
         # exception
         child_knowledge = knowledge.symbol_table[name]
+        if knowledge.depth >= _MAX_PROXY_NESTING:
+            return getattr(self.__wrapped__, name)  # type:ignore
         return ObjectProxy(
             getattr(self.__wrapped__, name),  # type:ignore
             knowledge=child_knowledge,
@@ -659,9 +664,12 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __iter__(self):
         knowledge = self._self_proxy_knowledge
         nested_knowledge = knowledge.symbol_table["__iter__"]
-        for i in self.__wrapped__:
-            proxy = ObjectProxy(i, knowledge=nested_knowledge)
-            yield proxy
+        if knowledge.depth >= _MAX_PROXY_NESTING:
+            yield from self.__wrapped__
+        else:
+            for i in self.__wrapped__:
+                proxy = ObjectProxy(i, knowledge=nested_knowledge)
+                yield proxy
 
     # These do not give us any hint.
     # def __copy__(self):
