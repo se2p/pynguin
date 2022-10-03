@@ -215,7 +215,7 @@ def test_compute_fitness_values_no_branches():
     [
         (
             "tests.fixtures.branchcoverage.singlebranches",
-            0.85714285,
+            0.8333333333333334,
             """def test_case_0():
     int_0 = 5
     var_0 = module_0.first(int_0)
@@ -239,7 +239,7 @@ def test_compute_fitness_values_no_branches():
         ),
         (
             "tests.fixtures.branchcoverage.nestedbranches",
-            5.90782493,
+            5.906593406593407,
             """def test_case_0():
     int_0 = -50
     var_0 = module_0.nested_branches(int_0)
