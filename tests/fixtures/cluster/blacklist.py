@@ -10,6 +10,7 @@ import multiprocessing.shared_memory as sm
 # Uses function from blacklisted module
 import tempfile as temp
 from tempfile import SpooledTemporaryFile, mkdtemp
+from time import sleep
 
 import tests.fixtures.cluster.blacklist_transitive as bl_tr
 
@@ -20,6 +21,7 @@ def foo():
     mkdtemp()
     bl_tr.bar()
     sm.SharedMemory()
+    sleep(1)
 
 
 def main():
@@ -27,4 +29,8 @@ def main():
 
 
 def test():
+    """test usually performs some tests on the module, we don't want them."""
+
+
+def test_foo():
     """test usually performs some tests on the module, we don't want them."""

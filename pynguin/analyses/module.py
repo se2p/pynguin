@@ -178,6 +178,9 @@ MODULE_BLACKLIST = frozenset(
     )
 )
 
+# Blacklist for methods.
+METHOD_BLACKLIST = frozenset(("time.sleep",))
+
 
 def _is_blacklisted(element: Any) -> bool:
     """Checks if the given element belongs to the blacklist.
@@ -200,9 +203,15 @@ def _is_blacklisted(element: Any) -> bool:
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
-        return element.__module__ in MODULE_BLACKLIST or element.__name__ in (
-            "main",
-            "test",
+        return (
+            element.__module__ in MODULE_BLACKLIST
+            or element.__qualname__.startswith(
+                (
+                    "main",
+                    "test",
+                )
+            )
+            or f"{element.__module__}.{element.__qualname__}" in METHOD_BLACKLIST
         )
     # Something that is not supported yet.
     return False
