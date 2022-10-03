@@ -124,6 +124,7 @@ def _setup_logging(
     if no_rich:
         handler: logging.Handler = logging.StreamHandler()
     else:
+        install()
         console = Console(tab_size=4)
         handler = RichHandler(
             rich_tracebacks=True, log_time_format="[%X]", console=console
@@ -170,7 +171,6 @@ to see why this happens and what you must do to prevent it."""
         )
         return -1
 
-    install()
     if argv is None:
         argv = sys.argv
     if len(argv) <= 1:
