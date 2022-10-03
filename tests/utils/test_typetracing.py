@@ -128,6 +128,15 @@ def test_dont_record_objectproxy_instance_check_3():
     assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
 
 
+def test_dont_record_objectproxy_instance_check_4():
+    proxy = tt.ObjectProxy(42)
+    with tt.shim_isinstance():
+        with pytest.raises(TypeError):
+            assert isinstance(proxy, (tt.ObjectProxy(int), float))
+    assert inspect.isbuiltin(isinstance)
+    assert len(tt.ProxyKnowledge.from_proxy(proxy).type_checks) == 0
+
+
 def test_objectproxy_instance_check():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
