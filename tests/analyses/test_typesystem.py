@@ -22,6 +22,7 @@ from pynguin.analyses.typesystem import (
     TypeInfo,
     TypeSystem,
     UnionType,
+    _is_base_type_match,
     is_collection_type,
     is_primitive_type,
 )
@@ -876,3 +877,30 @@ def test_numeric_tower(type_system, numeric, subtypes):
     assert type_system.numeric_tower[type_system.convert_type_hint(numeric)] == [
         type_system.convert_type_hint(typ) for typ in subtypes
     ]
+
+
+@pytest.mark.parametrize(
+    "left,right,result",
+    [
+        (int, int, True),
+        (tuple[int, int], tuple[int, str], True),
+        (dict[int, int], dict[bool, str], True),
+        (dict[int, int], list, False),
+        (int | bool, bool | str, True),
+        (int | float, bool | str, False),
+        (int, int | str, True),
+        (int | str, str, True),
+        (int | str, bool, False),
+        (int, bool, False),
+        (Any, bool, False),
+        (bool, Any, False),
+        (list[bool], list | bool, True),
+    ],
+)
+def test_base_type_match(type_system, left, right, result):
+    assert (
+        _is_base_type_match(
+            type_system.convert_type_hint(left), type_system.convert_type_hint(right)
+        )
+        == result
+    )

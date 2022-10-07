@@ -267,6 +267,51 @@ class TypeVisitor(Generic[T]):
         """
 
 
+class _BaseTypeMatch(TypeVisitor[bool]):
+    """A type visitor to check for base type matches."""
+
+    def __init__(self, right: ProperType):
+        self.right = right
+
+    def visit_any_type(self, left: AnyType) -> bool:
+        # Any is not guessed/recorded
+        return False
+
+    def visit_none_type(self, left: NoneType) -> bool:
+        return isinstance(self.right, NoneType)
+
+    def visit_instance(self, left: Instance) -> bool:
+        return isinstance(self.right, Instance) and left.type == self.right.type
+
+    def visit_tuple_type(self, left: TupleType) -> bool:
+        return isinstance(self.right, TupleType)
+
+    def visit_union_type(self, left: UnionType) -> bool:
+        return any(
+            _is_base_type_match(left_elem, self.right) for left_elem in left.items
+        )
+
+    def visit_unsupported_type(self, left: Unsupported) -> bool:
+        # Cannot compare.
+        return False
+
+
+def _is_base_type_match(left: ProperType, right: ProperType) -> bool:
+    """Is left a base type match of right?
+    This is only useful for statistics purposes, i.e., do we have a fuzzy type match?
+
+    Args:
+        left: The guessed type
+        right: The ground truth
+
+    Returns:
+        True, if left is a base type match of right.
+    """
+    if isinstance(right, UnionType):
+        return any(_is_base_type_match(left, right_elem) for right_elem in right.items)
+    return left.accept(_BaseTypeMatch(right))
+
+
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
 
@@ -556,8 +601,8 @@ class InferredSignature:
     # Parameter types of each parameter, including unsupported types,
     # i.e., types that we currently cannot understand/parse. Purely used for statistics
     # purposes!
-    parameters_for_statistics: dict[str, str] = field(default_factory=dict)
-    return_type_for_statistics: str = ""
+    parameters_for_statistics: dict[str, ProperType] = field(default_factory=dict)
+    return_type_for_statistics: ProperType = ANY
 
     def __post_init__(self):
         self.return_type = self.original_return_type
@@ -938,22 +983,21 @@ class InferredSignature:
             is_constructor: does this signature to a constructor?
             stats: stats object to log to.
         """
-        stats.annotated_parameter_types[callable_full_name] = dict(
-            self.parameters_for_statistics
-        )
+        sig_info = stats.signature_infos[callable_full_name]
+
+        sig_info.annotated_parameter_types = {
+            k: str(v) for k, v in self.parameters_for_statistics.items()
+        }
         if not is_constructor:
             # Constructors don't need a return type, so no need to log it.
-            stats.annotated_return_types[
-                callable_full_name
-            ] = self.return_type_for_statistics
+            sig_info.annotated_return_type = str(self.return_type_for_statistics)
         else:
             stats.number_of_constructors += 1
 
-        parameter_types: dict[str, str] = {}
-        parameters = []
+        parameter_types: dict[str, list[str]] = {}
         for param_name, param in self.signature.parameters.items():
-            param_annotation: ProperType = ANY
             if param_name in self.original_parameters and param_name in self.knowledge:
+                top_n_guesses: list[ProperType] = []
                 counter: Counter[ProperType] = Counter()
                 for _ in range(100):
                     guess = self._guess_parameter_type(
@@ -962,23 +1006,40 @@ class InferredSignature:
                     )
                     if guess is not None:
                         counter[guess] += 1
-                if len(counter) > 0:
-                    top_guess = counter.most_common(1)[0][0]
-                    param_annotation = top_guess
-            # No guess or no knowledge
-            parameters.append(param.replace(annotation=str(param_annotation)))
-            if param_name in self.original_parameters:
-                parameter_types[param_name] = str(param_annotation)
+                for typ, _ in counter.most_common(
+                    config.configuration.statistics_output.type_guess_top_n
+                ):
+                    top_n_guesses.append(typ)
+
+                # Need to compute which types are base types matches of others.
+                # Otherwise, we need to parse the string again...
+                for guess in top_n_guesses:
+                    if _is_base_type_match(
+                        guess, self.parameters_for_statistics[param_name]
+                    ):
+                        sig_info.base_type_matches.add(
+                            (
+                                str(guess),
+                                str(self.parameters_for_statistics[param_name]),
+                            )
+                        )
+                if _is_base_type_match(
+                    self.return_type, self.return_type_for_statistics
+                ):
+                    sig_info.base_type_matches.add(
+                        (
+                            str(self.return_type),
+                            str(self.return_type_for_statistics),
+                        )
+                    )
+                parameter_types[param_name] = [str(t) for t in top_n_guesses]
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
             # Only when we recorded something that is not a constructor:
-            stats.recorded_return_types[callable_full_name] = return_type
-        stats.guessed_parameter_types[callable_full_name] = parameter_types
-        stats.formatted_guessed_signatures[
+            stats.signature_infos[callable_full_name].recorded_return_type = return_type
+        stats.signature_infos[
             callable_full_name
-        ] = callable_full_name + str(
-            self.signature.replace(parameters=parameters, return_annotation=return_type)
-        )
+        ].guessed_parameter_types = parameter_types
 
 
 class TypeSystem:
@@ -1333,20 +1394,23 @@ class TypeSystem:
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
-        parameters_for_statistics: dict[str, str] = {}
+
+        # Always use type hints for statistics, regardless of configured inference.
+        hints_for_statistics: dict = self.type_hints_provider(method)
+        parameters_for_statistics: dict[str, ProperType] = {}
         for param_name in method_signature.parameters:
             if param_name == "self":
                 # TODO(fk) does not necessarily work, can be named anything,
                 #  for example cls for @classmethod.
                 continue
             parameters[param_name] = self.convert_type_hint(hints.get(param_name))
-            parameters_for_statistics[param_name] = str(
-                self.convert_type_hint(hints.get(param_name), unsupported=UNSUPPORTED)
+            parameters_for_statistics[param_name] = self.convert_type_hint(
+                hints_for_statistics.get(param_name), unsupported=UNSUPPORTED
             )
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
         return_type_for_statistics: ProperType = self.convert_type_hint(
-            hints.get("return"), unsupported=UNSUPPORTED
+            hints_for_statistics.get("return"), unsupported=UNSUPPORTED
         )
 
         return InferredSignature(
@@ -1355,7 +1419,7 @@ class TypeSystem:
             original_return_type=return_type,
             type_system=self,
             parameters_for_statistics=parameters_for_statistics,
-            return_type_for_statistics=str(return_type_for_statistics),
+            return_type_for_statistics=return_type_for_statistics,
         )
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:

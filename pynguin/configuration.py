@@ -212,6 +212,10 @@ class StatisticsOutputConfiguration:
     on bytecode level which might yield different results when compared with other
     tools, e.g., Coverage.py."""
 
+    type_guess_top_n: int = 10
+    """When exporting type guesses for parameters, how many guesses per parameter
+    should be exported? Expects positive integers."""
+
 
 @dataclasses.dataclass
 class TestCaseOutputConfiguration:
