@@ -16,20 +16,3 @@ def compute_sum(invoice):
             total *= 0.95
         summed += total
     return summed
-
-
-class Invoice:
-    def __init__(self):
-        self.elements = []
-
-    def add_item(self, item):
-        self.elements.append(item)
-
-
-class InvoiceElement:
-    def __init__(self, price, amount):
-        self._price = price
-        self._amount = amount
-
-    def get_total(self):
-        return self._price * self._amount
