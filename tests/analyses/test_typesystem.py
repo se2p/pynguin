@@ -895,6 +895,9 @@ def test_numeric_tower(type_system, numeric, subtypes):
         (Any, bool, False),
         (bool, Any, False),
         (list[bool], list | bool, True),
+        (type(None), str, False),
+        (str, type(None), False),
+        (type(None), type(None), True),
     ],
 )
 def test_base_type_match(type_system, left, right, result):
