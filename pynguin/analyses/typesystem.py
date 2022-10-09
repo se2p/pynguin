@@ -1204,7 +1204,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
 
     @functools.lru_cache(maxsize=1)
     def get_all_types(self) -> list[TypeInfo]:
-        """Provides a set of all known types.
+        """Provides a list of all known types.
 
         Returns:
             A list of all known types.
