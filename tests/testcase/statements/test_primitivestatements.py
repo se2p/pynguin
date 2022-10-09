@@ -68,6 +68,7 @@ def test_primitive_statement_value_from_seeding(
         stmt.BytesPrimitiveStatement,
         stmt.BooleanPrimitiveStatement,
         stmt.ComplexPrimitiveStatement,
+        stmt.ClassPrimitiveStatement,
     ],
 )
 def test_primitive_statement_value_none(statement_type, default_test_case):
@@ -84,6 +85,7 @@ def test_primitive_statement_value_none(statement_type, default_test_case):
         (stmt.BytesPrimitiveStatement, b"foo", b"bar"),
         (stmt.BooleanPrimitiveStatement, True, False),
         (stmt.ComplexPrimitiveStatement, 4 + 1j, 1 + 4j),
+        (stmt.ClassPrimitiveStatement, 0, 1),
     ],
 )
 def test_primitive_statement_set_value(
@@ -120,6 +122,10 @@ def test_primitive_statement_set_value(
         (
             stmt.ComplexPrimitiveStatement,
             4 + 1j,
+        ),
+        (
+            stmt.ClassPrimitiveStatement,
+            0,
         ),
     ],
 )
@@ -165,6 +171,11 @@ def test_primitive_statement_clone(statement_type, default_test_case, value):
             4 + 1j,
             "visit_complex_primitive_statement",
         ),
+        (
+            stmt.ClassPrimitiveStatement,
+            0,
+            "visit_class_primitive_statement",
+        ),
     ],
 )
 def test_primitive_statement_accept(
@@ -185,6 +196,7 @@ def test_primitive_statement_accept(
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
+        (stmt.ClassPrimitiveStatement, 0),
     ],
 )
 def test_primitive_statement_equals_same(statement_type, default_test_case, value):
@@ -201,6 +213,7 @@ def test_primitive_statement_equals_same(statement_type, default_test_case, valu
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
+        (stmt.ClassPrimitiveStatement, 0),
     ],
 )
 def test_primitive_statement_equals_other_type(
@@ -219,6 +232,7 @@ def test_primitive_statement_equals_other_type(
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
+        (stmt.ClassPrimitiveStatement, 0),
     ],
 )
 def test_primitive_statement_equals_clone(statement_type, default_test_case, value):
@@ -247,6 +261,7 @@ def test_none_statement_equals_clone():
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
+        (stmt.ClassPrimitiveStatement, 0),
     ],
 )
 def test_primitive_statement_hash(statement_type, default_test_case, value):
@@ -629,3 +644,9 @@ def test_enum_statement_accept(test_case_mock):
     visitor = MagicMock()
     statement.accept(visitor)
     visitor.visit_enum_statement.assert_called_once()
+
+
+def test_class_statement_delta(default_test_case):
+    statement = stmt.ClassPrimitiveStatement(default_test_case, 0)
+    statement.delta()
+    assert statement.value != 0
