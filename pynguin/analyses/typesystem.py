@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from typing import _BaseGenericAlias  # type:ignore
 from typing import Any, Final, Generic, TypeVar, cast, get_origin, get_type_hints
 
@@ -995,9 +996,15 @@ class InferredSignature:
             stats.number_of_constructors += 1
 
         parameter_types: dict[str, list[str]] = {}
+        randomly_chosen_parameter_types: dict[str, list[str]] = {}
         for param_name, param in self.signature.parameters.items():
             if param_name in self.original_parameters:
                 top_n_guesses: list[ProperType] = []
+                # Choose random types to compare sampling?
+                randomly_chosen: list[ProperType] = [
+                    self.type_system.make_instance(choice)
+                    for choice in randomness.choices(self.type_system.get_all_types(), k=config.configuration.statistics_output.type_guess_top_n)
+                ]
                 if param_name in self.knowledge:
                     counter: Counter[ProperType] = Counter()
                     for _ in range(100):
@@ -1014,26 +1021,34 @@ class InferredSignature:
 
                     # Need to compute which types are base types matches of others.
                     # Otherwise, we need to parse the string again in the evaluation...
-                    for guess in top_n_guesses:
-                        if _is_base_type_match(
-                            guess, self.parameters_for_statistics[param_name]
-                        ):
-                            sig_info.partial_type_matches.add(
-                                (
-                                    str(guess),
-                                    str(self.parameters_for_statistics[param_name]),
-                                )
-                            )
-                    if _is_base_type_match(
-                        self.return_type, self.return_type_for_statistics
-                    ):
-                        sig_info.partial_type_matches.add(
-                            (
-                                str(self.return_type),
-                                str(self.return_type_for_statistics),
+                    for a, b in (
+                        list(
+                            zip(
+                                top_n_guesses,
+                                [self.parameters_for_statistics[param_name]]
+                                * len(top_n_guesses),
                             )
                         )
+                        + list(
+                            zip(
+                                randomly_chosen,
+                                [self.parameters_for_statistics[param_name]]
+                                * len(randomly_chosen),
+                            )
+                        )
+                        + [(self.return_type, self.return_type_for_statistics)]
+                    ):
+                        if _is_base_type_match(a, b):
+                            sig_info.partial_type_matches.add(
+                                (
+                                    str(a),
+                                    str(b),
+                                )
+                            )
                 parameter_types[param_name] = [str(t) for t in top_n_guesses]
+                randomly_chosen_parameter_types[param_name] = [
+                    str(t) for t in randomly_chosen
+                ]
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
             # Only when we recorded something that is not a constructor:
@@ -1041,6 +1056,9 @@ class InferredSignature:
         stats.signature_infos[
             callable_full_name
         ].guessed_parameter_types = parameter_types
+        stats.signature_infos[
+            callable_full_name
+        ].randomly_chosen_parameter_types = randomly_chosen_parameter_types
 
 
 class TypeSystem:  # pylint:disable=too-many-public-methods
