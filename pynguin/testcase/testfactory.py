@@ -1097,6 +1097,7 @@ class TestFactory:
 
         if isinstance(parameter_type, NoneType):
             return self._create_none(test_case, position, recursion_depth)
+        # TODO(fk) think about creating collections/primitives from calls?
         if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
                 test_case,
@@ -1182,6 +1183,8 @@ class TestFactory:
                 statement = stmt.StringPrimitiveStatement(
                     test_case, constant_provider=constant_provider
                 )
+            case "type":
+                statement = stmt.ClassPrimitiveStatement(test_case)
             case _:
                 raise RuntimeError(f"Unknown primitive {parameter_type}")
         ret = test_case.add_variable_creating_statement(statement, position)

@@ -488,7 +488,7 @@ is_collection_type = _CollectionTypeVisitor()
 
 class _PrimitiveTypeVisitor(TypeVisitor[bool]):
 
-    Primitives = {int, str, bool, float, complex, bytes}
+    Primitives = {int, str, bool, float, complex, bytes, type}
 
     def visit_any_type(self, left: AnyType) -> bool:
         return False
@@ -1043,7 +1043,7 @@ class InferredSignature:
         ].guessed_parameter_types = parameter_types
 
 
-class TypeSystem:
+class TypeSystem:  # pylint:disable=too-many-public-methods
     """Provides a simple inheritance graph relating various classes using their subclass
     relationships. Note that parents point to their children.
 
@@ -1263,6 +1263,15 @@ class TypeSystem:
             All types (or supertypes thereof) who have the given symbol.
         """
         return self._symbol_map[symbol]
+
+    @functools.lru_cache(maxsize=1)
+    def get_all_types(self) -> list[TypeInfo]:
+        """Provides a list of all known types.
+
+        Returns:
+            A list of all known types.
+        """
+        return list(self._types.values())
 
     def push_symbols_down(self) -> None:
         """We don't want to see symbols multiple times, e.g., in subclasses, so only the

@@ -12,7 +12,7 @@ from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
-from pynguin.testcase.statement import StatementVisitor
+from pynguin.testcase.statement import ClassPrimitiveStatement, StatementVisitor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -115,6 +115,22 @@ class StatementToAstVisitor(StatementVisitor):
                     ctx=ast.Load(),
                 ),
                 attr=stmt.value_name,
+                ctx=ast.Load(),
+            ),
+        )
+
+    def visit_class_primitive_statement(self, stmt: ClassPrimitiveStatement) -> None:
+        clazz = stmt.type_info
+        self._ast_node = ast.Assign(
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                )
+            ],
+            # TODO(fk) think about nested classes, also for enums.
+            value=ast.Attribute(
+                value=self._create_module_alias(clazz.module),
+                attr=clazz.name,
                 ctx=ast.Load(),
             ),
         )

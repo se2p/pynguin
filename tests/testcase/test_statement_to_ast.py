@@ -81,6 +81,15 @@ def test_statement_to_ast_bool(statement_to_ast_visitor, default_test_case):
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = True"
 
 
+def test_statement_to_ast_class(statement_to_ast_visitor, default_test_case):
+    class_stmt = stmt.ClassPrimitiveStatement(default_test_case, 0)
+    statement_to_ast_visitor.visit_class_primitive_statement(class_stmt)
+    assert (
+        __create_source_from_ast(statement_to_ast_visitor.ast_node)
+        == "var_0 = module_0.int"
+    )
+
+
 def test_statement_to_ast_none(statement_to_ast_visitor, default_test_case):
     none_stmt = stmt.NoneStatement(default_test_case)
     statement_to_ast_visitor.visit_none_statement(none_stmt)

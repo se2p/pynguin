@@ -24,6 +24,7 @@ from pynguin.analyses.typesystem import (
     Instance,
     NoneType,
     ProperType,
+    TypeInfo,
 )
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
@@ -293,6 +294,14 @@ class StatementVisitor(metaclass=ABCMeta):
     @abstractmethod
     def visit_enum_statement(self, stmt) -> None:
         """Visit enum.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_class_primitive_statement(self, stmt) -> None:
+        """Visit class primitive statement.
 
         Args:
             stmt: the statement to visit
@@ -1935,6 +1944,67 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
 
     def accept(self, visitor: StatementVisitor) -> None:
         visitor.visit_enum_statement(self)
+
+
+class ClassPrimitiveStatement(PrimitiveStatement[int]):
+    """Primitive Statement that references a class"""
+
+    def __init__(self, test_case: tc.TestCase, value: int | None = None):
+        # TODO(fk) think about type being generic/bound, e.g., type[Foo]
+        # We store the index in the global class list here.
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(type)),
+            value,
+        )
+
+    @property
+    def type_info(self) -> TypeInfo:
+        """Convenience method to access the type that is associated with
+        the stored index.
+
+        Returns:
+            The associated type info.
+        """
+        assert self._value is not None
+        return self._test_case.test_cluster.type_system.get_all_types()[self._value]
+
+    def randomize_value(self) -> None:
+        self._value = randomness.next_int(
+            0, len(self._test_case.test_cluster.type_system.get_all_types())
+        )
+
+    def delta(self) -> None:
+        assert self._value is not None
+        num_classes = len(self._test_case.test_cluster.type_system.get_all_types())
+        self._value += randomness.choice([-1, 1])
+        self._value = (self._value + num_classes) % num_classes
+
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> ClassPrimitiveStatement:
+        return ClassPrimitiveStatement(test_case, value=self.value)
+
+    def __repr__(self) -> str:
+        return f"EnumPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        assert self._value is not None
+        return f"{self.type_info.full_name}: type"
+
+    def structural_eq(
+        self,
+        other: Statement,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> bool:
+        return super().structural_eq(other, memo) and isinstance(
+            other, ClassPrimitiveStatement
+        )
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_class_primitive_statement(self)
 
 
 class NoneStatement(PrimitiveStatement[None]):
