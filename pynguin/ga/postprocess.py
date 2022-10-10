@@ -212,6 +212,9 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
     def visit_enum_statement(self, stmt) -> None:
         self._handle_collection_or_primitive(stmt)
 
+    def visit_class_primitive_statement(self, stmt) -> None:
+        self._handle_collection_or_primitive(stmt)
+
     def visit_none_statement(self, stmt) -> None:
         self._handle_collection_or_primitive(stmt)
 

@@ -434,7 +434,7 @@ def test_types_equality_self(left, right, result):
         (Instance(TypeInfo(complex)), True),
         (Instance(TypeInfo(bool)), True),
         (Instance(TypeInfo(bytes)), True),
-        (Instance(TypeInfo(type)), False),
+        (Instance(TypeInfo(list)), False),
         (UnionType((AnyType(),)), False),
         (NoneType(), False),
     ],
