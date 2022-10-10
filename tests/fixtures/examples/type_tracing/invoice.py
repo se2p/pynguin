@@ -8,8 +8,11 @@ from tests.fixtures.examples.type_tracing.large_test_cluster import *  # noqa: F
 
 
 def compute_sum(invoice):
-    invoice.add(42)
-    invoice.add(100)
-    if sum(invoice) > 420:
-        return 4
-    return -1
+    summed = 0
+    for item in invoice.elements:
+        total = item.get_total()
+        # Discount
+        if total > 100:
+            total *= 0.95
+        summed += total
+    return summed
