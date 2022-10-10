@@ -59,6 +59,24 @@ class ProxyKnowledge:
     def __post_init__(self):
         self.symbol_table = DepthDefaultDict(self.depth)
 
+    def find_path(self, path: tuple[str, ...]) -> ProxyKnowledge | None:
+        """Check if this knowledge tree has the given path.
+
+        Args:
+            path: The path to check
+
+        Returns:
+            The knowledge object at the of the path, if it exists, otherwise None.
+        """
+        assert len(path) > 0, "Expected non-empty path."
+        current = self
+        for element in path:
+            if element in current.symbol_table:
+                current = current.symbol_table[element]
+            else:
+                return None
+        return current
+
     def pretty(self) -> str:
         """Create a pretty representation of this object.
 
@@ -686,7 +704,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     #     raise NotImplementedError(
     #             'object proxy must define __reduce_ex__()')
 
-    @proxify()
+    @proxify(log_arg_types=True)
     def __call__(self, *args, **kwargs):
         return self.__wrapped__(*args, **kwargs)
 

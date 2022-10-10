@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.utils.typetracing as tt
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_type_tracing_max_depth():
@@ -759,3 +760,18 @@ def test_getattr():
     proxy = tt.ObjectProxy([1])
     proxy.count(1)
     assert "count" in tt.ProxyKnowledge.from_proxy(proxy).symbol_table
+
+
+def test_has_path():
+    proxy = tt.ObjectProxy([1])
+    proxy.count(1)
+    count_call_knowledge = tt.ProxyKnowledge.from_proxy(proxy).find_path(
+        ("count", "__call__")
+    )
+    assert count_call_knowledge.arg_types[0] == OrderedSet([int])
+
+
+def test_has_path_no_path():
+    proxy = tt.ObjectProxy([1])
+    proxy.count(1)
+    assert tt.ProxyKnowledge.from_proxy(proxy).find_path(("count", "foobar")) is None

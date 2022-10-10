@@ -613,9 +613,11 @@ def test_guess_generic_types_list_set_from_elements(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].type_checks.add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize(
@@ -628,9 +630,11 @@ def test_guess_generic_types_dict_key_from_elements(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].type_checks.add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize(
@@ -646,9 +650,11 @@ def test_guess_generic_types_dict_key_from_arguments(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].arg_types[0].add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize(
@@ -661,9 +667,11 @@ def test_guess_generic_types_dict_value_from_elements(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].type_checks.add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize(
@@ -679,9 +687,11 @@ def test_guess_generic_types_dict_value_from_arguments(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].arg_types[1].add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize(
@@ -701,14 +711,16 @@ def test_guess_generic_types_list_set_from_arguments(
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
     knowledge.symbol_table[symbol].arg_types[0].add(int)
-    assert inferred_signature._guess_generic_parameters_for_builtins(
-        inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
-    ) == inferred_signature.type_system.convert_type_hint(result)
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[0]
+        assert inferred_signature._guess_generic_type_parameters_for_builtins(
+            inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
+        ) == inferred_signature.type_system.convert_type_hint(result)
 
 
 @pytest.mark.parametrize("inp, result", [(int, int), (Any, Any)])
 def test_guess_generic_types_falltrough(inferred_signature, inp, result):
-    assert inferred_signature._guess_generic_parameters_for_builtins(
+    assert inferred_signature._guess_generic_type_parameters_for_builtins(
         inferred_signature.type_system.convert_type_hint(inp), None, None
     ) == inferred_signature.type_system.convert_type_hint(result)
 
