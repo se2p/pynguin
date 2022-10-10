@@ -16,7 +16,6 @@ from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from itertools import zip_longest
 from typing import _BaseGenericAlias  # type:ignore
 from typing import Any, Final, Generic, TypeVar, cast, get_origin, get_type_hints
 
@@ -976,6 +975,7 @@ class InferredSignature:
     def log_stats_and_guess_signature(
         self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
     ) -> None:
+        # pylint:disable=too-many-locals
         """Logs some statistics and creates a guessed signature.
         Parameters annotated with Any could not be guessed.
 
@@ -1003,7 +1003,10 @@ class InferredSignature:
                 # Choose random types to compare sampling?
                 randomly_chosen: list[ProperType] = [
                     self.type_system.make_instance(choice)
-                    for choice in randomness.choices(self.type_system.get_all_types(), k=config.configuration.statistics_output.type_guess_top_n)
+                    for choice in randomness.choices(
+                        self.type_system.get_all_types(),
+                        k=config.configuration.statistics_output.type_guess_top_n,
+                    )
                 ]
                 if param_name in self.knowledge:
                     counter: Counter[ProperType] = Counter()
@@ -1021,7 +1024,7 @@ class InferredSignature:
 
                     # Need to compute which types are base types matches of others.
                     # Otherwise, we need to parse the string again in the evaluation...
-                    for a, b in (
+                    for left, right in (
                         list(
                             zip(
                                 top_n_guesses,
@@ -1038,11 +1041,11 @@ class InferredSignature:
                         )
                         + [(self.return_type, self.return_type_for_statistics)]
                     ):
-                        if _is_base_type_match(a, b):
+                        if _is_base_type_match(left, right):
                             sig_info.partial_type_matches.add(
                                 (
-                                    str(a),
-                                    str(b),
+                                    str(left),
+                                    str(right),
                                 )
                             )
                 parameter_types[param_name] = [str(t) for t in top_n_guesses]
