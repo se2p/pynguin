@@ -996,42 +996,43 @@ class InferredSignature:
 
         parameter_types: dict[str, list[str]] = {}
         for param_name, param in self.signature.parameters.items():
-            if param_name in self.original_parameters and param_name in self.knowledge:
+            if param_name in self.original_parameters:
                 top_n_guesses: list[ProperType] = []
-                counter: Counter[ProperType] = Counter()
-                for _ in range(100):
-                    guess = self._guess_parameter_type(
-                        self.knowledge[param_name],
-                        param.kind,
-                    )
-                    if guess is not None:
-                        counter[guess] += 1
-                for typ, _ in counter.most_common(
-                    config.configuration.statistics_output.type_guess_top_n
-                ):
-                    top_n_guesses.append(typ)
-
-                # Need to compute which types are base types matches of others.
-                # Otherwise, we need to parse the string again...
-                for guess in top_n_guesses:
-                    if _is_base_type_match(
-                        guess, self.parameters_for_statistics[param_name]
+                if param_name in self.knowledge:
+                    counter: Counter[ProperType] = Counter()
+                    for _ in range(100):
+                        guess = self._guess_parameter_type(
+                            self.knowledge[param_name],
+                            param.kind,
+                        )
+                        if guess is not None:
+                            counter[guess] += 1
+                    for typ, _ in counter.most_common(
+                        config.configuration.statistics_output.type_guess_top_n
                     ):
-                        sig_info.base_type_matches.add(
+                        top_n_guesses.append(typ)
+
+                    # Need to compute which types are base types matches of others.
+                    # Otherwise, we need to parse the string again...
+                    for guess in top_n_guesses:
+                        if _is_base_type_match(
+                            guess, self.parameters_for_statistics[param_name]
+                        ):
+                            sig_info.partial_type_matches.add(
+                                (
+                                    str(guess),
+                                    str(self.parameters_for_statistics[param_name]),
+                                )
+                            )
+                    if _is_base_type_match(
+                        self.return_type, self.return_type_for_statistics
+                    ):
+                        sig_info.partial_type_matches.add(
                             (
-                                str(guess),
-                                str(self.parameters_for_statistics[param_name]),
+                                str(self.return_type),
+                                str(self.return_type_for_statistics),
                             )
                         )
-                if _is_base_type_match(
-                    self.return_type, self.return_type_for_statistics
-                ):
-                    sig_info.base_type_matches.add(
-                        (
-                            str(self.return_type),
-                            str(self.return_type_for_statistics),
-                        )
-                    )
                 parameter_types[param_name] = [str(t) for t in top_n_guesses]
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
