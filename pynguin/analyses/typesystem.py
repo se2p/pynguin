@@ -1013,7 +1013,7 @@ class InferredSignature:
                         top_n_guesses.append(typ)
 
                     # Need to compute which types are base types matches of others.
-                    # Otherwise, we need to parse the string again...
+                    # Otherwise, we need to parse the string again in the evaluation...
                     for guess in top_n_guesses:
                         if _is_base_type_match(
                             guess, self.parameters_for_statistics[param_name]
