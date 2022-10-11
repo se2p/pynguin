@@ -725,6 +725,18 @@ class InferredSignature:
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
     _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
 
+    # pylint:disable=invalid-name
+    # Similar to above, but these are not dunder methods but are called,
+    # e.g., for 'append', we need to search for 'append.__call__(...)'
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
+        [("append", "__call__"), ("remove", "__call__")]
+    )
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
+        [("add", "__call__"), ("remove", "__call__"), ("discard", "__call__")]
+    )
+    # Nothing for tuple and dict.
+    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
+
     def _from_type_check(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
         # Type checks is not empty here.
         return self._choose_type_or_negate(
@@ -774,12 +786,12 @@ class InferredSignature:
             and guessed_type
             and guessed_type.accept(is_collection_type)
         ):
-            guessed_type = self._guess_generic_parameters_for_builtins(
+            guessed_type = self._guess_generic_type_parameters_for_builtins(
                 guessed_type, knowledge, recursion_depth
             )
         return guessed_type
 
-    def _guess_generic_parameters_for_builtins(
+    def _guess_generic_type_parameters_for_builtins(
         self,
         guessed_type: ProperType,
         knowledge: tt.ProxyKnowledge,
@@ -796,6 +808,7 @@ class InferredSignature:
                         recursion_depth,
                         InferredSignature._LIST_ELEMENT_SYMBOLS,
                         InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES,
+                        InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
                     args = (
@@ -809,6 +822,7 @@ class InferredSignature:
                         recursion_depth,
                         InferredSignature._SET_ELEMENT_SYMBOLS,
                         InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES,
+                        InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
                     args = (
@@ -822,6 +836,7 @@ class InferredSignature:
                         recursion_depth,
                         InferredSignature._DICT_KEY_SYMBOLS,
                         InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES,
+                        InferredSignature._EMPTY_SET,
                         argument_idx=0,
                     )
                     guessed_value_type = self._guess_generic_arguments(
@@ -829,6 +844,7 @@ class InferredSignature:
                         recursion_depth,
                         InferredSignature._DICT_VALUE_SYMBOLS,
                         InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES,
+                        InferredSignature._EMPTY_SET,
                         argument_idx=1,
                     )
                     args = (
@@ -850,6 +866,7 @@ class InferredSignature:
                     recursion_depth,
                     InferredSignature._TUPLE_ELEMENT_SYMBOLS,
                     InferredSignature._TUPLE_ELEMENT_FROM_ARGUMENT_TYPES,
+                    InferredSignature._EMPTY_SET,
                     argument_idx=0,
                 )
                 if guessed_element_type:
@@ -880,6 +897,7 @@ class InferredSignature:
         recursion_depth: int,
         element_symbols: OrderedSet[str],
         argument_symbols: OrderedSet[str],
+        argument_symbols_paths: OrderedSet[tuple[str, ...]],
         argument_idx: int,
     ) -> ProperType | None:
         guess_from: list[
@@ -888,6 +906,7 @@ class InferredSignature:
                 ProperType | None,
             ]
         ] = []
+
         if elem_symbols := element_symbols.intersection(knowledge.symbol_table.keys()):
             guess_from.append(
                 functools.partial(
@@ -905,10 +924,20 @@ class InferredSignature:
                     argument_idx,
                 )
             )
+        if paths := [
+            path
+            for path in argument_symbols_paths
+            if knowledge.find_path(path) is not None
+        ]:
+            guess_from.append(
+                functools.partial(
+                    self._guess_from_argument_types_from_path, paths, knowledge
+                )
+            )
+        # Add Any as guess, i.e., do not make argument more specific
+        guess_from.append(lambda: ANY)
 
-        if guess_from:
-            return randomness.choice(guess_from)()
-        return None
+        return randomness.choice(guess_from)()
 
     def _guess_from_argument_types(
         self,
@@ -919,6 +948,26 @@ class InferredSignature:
         arg_types = knowledge.symbol_table[randomness.choice(arg_symbols)].arg_types[
             arg_idx
         ]
+        if arg_types:
+            return self._choose_type_or_negate(
+                OrderedSet(
+                    [self.type_system.to_type_info(randomness.choice(arg_types))]
+                )
+            )
+        return None
+
+    def _guess_from_argument_types_from_path(
+        self,
+        paths: list[tuple[str, ...]],
+        knowledge: tt.ProxyKnowledge,
+    ) -> ProperType | None:
+        path = randomness.choice(paths)
+        path_end = knowledge.find_path(path)
+        assert path_end is not None
+        # Select type from last element in path, i.e., '__call__'
+        # This way we can, for example, guess the generic type by looking at the
+        # argument types of `append.__call__`.
+        arg_types = path_end.symbol_table[path[-1]].arg_types[0]
         if arg_types:
             return self._choose_type_or_negate(
                 OrderedSet(
