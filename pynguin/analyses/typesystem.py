@@ -997,6 +997,8 @@ class InferredSignature:
 
         parameter_types: dict[str, list[str]] = {}
         randomly_chosen_parameter_types: dict[str, list[str]] = {}
+        # The pairs for which we need to compute partial matches.
+        compute_partial_matches_for: list[tuple[ProperType, ProperType]] = []
         for param_name, param in self.signature.parameters.items():
             if param_name in self.original_parameters:
                 top_n_guesses: list[ProperType] = []
@@ -1022,36 +1024,22 @@ class InferredSignature:
                     ):
                         top_n_guesses.append(typ)
 
-                    # Need to compute which types are base types matches of others.
-                    # Otherwise, we need to parse the string again in the evaluation...
-                    for left, right in (
-                        list(
-                            zip(
-                                top_n_guesses,
-                                [self.parameters_for_statistics[param_name]]
-                                * len(top_n_guesses),
-                            )
-                        )
-                        + list(
-                            zip(
-                                randomly_chosen,
-                                [self.parameters_for_statistics[param_name]]
-                                * len(randomly_chosen),
-                            )
-                        )
-                        + [(self.return_type, self.return_type_for_statistics)]
-                    ):
-                        if _is_base_type_match(left, right):
-                            sig_info.partial_type_matches.add(
-                                (
-                                    str(left),
-                                    str(right),
-                                )
-                            )
+                for item in top_n_guesses + randomly_chosen:
+                    compute_partial_matches_for.append(
+                        (item, self.parameters_for_statistics[param_name])
+                    )
                 parameter_types[param_name] = [str(t) for t in top_n_guesses]
                 randomly_chosen_parameter_types[param_name] = [
                     str(t) for t in randomly_chosen
                 ]
+        # Also need to compute for return type.
+        compute_partial_matches_for.append(
+            (self.return_type, self.return_type_for_statistics)
+        )
+        # Need to compute which types are base type matches of others.
+        # Otherwise, we need to parse the string again in the evaluation...
+        self._compute_partial_matches(compute_partial_matches_for, sig_info)
+
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
             # Only when we recorded something that is not a constructor:
@@ -1062,6 +1050,16 @@ class InferredSignature:
         stats.signature_infos[
             callable_full_name
         ].randomly_chosen_parameter_types = randomly_chosen_parameter_types
+
+    def _compute_partial_matches(self, compute_partial_matches_for, sig_info):
+        for left, right in compute_partial_matches_for:
+            if _is_base_type_match(left, right):
+                sig_info.partial_type_matches.add(
+                    (
+                        str(self.return_type),
+                        str(self.return_type_for_statistics),
+                    )
+                )
 
 
 class TypeSystem:  # pylint:disable=too-many-public-methods
