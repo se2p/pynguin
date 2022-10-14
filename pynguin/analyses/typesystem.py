@@ -267,37 +267,59 @@ class TypeVisitor(Generic[T]):
         """
 
 
-class _BaseTypeMatch(TypeVisitor[bool]):
+class _PartialTypeMatch(TypeVisitor[ProperType | None]):
     """A type visitor to check for base type matches."""
 
     def __init__(self, right: ProperType):
         self.right = right
 
-    def visit_any_type(self, left: AnyType) -> bool:
+    def visit_any_type(self, left: AnyType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
         # Any is not guessed/recorded
-        return False
+        return None
 
-    def visit_none_type(self, left: NoneType) -> bool:
-        return isinstance(self.right, NoneType)
+    def visit_none_type(self, left: NoneType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        if isinstance(self.right, NoneType):
+            return NONE_TYPE
+        return None
 
-    def visit_instance(self, left: Instance) -> bool:
-        return isinstance(self.right, Instance) and left.type == self.right.type
+    def visit_instance(self, left: Instance) -> ProperType | None:
+        # pylint:disable=missing-function-docstring
+        if isinstance(self.right, Instance) and left.type == self.right.type:
+            return Instance(left.type)
+        return None
 
-    def visit_tuple_type(self, left: TupleType) -> bool:
-        return isinstance(self.right, TupleType)
+    def visit_tuple_type(self, left: TupleType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        if isinstance(self.right, TupleType):
+            return TupleType(())
+        return None
 
-    def visit_union_type(self, left: UnionType) -> bool:
-        return any(
-            _is_base_type_match(left_elem, self.right) for left_elem in left.items
+    def visit_union_type(self, left: UnionType) -> ProperType | None:
+        # pylint:disable=missing-function-docstring
+        matches: tuple[ProperType, ...] = tuple(
+            (
+                elem
+                for elem in (
+                    _is_partial_type_match(left_elem, self.right)
+                    for left_elem in left.items
+                )
+                if elem
+            )
         )
+        if matches:
+            return UnionType(matches)
+        return None
 
-    def visit_unsupported_type(self, left: Unsupported) -> bool:
+    def visit_unsupported_type(self, left: Unsupported) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
         # Cannot compare.
-        return False
+        return None
 
 
-def _is_base_type_match(left: ProperType, right: ProperType) -> bool:
-    """Is left a base type match of right?
+def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | None:
+    """Is left a partial type match of right?
     This is only useful for statistics purposes, i.e., do we have a fuzzy type match?
 
     Args:
@@ -305,11 +327,29 @@ def _is_base_type_match(left: ProperType, right: ProperType) -> bool:
         right: The ground truth
 
     Returns:
-        True, if left is a base type match of right.
+        The partial match, if Any.
     """
     if isinstance(right, UnionType):
-        return any(_is_base_type_match(left, right_elem) for right_elem in right.items)
-    return left.accept(_BaseTypeMatch(right))
+        matches: tuple[ProperType, ...] = tuple(
+            (
+                elem
+                for elem in (
+                    _is_partial_type_match(left, right_elem)
+                    for right_elem in right.items
+                )
+                if elem is not None
+            )
+        )
+        if matches:
+            flattened: set[ProperType] = set()
+            for match in matches:
+                if isinstance(match, UnionType):
+                    flattened.update(match.items)
+                else:
+                    flattened.add(match)
+            return UnionType(tuple(sorted(flattened)))
+        return None
+    return left.accept(_PartialTypeMatch(right))
 
 
 class TypeStringVisitor(TypeVisitor[str]):
@@ -1051,14 +1091,12 @@ class InferredSignature:
             callable_full_name
         ].randomly_chosen_parameter_types = randomly_chosen_parameter_types
 
-    def _compute_partial_matches(self, compute_partial_matches_for, sig_info):
+    @staticmethod
+    def _compute_partial_matches(compute_partial_matches_for, sig_info):
         for left, right in compute_partial_matches_for:
-            if _is_base_type_match(left, right):
-                sig_info.partial_type_matches.add(
-                    (
-                        str(self.return_type),
-                        str(self.return_type_for_statistics),
-                    )
+            if (match := _is_partial_type_match(left, right)) is not None:
+                sig_info.partial_type_matches[f"({str(left)}, {str(right)})"] = str(
+                    match
                 )
 
 
