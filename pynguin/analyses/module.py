@@ -474,6 +474,7 @@ class SignatureInfo:
     # Needed to compute top-n accuracy in the evaluation.
     # Elements are of form (A,B); A is a guess, B is an annotated type.
     # (A,B) is only present, when A is a base type match of B.
+    # If it is present, it points to the partial type match between A and B.
     partial_type_matches: dict[str, str] = dataclasses.field(default_factory=dict)
 
     # Annotated return type, if Any.
