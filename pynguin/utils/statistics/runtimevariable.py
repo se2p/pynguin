@@ -22,11 +22,16 @@ class RuntimeVariable(str, enum.Enum):
     because this description will become the text in the result.
     """
 
+    # ========= Miscellaneous statistics =========
+
     # The module name for which we currently generate tests
     TargetModule = "TargetModule"
 
     # An identifier for this configuration for benchmarking
     ConfigurationId = "ConfigurationId"
+
+    # An identifier of the cluster job
+    RunId = "RunId"
 
     # An identifier for the project's name for benchmarking
     ProjectName = "ProjectName"
@@ -40,54 +45,9 @@ class RuntimeVariable(str, enum.Enum):
     # Execution results
     ExecutionResults = "ExecutionResults"
 
-    # Obtained coverage of the chosen testing criterion(s)
-    Coverage = "Coverage"
-
-    # Obtained branch coverage
-    BranchCoverage = "BranchCoverage"
-
-    # Obtained line coverage
-    LineCoverage = "LineCoverage"
-
-    # Obtained checked coverage with no assertions
-    StatementCheckedCoverage = "StatementCheckedCoverage"
-
-    # Obtained checked coverage with assertions
-    AssertionCheckedCoverage = "AssertionCheckedCoverage"
-
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning
     RandomSeed = "RandomSeed"
-
-    # Obtained coverage (of the chosen testing criterion) at different points in time
-    CoverageTimeline = "CoverageTimeline"
-
-    # Obtained size values at different points in time
-    SizeTimeline = "SizeTimeline"
-
-    # Obtained length values at different points in time
-    LengthTimeline = "LengthTimeline"
-
-    # Obtained fitness values at different points in time
-    FitnessTimeline = "FitnessTimeline"
-
-    # Total number of exceptions
-    TotalExceptionsTimeline = "TotalExceptionsTimeline"
-
-    # Branch coverage over time
-    BranchCoverageTimeline = "BranchCoverageTimeline"
-
-    # Line coverage over time
-    LineCoverageTimeline = "LineCoverageTimeline"
-
-    # Total number of statements in the final test suite
-    Length = "Length"
-
-    # Number of tests in the resulting test suite
-    Size = "Size"
-
-    # Fitness value of the best individual
-    Fitness = "Fitness"
 
     # Code Objects in the SUT
     CodeObjects = "CodeObjects"
@@ -149,6 +109,74 @@ class RuntimeVariable(str, enum.Enum):
 
     # The mutation score
     MutationScore = "MutationScore"
+
+    # Store JSON serialized information about the signatures in the SUT, i.e.,
+    # annotated and guessed parameter types as well as annotated and recorded
+    # return types. Also store which types are base type matches of other types.
+    SignatureInfos = "SignatureInfos"
+
+    # Number of constructors
+    NumberOfConstructors = "NumberOfConstructors"
+
+    # ========= Values collected during search =========
+
+    # Obtained coverage (of the chosen testing criterion(s)) at different points in time
+    CoverageTimeline = "CoverageTimeline"
+
+    # Obtained size values at different points in time
+    SizeTimeline = "SizeTimeline"
+
+    # Obtained length values at different points in time
+    LengthTimeline = "LengthTimeline"
+
+    # Obtained fitness values at different points in time
+    FitnessTimeline = "FitnessTimeline"
+
+    # Total number of exceptions
+    TotalExceptionsTimeline = "TotalExceptionsTimeline"
+
+    # ========= Values collected at the end of the search =========
+
+    # Total number of statements in the resulting test suite
+    Length = "Length"
+
+    # Number of tests in the resulting test suite
+    Size = "Size"
+
+    # Fitness value of the best individual
+    Fitness = "Fitness"
+
+    # Obtained mean coverage of the chosen testing criterion(s)
+    Coverage = "Coverage"
+
+    # Obtained branch coverage
+    BranchCoverage = "BranchCoverage"
+
+    # Obtained line coverage
+    LineCoverage = "LineCoverage"
+
+    # Obtained checked coverage with no assertions
+    StatementCheckedCoverage = "StatementCheckedCoverage"
+
+    # ========= Values collected after post-processing and re-execution =========
+    # These values might differ from the above values, if tests are flaky and thus
+    # produce a different execution trace or the test have been modified
+    # during post-processing.
+
+    # Obtained checked coverage with assertions
+    AssertionCheckedCoverage = "AssertionCheckedCoverage"
+
+    # Total number of statements in the resulting test suite
+    FinalLength = "FinalLength"
+
+    # Number of tests in the resulting test suite
+    FinalSize = "FinalSize"
+
+    # Obtained branch coverage
+    FinalBranchCoverage = "FinalBranchCoverage"
+
+    # Obtained line coverage
+    FinalLineCoverage = "FinalLineCoverage"
 
     # The number of assertions in the generated test suite
     Assertions = "Assertions"

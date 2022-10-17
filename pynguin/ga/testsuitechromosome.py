@@ -33,7 +33,7 @@ class TestSuiteChromosome(chrom.Chromosome):
 
         Args:
             test_case_chromosome_factory: Factory that produces new test case
-                chromosomes. Required, if you want to mutated this
+                chromosomes. Required, if you want to mutate this
                 chromosome.
             orig: Original, if we clone an existing chromosome.
         """
@@ -57,7 +57,7 @@ class TestSuiteChromosome(chrom.Chromosome):
             test: the test case to be added
         """
         self._test_case_chromosomes.append(test)
-        self.set_changed(True)
+        self.changed = True
 
     def delete_test_case_chromosome(self, test: tcc.TestCaseChromosome) -> None:
         """Delete a test case from the test suite.
@@ -67,7 +67,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         """
         try:
             self._test_case_chromosomes.remove(test)
-            self.set_changed(True)
+            self.changed = True
         except ValueError:
             pass
 
@@ -79,7 +79,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         """
         self._test_case_chromosomes.extend(tests)
         if tests:
-            self.set_changed(True)
+            self.changed = True
 
     def clone(self) -> TestSuiteChromosome:
         """Clones the chromosome.
@@ -119,7 +119,7 @@ class TestSuiteChromosome(chrom.Chromosome):
             test: the test case to set
         """
         self._test_case_chromosomes[index] = test
-        self.set_changed(True)
+        self.changed = True
 
     def size(self) -> int:
         """Provides the size of the chromosome, i.e., its number of test cases.
@@ -152,7 +152,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         self._test_case_chromosomes = self._test_case_chromosomes[:position1] + [
             test.clone() for test in other._test_case_chromosomes[position2:]
         ]
-        self.set_changed(True)
+        self.changed = True
 
     def mutate(self) -> None:
         """Apply mutation at test suite level."""
@@ -166,7 +166,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         for test in self._test_case_chromosomes:
             if randomness.next_float() < 1.0 / self.size():
                 test.mutate()
-                if test.has_changed():
+                if test.changed:
                     changed = True
 
         # Randomly add new test cases.
@@ -188,7 +188,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         ]
 
         if changed:
-            self.set_changed(True)
+            self.changed = True
 
     def accept(self, visitor: cv.ChromosomeVisitor) -> None:
         visitor.visit_test_suite_chromosome(self)

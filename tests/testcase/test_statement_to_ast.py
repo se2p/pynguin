@@ -45,20 +45,20 @@ def __create_source_from_ast(module_body: ast.stmt) -> str:
     )
 
 
-def test_statement_to_ast_int(statement_to_ast_visitor, test_case_mock):
-    int_stmt = stmt.IntPrimitiveStatement(test_case_mock, 5)
+def test_statement_to_ast_int(statement_to_ast_visitor, default_test_case):
+    int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
     statement_to_ast_visitor.visit_int_primitive_statement(int_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = 5"
 
 
-def test_statement_to_ast_float(statement_to_ast_visitor, test_case_mock):
-    float_stmt = stmt.FloatPrimitiveStatement(test_case_mock, 5.5)
+def test_statement_to_ast_float(statement_to_ast_visitor, default_test_case):
+    float_stmt = stmt.FloatPrimitiveStatement(default_test_case, 5.5)
     statement_to_ast_visitor.visit_float_primitive_statement(float_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = 5.5"
 
 
-def test_statement_to_ast_str(statement_to_ast_visitor, test_case_mock):
-    str_stmt = stmt.StringPrimitiveStatement(test_case_mock, "TestMe")
+def test_statement_to_ast_str(statement_to_ast_visitor, default_test_case):
+    str_stmt = stmt.StringPrimitiveStatement(default_test_case, "TestMe")
     statement_to_ast_visitor.visit_string_primitive_statement(str_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor.ast_node)
@@ -66,8 +66,8 @@ def test_statement_to_ast_str(statement_to_ast_visitor, test_case_mock):
     )
 
 
-def test_statement_to_ast_bytes(statement_to_ast_visitor, test_case_mock):
-    bytes_stmt = stmt.BytesPrimitiveStatement(test_case_mock, b"TestMe")
+def test_statement_to_ast_bytes(statement_to_ast_visitor, default_test_case):
+    bytes_stmt = stmt.BytesPrimitiveStatement(default_test_case, b"TestMe")
     statement_to_ast_visitor.visit_bytes_primitive_statement(bytes_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor.ast_node)
@@ -75,37 +75,55 @@ def test_statement_to_ast_bytes(statement_to_ast_visitor, test_case_mock):
     )
 
 
-def test_statement_to_ast_bool(statement_to_ast_visitor, test_case_mock):
-    bool_stmt = stmt.BooleanPrimitiveStatement(test_case_mock, True)
+def test_statement_to_ast_bool(statement_to_ast_visitor, default_test_case):
+    bool_stmt = stmt.BooleanPrimitiveStatement(default_test_case, True)
     statement_to_ast_visitor.visit_boolean_primitive_statement(bool_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = True"
 
 
-def test_statement_to_ast_none(statement_to_ast_visitor, test_case_mock):
-    none_stmt = stmt.NoneStatement(test_case_mock, int)
+def test_statement_to_ast_class(statement_to_ast_visitor, default_test_case):
+    class_stmt = stmt.ClassPrimitiveStatement(default_test_case, 0)
+    statement_to_ast_visitor.visit_class_primitive_statement(class_stmt)
+    assert (
+        __create_source_from_ast(statement_to_ast_visitor.ast_node)
+        == "var_0 = module_0.int"
+    )
+
+
+def test_statement_to_ast_none(statement_to_ast_visitor, default_test_case):
+    none_stmt = stmt.NoneStatement(default_test_case)
     statement_to_ast_visitor.visit_none_statement(none_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = None"
 
 
-def test_statement_to_ast_enum(statement_to_ast_visitor, test_case_mock):
+def test_statement_to_ast_enum(statement_to_ast_visitor, default_test_case):
     enum_stmt = stmt.EnumPrimitiveStatement(
-        test_case_mock, MagicMock(owner=MagicMock(__name__="Foo"), names=["BAR"]), 0
+        default_test_case,
+        MagicMock(
+            owner=default_test_case.test_cluster.type_system.to_type_info(MagicMock),
+            names=["BAR"],
+        ),
+        0,
     )
     statement_to_ast_visitor.visit_enum_statement(enum_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor.ast_node)
-        == "var_0 = module_0.Foo.BAR"
+        == "var_0 = module_0.MagicMock.BAR"
     )
 
 
 def test_statement_to_ast_assignment(
-    variable_reference_mock, statement_to_ast_visitor, test_case_mock
+    variable_reference_mock, statement_to_ast_visitor, default_test_case
 ):
-    string = stmt.StringPrimitiveStatement(test_case_mock, "foo")
-    field = gao.GenericField(str, "foo", None)
-    int_0 = stmt.IntPrimitiveStatement(test_case_mock, 42)
+    string = stmt.StringPrimitiveStatement(default_test_case, "foo")
+    field = gao.GenericField(
+        default_test_case.test_cluster.type_system.to_type_info(str),
+        "foo",
+        default_test_case.test_cluster.type_system.convert_type_hint(None),
+    )
+    int_0 = stmt.IntPrimitiveStatement(default_test_case, 42)
     assign_stmt = stmt.AssignmentStatement(
-        test_case_mock, vr.FieldReference(string.ret_val, field), int_0.ret_val
+        default_test_case, vr.FieldReference(string.ret_val, field), int_0.ret_val
     )
     statement_to_ast_visitor.visit_assignment_statement(assign_stmt)
     assert (
@@ -114,10 +132,14 @@ def test_statement_to_ast_assignment(
     )
 
 
-def test_statement_to_ast_field(statement_to_ast_visitor, test_case_mock):
-    string = stmt.StringPrimitiveStatement(test_case_mock, "foo")
-    field = gao.GenericField(str, "foo", None)
-    field_stmt = stmt.FieldStatement(test_case_mock, field, string.ret_val)
+def test_statement_to_ast_field(statement_to_ast_visitor, default_test_case):
+    string = stmt.StringPrimitiveStatement(default_test_case, "foo")
+    field = gao.GenericField(
+        default_test_case.test_cluster.type_system.to_type_info(str),
+        "foo",
+        default_test_case.test_cluster.type_system.convert_type_hint(None),
+    )
+    field_stmt = stmt.FieldStatement(default_test_case, field, string.ret_val)
     statement_to_ast_visitor.visit_field_statement(field_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor.ast_node)
@@ -125,7 +147,7 @@ def test_statement_to_ast_field(statement_to_ast_visitor, test_case_mock):
     )
 
 
-def all_param_types_signature():
+def all_param_types_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -156,12 +178,19 @@ def all_param_types_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float, "d": float, "e": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+            "d": type_system.convert_type_hint(float),
+            "e": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
-def default_args_signature():
+def default_args_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -185,12 +214,17 @@ def default_args_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
-def no_default_args_signature():
+def no_default_args_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
             parameters=[
@@ -212,92 +246,102 @@ def no_default_args_signature():
                 ),
             ]
         ),
-        return_type=float,
-        parameters={"a": float, "b": float, "c": float},
+        original_return_type=type_system.convert_type_hint(float),
+        original_parameters={
+            "a": type_system.convert_type_hint(float),
+            "b": type_system.convert_type_hint(float),
+            "c": type_system.convert_type_hint(float),
+        },
+        type_system=type_system,
     )
 
 
 @pytest.fixture()
-def all_types_constructor():
+def all_types_constructor(type_system):
     return GenericConstructor(
-        owner=MagicMock(__name__="Constructor"),
-        inferred_signature=all_param_types_signature(),
+        owner=type_system.to_type_info(MagicMock),
+        inferred_signature=all_param_types_signature(type_system),
     )
 
 
 @pytest.fixture()
-def all_types_method():
+def all_types_method(type_system):
     return GenericMethod(
         owner=MagicMock(),
-        inferred_signature=all_param_types_signature(),
+        inferred_signature=all_param_types_signature(type_system),
         method=MagicMock(__name__="method"),
     )
 
 
 @pytest.fixture()
-def all_types_function():
+def all_types_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=all_param_types_signature(),
+        inferred_signature=all_param_types_signature(type_system),
     )
 
 
 @pytest.fixture()
-def default_args_function():
+def default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=default_args_signature(),
+        inferred_signature=default_args_signature(type_system),
     )
 
 
 @pytest.fixture()
-def no_default_args_function():
+def no_default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
-        inferred_signature=no_default_args_signature(),
+        inferred_signature=no_default_args_signature(type_system),
     )
 
 
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ({}, "var_0 = module_0.Constructor()"),
+        ({}, "var_0 = module_0.MagicMock()"),
         (
-            {"a": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_1 = module_0.Constructor(var_0)",
+            {"a"},
+            "var_1 = module_0.MagicMock(var_0)",
         ),
         (
-            {"b": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_1 = module_0.Constructor(var_0)",
+            {"b"},
+            "var_1 = module_0.MagicMock(var_0)",
         ),
         (
-            {"c": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_1 = module_0.Constructor(*var_0)",
+            {"c"},
+            "var_1 = module_0.MagicMock(*var_0)",
         ),
         (
-            {"d": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_1 = module_0.Constructor(d=var_0)",
+            {"d"},
+            "var_1 = module_0.MagicMock(d=var_0)",
         ),
         (
-            {"e": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val},
-            "var_1 = module_0.Constructor(**var_0)",
+            {"e"},
+            "var_1 = module_0.MagicMock(**var_0)",
         ),
         (
             {
-                "a": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
-                "b": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
-                "c": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
-                "d": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
-                "e": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val,
+                "a",
+                "b",
+                "c",
+                "d",
+                "e",
             },
-            "var_5 = module_0.Constructor(var_0, var_1, *var_2, d=var_3, **var_4)",
+            "var_5 = module_0.MagicMock(var_0, var_1, *var_2, d=var_3, **var_4)",
         ),
     ],
 )
 def test_statement_to_ast_constructor_args(
-    statement_to_ast_visitor, test_case_mock, all_types_constructor, args, expected
+    statement_to_ast_visitor, default_test_case, all_types_constructor, args, expected
 ):
-    constr_stmt = stmt.ConstructorStatement(test_case_mock, all_types_constructor, args)
+    args_stmts = {
+        a: stmt.IntPrimitiveStatement(default_test_case, 3).ret_val for a in args
+    }
+    constr_stmt = stmt.ConstructorStatement(
+        default_test_case, all_types_constructor, args_stmts
+    )
     statement_to_ast_visitor.visit_constructor_statement(constr_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == expected
 
@@ -309,7 +353,7 @@ def test_statement_to_ast_constructor_no_store(
     statement_to_ast_visitor_no_store.visit_constructor_statement(constr_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor_no_store.ast_node)
-        == "module_0.Constructor()"
+        == "module_0.MagicMock()"
     )
 
 
@@ -510,12 +554,12 @@ def test_statement_to_ast_function_no_store(
 
 
 def test_statement_to_ast_list_single(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     list_stmt = stmt.ListStatement(
-        test_case_mock,
-        list[int],
-        [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(list[int]),
+        [stmt.IntPrimitiveStatement(default_test_case, 5).ret_val],
     )
     statement_to_ast_visitor.visit_list_statement(list_stmt)
     assert (
@@ -524,11 +568,11 @@ def test_statement_to_ast_list_single(
 
 
 def test_statement_to_ast_list_empty(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     list_stmt = stmt.ListStatement(
-        test_case_mock,
-        list[int],
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(list[int]),
         [],
     )
     statement_to_ast_visitor.visit_list_statement(list_stmt)
@@ -536,12 +580,12 @@ def test_statement_to_ast_list_empty(
 
 
 def test_statement_to_ast_set_single(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     set_stmt = stmt.SetStatement(
-        test_case_mock,
-        set[int],
-        [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(set[int]),
+        [stmt.IntPrimitiveStatement(default_test_case, 5).ret_val],
     )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
@@ -550,9 +594,13 @@ def test_statement_to_ast_set_single(
 
 
 def test_statement_to_ast_set_empty(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
-    set_stmt = stmt.SetStatement(test_case_mock, set[int], [])
+    set_stmt = stmt.SetStatement(
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(set[int]),
+        [],
+    )
     statement_to_ast_visitor.visit_set_statement(set_stmt)
     assert (
         __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = set()"
@@ -560,12 +608,12 @@ def test_statement_to_ast_set_empty(
 
 
 def test_statement_to_ast_tuple_single(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     tuple_stmt = stmt.TupleStatement(
-        test_case_mock,
-        tuple[int],
-        [stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val],
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(tuple[int]),
+        [stmt.IntPrimitiveStatement(default_test_case, 5).ret_val],
     )
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
     assert (
@@ -575,11 +623,11 @@ def test_statement_to_ast_tuple_single(
 
 
 def test_statement_to_ast_tuple_empty(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     tuple_stmt = stmt.TupleStatement(
-        test_case_mock,
-        tuple,
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(tuple),
         [],
     )
     statement_to_ast_visitor.visit_tuple_statement(tuple_stmt)
@@ -587,15 +635,15 @@ def test_statement_to_ast_tuple_empty(
 
 
 def test_statement_to_ast_dict_single(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     dict_stmt = stmt.DictStatement(
-        test_case_mock,
-        dict[int, int],
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(dict[int, int]),
         [
             (
-                stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val,
-                stmt.IntPrimitiveStatement(test_case_mock, 5).ret_val,
+                stmt.IntPrimitiveStatement(default_test_case, 5).ret_val,
+                stmt.IntPrimitiveStatement(default_test_case, 5).ret_val,
             )
         ],
     )
@@ -607,11 +655,11 @@ def test_statement_to_ast_dict_single(
 
 
 def test_statement_to_ast_dict_empty(
-    statement_to_ast_visitor, test_case_mock, function_mock
+    statement_to_ast_visitor, default_test_case, function_mock
 ):
     dict_stmt = stmt.DictStatement(
-        test_case_mock,
-        tuple,
+        default_test_case,
+        default_test_case.test_cluster.type_system.convert_type_hint(dict[int, int]),
         [],
     )
     statement_to_ast_visitor.visit_dict_statement(dict_stmt)

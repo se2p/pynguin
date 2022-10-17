@@ -11,7 +11,7 @@ import dataclasses
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass

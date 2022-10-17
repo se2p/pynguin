@@ -14,7 +14,7 @@ import logging
 import operator
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
@@ -65,8 +65,8 @@ class SlicingContext:  # pylint: disable=too-many-instance-attributes
     instr_ctrl_deps: set[UniqueInstruction] = field(default_factory=set)
 
     # Variable uses for which a definition is needed
-    var_uses_local: set[tuple[Union[int, str, None], int]] = field(default_factory=set)
-    var_uses_global: set[tuple[Union[int, str, None], str]] = field(default_factory=set)
+    var_uses_local: set[tuple[int | str | None, int]] = field(default_factory=set)
+    var_uses_global: set[tuple[int | str | None, str]] = field(default_factory=set)
 
     var_uses_nonlocal: set[tuple] = field(default_factory=set)
     var_uses_addresses: set[str] = field(default_factory=set)
@@ -497,7 +497,7 @@ class DynamicSlicer:
 
     @staticmethod
     def get_node(
-        node_id: int, graph: Union[ControlDependenceGraph, CFG]
+        node_id: int, graph: ControlDependenceGraph | CFG
     ) -> ProgramGraphNode | None:
         """Iterate through all nodes of the graph and return the node
         with the given id.
@@ -668,7 +668,7 @@ class DynamicSlicer:
     def _check_scope_for_def(
         context_scope: set,
         argument: str,
-        scope_id: Union[int, str, tuple] | None,
+        scope_id: int | str | tuple | None,
         comp_op,
     ) -> bool:
         complete_cover = False

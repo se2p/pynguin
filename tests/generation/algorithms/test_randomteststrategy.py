@@ -12,7 +12,6 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 from pynguin.analyses.module import ModuleTestCluster
@@ -118,7 +117,7 @@ def test_random_public_method(executor):
 
 
 @pytest.mark.parametrize("has_exceptions", [pytest.param(True), pytest.param(False)])
-def test_generate_sequence(has_exceptions, executor):
+def test_generate_sequence(has_exceptions, executor, default_test_case):
     config.configuration.algorithm = config.Algorithm.RANDOM
     exec_result = MagicMock(ExecutionResult)
     exec_result.has_test_exceptions.return_value = has_exceptions
@@ -129,9 +128,8 @@ def test_generate_sequence(has_exceptions, executor):
         executor, test_cluster
     ).get_search_algorithm()
     algorithm._random_public_method = lambda x: None  # pragma: no cover
-    test_case = dtc.DefaultTestCase()
-    test_case.add_statement(MagicMock(stmt.Statement))
-    algorithm._random_test_cases = lambda x: [test_case]  # pragma: no cover
+    default_test_case.add_statement(MagicMock(stmt.Statement, ret_val=MagicMock()))
+    algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomTestStrategy)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
@@ -140,7 +138,7 @@ def test_generate_sequence(has_exceptions, executor):
         )
 
 
-def test_generate_sequence_duplicate(executor):
+def test_generate_sequence_duplicate(executor, default_test_case):
     config.configuration.algorithm = config.Algorithm.RANDOM
     test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.accessible_objects_under_test = set()
@@ -148,8 +146,7 @@ def test_generate_sequence_duplicate(executor):
         executor, test_cluster
     ).get_search_algorithm()
     algorithm._random_public_method = lambda x: None  # pragma: no cover
-    test_case = dtc.DefaultTestCase()
-    algorithm._random_test_cases = lambda x: [test_case]  # pragma: no cover
+    algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomTestStrategy)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(

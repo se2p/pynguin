@@ -12,7 +12,8 @@ import dataclasses
 import math
 import statistics
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pynguin.utils.opcodes as op
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
@@ -21,14 +22,18 @@ from pynguin.testcase.statement import Statement
 
 if TYPE_CHECKING:
     from pynguin.slicer.dynamicslicer import SlicingCriterion
-    from pynguin.testcase.execution import ExecutionResult, KnownData, TestCaseExecutor
+    from pynguin.testcase.execution import (
+        AbstractTestCaseExecutor,
+        ExecutionResult,
+        KnownData,
+    )
 
 
 @dataclasses.dataclass(eq=False)
 class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
     """An abstract computation on chromosomes."""
 
-    _executor: TestCaseExecutor
+    _executor: AbstractTestCaseExecutor
     """Executor that will be used by the computation to execute chromosomes."""
 
 
@@ -47,11 +52,11 @@ class TestCaseChromosomeComputation(
         Returns:
             A list of execution results
         """
-        if individual.has_changed() or individual.get_last_execution_result() is None:
+        if individual.changed or individual.get_last_execution_result() is None:
             individual.set_last_execution_result(
                 self._executor.execute(individual.test_case)
             )
-            individual.set_changed(False)
+            individual.changed = False
         result = individual.get_last_execution_result()
         assert result is not None
         return result
@@ -75,13 +80,13 @@ class TestSuiteChromosomeComputation(
         results: list[ExecutionResult] = []
         for test_case_chromosome in individual.test_case_chromosomes:
             if (
-                test_case_chromosome.has_changed()
+                test_case_chromosome.changed
                 or test_case_chromosome.get_last_execution_result() is None
             ):
                 test_case_chromosome.set_last_execution_result(
                     self._executor.execute(test_case_chromosome.test_case)
                 )
-                test_case_chromosome.set_changed(False)
+                test_case_chromosome.changed = False
                 # If we execute a suite which in turn executes it's test cases,
                 # then we have to invalidate the values of the test cases, because
                 # the test case is no longer aware that it was changed.
@@ -173,7 +178,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
 class TestSuiteFitnessFunction(
     TestSuiteChromosomeComputation, FitnessFunction, metaclass=abc.ABCMeta
 ):
-    """Base class for test case fitness functions."""
+    """Base class for test suite fitness functions."""
 
 
 class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
@@ -510,13 +515,13 @@ class ComputationCache:
             funcs: The functions that are used to fill the respective cache.
             only: Only compute the values for this function, optional.
         """
-        if self._chromosome.has_changed():
+        if self._chromosome.changed:
             # If the chromosome has changed, we invalidate all values computed so far
             self.invalidate_cache()
             # Compute those values in which we are interested.
             comp(only)
             # Mark individual as no longer changed.
-            self._chromosome.set_changed(False)
+            self._chromosome.changed = False
         elif len(cache) != len(funcs):
             # The individual has not changed, but not all values are cached.
             # So we might have to compute the missing ones.

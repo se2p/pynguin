@@ -10,14 +10,13 @@ from __future__ import annotations
 import logging
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable, Iterable
-
-from ordered_set import OrderedSet
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 
 class Archive(ABC):

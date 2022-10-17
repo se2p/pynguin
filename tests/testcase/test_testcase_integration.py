@@ -13,76 +13,76 @@ import pynguin.testcase.statement as st
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
-def test_method_statement_clone(method_mock):
-    test_case = dtc.DefaultTestCase()
-    int_prim = st.IntPrimitiveStatement(test_case, 5)
-    str_prim = st.StringPrimitiveStatement(test_case, "TestThis")
+def test_method_statement_clone(default_test_case, method_mock):
+    int_prim = st.IntPrimitiveStatement(default_test_case, 5)
+    str_prim = st.StringPrimitiveStatement(default_test_case, "TestThis")
     method_stmt = st.MethodStatement(
-        test_case,
+        default_test_case,
         method_mock,
         str_prim.ret_val,
         {"x": int_prim.ret_val},
     )
-    test_case.add_statement(int_prim)
-    test_case.add_statement(str_prim)
-    test_case.add_statement(method_stmt)
+    default_test_case.add_statement(int_prim)
+    default_test_case.add_statement(str_prim)
+    default_test_case.add_statement(method_stmt)
 
-    cloned = test_case.clone()
+    cloned = default_test_case.clone()
     assert isinstance(cloned.statements[2], st.MethodStatement)
     assert cloned.statements[2] is not method_stmt
 
 
-def test_constructor_statement_clone(constructor_mock):
-    test_case = dtc.DefaultTestCase()
-    int_prim = st.IntPrimitiveStatement(test_case, 5)
+def test_constructor_statement_clone(default_test_case, constructor_mock):
+    int_prim = st.IntPrimitiveStatement(default_test_case, 5)
     method_stmt = st.ConstructorStatement(
-        test_case,
+        default_test_case,
         constructor_mock,
         {"y": int_prim.ret_val},
     )
-    test_case.add_statement(int_prim)
-    test_case.add_statement(method_stmt)
+    default_test_case.add_statement(int_prim)
+    default_test_case.add_statement(method_stmt)
 
-    cloned = test_case.clone()
+    cloned = default_test_case.clone()
     assert isinstance(cloned.statements[1], st.ConstructorStatement)
     assert cloned.statements[1] is not method_stmt
-    assert cloned.statements[0].ret_val is not test_case.statements[0].ret_val
+    assert cloned.statements[0].ret_val is not default_test_case.statements[0].ret_val
 
 
-def test_assignment_statement_clone():
-    test_case = dtc.DefaultTestCase()
-    int_prim = st.IntPrimitiveStatement(test_case, 5)
-    int_prim2 = st.IntPrimitiveStatement(test_case, 10)
+def test_assignment_statement_clone(default_test_case):
+    int_prim = st.IntPrimitiveStatement(default_test_case, 5)
+    int_prim2 = st.IntPrimitiveStatement(default_test_case, 10)
     # TODO(fk) the assignment statement from EvoSuite might not be fitting for our case?
     # Because currently we can only overwrite existing values?
     assignment_stmt = st.AssignmentStatement(
-        test_case, int_prim.ret_val, int_prim2.ret_val
+        default_test_case, int_prim.ret_val, int_prim2.ret_val
     )
-    test_case.add_statement(int_prim)
-    test_case.add_statement(int_prim2)
-    test_case.add_statement(assignment_stmt)
+    default_test_case.add_statement(int_prim)
+    default_test_case.add_statement(int_prim2)
+    default_test_case.add_statement(assignment_stmt)
 
-    cloned = test_case.clone()
+    cloned = default_test_case.clone()
     assert isinstance(cloned.statements[2], st.AssignmentStatement)
     assert cloned.statements[2] is not assignment_stmt
 
 
 @pytest.fixture(scope="function")
-def simple_test_case(function_mock) -> dtc.DefaultTestCase:
-    test_case = dtc.DefaultTestCase()
-    int_prim = st.IntPrimitiveStatement(test_case, 5)
-    int_prim2 = st.IntPrimitiveStatement(test_case, 5)
-    float_prim = st.FloatPrimitiveStatement(test_case, 5.5)
-    func = st.FunctionStatement(test_case, function_mock, {"z": float_prim.ret_val})
+def simple_test_case(function_mock, default_test_case) -> dtc.DefaultTestCase:
+    int_prim = st.IntPrimitiveStatement(default_test_case, 5)
+    int_prim2 = st.IntPrimitiveStatement(default_test_case, 5)
+    float_prim = st.FloatPrimitiveStatement(default_test_case, 5.5)
+    func = st.FunctionStatement(
+        default_test_case, function_mock, {"z": float_prim.ret_val}
+    )
     func.add_assertion(ass.ObjectAssertion(func.ret_val, 3.1415))
-    string_prim = st.StringPrimitiveStatement(test_case, "Test")
-    string_prim.ret_val._type = type(None)
-    test_case.add_statement(int_prim)
-    test_case.add_statement(int_prim2)
-    test_case.add_statement(float_prim)
-    test_case.add_statement(func)
-    test_case.add_statement(string_prim)
-    return test_case
+    string_prim = st.StringPrimitiveStatement(default_test_case, "Test")
+    string_prim.ret_val._type = (
+        default_test_case.test_cluster.type_system.convert_type_hint(type(None))
+    )
+    default_test_case.add_statement(int_prim)
+    default_test_case.add_statement(int_prim2)
+    default_test_case.add_statement(float_prim)
+    default_test_case.add_statement(func)
+    default_test_case.add_statement(string_prim)
+    return default_test_case
 
 
 def test_clone_with_assertion(simple_test_case):
@@ -146,13 +146,18 @@ def test_get_random_object_none_found(simple_test_case):
 
 def test_get_random_object_one(simple_test_case):
     assert (
-        simple_test_case.get_random_object(int, 1)
+        simple_test_case.get_random_object(
+            simple_test_case.test_cluster.type_system.convert_type_hint(int), 1
+        )
         == simple_test_case.statements[0].ret_val
     )
 
 
 def test_get_random_object_all(simple_test_case):
-    assert simple_test_case.get_random_object(int, simple_test_case.size()) in [
+    assert simple_test_case.get_random_object(
+        simple_test_case.test_cluster.type_system.convert_type_hint(int),
+        simple_test_case.size(),
+    ) in [
         simple_test_case.statements[0].ret_val,
         simple_test_case.statements[1].ret_val,
     ]

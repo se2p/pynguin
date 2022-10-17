@@ -10,9 +10,22 @@ from __future__ import annotations
 import typing
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pynguin.testcase.variablereference as vr
+from pynguin.analyses.typesystem import TypeVisitor
+
+if typing.TYPE_CHECKING:
+    from pynguin.analyses.typesystem import (
+        AnyType,
+        Instance,
+        NoneType,
+        ProperType,
+        TupleType,
+        UnionType,
+        Unsupported,
+    )
 
 
 class AbstractNamingScope:
@@ -92,7 +105,10 @@ class VariableTypeNamingScope(AbstractNamingScope):
     """Names variables according to their type."""
 
     def __init__(
-        self, *, return_type_trace: dict[int, type] | None = None, prefix: str = "var"
+        self,
+        *,
+        return_type_trace: dict[int, ProperType] | None = None,
+        prefix: str = "var",
     ):
         self._known_variable_names: dict[vr.VariableReference, str] = {}
         self._type_counter: dict[str, int] = defaultdict(int)
@@ -118,17 +134,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
         ):
             type_ = runtime_type
 
-        tp_name = self._prefix
-        if type_ is not None:
-            if isinstance(type_, type):
-                # Regular type
-                tp_name = snake_case(type_.__name__)
-            elif type_ == typing.Any:
-                # In case the type is `Any`, still keep the default prefix
-                tp_name = self._prefix
-            elif (name_ := getattr(type_, "_name", None)) is not None:
-                # Some type hint. Not sure if all have "_name"
-                tp_name = snake_case(name_)
+        tp_name = snake_case(type_.accept(_VariableNameTypeVisitor(self._prefix)))
 
         name = f"{tp_name}_{self._type_counter[tp_name]}"
         self._type_counter[tp_name] += 1
@@ -143,6 +149,29 @@ class VariableTypeNamingScope(AbstractNamingScope):
 
     def is_known_name(self, obj) -> bool:
         return obj in self._known_variable_names
+
+
+class _VariableNameTypeVisitor(TypeVisitor[str]):
+    def __init__(self, prefix: str):
+        self._prefix = prefix
+
+    def visit_any_type(self, left: AnyType) -> str:
+        return self._prefix
+
+    def visit_none_type(self, left: NoneType) -> str:
+        return "none_type"
+
+    def visit_instance(self, left: Instance) -> str:
+        return left.type.name
+
+    def visit_tuple_type(self, left: TupleType) -> str:
+        return "tuple"
+
+    def visit_union_type(self, left: UnionType) -> str:
+        return self._prefix
+
+    def visit_unsupported_type(self, left: Unsupported) -> str:
+        raise NotImplementedError("This type shall not be used during runtime")
 
 
 def snake_case(name: str) -> str:

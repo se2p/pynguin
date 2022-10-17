@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 import queue
 import time
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom

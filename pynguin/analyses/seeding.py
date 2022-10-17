@@ -20,6 +20,7 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -341,7 +342,7 @@ def create_stmt_from_constant(
         The corresponding statement.
     """
     if constant.value is None:
-        return stmt.NoneStatement(testcase, constant.value)
+        return stmt.NoneStatement(testcase)
 
     val = constant.value
     if isinstance(val, bool):
@@ -469,7 +470,8 @@ def find_gen_callable(
     call_name = str(call.func.attr)  # type: ignore
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
-            owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0]
+            assert obj.owner
+            owner = str(obj.owner.name)
             call_id = call.func.value.id  # type: ignore
             if call_name == owner and call_id not in ref_dict:
                 return obj
@@ -480,7 +482,7 @@ def find_gen_callable(
             if call_name == obj.method_name and call_id in ref_dict:
                 obj_from_ast = str(call.func.value.id)  # type: ignore
                 var_type = ref_dict[obj_from_ast].type
-                if var_type == obj.owner:
+                if isinstance(var_type, Instance) and var_type.type == obj.owner:
                     return obj
         elif isinstance(obj, GenericFunction):
             if call_name == obj.function_name:
@@ -581,7 +583,10 @@ def create_stmt_from_collection(
         )
         if keys is None or values is None:
             return None
-        coll_elems_type = get_collection_type(values)
+        coll_elems_type: ProperType = Instance(
+            testcase.test_cluster.type_system.to_type_info(dict),
+            (get_collection_type(keys), get_collection_type(values)),
+        )
         coll_elems = list(zip(keys, values))
     else:
         elements = coll_node.elts
@@ -594,7 +599,18 @@ def create_stmt_from_collection(
         )
         if coll_elems is None:
             return None
-        coll_elems_type = get_collection_type(coll_elems)
+        if isinstance(coll_node, ast.Tuple):
+            coll_elems_type = TupleType(tuple(tp.type for tp in coll_elems))
+        elif isinstance(coll_node, ast.List):
+            coll_elems_type = Instance(
+                testcase.test_cluster.type_system.to_type_info(list),
+                (get_collection_type(coll_elems),),
+            )
+        else:
+            coll_elems_type = Instance(
+                testcase.test_cluster.type_system.to_type_info(set),
+                (get_collection_type(coll_elems),),
+            )
     return create_specific_collection_stmt(
         testcase, coll_node, coll_elems_type, coll_elems
     )
@@ -671,7 +687,7 @@ def create_elements(
     return coll_elems
 
 
-def get_collection_type(coll_elems: list[vr.VariableReference]) -> Any:
+def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
     """Returns the type of a collection. If objects of multiple types are in the
     collection, this function returns None.
 
@@ -682,11 +698,11 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> Any:
         The type of the collection.
     """
     if len(coll_elems) == 0:
-        return None
+        return ANY
     coll_type = coll_elems[0].type
     for elem in coll_elems:
         if not elem.type == coll_type:
-            coll_type = None
+            coll_type = ANY
             break
     return coll_type
 
@@ -694,7 +710,7 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> Any:
 def create_specific_collection_stmt(
     testcase: tc.TestCase,
     coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
-    coll_elems_type: Any,
+    coll_elems_type: ProperType,
     coll_elems: list[Any],
 ) -> None | (
     stmt.ListStatement | stmt.SetStatement | stmt.DictStatement | stmt.TupleStatement
@@ -826,7 +842,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         create_assertions: bool,
         constant_provider: ConstantProvider,
     ):
-        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase()
+        self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase(test_cluster)
         self._current_parsable: bool = True
         self._var_refs: dict[str, vr.VariableReference] = {}
         self._testcases: list[dtc.DefaultTestCase] = []
@@ -837,7 +853,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._number_found_testcases += 1
-        self._current_testcase = dtc.DefaultTestCase()
+        self._current_testcase = dtc.DefaultTestCase(self._test_cluster)
         self._current_parsable = True
         self._var_refs.clear()
         self.generic_visit(node)

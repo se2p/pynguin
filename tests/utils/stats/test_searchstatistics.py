@@ -36,7 +36,7 @@ def chromosome():
     coverage_func = MagicMock()
     chrom.add_coverage_function(coverage_func)
     chrom._computation_cache._coverage_cache[coverage_func] = 0
-    chrom.set_changed(False)
+    chrom.changed = False
     return chrom
 
 

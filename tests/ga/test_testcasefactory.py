@@ -13,7 +13,7 @@ import pynguin.testcase.testfactory as tf
 
 def test_get_test_case_max_attempts():
     test_factory = MagicMock(tf.TestFactory)
-    test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory)
+    test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory, MagicMock())
     test_case_factory.get_test_case()
     assert (
         test_factory.insert_random_statement.call_count
@@ -26,7 +26,7 @@ def test_get_test_case_success():
     test_factory.insert_random_statement.side_effect = (
         lambda test_case, pos: test_case.add_statement(MagicMock(), 0)
     )
-    test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory)
+    test_case_factory = tcf.RandomLengthTestCaseFactory(test_factory, MagicMock())
     test_case_factory.get_test_case()
     assert (
         1

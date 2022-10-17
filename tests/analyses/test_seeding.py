@@ -15,9 +15,6 @@ from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.generation import export
 
 
-# TODO(fk) this is not correct, i.e. in the second example str3 should be dict0 and var0
-#  should be list0. However, this is a more complex problem in AST -> Statement
-#  conversion.
 @pytest.mark.parametrize(
     "testcase_seed",
     [
@@ -29,12 +26,12 @@ from pynguin.generation import export
         (
             """    float_0 = 1.1
     int_0 = 42
-    var_0 = []
+    list_0 = []
     str_0 = "test"
-    str_1 = "key"
-    str_2 = "value"
-    str_3 = {str_1: str_2}
-    var_1 = module_0.all_params(float_0, int_0, *var_0, param4=str_0, **str_3)
+    bytes_0 = b"key"
+    str_1 = "value"
+    dict_0 = {bytes_0: str_1}
+    var_0 = module_0.all_params(float_0, int_0, *list_0, param4=str_0, **dict_0)
 """
         ),
     ],

@@ -116,12 +116,15 @@ def setter_test():
         MethodStatement(
             tc,
             GenericMethod(
-                SetterGetter,
+                cluster.type_system.to_type_info(SetterGetter),
                 SetterGetter.setter,
                 InferredSignature(
                     signature=inspect.signature(SetterGetter.setter),
-                    parameters={"new_attribute": int},
-                    return_type=None,
+                    original_parameters={
+                        "new_attribute": cluster.type_system.convert_type_hint(int)
+                    },
+                    original_return_type=cluster.type_system.convert_type_hint(None),
+                    type_system=cluster.type_system,
                 ),
             ),
             tc.statements[0].ret_val,
@@ -178,12 +181,15 @@ def getter_setter_test():
         MethodStatement(
             tc,
             GenericMethod(
-                SetterGetter,
+                cluster.type_system.to_type_info(SetterGetter),
                 SetterGetter.setter,
                 InferredSignature(
                     signature=inspect.signature(SetterGetter.setter),
-                    parameters={"new_attribute": int},
-                    return_type=None,
+                    original_parameters={
+                        "new_attribute": cluster.type_system.convert_type_hint(int)
+                    },
+                    original_return_type=cluster.type_system.convert_type_hint(None),
+                    type_system=cluster.type_system,
                 ),
             ),
             tc.statements[0].ret_val,
@@ -240,12 +246,15 @@ def setter_getter_test():
         MethodStatement(
             tc,
             GenericMethod(
-                SetterGetter,
+                cluster.type_system.to_type_info(SetterGetter),
                 SetterGetter.setter,
                 InferredSignature(
                     signature=inspect.signature(SetterGetter.setter),
-                    parameters={"new_attribute": int},
-                    return_type=None,
+                    original_parameters={
+                        "new_attribute": cluster.type_system.convert_type_hint(int)
+                    },
+                    original_return_type=cluster.type_system.convert_type_hint(None),
+                    type_system=cluster.type_system,
                 ),
             ),
             tc.statements[0].ret_val,
@@ -257,12 +266,13 @@ def setter_getter_test():
         MethodStatement(
             tc,
             GenericMethod(
-                SetterGetter,
+                cluster.type_system.to_type_info(SetterGetter),
                 SetterGetter.getter,
                 InferredSignature(
                     signature=inspect.signature(SetterGetter.getter),
-                    parameters={},
-                    return_type=int,
+                    original_parameters={},
+                    original_return_type=cluster.type_system.convert_type_hint(int),
+                    type_system=cluster.type_system,
                 ),
             ),
             tc.statements[0].ret_val,

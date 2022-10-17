@@ -5,14 +5,17 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import threading
+from decimal import Decimal
 from math import inf
 from unittest.mock import MagicMock
 
 import pytest
 from bytecode import Compare
 
+import pynguin.utils.typetracing as tt
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.testcase.execution import ExecutionTracer, _le, _lt
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_functions_exists():
@@ -52,7 +55,7 @@ def test_line_visit():
     tracer.track_line_visit(42)
     tracer.track_line_visit(43)
     tracer.track_line_visit(42)
-    assert tracer.get_trace().covered_line_ids == {42, 43}
+    assert tracer.get_trace().covered_line_ids == OrderedSet([42, 43])
 
 
 def test_update_metrics_covered():
@@ -140,13 +143,15 @@ def test_passed_exception_match_not():
         pytest.param(Compare.NE, "string", 0, 0, inf),
         pytest.param(Compare.NE, "abc", "cde", 0, 3),
         pytest.param(Compare.LT, 5, 0, 6, 0),
-        pytest.param(Compare.LT, 0, 5, 0, 6),
-        pytest.param(Compare.LE, 5, 0, 6, 0),
+        pytest.param(Compare.LT, 0, 5, 0, 5),
+        pytest.param(Compare.LT, Decimal(5), Decimal(0), 6, 0),
+        pytest.param(Compare.LT, Decimal(0), Decimal(5), 0, 5),
+        pytest.param(Compare.LE, 5, 0, 5, 0),
         pytest.param(Compare.LE, 0, 5, 0, 6),
-        pytest.param(Compare.GT, 5, 0, 0, 6),
+        pytest.param(Compare.GT, 5, 0, 0, 5),
         pytest.param(Compare.GT, 0, 5, 6, 0),
         pytest.param(Compare.GE, 5, 0, 0, 6),
-        pytest.param(Compare.GE, 0, 5, 6, 0),
+        pytest.param(Compare.GE, 0, 5, 5, 0),
         pytest.param(Compare.IN, 0, [0], 0, 1),
         pytest.param(Compare.IN, 0, [1], 1, 0),
         pytest.param(Compare.IN, 0, [], inf, 0),
@@ -169,6 +174,26 @@ def test_cmp(cmp, val1, val2, true_dist, false_dist):
     tracer.executed_compare_predicate(val1, val2, 0, cmp)
     assert (0, true_dist) in tracer.get_trace().true_distances.items()
     assert (0, false_dist) in tracer.get_trace().false_distances.items()
+
+
+def test_compare_ignores_proxy():
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_compare_predicate(
+        tt.ObjectProxy(5), tt.ObjectProxy(0), 0, Compare.EQ
+    )
+    assert (0, 5) in tracer.get_trace().true_distances.items()
+    assert (0, 0) in tracer.get_trace().false_distances.items()
+
+
+def test_bool_ignores_proxy():
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_bool_predicate(tt.ObjectProxy([1, 2, 3]), 0)
+    assert (0, 0.0) in tracer.get_trace().true_distances.items()
+    assert (0, 3.0) in tracer.get_trace().false_distances.items()
 
 
 def test_unknown_comp():
@@ -266,12 +291,18 @@ def test_enable_disable_bool():
     assert len(tracer.get_trace().executed_predicates) == 1
 
 
-@pytest.mark.parametrize("val1,val2,result", [(1, 1, 0), (2, 1, 2), ("c", "b", inf)])
+@pytest.mark.parametrize(
+    "val1,val2,result",
+    [(1, 1, 0), (2, 1, 1), ("c", "b", inf), (Decimal(0.5), Decimal(0.3), 0.2)],
+)
 def test_le(val1, val2, result):
     assert _le(val1, val2) == result
 
 
-@pytest.mark.parametrize("val1,val2,result", [(0, 1, 0), (1, 1, 1), ("b", "b", inf)])
+@pytest.mark.parametrize(
+    "val1,val2,result",
+    [(0, 1, 0), (1, 1, 1), ("b", "b", inf), (Decimal(0.5), Decimal(0.3), 1.2)],
+)
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result
 
@@ -279,7 +310,7 @@ def test_lt(val1, val2, result):
 def test_default_branchless_code_object():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock())
-    assert tracer.get_known_data().branch_less_code_objects == {0}
+    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([0])
 
 
 def test_no_branchless_code_object():
@@ -295,7 +326,7 @@ def test_no_branchless_code_object_register_multiple():
     tracer.register_code_object(MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert tracer.get_known_data().branch_less_code_objects == {1}
+    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([1])
 
 
 def test_code_object_executed_other_thread():
@@ -310,7 +341,7 @@ def test_code_object_executed_other_thread():
     thread = threading.Thread(target=wrapper, args=(0,))
     thread.start()
     thread.join()
-    assert tracer.get_trace().executed_code_objects == set()
+    assert tracer.get_trace().executed_code_objects == OrderedSet()
 
 
 def test_bool_predicate_executed_other_thread():

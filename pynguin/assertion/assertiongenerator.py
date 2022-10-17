@@ -15,7 +15,6 @@ import types
 from typing import TYPE_CHECKING
 
 import mutpy
-from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
@@ -32,6 +31,7 @@ from pynguin.analyses.constants import (
 )
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -96,18 +96,16 @@ class AssertionGenerator(cv.ChromosomeVisitor):
     @staticmethod
     def __remove_non_holding_assertions(test: tc.TestCase, result: ex.ExecutionResult):
         for idx, statement in enumerate(test.statements):
-            # Remove failed assertions
+            pos_to_key = dict(enumerate(statement.assertions))
+
+            to_delete: OrderedSet[int] = OrderedSet()
             if idx in result.assertion_verification_trace.failed:
-                for pos in sorted(
-                    result.assertion_verification_trace.failed[idx], reverse=True
-                ):
-                    statement.assertions.pop(pos)
-            # Remove assertions that caused an error.
+                to_delete.update(result.assertion_verification_trace.failed[idx])
             if idx in result.assertion_verification_trace.error:
-                for pos in sorted(
-                    result.assertion_verification_trace.error[idx], reverse=True
-                ):
-                    statement.assertions.pop(pos)
+                to_delete.update(result.assertion_verification_trace.error[idx])
+
+            for pos in sorted(list(to_delete), reverse=True):
+                statement.assertions.remove(pos_to_key[pos])
 
     def _add_assertions_for(self, test_case: tc.TestCase, result: ex.ExecutionResult):
         # In order to avoid repeating the same assertions after each statement,
@@ -266,6 +264,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         self._transformer = build_transformer(
             self._mutation_tracer,
+            {config.CoverageMetric.BRANCH},
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
         # Some debug information
@@ -320,10 +319,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 if len(mut.timed_out_by) == 0:
                     merged.merge(result.assertion_verification_trace)
             for stmt_idx, statement in enumerate(test.statements):
-                for assertion_idx in reversed(range(len(statement.assertions))):
+                for assertion_idx, assertion in reversed(
+                    list(enumerate(statement.assertions))
+                ):
                     if not merged.was_violated(stmt_idx, assertion_idx):
-                        # TODO(fk) works with expected exceptions?
-                        statement.assertions.pop(assertion_idx)
+                        statement.assertions.remove(assertion)
 
     @staticmethod
     def __compute_mutation_summary(

@@ -4,20 +4,17 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-import importlib
-import threading
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.analyses.typesystem as types
 import pynguin.configuration as config
+import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
-from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 def test_init_with_configuration():
@@ -69,31 +66,6 @@ def test_setup_test_cluster_not_empty():
         assert gen._setup_test_cluster()
 
 
-@pytest.mark.parametrize(
-    "conf_strategy, expected",
-    [
-        pytest.param(
-            config.TypeInferenceStrategy.TYPE_HINTS,
-            types.TypeInferenceStrategy.TYPE_HINTS,
-        ),
-        pytest.param(
-            config.TypeInferenceStrategy.NONE,
-            types.TypeInferenceStrategy.NONE,
-        ),
-        pytest.param(MagicMock(), types.TypeInferenceStrategy.TYPE_HINTS),
-    ],
-)
-def test_setup_test_cluster_type_inference_strategy(conf_strategy, expected):
-    gen.set_configuration(
-        configuration=MagicMock(
-            type_inference=MagicMock(type_inference_strategy=conf_strategy),
-        )
-    )
-    with mock.patch("pynguin.generator.generate_test_cluster") as gen_mock:
-        gen._setup_test_cluster()
-        assert gen_mock.call_args.args[1] == expected
-
-
 def test_setup_path_invalid_dir(tmp_path):
     gen.set_configuration(
         configuration=MagicMock(log_file=None, project_path=tmp_path / "nope")
@@ -119,38 +91,51 @@ def test_setup_hook():
         configuration=MagicMock(log_file=None, module_name=module_name)
     )
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
-        assert gen._setup_import_hook(None)
+        assert gen._setup_import_hook(None, None)
         hook_mock.assert_called_once()
 
 
-def test__track_resulting_checked_coverage_exchanges_loader_but_resets_metrics():
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.BRANCH,
+@pytest.mark.parametrize(
+    "optimize,track,existing,added",
+    [
+        (
+            config.CoverageMetric.BRANCH,
+            {RuntimeVariable.FinalLineCoverage},
+            ff.TestSuiteBranchCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction, ff.TestSuiteBranchCoverageFunction],
+        ),
+        (
+            config.CoverageMetric.LINE,
+            {RuntimeVariable.FinalBranchCoverage},
+            ff.TestSuiteLineCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction, ff.TestSuiteBranchCoverageFunction],
+        ),
+        (
+            config.CoverageMetric.LINE,
+            {},
+            ff.TestSuiteLineCoverageFunction,
+            [ff.TestSuiteLineCoverageFunction],
+        ),
+        (
+            config.CoverageMetric.BRANCH,
+            {},
+            ff.TestSuiteBranchCoverageFunction,
+            [ff.TestSuiteBranchCoverageFunction],
+        ),
+    ],
+)
+def test__track_one_coverage_while_optimising_for_other(
+    optimize, track, existing, added
+):
+    config.configuration.statistics_output.output_variables = [
+        track,
     ]
-    config.configuration.seeding.dynamic_constant_seeding = False
-    tracer = ExecutionTracer()
-    executor = TestCaseExecutor(tracer)
-    assert not executor._instrument
-    result = MagicMock()
-
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    module_name = "tests.fixtures.linecoverage.plus"
-    config.configuration.module_name = module_name
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        old_loader = module.__loader__
-
-        gen._track_resulting_assertion_checked_coverage(executor, result, None)
-
-        new_metrics = config.configuration.statistics_output.coverage_metrics
-        assert len(new_metrics) == 1
-        assert config.CoverageMetric.BRANCH in new_metrics
-        assert not executor._instrument
-
-        assert old_loader is not module.__loader__
+    algorithm = MagicMock(test_suite_coverage_functions=[existing(MagicMock())])
+    to_calculate = []
+    gen._add_additional_metrics(
+        algorithm, {optimize}, MagicMock(), set(), track, to_calculate
+    )
+    assert [type(elem[1]) for elem in to_calculate] == added
 
 
 def test__reset_cache_for_result():

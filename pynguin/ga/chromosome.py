@@ -23,12 +23,12 @@ class Chromosome(metaclass=ABCMeta):
         """
         if orig is None:
             self._computation_cache = ff.ComputationCache(self)
-            self._changed: bool = True
+            self.changed: bool = True
             self._distance: float = -1
             self._rank: int = -1
         else:
             self._computation_cache = orig._computation_cache.clone(self)
-            self._changed = orig._changed
+            self.changed = orig.changed
             self._distance = orig._distance
             self._rank = orig._rank
 
@@ -49,22 +49,6 @@ class Chromosome(metaclass=ABCMeta):
 
         Returns: The length of this individual.
         """
-
-    def has_changed(self) -> bool:
-        """Has this chromosome changed since the last evaluation?
-
-        Returns:
-            Whether or not this chromosome change since the last evaluation
-        """
-        return self._changed
-
-    def set_changed(self, changed: bool) -> None:
-        """Set changed status to parameter value.
-
-        Args:
-            changed: Then change state of this chromosome
-        """
-        self._changed = changed
 
     def get_fitness_functions(self) -> list[ff.FitnessFunction]:
         """Provide the currently configured fitness functions of this chromosome.
@@ -150,7 +134,7 @@ class Chromosome(metaclass=ABCMeta):
         """Provides the coverage value for a certain coverage function
 
         Args:
-            coverage_function: The fitness function who's coverage value shall be
+            coverage_function: The fitness function whose coverage value shall be
                 returned
 
         Returns:

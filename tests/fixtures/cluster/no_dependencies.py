@@ -14,9 +14,9 @@ class Test:
         return 5 * x
 
 
-def test_function(x: float) -> float:
+def a_test_function(x: float) -> float:
     return x * 5.5
 
 
-def test_function_no_return() -> None:
+def a_test_function_no_return() -> None:
     pass

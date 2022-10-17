@@ -12,7 +12,7 @@ from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
-from pynguin.testcase.statement import StatementVisitor
+from pynguin.testcase.statement import ClassPrimitiveStatement, StatementVisitor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         AssignmentStatement,
         BooleanPrimitiveStatement,
         BytesPrimitiveStatement,
+        ComplexPrimitiveStatement,
         ConstructorStatement,
         DictStatement,
         EnumPrimitiveStatement,
@@ -82,6 +83,11 @@ class StatementToAstVisitor(StatementVisitor):
     def visit_float_primitive_statement(self, stmt: FloatPrimitiveStatement) -> None:
         self._ast_node = self._create_constant(stmt)
 
+    def visit_complex_primitive_statement(
+        self, stmt: ComplexPrimitiveStatement
+    ) -> None:
+        self._ast_node = self._create_constant(stmt)
+
     def visit_string_primitive_statement(self, stmt: StringPrimitiveStatement) -> None:
         self._ast_node = self._create_constant(stmt)
 
@@ -104,11 +110,27 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.Attribute(
                 value=ast.Attribute(
-                    value=self._create_module_alias(owner.__module__),
-                    attr=owner.__name__,
+                    value=self._create_module_alias(owner.module),
+                    attr=owner.name,
                     ctx=ast.Load(),
                 ),
                 attr=stmt.value_name,
+                ctx=ast.Load(),
+            ),
+        )
+
+    def visit_class_primitive_statement(self, stmt: ClassPrimitiveStatement) -> None:
+        clazz = stmt.type_info
+        self._ast_node = ast.Assign(
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                )
+            ],
+            # TODO(fk) think about nested classes, also for enums.
+            value=ast.Attribute(
+                value=self._create_module_alias(clazz.module),
+                attr=clazz.name,
                 ctx=ast.Load(),
             ),
         )
@@ -122,9 +144,9 @@ class StatementToAstVisitor(StatementVisitor):
         args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
-                attr=owner.__name__,
+                attr=owner.name,
                 ctx=ast.Load(),
-                value=self._create_module_alias(owner.__module__),
+                value=self._create_module_alias(owner.module),
             ),
             args=args,
             keywords=kwargs,
@@ -365,11 +387,9 @@ class StatementToAstVisitor(StatementVisitor):
                         # has a default, and we did not pass a value, we must pass the
                         # current value by keyword, otherwise by position.
                         if any(
-                            (
-                                parameters[left].default is not Parameter.empty
-                                and left not in stmt.args
-                                for left in left_of_current
-                            )
+                            parameters[left].default is not Parameter.empty
+                            and left not in stmt.args
+                            for left in left_of_current
                         ):
                             kwargs.append(
                                 ast.keyword(

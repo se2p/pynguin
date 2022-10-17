@@ -82,9 +82,9 @@ def test_computation_cache_fitness_cache_changed(cache):
     func.is_maximisation_function.return_value = False
     func.compute_fitness.return_value = 0
     cache.add_fitness_function(func)
-    cache._chromosome.has_changed.return_value = True
-
+    cache._chromosome.changed = True
     assert cache.get_fitness() == 0
+    cache._chromosome.changed = True
     assert cache.get_fitness() == 0
     assert func.compute_fitness.call_count == 2
 
@@ -131,9 +131,10 @@ def test_computation_cache_coverage_cache_changed(cache):
     func = MagicMock()
     func.compute_coverage.return_value = 1
     cache.add_coverage_function(func)
-    cache._chromosome.has_changed.return_value = True
+    cache._chromosome.changed = True
 
     assert cache.get_coverage() == 1
+    cache._chromosome.changed = True
     assert cache.get_coverage() == 1
     assert func.compute_coverage.call_count == 2
 

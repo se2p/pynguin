@@ -7,7 +7,8 @@
 """Provides some mutation related utilities."""
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from pynguin.utils import randomness
 

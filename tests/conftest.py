@@ -8,7 +8,8 @@ import ast
 import importlib
 import inspect
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,9 +27,15 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG, ProgramGraphNode
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import (
+    InferredSignature,
+    Instance,
+    NoneType,
+    TypeInfo,
+    TypeSystem,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericField,
@@ -51,11 +58,20 @@ def reset_configuration():
         test_case_output=config.TestCaseOutputConfiguration(output_path=""),
         module_name="",
     )
+    # Easier to put this here than to have it scattered in all tests.
+    config.configuration.test_creation.none_weight = 0
+    config.configuration.test_creation.any_weight = 0
+    config.configuration.test_creation.use_random_object_for_call = 0.0
 
 
 @pytest.fixture(scope="function")
 def test_case_mock():
     return MagicMock(tc.TestCase)
+
+
+@pytest.fixture(scope="function")
+def default_test_case():
+    return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
 @pytest.fixture(scope="function")
@@ -96,9 +112,9 @@ def provide_callables_from_fixtures_modules(
 
 
 @pytest.fixture()
-def constructor_mock() -> GenericConstructor:
+def constructor_mock(type_system) -> GenericConstructor:
     return GenericConstructor(
-        owner=SomeType,
+        owner=TypeInfo(SomeType),
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
                 parameters=[
@@ -109,16 +125,17 @@ def constructor_mock() -> GenericConstructor:
                     ),
                 ]
             ),
-            return_type=type(None),
-            parameters={"y": float},
+            original_return_type=NoneType(),
+            original_parameters={"y": Instance(TypeInfo(float))},
+            type_system=type_system,
         ),
     )
 
 
 @pytest.fixture()
-def method_mock() -> GenericMethod:
+def method_mock(type_system) -> GenericMethod:
     return GenericMethod(
-        owner=SomeType,
+        owner=TypeInfo(SomeType),
         method=SomeType.simple_method,
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
@@ -130,14 +147,15 @@ def method_mock() -> GenericMethod:
                     ),
                 ]
             ),
-            return_type=float,
-            parameters={"x": int},
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"x": Instance(TypeInfo(int))},
+            type_system=type_system,
         ),
     )
 
 
 @pytest.fixture()
-def function_mock() -> GenericFunction:
+def function_mock(type_system) -> GenericFunction:
     return GenericFunction(
         function=simple_function,
         inferred_signature=InferredSignature(
@@ -150,20 +168,28 @@ def function_mock() -> GenericFunction:
                     ),
                 ]
             ),
-            return_type=float,
-            parameters={"z": float},
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"z": Instance(TypeInfo(float))},
+            type_system=type_system,
         ),
     )
 
 
 @pytest.fixture()
 def field_mock() -> GenericField:
-    return GenericField(owner=SomeType, field="y", field_type=float)
+    return GenericField(
+        owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float))
+    )
+
+
+@pytest.fixture
+def type_system():
+    return TypeSystem()
 
 
 @pytest.fixture
 def short_test_case(constructor_mock):
-    test_case = dtc.DefaultTestCase()
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(
         test_case, constructor_mock, {"y": int_stmt.ret_val}
@@ -424,7 +450,9 @@ def list_test_with_len_assertion() -> tc.TestCase:
         ass.CollectionLengthAssertion(
             vr.FieldReference(
                 test_case.statements[-1].ret_val,
-                gao.GenericField(ListTest, "attribute", list),
+                gao.GenericField(
+                    TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))
+                ),
             ),
             3,
         )
@@ -473,7 +501,9 @@ def plus_test_with_multiple_assertions():
         ass.ObjectAssertion(
             vr.FieldReference(
                 test_case.statements[1].ret_val,
-                gao.GenericField(Plus, "calculations", int),
+                gao.GenericField(
+                    TypeInfo(Plus), "calculations", Instance(TypeInfo(int))
+                ),
             ),
             1,
         )

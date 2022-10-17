@@ -7,8 +7,10 @@
 """Contains all code related to test-case execution."""
 from __future__ import annotations
 
+import abc
 import ast
 import contextlib
+import copy
 import dataclasses
 import inspect
 import logging
@@ -16,27 +18,32 @@ import os
 import sys
 import threading
 from abc import abstractmethod
+from collections.abc import Sized
 from dataclasses import dataclass, field
 from importlib import reload
 from math import inf
 from queue import Empty, Queue
 from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
-from typing import TYPE_CHECKING, Any, Sized, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
-import pytest  # pylint:disable=unused-import,import-outside-toplevel # noqa: F401
+import pytest  # pylint:disable=unused-import # noqa: F401
 from bytecode import BasicBlock, CellVar, Compare, FreeVar
 from jellyfish import levenshtein_distance
-from ordered_set import OrderedSet
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.slicer.executedinstruction as ei
+import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
+import pynguin.testcase.variablereference as vr
+import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
+import pynguin.utils.typetracing as tt
+from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.instrumentation.instrumentation import (
     ArtificialInstr,
     CheckedCoverageInstrumentation,
@@ -44,6 +51,8 @@ from pynguin.instrumentation.instrumentation import (
     InstrumentationTransformer,
     PredicateMetaData,
 )
+from pynguin.utils.mirror import Mirror
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -54,12 +63,11 @@ from pynguin.utils.type_utils import (
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
-    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
-    import pynguin.testcase.variablereference as vr
+    from pynguin.analyses import module
 
 
-_logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class ExecutionContext:
@@ -89,6 +97,17 @@ class ExecutionContext:
             The local namespace
         """
         return self._local_namespace
+
+    def replace_variable_value(
+        self, variable: vr.VariableReference, new_value: Any
+    ) -> None:
+        """Replace the value of the variable with the new value.
+
+        Args:
+            variable: The variable for which we want to replace the value
+            new_value: The replacement value.
+        """
+        self._local_namespace[self._variable_names.get_name(variable)] = new_value
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -387,7 +406,8 @@ class AssertionExecutionObserver(ExecutionObserver):
 
 
 class ReturnTypeObserver(ExecutionObserver):
-    """Observes the runtime types seen during execution."""
+    """Observes the runtime types seen during execution.
+    Updates the return types of the called function with the observed types"""
 
     class ReturnTypeLocalState(
         threading.local
@@ -397,9 +417,13 @@ class ReturnTypeObserver(ExecutionObserver):
         def __init__(self):
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
+            self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
 
-    def __init__(self):
+    def __init__(self, test_cluster: module.TestCluster):
         self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
+
+        # Non-local state
+        self._test_cluster = test_cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         pass
@@ -407,12 +431,50 @@ class ReturnTypeObserver(ExecutionObserver):
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        result.return_type_trace = dict(self._return_type_local_state.return_type_trace)
+        result.raw_return_types = dict(self._return_type_local_state.return_type_trace)
+        result.raw_return_type_generic_args = dict(
+            self._return_type_local_state.return_type_generic_args
+        )
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        pass
+        # We store the raw types, so we still need to convert them to proper types.
+        # This must be done outside the executing thread.
+        for idx, raw_type in result.raw_return_types.items():
+            if raw_type is type(NotImplemented):
+                continue
+            proper_type = self._test_cluster.type_system.convert_type_hint(raw_type)
+            proper_type = self.__infer_known_generics(result, idx, proper_type)
+            result.proper_return_type_trace[idx] = proper_type
+            statement = test_case.get_statement(idx)
+            if isinstance(statement, stmt.ParametrizedStatement):
+                call_acc = statement.accessible_object()
+                assert isinstance(call_acc, gao.GenericCallableAccessibleObject)
+                self._test_cluster.update_return_type(call_acc, proper_type)
+
+    def __infer_known_generics(
+        self, result: ExecutionResult, idx: int, proper: ProperType
+    ) -> ProperType:
+        if idx not in result.raw_return_type_generic_args:
+            return proper
+
+        if isinstance(proper, TupleType):
+            return TupleType(
+                tuple(
+                    self._test_cluster.type_system.convert_type_hint(t)
+                    for t in result.raw_return_type_generic_args[idx]
+                )
+            )
+        if isinstance(proper, Instance) and proper.type.raw_type in (list, set, dict):
+            return Instance(
+                proper.type,
+                tuple(
+                    self._test_cluster.type_system.convert_type_hint(t)
+                    for t in result.raw_return_type_generic_args[idx]
+                ),
+            )
+        return proper
 
     def before_statement_execution(
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
@@ -426,14 +488,27 @@ class ReturnTypeObserver(ExecutionObserver):
         exec_ctx: ExecutionContext,
         exception: BaseException | None,
     ) -> None:
-        if (
-            exception is None
-            and (ret_val := statement.ret_val) is not None
-            and not ret_val.is_none_type()
-        ):
-            self._return_type_local_state.return_type_trace[
-                statement.get_position()
-            ] = type(exec_ctx.get_reference_value(ret_val))
+        if exception is None and (ret_val := statement.ret_val) is not None:
+            value = exec_ctx.get_reference_value(ret_val)
+            position = statement.get_position()
+            self._return_type_local_state.return_type_trace[position] = type(value)
+            # TODO(fk) Hardcoded support for generics.
+            # Try to guess generic arguments from elements.
+            # pylint:disable=unidiomatic-typecheck
+            if type(value) in (set, list) and len(value) > 0:
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(next(iter(value))),
+                )
+            elif type(value) is dict and len(value) > 0:
+                first_item = list(value.items())[0]
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(first_item[0]),
+                    type(first_item[1]),
+                )
+            elif type(value) is tuple:
+                self._return_type_local_state.return_type_generic_args[
+                    position
+                ] = tuple(type(v) for v in value)
 
 
 @dataclass
@@ -693,6 +768,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self.executed_instructions.append(executed_instr)
 
 
+# pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
 class ExecutionResult:
     """Result of an execution."""
@@ -710,7 +786,20 @@ class ExecutionResult:
     execution_trace: ExecutionTrace = dataclasses.field(
         default_factory=ExecutionTrace, init=False
     )
-    return_type_trace: dict[int, type] = dataclasses.field(
+
+    # Observation of return types.
+    raw_return_types: dict[int, type] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    raw_return_type_generic_args: dict[int, tuple[type, ...]] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    # Observed return types converted to proper types.
+    proper_return_type_trace: dict[int, ProperType] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+
+    proxy_knowledge: dict[tuple[int, str], tt.ProxyKnowledge] = dataclasses.field(
         default_factory=dict, init=False
     )
 
@@ -749,8 +838,14 @@ class ExecutionResult:
         Args:
             deleted_statements: The indexes of the deleted statements
         """
-        self.return_type_trace = ExecutionResult.shift_dict(
-            self.return_type_trace, deleted_statements
+        self.raw_return_types = ExecutionResult.shift_dict(
+            self.raw_return_types, deleted_statements
+        )
+        self.raw_return_type_generic_args = ExecutionResult.shift_dict(
+            self.raw_return_type_generic_args, deleted_statements
+        )
+        self.proper_return_type_trace = ExecutionResult.shift_dict(
+            self.proper_return_type_trace, deleted_statements
         )
         self.exceptions = ExecutionResult.shift_dict(
             self.exceptions, deleted_statements
@@ -1045,6 +1140,9 @@ class ExecutionTracer:
             assert (
                 predicate in self._known_data.existing_predicates
             ), "Cannot trace unknown predicate"
+            value1 = tt.unwrap(value1)
+            value2 = tt.unwrap(value2)
+
             match cmp_op:
                 case Compare.EQ:
                     distance_true, distance_false = _eq(value1, value2), _neq(
@@ -1125,6 +1223,8 @@ class ExecutionTracer:
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
+            # Might be necessary when using Proxies.
+            value = tt.unwrap(value)
             if value:
                 if isinstance(value, Sized):
                     # Sized instances evaluate to False if they are empty,
@@ -1133,7 +1233,7 @@ class ExecutionTracer:
                     distance_false = len(value)
                 elif is_numeric(value):
                     # For numeric value, we can use their absolute value
-                    distance_false = abs(value)
+                    distance_false = float(abs(value))
                 else:
                     # Necessary to use inf instead of 1.0 here,
                     # so that a value for which we can't compute a false distance
@@ -1173,6 +1273,9 @@ class ExecutionTracer:
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
+            # Might be necessary when using Proxies.
+            err = tt.unwrap(err)
+            exc = tt.unwrap(exc)
             if given_exception_matches(err, exc):
                 distance_false = 1.0
             else:
@@ -1287,7 +1390,7 @@ class ExecutionTracer:
         opcode: int,
         lineno: int,
         offset: int,
-        arg: Union[str, CellVar, FreeVar],
+        arg: str | CellVar | FreeVar,
         arg_address: int,
         arg_type: type,
     ) -> None:
@@ -1337,7 +1440,7 @@ class ExecutionTracer:
         object_creation = False
         if arg_address and arg_address not in self.get_known_data().object_addresses:
             object_creation = True
-            self._known_data.object_addresses.append(arg_address)
+            self._known_data.object_addresses.add(arg_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1574,7 +1677,7 @@ class ExecutionTracer:
                     code_object_id,
                     node_id,
                     error_call_position,
-                    statement.assertions[0],
+                    list(statement.assertions)[0],
                 )
             )
 
@@ -1703,7 +1806,7 @@ def _eq(val1, val2) -> float:
     if val1 == val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return abs(val1 - val2)
+        return float(abs(val1 - val2))
     if is_string(val1) and is_string(val2):
         return levenshtein_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
@@ -1741,7 +1844,7 @@ def _lt(val1, val2) -> float:
     if val1 < val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return (val1 - val2) + 1.0
+        return (float(val1) - float(val2)) + 1.0
     return inf
 
 
@@ -1758,7 +1861,7 @@ def _le(val1, val2) -> float:
     if val1 <= val2:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
-        return (val1 - val2) + 1.0
+        return float(val1) - float(val2)
     return inf
 
 
@@ -1876,7 +1979,62 @@ class ModuleProvider:
         reload(sys.modules[module_name])
 
 
-class TestCaseExecutor:
+class AbstractTestCaseExecutor(abc.ABC):
+    """Interface for a test case executor."""
+
+    @property
+    @abstractmethod
+    def module_provider(self) -> ModuleProvider:
+        """The module provider used by this executor.
+
+        Returns:
+            The used module provider
+        """
+
+    @abstractmethod
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        """Add an execution observer.
+
+        Args:
+            observer: the observer to be added.
+        """
+
+    @abstractmethod
+    def clear_observers(self) -> None:
+        """Remove all existing observers."""
+
+    def temporarily_add_observer(self, observer: ExecutionObserver):
+        """Temporarily add the given observer.
+
+        Args:
+            observer: The observer to add.
+        """
+
+    @property
+    @abstractmethod
+    def tracer(self) -> ExecutionTracer:
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+
+    @abstractmethod
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+        """Executes all statements of the given test case.
+
+        Args:
+            test_case: the test case that should be executed.
+
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
+        Returns:
+            Result of the execution
+        """
+
+
+class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
 
     def __init__(
@@ -1920,7 +2078,7 @@ class TestCaseExecutor:
         )
 
         def log_thread_exception(arg):
-            _logger.error(
+            _LOGGER.error(
                 "Exception in Thread: %s",
                 arg.thread,
                 exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
@@ -1954,14 +2112,6 @@ class TestCaseExecutor:
 
     @contextlib.contextmanager
     def temporarily_add_observer(self, observer: ExecutionObserver):
-        """Temporarily add the given observer.
-
-        Args:
-            observer: The observer to add.
-
-        Yields:
-            A context manager to remove the observer
-        """
         self._observers.append(observer)
         yield
         self._observers.remove(observer)
@@ -1987,17 +2137,6 @@ class TestCaseExecutor:
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        """Executes all statements of the given test case.
-
-        Args:
-            test_case: the test case that should be executed.
-
-        Raises:
-            RuntimeError: If something goes wrong inside Pynguin during execution.
-
-        Returns:
-            Result of the execution
-        """
         with contextlib.redirect_stdout(self._null_file):
             with contextlib.redirect_stderr(self._null_file):
                 return_queue: Queue[ExecutionResult] = Queue()
@@ -2019,12 +2158,12 @@ class TestCaseExecutor:
                     # kills the thread
                     self._tracer.current_thread_identifier = -1
                     result = ExecutionResult(timeout=True)
-                    _logger.warning("Experienced timeout from test-case execution")
+                    _LOGGER.warning("Experienced timeout from test-case execution")
                 else:
                     try:
                         result = return_queue.get(block=False)
                     except Empty as ex:
-                        _logger.error("Finished thread did not return a result.")
+                        _LOGGER.error("Finished thread did not return a result.")
                         raise RuntimeError("Bug in Pynguin!") from ex
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
@@ -2115,8 +2254,8 @@ class TestCaseExecutor:
         Returns:
             The raised exception, if any.
         """
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug("Executing %s", ast.unparse(ast_node))
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug("Executing %s", ast.unparse(ast_node))
 
         code = compile(ast_node, "<ast>", "exec")
         if self._instrument:
@@ -2127,7 +2266,7 @@ class TestCaseExecutor:
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
         except BaseException as err:  # pylint: disable=broad-except
             failed_stmt = ast.unparse(ast_node)
-            _logger.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
+            _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
 
         return None
@@ -2147,7 +2286,162 @@ class TestCaseExecutor:
 
         self._tracer.disable()
         try:
-            for observer in self._observers:
+            for observer in reversed(self._observers):
                 observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
             self._tracer.enable()
+
+
+class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
+    """A test case executor that delegates to another executor.
+    Every test case is executed twice, one time for the regular result
+    and one time with proxies in order to refine parameter types."""
+
+    def __init__(
+        self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster
+    ):
+        self._delegate = delegate
+        self._type_tracing_observer = TypeTracingObserver(cluster)
+        self._return_type_observer = ReturnTypeObserver(cluster)
+
+    @property
+    def module_provider(self) -> ModuleProvider:
+        return self._delegate.module_provider
+
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        self._delegate.add_observer(observer)
+
+    def clear_observers(self) -> None:
+        self._delegate.clear_observers()
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        return self._delegate.tracer
+
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+        with self._delegate.temporarily_add_observer(self._return_type_observer):
+            result = self._delegate.execute(test_case)
+        if not result.timeout:
+            # Only execute with proxies if the test case doesn't time out.
+            # There is no need to stall another thread.
+            with self._delegate.temporarily_add_observer(self._type_tracing_observer):
+                with tt.shim_isinstance():
+                    # TODO(fk) Do we record wrong stuff, i.e., type checks from
+                    #  observers?
+                    #  Make use of type errors?
+                    self._delegate.execute(test_case)
+        return result
+
+
+class TypeTracingObserver(ExecutionObserver):
+    """An execution observer which wraps parameters in proxies in order to make better
+    guesses on their type."""
+
+    class TypeTracingLocalState(
+        threading.local
+    ):  # pylint:disable=too-few-public-methods
+        """Thread local data for type tracing."""
+
+        def __init__(self):
+            super().__init__()
+            # Active proxies per statement position and argument name.
+            self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
+
+    def __init__(self, cluster: module.TestCluster):
+        self._local_state = TypeTracingObserver.TypeTracingLocalState()
+        self._cluster = cluster
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        pass
+
+    def after_test_case_execution_inside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
+            result.proxy_knowledge[(stmt_pos, arg_name)] = copy.deepcopy(
+                tt.ProxyKnowledge.from_proxy(proxy)
+            )
+
+    def after_test_case_execution_outside_thread(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
+            statement = test_case.get_statement(stmt_pos)
+            assert isinstance(statement, stmt.ParametrizedStatement)
+            self._cluster.update_parameter_knowledge(
+                cast(
+                    gao.GenericCallableAccessibleObject, statement.accessible_object()
+                ),
+                arg_name,
+                knowledge,
+            )
+
+    def before_statement_execution(
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        # pylint:disable=too-many-locals
+        if isinstance(statement, stmt.ParametrizedStatement):
+            modified_args = {}
+            real_params = {}
+            for name, param in statement.args.items():
+                mod_param = vr.VariableReference(statement.test_case, ANY)
+                modified_args[name] = mod_param
+                real_params[(name, mod_param)] = param
+
+            # We must rewrite calls as follows:
+            # foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)
+            # where
+            #   n_arg1 = Proxy(arg1)
+            #   n_arg2 = Proxy(arg2)
+            #   n_arg3 = Proxy(arg2)
+            # In other words, each argument is wrapped in its own proxy, even if they
+            # point to the same variable.
+            modified = cast(
+                stmt.ParametrizedStatement,
+                statement.clone(statement.test_case, Mirror()),
+            )
+            signature = cast(
+                gao.GenericCallableAccessibleObject, modified.accessible_object()
+            ).inferred_signature
+            modified.args = modified_args
+            modified.ret_val = statement.ret_val
+            visitor = stmt_to_ast.StatementToAstVisitor(
+                exec_ctx.module_aliases, exec_ctx.variable_names
+            )
+            modified.accept(visitor)
+            # Now we know the names.
+            for (name, modified_param), original_param in real_params.items():
+                old = exec_ctx.get_reference_value(original_param)
+                # TODO(fk) use proxy only with some chance?
+                #  May be necessary for functions that don't like proxies, e.g.,
+                #  open(...).
+                #  Record how often we get type errors to find out how often
+                #  native function are a problem?
+                #  can't really do that, because we use proxies as markers for
+                #  interactions we don't want to record.
+                proxy = tt.ObjectProxy(
+                    old,
+                    is_kwargs=signature.signature.parameters[name].kind
+                    == inspect.Parameter.VAR_KEYWORD,
+                )
+                self._local_state.proxies[(statement.get_position(), name)] = proxy
+                exec_ctx.replace_variable_value(modified_param, proxy)
+
+            return visitor.ast_node
+        return node
+
+    def after_statement_execution(
+        self,
+        statement: stmt.Statement,
+        executor: TestCaseExecutor,
+        exec_ctx: ExecutionContext,
+        exception: BaseException | None = None,
+    ) -> None:
+        if exception is None:
+            # It may be possible that the returned value is a proxy, but we don't
+            # want to create nested proxies, so we unwrap it.
+            # This does not solve all problems, e.g., a list containing proxies, so
+            # that's a limitation.
+            assert statement.ret_val
+            value = exec_ctx.get_reference_value(statement.ret_val)
+            exec_ctx.replace_variable_value(statement.ret_val, tt.unwrap(value))

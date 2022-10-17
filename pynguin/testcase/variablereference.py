@@ -10,13 +10,13 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from pynguin.utils import type_utils
-from pynguin.utils.type_utils import is_type_unknown
+from pynguin.analyses.typesystem import NoneType, is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.utils.generic.genericaccessibleobject as gao
     import pynguin.utils.namingscope as ns
+    from pynguin.analyses.typesystem import ProperType
 
 
 class Reference(metaclass=ABCMeta):
@@ -30,11 +30,11 @@ class Reference(metaclass=ABCMeta):
     Here, foo_0, int_0 and foo_0.bar are references.
     """
 
-    def __init__(self, typ: type | None) -> None:
+    def __init__(self, typ: ProperType) -> None:
         self._type = typ
 
     @property
-    def type(self) -> type | None:
+    def type(self) -> ProperType:
         """Provides the type of this reference.
 
         Returns:
@@ -48,7 +48,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if the variable is a primitive
         """
-        return type_utils.is_primitive_type(self._type)
+        return self.type.accept(is_primitive_type)
 
     def is_none_type(self) -> bool:
         """Is this variable reference of type none, i.e. it does not return anything.
@@ -56,15 +56,7 @@ class Reference(metaclass=ABCMeta):
         Returns:
             True if this variable is a none type
         """
-        return type_utils.is_none_type(self._type)
-
-    def is_type_unknown(self) -> bool:
-        """Is the type of this variable unknown?
-
-        Returns:
-            True if this variable has unknown type
-        """
-        return is_type_unknown(self._type)
+        return isinstance(self.type, NoneType)
 
     @abstractmethod
     def get_names(
@@ -113,8 +105,11 @@ class Reference(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         """Required for structural_eq to work.
+
+        Args:
+            memo: A dictionary that maps variables to their position in this test case.
 
         Returns:
             A hash value.
@@ -149,7 +144,7 @@ class VariableReference(Reference):
     to check for equality. The other reference do implement eq/hash.
     """
 
-    def __init__(self, test_case: tc.TestCase, typ: type | None):
+    def __init__(self, test_case: tc.TestCase, typ: ProperType):
         super().__init__(typ)
         self._test_case = test_case
         self._distance = 0
@@ -197,12 +192,13 @@ class VariableReference(Reference):
     def structural_eq(
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
-        if not isinstance(other, VariableReference):
+        if not isinstance(other, self.__class__):
             return False
-        return self._type == other._type and memo[self] == other
+        return memo[self] == other
 
-    def structural_hash(self) -> int:
-        return 31 * 17 + hash(self._type)
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        # Use position where variable is defined as hash value.
+        return memo[self]
 
     def get_statement_position(self) -> int:
         """Provides the position of the statement which defines this variable reference
@@ -229,6 +225,51 @@ class VariableReference(Reference):
     ) -> None:
         # We can't replace ourselves.
         return
+
+
+class CallBasedVariableReference(VariableReference):
+    """Variable reference which is based on a call.
+
+    This allows us to update the type of this variable when we have gathered information
+    on the return type of the call on which it is based.
+
+    Consider the following example:
+
+    SUT:
+        def foo() -> Any
+            ...
+
+    Test case:
+        var_0: Any = foo()
+
+    The type of var_0 initially is 'Any'. If we are able to successfully call foo()
+    we can update its return type and thus the type of var_0.
+
+    """
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        generic_callable: gao.GenericCallableAccessibleObject,
+    ):
+        super().__init__(test_case, NoneType())  # dummy
+        self._callable = generic_callable
+
+    @property
+    def type(self) -> ProperType:
+        # Dynamically look up type instead of using fixed type given at
+        # construction time.
+        return self._callable.generated_type()
+
+    def structural_eq(
+        self, other: Any, memo: dict[VariableReference, VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return super().structural_eq(other, memo) and self._callable == other._callable
+
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        return hash((super().structural_hash(memo), self._callable))
 
 
 class FieldReference(Reference):
@@ -278,8 +319,8 @@ class FieldReference(Reference):
             other._source, memo
         )
 
-    def structural_hash(self) -> int:
-        return hash((self._field, self._source.structural_hash()))
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+        return hash((self._field, self._source.structural_hash(memo)))
 
     def __eq__(self, other):
         if not isinstance(other, FieldReference):
@@ -324,8 +365,8 @@ class StaticFieldReference(Reference):
     ) -> list[str]:
         assert self._field.owner is not None
         return [
-            module_names.get_name(self._field.owner.__module__),
-            self._field.owner.__name__,
+            module_names.get_name(self._field.owner.module),
+            self._field.owner.name,
             self._field.field,
         ]
 
@@ -341,14 +382,14 @@ class StaticFieldReference(Reference):
             return False
         return self._field == other._field
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         return hash(self._field)
 
     def __eq__(self, other):
         return self.structural_eq(other, {})
 
     def __hash__(self):
-        return self.structural_hash()
+        return self.structural_hash({})
 
     def get_variable_reference(self) -> VariableReference | None:
         return None
@@ -396,14 +437,14 @@ class StaticModuleFieldReference(Reference):
             return False
         return self._field == other._field
 
-    def structural_hash(self) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
         return hash(self._field)
 
     def __eq__(self, other):
         return self.structural_eq(other, {})
 
     def __hash__(self):
-        return self.structural_hash()
+        return self.structural_hash({})
 
     def get_variable_reference(self) -> VariableReference | None:
         return None

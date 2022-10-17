@@ -13,7 +13,9 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_not_failing():
@@ -51,10 +53,9 @@ def test_suite_assertion_minimization():
     chromosome.accept.assert_has_calls([call(ass_min), call(ass_min)])
 
 
-def test_test_case_assertion_minimization():
+def test_test_case_assertion_minimization(default_test_case):
     ass_min = pp.AssertionMinimization()
-    test_case = dtc.DefaultTestCase()
-    statement = stmt.IntPrimitiveStatement(test_case)
+    statement = stmt.IntPrimitiveStatement(default_test_case)
 
     assertion_1 = MagicMock(
         checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
@@ -63,20 +64,21 @@ def test_test_case_assertion_minimization():
 
     statement.add_assertion(assertion_1)
     statement.add_assertion(assertion_2)
-    test_case.add_statement(statement)
+    default_test_case.add_statement(statement)
 
-    chromosome = tcc.TestCaseChromosome(test_case=test_case)
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1}
-    assert ass_min.deleted_assertions == {assertion_2}
-    assert test_case.get_assertions() == [assertion_1]
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1])
+    assert ass_min.deleted_assertions == OrderedSet([assertion_2])
+    assert default_test_case.get_assertions() == [assertion_1]
 
 
-def test_test_case_assertion_minimization_does_not_remove_exception_assertion():
+def test_test_case_assertion_minimization_does_not_remove_exception_assertion(
+    default_test_case,
+):
     ass_min = pp.AssertionMinimization()
-    test_case = dtc.DefaultTestCase()
-    statement = stmt.IntPrimitiveStatement(test_case)
+    statement = stmt.IntPrimitiveStatement(default_test_case)
 
     assertion_1 = MagicMock(
         checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
@@ -87,32 +89,33 @@ def test_test_case_assertion_minimization_does_not_remove_exception_assertion():
 
     statement.add_assertion(assertion_1)
     statement.add_assertion(assertion_2)
-    test_case.add_statement(statement)
+    default_test_case.add_statement(statement)
 
-    chromosome = tcc.TestCaseChromosome(test_case=test_case)
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1, assertion_2}
-    assert ass_min.deleted_assertions == set()
-    assert test_case.get_assertions() == [assertion_1, assertion_2]
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1, assertion_2])
+    assert ass_min.deleted_assertions == OrderedSet()
+    assert default_test_case.get_assertions() == [assertion_1, assertion_2]
 
 
-def test_test_case_assertion_minimization_does_not_remove_empty_assertion():
+def test_test_case_assertion_minimization_does_not_remove_empty_assertion(
+    default_test_case,
+):
     ass_min = pp.AssertionMinimization()
-    test_case = dtc.DefaultTestCase()
-    statement = stmt.IntPrimitiveStatement(test_case)
+    statement = stmt.IntPrimitiveStatement(default_test_case)
 
     assertion_1 = MagicMock(checked_instructions=[])
 
     statement.add_assertion(assertion_1)
-    test_case.add_statement(statement)
+    default_test_case.add_statement(statement)
 
-    chromosome = tcc.TestCaseChromosome(test_case=test_case)
+    chromosome = tcc.TestCaseChromosome(test_case=default_test_case)
     ass_min.visit_test_case_chromosome(chromosome)
 
-    assert ass_min.remaining_assertions == {assertion_1}
-    assert ass_min.deleted_assertions == set()
-    assert test_case.get_assertions() == [assertion_1]
+    assert ass_min.remaining_assertions == OrderedSet([assertion_1])
+    assert ass_min.deleted_assertions == OrderedSet()
+    assert default_test_case.get_assertions() == [assertion_1]
 
 
 def test_test_case_postprocessor_suite():
@@ -141,13 +144,17 @@ def test_unused_primitives_visitor():
     assert statement.accept.call_count == 1
 
 
+# TODO(fk) replace with ast_to_stmt
 def test_remove_integration(constructor_mock):
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     test_case.add_statement(stmt.IntPrimitiveStatement(test_case))
     test_case.add_statement(stmt.FloatPrimitiveStatement(test_case))
     int0 = stmt.IntPrimitiveStatement(test_case)
     test_case.add_statement(int0)
-    list0 = stmt.ListStatement(test_case, list[int], [int0.ret_val])
+    list0 = stmt.ListStatement(
+        test_case, cluster.type_system.convert_type_hint(list[int]), [int0.ret_val]
+    )
     test_case.add_statement(list0)
     float0 = stmt.FloatPrimitiveStatement(test_case)
     test_case.add_statement(float0)
@@ -169,6 +176,7 @@ def test_remove_integration(constructor_mock):
         ("visit_string_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_boolean_primitive_statement", "_handle_collection_or_primitive"),
+        ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_enum_statement", "_handle_collection_or_primitive"),
         ("visit_none_statement", "_handle_collection_or_primitive"),
         ("visit_constructor_statement", "_handle_remaining"),

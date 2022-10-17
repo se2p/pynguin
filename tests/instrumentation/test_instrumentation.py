@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, call
 
 import pytest
 from bytecode import Compare
-from ordered_set import OrderedSet
 
 import pynguin.utils.opcodes as op
 from pynguin.analyses.constants import (
@@ -35,6 +34,7 @@ from pynguin.slicer.executedinstruction import (
     ExecutedReturnInstruction,
 )
 from pynguin.testcase.execution import ExecutionTracer
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture()
@@ -440,7 +440,7 @@ def test_exception_integrate():
     func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
     func()
-    assert {0} == tracer.get_trace().executed_code_objects
+    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
     assert {0: 1} == tracer.get_trace().executed_predicates
     assert {0: 0.0} == tracer.get_trace().true_distances
     assert {0: 1.0} == tracer.get_trace().false_distances
@@ -459,8 +459,8 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
     assert {0} == tracer.get_known_data().existing_code_objects.keys()
-    assert {0} == tracer.get_known_data().branch_less_code_objects
-    assert {0} == tracer.get_trace().executed_code_objects
+    assert OrderedSet([0]) == tracer.get_known_data().branch_less_code_objects
+    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
 
 
 def test_exception_no_match_integrate():
@@ -478,7 +478,7 @@ def test_exception_no_match_integrate():
     tracer.current_thread_identifier = threading.current_thread().ident
     with pytest.raises(RuntimeError):
         func()
-    assert {0} == tracer.get_trace().executed_code_objects
+    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
     assert {0: 1} == tracer.get_trace().executed_predicates
     assert {0: 1.0} == tracer.get_trace().true_distances
     assert {0: 0.0} == tracer.get_trace().false_distances
@@ -495,14 +495,16 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.explicit_none_return()
     assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == {77, 78}
+    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == OrderedSet(
+        [77, 78]
+    )
 
 
 @pytest.mark.parametrize(
     "value1, value2, expected_lines",
     [
-        pytest.param(0, 1, {14, 17}),
-        pytest.param(1, 0, {14, 15}),
+        pytest.param(0, 1, OrderedSet([14, 17])),
+        pytest.param(1, 0, OrderedSet([14, 15])),
     ],
 )
 def test_tracking_covered_statements_cmp_predicate(
@@ -526,8 +528,8 @@ def test_tracking_covered_statements_cmp_predicate(
 @pytest.mark.parametrize(
     "value, expected_lines",
     [
-        pytest.param(False, {21, 24}),
-        pytest.param(True, {21, 22}),
+        pytest.param(False, OrderedSet([21, 24])),
+        pytest.param(True, OrderedSet([21, 22])),
     ],
 )
 def test_tracking_covered_statements_bool_predicate(
@@ -551,8 +553,8 @@ def test_tracking_covered_statements_bool_predicate(
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
-        pytest.param(0, {33}),
-        pytest.param(1, {33, 34}),
+        pytest.param(0, OrderedSet([33])),
+        pytest.param(1, OrderedSet([33, 34])),
     ],
 )
 def test_tracking_covered_statements_for_loop(simple_module, number, expected_lines):
@@ -574,8 +576,8 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
-        pytest.param(0, {48}),
-        pytest.param(1, {48, 49, 50}),
+        pytest.param(0, OrderedSet([48])),
+        pytest.param(1, OrderedSet([48, 49, 50])),
     ],
 )
 def test_tracking_covered_statements_while_loop(simple_module, number, expected_lines):
@@ -597,17 +599,17 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
 @pytest.mark.parametrize(
     "func,arg,expected_lines",
     [
-        ("explicit_return_none", None, {8}),
-        ("empty_function", None, {11}),
-        ("pass_function", None, {16}),
-        ("only_return_on_branch", True, {20, 21}),
-        ("only_return_on_branch", False, {20}),
-        ("return_on_both_branches", True, {25, 26}),
-        ("return_on_both_branches", False, {25, 27}),
-        ("pass_on_both", True, {31, 32}),
-        ("pass_on_both", False, {31, 34}),
-        ("for_return", [], {38}),
-        ("for_return", [1], {38, 39}),
+        ("explicit_return_none", None, OrderedSet([8])),
+        ("empty_function", None, OrderedSet([11])),
+        ("pass_function", None, OrderedSet([16])),
+        ("only_return_on_branch", True, OrderedSet([20, 21])),
+        ("only_return_on_branch", False, OrderedSet([20])),
+        ("return_on_both_branches", True, OrderedSet([25, 26])),
+        ("return_on_both_branches", False, OrderedSet([25, 27])),
+        ("pass_on_both", True, OrderedSet([31, 32])),
+        ("pass_on_both", False, OrderedSet([31, 34])),
+        ("for_return", [], OrderedSet([38])),
+        ("for_return", [1], OrderedSet([38, 39])),
     ],
 )
 def test_expected_covered_lines(func, arg, expected_lines, artificial_none_module):
@@ -655,7 +657,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy(10, 11)
 
     assert res == 1
-    assert dynamic.get_all_constants_for(int) == {10, 11}
+    assert dynamic.get_all_constants_for(int) == OrderedSet([11, 10])
 
 
 def test_compare_op_float(dynamic_instr, dummy_module):
@@ -666,7 +668,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy(1.0, 2.5)
 
     assert res == 1
-    assert dynamic.get_all_constants_for(float) == {1.0, 2.5}
+    assert dynamic.get_all_constants_for(float) == OrderedSet([2.5, 1.0])
 
 
 def test_compare_op_string(dynamic_instr, dummy_module):
@@ -677,7 +679,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy("abc", "def")
 
     assert res == 1
-    assert dynamic.get_all_constants_for(str) == {"abc", "def"}
+    assert dynamic.get_all_constants_for(str) == OrderedSet(["def", "abc"])
 
 
 def test_compare_op_other_type(dynamic_instr, dummy_module):
@@ -691,7 +693,7 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
     assert not dynamic.has_constant_for(int)
     assert not dynamic.has_constant_for(float)
     assert dynamic.has_constant_for(str)
-    assert dynamic.get_all_constants_for(str) == {"def"}
+    assert dynamic.get_all_constants_for(str) == OrderedSet(["def"])
 
 
 @pytest.mark.parametrize(
@@ -740,7 +742,7 @@ def test_string_functions(dynamic_instr, func_name, inp, tracked, result):
     func.__code__ = instr.instrument_module(func.__code__)
     assert func(inp) == result
     assert dynamic.has_constant_for(str)
-    assert dynamic.get_all_constants_for(str) == {inp, tracked}
+    assert dynamic.get_all_constants_for(str) == OrderedSet([inp, tracked])
 
 
 @pytest.mark.parametrize(
@@ -769,4 +771,4 @@ def test_binary_string_functions(dynamic_instr, func_name, inp1, inp2, tracked, 
     func.__code__ = instr.instrument_module(func.__code__)
     assert func(inp1, inp2) == result
     assert dynamic.has_constant_for(str)
-    assert dynamic.get_all_constants_for(str) == {tracked}
+    assert dynamic.get_all_constants_for(str) == OrderedSet([tracked])

@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
-import inspect
 import threading
 from unittest import mock
 from unittest.mock import MagicMock
@@ -19,9 +19,9 @@ import pynguin.coverage.branchgoals as bg
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statement as stmt
-import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import (
     ExecutionResult,
@@ -189,7 +189,7 @@ def test_compute_fitness_values_no_branches():
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        chromosome = _get_test_for_no_branches_fixture(module)
+        chromosome = _get_test_for_no_branches_fixture(module_name)
         pool = bg.BranchGoalPool(tracer.get_known_data())
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
@@ -210,8 +210,44 @@ def test_compute_fitness_values_no_branches():
         assert chromosome.get_fitness_for(goals_dict["DummyClass"]) == 0.0
 
 
-def test_compute_fitness_values_single_branches_if():
-    module_name = "tests.fixtures.branchcoverage.singlebranches"
+@pytest.mark.parametrize(
+    "module_name, expected_fitness, test_case",
+    [
+        (
+            "tests.fixtures.branchcoverage.singlebranches",
+            0.8333333333333334,
+            """def test_case_0():
+    int_0 = 5
+    var_0 = module_0.first(int_0)
+""",
+        ),
+        (
+            "tests.fixtures.branchcoverage.singlebranches",
+            0.85714285,
+            """def test_case_0():
+    int_0 = -5
+    var_0 = module_0.first(int_0)
+""",
+        ),
+        (
+            "tests.fixtures.branchcoverage.twomethodsinglebranches",
+            10.85714285,
+            """def test_case_0():
+    int_0 = -5
+    var_0 = module_0.first(int_0)
+""",
+        ),
+        (
+            "tests.fixtures.branchcoverage.nestedbranches",
+            5.906593406593407,
+            """def test_case_0():
+    int_0 = -50
+    var_0 = module_0.nested_branches(int_0)
+""",
+        ),
+    ],
+)
+def test_compute_fitness_values_branches(test_case, expected_fitness, module_name):
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
@@ -219,169 +255,37 @@ def test_compute_fitness_values_single_branches_if():
         importlib.reload(module)
 
         executor = TestCaseExecutor(tracer)
-        chromosome = _get_test_for_single_branch_if_branch_fixture(module)
+
+        cluster = generate_test_cluster(module_name)
+
+        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+        transformer.visit(ast.parse(test_case))
+        test_case = transformer.testcases[0]
+        chromosome = tcc.TestCaseChromosome(test_case=test_case)
+
         pool = bg.BranchGoalPool(tracer.get_known_data())
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
         fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(0.85714285)
+        assert fitness == pytest.approx(expected_fitness)
 
 
-def test_compute_fitness_values_single_branches_else():
-    module_name = "tests.fixtures.branchcoverage.singlebranches"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
+    cluster = generate_test_cluster(module_name)
 
-        executor = TestCaseExecutor(tracer)
-        chromosome = _get_test_for_single_branch_else_branch_fixture(module)
-        pool = bg.BranchGoalPool(tracer.get_known_data())
-        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
-        for goal in goals:
-            chromosome.add_fitness_function(goal)
-        fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(0.85714285)
-
-
-def test_compute_fitness_values_two_method_single_branches_else():
-    module_name = "tests.fixtures.branchcoverage.twomethodsinglebranches"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
-        chromosome = _get_test_for_single_branch_else_branch_fixture(module)
-        pool = bg.BranchGoalPool(tracer.get_known_data())
-        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
-        for goal in goals:
-            chromosome.add_fitness_function(goal)
-        fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(10.85714285)
-
-
-def test_compute_fitness_values_nested_branches():
-    module_name = "tests.fixtures.branchcoverage.nestedbranches"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
-        chromosome = _get_test_for_nested_branch_fixture(module)
-        pool = bg.BranchGoalPool(tracer.get_known_data())
-        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
-        for goal in goals:
-            chromosome.add_fitness_function(goal)
-        fitness = chromosome.get_fitness()
-        assert fitness == pytest.approx(5.90782493)
-
-
-def _get_test_for_no_branches_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
-    function_call = stmt.FunctionStatement(
-        test_case,
-        gao.GenericFunction(
-            module.identity,
-            InferredSignature(
-                signature=inspect.signature(module.identity),
-                parameters={"a": int},
-                return_type=int,
-            ),
-        ),
-        {"a": int_stmt.ret_val},
+    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 5
+    var_0 = module_0.identity(int_0)
+    dummy_0 = module_0.DummyClass(var_0)
+    var_1 = dummy_0.get_x()
+"""
+        )
     )
-    constructor_call = stmt.ConstructorStatement(
-        test_case,
-        gao.GenericConstructor(
-            module.DummyClass,
-            InferredSignature(
-                signature=inspect.signature(module.DummyClass.__init__),
-                parameters={"x": int},
-                return_type=module.DummyClass,
-            ),
-        ),
-        {"x": function_call.ret_val},
-    )
-    method_call = stmt.MethodStatement(
-        test_case,
-        gao.GenericMethod(
-            module.DummyClass,
-            module.DummyClass.get_x,
-            InferredSignature(signature=MagicMock(), parameters={}, return_type=int),
-        ),
-        constructor_call.ret_val,
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(function_call)
-    test_case.add_statement(constructor_call)
-    test_case.add_statement(method_call)
-    return tcc.TestCaseChromosome(test_case=test_case)
-
-
-def _get_test_for_single_branch_if_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
-    int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
-    function_call = stmt.FunctionStatement(
-        test_case,
-        gao.GenericFunction(
-            module.first,
-            InferredSignature(
-                signature=inspect.signature(module.first),
-                parameters={"a": int},
-                return_type=int,
-            ),
-        ),
-        {"a": int_stmt.ret_val},
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(function_call)
-    return tcc.TestCaseChromosome(test_case=test_case)
-
-
-def _get_test_for_single_branch_else_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
-    int_stmt = stmt.IntPrimitiveStatement(test_case, -5)
-    function_call = stmt.FunctionStatement(
-        test_case,
-        gao.GenericFunction(
-            module.first,
-            InferredSignature(
-                signature=inspect.signature(module.first),
-                parameters={"a": int},
-                return_type=int,
-            ),
-        ),
-        {"a": int_stmt.ret_val},
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(function_call)
-    return tcc.TestCaseChromosome(test_case=test_case)
-
-
-def _get_test_for_nested_branch_fixture(module) -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
-    int_stmt = stmt.IntPrimitiveStatement(test_case, -50)
-    function_call = stmt.FunctionStatement(
-        test_case,
-        gao.GenericFunction(
-            module.nested_branches,
-            InferredSignature(
-                signature=inspect.signature(module.nested_branches),
-                parameters={"a": int},
-                return_type=int,
-            ),
-        ),
-        {"a": int_stmt.ret_val},
-    )
-    test_case.add_statement(int_stmt)
-    test_case.add_statement(function_call)
+    test_case = transformer.testcases[0]
     return tcc.TestCaseChromosome(test_case=test_case)
 
 
@@ -480,11 +384,11 @@ def _get_lines_data_for_plus_module():
     file_name = "../fixtures/linecoverage/plus.py"
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
     return {
-        line_id: LineMetaData(0, file_name, lines[line_id])
-        for line_id in range(len(lines))
+        line_id: LineMetaData(0, file_name, line) for line_id, line in enumerate(lines)
     }
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
-    test_case = dtc.DefaultTestCase()
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
     return tcc.TestCaseChromosome(test_case=test_case)

@@ -10,18 +10,17 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
-from ordered_set import OrderedSet
-
 from pynguin.utils import randomness
-from pynguin.utils.atomicinteger import AtomicInteger
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_consistent_with, is_type_unknown
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
+    from pynguin.analyses.module import TestCluster
+    from pynguin.analyses.typesystem import ProperType
 
 
 # pylint: disable=too-many-public-methods
@@ -31,10 +30,16 @@ class TestCase(metaclass=ABCMeta):
     Serves as an interface for test-case implementations
     """
 
-    _id_generator = AtomicInteger()
+    def __init__(self, test_cluster: TestCluster) -> None:
+        """Create a new test case.
 
-    def __init__(self) -> None:
+        Args:
+            test_cluster: The used test cluster. We need this cluster to have access
+                to the typesystem, in order to search through the statements of this
+                test case which provide values of certain (sub)types.
+        """
         self._statements: list[stmt.Statement] = []
+        self.test_cluster: TestCluster = test_cluster
 
     @property
     def statements(self) -> list[stmt.Statement]:
@@ -222,13 +227,13 @@ class TestCase(metaclass=ABCMeta):
         """
 
     def get_objects(
-        self, parameter_type: type | None, position: int
+        self, parameter_type: ProperType, position: int
     ) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type before a
         given position.
 
         If the position value is larger than the number of statements, only these
-        statements will be considered.  Otherwise the first `position` statements of
+        statements will be considered.  Otherwise, the first `position` statements of
         the test case will be considered.
 
         If the type for which we search is not specified, all objects up to the given
@@ -241,9 +246,6 @@ class TestCase(metaclass=ABCMeta):
         Returns:
             A list of variable references satisfying the parameter type
         """
-        if is_type_unknown(parameter_type):
-            return self.get_all_objects(position)
-
         variables: list[vr.VariableReference] = []
         bound = min(len(self._statements), position)
         for i in range(bound):
@@ -251,7 +253,7 @@ class TestCase(metaclass=ABCMeta):
             var = statement.ret_val
             if var is None:
                 continue
-            if not var.is_none_type() and is_consistent_with(var.type, parameter_type):
+            if self.test_cluster.type_system.is_maybe_subtype(var.type, parameter_type):
                 variables.append(var)
 
         return variables
@@ -276,7 +278,7 @@ class TestCase(metaclass=ABCMeta):
         return variables
 
     def get_random_object(
-        self, parameter_type: type | None, position: int
+        self, parameter_type: ProperType, position: int
     ) -> vr.VariableReference:
         """Get a random object of the given type up to the given position (exclusive).
 

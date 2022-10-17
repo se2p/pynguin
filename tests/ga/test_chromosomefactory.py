@@ -6,12 +6,11 @@
 #
 from unittest.mock import MagicMock
 
-from ordered_set import OrderedSet
-
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_suite_factory_get_chromosome():

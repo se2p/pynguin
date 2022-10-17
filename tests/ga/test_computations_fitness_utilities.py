@@ -26,6 +26,7 @@ from pynguin.testcase.execution import (
     KnownData,
     LineMetaData,
 )
+from pynguin.utils.orderedset import OrderedSet
 
 
 def test_normalise_less_zero():
@@ -289,7 +290,7 @@ def test_analyze_traces_merge(trace_mock):
     trace_mock.true_distances[1] = 2
     trace_mock.executed_predicates[0] = 1
     trace_mock.executed_code_objects.add(0)
-    trace_mock.covered_line_ids = {0, 1}
+    trace_mock.covered_line_ids = OrderedSet([0, 1])
     result.execution_trace = trace_mock
     results.append(result)
     trace = ff.analyze_results(results)

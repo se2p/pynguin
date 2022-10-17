@@ -12,22 +12,25 @@ import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
+from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.typesystem import AnyType
+from pynguin.utils.orderedset import OrderedSet
 
 
 @pytest.fixture
 def default_test_case():
     # TODO what about the logger, should be a mock
-    return dtc.DefaultTestCase()
+    return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
 def get_default_test_case():
-    return dtc.DefaultTestCase()
+    return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
 def test_add_statement_end(default_test_case):
-    stmt_1 = MagicMock(st.Statement)
-    stmt_2 = MagicMock(st.Statement)
-    stmt_3 = MagicMock(st.Statement)
+    stmt_1 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_2 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_3 = MagicMock(st.Statement, ret_val=MagicMock())
     stmt_3.return_value = MagicMock(vr.VariableReference)
     default_test_case._statements.extend([stmt_1, stmt_2])
 
@@ -37,10 +40,10 @@ def test_add_statement_end(default_test_case):
 
 
 def test_add_statement_middle(default_test_case):
-    stmt_1 = MagicMock(st.Statement)
-    stmt_2 = MagicMock(st.Statement)
+    stmt_1 = MagicMock(st.Statement, ret_val=MagicMock())
+    stmt_2 = MagicMock(st.Statement, ret_val=MagicMock())
     stmt_2.return_value = MagicMock(vr.VariableReference)
-    stmt_3 = MagicMock(st.Statement)
+    stmt_3 = MagicMock(st.Statement, ret_val=MagicMock())
     default_test_case._statements.extend([stmt_1, stmt_3])
 
     reference = default_test_case.add_statement(stmt_2, position=1)
@@ -55,10 +58,6 @@ def test_add_statements(default_test_case):
     default_test_case._statements.append(stmt_1)
     default_test_case.add_statements([stmt_2, stmt_3])
     assert default_test_case._statements == [stmt_1, stmt_2, stmt_3]
-
-
-def test_id(default_test_case):
-    assert default_test_case.id >= 0
 
 
 def test_chop(default_test_case):
@@ -159,51 +158,53 @@ def test_eq_same(default_test_case):
 
 
 def test_eq_statements_1(default_test_case):
-    other = dtc.DefaultTestCase()
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = [MagicMock(st.Statement)]
     assert default_test_case != other
 
 
 def test_eq_statements_2(default_test_case):
     default_test_case._statements = [MagicMock(st.Statement)]
-    other = dtc.DefaultTestCase()
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
     assert default_test_case != other
 
 
 def test_eq_statements_3(default_test_case):
-    stmt1 = MagicMock()
+    stmt1 = MagicMock(ret_val=MagicMock())
     stmt1.structural_eq.return_value = False
     default_test_case._statements = [stmt1]
-    other = dtc.DefaultTestCase()
-    other._statements = [MagicMock(st.Statement)]
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
+    other._statements = [MagicMock(st.Statement, ret_val=MagicMock())]
     assert default_test_case != other
 
 
 def test_eq_statements_4(default_test_case):
-    statements = [MagicMock(st.Statement), MagicMock(st.Statement)]
+    statements = [
+        MagicMock(st.Statement, ret_val=MagicMock()),
+        MagicMock(st.Statement, ret_val=MagicMock()),
+    ]
     default_test_case._statements = statements
-    other = dtc.DefaultTestCase()
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = statements
     assert default_test_case.__eq__(other)
 
 
 def test_eq_statements_5(default_test_case):
     default_test_case._statements = []
-    other = dtc.DefaultTestCase()
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = []
     assert default_test_case.__eq__(other)
 
 
 def test_clone(default_test_case):
-    stmt = MagicMock(st.Statement)
+    stmt = MagicMock(st.Statement, ret_val=MagicMock())
     ref = MagicMock(vr.VariableReference)
     stmt.clone.return_value = stmt
     stmt.return_value.clone.return_value = ref
     default_test_case._statements = [stmt]
     result = default_test_case.clone()
     assert isinstance(result, dtc.DefaultTestCase)
-    assert result.id != default_test_case.id
     assert result.size() == 1
     assert result.get_statement(0) == stmt
 
@@ -213,32 +214,34 @@ def test_statements(default_test_case):
 
 
 def test_append_test_case(default_test_case):
-    stmt = MagicMock(st.Statement)
+    stmt = MagicMock(st.Statement, ret_val=MagicMock())
     stmt.clone.return_value = stmt
-    other = dtc.DefaultTestCase()
+    other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = [stmt]
     assert len(default_test_case.statements) == 0
     default_test_case.append_test_case(other)
     assert len(default_test_case.statements) == 1
 
 
-def test_get_objects(default_test_case):
+def test_get_objects(default_test_case, type_system):
     stmt_1 = MagicMock(st.Statement)
-    vri_1 = vr.VariableReference(default_test_case, int)
+    vri_1 = vr.VariableReference(default_test_case, type_system.convert_type_hint(int))
     stmt_1.ret_val = vri_1
     stmt_2 = MagicMock(st.Statement)
-    vri_2 = vr.VariableReference(default_test_case, float)
+    vri_2 = vr.VariableReference(
+        default_test_case, type_system.convert_type_hint(float)
+    )
     stmt_2.ret_val = vri_2
     stmt_3 = MagicMock(st.Statement)
-    vri_3 = vr.VariableReference(default_test_case, int)
+    vri_3 = vr.VariableReference(default_test_case, type_system.convert_type_hint(int))
     stmt_3.ret_val = vri_3
     default_test_case._statements = [stmt_1, stmt_2, stmt_3]
-    result = default_test_case.get_objects(int, 2)
+    result = default_test_case.get_objects(type_system.convert_type_hint(int), 2)
     assert result == [vri_1]
 
 
 def test_get_objects_without_type(default_test_case):
-    result = default_test_case.get_objects(None, 42)
+    result = default_test_case.get_objects(AnyType(), 42)
     assert result == []
 
 
@@ -260,7 +263,7 @@ def test_get_dependencies_self_empty(default_test_case, constructor_mock):
     const0 = st.ConstructorStatement(default_test_case, constructor_mock)
     default_test_case.add_statement(const0)
     dependencies = default_test_case.get_dependencies(const0.ret_val)
-    assert dependencies == {const0.ret_val}
+    assert dependencies == OrderedSet([const0.ret_val])
 
 
 def test_get_dependencies_chained(default_test_case, function_mock):
@@ -278,7 +281,7 @@ def test_get_dependencies_chained(default_test_case, function_mock):
     func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
     default_test_case.add_statement(func1)
     dependencies = default_test_case.get_dependencies(func1.ret_val)
-    assert dependencies == {float0.ret_val, func0.ret_val, func1.ret_val}
+    assert dependencies == OrderedSet([func1.ret_val, func0.ret_val, float0.ret_val])
 
 
 def test_get_assertions_empty(default_test_case):

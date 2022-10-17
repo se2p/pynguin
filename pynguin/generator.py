@@ -25,9 +25,8 @@ import logging
 import os
 import sys
 import threading
-from importlib.abc import FileLoader
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
@@ -47,23 +46,20 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import TypeInferenceStrategy
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import (
-    InstrumentationLoader,
-    build_transformer,
-    install_import_hook,
-)
+from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase.execution import (
     AssertionExecutionObserver,
     ExecutionTracer,
-    ReturnTypeObserver,
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.report import get_coverage_report, render_coverage_report
+from pynguin.utils.report import (
+    get_coverage_report,
+    render_coverage_report,
+    render_xml_coverage_report,
+)
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -118,15 +114,10 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
-    # TODO this is ugly and needs to be reworked...
-    match config.configuration.type_inference.type_inference_strategy:
-        case config.TypeInferenceStrategy.TYPE_HINTS:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-        case config.TypeInferenceStrategy.NONE:
-            strategy = TypeInferenceStrategy.NONE
-        case _:
-            strategy = TypeInferenceStrategy.TYPE_HINTS
-    test_cluster = generate_test_cluster(config.configuration.module_name, strategy)
+    test_cluster = generate_test_cluster(
+        config.configuration.module_name,
+        config.configuration.type_inference.type_inference_strategy,
+    )
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
@@ -151,6 +142,7 @@ def _setup_path() -> bool:
 
 
 def _setup_import_hook(
+    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
 ) -> ExecutionTracer:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
@@ -159,6 +151,7 @@ def _setup_import_hook(
     install_import_hook(
         config.configuration.module_name,
         tracer,
+        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     return tracer
@@ -253,7 +246,10 @@ def _setup_and_check() -> tuple[
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
-    tracer = _setup_import_hook(dynamic_constant_provider)
+    tracer = _setup_import_hook(
+        set(config.configuration.statistics_output.coverage_metrics),
+        dynamic_constant_provider,
+    )
     if not _load_sut(tracer):
         return None
     if not _setup_report_dir():
@@ -297,20 +293,27 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
         len(tracer.get_known_data().existing_lines),
     )
     test_cluster.track_statistics_values(stat.track_output_variable)
-    # TODO(fk) make this work for other criteria beyond branch coverage.
-    stat.track_output_variable(
-        RuntimeVariable.ImportBranchCoverage,
-        ff.compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
-    )
-    stat.track_output_variable(
-        RuntimeVariable.ImportLineCoverage,
-        ff.compute_line_coverage(tracer.import_trace, tracer.get_known_data()),
-    )
+    if (
+        config.CoverageMetric.BRANCH
+        in config.configuration.statistics_output.coverage_metrics
+    ):
+        stat.track_output_variable(
+            RuntimeVariable.ImportBranchCoverage,
+            ff.compute_branch_coverage(tracer.import_trace, tracer.get_known_data()),
+        )
+    if (
+        config.CoverageMetric.LINE
+        in config.configuration.statistics_output.coverage_metrics
+    ):
+        stat.track_output_variable(
+            RuntimeVariable.ImportLineCoverage,
+            ff.compute_line_coverage(tracer.import_trace, tracer.get_known_data()),
+        )
 
 
 def _get_coverage_ff_from_algorithm(
-    algorithm: TestGenerationStrategy, function_type: type[ff.CoverageFunction]
-) -> ff.CoverageFunction:
+    algorithm: TestGenerationStrategy, function_type: type[ff.TestSuiteCoverageFunction]
+) -> ff.TestSuiteCoverageFunction:
     """Retrieve the coverage function for a test suite of a given coverage type.
 
     Args:
@@ -330,27 +333,26 @@ def _get_coverage_ff_from_algorithm(
     return test_suite_coverage_func
 
 
-def _add_checked_coverage_instrumentation(
-    constant_provider: DynamicConstantProvider | None, tracer: ExecutionTracer
+def _reload_instrumentation_loader(
+    coverage_metrics: set[config.CoverageMetric],
+    dynamic_constant_provider: DynamicConstantProvider | None,
+    tracer: ExecutionTracer,
 ):
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
-    spec = module.__spec__
     tracer.current_thread_identifier = threading.current_thread().ident
-    if spec is not None and isinstance(spec.loader, FileLoader):
-        new_loader = InstrumentationLoader(
-            spec.loader.name,
-            spec.loader.path,
-            tracer,
-            build_transformer(tracer, constant_provider),
-        )
-        spec.loader = new_loader
-        module.__loader__ = new_loader
-        importlib.reload(module)
-    else:
-        raise ConfigurationException(
-            "Loader for module under test is not a FileLoader can not instrument."
-        )
+    first_finder: InstrumentationFinder | None = None
+    for finder in sys.meta_path:
+        if isinstance(finder, InstrumentationFinder):
+            first_finder = finder
+            break
+    assert first_finder is not None
+    first_finder.update_instrumentation_metrics(
+        tracer=tracer,
+        coverage_metrics=coverage_metrics,
+        dynamic_constant_provider=dynamic_constant_provider,
+    )
+    importlib.reload(module)
 
 
 def _reset_cache_for_result(generation_result):
@@ -360,54 +362,142 @@ def _reset_cache_for_result(generation_result):
         test_case.remove_last_execution_result()
 
 
-def _track_resulting_assertion_checked_coverage(
+def _track_final_metrics(
+    algortihm,
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
-    constant_provider: DynamicConstantProvider | None,
-):
-    """Now that we have assertions generated, we execute the testsuite statement for
-    statement, while also instrumenting the executed test-statements before execution.
+    constant_provider: ConstantProvider,
+) -> set[config.CoverageMetric]:
+    """
+    Re-loads all required instrumentations for metrics that were not already
+    calculated and tracked during the result generation.
+    These metrics are then also calculated on the result, which is executed
+    once again with the new instrumentation.
 
     Args:
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
+        constant_provider: the constant provider required for the
+            reloading of the module
+
+    Returns:
+        The set of tracked coverage metrics, including the ones that we optimised for.
     """
-    _LOGGER.info("Calculating resulting checked coverage")
+    # pylint:disable=too-many-locals
 
-    original_coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    # change the configuration for the re-instrumentation
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED,
-    ]
-    executor.set_instrument(True)
+    output_variables = config.configuration.statistics_output.output_variables
+    # Alias for shorter lines
+    cov_metrics = config.configuration.statistics_output.coverage_metrics
+    metrics_for_reinstrumenation: set[config.CoverageMetric] = set(cov_metrics)
 
-    _add_checked_coverage_instrumentation(constant_provider, executor.tracer)
-    executor.add_observer(AssertionExecutionObserver(executor.tracer))
-    assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
-        executor
+    to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
+
+    _add_additional_metrics(
+        algortihm,
+        cov_metrics,
+        executor,
+        metrics_for_reinstrumenation,
+        output_variables,
+        to_calculate,
     )
-    generation_result.add_coverage_function(assertion_checked_coverage_ff)
+
+    # Assertion Checked Coverage is special...
+    if RuntimeVariable.AssertionCheckedCoverage in output_variables:
+        metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
+        executor.set_instrument(True)
+        executor.add_observer(AssertionExecutionObserver(executor.tracer))
+        assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
+            executor
+        )
+        to_calculate.append(
+            (RuntimeVariable.AssertionCheckedCoverage, assertion_checked_coverage_ff)
+        )
+
+    # re-instrument the files
+    dynamic_constant_provider = None
+    if isinstance(constant_provider, DynamicConstantProvider):
+        dynamic_constant_provider = constant_provider
+    _reload_instrumentation_loader(
+        metrics_for_reinstrumenation, dynamic_constant_provider, executor.tracer
+    )
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)
 
-    stat.track_output_variable(
-        RuntimeVariable.AssertionCheckedCoverage,
-        generation_result.get_coverage_for(assertion_checked_coverage_ff),
-    )
+    # set value for each newly calculated variable
+    for runtime_variable, coverage_ff in to_calculate:
+        generation_result.add_coverage_function(coverage_ff)
+        _LOGGER.info(f"Calculating resulting {runtime_variable.value}")
+        stat.track_output_variable(
+            runtime_variable, generation_result.get_coverage_for(coverage_ff)
+        )
 
-    # reset the config to its original state
-    config.configuration.statistics_output.coverage_metrics = original_coverage_metrics
-    instrument_test = config.CoverageMetric.CHECKED in original_coverage_metrics
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if (
+        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING
+        and RuntimeVariable.AssertionCheckedCoverage in output_variables
+    ):
+        _minimize_assertions(generation_result)
+
+    # Collect other final stats on result
+    stat.track_output_variable(RuntimeVariable.FinalLength, generation_result.length())
+    stat.track_output_variable(RuntimeVariable.FinalSize, generation_result.size())
+
+    # reset whether to instrument tests and assertions as well as the SUT
+    instrument_test = config.CoverageMetric.CHECKED in cov_metrics
     executor.set_instrument(instrument_test)
+    return metrics_for_reinstrumenation
+
+
+def _add_additional_metrics(
+    algortihm,
+    cov_metrics,
+    executor,
+    metrics_for_reinstrumenation,
+    output_variables,
+    to_calculate,
+):
+    # pylint:disable=too-many-arguments
+    if (
+        RuntimeVariable.FinalLineCoverage in output_variables
+        and config.CoverageMetric.LINE not in cov_metrics
+    ):
+        metrics_for_reinstrumenation.add(config.CoverageMetric.LINE)
+        line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.FinalLineCoverage, line_cov_ff))
+    elif config.CoverageMetric.LINE in cov_metrics:
+        # If we optimised for lines, we still want to get the final line coverage.
+        to_calculate.append(
+            (
+                RuntimeVariable.FinalLineCoverage,
+                _get_coverage_ff_from_algorithm(
+                    algortihm, ff.TestSuiteLineCoverageFunction
+                ),
+            )
+        )
+    if (
+        RuntimeVariable.FinalBranchCoverage in output_variables
+        and config.CoverageMetric.BRANCH not in cov_metrics
+    ):
+        metrics_for_reinstrumenation.add(config.CoverageMetric.BRANCH)
+        branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
+        to_calculate.append((RuntimeVariable.FinalBranchCoverage, branch_cov_ff))
+    elif config.CoverageMetric.BRANCH in cov_metrics:
+        # If we optimised for branches, we still want to get the final branch coverage.
+        to_calculate.append(
+            (
+                RuntimeVariable.FinalBranchCoverage,
+                _get_coverage_ff_from_algorithm(
+                    algortihm, ff.TestSuiteBranchCoverageFunction
+                ),
+            )
+        )
 
 
 def _run() -> ReturnCode:
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
-    # Observe return types during execution.
-    executor.add_observer(ReturnTypeObserver())
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
@@ -430,22 +520,12 @@ def _run() -> ReturnCode:
     # search statistics
     executor.clear_observers()
 
-    _track_coverage_metrics(algorithm, generation_result)
+    _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)
     _generate_assertions(executor, generation_result)
-
-    # only call checked coverage calculation after assertion generation
-    if (
-        RuntimeVariable.AssertionCheckedCoverage
-        in config.configuration.statistics_output.output_variables
-    ):
-        dynamic_constant_provider = None
-        if isinstance(constant_provider, DynamicConstantProvider):
-            dynamic_constant_provider = constant_provider
-        _track_resulting_assertion_checked_coverage(
-            executor, generation_result, dynamic_constant_provider
-        )
-        _minimize_assertions(generation_result)
+    tracked_metrics = _track_final_metrics(
+        algorithm, executor, generation_result, constant_provider
+    )
 
     # Export the generated test suites
     if (
@@ -455,17 +535,22 @@ def _run() -> ReturnCode:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
+        coverage_report = get_coverage_report(
+            generation_result,
+            executor,
+            tracked_metrics,
+        )
         render_coverage_report(
-            get_coverage_report(
-                generation_result,
-                executor,
-                config.configuration.statistics_output.coverage_metrics,
-            ),
+            coverage_report,
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
             datetime.datetime.now(),
         )
-    _track_statistics(generation_result)
-    _collect_statistics()
+        render_xml_coverage_report(
+            coverage_report,
+            Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
+            datetime.datetime.now(),
+        )
+    _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
     if generation_result.size() == 0:
@@ -486,18 +571,16 @@ def _remove_statements_after_exceptions(generation_result):
 
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
-    ass_gen = config.configuration.test_case_output.assertion_generation
-    if ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING:
-        _LOGGER.info("Minimizing assertions based on checked coverage")
-        assertion_minimizer = pp.AssertionMinimization()
-        generation_result.accept(assertion_minimizer)
-        stat.track_output_variable(
-            RuntimeVariable.Assertions, len(assertion_minimizer.remaining_assertions)
-        )
-        stat.track_output_variable(
-            RuntimeVariable.DeletedAssertions,
-            len(assertion_minimizer.deleted_assertions),
-        )
+    _LOGGER.info("Minimizing assertions based on checked coverage")
+    assertion_minimizer = pp.AssertionMinimization()
+    generation_result.accept(assertion_minimizer)
+    stat.track_output_variable(
+        RuntimeVariable.Assertions, len(assertion_minimizer.remaining_assertions)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.DeletedAssertions,
+        len(assertion_minimizer.deleted_assertions),
+    )
 
 
 def _generate_assertions(executor, generation_result):
@@ -513,8 +596,10 @@ def _generate_assertions(executor, generation_result):
         generation_result.accept(generator)
 
 
-def _track_coverage_metrics(
-    algorithm: TestGenerationStrategy, generation_result: tsc.TestSuiteChromosome
+def _track_search_metrics(
+    algorithm: TestGenerationStrategy,
+    generation_result: tsc.TestSuiteChromosome,
+    coverage_metrics: list[config.CoverageMetric],
 ) -> None:
     """Track multiple set coverage metrics of the generated test suites.
     This possibly re-executes the test suites.
@@ -522,36 +607,36 @@ def _track_coverage_metrics(
     Args:
         algorithm: The test generation strategy
         generation_result:  The resulting chromosome of the generation strategy
+        coverage_metrics: The selected coverage metrics to guide the search
     """
-
-    stat.track_output_variable(
-        RuntimeVariable.Coverage, generation_result.get_coverage()
-    )
-    coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    if config.CoverageMetric.LINE in coverage_metrics:
-        line_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteLineCoverageFunction
-        )
-        stat.track_output_variable(
+    for metric, runtime, fitness_type in [
+        (
+            config.CoverageMetric.LINE,
             RuntimeVariable.LineCoverage,
-            generation_result.get_coverage_for(line_coverage_ff),
-        )
-    if config.CoverageMetric.BRANCH in coverage_metrics:
-        branch_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteBranchCoverageFunction
-        )
-        stat.track_output_variable(
+            ff.TestSuiteLineCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.BRANCH,
             RuntimeVariable.BranchCoverage,
-            generation_result.get_coverage_for(branch_coverage_ff),
-        )
-    if config.CoverageMetric.CHECKED in coverage_metrics:
-        checked_coverage_ff: ff.CoverageFunction = _get_coverage_ff_from_algorithm(
-            algorithm, ff.TestSuiteStatementCheckedCoverageFunction
-        )
-        stat.track_output_variable(
+            ff.TestSuiteBranchCoverageFunction,
+        ),
+        (
+            config.CoverageMetric.CHECKED,
             RuntimeVariable.StatementCheckedCoverage,
-            generation_result.get_coverage_for(checked_coverage_ff),
-        )
+            ff.TestSuiteStatementCheckedCoverageFunction,
+        ),
+    ]:
+        if metric in coverage_metrics:
+            coverage_function: ff.TestSuiteCoverageFunction = (
+                _get_coverage_ff_from_algorithm(
+                    algorithm, cast(type[ff.TestSuiteCoverageFunction], fitness_type)
+                )
+            )
+            stat.track_output_variable(
+                runtime, generation_result.get_coverage_for(coverage_function)
+            )
+    # Write overall coverage data of result
+    stat.current_individual(generation_result)
 
 
 def _instantiate_test_generation_strategy(
@@ -565,7 +650,8 @@ def _instantiate_test_generation_strategy(
     return factory.get_search_algorithm()
 
 
-def _collect_statistics() -> None:
+def _collect_miscellaneous_statistics(test_cluster) -> None:
+    test_cluster.log_cluster_statistics()
     stat.track_output_variable(
         RuntimeVariable.TargetModule, config.configuration.module_name
     )
@@ -575,16 +661,13 @@ def _collect_statistics() -> None:
         config.configuration.statistics_output.configuration_id,
     )
     stat.track_output_variable(
+        RuntimeVariable.RunId, config.configuration.statistics_output.run_id
+    )
+    stat.track_output_variable(
         RuntimeVariable.ProjectName, config.configuration.statistics_output.project_name
     )
     for runtime_variable, value in stat.variables_generator:
         stat.set_output_variable_for_runtime_variable(runtime_variable, value)
-
-
-def _track_statistics(result: chrom.Chromosome) -> None:
-    stat.current_individual(result)
-    stat.track_output_variable(RuntimeVariable.Size, result.size())
-    stat.track_output_variable(RuntimeVariable.Length, result.length())
 
 
 def _export_chromosome(
@@ -609,5 +692,9 @@ def _export_chromosome(
     )
     export_visitor = export.PyTestChromosomeToAstVisitor()
     chromosome.accept(export_visitor)
-    export.save_module_to_file(export_visitor.to_module(), target_file)
+    export.save_module_to_file(
+        export_visitor.to_module(),
+        target_file,
+        config.configuration.test_case_output.format_with_black,
+    )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)
