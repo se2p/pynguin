@@ -113,6 +113,3 @@ cov_html/
 pynguin-report/
 docs/_build
 .run/
-
-# Pynguin self
-pynguin_self/
