@@ -452,37 +452,50 @@ class TestCluster(abc.ABC):
 
 
 @dataclasses.dataclass
+class SignatureInfo:
+    """Another utility class to group information per callable."""
+
+    # A dictionary mapping parameter names and to their developer annotated parameters
+    # types.
+    # Does not include self, etc.
+    annotated_parameter_types: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # Similar to above, but with guessed parameters types.
+    # Contains multiples type guesses.
+    guessed_parameter_types: dict[str, list[str]] = dataclasses.field(
+        default_factory=dict
+    )
+
+    # Similar to above, but randomly chosen from all known types.
+    randomly_chosen_parameter_types: dict[str, list[str]] = dataclasses.field(
+        default_factory=dict
+    )
+
+    # Needed to compute top-n accuracy in the evaluation.
+    # Elements are of form (A,B); A is a guess, B is an annotated type.
+    # (A,B) is only present, when A is a base type match of B.
+    # If it is present, it points to the partial type match between A and B.
+    partial_type_matches: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # Annotated return type, if Any.
+    # Does not include constructors.
+    annotated_return_type: str | None = None
+
+    # Recorded return type, if Any.
+    # Does not include constructors.
+    recorded_return_type: str | None = None
+
+
+@dataclasses.dataclass
 class TypeGuessingStats:
     """Class to gather some type guessing related statistics."""
 
     # Number of constructors in the MUT.
     number_of_constructors: int = 0
 
-    # A mapping from callable names to  a dictionary  parameter names and their
-    # developer annotated parameters types.
-    # Does not include self, etc.
-    annotated_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
-        default_factory=dict
-    )
-
-    # Similar to above, but with guessed parameters types.
-    # Any indicates no guess.
-    guessed_parameter_types: dict[str, dict[str, str]] = dataclasses.field(
-        default_factory=dict
-    )
-
-    # A mapping from callable names to their annotated return types, if Any.
-    # Does not include constructors.
-    annotated_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
-
-    # A mapping from callable names to their recorded return types, if Any.
-    # Does not include constructors.
-    recorded_return_types: dict[str, str] = dataclasses.field(default_factory=dict)
-
-    # A mapping from callable names to their formatted signature with guessed types
-    # and recorded return types.
-    formatted_guessed_signatures: dict[str, str] = dataclasses.field(
-        default_factory=dict
+    # Maps names of callables to a signature info object.
+    signature_infos: dict[str, SignatureInfo] = dataclasses.field(
+        default_factory=lambda: defaultdict(SignatureInfo)
     )
 
 
@@ -522,28 +535,32 @@ class ModuleTestCluster(TestCluster):
                 accessible.inferred_signature.log_stats_and_guess_signature(
                     accessible.is_constructor(), str(accessible), stats
                 )
+
+        def _serialize_helper(obj):
+            """Utility to deal with non-serializable types.
+
+            Args:
+                obj: The object to serialize
+
+            Returns:
+                A serializable object.
+            """
+            if isinstance(obj, set):
+                return list(obj)
+            if isinstance(obj, SignatureInfo):
+                return dataclasses.asdict(obj)
+            return obj
+
         stat.track_output_variable(
-            RuntimeVariable.GuessedParameterTypes,
-            str(stats.guessed_parameter_types),
-        )
-        stat.track_output_variable(
-            RuntimeVariable.RecordedReturnTypes, str(stats.recorded_return_types)
-        )
-        stat.track_output_variable(
-            RuntimeVariable.AnnotatedParameterTypes,
-            str(stats.annotated_parameter_types),
-        )
-        stat.track_output_variable(
-            RuntimeVariable.AnnotatedReturnTypes,
-            str(stats.annotated_return_types),
+            RuntimeVariable.SignatureInfos,
+            json.dumps(
+                stats.signature_infos,
+                default=_serialize_helper,
+            ),
         )
         stat.track_output_variable(
             RuntimeVariable.NumberOfConstructors,
             str(stats.number_of_constructors),
-        )
-        stat.track_output_variable(
-            RuntimeVariable.FormattedGuessedSignatures,
-            str(stats.formatted_guessed_signatures),
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):

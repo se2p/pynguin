@@ -22,6 +22,7 @@ from pynguin.analyses.typesystem import (
     TypeInfo,
     TypeSystem,
     UnionType,
+    _is_partial_type_match,
     is_collection_type,
     is_primitive_type,
 )
@@ -888,3 +889,46 @@ def test_numeric_tower(type_system, numeric, subtypes):
     assert type_system.numeric_tower[type_system.convert_type_hint(numeric)] == [
         type_system.convert_type_hint(typ) for typ in subtypes
     ]
+
+
+@pytest.mark.parametrize(
+    "left,right,result",
+    [
+        (int, int, "int"),
+        (tuple[int, int], tuple[int, str], "tuple"),
+        (dict[int, int], dict[bool, str], "dict"),
+        (int | bool, bool | str | float, "bool"),
+        (bool | float, bool | str | float, "bool | float"),
+        (int, int | str | float, "int"),
+        (int | str | float, int | str | float, "float | int | str"),
+        (int | str, str, "str"),
+        (list[bool], list | bool, "list"),
+        (bool, list | bool, "bool"),
+        (type(None), type(None), "None"),
+    ],
+)
+def test_partial_type_match(type_system, left, right, result):
+    match = _is_partial_type_match(
+        type_system.convert_type_hint(left), type_system.convert_type_hint(right)
+    )
+    assert str(match) == result
+
+
+@pytest.mark.parametrize(
+    "left,right",
+    [
+        (int | float, bool | str),
+        (int | str, bool),
+        (dict[int, int], list),
+        (int, bool),
+        (Any, bool),
+        (bool, Any),
+        (type(None), str),
+        (str, type(None)),
+    ],
+)
+def test_no_partial_type_match(type_system, left, right):
+    match = _is_partial_type_match(
+        type_system.convert_type_hint(left), type_system.convert_type_hint(right)
+    )
+    assert match is None

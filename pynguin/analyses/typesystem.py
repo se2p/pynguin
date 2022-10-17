@@ -267,6 +267,91 @@ class TypeVisitor(Generic[T]):
         """
 
 
+class _PartialTypeMatch(TypeVisitor[ProperType | None]):
+    """A type visitor to check for base type matches."""
+
+    def __init__(self, right: ProperType):
+        self.right = right
+
+    def visit_any_type(self, left: AnyType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        # Any is not guessed/recorded
+        return None
+
+    def visit_none_type(self, left: NoneType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        if isinstance(self.right, NoneType):
+            return NONE_TYPE
+        return None
+
+    def visit_instance(self, left: Instance) -> ProperType | None:
+        # pylint:disable=missing-function-docstring
+        if isinstance(self.right, Instance) and left.type == self.right.type:
+            return Instance(left.type)
+        return None
+
+    def visit_tuple_type(self, left: TupleType) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        if isinstance(self.right, TupleType):
+            return TupleType(())
+        return None
+
+    def visit_union_type(self, left: UnionType) -> ProperType | None:
+        # pylint:disable=missing-function-docstring
+        matches: tuple[ProperType, ...] = tuple(
+            (
+                elem
+                for elem in (
+                    _is_partial_type_match(left_elem, self.right)
+                    for left_elem in left.items
+                )
+                if elem
+            )
+        )
+        if matches:
+            return UnionType(matches)
+        return None
+
+    def visit_unsupported_type(self, left: Unsupported) -> ProperType | None:
+        # pylint:disable=unused-argument,missing-function-docstring
+        # Cannot compare.
+        return None
+
+
+def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | None:
+    """Is left a partial type match of right?
+    This is only useful for statistics purposes, i.e., do we have a fuzzy type match?
+
+    Args:
+        left: The guessed type
+        right: The ground truth
+
+    Returns:
+        The partial match, if Any.
+    """
+    if isinstance(right, UnionType):
+        matches: tuple[ProperType, ...] = tuple(
+            (
+                elem
+                for elem in (
+                    _is_partial_type_match(left, right_elem)
+                    for right_elem in right.items
+                )
+                if elem is not None
+            )
+        )
+        if matches:
+            flattened: set[ProperType] = set()
+            for match in matches:
+                if isinstance(match, UnionType):
+                    flattened.update(match.items)
+                else:
+                    flattened.add(match)
+            return UnionType(tuple(sorted(flattened)))
+        return None
+    return left.accept(_PartialTypeMatch(right))
+
+
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
 
@@ -556,8 +641,8 @@ class InferredSignature:
     # Parameter types of each parameter, including unsupported types,
     # i.e., types that we currently cannot understand/parse. Purely used for statistics
     # purposes!
-    parameters_for_statistics: dict[str, str] = field(default_factory=dict)
-    return_type_for_statistics: str = ""
+    parameters_for_statistics: dict[str, ProperType] = field(default_factory=dict)
+    return_type_for_statistics: ProperType = ANY
 
     def __post_init__(self):
         self.return_type = self.original_return_type
@@ -979,6 +1064,7 @@ class InferredSignature:
     def log_stats_and_guess_signature(
         self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
     ) -> None:
+        # pylint:disable=too-many-locals
         """Logs some statistics and creates a guessed signature.
         Parameters annotated with Any could not be guessed.
 
@@ -987,47 +1073,80 @@ class InferredSignature:
             is_constructor: does this signature to a constructor?
             stats: stats object to log to.
         """
-        stats.annotated_parameter_types[callable_full_name] = dict(
-            self.parameters_for_statistics
-        )
+        sig_info = stats.signature_infos[callable_full_name]
+
+        sig_info.annotated_parameter_types = {
+            k: str(v) for k, v in self.parameters_for_statistics.items()
+        }
         if not is_constructor:
             # Constructors don't need a return type, so no need to log it.
-            stats.annotated_return_types[
-                callable_full_name
-            ] = self.return_type_for_statistics
+            sig_info.annotated_return_type = str(self.return_type_for_statistics)
         else:
             stats.number_of_constructors += 1
 
-        parameter_types: dict[str, str] = {}
-        parameters = []
+        parameter_types: dict[str, list[str]] = {}
+        randomly_chosen_parameter_types: dict[str, list[str]] = {}
+        # The pairs for which we need to compute partial matches.
+        compute_partial_matches_for: list[tuple[ProperType, ProperType]] = []
         for param_name, param in self.signature.parameters.items():
-            param_annotation: ProperType = ANY
-            if param_name in self.original_parameters and param_name in self.knowledge:
-                counter: Counter[ProperType] = Counter()
-                for _ in range(100):
-                    guess = self._guess_parameter_type(
-                        self.knowledge[param_name],
-                        param.kind,
-                    )
-                    if guess is not None:
-                        counter[guess] += 1
-                if len(counter) > 0:
-                    top_guess = counter.most_common(1)[0][0]
-                    param_annotation = top_guess
-            # No guess or no knowledge
-            parameters.append(param.replace(annotation=str(param_annotation)))
             if param_name in self.original_parameters:
-                parameter_types[param_name] = str(param_annotation)
+                top_n_guesses: list[ProperType] = []
+                # Choose random types to compare sampling?
+                randomly_chosen: list[ProperType] = [
+                    self.type_system.make_instance(choice)
+                    for choice in randomness.choices(
+                        self.type_system.get_all_types(),
+                        k=config.configuration.statistics_output.type_guess_top_n,
+                    )
+                ]
+                if param_name in self.knowledge:
+                    counter: Counter[ProperType] = Counter()
+                    for _ in range(100):
+                        guess = self._guess_parameter_type(
+                            self.knowledge[param_name],
+                            param.kind,
+                        )
+                        if guess is not None:
+                            counter[guess] += 1
+                    for typ, _ in counter.most_common(
+                        config.configuration.statistics_output.type_guess_top_n
+                    ):
+                        top_n_guesses.append(typ)
+
+                for item in top_n_guesses + randomly_chosen:
+                    compute_partial_matches_for.append(
+                        (item, self.parameters_for_statistics[param_name])
+                    )
+                parameter_types[param_name] = [str(t) for t in top_n_guesses]
+                randomly_chosen_parameter_types[param_name] = [
+                    str(t) for t in randomly_chosen
+                ]
+        # Also need to compute for return type.
+        compute_partial_matches_for.append(
+            (self.return_type, self.return_type_for_statistics)
+        )
+        # Need to compute which types are base type matches of others.
+        # Otherwise, we need to parse the string again in the evaluation...
+        self._compute_partial_matches(compute_partial_matches_for, sig_info)
+
         return_type = str(self.return_type)
         if not is_constructor and self.return_type != self.original_return_type:
             # Only when we recorded something that is not a constructor:
-            stats.recorded_return_types[callable_full_name] = return_type
-        stats.guessed_parameter_types[callable_full_name] = parameter_types
-        stats.formatted_guessed_signatures[
+            stats.signature_infos[callable_full_name].recorded_return_type = return_type
+        stats.signature_infos[
             callable_full_name
-        ] = callable_full_name + str(
-            self.signature.replace(parameters=parameters, return_annotation=return_type)
-        )
+        ].guessed_parameter_types = parameter_types
+        stats.signature_infos[
+            callable_full_name
+        ].randomly_chosen_parameter_types = randomly_chosen_parameter_types
+
+    @staticmethod
+    def _compute_partial_matches(compute_partial_matches_for, sig_info):
+        for left, right in compute_partial_matches_for:
+            if (match := _is_partial_type_match(left, right)) is not None:
+                sig_info.partial_type_matches[f"({str(left)}, {str(right)})"] = str(
+                    match
+                )
 
 
 class TypeSystem:  # pylint:disable=too-many-public-methods
@@ -1391,20 +1510,23 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
-        parameters_for_statistics: dict[str, str] = {}
+
+        # Always use type hints for statistics, regardless of configured inference.
+        hints_for_statistics: dict = self.type_hints_provider(method)
+        parameters_for_statistics: dict[str, ProperType] = {}
         for param_name in method_signature.parameters:
             if param_name == "self":
                 # TODO(fk) does not necessarily work, can be named anything,
                 #  for example cls for @classmethod.
                 continue
             parameters[param_name] = self.convert_type_hint(hints.get(param_name))
-            parameters_for_statistics[param_name] = str(
-                self.convert_type_hint(hints.get(param_name), unsupported=UNSUPPORTED)
+            parameters_for_statistics[param_name] = self.convert_type_hint(
+                hints_for_statistics.get(param_name), unsupported=UNSUPPORTED
             )
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
         return_type_for_statistics: ProperType = self.convert_type_hint(
-            hints.get("return"), unsupported=UNSUPPORTED
+            hints_for_statistics.get("return"), unsupported=UNSUPPORTED
         )
 
         return InferredSignature(
@@ -1413,7 +1535,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             original_return_type=return_type,
             type_system=self,
             parameters_for_statistics=parameters_for_statistics,
-            return_type_for_statistics=str(return_type_for_statistics),
+            return_type_for_statistics=return_type_for_statistics,
         )
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:

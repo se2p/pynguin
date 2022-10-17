@@ -110,24 +110,13 @@ class RuntimeVariable(str, enum.Enum):
     # The mutation score
     MutationScore = "MutationScore"
 
-    # What parameter types were guessed in the MUT. Excludes self, etc.
-    GuessedParameterTypes = "GuessedParameterTypes"
-
-    # What return types were recorded in the MUT, excludes constructors.
-    RecordedReturnTypes = "RecordedReturnTypes"
-
-    # What parameter types were are annotated by developers, excludes self, etc.
-    AnnotatedParameterTypes = "AnnotatedParameterTypes"
-
-    # What return types were are annotated by developers in the MUT.
-    AnnotatedReturnTypes = "AnnotatedReturnTypes"
+    # Store JSON serialized information about the signatures in the SUT, i.e.,
+    # annotated and guessed parameter types as well as annotated and recorded
+    # return types. Also store which types are base type matches of other types.
+    SignatureInfos = "SignatureInfos"
 
     # Number of constructors
     NumberOfConstructors = "NumberOfConstructors"
-
-    # Guessed signatures for every callable in the MUT.
-    # Parameters of type Any indicate no guess for that parameter.
-    FormattedGuessedSignatures = "FormattedGuessedSignatures"
 
     # ========= Values collected during search =========
 
