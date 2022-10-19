@@ -52,6 +52,7 @@ pytest = "^7.1"
 simple-parsing = "^0.0.20"
 typing_inspect = "^0"
 asciitree = "^0.3.3"
+libcst = "^0.4.7"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7"
