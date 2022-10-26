@@ -45,13 +45,20 @@ and allows the automated generation of unit tests for Python programs.
 
 ## Attention
 
-Pynguin executes the module under test!
+*Please Note:*
+
+**Pynguin executes the module under test!**
 As a consequence, depending on what code is in that module,
 running Pynguin can cause serious harm to your computer,
 for example, wipe your entire hard disk!
 We recommend running Pynguin in an isolated environment;
 use, for example, a Docker container to minimize the risk of damaging
 your system.
+
+**Pynguin is only a research prototype!**
+It is not tailored towards production use whatsoever.
+However, we would love to see Pynguin in a production-ready stage at some point;
+please report your experiences in using Pynguin to us.
 
 
 ## Prerequisites
