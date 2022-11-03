@@ -578,7 +578,7 @@ class TypeInfo:
         self.is_abstract = inspect.isabstract(raw_type)
         # TODO(fk) store more information on attributes
         self.instance_attributes: OrderedSet[str] = OrderedSet()
-        self.symbols: OrderedSet[str] = OrderedSet()
+        self.attributes: OrderedSet[str] = OrderedSet()
 
         # TODO(fk) properly implement generics!
         # For now we just store the number of generic parameters for set, dict and list.
@@ -751,16 +751,14 @@ class InferredSignature:
                 # We can guess the unknown type by looking at the knowledge of
                 # __getitem__ of the proxy.
                 if (
-                    get_item_knowledge := knowledge.symbol_table.get("__getitem__")
+                    get_item_knowledge := knowledge.attr_table.get("__getitem__")
                 ) is not None:
                     return self._guess_parameter_type_from(get_item_knowledge)
             case inspect.Parameter.VAR_POSITIONAL:
                 # Case for *args parameter
                 # We know that it is always list[?]
                 # Similar to above.
-                if (
-                    iter_knowledge := knowledge.symbol_table.get("__iter__")
-                ) is not None:
+                if (iter_knowledge := knowledge.attr_table.get("__iter__")) is not None:
                     return self._guess_parameter_type_from(iter_knowledge)
             case _:
                 return self._guess_parameter_type_from(knowledge)
@@ -770,7 +768,7 @@ class InferredSignature:
     # to make guesses.
     # __mul__ and __rmul__ are not reliable, as they don't necessarily have to indicate
     # the type, for example, [1,2] * 3 is well-defined between a list and an int.
-    _ARGUMENT_SYMBOLS = OrderedSet(
+    _ARGUMENT_ATTRIBUTES = OrderedSet(
         [
             "__eq__",
             "__ne__",
@@ -790,11 +788,11 @@ class InferredSignature:
     )
 
     # We can guess the element type by looking at the knowledge from these
-    _LIST_ELEMENT_SYMBOLS = OrderedSet(("__iter__", "__getitem__"))
-    _DICT_KEY_SYMBOLS = OrderedSet(("__iter__",))
-    _DICT_VALUE_SYMBOLS = OrderedSet(("__getitem__",))
-    _SET_ELEMENT_SYMBOLS = OrderedSet(("__iter__",))
-    _TUPLE_ELEMENT_SYMBOLS = OrderedSet(("__iter__", "__getitem__"))
+    _LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
+    _DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
+    _DICT_VALUE_ATTRIBUTES = OrderedSet(("__getitem__",))
+    _SET_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__",))
+    _TUPLE_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
 
     # We can guess generic type(s) from the argument type(s) of these methods:
     _LIST_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
@@ -834,21 +832,21 @@ class InferredSignature:
             )
         )
 
-    def _from_symbol_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
-        random_symbol = randomness.choice(list(knowledge.symbol_table))
+    def _from_attr_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+        random_attribute = randomness.choice(list(knowledge.attr_table))
         if (
-            random_symbol in InferredSignature._ARGUMENT_SYMBOLS
-            and knowledge.symbol_table[random_symbol].arg_types[0]
+            random_attribute in InferredSignature._ARGUMENT_ATTRIBUTES
+            and knowledge.attr_table[random_attribute].arg_types[0]
             and randomness.next_float() < 0.5
         ):
             random_arg_type = randomness.choice(
-                knowledge.symbol_table[random_symbol].arg_types[0]
+                knowledge.attr_table[random_attribute].arg_types[0]
             )
             return self._choose_type_or_negate(
                 OrderedSet([self.type_system.to_type_info(random_arg_type)])
             )
         return self._choose_type_or_negate(
-            self.type_system.find_by_symbol(random_symbol)
+            self.type_system.find_by_attribute(random_attribute)
         )
 
     # pylint:disable=too-many-return-statements
@@ -858,8 +856,8 @@ class InferredSignature:
         guess_from: list[Callable[[tt.ProxyKnowledge], ProperType | None]] = []
         if knowledge.type_checks:
             guess_from.append(self._from_type_check)
-        if knowledge.symbol_table:
-            guess_from.append(self._from_symbol_table)
+        if knowledge.attr_table:
+            guess_from.append(self._from_attr_table)
 
         if not guess_from:
             return None
@@ -891,7 +889,7 @@ class InferredSignature:
                     guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._LIST_ELEMENT_SYMBOLS,
+                        InferredSignature._LIST_ELEMENT_ATTRIBUTES,
                         InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES,
                         InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
@@ -905,7 +903,7 @@ class InferredSignature:
                     guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._SET_ELEMENT_SYMBOLS,
+                        InferredSignature._SET_ELEMENT_ATTRIBUTES,
                         InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES,
                         InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
@@ -919,7 +917,7 @@ class InferredSignature:
                     guessed_key_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._DICT_KEY_SYMBOLS,
+                        InferredSignature._DICT_KEY_ATTRIBUTES,
                         InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES,
                         InferredSignature._EMPTY_SET,
                         argument_idx=0,
@@ -927,7 +925,7 @@ class InferredSignature:
                     guessed_value_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._DICT_VALUE_SYMBOLS,
+                        InferredSignature._DICT_VALUE_ATTRIBUTES,
                         InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES,
                         InferredSignature._EMPTY_SET,
                         argument_idx=1,
@@ -949,7 +947,7 @@ class InferredSignature:
                 guessed_element_type = self._guess_generic_arguments(
                     knowledge,
                     recursion_depth,
-                    InferredSignature._TUPLE_ELEMENT_SYMBOLS,
+                    InferredSignature._TUPLE_ELEMENT_ATTRIBUTES,
                     InferredSignature._TUPLE_ELEMENT_FROM_ARGUMENT_TYPES,
                     InferredSignature._EMPTY_SET,
                     argument_idx=0,
@@ -980,9 +978,9 @@ class InferredSignature:
         self,
         knowledge: tt.ProxyKnowledge,
         recursion_depth: int,
-        element_symbols: OrderedSet[str],
-        argument_symbols: OrderedSet[str],
-        argument_symbols_paths: OrderedSet[tuple[str, ...]],
+        element_attributes: OrderedSet[str],
+        argument_attributes: OrderedSet[str],
+        argument_attribute_paths: OrderedSet[tuple[str, ...]],
         argument_idx: int,
     ) -> ProperType | None:
         guess_from: list[
@@ -992,26 +990,30 @@ class InferredSignature:
             ]
         ] = []
 
-        if elem_symbols := element_symbols.intersection(knowledge.symbol_table.keys()):
+        if elem_attributes := element_attributes.intersection(
+            knowledge.attr_table.keys()
+        ):
             guess_from.append(
                 functools.partial(
                     self._guess_parameter_type_from,
-                    knowledge.symbol_table[randomness.choice(elem_symbols)],
+                    knowledge.attr_table[randomness.choice(elem_attributes)],
                     recursion_depth + 1,
                 )
             )
-        if arg_symbols := argument_symbols.intersection(knowledge.symbol_table.keys()):
+        if arg_attributes := argument_attributes.intersection(
+            knowledge.attr_table.keys()
+        ):
             guess_from.append(
                 functools.partial(
                     self._guess_from_argument_types,
-                    arg_symbols,
+                    arg_attributes,
                     knowledge,
                     argument_idx,
                 )
             )
         if paths := [
             path
-            for path in argument_symbols_paths
+            for path in argument_attribute_paths
             if knowledge.find_path(path) is not None
         ]:
             guess_from.append(
@@ -1026,11 +1028,11 @@ class InferredSignature:
 
     def _guess_from_argument_types(
         self,
-        arg_symbols: OrderedSet[str],
+        arg_attrs: OrderedSet[str],
         knowledge: tt.ProxyKnowledge,
         arg_idx: int = 0,
     ) -> ProperType | None:
-        arg_types = knowledge.symbol_table[randomness.choice(arg_symbols)].arg_types[
+        arg_types = knowledge.attr_table[randomness.choice(arg_attrs)].arg_types[
             arg_idx
         ]
         if arg_types:
@@ -1052,7 +1054,7 @@ class InferredSignature:
         # Select type from last element in path, i.e., '__call__'
         # This way we can, for example, guess the generic type by looking at the
         # argument types of `append.__call__`.
-        arg_types = path_end.symbol_table[path[-1]].arg_types[0]
+        arg_types = path_end.attr_table[path[-1]].arg_types[0]
         if arg_types:
             return self._choose_type_or_negate(
                 OrderedSet(
@@ -1160,8 +1162,8 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         self._graph = nx.DiGraph()
         # Maps all known types from their full name to their type info.
         self._types: dict[str, TypeInfo] = {}
-        # Maps symbols to type which have that symbol
-        self._symbol_map: dict[str, OrderedSet[TypeInfo]] = defaultdict(OrderedSet)
+        # Maps attributes to type which have that attribute
+        self._attribute_map: dict[str, OrderedSet[TypeInfo]] = defaultdict(OrderedSet)
         # These types are intrinsic for Pynguin, i.e., we can generate them ourselves
         # without needing a generator. We store them here, so we don't have to generate
         # them all the time.
@@ -1359,16 +1361,16 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         return self._types.get(full_name)
 
-    def find_by_symbol(self, symbol: str) -> OrderedSet[TypeInfo]:
-        """Search for all types that have the given symbol.
+    def find_by_attribute(self, attr: str) -> OrderedSet[TypeInfo]:
+        """Search for all types that have the given attribute.
 
         Args:
-            symbol: the symbol to search for.
+            attr: the attribute to search for.
 
         Returns:
-            All types (or supertypes thereof) who have the given symbol.
+            All types (or supertypes thereof) who have the given attribute.
         """
-        return self._symbol_map[symbol]
+        return self._attribute_map[attr]
 
     @functools.lru_cache(maxsize=1)
     def get_all_types(self) -> list[TypeInfo]:
@@ -1379,23 +1381,25 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         return list(self._types.values())
 
-    def push_symbols_down(self) -> None:
-        """We don't want to see symbols multiple times, e.g., in subclasses, so only the
-        first class in the hierarchy which adds the symbol should have it listed as a
-        symbol, i.e., when searching for a class with that symbol we only want to
-        retrieve the top-most class(es) in the hierarchy which define it, and not every
-        (sub)class that inherited it.
+    def push_attributes_down(self) -> None:
+        """We don't want to see attributes multiple times, e.g., in subclasses, so only
+        the first class in the hierarchy which adds the attribute should have it listed
+        as an attribute, i.e., when searching for a class with that attribute we only
+        want to retrieve the top-most class(es) in the hierarchy which define it,
+        and not every (sub)class that inherited it.
         """
         reach_in_sets: dict[TypeInfo, set[str]] = defaultdict(set)
         reach_out_sets: dict[TypeInfo, set[str]] = defaultdict(set)
 
         # While object sits at the top, it is not particularly useful, so we delete
-        # some of it symbols, as they are only stubs. For example, when searching for
+        # some of it attributes, as they are only stubs. For example, when searching for
         # an object that supports comparison, choosing object does not make sense,
         # because it will raise a NotImplementedError.
         object_info = self.find_type_info("builtins.object")
         assert object_info is not None
-        object_info.symbols.difference_update({"__lt__", "__le__", "__gt__", "__ge__"})
+        object_info.attributes.difference_update(
+            {"__lt__", "__le__", "__gt__", "__ge__"}
+        )
 
         # Use fix point iteration with reach-in/out to push elements down.
         work_list = list(self._graph.nodes)
@@ -1404,14 +1408,14 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             old_val = set(reach_out_sets[current])
             for pred in self._graph.predecessors(current):
                 reach_in_sets[current].update(reach_out_sets[pred])
-            current.symbols.difference_update(reach_in_sets[current])
+            current.attributes.difference_update(reach_in_sets[current])
             reach_out_sets[current] = set(reach_in_sets[current])
-            reach_out_sets[current].update(current.symbols)
+            reach_out_sets[current].update(current.attributes)
             if old_val != reach_out_sets[current]:
                 work_list.extend(self._graph.successors(current))
         for type_info in self._graph.nodes:
-            for symbol in type_info.symbols:
-                self._symbol_map[symbol].add(type_info)
+            for attribute in type_info.attributes:
+                self._attribute_map[attribute].add(type_info)
 
     def wrap_var_param_type(self, typ: ProperType, param_kind) -> ProperType:
         """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],

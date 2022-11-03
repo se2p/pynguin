@@ -1145,9 +1145,9 @@ def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> No
     """
     if class_ast is not None:
         type_info.instance_attributes.update(tuple(class_ast.instance_attrs))
-    type_info.symbols.update(type_info.instance_attributes)
-    type_info.symbols.update(tuple(vars(type_info.raw_type)))
-    type_info.symbols.difference_update(IGNORED_SYMBOLS)
+    type_info.attributes.update(type_info.instance_attributes)
+    type_info.attributes.update(tuple(vars(type_info.raw_type)))
+    type_info.attributes.difference_update(IGNORED_SYMBOLS)
 
 
 def __analyse_method(  # pylint: disable=too-many-arguments
@@ -1281,7 +1281,7 @@ def __resolve_dependencies(
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
 
-    test_cluster.type_system.push_symbols_down()
+    test_cluster.type_system.push_attributes_down()
 
 
 def __analyse_included_classes(

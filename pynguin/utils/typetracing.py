@@ -45,8 +45,8 @@ class ProxyKnowledge:
     # Zero indicates that it is the root.
     depth: int = 0
 
-    # Symbols that have been accessed on this proxy.
-    symbol_table: dict[str, ProxyKnowledge] = dataclasses.field(init=False)
+    # Attributes that have been accessed on this proxy.
+    attr_table: dict[str, ProxyKnowledge] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
     type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
@@ -57,7 +57,7 @@ class ProxyKnowledge:
     )
 
     def __post_init__(self):
-        self.symbol_table = DepthDefaultDict(self.depth)
+        self.attr_table = DepthDefaultDict(self.depth)
 
     def find_path(self, path: tuple[str, ...]) -> ProxyKnowledge | None:
         """Check if this knowledge tree has the given path.
@@ -71,8 +71,8 @@ class ProxyKnowledge:
         assert len(path) > 0, "Expected non-empty path."
         current = self
         for element in path:
-            if element in current.symbol_table:
-                current = current.symbol_table[element]
+            if element in current.attr_table:
+                current = current.attr_table[element]
             else:
                 return None
         return current
@@ -115,7 +115,7 @@ class ProxyKnowledge:
     def _format_children(self):
         return {
             child._format_str(): child._format_children()
-            for child in self.symbol_table.values()
+            for child in self.attr_table.values()
         }
 
     @staticmethod
@@ -142,8 +142,8 @@ class ProxyKnowledge:
         assert self.depth == other.depth
         self.arg_types.update(other.arg_types)
         self.type_checks.update(other.type_checks)
-        for symbol, knowledge in other.symbol_table.items():
-            self.symbol_table[symbol].merge(knowledge)
+        for attr, knowledge in other.attr_table.items():
+            self.attr_table[attr].merge(knowledge)
 
 
 class DepthDefaultDict(dict[str, ProxyKnowledge]):
@@ -155,7 +155,7 @@ class DepthDefaultDict(dict[str, ProxyKnowledge]):
         self._depth = depth
 
     def __missing__(self, key):
-        # Create knowledge for missing symbol
+        # Create knowledge for missing attribute
         res = self[key] = ProxyKnowledge(key, depth=self._depth + 1)
         return res
 
@@ -176,7 +176,7 @@ def proxify(log_arg_types=False, no_wrap_return=False):
         def wrapped(*args, **kwargs):
             self = args[0]
             knowledge = ProxyKnowledge.from_proxy(self)
-            nested_knowledge = knowledge.symbol_table[function.__name__]
+            nested_knowledge = knowledge.attr_table[function.__name__]
             if len(args) > 1:
                 if any(isinstance(arg, ObjectProxy) for arg in args[1:]):
                     # Only record access but nothing more, if we interact with another
@@ -410,7 +410,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
         else:
             knowledge = ProxyKnowledge.from_proxy(self)
-            accessed = knowledge.symbol_table[name]
+            accessed = knowledge.attr_table[name]
             # Knowledge is created implicitly.
             assert accessed
             setattr(self.__wrapped__, name, value)  # type:ignore
@@ -430,7 +430,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         knowledge = self._self_proxy_knowledge
         # Done before getattr, to make sure we store the access in case of an
         # exception
-        child_knowledge = knowledge.symbol_table[name]
+        child_knowledge = knowledge.attr_table[name]
         if knowledge.depth >= _MAX_PROXY_NESTING:
             return getattr(self.__wrapped__, name)  # type:ignore
         return ObjectProxy(
@@ -681,7 +681,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
     def __iter__(self):
         knowledge = self._self_proxy_knowledge
-        nested_knowledge = knowledge.symbol_table["__iter__"]
+        nested_knowledge = knowledge.attr_table["__iter__"]
         if knowledge.depth >= _MAX_PROXY_NESTING:
             yield from self.__wrapped__
         else:
