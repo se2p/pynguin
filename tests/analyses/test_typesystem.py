@@ -499,7 +499,7 @@ def test_is_collection_type(typ, result):
 def test_find_by_symbols(symbol, types):
     test_cluster = generate_test_cluster("tests.fixtures.types.symbols")
     tps = test_cluster.type_system
-    assert test_cluster.type_system.find_by_symbol(symbol) == OrderedSet(
+    assert test_cluster.type_system.find_by_attribute(symbol) == OrderedSet(
         [tps.find_type_info("" + t) for t in types]
     )
 
@@ -608,15 +608,15 @@ def test_union_single_element():
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_SYMBOLS]
-    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_SYMBOLS],
+    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_ATTRIBUTES]
+    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_ATTRIBUTES],
 )
 def test_guess_generic_types_list_set_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].type_checks.add(int)
+    knowledge.attr_table[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -626,14 +626,14 @@ def test_guess_generic_types_list_set_from_elements(
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_SYMBOLS],
+    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_key_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].type_checks.add(int)
+    knowledge.attr_table[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -653,7 +653,7 @@ def test_guess_generic_types_dict_key_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[0].add(int)
+    knowledge.attr_table[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -663,14 +663,14 @@ def test_guess_generic_types_dict_key_from_arguments(
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_SYMBOLS],
+    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_value_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].type_checks.add(int)
+    knowledge.attr_table[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -690,7 +690,7 @@ def test_guess_generic_types_dict_value_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[1].add(int)
+    knowledge.attr_table[symbol].arg_types[1].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -714,7 +714,7 @@ def test_guess_generic_types_list_set_from_arguments(
 ):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    knowledge.symbol_table[symbol].arg_types[0].add(int)
+    knowledge.attr_table[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -818,10 +818,10 @@ def test_update_guess_multi_drop(inferred_signature):
 )
 def test__guess_parameter_type(inferred_signature, symbol, kind):
     knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.symbol_table[symbol]
+    assert knowledge.attr_table[symbol]
     with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
         inferred_signature._guess_parameter_type(knowledge, kind)
-        guess.assert_called_with(knowledge.symbol_table[symbol])
+        guess.assert_called_with(knowledge.attr_table[symbol])
 
 
 @pytest.mark.parametrize(
@@ -841,18 +841,18 @@ def test__guess_parameter_type_3(inferred_signature):
 
 def test_from_symbol_table(inferred_signature):
     knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.symbol_table["foo"]
-    assert inferred_signature._from_symbol_table(knowledge) is None
+    assert knowledge.attr_table["foo"]
+    assert inferred_signature._from_attr_table(knowledge) is None
 
 
 def test_from_symbol_table_2(inferred_signature):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.symbol_table["foo"]
-    inferred_signature.type_system._symbol_map["foo"].add(
+    assert knowledge.attr_table["foo"]
+    inferred_signature.type_system._attribute_map["foo"].add(
         inferred_signature.type_system.to_type_info(int)
     )
-    assert inferred_signature._from_symbol_table(
+    assert inferred_signature._from_attr_table(
         knowledge
     ) == inferred_signature.type_system.convert_type_hint(int)
 
@@ -862,8 +862,8 @@ def test_from_symbol_table_3(inferred_signature):
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
         knowledge = ProxyKnowledge("ROOT")
-        knowledge.symbol_table["__eq__"].arg_types[0].add(int)
-        assert inferred_signature._from_symbol_table(
+        knowledge.attr_table["__eq__"].arg_types[0].add(int)
+        assert inferred_signature._from_attr_table(
             knowledge
         ) == inferred_signature.type_system.convert_type_hint(int)
 
@@ -873,8 +873,8 @@ def test_from_symbol_table_4(inferred_signature):
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
         knowledge = ProxyKnowledge("ROOT")
-        knowledge.symbol_table["__eq__"].arg_types[0].add(int)
-        assert inferred_signature._from_symbol_table(
+        knowledge.attr_table["__eq__"].arg_types[0].add(int)
+        assert inferred_signature._from_attr_table(
             knowledge
         ) != inferred_signature.type_system.convert_type_hint(int)
 
