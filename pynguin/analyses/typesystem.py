@@ -608,6 +608,16 @@ class TypeInfo:
         return f"TypeInfo({self.full_name})"
 
 
+class NamedDefaultDict(dict[str, tt.UsageTraceNode]):
+    """Default dict which automatically creates a UsageTraceNode for each requested
+    and non-existing key."""
+
+    def __missing__(self, key):
+        # Create node for missing attribute
+        res = self[key] = tt.UsageTraceNode(key)
+        return res
+
+
 @dataclass(eq=False, repr=False)
 class InferredSignature:
     """Encapsulates the types inferred for a method."""
@@ -621,8 +631,8 @@ class InferredSignature:
     original_parameters: dict[str, ProperType]
 
     # Proxy knowledge learned from executions
-    knowledge: dict[str, tt.UsageTraceNode] = field(
-        default_factory=lambda: defaultdict(lambda: tt.UsageTraceNode("ROOT")),
+    usage_trace: dict[str, tt.UsageTraceNode] = field(
+        default_factory=NamedDefaultDict,
         init=False,
     )
 
@@ -671,12 +681,12 @@ class InferredSignature:
         res: dict[str, ProperType] = {}
         test_conf = config.configuration.test_creation
         for param_name, orig_type in self.original_parameters.items():
-            if param_name in self.knowledge:
+            if param_name in self.usage_trace:
                 # If we have information from proxies, update guess.
                 self._update_guess(
                     param_name,
                     self._guess_parameter_type(
-                        self.knowledge[param_name],
+                        self.usage_trace[param_name],
                         self.signature.parameters[param_name].kind,
                     ),
                 )
@@ -1099,11 +1109,11 @@ class InferredSignature:
                         k=config.configuration.statistics_output.type_guess_top_n,
                     )
                 ]
-                if param_name in self.knowledge:
+                if param_name in self.usage_trace:
                     counter: Counter[ProperType] = Counter()
                     for _ in range(100):
                         guess = self._guess_parameter_type(
-                            self.knowledge[param_name],
+                            self.usage_trace[param_name],
                             param.kind,
                         )
                         if guess is not None:

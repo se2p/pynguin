@@ -60,13 +60,13 @@ class UsageTraceNode:
         self.children = DepthDefaultDict(self.depth)
 
     def find_path(self, path: tuple[str, ...]) -> UsageTraceNode | None:
-        """Check if this knowledge tree has the given path.
+        """Check if this usage trace tree has the given path.
 
         Args:
             path: The path to check
 
         Returns:
-            The knowledge object at the of the path, if it exists, otherwise None.
+            The usage trace node at the end of the path, if it exists, otherwise None.
         """
         assert len(path) > 0, "Expected non-empty path."
         current = self
@@ -187,7 +187,9 @@ def proxify(log_arg_types=False, no_wrap_return=False):
                         nested_knowledge.arg_types[pos].add(type(arg))
             if no_wrap_return or knowledge.depth >= _MAX_PROXY_NESTING:
                 return function(*args, **kwargs)
-            return ObjectProxy(function(*args, **kwargs), knowledge=nested_knowledge)
+            return ObjectProxy(
+                function(*args, **kwargs), usage_trace_root=nested_knowledge
+            )
 
         return wrapped
 
@@ -270,14 +272,19 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     Native types implemented in C might be problematic."""
 
     def __init__(
-        self, wrapped, knowledge: UsageTraceNode | None = None, is_kwargs: bool = False
+        self,
+        wrapped,
+        usage_trace_root: UsageTraceNode | None = None,
+        is_kwargs: bool = False,
     ):
         object.__setattr__(self, "__wrapped__", wrapped)
         # What does this proxy know?
         object.__setattr__(
             self,
             "_self_usage_trace_node",
-            UsageTraceNode(name="ROOT") if knowledge is None else knowledge,
+            UsageTraceNode(name="ROOT")
+            if usage_trace_root is None
+            else usage_trace_root,
         )
         # Is this proxy passed as **kwargs? If so, we can't return proxies from 'keys'
         # but must return the raw string objects.
@@ -409,9 +416,9 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             object.__setattr__(self, name, value)
 
         else:
-            knowledge = UsageTraceNode.from_proxy(self)
-            accessed = knowledge.children[name]
-            # Knowledge is created implicitly.
+            node = UsageTraceNode.from_proxy(self)
+            accessed = node.children[name]
+            # Node is created implicitly.
             assert accessed
             setattr(self.__wrapped__, name, value)  # type:ignore
 
@@ -427,15 +434,15 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             # dict for **kwargs
             return getattr(self.__wrapped__, name)  # type:ignore
 
-        knowledge = self._self_usage_trace_node
+        node = self._self_usage_trace_node
         # Done before getattr, to make sure we store the access in case of an
         # exception
-        child_knowledge = knowledge.children[name]
-        if knowledge.depth >= _MAX_PROXY_NESTING:
+        child_node = node.children[name]
+        if node.depth >= _MAX_PROXY_NESTING:
             return getattr(self.__wrapped__, name)  # type:ignore
         return ObjectProxy(
             getattr(self.__wrapped__, name),  # type:ignore
-            knowledge=child_knowledge,
+            usage_trace_root=child_node,
         )
 
     def __delattr__(self, name):
@@ -680,13 +687,13 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         return self.__wrapped__.__exit__(*args, **kwargs)
 
     def __iter__(self):
-        knowledge = self._self_usage_trace_node
-        nested_knowledge = knowledge.children["__iter__"]
-        if knowledge.depth >= _MAX_PROXY_NESTING:
+        node = self._self_usage_trace_node
+        nested_node = node.children["__iter__"]
+        if node.depth >= _MAX_PROXY_NESTING:
             yield from self.__wrapped__
         else:
             for i in self.__wrapped__:
-                proxy = ObjectProxy(i, knowledge=nested_knowledge)
+                proxy = ObjectProxy(i, usage_trace_root=nested_node)
                 yield proxy
 
     # These do not give us any hint.

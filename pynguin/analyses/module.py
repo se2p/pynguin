@@ -613,7 +613,7 @@ class ModuleTestCluster(TestCluster):
         knowledge: tt.UsageTraceNode,
     ) -> None:
         # Store new data
-        accessible.inferred_signature.knowledge[param_name].merge(knowledge)
+        accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
 
     @property
     def type_system(self) -> TypeSystem:

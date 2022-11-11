@@ -90,6 +90,6 @@ def test_type_tracing_test_case_executor_integration():
         GenericCallableAccessibleObject,
         test_cluster.accessible_objects_under_test[0],
     )
-    assert "__rmul__" in acc.inferred_signature.knowledge["a"].children
-    assert int in acc.inferred_signature.knowledge["a"].type_checks
+    assert "__rmul__" in acc.inferred_signature.usage_trace["a"].children
+    assert int in acc.inferred_signature.usage_trace["a"].type_checks
     assert acc.inferred_signature.return_type == UnionType((NoneType(),))
