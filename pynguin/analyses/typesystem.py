@@ -621,8 +621,8 @@ class InferredSignature:
     original_parameters: dict[str, ProperType]
 
     # Proxy knowledge learned from executions
-    knowledge: dict[str, tt.ProxyKnowledge] = field(
-        default_factory=lambda: defaultdict(lambda: tt.ProxyKnowledge("ROOT")),
+    knowledge: dict[str, tt.UsageTraceNode] = field(
+        default_factory=lambda: defaultdict(lambda: tt.UsageTraceNode("ROOT")),
         init=False,
     )
 
@@ -732,7 +732,7 @@ class InferredSignature:
 
     # pylint:disable=too-many-return-statements
     def _guess_parameter_type(
-        self, knowledge: tt.ProxyKnowledge, kind
+        self, knowledge: tt.UsageTraceNode, kind
     ) -> ProperType | None:
         """Guess a type for a parameter.
 
@@ -751,14 +751,14 @@ class InferredSignature:
                 # We can guess the unknown type by looking at the knowledge of
                 # __getitem__ of the proxy.
                 if (
-                    get_item_knowledge := knowledge.attr_table.get("__getitem__")
+                    get_item_knowledge := knowledge.children.get("__getitem__")
                 ) is not None:
                     return self._guess_parameter_type_from(get_item_knowledge)
             case inspect.Parameter.VAR_POSITIONAL:
                 # Case for *args parameter
                 # We know that it is always list[?]
                 # Similar to above.
-                if (iter_knowledge := knowledge.attr_table.get("__iter__")) is not None:
+                if (iter_knowledge := knowledge.children.get("__iter__")) is not None:
                     return self._guess_parameter_type_from(iter_knowledge)
             case _:
                 return self._guess_parameter_type_from(knowledge)
@@ -820,7 +820,7 @@ class InferredSignature:
     # Nothing for tuple and dict.
     _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
 
-    def _from_type_check(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
+    def _from_type_check(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         # Type checks is not empty here.
         return self._choose_type_or_negate(
             OrderedSet(
@@ -832,15 +832,15 @@ class InferredSignature:
             )
         )
 
-    def _from_attr_table(self, knowledge: tt.ProxyKnowledge) -> ProperType | None:
-        random_attribute = randomness.choice(list(knowledge.attr_table))
+    def _from_attr_table(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
+        random_attribute = randomness.choice(list(knowledge.children))
         if (
             random_attribute in InferredSignature._ARGUMENT_ATTRIBUTES
-            and knowledge.attr_table[random_attribute].arg_types[0]
+            and knowledge.children[random_attribute].arg_types[0]
             and randomness.next_float() < 0.5
         ):
             random_arg_type = randomness.choice(
-                knowledge.attr_table[random_attribute].arg_types[0]
+                knowledge.children[random_attribute].arg_types[0]
             )
             return self._choose_type_or_negate(
                 OrderedSet([self.type_system.to_type_info(random_arg_type)])
@@ -851,12 +851,12 @@ class InferredSignature:
 
     # pylint:disable=too-many-return-statements
     def _guess_parameter_type_from(
-        self, knowledge: tt.ProxyKnowledge, recursion_depth: int = 0
+        self, knowledge: tt.UsageTraceNode, recursion_depth: int = 0
     ) -> ProperType | None:
-        guess_from: list[Callable[[tt.ProxyKnowledge], ProperType | None]] = []
+        guess_from: list[Callable[[tt.UsageTraceNode], ProperType | None]] = []
         if knowledge.type_checks:
             guess_from.append(self._from_type_check)
-        if knowledge.attr_table:
+        if knowledge.children:
             guess_from.append(self._from_attr_table)
 
         if not guess_from:
@@ -877,7 +877,7 @@ class InferredSignature:
     def _guess_generic_type_parameters_for_builtins(
         self,
         guessed_type: ProperType,
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
         recursion_depth: int,
     ):
         # If it is a builtin collection, we may be able to make further guesses on
@@ -976,7 +976,7 @@ class InferredSignature:
     # pylint:disable-next=too-many-arguments
     def _guess_generic_arguments(
         self,
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
         recursion_depth: int,
         element_attributes: OrderedSet[str],
         argument_attributes: OrderedSet[str],
@@ -991,17 +991,17 @@ class InferredSignature:
         ] = []
 
         if elem_attributes := element_attributes.intersection(
-            knowledge.attr_table.keys()
+            knowledge.children.keys()
         ):
             guess_from.append(
                 functools.partial(
                     self._guess_parameter_type_from,
-                    knowledge.attr_table[randomness.choice(elem_attributes)],
+                    knowledge.children[randomness.choice(elem_attributes)],
                     recursion_depth + 1,
                 )
             )
         if arg_attributes := argument_attributes.intersection(
-            knowledge.attr_table.keys()
+            knowledge.children.keys()
         ):
             guess_from.append(
                 functools.partial(
@@ -1029,12 +1029,10 @@ class InferredSignature:
     def _guess_from_argument_types(
         self,
         arg_attrs: OrderedSet[str],
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
         arg_idx: int = 0,
     ) -> ProperType | None:
-        arg_types = knowledge.attr_table[randomness.choice(arg_attrs)].arg_types[
-            arg_idx
-        ]
+        arg_types = knowledge.children[randomness.choice(arg_attrs)].arg_types[arg_idx]
         if arg_types:
             return self._choose_type_or_negate(
                 OrderedSet(
@@ -1046,7 +1044,7 @@ class InferredSignature:
     def _guess_from_argument_types_from_path(
         self,
         paths: list[tuple[str, ...]],
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
     ) -> ProperType | None:
         path = randomness.choice(paths)
         path_end = knowledge.find_path(path)
@@ -1054,7 +1052,7 @@ class InferredSignature:
         # Select type from last element in path, i.e., '__call__'
         # This way we can, for example, guess the generic type by looking at the
         # argument types of `append.__call__`.
-        arg_types = path_end.attr_table[path[-1]].arg_types[0]
+        arg_types = path_end.children[path[-1]].arg_types[0]
         if arg_types:
             return self._choose_type_or_negate(
                 OrderedSet(

@@ -28,7 +28,7 @@ from pynguin.analyses.typesystem import (
 )
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.typetracing import ProxyKnowledge
+from pynguin.utils.typetracing import UsageTraceNode
 from tests.fixtures.types.subtyping import Sub, Super
 
 
@@ -615,8 +615,8 @@ def test_guess_generic_types_list_set_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].type_checks.add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -632,8 +632,8 @@ def test_guess_generic_types_dict_key_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].type_checks.add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -652,8 +652,8 @@ def test_guess_generic_types_dict_key_from_arguments(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].arg_types[0].add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -669,8 +669,8 @@ def test_guess_generic_types_dict_value_from_elements(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].type_checks.add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -689,8 +689,8 @@ def test_guess_generic_types_dict_value_from_arguments(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].arg_types[1].add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].arg_types[1].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -713,8 +713,8 @@ def test_guess_generic_types_list_set_from_arguments(
     inferred_signature, symbol, typ, result
 ):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    knowledge.attr_table[symbol].arg_types[0].add(int)
+    knowledge = UsageTraceNode("ROOT")
+    knowledge.children[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
         choice_mock.side_effect = lambda x: x[0]
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
@@ -817,38 +817,38 @@ def test_update_guess_multi_drop(inferred_signature):
     ],
 )
 def test__guess_parameter_type(inferred_signature, symbol, kind):
-    knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.attr_table[symbol]
+    knowledge = UsageTraceNode("ROOT")
+    assert knowledge.children[symbol]
     with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
         inferred_signature._guess_parameter_type(knowledge, kind)
-        guess.assert_called_with(knowledge.attr_table[symbol])
+        guess.assert_called_with(knowledge.children[symbol])
 
 
 @pytest.mark.parametrize(
     "kind", [inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL]
 )
 def test__guess_parameter_type_2(inferred_signature, kind):
-    knowledge = ProxyKnowledge("ROOT")
+    knowledge = UsageTraceNode("ROOT")
     assert inferred_signature._guess_parameter_type(knowledge, kind) is None
 
 
 def test__guess_parameter_type_3(inferred_signature):
-    knowledge = ProxyKnowledge("ROOT")
+    knowledge = UsageTraceNode("ROOT")
     with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
         inferred_signature._guess_parameter_type(knowledge, 42)
         guess.assert_called_with(knowledge)
 
 
 def test_from_symbol_table(inferred_signature):
-    knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.attr_table["foo"]
+    knowledge = UsageTraceNode("ROOT")
+    assert knowledge.children["foo"]
     assert inferred_signature._from_attr_table(knowledge) is None
 
 
 def test_from_symbol_table_2(inferred_signature):
     config.configuration.test_creation.negate_type = 0.0
-    knowledge = ProxyKnowledge("ROOT")
-    assert knowledge.attr_table["foo"]
+    knowledge = UsageTraceNode("ROOT")
+    assert knowledge.children["foo"]
     inferred_signature.type_system._attribute_map["foo"].add(
         inferred_signature.type_system.to_type_info(int)
     )
@@ -861,8 +861,8 @@ def test_from_symbol_table_3(inferred_signature):
     config.configuration.test_creation.negate_type = 0.0
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
-        knowledge = ProxyKnowledge("ROOT")
-        knowledge.attr_table["__eq__"].arg_types[0].add(int)
+        knowledge = UsageTraceNode("ROOT")
+        knowledge.children["__eq__"].arg_types[0].add(int)
         assert inferred_signature._from_attr_table(
             knowledge
         ) == inferred_signature.type_system.convert_type_hint(int)
@@ -872,8 +872,8 @@ def test_from_symbol_table_4(inferred_signature):
     config.configuration.test_creation.negate_type = 1.0
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
-        knowledge = ProxyKnowledge("ROOT")
-        knowledge.attr_table["__eq__"].arg_types[0].add(int)
+        knowledge = UsageTraceNode("ROOT")
+        knowledge.children["__eq__"].arg_types[0].add(int)
         assert inferred_signature._from_attr_table(
             knowledge
         ) != inferred_signature.type_system.convert_type_hint(int)

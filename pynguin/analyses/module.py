@@ -440,7 +440,7 @@ class TestCluster(abc.ABC):
         self,
         accessible: GenericCallableAccessibleObject,
         param_name: str,
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
     ) -> None:
         """Update the knowledge about the parameter of the given accessible.
 
@@ -610,7 +610,7 @@ class ModuleTestCluster(TestCluster):
         self,
         accessible: GenericCallableAccessibleObject,
         param_name: str,
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
     ) -> None:
         # Store new data
         accessible.inferred_signature.knowledge[param_name].merge(knowledge)
@@ -831,7 +831,7 @@ class FilteredModuleTestCluster(TestCluster):
         self,
         accessible: GenericCallableAccessibleObject,
         param_name: str,
-        knowledge: tt.ProxyKnowledge,
+        knowledge: tt.UsageTraceNode,
     ) -> None:
         self.__delegate.update_parameter_knowledge(accessible, param_name, knowledge)
 

@@ -67,9 +67,9 @@ def test_type_tracing_observer_separate_proxies_for_args():
     observer = TypeTracingObserver(test_cluster)
     executor.add_observer(observer)
     result = executor.execute(test_case)
-    assert {"__rmul__"} == set(result.proxy_knowledge[(1, "a")].attr_table.keys())
-    assert {"__radd__"} == set(result.proxy_knowledge[(1, "b")].attr_table.keys())
-    assert {"__truediv__"} == set(result.proxy_knowledge[(1, "c")].attr_table.keys())
+    assert {"__rmul__"} == set(result.proxy_knowledge[(1, "a")].children.keys())
+    assert {"__radd__"} == set(result.proxy_knowledge[(1, "b")].children.keys())
+    assert {"__truediv__"} == set(result.proxy_knowledge[(1, "c")].children.keys())
 
 
 def test_type_tracing_test_case_executor_integration():
@@ -90,6 +90,6 @@ def test_type_tracing_test_case_executor_integration():
         GenericCallableAccessibleObject,
         test_cluster.accessible_objects_under_test[0],
     )
-    assert "__rmul__" in acc.inferred_signature.knowledge["a"].attr_table
+    assert "__rmul__" in acc.inferred_signature.knowledge["a"].children
     assert int in acc.inferred_signature.knowledge["a"].type_checks
     assert acc.inferred_signature.return_type == UnionType((NoneType(),))

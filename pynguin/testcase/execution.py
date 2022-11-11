@@ -799,7 +799,7 @@ class ExecutionResult:
         default_factory=dict, init=False
     )
 
-    proxy_knowledge: dict[tuple[int, str], tt.ProxyKnowledge] = dataclasses.field(
+    proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode] = dataclasses.field(
         default_factory=dict, init=False
     )
 
@@ -2359,7 +2359,7 @@ class TypeTracingObserver(ExecutionObserver):
     ) -> None:
         for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
             result.proxy_knowledge[(stmt_pos, arg_name)] = copy.deepcopy(
-                tt.ProxyKnowledge.from_proxy(proxy)
+                tt.UsageTraceNode.from_proxy(proxy)
             )
 
     def after_test_case_execution_outside_thread(

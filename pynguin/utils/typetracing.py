@@ -36,7 +36,7 @@ _MAX_PROXY_NESTING = 5
 
 
 @dataclasses.dataclass
-class ProxyKnowledge:
+class UsageTraceNode:
     """The knowledge gathered by a proxy."""
 
     name: str
@@ -46,7 +46,7 @@ class ProxyKnowledge:
     depth: int = 0
 
     # Attributes that have been accessed on this proxy.
-    attr_table: dict[str, ProxyKnowledge] = dataclasses.field(init=False)
+    children: dict[str, UsageTraceNode] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
     type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
@@ -57,9 +57,9 @@ class ProxyKnowledge:
     )
 
     def __post_init__(self):
-        self.attr_table = DepthDefaultDict(self.depth)
+        self.children = DepthDefaultDict(self.depth)
 
-    def find_path(self, path: tuple[str, ...]) -> ProxyKnowledge | None:
+    def find_path(self, path: tuple[str, ...]) -> UsageTraceNode | None:
         """Check if this knowledge tree has the given path.
 
         Args:
@@ -71,8 +71,8 @@ class ProxyKnowledge:
         assert len(path) > 0, "Expected non-empty path."
         current = self
         for element in path:
-            if element in current.attr_table:
-                current = current.attr_table[element]
+            if element in current.children:
+                current = current.children[element]
             else:
                 return None
         return current
@@ -115,11 +115,11 @@ class ProxyKnowledge:
     def _format_children(self):
         return {
             child._format_str(): child._format_children()
-            for child in self.attr_table.values()
+            for child in self.children.values()
         }
 
     @staticmethod
-    def from_proxy(obj: ObjectProxy) -> ProxyKnowledge:
+    def from_proxy(obj: ObjectProxy) -> UsageTraceNode:
         """Extract knowledge from the given proxy.
         This is a convenience method, because the knowledge attribute is not visible
         on a proxy.
@@ -130,9 +130,9 @@ class ProxyKnowledge:
         Returns:
             The extracted knowledge.
         """
-        return obj._self_proxy_knowledge
+        return obj._self_usage_trace_node
 
-    def merge(self, other: ProxyKnowledge) -> None:
+    def merge(self, other: UsageTraceNode) -> None:
         """Merge the knowledge from the other proxy into this one.
 
         Args:
@@ -142,12 +142,12 @@ class ProxyKnowledge:
         assert self.depth == other.depth
         self.arg_types.update(other.arg_types)
         self.type_checks.update(other.type_checks)
-        for attr, knowledge in other.attr_table.items():
-            self.attr_table[attr].merge(knowledge)
+        for attr, knowledge in other.children.items():
+            self.children[attr].merge(knowledge)
 
 
-class DepthDefaultDict(dict[str, ProxyKnowledge]):
-    """Default dict which automatically creates a ProxyKnowledge for each requested
+class DepthDefaultDict(dict[str, UsageTraceNode]):
+    """Default dict which automatically creates a UsageTraceNode for each requested
     and non-existing key."""
 
     def __init__(self, depth: int):
@@ -156,7 +156,7 @@ class DepthDefaultDict(dict[str, ProxyKnowledge]):
 
     def __missing__(self, key):
         # Create knowledge for missing attribute
-        res = self[key] = ProxyKnowledge(key, depth=self._depth + 1)
+        res = self[key] = UsageTraceNode(key, depth=self._depth + 1)
         return res
 
 
@@ -175,8 +175,8 @@ def proxify(log_arg_types=False, no_wrap_return=False):
     def wrap(function):
         def wrapped(*args, **kwargs):
             self = args[0]
-            knowledge = ProxyKnowledge.from_proxy(self)
-            nested_knowledge = knowledge.attr_table[function.__name__]
+            knowledge = UsageTraceNode.from_proxy(self)
+            nested_knowledge = knowledge.children[function.__name__]
             if len(args) > 1:
                 if any(isinstance(arg, ObjectProxy) for arg in args[1:]):
                     # Only record access but nothing more, if we interact with another
@@ -270,14 +270,14 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     Native types implemented in C might be problematic."""
 
     def __init__(
-        self, wrapped, knowledge: ProxyKnowledge | None = None, is_kwargs: bool = False
+        self, wrapped, knowledge: UsageTraceNode | None = None, is_kwargs: bool = False
     ):
         object.__setattr__(self, "__wrapped__", wrapped)
         # What does this proxy know?
         object.__setattr__(
             self,
-            "_self_proxy_knowledge",
-            ProxyKnowledge(name="ROOT") if knowledge is None else knowledge,
+            "_self_usage_trace_node",
+            UsageTraceNode(name="ROOT") if knowledge is None else knowledge,
         )
         # Is this proxy passed as **kwargs? If so, we can't return proxies from 'keys'
         # but must return the raw string objects.
@@ -409,8 +409,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             object.__setattr__(self, name, value)
 
         else:
-            knowledge = ProxyKnowledge.from_proxy(self)
-            accessed = knowledge.attr_table[name]
+            knowledge = UsageTraceNode.from_proxy(self)
+            accessed = knowledge.children[name]
             # Knowledge is created implicitly.
             assert accessed
             setattr(self.__wrapped__, name, value)  # type:ignore
@@ -427,10 +427,10 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             # dict for **kwargs
             return getattr(self.__wrapped__, name)  # type:ignore
 
-        knowledge = self._self_proxy_knowledge
+        knowledge = self._self_usage_trace_node
         # Done before getattr, to make sure we store the access in case of an
         # exception
-        child_knowledge = knowledge.attr_table[name]
+        child_knowledge = knowledge.children[name]
         if knowledge.depth >= _MAX_PROXY_NESTING:
             return getattr(self.__wrapped__, name)  # type:ignore
         return ObjectProxy(
@@ -680,8 +680,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         return self.__wrapped__.__exit__(*args, **kwargs)
 
     def __iter__(self):
-        knowledge = self._self_proxy_knowledge
-        nested_knowledge = knowledge.attr_table["__iter__"]
+        knowledge = self._self_usage_trace_node
+        nested_knowledge = knowledge.children["__iter__"]
         if knowledge.depth >= _MAX_PROXY_NESTING:
             yield from self.__wrapped__
         else:
@@ -730,9 +730,9 @@ def shim_isinstance():
                     for typ in types
                 ):
                     return orig_isinstance(inst, types)
-                ProxyKnowledge.from_proxy(inst).type_checks.update(types)
+                UsageTraceNode.from_proxy(inst).type_checks.update(types)
             else:
-                ProxyKnowledge.from_proxy(inst).type_checks.add(types)
+                UsageTraceNode.from_proxy(inst).type_checks.add(types)
         return orig_isinstance(inst, types)
 
     builtins.isinstance = shim
