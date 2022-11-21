@@ -1100,6 +1100,8 @@ class InferredSignature:
         compute_partial_matches_for: list[tuple[ProperType, ProperType]] = []
         for param_name, param in self.signature.parameters.items():
             if param_name in self.original_parameters:
+                # Only check params where we expect a parameter, i.e., not self.
+
                 top_n_guesses: list[ProperType] = []
                 # Choose random types to compare sampling?
                 randomly_chosen: list[ProperType] = [
