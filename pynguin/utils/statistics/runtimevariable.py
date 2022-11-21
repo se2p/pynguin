@@ -36,8 +36,11 @@ class RuntimeVariable(str, enum.Enum):
     # An identifier for the project's name for benchmarking
     ProjectName = "ProjectName"
 
-    # Total time spent by Pynguin to generate tests
+    # Total run time of Pynguin
     TotalTime = "TotalTime"
+
+    # Time that Pynguin spent searching.
+    SearchTime = "SearchTime"
 
     # Number of iterations of the test-generation algorithm
     AlgorithmIterations = "AlgorithmIterations"

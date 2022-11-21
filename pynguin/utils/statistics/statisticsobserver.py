@@ -7,6 +7,7 @@
 """Provides some observers for statistics."""
 from __future__ import annotations
 
+import time
 import typing
 
 import pynguin.generation.searchobserver as so
@@ -42,8 +43,12 @@ class IterationObserver(so.SearchObserver):
 class SequenceStartTimeObserver(so.SearchObserver):
     """Sets the start time for sequence bases statistics."""
 
+    def __init__(self):
+        self._search_start_time_ns = 0
+
     def before_search_start(self, start_time_ns: int) -> None:
         stat.set_sequence_start_time(start_time_ns)
+        self._search_start_time_ns = start_time_ns
 
     def before_first_search_iteration(self, initial: tsc.TestSuiteChromosome) -> None:
         pass
@@ -52,7 +57,9 @@ class SequenceStartTimeObserver(so.SearchObserver):
         pass
 
     def after_search_finish(self) -> None:
-        pass
+        stat.track_output_variable(
+            RuntimeVariable.SearchTime, time.time_ns() - self._search_start_time_ns
+        )
 
 
 class BestIndividualObserver(so.SearchObserver):
