@@ -2421,7 +2421,7 @@ class TypeTracingObserver(ExecutionObserver):
                 #  interactions we don't want to record.
                 proxy = tt.ObjectProxy(
                     old,
-                    usage_trace_root=tt.UsageTraceNode(name=name),
+                    usage_trace=tt.UsageTraceNode(name=name),
                     is_kwargs=signature.signature.parameters[name].kind
                     == inspect.Parameter.VAR_KEYWORD,
                 )

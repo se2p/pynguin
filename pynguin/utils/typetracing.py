@@ -92,13 +92,13 @@ class UsageTraceNode:
         output = f"'{self.name}'"
         if len(self.type_checks) > 0:
             output += (
-                " (type-checks: {"
+                ", type_checks: {"
                 + ", ".join([check.__name__ for check in self.type_checks])
-                + "})"
+                + "}"
             )
         if len(self.arg_types) > 0:
             output += (
-                " (arg-types: {"
+                ", arg_types: {"
                 + ", ".join(
                     [
                         str(idx)
@@ -108,7 +108,7 @@ class UsageTraceNode:
                         for idx, types in self.arg_types.items()
                     ]
                 )
-                + "})"
+                + "}"
             )
         return output
 
@@ -187,9 +187,7 @@ def proxify(log_arg_types=False, no_wrap_return=False):
                         nested_knowledge.arg_types[pos].add(type(arg))
             if no_wrap_return or knowledge.depth >= _MAX_PROXY_NESTING:
                 return function(*args, **kwargs)
-            return ObjectProxy(
-                function(*args, **kwargs), usage_trace_root=nested_knowledge
-            )
+            return ObjectProxy(function(*args, **kwargs), usage_trace=nested_knowledge)
 
         return wrapped
 
@@ -274,7 +272,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __init__(
         self,
         wrapped,
-        usage_trace_root: UsageTraceNode | None = None,
+        usage_trace: UsageTraceNode | None = None,
         is_kwargs: bool = False,
     ):
         object.__setattr__(self, "__wrapped__", wrapped)
@@ -282,9 +280,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         object.__setattr__(
             self,
             "_self_usage_trace_node",
-            UsageTraceNode(name="ROOT")
-            if usage_trace_root is None
-            else usage_trace_root,
+            UsageTraceNode(name="ROOT") if usage_trace is None else usage_trace,
         )
         # Is this proxy passed as **kwargs? If so, we can't return proxies from 'keys'
         # but must return the raw string objects.
@@ -442,7 +438,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             return getattr(self.__wrapped__, name)  # type:ignore
         return ObjectProxy(
             getattr(self.__wrapped__, name),  # type:ignore
-            usage_trace_root=child_node,
+            usage_trace=child_node,
         )
 
     def __delattr__(self, name):
@@ -693,7 +689,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             yield from self.__wrapped__
         else:
             for i in self.__wrapped__:
-                proxy = ObjectProxy(i, usage_trace_root=nested_node)
+                proxy = ObjectProxy(i, usage_trace=nested_node)
                 yield proxy
 
     # These do not give us any hint.

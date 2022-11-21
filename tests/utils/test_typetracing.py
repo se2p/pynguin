@@ -677,7 +677,7 @@ def test_pretty():
     knowledge.type_checks.add(str)
     assert (
         knowledge.pretty()
-        == "['ROOT' (type-checks: {str})]\n└──['foo' (arg-types: {0: {int}})]"
+        == "['ROOT', type_checks: {str}]\n└──['foo', arg_types: {0: {int}}]"
     )
 
 
