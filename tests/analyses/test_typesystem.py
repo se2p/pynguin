@@ -818,7 +818,7 @@ def test_update_guess_multi_drop(inferred_signature):
 )
 def test__guess_parameter_type(inferred_signature, symbol, kind):
     knowledge = UsageTraceNode("ROOT")
-    assert knowledge.children[symbol]
+    assert knowledge.children[symbol] is not None
     with mock.patch.object(inferred_signature, "_guess_parameter_type_from") as guess:
         inferred_signature._guess_parameter_type(knowledge, kind)
         guess.assert_called_with(knowledge.children[symbol])
@@ -841,14 +841,14 @@ def test__guess_parameter_type_3(inferred_signature):
 
 def test_from_symbol_table(inferred_signature):
     knowledge = UsageTraceNode("ROOT")
-    assert knowledge.children["foo"]
+    assert knowledge.children["foo"] is not None
     assert inferred_signature._from_attr_table(knowledge) is None
 
 
 def test_from_symbol_table_2(inferred_signature):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
-    assert knowledge.children["foo"]
+    assert knowledge.children["foo"] is not None
     inferred_signature.type_system._attribute_map["foo"].add(
         inferred_signature.type_system.to_type_info(int)
     )

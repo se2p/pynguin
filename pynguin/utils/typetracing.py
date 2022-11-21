@@ -88,6 +88,9 @@ class UsageTraceNode:
         )
         return tree({self._format_str(): self._format_children()})
 
+    def __len__(self):
+        return len(self.children) + len(self.arg_types) + len(self.type_checks)
+
     def _format_str(self):
         output = f"'{self.name}'"
         if len(self.type_checks) > 0:
@@ -415,7 +418,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             node = UsageTraceNode.from_proxy(self)
             accessed = node.children[name]
             # Node is created implicitly.
-            assert accessed
+            assert accessed is not None
             setattr(self.__wrapped__, name, value)  # type:ignore
 
     def __getattr__(self, name):

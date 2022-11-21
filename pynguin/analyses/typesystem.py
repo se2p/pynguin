@@ -681,7 +681,7 @@ class InferredSignature:
         res: dict[str, ProperType] = {}
         test_conf = config.configuration.test_creation
         for param_name, orig_type in self.original_parameters.items():
-            if param_name in self.usage_trace:
+            if len(self.usage_trace[param_name]) > 0:
                 # If we have information from proxies, update guess.
                 self._update_guess(
                     param_name,
@@ -1111,7 +1111,7 @@ class InferredSignature:
                         k=config.configuration.statistics_output.type_guess_top_n,
                     )
                 ]
-                if param_name in self.usage_trace:
+                if len(self.usage_trace[param_name]) > 0:
                     counter: Counter[ProperType] = Counter()
                     for _ in range(100):
                         guess = self._guess_parameter_type(
