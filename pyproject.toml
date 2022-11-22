@@ -81,7 +81,6 @@ pytest-cov = "^3.0"
 pytest-mock = "^3.8"
 pytest-picked = "^0.4"
 pytest-sugar = "^0.9.5"
-pytest-xdist = "^2.5"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
