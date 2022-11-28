@@ -86,17 +86,13 @@ class RuntimeVariable(str, enum.Enum):
     # Indicates if a suitable test module was found to seed initial testcases
     SuitableTestModule = "SuitableTestModule"
 
-    # The minimum cyclomatic complexity as defined by McCabe of the SUT
-    McCabeMin = "McCabeMin"
+    # The cyclomatic complexity as defined by McCabe based on elements of the SUT,
+    # whose AST is accessible via the test cluster.
+    McCabeAST = "McCabeAST"
 
-    # The mean cyclomatic complexity as defined by McCabe of the SUT
-    McCabeMean = "McCabeMean"
-
-    # The median cyclomatic complexity as defined by McCabe of the SUT
-    McCabeMedian = "McCabeMedian"
-
-    # The maximum cyclomatic complexity as defined by McCabe of the SUT
-    McCabeMax = "McCabeMax"
+    # The cyclomatic complexity as defined by McCabe based on the CFG of the
+    # Code Objects in the SUT.
+    McCabeCodeObject = "McCabeCodeObject"
 
     # The number of lines in the source file
     LineNos = "LineNos"

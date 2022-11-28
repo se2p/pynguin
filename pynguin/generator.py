@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import enum
 import importlib
+import json
 import logging
 import os
 import sys
@@ -291,6 +292,13 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
     stat.track_output_variable(
         RuntimeVariable.Lines,
         len(tracer.get_known_data().existing_lines),
+    )
+    cyclomatic_complexities: list[int] = [
+        code.original_cfg.cyclomatic_complexity
+        for code in tracer.get_known_data().existing_code_objects.values()
+    ]
+    stat.track_output_variable(
+        RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)
     )
     test_cluster.track_statistics_values(stat.track_output_variable)
     if (

@@ -19,9 +19,8 @@ import json
 import logging
 import queue
 import typing
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from collections.abc import Callable
-from statistics import mean, median
 from types import (
     BuiltinFunctionType,
     FunctionType,
@@ -774,39 +773,26 @@ class ModuleTestCluster(TestCluster):
             RuntimeVariable.GeneratableTypes, len(self.get_all_generatable_types())
         )
 
-        cyclomatic_complexity = self.__compute_cyclomatic_complexities(
+        cyclomatic_complexities = self.__compute_cyclomatic_complexities(
             self.function_data_for_accessibles.values()
         )
-        if cyclomatic_complexity is not None:
-            tracking_fun(RuntimeVariable.McCabeMin, cyclomatic_complexity.min)
-            tracking_fun(RuntimeVariable.McCabeMean, cyclomatic_complexity.mean)
-            tracking_fun(RuntimeVariable.McCabeMedian, cyclomatic_complexity.median)
-            tracking_fun(RuntimeVariable.McCabeMax, cyclomatic_complexity.max)
+        if cyclomatic_complexities is not None:
+            tracking_fun(RuntimeVariable.McCabeAST, json.dumps(cyclomatic_complexities))
             tracking_fun(RuntimeVariable.LineNos, self.__linenos)
-
-    CyclomaticComplexity = namedtuple("CyclomaticComplexity", "min mean median max")
 
     @staticmethod
     def __compute_cyclomatic_complexities(
         callable_data: typing.Iterable[_CallableData],
-    ) -> CyclomaticComplexity | None:
+    ) -> list[int]:
         # Collect complexities only for callables that had an AST.  Their minimal
         # complexity is 1, the value None symbolises a callable that had no AST present,
         # either because there is none or because it is an implicitly added function,
         # such as a default constructor or the constructor of a base class.
-        complexities = [
+        return [
             item.cyclomatic_complexity
             for item in callable_data
             if item.cyclomatic_complexity is not None
         ]
-        if len(complexities) == 0:
-            return None
-        return ModuleTestCluster.CyclomaticComplexity(
-            min=min(complexities),
-            mean=mean(complexities),
-            median=median(complexities),
-            max=max(complexities),
-        )
 
 
 # pylint:disable=too-many-public-methods
