@@ -734,7 +734,7 @@ class InferredSignature:
         else:
             if guessed in old:
                 return
-            if len(old) >= 5:
+            if len(old) >= config.configuration.test_creation.type_tracing_kept_guesses:
                 # Drop first guess
                 old.pop(0)
             # append current

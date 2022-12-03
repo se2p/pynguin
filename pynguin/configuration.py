@@ -426,6 +426,10 @@ class TestCreationConfiguration:
     """Weight to use the type guessed from type tracing as parameter type during
     test generation. Expects values > 0."""
 
+    type_tracing_kept_guesses: int = 5
+    """Amount of kept recently guessed types per parameter, when type tracing
+    is used."""
+
     wrap_var_param_type_probability: float = 0.7
     """Probability to wrap the type required for a *arg or **kwargs parameter
     in a list or dict, respectively. Expects values in [0,1]"""
