@@ -40,7 +40,7 @@ classifiers = [
 python = ">=3.10, <3.11"
 astroid = "^2.12.10"
 black = "^22.8.0"
-bytecode = "^0"
+bytecode = "0.13"
 jellyfish = "^0"
 Jinja2 = "^3.1"
 MutPy-Pynguin = "^0.7.1"
