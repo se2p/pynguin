@@ -214,7 +214,7 @@ class TestSuiteGenerationAlgorithmFactory(
         """
         strategy = self._get_generation_strategy()
         strategy.branch_goal_pool = bg.BranchGoalPool(
-            self._executor.tracer.get_known_data()
+            self._executor.tracer.get_subject_properties()
         )
         strategy.test_case_fitness_functions = self._get_test_case_fitness_functions(
             strategy
@@ -407,7 +407,7 @@ class TestSuiteGenerationAlgorithmFactory(
             return FilteredModuleTestCluster(
                 self._test_cluster,
                 strategy.archive,
-                self._executor.tracer.get_known_data(),
+                self._executor.tracer.get_subject_properties(),
                 strategy.test_case_fitness_functions,
             )
         return self._test_cluster

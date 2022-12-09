@@ -14,7 +14,7 @@ import pynguin.ga.testsuitechromosome as tsc
 from pynguin.testcase.execution import (
     ExecutionResult,
     ExecutionTrace,
-    KnownData,
+    SubjectProperties,
     TestCaseExecutor,
 )
 
@@ -73,8 +73,8 @@ def trace_mock():
 
 
 @pytest.fixture()
-def known_data_mock():
-    return KnownData()
+def subject_properties_mock():
+    return SubjectProperties()
 
 
 def test_branch_test_case_is_minimizing_function(executor_mock):
@@ -82,9 +82,11 @@ def test_branch_test_case_is_minimizing_function(executor_mock):
     assert not func.is_maximisation_function()
 
 
-def test_test_case_compute_fitness_values(known_data_mock, executor_mock, trace_mock):
+def test_test_case_compute_fitness_values(
+    subject_properties_mock, executor_mock, trace_mock
+):
     tracer = MagicMock()
-    tracer.get_known_data.return_value = known_data_mock
+    tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
     func = ff.BranchDistanceTestCaseFitnessFunction(executor_mock, 0)
     indiv = MagicMock()
@@ -112,10 +114,10 @@ def test_test_suite_is_maximisation_function(executor_mock):
 
 
 def test_test_suite_compute_branch_distance_fitness_values(
-    known_data_mock, executor_mock, trace_mock
+    subject_properties_mock, executor_mock, trace_mock
 ):
     tracer = MagicMock()
-    tracer.get_known_data.return_value = known_data_mock
+    tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
     func = ff.BranchDistanceTestSuiteFitnessFunction(executor_mock)
     indiv = MagicMock()
@@ -128,10 +130,10 @@ def test_test_suite_compute_branch_distance_fitness_values(
 
 
 def test_test_suite_compute_statements_covered_fitness_values(
-    known_data_mock, executor_mock, trace_mock
+    subject_properties_mock, executor_mock, trace_mock
 ):
     tracer = MagicMock()
-    tracer.get_known_data.return_value = known_data_mock
+    tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
     func = ff.LineTestSuiteFitnessFunction(executor_mock)
     indiv = MagicMock()
@@ -144,10 +146,10 @@ def test_test_suite_compute_statements_covered_fitness_values(
 
 
 def test_test_suite_compute_checked_covered_fitness_values(
-    known_data_mock, executor_mock, trace_mock
+    subject_properties_mock, executor_mock, trace_mock
 ):
     tracer = MagicMock()
-    tracer.get_known_data.return_value = known_data_mock
+    tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
     func = ff.StatementCheckedTestSuiteFitnessFunction(executor_mock)
     indiv = MagicMock()

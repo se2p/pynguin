@@ -323,7 +323,7 @@ def test_slicing_after_test_execution(
 
         instructions_in_slice = []
         assertion_slicer = AssertionSlicer(
-            tracer.get_known_data().existing_code_objects
+            tracer.get_subject_properties().existing_code_objects
         )
         for assertion in result.execution_trace.executed_assertions:
             instructions_in_slice.extend(
@@ -332,7 +332,7 @@ def test_slicing_after_test_execution(
         assert instructions_in_slice
 
         checked_lines = DynamicSlicer.map_instructions_to_lines(
-            instructions_in_slice, tracer.get_known_data()
+            instructions_in_slice, tracer.get_subject_properties()
         )
         assert checked_lines
         assert checked_lines == expected_lines

@@ -41,7 +41,11 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
-    from pynguin.testcase.execution import ExecutedAssertion, ExecutionTrace, KnownData
+    from pynguin.testcase.execution import (
+        ExecutedAssertion,
+        ExecutionTrace,
+        SubjectProperties,
+    )
 
 
 @dataclass
@@ -769,13 +773,13 @@ class DynamicSlicer:
 
     @staticmethod
     def get_line_id_by_instruction(
-        instruction: UniqueInstruction, known_data: KnownData
+        instruction: UniqueInstruction, subject_properties: SubjectProperties
     ) -> int:
         """Get the line id of the line an instruction belongs to.
 
         Args:
             instruction: the instruction the line id is needed for
-            known_data: the known data about the module under test
+            subject_properties: the known data about the module under test
 
         Returns:
             the line id used by the line of an instruction
@@ -783,7 +787,7 @@ class DynamicSlicer:
         Raises:
             ValueError: If the line of the instruction is not part of the known data.
         """
-        for (line_id, line_meta) in known_data.existing_lines.items():
+        for (line_id, line_meta) in subject_properties.existing_lines.items():
             if (
                 line_meta.file_name == instruction.file
                 and line_meta.line_number == instruction.lineno
@@ -793,14 +797,14 @@ class DynamicSlicer:
 
     @staticmethod
     def map_instructions_to_lines(
-        instructions: list[UniqueInstruction], known_data: KnownData
+        instructions: list[UniqueInstruction], subject_properties: SubjectProperties
     ) -> set[int]:
         """Map the list of instructions in a slice to a set of lines of the module
         under test. Instructions of the test case statements are ignored.
 
         Args:
             instructions: list of unique instructions
-            known_data: the known data about the module under test
+            subject_properties: the known data about the module under test
 
         Returns:
             a set of line ids used in the given list of instructions
@@ -814,7 +818,9 @@ class DynamicSlicer:
                 continue
             curr_line = instruction.lineno
             line_ids.add(
-                DynamicSlicer.get_line_id_by_instruction(instruction, known_data)
+                DynamicSlicer.get_line_id_by_instruction(
+                    instruction, subject_properties
+                )
             )
         return line_ids
 

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import (
         AbstractTestCaseExecutor,
         ExecutionResult,
-        KnownData,
+        SubjectProperties,
     )
 
 
@@ -160,7 +160,9 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
 
-        return compute_branch_distance_fitness(merged_trace, tracer.get_known_data())
+        return compute_branch_distance_fitness(
+            merged_trace, tracer.get_subject_properties()
+        )
 
     def compute_is_covered(self, individual) -> bool:
         result = self._run_test_case_chromosome(individual)
@@ -168,7 +170,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
         tracer = self._executor.tracer
 
         return compute_branch_distance_fitness_is_covered(
-            merged_trace, tracer.get_known_data()
+            merged_trace, tracer.get_subject_properties()
         )
 
     def is_maximisation_function(self) -> bool:
@@ -213,7 +215,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_branch_distance_fitness(
             merged_trace,
-            tracer.get_known_data(),
+            tracer.get_subject_properties(),
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -226,7 +228,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_branch_distance_fitness_is_covered(
             merged_trace,
-            tracer.get_known_data(),
+            tracer.get_subject_properties(),
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -243,7 +245,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        existing_lines = tracer.get_known_data().existing_lines
+        existing_lines = tracer.get_subject_properties().existing_lines
         return len(existing_lines) - len(merged_trace.covered_line_ids)
 
     def compute_is_covered(self, individual) -> bool:
@@ -253,7 +255,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_line_coverage_fitness_is_covered(
             merged_trace,
-            tracer.get_known_data(),
+            tracer.get_subject_properties(),
         )
 
     def is_maximisation_function(self) -> bool:
@@ -269,7 +271,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return len(tracer.get_known_data().existing_lines) - len(
+        return len(tracer.get_subject_properties().existing_lines) - len(
             merged_trace.checked_lines
         )
 
@@ -280,7 +282,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_checked_coverage_statement_fitness_is_covered(
             merged_trace,
-            tracer.get_known_data(),
+            tracer.get_subject_properties(),
         )
 
     def is_maximisation_function(self) -> bool:
@@ -322,7 +324,7 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_known_data())
+        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
@@ -332,7 +334,7 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_known_data())
+        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
@@ -342,7 +344,7 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_known_data())
+        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
@@ -352,7 +354,7 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_known_data())
+        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
@@ -363,7 +365,7 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        existing = len(tracer.get_known_data().existing_lines)
+        existing = len(tracer.get_subject_properties().existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -382,7 +384,7 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        existing = len(tracer.get_known_data().existing_lines)
+        existing = len(tracer.get_subject_properties().existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -401,7 +403,9 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
+        return compute_assertion_checked_coverage(
+            merged_trace, tracer.get_subject_properties()
+        )
 
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
@@ -411,7 +415,9 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_known_data())
+        return compute_assertion_checked_coverage(
+            merged_trace, tracer.get_subject_properties()
+        )
 
 
 class ComputationCache:
@@ -681,7 +687,7 @@ def analyze_results(results: list[ExecutionResult]) -> ExecutionTrace:
 
 def compute_branch_distance_fitness(
     trace: ExecutionTrace,
-    known_data: KnownData,
+    subject_properties: SubjectProperties,
     exclude_code: set[int] | None = None,
     exclude_true: set[int] | None = None,
     exclude_false: set[int] | None = None,
@@ -690,7 +696,7 @@ def compute_branch_distance_fitness(
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
         exclude_code: Ids of the code objects that should not be considered.
         exclude_true: Ids of predicates whose True branch should not be considered.
         exclude_false: Ids of predicates whose False branch should not be considered.
@@ -703,7 +709,7 @@ def compute_branch_distance_fitness(
 
     # Check if all branch-less code objects were executed.
     code_objects_missing: float = len(
-        known_data.branch_less_code_objects.difference(
+        subject_properties.branch_less_code_objects.difference(
             trace.executed_code_objects, exclude_code
         )
     )
@@ -717,7 +723,7 @@ def compute_branch_distance_fitness(
 
     # Check if all predicates are covered
     predicate_fitness: float = 0.0
-    for predicate in known_data.existing_predicates:
+    for predicate in subject_properties.existing_predicates:
         if predicate not in exclude_true:
             predicate_fitness += _predicate_fitness(
                 predicate, trace.true_distances, trace
@@ -746,7 +752,7 @@ def _predicate_fitness(
 
 def compute_branch_distance_fitness_is_covered(
     trace: ExecutionTrace,
-    known_data: KnownData,
+    subject_properties: SubjectProperties,
     exclude_code: set[int] | None = None,
     exclude_true: set[int] | None = None,
     exclude_false: set[int] | None = None,
@@ -755,7 +761,7 @@ def compute_branch_distance_fitness_is_covered(
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
         exclude_code: Ids of the code objects that should not be considered.
         exclude_true: Ids of predicates whose True branch should not be considered.
         exclude_false: Ids of predicates whose False branch should not be considered.
@@ -769,7 +775,7 @@ def compute_branch_distance_fitness_is_covered(
     # Check if all branch-less code objects were executed.
     if (
         len(
-            known_data.branch_less_code_objects.difference(
+            subject_properties.branch_less_code_objects.difference(
                 trace.executed_code_objects, exclude_code
             )
         )
@@ -782,7 +788,7 @@ def compute_branch_distance_fitness_is_covered(
     exclude_false = set() if exclude_false is None else exclude_false
 
     # Check if all predicates are covered
-    for predicate in known_data.existing_predicates:
+    for predicate in subject_properties.existing_predicates:
         if (
             predicate not in exclude_true
             and (predicate, 0.0) not in trace.true_distances
@@ -797,54 +803,58 @@ def compute_branch_distance_fitness_is_covered(
 
 
 def compute_line_coverage_fitness_is_covered(
-    trace: ExecutionTrace, known_data: KnownData
+    trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> bool:
     """Computes if all lines and code objects have been executed.
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
 
     Returns:
         True, if all lines were covered, false otherwise
     """
-    return len(trace.covered_line_ids) == len(known_data.existing_lines)
+    return len(trace.covered_line_ids) == len(subject_properties.existing_lines)
 
 
 def compute_checked_coverage_statement_fitness_is_covered(
-    trace: ExecutionTrace, known_data: KnownData
+    trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> bool:
     """Computes if all lines and code objects are checked by a return statement.
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
 
     Returns:
         True, if all lines were checked by a return, false otherwise
     """
-    return len(trace.checked_lines) == len(known_data.existing_lines)
+    return len(trace.checked_lines) == len(subject_properties.existing_lines)
 
 
-def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+def compute_branch_coverage(
+    trace: ExecutionTrace, subject_properties: SubjectProperties
+) -> float:
     """Computes branch coverage on bytecode instructions which should equal
     decision coverage on source.
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
 
     Returns:
         The computed coverage value
     """
 
     covered = len(
-        trace.executed_code_objects.intersection(known_data.branch_less_code_objects)
+        trace.executed_code_objects.intersection(
+            subject_properties.branch_less_code_objects
+        )
     )
-    existing = len(known_data.branch_less_code_objects)
+    existing = len(subject_properties.branch_less_code_objects)
 
     # Every predicate creates two branches
-    existing += len(known_data.existing_predicates) * 2
+    existing += len(subject_properties.existing_predicates) * 2
 
     # A branch is covered if it has a distance of 0.0
     # Must consider both branches created by a predicate, i.e. true and false.
@@ -860,17 +870,19 @@ def compute_branch_coverage(trace: ExecutionTrace, known_data: KnownData) -> flo
     return coverage
 
 
-def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float:
+def compute_line_coverage(
+    trace: ExecutionTrace, subject_properties: SubjectProperties
+) -> float:
     """Computes line coverage on bytecode instructions.
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
 
     Returns:
         The computed coverage value
     """
-    existing = len(known_data.existing_lines)
+    existing = len(subject_properties.existing_lines)
 
     if existing == 0:
         # Nothing to cover => everything is covered.
@@ -883,7 +895,7 @@ def compute_line_coverage(trace: ExecutionTrace, known_data: KnownData) -> float
 
 
 def _cleanse_included_implicit_return_none(
-    known_data, statement_checked_lines, statement_slice
+    subject_properties, statement_checked_lines, statement_slice
 ):
     if (
         # check if the last included instructions before the store
@@ -900,7 +912,7 @@ def _cleanse_included_implicit_return_none(
         ):
             statement_checked_lines.remove(
                 DynamicSlicer.get_line_id_by_instruction(
-                    statement_slice[-3], known_data
+                    statement_slice[-3], subject_properties
                 )
             )
 
@@ -908,7 +920,7 @@ def _cleanse_included_implicit_return_none(
 def compute_statement_checked_lines(
     statements: list[Statement],
     trace: ExecutionTrace,
-    known_data: KnownData,
+    subject_properties: SubjectProperties,
     statement_slicing_criteria: dict[int, SlicingCriterion],
 ) -> set[int]:
     """Computes checked coverage on bytecode instructions.
@@ -922,14 +934,14 @@ def compute_statement_checked_lines(
     Args:
         statements: The sliced instructions
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
         statement_slicing_criteria: a dictionary of statement positions
             and its slicing criteria
 
     Returns:
         The checked line ids of lines checked by the statements
     """
-    known_code_objects = known_data.existing_code_objects
+    known_code_objects = subject_properties.existing_code_objects
     dynamic_slicer = DynamicSlicer(known_code_objects)
     checked_lines_ids = set()
     for statement in statements:
@@ -944,11 +956,11 @@ def compute_statement_checked_lines(
             statement_slicing_criteria[statement.get_position()],
         )
         statement_checked_lines = DynamicSlicer.map_instructions_to_lines(
-            statement_slice, known_data
+            statement_slice, subject_properties
         )
 
         _cleanse_included_implicit_return_none(
-            known_data, statement_checked_lines, statement_slice
+            subject_properties, statement_checked_lines, statement_slice
         )
 
         checked_lines_ids.update(statement_checked_lines)
@@ -956,7 +968,7 @@ def compute_statement_checked_lines(
 
 
 def compute_assertion_checked_coverage(
-    trace: ExecutionTrace, known_data: KnownData
+    trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> float:
     """Computes checked coverage on bytecode instructions.
     Each assertion can be sliced, returning a list of instructions
@@ -971,18 +983,18 @@ def compute_assertion_checked_coverage(
 
     Args:
         trace: The execution trace
-        known_data: All known data
+        subject_properties: All known data
 
     Returns:
         The computed coverage value
     """
-    existing = len(known_data.existing_lines)
+    existing = len(subject_properties.existing_lines)
 
     if existing == 0:
         # Nothing to cover => everything is covered.
         coverage = 1.0
     else:
-        assertion_slicer = AssertionSlicer(known_data.existing_code_objects)
+        assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
         checked_instructions = []
         for executed_assertion in trace.executed_assertions:
             assertion_checked_instructions = assertion_slicer.slice_assertion(
@@ -996,7 +1008,7 @@ def compute_assertion_checked_coverage(
 
         # reduce coverage to lines instead of instructions
         checked_lines = DynamicSlicer.map_instructions_to_lines(
-            checked_instructions, known_data
+            checked_instructions, subject_properties
         )
 
         covered = len(checked_lines)

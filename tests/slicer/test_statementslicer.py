@@ -313,7 +313,7 @@ def test_get_line_id_by_instruction_throws_error():
         file="foo",
         lineno=1,
     )
-    known_data_mock = MagicMock(
+    subject_properties_mock = MagicMock(
         existing_lines={
             0: MagicMock(
                 code_object_id=0,
@@ -324,4 +324,6 @@ def test_get_line_id_by_instruction_throws_error():
     )
 
     with pytest.raises(ValueError):
-        DynamicSlicer.get_line_id_by_instruction(instruction_mock, known_data_mock)
+        DynamicSlicer.get_line_id_by_instruction(
+            instruction_mock, subject_properties_mock
+        )

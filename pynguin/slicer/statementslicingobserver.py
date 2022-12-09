@@ -59,7 +59,7 @@ class StatementSlicingObserver(ex.ExecutionObserver):
             last_traced_instr = trace.executed_instructions[-2]
             assert last_traced_instr.opcode == op.STORE_NAME
 
-            code_object = self._tracer.get_known_data().existing_code_objects[
+            code_object = self._tracer.get_subject_properties().existing_code_objects[
                 last_traced_instr.code_object_id
             ]
             slicing_instruction = UniqueInstruction(
@@ -86,7 +86,7 @@ class StatementSlicingObserver(ex.ExecutionObserver):
         checked_lines = compute_statement_checked_lines(
             test_case.statements,
             result.execution_trace,
-            self._tracer.get_known_data(),
+            self._tracer.get_subject_properties(),
             self._slicing_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)

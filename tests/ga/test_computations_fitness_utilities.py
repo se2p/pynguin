@@ -23,8 +23,8 @@ from pynguin.testcase.execution import (
     ExecutedAssertion,
     ExecutionResult,
     ExecutionTrace,
-    KnownData,
     LineMetaData,
+    SubjectProperties,
 )
 from pynguin.utils.orderedset import OrderedSet
 
@@ -53,145 +53,167 @@ def trace_mock():
 
 
 @pytest.fixture()
-def known_data_mock():
-    return KnownData()
+def subject_properties_mock():
+    return SubjectProperties()
 
 
-def test_default_fitness(trace_mock, known_data_mock):
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 0
+def test_default_fitness(trace_mock, subject_properties_mock):
+    assert ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 0
 
 
-def test_fitness_function_diff(trace_mock, known_data_mock):
-    known_data_mock.branch_less_code_objects = {0, 1, 2}
+def test_fitness_function_diff(trace_mock, subject_properties_mock):
+    subject_properties_mock.branch_less_code_objects = {0, 1, 2}
     trace_mock.executed_code_objects.add(0)
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 2.0
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 2.0
+    )
 
 
-def test_fitness_covered(trace_mock, known_data_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+def test_fitness_covered(trace_mock, subject_properties_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.executed_predicates[0] = 1
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 1.0
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 1.0
+    )
 
 
-def test_fitness_neither_covered(trace_mock, known_data_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 2.0
+def test_fitness_neither_covered(trace_mock, subject_properties_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 2.0
+    )
 
 
-def test_fitness_covered_twice(trace_mock, known_data_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+def test_fitness_covered_twice(trace_mock, subject_properties_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 0.5
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 0.5
+    )
 
 
-def test_fitness_covered_both(trace_mock, known_data_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+def test_fitness_covered_both(trace_mock, subject_properties_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 0
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 0.0
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 0.0
+    )
 
 
-def test_fitness_normalized(trace_mock, known_data_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+def test_fitness_normalized(trace_mock, subject_properties_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 7.0
-    assert ff.compute_branch_distance_fitness(trace_mock, known_data_mock) == 0.875
+    assert (
+        ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 0.875
+    )
 
 
-def test_branch_coverage_none(known_data_mock, trace_mock):
-    assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 1.0
+def test_branch_coverage_none(subject_properties_mock, trace_mock):
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 1.0
 
 
-def test_branch_coverage_half_branch(known_data_mock, trace_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+def test_branch_coverage_half_branch(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
     trace_mock.true_distances[0] = 0.0
-    assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.5
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
-def test_branch_coverage_no_branch(known_data_mock, trace_mock):
-    known_data_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
-    assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.0
+def test_branch_coverage_no_branch(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
-def test_branch_coverage_half_code_objects(known_data_mock, trace_mock):
-    known_data_mock.branch_less_code_objects = {0, 1}
+def test_branch_coverage_half_code_objects(subject_properties_mock, trace_mock):
+    subject_properties_mock.branch_less_code_objects = {0, 1}
     trace_mock.executed_code_objects.add(0)
-    assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.5
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
-def test_branch_coverage_no_code_objects(known_data_mock, trace_mock):
-    known_data_mock.branch_less_code_objects = {0, 1}
-    assert ff.compute_branch_coverage(trace_mock, known_data_mock) == 0.0
+def test_branch_coverage_no_code_objects(subject_properties_mock, trace_mock):
+    subject_properties_mock.branch_less_code_objects = {0, 1}
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
-def test_line_coverage_none(known_data_mock, trace_mock):
-    assert ff.compute_line_coverage(trace_mock, known_data_mock) == 1.0
+def test_line_coverage_none(subject_properties_mock, trace_mock):
+    assert ff.compute_line_coverage(trace_mock, subject_properties_mock) == 1.0
 
 
-def test_statement_coverage_zero(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_statement_coverage_zero(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    assert ff.compute_line_coverage(trace_mock, known_data_mock) == 0.0
+    assert ff.compute_line_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
-def test_line_coverage_half_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
-        0: LineMetaData(0, "foo", 0),
-        1: LineMetaData(0, "foo", 1),
-    }
-    trace_mock.covered_line_ids = {0}
-    assert ff.compute_line_coverage(trace_mock, known_data_mock) == 0.5
-
-
-def test_line_coverage_fully_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
-        0: LineMetaData(0, "foo", 0),
-        1: LineMetaData(0, "foo", 1),
-    }
-    trace_mock.covered_line_ids = {0, 1}
-    assert ff.compute_line_coverage(trace_mock, known_data_mock) == 1.0
-
-
-def test_line_coverage_is_not_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_line_coverage_half_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
     trace_mock.covered_line_ids = {0}
-    assert not ff.compute_line_coverage_fitness_is_covered(trace_mock, known_data_mock)
+    assert ff.compute_line_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
-def test_line_coverage_is_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_line_coverage_fully_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
     trace_mock.covered_line_ids = {0, 1}
-    assert ff.compute_line_coverage_fitness_is_covered(trace_mock, known_data_mock)
+    assert ff.compute_line_coverage(trace_mock, subject_properties_mock) == 1.0
 
 
-def test_assertion_checked_coverage_none(known_data_mock, trace_mock):
-    assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 1.0
-
-
-def test_assertion_checked_coverage_zero(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_line_coverage_is_not_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 0.0
+    trace_mock.covered_line_ids = {0}
+    assert not ff.compute_line_coverage_fitness_is_covered(
+        trace_mock, subject_properties_mock
+    )
 
 
-def test_assertion_checked_coverage_half_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_line_coverage_is_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
+        0: LineMetaData(0, "foo", 0),
+        1: LineMetaData(0, "foo", 1),
+    }
+    trace_mock.covered_line_ids = {0, 1}
+    assert ff.compute_line_coverage_fitness_is_covered(
+        trace_mock, subject_properties_mock
+    )
+
+
+def test_assertion_checked_coverage_none(subject_properties_mock, trace_mock):
+    assert (
+        ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock)
+        == 1.0
+    )
+
+
+def test_assertion_checked_coverage_zero(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
+        0: LineMetaData(0, "foo", 0),
+        1: LineMetaData(0, "foo", 1),
+    }
+    assert (
+        ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock)
+        == 0.0
+    )
+
+
+def test_assertion_checked_coverage_half_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
@@ -203,11 +225,14 @@ def test_assertion_checked_coverage_half_covered(known_data_mock, trace_mock):
     mock_instr_1.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1]
-        assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 0.5
+        assert (
+            ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock)
+            == 0.5
+        )
 
 
-def test_assertion_checked_coverage_fully_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_assertion_checked_coverage_fully_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
@@ -223,17 +248,21 @@ def test_assertion_checked_coverage_fully_covered(known_data_mock, trace_mock):
     mock_instr_2.file = "foo"
     with patch.object(AssertionSlicer, "slice_assertion") as slice_mock:
         slice_mock.return_value = [mock_instr_1, mock_instr_2]
-        assert ff.compute_assertion_checked_coverage(trace_mock, known_data_mock) == 1
+        assert (
+            ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock)
+            == 1
+        )
 
 
-def test_statement_checked_coverage_none(known_data_mock, trace_mock):
+def test_statement_checked_coverage_none(subject_properties_mock, trace_mock):
     assert (
-        ff.compute_statement_checked_lines([], trace_mock, known_data_mock, {}) == set()
+        ff.compute_statement_checked_lines([], trace_mock, subject_properties_mock, {})
+        == set()
     )
 
 
-def test_statement_checked_coverage_half_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_statement_checked_coverage_half_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
@@ -248,12 +277,12 @@ def test_statement_checked_coverage_half_covered(known_data_mock, trace_mock):
             position_mock.return_value = 1
             slice_mock.return_value = [mock_instr_1]
             assert ff.compute_statement_checked_lines(
-                statements, trace_mock, known_data_mock, {1: MagicMock()}
+                statements, trace_mock, subject_properties_mock, {1: MagicMock()}
             ) == {0}
 
 
-def test_statement_checked_coverage_fully_covered(known_data_mock, trace_mock):
-    known_data_mock.existing_lines = {
+def test_statement_checked_coverage_fully_covered(subject_properties_mock, trace_mock):
+    subject_properties_mock.existing_lines = {
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
@@ -273,7 +302,7 @@ def test_statement_checked_coverage_fully_covered(known_data_mock, trace_mock):
             position_mock.return_value = 1
             slice_mock.return_value = [mock_instr_1, mock_instr_2]
             assert ff.compute_statement_checked_lines(
-                statements, trace_mock, known_data_mock, {1: MagicMock()}
+                statements, trace_mock, subject_properties_mock, {1: MagicMock()}
             ) == {0, 1}
 
 

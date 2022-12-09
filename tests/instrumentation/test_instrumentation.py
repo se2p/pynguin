@@ -275,10 +275,12 @@ def test_integrate_branch_distance_instrumentation(
         function_callable.__code__
     )
     assert (
-        len(tracer.get_known_data().branch_less_code_objects)
+        len(tracer.get_subject_properties().branch_less_code_objects)
         == branchless_function_count
     )
-    assert len(list(tracer.get_known_data().existing_predicates)) == branches_count
+    assert (
+        len(list(tracer.get_subject_properties().existing_predicates)) == branches_count
+    )
 
 
 def test_integrate_line_coverage_instrumentation(simple_module):
@@ -290,9 +292,17 @@ def test_integrate_line_coverage_instrumentation(simple_module):
         function_callable.__code__
     )
 
-    assert tracer.get_known_data().existing_lines
+    assert tracer.get_subject_properties().existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
-    assert {0, 1, 2, 3, 4, 5, 6} == tracer.get_known_data().existing_lines.keys()
+    assert {
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    } == tracer.get_subject_properties().existing_lines.keys()
 
 
 def test_offset_calculation_checked_coverage_instrumentation(simple_module):
@@ -458,8 +468,8 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
 
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
-    assert {0} == tracer.get_known_data().existing_code_objects.keys()
-    assert OrderedSet([0]) == tracer.get_known_data().branch_less_code_objects
+    assert {0} == tracer.get_subject_properties().existing_code_objects.keys()
+    assert OrderedSet([0]) == tracer.get_subject_properties().branch_less_code_objects
     assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
 
 
