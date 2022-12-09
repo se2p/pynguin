@@ -80,7 +80,7 @@ from pynguin.utils.type_utils import (
 if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
-    from pynguin.testcase.execution import KnownData
+    from pynguin.testcase.execution import SubjectProperties
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
@@ -748,7 +748,7 @@ class ModuleTestCluster(TestCluster):
             raise ConstructionFailedException(f"No modifiers for {typ}")
         return randomness.choice(accessible_objects)
 
-    @functools.lru_cache()
+    @functools.lru_cache(maxsize=128)
     def get_all_generatable_types(self) -> list[ProperType]:
         generatable = OrderedSet(self.__generators.keys())
         generatable.update(self.type_system.primitive_proper_types)
@@ -854,11 +854,11 @@ class FilteredModuleTestCluster(TestCluster):
         self,
         delegate: ModuleTestCluster,
         archive: arch.Archive,
-        known_data: KnownData,
+        subject_properties: SubjectProperties,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
     ) -> None:
         self.__delegate = delegate
-        self.__known_data = known_data
+        self.__subject_properties = subject_properties
         self.__code_object_id_to_accessible_objects: dict[
             int, GenericCallableAccessibleObject
         ] = {
@@ -897,7 +897,7 @@ class FilteredModuleTestCluster(TestCluster):
                 )
             ) is not None:
                 return acc
-            code_object_id = self.__known_data.existing_code_objects[
+            code_object_id = self.__subject_properties.existing_code_objects[
                 code_object_id
             ].parent_code_object_id
         return None

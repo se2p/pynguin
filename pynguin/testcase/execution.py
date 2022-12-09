@@ -388,7 +388,9 @@ class AssertionExecutionObserver(ExecutionObserver):
                 self._tracer.disable()
 
     def _get_assertion_node_and_code_object_ids(self) -> tuple[int, int]:
-        existing_code_objects = self._tracer.get_known_data().existing_code_objects
+        existing_code_objects = (
+            self._tracer.get_subject_properties().existing_code_objects
+        )
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None
@@ -921,10 +923,8 @@ class LineMetaData:
 
 
 @dataclass
-class KnownData:
-    """Contains known code objects and predicates.
-    FIXME(fk) better class name...
-    """
+class SubjectProperties:
+    """Contains properties about the subject under test."""
 
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
@@ -960,7 +960,7 @@ class ExecutionTracer:
             self.trace = ExecutionTrace()
 
     def __init__(self) -> None:
-        self._known_data = KnownData()
+        self.subject_properties = SubjectProperties()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
 
@@ -1000,13 +1000,13 @@ class ExecutionTracer:
         copied.merge(self._import_trace)
         return copied
 
-    def get_known_data(self) -> KnownData:
+    def get_subject_properties(self) -> SubjectProperties:
         """Provide known data.
 
         Returns:
             The known data about the execution
         """
-        return self._known_data
+        return self.subject_properties
 
     def reset(self) -> None:
         """Resets everything.
@@ -1014,7 +1014,7 @@ class ExecutionTracer:
         Should be called before instrumentation. Clears all data, so we can handle a
         reload of the SUT.
         """
-        self._known_data = KnownData()
+        self.subject_properties = SubjectProperties()
         self._import_trace = ExecutionTrace()
         self.init_trace()
 
@@ -1070,9 +1070,9 @@ class ExecutionTracer:
             the id of the code object, which can be used to identify the object
             during instrumentation.
         """
-        code_object_id = len(self._known_data.existing_code_objects)
-        self._known_data.existing_code_objects[code_object_id] = meta
-        self._known_data.branch_less_code_objects.add(code_object_id)
+        code_object_id = len(self.subject_properties.existing_code_objects)
+        self.subject_properties.existing_code_objects[code_object_id] = meta
+        self.subject_properties.branch_less_code_objects.add(code_object_id)
         return code_object_id
 
     def executed_code_object(self, code_object_id: int) -> None:
@@ -1093,7 +1093,7 @@ class ExecutionTracer:
             )
 
         assert (
-            code_object_id in self._known_data.existing_code_objects
+            code_object_id in self.subject_properties.existing_code_objects
         ), "Cannot trace unknown code object"
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
@@ -1107,9 +1107,9 @@ class ExecutionTracer:
             the id of the predicate, which can be used to identify the predicate
             during instrumentation.
         """
-        predicate_id = len(self._known_data.existing_predicates)
-        self._known_data.existing_predicates[predicate_id] = meta
-        self._known_data.branch_less_code_objects.discard(meta.code_object_id)
+        predicate_id = len(self.subject_properties.existing_predicates)
+        self.subject_properties.existing_predicates[predicate_id] = meta
+        self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
     def executed_compare_predicate(
@@ -1138,7 +1138,7 @@ class ExecutionTracer:
         try:
             self.disable()
             assert (
-                predicate in self._known_data.existing_predicates
+                predicate in self.subject_properties.existing_predicates
             ), "Cannot trace unknown predicate"
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
@@ -1219,7 +1219,7 @@ class ExecutionTracer:
         try:
             self.disable()
             assert (
-                predicate in self._known_data.existing_predicates
+                predicate in self.subject_properties.existing_predicates
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
@@ -1269,7 +1269,7 @@ class ExecutionTracer:
         try:
             self.disable()
             assert (
-                predicate in self._known_data.existing_predicates
+                predicate in self.subject_properties.existing_predicates
             ), "Cannot trace unknown predicate"
             distance_true = 0.0
             distance_false = 0.0
@@ -1318,19 +1318,21 @@ class ExecutionTracer:
             the id of the registered line
         """
         line_meta = LineMetaData(code_object_id, file_name, line_number)
-        if line_meta not in self._known_data.existing_lines.values():
-            line_id = len(self._known_data.existing_lines)
-            self._known_data.existing_lines[line_id] = line_meta
+        if line_meta not in self.subject_properties.existing_lines.values():
+            line_id = len(self.subject_properties.existing_lines)
+            self.subject_properties.existing_lines[line_id] = line_meta
         else:
-            index = list(self._known_data.existing_lines.values()).index(line_meta)
-            line_id = list(self._known_data.existing_lines.keys())[index]
+            index = list(self.subject_properties.existing_lines.values()).index(
+                line_meta
+            )
+            line_id = list(self.subject_properties.existing_lines.keys())[index]
         return line_id
 
     def _update_metrics(
         self, distance_false: float, distance_true: float, predicate: int
     ):
         assert (
-            predicate in self._known_data.existing_predicates
+            predicate in self.subject_properties.existing_predicates
         ), "Cannot update unknown predicate"
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
@@ -1438,9 +1440,12 @@ class ExecutionTracer:
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
         object_creation = False
-        if arg_address and arg_address not in self.get_known_data().object_addresses:
+        if (
+            arg_address
+            and arg_address not in self.get_subject_properties().object_addresses
+        ):
             object_creation = True
-            self._known_data.object_addresses.add(arg_address)
+            self.subject_properties.object_addresses.add(arg_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1773,7 +1778,7 @@ class ExecutionTracer:
         """
         return OrderedSet(
             [
-                self._known_data.existing_lines[line_id].line_number
+                self.subject_properties.existing_lines[line_id].line_number
                 for line_id in line_ids
             ]
         )

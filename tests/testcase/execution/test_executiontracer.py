@@ -22,7 +22,7 @@ def test_functions_exists():
     tracer = ExecutionTracer()
     assert tracer.register_code_object(MagicMock(CodeObjectMetaData)) == 0
     assert tracer.register_code_object(MagicMock(CodeObjectMetaData)) == 1
-    assert 0 in tracer.get_known_data().existing_code_objects
+    assert 0 in tracer.get_subject_properties().existing_code_objects
 
 
 def test_entered_function():
@@ -37,7 +37,7 @@ def test_predicate_exists():
     tracer = ExecutionTracer()
     assert tracer.register_predicate(MagicMock(code_object_id=0)) == 0
     assert tracer.register_predicate(MagicMock(code_object_id=0)) == 1
-    assert 0 in tracer.get_known_data().existing_predicates
+    assert 0 in tracer.get_subject_properties().existing_predicates
 
 
 def test_line_registration():
@@ -46,7 +46,7 @@ def test_line_registration():
     assert tracer.register_line(0, "foo", 43) == 1
     assert tracer.register_line(0, "bar", 42) == 2
     assert tracer.register_line(1, "foo", 42) == 0
-    assert {0, 1, 2} == tracer.get_known_data().existing_lines.keys()
+    assert {0, 1, 2} == tracer.get_subject_properties().existing_lines.keys()
 
 
 def test_line_visit():
@@ -310,14 +310,14 @@ def test_lt(val1, val2, result):
 def test_default_branchless_code_object():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock())
-    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([0])
+    assert tracer.get_subject_properties().branch_less_code_objects == OrderedSet([0])
 
 
 def test_no_branchless_code_object():
     tracer = ExecutionTracer()
     tracer.register_code_object(MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert len(tracer.get_known_data().branch_less_code_objects) == 0
+    assert len(tracer.get_subject_properties().branch_less_code_objects) == 0
 
 
 def test_no_branchless_code_object_register_multiple():
@@ -326,7 +326,7 @@ def test_no_branchless_code_object_register_multiple():
     tracer.register_code_object(MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert tracer.get_known_data().branch_less_code_objects == OrderedSet([1])
+    assert tracer.get_subject_properties().branch_less_code_objects == OrderedSet([1])
 
 
 def test_code_object_executed_other_thread():

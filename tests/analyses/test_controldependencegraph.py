@@ -76,7 +76,7 @@ def test_get_control_dependencies(node, deps):
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
+    cdg = list(tracer.get_subject_properties().existing_code_objects.values())[0].cdg
     assert set(cdg.get_control_dependencies(node)) == deps
 
 
@@ -86,6 +86,6 @@ def test_get_control_dependencies_asserts(node):
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = list(tracer.get_known_data().existing_code_objects.values())[0].cdg
+    cdg = list(tracer.get_subject_properties().existing_code_objects.values())[0].cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)

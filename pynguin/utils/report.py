@@ -161,7 +161,7 @@ def get_coverage_report(
         assert result is not None
         results.append(result)
     trace = ff.analyze_results(results)
-    known_data = executor.tracer.get_known_data()
+    subject_properties = executor.tracer.get_subject_properties()
     source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
     line_annotations = [
         LineAnnotation(
@@ -175,11 +175,13 @@ def get_coverage_report(
     branches = CoverageEntry()
     if config.CoverageMetric.BRANCH in metrics:
         line_to_branchless_code_object_coverage = (
-            _get_line_to_branchless_code_object_coverage(known_data, trace)
+            _get_line_to_branchless_code_object_coverage(subject_properties, trace)
         )
-        line_to_branch_coverage = _get_line_to_branch_coverage(known_data, trace)
+        line_to_branch_coverage = _get_line_to_branch_coverage(
+            subject_properties, trace
+        )
 
-        branch_coverage = ff.compute_branch_coverage(trace, known_data)
+        branch_coverage = ff.compute_branch_coverage(trace, subject_properties)
         for cov in line_to_branchless_code_object_coverage.values():
             branchless_code_objects += cov
         for cov in line_to_branch_coverage.values():
@@ -196,10 +198,10 @@ def get_coverage_report(
     line_coverage = None
     lines = CoverageEntry()
     if config.CoverageMetric.LINE in metrics:
-        line_coverage = ff.compute_line_coverage(trace, known_data)
+        line_coverage = ff.compute_line_coverage(trace, subject_properties)
         covered_lines = executor.tracer.lineids_to_linenos(trace.covered_line_ids)
         existing_lines = executor.tracer.lineids_to_linenos(
-            OrderedSet(known_data.existing_lines.keys())
+            OrderedSet(subject_properties.existing_lines.keys())
         )
         lines += CoverageEntry(len(covered_lines), len(existing_lines))
 
@@ -365,10 +367,10 @@ def render_xml_coverage_report(
         tree.write(xml_file, encoding="unicode")
 
 
-def _get_line_to_branch_coverage(known_data, trace):
+def _get_line_to_branch_coverage(subject_properties, trace):
     line_to_branch_coverage = {}
-    for predicate in known_data.existing_predicates:
-        lineno = known_data.existing_predicates[predicate].line_no
+    for predicate in subject_properties.existing_predicates:
+        lineno = subject_properties.existing_predicates[predicate].line_no
         if lineno not in line_to_branch_coverage:
             line_to_branch_coverage[lineno] = CoverageEntry()
         line_to_branch_coverage[lineno] += CoverageEntry(existing=2)
@@ -379,10 +381,12 @@ def _get_line_to_branch_coverage(known_data, trace):
     return line_to_branch_coverage
 
 
-def _get_line_to_branchless_code_object_coverage(known_data, trace):
+def _get_line_to_branchless_code_object_coverage(subject_properties, trace):
     line_to_branchless_code_object_coverage = {}
-    for code in known_data.branch_less_code_objects:
-        lineno = known_data.existing_code_objects[code].code_object.co_firstlineno
+    for code in subject_properties.branch_less_code_objects:
+        lineno = subject_properties.existing_code_objects[
+            code
+        ].code_object.co_firstlineno
         if lineno not in line_to_branchless_code_object_coverage:
             line_to_branchless_code_object_coverage[lineno] = CoverageEntry()
         line_to_branchless_code_object_coverage[lineno] += CoverageEntry(existing=1)

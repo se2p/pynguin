@@ -20,7 +20,7 @@ if TYPE_CHECKING:
         AbstractTestCaseExecutor,
         ExecutionResult,
         ExecutionTracer,
-        KnownData,
+        SubjectProperties,
     )
 
 
@@ -272,11 +272,11 @@ class BranchGoal(AbstractBranchCoverageGoal):
 class BranchGoalPool:
     """Convenience class that creates and provides all branch coverage related goals."""
 
-    def __init__(self, known_data: KnownData):
+    def __init__(self, subject_properties: SubjectProperties):
         self._branchless_code_object_goals = self._compute_branchless_code_object_goals(
-            known_data
+            subject_properties
         )
-        self._predicate_to_branch_goals = self._compute_branch_goals(known_data)
+        self._predicate_to_branch_goals = self._compute_branch_goals(subject_properties)
 
     @property
     def branchless_code_object_goals(self) -> list[BranchlessCodeObjectGoal]:
@@ -311,17 +311,19 @@ class BranchGoalPool:
 
     @staticmethod
     def _compute_branchless_code_object_goals(
-        known_data: KnownData,
+        subject_properties: SubjectProperties,
     ) -> list[BranchlessCodeObjectGoal]:
         return [
             BranchlessCodeObjectGoal(code_object_id)
-            for code_object_id in known_data.branch_less_code_objects
+            for code_object_id in subject_properties.branch_less_code_objects
         ]
 
     @staticmethod
-    def _compute_branch_goals(known_data: KnownData) -> dict[int, list[BranchGoal]]:
+    def _compute_branch_goals(
+        subject_properties: SubjectProperties,
+    ) -> dict[int, list[BranchGoal]]:
         goal_map: dict[int, list[BranchGoal]] = {}
-        for predicate_id, meta in known_data.existing_predicates.items():
+        for predicate_id, meta in subject_properties.existing_predicates.items():
             entry: list[BranchGoal] = []
             goal_map[predicate_id] = entry
             entry.append(BranchGoal(meta.code_object_id, predicate_id, True))
@@ -462,7 +464,7 @@ def create_line_coverage_fitness_functions(
             for (
                 line_id,
                 line_meta,
-            ) in executor.tracer.get_known_data().existing_lines.items()
+            ) in executor.tracer.get_subject_properties().existing_lines.items()
         ]
     )
 
@@ -487,6 +489,6 @@ def create_checked_coverage_fitness_functions(
             for (
                 line_id,
                 line_meta,
-            ) in executor.tracer.get_known_data().existing_lines.items()
+            ) in executor.tracer.get_subject_properties().existing_lines.items()
         ]
     )

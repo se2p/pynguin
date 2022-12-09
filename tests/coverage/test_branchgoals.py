@@ -27,8 +27,8 @@ from pynguin.testcase.execution import (
     ExecutionResult,
     ExecutionTrace,
     ExecutionTracer,
-    KnownData,
     LineMetaData,
+    SubjectProperties,
     TestCaseExecutor,
 )
 
@@ -149,8 +149,8 @@ def trace_mock():
 
 
 @pytest.fixture()
-def known_data_mock():
-    return KnownData()
+def subject_properties_mock():
+    return SubjectProperties()
 
 
 def test_is_maximisation_function(empty_function):
@@ -163,9 +163,11 @@ def test_goal(executor_mock):
     assert func.goal == goal
 
 
-def test_compute_fitness_values_mocked(known_data_mock, executor_mock, trace_mock):
+def test_compute_fitness_values_mocked(
+    subject_properties_mock, executor_mock, trace_mock
+):
     tracer = MagicMock()
-    tracer.get_known_data.return_value = known_data_mock
+    tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
     goal = MagicMock(bg.AbstractBranchCoverageGoal)
     goal.get_distance.return_value = cfd.ControlFlowDistance(1, 2)
@@ -190,13 +192,13 @@ def test_compute_fitness_values_no_branches():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_no_branches_fixture(module_name)
-        pool = bg.BranchGoalPool(tracer.get_known_data())
+        pool = bg.BranchGoalPool(tracer.get_subject_properties())
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
             goals_dict[
-                tracer.get_known_data()
+                tracer.get_subject_properties()
                 .existing_code_objects[goal._goal.code_object_id]
                 .code_object.co_name
             ] = goal
@@ -263,7 +265,7 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
         test_case = transformer.testcases[0]
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
 
-        pool = bg.BranchGoalPool(tracer.get_known_data())
+        pool = bg.BranchGoalPool(tracer.get_subject_properties())
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
@@ -305,9 +307,9 @@ def test_compute_fitness_values_statement_coverage_empty():
         assert fitness == 0
 
 
-def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
+def test_statement_coverage_goal_creation(subject_properties_mock, executor_mock):
     tracer = ExecutionTracer()
-    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
     executor_mock.tracer = tracer
     goals = bg.create_line_coverage_fitness_functions(executor_mock)
 
@@ -315,11 +317,11 @@ def test_statement_coverage_goal_creation(known_data_mock, executor_mock):
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
-    known_data_mock, executor_mock, trace_mock
+    subject_properties_mock, executor_mock, trace_mock
 ):
     """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
     tracer = ExecutionTracer()
-    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
 
     executor_mock.tracer = tracer
     trace_mock.covered_line_ids = {}
@@ -332,7 +334,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    known_data_mock, executor_mock, trace_mock, plus_test_with_object_assertion
+    subject_properties_mock, executor_mock, trace_mock, plus_test_with_object_assertion
 ):
     """
     Test for a testcase for the plus module, which should cover 5 out of 8 goals,
@@ -346,7 +348,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
     module_name = "tests.fixtures.linecoverage.plus"
 
     tracer = ExecutionTracer()
-    tracer.get_known_data().existing_lines = _get_lines_data_for_plus_module()
+    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
 
     tracer.current_thread_identifier = threading.current_thread().ident
     executor_mock.tracer = tracer

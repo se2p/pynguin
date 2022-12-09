@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     from pynguin.generation.algorithms.archive import CoverageArchive
-    from pynguin.testcase.execution import KnownData
+    from pynguin.testcase.execution import SubjectProperties
 
 
 class DynaMOSATestStrategy(AbstractMOSATestStrategy):
@@ -44,7 +44,7 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
         self._goals_manager = _GoalsManager(
             self._test_case_fitness_functions,  # type: ignore
             self._archive,
-            self.executor.tracer.get_known_data(),
+            self.executor.tracer.get_subject_properties(),
         )
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(
@@ -138,7 +138,7 @@ class _GoalsManager:
         self,
         fitness_functions: OrderedSet[ff.FitnessFunction],
         archive: CoverageArchive,
-        known_data: KnownData,
+        subject_properties: SubjectProperties,
     ) -> None:
         self._archive = archive
         branch_fitness_functions: OrderedSet[
@@ -147,7 +147,7 @@ class _GoalsManager:
         for fit in fitness_functions:
             assert isinstance(fit, bg.BranchCoverageTestFitness)
             branch_fitness_functions.add(fit)
-        self._graph = _BranchFitnessGraph(branch_fitness_functions, known_data)
+        self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
         self._current_goals: OrderedSet[
             bg.BranchCoverageTestFitness
         ] = self._graph.root_branches
@@ -200,18 +200,18 @@ class _BranchFitnessGraph:
     def __init__(
         self,
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
-        known_data: KnownData,
+        subject_properties: SubjectProperties,
     ):
         self._graph = nx.DiGraph()
         # Branch less code objects and branches that are not control dependent on other
         # branches.
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
-        self._build_graph(fitness_functions, known_data)
+        self._build_graph(fitness_functions, subject_properties)
 
     def _build_graph(
         self,
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
-        known_data: KnownData,
+        subject_properties: SubjectProperties,
     ):
         """Construct the actual graph from the given fitness functions."""
         for fitness in fitness_functions:
@@ -223,10 +223,10 @@ class _BranchFitnessGraph:
                 continue
             assert fitness.goal.is_branch
             branch_goal = cast(bg.BranchGoal, fitness.goal)
-            predicate_meta_data = known_data.existing_predicates[
+            predicate_meta_data = subject_properties.existing_predicates[
                 branch_goal.predicate_id
             ]
-            code_object_meta_data = known_data.existing_code_objects[
+            code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id
             ]
             if code_object_meta_data.cdg.is_control_dependent_on_root(
