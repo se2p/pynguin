@@ -10,14 +10,25 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
+import re
 import types
 import typing
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import _BaseGenericAlias  # type:ignore
-from typing import Any, Final, Generic, TypeVar, cast, get_origin, get_type_hints
+from typing import (  # type:ignore
+    Any,
+    Final,
+    ForwardRef,
+    Generic,
+    TypeVar,
+    _BaseGenericAlias,
+    _eval_type,
+    cast,
+    get_origin,
+    get_type_hints,
+)
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
@@ -25,6 +36,7 @@ from typing_inspect import is_union_type
 
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
+from pynguin.analyses.type4py_api import Type4pyFunctionData
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
@@ -648,6 +660,11 @@ class InferredSignature:
         init=False, default_factory=dict
     )
 
+    # Type4Py return type
+    type4py_return_types: list[ProperType] = field(default_factory=list)
+    # Type4Py parameter types
+    type4py_parameter_types: dict[str, list[ProperType]] = field(default_factory=dict)
+
     # Parameter types of each parameter, including unsupported types,
     # i.e., types that we currently cannot understand/parse. Purely used for statistics
     # purposes!
@@ -1095,62 +1112,59 @@ class InferredSignature:
             stats.number_of_constructors += 1
 
         parameter_types: dict[str, list[str]] = {}
-        randomly_chosen_parameter_types: dict[str, list[str]] = {}
+        type4py_parameter_types: dict[str, list[str]] = {}
         # The pairs for which we need to compute partial matches.
         compute_partial_matches_for: list[tuple[ProperType, ProperType]] = []
         for param_name, param in self.signature.parameters.items():
-            if param_name in self.original_parameters:
+            if param_name not in self.original_parameters:
                 # Only check params where we expect a parameter, i.e., not self.
+                continue
 
-                top_n_guesses: list[ProperType] = []
-                # Choose random types to compare sampling?
-                randomly_chosen: list[ProperType] = [
-                    self.type_system.make_instance(choice)
-                    for choice in randomness.choices(
-                        self.type_system.get_all_types(),
-                        k=config.configuration.statistics_output.type_guess_top_n,
+            top_n_guesses: list[ProperType] = []
+            if len(self.usage_trace[param_name]) > 0:
+                counter: Counter[ProperType] = Counter()
+                for _ in range(100):
+                    guess = self._guess_parameter_type(
+                        self.usage_trace[param_name],
+                        param.kind,
                     )
-                ]
-                if len(self.usage_trace[param_name]) > 0:
-                    counter: Counter[ProperType] = Counter()
-                    for _ in range(100):
-                        guess = self._guess_parameter_type(
-                            self.usage_trace[param_name],
-                            param.kind,
-                        )
-                        if guess is not None:
-                            counter[guess] += 1
-                    for typ, _ in counter.most_common(
-                        config.configuration.statistics_output.type_guess_top_n
-                    ):
-                        top_n_guesses.append(typ)
+                    if guess is not None:
+                        counter[guess] += 1
+                for typ, _ in counter.most_common(
+                    config.configuration.statistics_output.type_guess_top_n
+                ):
+                    top_n_guesses.append(typ)
 
-                for item in top_n_guesses + randomly_chosen:
-                    compute_partial_matches_for.append(
-                        (item, self.parameters_for_statistics[param_name])
-                    )
-                parameter_types[param_name] = [str(t) for t in top_n_guesses]
-                randomly_chosen_parameter_types[param_name] = [
-                    str(t) for t in randomly_chosen
-                ]
-        # Also need to compute for return type.
+            for item in top_n_guesses + self.type4py_parameter_types.get(
+                param_name, []
+            ):
+                compute_partial_matches_for.append(
+                    (item, self.parameters_for_statistics[param_name])
+                )
+            parameter_types[param_name] = [str(t) for t in top_n_guesses]
+            type4py_parameter_types[param_name] = [
+                str(t) for t in self.type4py_parameter_types.get(param_name, [])
+            ]
+        # Also need to compute for return type(s).
         compute_partial_matches_for.append(
             (self.return_type, self.return_type_for_statistics)
         )
+        for type4py_return_type in self.type4py_return_types:
+            compute_partial_matches_for.append(
+                (type4py_return_type, self.return_type_for_statistics)
+            )
+
         # Need to compute which types are base type matches of others.
         # Otherwise, we need to parse the string again in the evaluation...
         self._compute_partial_matches(compute_partial_matches_for, sig_info)
 
         return_type = str(self.return_type)
-        if not is_constructor and self.return_type != self.original_return_type:
-            # Only when we recorded something that is not a constructor:
-            stats.signature_infos[callable_full_name].recorded_return_type = return_type
-        stats.signature_infos[
-            callable_full_name
-        ].guessed_parameter_types = parameter_types
-        stats.signature_infos[
-            callable_full_name
-        ].randomly_chosen_parameter_types = randomly_chosen_parameter_types
+        if not is_constructor:
+            sig_info.type4py_return_types = [str(s) for s in self.type4py_return_types]
+            if self.return_type != self.original_return_type:
+                sig_info.recorded_return_types = [str(return_type)]
+        sig_info.guessed_parameter_types = parameter_types
+        sig_info.type4py_parameter_types = type4py_parameter_types
 
     @staticmethod
     def _compute_partial_matches(compute_partial_matches_for, sig_info):
@@ -1447,12 +1461,15 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
     def infer_type_info(
         self,
         method: Callable,
+        *,
+        type4py_data: Type4pyFunctionData | None = None,
         type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
+            type4py_data: Optional type4py data
             type_inference_strategy: Whether to incorporate type annotations
 
         Returns:
@@ -1464,9 +1481,13 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         match type_inference_strategy:
             case config.TypeInferenceStrategy.TYPE_HINTS:
-                return self.infer_signature(method, self.type_hints_provider)
+                return self.infer_signature(
+                    method, type4py_data, self.type_hints_provider
+                )
             case config.TypeInferenceStrategy.NONE:
-                return self.infer_signature(method, self.no_type_hints_provider)
+                return self.infer_signature(
+                    method, type4py_data, self.no_type_hints_provider
+                )
             case _:
                 raise ConfigurationException(
                     f"Unknown type-inference strategy {type_inference_strategy}"
@@ -1507,41 +1528,55 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         return hints
 
     def infer_signature(
-        self, method: Callable, type_hint_provider: Callable[[Callable], dict]
+        self,
+        method: Callable,
+        type4py_data: Type4pyFunctionData | None,
+        type_hint_provider: Callable[[Callable], dict],
     ) -> InferredSignature:
         """Infers the method signature using the given type hint provider.
 
         Args:
             method: The callable
+            type4py_data: Data from Type4Py
             type_hint_provider: A method that provides type hints for the given method.
 
         Returns:
             The inference result
         """
-        if inspect.isclass(method) and hasattr(method, "__init__"):
-            return self.infer_signature(getattr(method, "__init__"), type_hint_provider)
-
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
+        type4py_parameters: dict[str, list[ProperType]] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
         hints_for_statistics: dict = self.type_hints_provider(method)
         parameters_for_statistics: dict[str, ProperType] = {}
         for param_name in method_signature.parameters:
             if param_name == "self":
-                # TODO(fk) does not necessarily work, can be named anything,
-                #  for example cls for @classmethod.
+                # TODO(fk) does not necessarily work, can be named anything.
+                #  There is also cls for @classmethod.
                 continue
             parameters[param_name] = self.convert_type_hint(hints.get(param_name))
             parameters_for_statistics[param_name] = self.convert_type_hint(
                 hints_for_statistics.get(param_name), unsupported=UNSUPPORTED
             )
+            if type4py_data is not None:
+                # Try to convert up to 10 predicted types
+                type4py_parameters[param_name] = [
+                    self.try_to_load_type(predicted_type, method.__globals__)
+                    for (predicted_type, _) in type4py_data["params_p"][param_name][:10]
+                ]
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
         return_type_for_statistics: ProperType = self.convert_type_hint(
             hints_for_statistics.get("return"), unsupported=UNSUPPORTED
         )
+        type4py_return_type = []
+        if type4py_data is not None and "ret_type_p" in type4py_data:
+            type4py_return_type = [
+                self.try_to_load_type(predicted_type, method.__globals__)
+                for (predicted_type, _) in type4py_data["ret_type_p"][:10]
+            ]
 
         return InferredSignature(
             signature=method_signature,
@@ -1550,7 +1585,48 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             type_system=self,
             parameters_for_statistics=parameters_for_statistics,
             return_type_for_statistics=return_type_for_statistics,
+            type4py_parameter_types=type4py_parameters,
+            type4py_return_types=type4py_return_type,
         )
+
+    _FIND_DOT_SEPARATED_IDENTIFIERS = re.compile(r"[.a-zA-Z0-9_]+\.[a-zA-Z0-9_]+")
+
+    def try_to_load_type(self, candidate: str, globs) -> ProperType:
+        """Try to load the given type.
+
+        Args:
+            candidate: The type to load
+            globs: The globals that should be used for loading.
+
+        Returns:
+            The loaded type or Any.
+        """
+        glob: dict[str, Any] = {}
+        # Make sure typing constructs are available
+        exec("from typing import *", glob)  # pylint:disable=exec-used
+        # Make globals from module available
+        glob.update(globs)
+        # Import any prefixes
+
+        # TODO(fk) properly implement
+        # Hacky way find potential imports:
+        for potential_type in self._FIND_DOT_SEPARATED_IDENTIFIERS.finditer(candidate):
+            # try to import everything left of last dot
+            potential_import = potential_type.group(0).rpartition(".")[0]
+            _LOGGER.info("Try to import %s", potential_import)
+            try:
+                exec("import " + potential_import, glob)  # pylint:disable=exec-used
+            except Exception:  # pylint:disable=broad-except
+                # Well...
+                pass
+        # If a type cannot be build from this info, there is not much we can do.
+        try:
+            # (Ab)use typing module
+            ref = ForwardRef(candidate)
+            return self.convert_type_hint(_eval_type(ref, glob, glob))
+        except Exception:  # pylint:disable=broad-except
+            # Give up?
+            return ANY
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:
         # pylint:disable=too-many-return-statements

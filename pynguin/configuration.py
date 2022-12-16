@@ -379,6 +379,12 @@ class TypeInferenceConfiguration:
     type_tracing: bool = False
     """Trace usage of parameters with unknown types to improve type guesses."""
 
+    type4py_uri: str = ""
+    """URI of the type4py server.
+    When specified, pynguin will try to get type information from that server.
+    Currently only for the module under test.
+    For example: http://localhost:5001/"""
+
 
 @dataclasses.dataclass
 class TestCreationConfiguration:

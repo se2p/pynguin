@@ -142,25 +142,34 @@ def inferred_signature(signature, type_system):
             AnyType(),
         ),
         pytest.param(
-            __TypedDummy, TypeInferenceStrategy.TYPE_HINTS, {"a": AnyType()}, NoneType()
+            __TypedDummy.__init__,
+            TypeInferenceStrategy.TYPE_HINTS,
+            {"a": AnyType()},
+            NoneType(),
         ),
         pytest.param(
-            __UntypedDummy,
+            __UntypedDummy.__init__,
             TypeInferenceStrategy.TYPE_HINTS,
             {"a": AnyType()},
             AnyType(),
         ),
         pytest.param(
-            __TypedDummy, TypeInferenceStrategy.NONE, {"a": AnyType()}, AnyType()
+            __TypedDummy.__init__,
+            TypeInferenceStrategy.NONE,
+            {"a": AnyType()},
+            AnyType(),
         ),
         pytest.param(
-            __UntypedDummy, TypeInferenceStrategy.NONE, {"a": AnyType()}, AnyType()
+            __UntypedDummy.__init__,
+            TypeInferenceStrategy.NONE,
+            {"a": AnyType()},
+            AnyType(),
         ),
     ],
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
     type_system = TypeSystem()
-    result = type_system.infer_type_info(func, infer_types)
+    result = type_system.infer_type_info(func, type_inference_strategy=infer_types)
     assert result.original_parameters == expected_parameters
     assert result.return_type == expected_return
 
