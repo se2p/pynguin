@@ -1603,7 +1603,8 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         glob: dict[str, Any] = {}
         # Make sure typing constructs are available
-        exec("from typing import *", glob)  # pylint:disable=exec-used # nosec
+        # pylint: disable=exec-used
+        exec("from typing import *", glob)  # nosec
         # Make globals from module available
         glob.update(globs)
         # Import any prefixes
@@ -1615,7 +1616,8 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             potential_import = potential_type.group(0).rpartition(".")[0]
             _LOGGER.info("Try to import %s", potential_import)
             try:
-                exec("import " + potential_import, glob)  # pylint:disable=exec-used # nosec
+                # pylint: disable=exec-used
+                exec("import " + potential_import, glob)  # nosec
             except Exception:  # pylint:disable=broad-except
                 # Well...
                 pass
