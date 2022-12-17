@@ -1122,8 +1122,6 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     for method_name, method in inspect.getmembers(
         type_info.raw_type, inspect.isfunction
     ):
-        if method_name == "__init__":
-            continue
         __analyse_method(
             type_info=type_info,
             method_name=method_name,
