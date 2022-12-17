@@ -12,7 +12,6 @@ import logging
 import typing
 
 import requests
-from requests import JSONDecodeError, RequestException
 
 import pynguin.configuration as config
 
@@ -115,6 +114,6 @@ def query_type4py_api(module_name: str, source_code: str) -> Type4pyData | None:
             source_code.encode("utf-8"),
             timeout=10,
         ).json()
-    except (JSONDecodeError, RequestException) as error:
+    except (requests.JSONDecodeError, requests.RequestException) as error:
         LOGGER.info(f"Failed to fetch Type4Py data for {module_name} ({error})")
     return None
