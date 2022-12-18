@@ -118,7 +118,7 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     test_cluster = generate_test_cluster(
         config.configuration.module_name,
         config.configuration.type_inference.type_inference_strategy,
-        query_type4py=config.configuration.type_inference.type4py_uri != "",
+        query_type4py=config.configuration.type_inference.type4py,
     )
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")

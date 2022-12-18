@@ -1406,9 +1406,9 @@ def generate_test_cluster(
     """Generates a new test cluster from the given module.
 
     Args:
-        module_name: The name of the module
+        module_name: The name of the root module
         type_inference_strategy: Which type-inference strategy to use
-        query_type4py: Query type4py for root module.
+        query_type4py: Query type4py for the root module.
 
     Returns:
         A new test cluster for the given module
