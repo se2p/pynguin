@@ -492,7 +492,7 @@ class SignatureInfo:
 
     # Annotated return type, if Any.
     # Does not include constructors.
-    annotated_return_type: str = str(ANY)
+    annotated_return_type: str | None = None
 
     # Recorded return type, if Any.
     recorded_return_types: list[str] = dataclasses.field(default_factory=list)
