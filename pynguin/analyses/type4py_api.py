@@ -72,6 +72,7 @@ def find_predicted_signature(
         search_in = _find_class(search_in, q_class_name)
         if search_in is None:
             return None
+    # TODO(fk) there can be multiple signatures for overloaded functions...
     func_data = _find_func(search_in, q_func_name)
     return func_data
 

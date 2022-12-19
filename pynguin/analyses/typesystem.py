@@ -1564,7 +1564,9 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
                 # Try to convert up to 10 predicted types
                 type4py_parameters[param_name] = [
                     self.try_to_load_type(predicted_type, method.__globals__)
-                    for (predicted_type, _) in type4py_data["params_p"][param_name][:10]
+                    for (predicted_type, _) in type4py_data["params_p"].get(
+                        param_name, []
+                    )[:10]
                 ]
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
