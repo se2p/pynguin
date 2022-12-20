@@ -29,7 +29,7 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
-from typing import Any, NamedTuple
+from typing import Any
 
 import astroid
 
@@ -42,6 +42,11 @@ from pynguin.analyses.syntaxtree import (
     get_class_node_from_ast,
     get_function_description,
     get_function_node_from_ast,
+)
+from pynguin.analyses.type4py_api import (
+    Type4pyData,
+    find_predicted_signature,
+    query_type4py_api,
 )
 from pynguin.analyses.typesystem import (
     ANY,
@@ -216,18 +221,18 @@ def _is_blacklisted(element: Any) -> bool:
     return False
 
 
-class _ModuleParseResult(NamedTuple):
+@dataclasses.dataclass
+class _ModuleParseResult:
     """A data wrapper for an imported and parsed module."""
 
     linenos: int
     module_name: str
     module: ModuleType
     syntax_tree: astroid.Module | None
+    type4py_data: Type4pyData | None
 
 
-def parse_module(
-    module_name: str,
-) -> _ModuleParseResult:
+def parse_module(module_name: str, query_type4py: bool = False) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
     If the source code is not available it is not possible to build an AST.  In this
@@ -237,12 +242,15 @@ def parse_module(
 
     Args:
         module_name: The fully-qualified name of the module
+        query_type4py: Query the configured type4py service for the given module.
 
     Returns:
         A tuple of the imported module type and its optional AST
     """
     module = importlib.import_module(module_name)
-
+    type4py_data: Type4pyData | None = None
+    syntax_tree: astroid.Module | None = None
+    linenos: int = -1
     try:
         source_file = inspect.getsourcefile(module)
         source_code = inspect.getsource(module)
@@ -252,15 +260,21 @@ def parse_module(
             path=source_file if source_file is not None else "",
         )
         linenos = len(source_code.splitlines())
+        if query_type4py:
+            type4py_data = query_type4py_api(module_name, source_code)
+
     except (TypeError, OSError) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} ({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
-        syntax_tree = None
-        linenos = -1
+
     return _ModuleParseResult(
-        linenos=linenos, module_name=module_name, module=module, syntax_tree=syntax_tree
+        linenos=linenos,
+        module_name=module_name,
+        module=module,
+        syntax_tree=syntax_tree,
+        type4py_data=type4py_data,
     )
 
 
@@ -465,8 +479,8 @@ class SignatureInfo:
         default_factory=dict
     )
 
-    # Similar to above, but randomly chosen from all known types.
-    randomly_chosen_parameter_types: dict[str, list[str]] = dataclasses.field(
+    # Similar to above, but retrieved from Type4Py.
+    type4py_parameter_types: dict[str, list[str]] = dataclasses.field(
         default_factory=dict
     )
 
@@ -481,8 +495,10 @@ class SignatureInfo:
     annotated_return_type: str | None = None
 
     # Recorded return type, if Any.
-    # Does not include constructors.
-    recorded_return_type: str | None = None
+    recorded_return_types: list[str] = dataclasses.field(default_factory=list)
+
+    # Type4Py return type
+    type4py_return_types: list[str] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -1003,6 +1019,7 @@ def __analyse_function(
     func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
     module_tree: astroid.Module | None,
+    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1018,7 +1035,9 @@ def __analyse_function(
 
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
-        func, type_inference_strategy
+        func,
+        type4py_data=find_predicted_signature(type4py_data, func_name),
+        type_inference_strategy=type_inference_strategy,
     )
     func_ast = get_function_node_from_ast(module_tree, func_name)
     description = get_function_description(func_ast)
@@ -1043,6 +1062,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
     type_info: TypeInfo,
     type_inference_strategy: TypeInferenceStrategy,
     module_tree: astroid.Module | None,
+    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1070,7 +1090,11 @@ def __analyse_class(  # pylint: disable=too-many-arguments
         generic = GenericConstructor(
             type_info,
             test_cluster.type_system.infer_type_info(
-                type_info.raw_type, type_inference_strategy
+                getattr(type_info.raw_type, "__init__"),
+                type4py_data=find_predicted_signature(
+                    type4py_data, type_info.qualname + ".__init__", type_info.qualname
+                ),
+                type_inference_strategy=type_inference_strategy,
             ),
             raised_exceptions,
         )
@@ -1104,6 +1128,7 @@ def __analyse_class(  # pylint: disable=too-many-arguments
             method=method,
             type_inference_strategy=type_inference_strategy,
             class_tree=class_ast,
+            type4py_data=type4py_data,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
         )
@@ -1148,6 +1173,7 @@ def __analyse_method(  # pylint: disable=too-many-arguments
     ),
     type_inference_strategy: TypeInferenceStrategy,
     class_tree: astroid.ClassDef | None,
+    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1168,7 +1194,11 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
-        method, type_inference_strategy
+        method,
+        type4py_data=find_predicted_signature(
+            type4py_data, type_info.qualname + "." + method_name, type_info.qualname
+        ),
+        type_inference_strategy=type_inference_strategy,
     )
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
@@ -1299,6 +1329,7 @@ def __analyse_included_classes(
             type_info=type_info,
             type_inference_strategy=type_inference_strategy,
             module_tree=parse_results[current.__module__].syntax_tree,
+            type4py_data=parse_results[current.__module__].type4py_data,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1339,6 +1370,7 @@ def __analyse_included_functions(
             func=current,
             type_inference_strategy=type_inference_strategy,
             module_tree=parse_results[current.__module__].syntax_tree,
+            type4py_data=parse_results[current.__module__].type4py_data,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1369,14 +1401,18 @@ def analyse_module(
 def generate_test_cluster(
     module_name: str,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
     Args:
-        module_name: The name of the module
+        module_name: The name of the root module
         type_inference_strategy: Which type-inference strategy to use
+        query_type4py: Query type4py for the root module.
 
     Returns:
         A new test cluster for the given module
     """
-    return analyse_module(parse_module(module_name), type_inference_strategy)
+    return analyse_module(
+        parse_module(module_name, query_type4py=query_type4py), type_inference_strategy
+    )
