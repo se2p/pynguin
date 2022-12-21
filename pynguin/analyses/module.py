@@ -1220,9 +1220,13 @@ def __analyse_method(  # pylint: disable=too-many-arguments
 
 
 class _ParseResults(dict):
+    def __init__(self, query_type4py: bool):
+        super().__init__()
+        self._query_type4py = query_type4py
+
     def __missing__(self, key):
         # Parse module on demand
-        res = self[key] = parse_module(key)
+        res = self[key] = parse_module(key, query_type4py=self._query_type4py)
         return res
 
 
@@ -1230,9 +1234,12 @@ def __resolve_dependencies(
     root_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
+    query_type4py: bool = False,
 ) -> None:
 
-    parse_results: dict[str, _ModuleParseResult] = _ParseResults()
+    parse_results: dict[str, _ModuleParseResult] = _ParseResults(
+        query_type4py=query_type4py
+    )
     parse_results[root_module.module_name] = root_module
 
     # Provide a set of seen modules, classes and functions for fixed-point iteration
@@ -1379,12 +1386,14 @@ def __analyse_included_functions(
 def analyse_module(
     parsed_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
         parsed_module: The parsed module
         type_inference_strategy: The type inference strategy to use.
+        query_type4py: Query Type4Py for types.
 
     Returns:
         A test cluster for the module
@@ -1394,6 +1403,7 @@ def analyse_module(
         root_module=parsed_module,
         type_inference_strategy=type_inference_strategy,
         test_cluster=test_cluster,
+        query_type4py=query_type4py,
     )
     return test_cluster
 
@@ -1408,11 +1418,13 @@ def generate_test_cluster(
     Args:
         module_name: The name of the root module
         type_inference_strategy: Which type-inference strategy to use
-        query_type4py: Query type4py for the root module.
+        query_type4py: Query Type4Py for types.
 
     Returns:
         A new test cluster for the given module
     """
     return analyse_module(
-        parse_module(module_name, query_type4py=query_type4py), type_inference_strategy
+        parse_module(module_name, query_type4py=query_type4py),
+        type_inference_strategy,
+        query_type4py=query_type4py,
     )
