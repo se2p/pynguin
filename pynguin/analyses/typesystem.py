@@ -660,9 +660,8 @@ class InferredSignature:
         init=False, default_factory=dict
     )
 
-    # Type4Py return type
+    # Type4Py types, do not contain Any.
     type4py_return_types: list[ProperType] = field(default_factory=list)
-    # Type4Py parameter types
     type4py_parameter_types: dict[str, list[ProperType]] = field(default_factory=dict)
 
     # Parameter types of each parameter, including unsupported types,
@@ -670,6 +669,12 @@ class InferredSignature:
     # purposes!
     parameters_for_statistics: dict[str, ProperType] = field(default_factory=dict)
     return_type_for_statistics: ProperType = ANY
+    # Type4Py types for statistics. Unresolved types are kept as Any to be able to
+    # compute Top-N accuracy.
+    type4py_return_types_for_statistics: list[ProperType] = field(default_factory=list)
+    type4py_parameter_types_for_statistics: dict[str, list[ProperType]] = field(
+        default_factory=dict
+    )
 
     def __post_init__(self):
         self.return_type = self.original_return_type
@@ -711,19 +716,26 @@ class InferredSignature:
             # Choose from:
             # - Reusing developer annotated types
             # - Guessed types from proxies
+            # - Type4Py types
             # - NoneType
             # - AnyType, i.e., disregard type
-            # TODO(fk) add choices from other source here, e.g., DeepTyper.
             choices: list[ProperType] = [NONE_TYPE, ANY]
             weights: list[float] = [test_conf.none_weight, test_conf.any_weight]
-            # Only add the original type to the choices, if it is not Any.
             if not isinstance(orig_type, AnyType):
+                # Only add the original type to the choices, if it is not Any.
                 choices.append(orig_type)
                 weights.append(test_conf.original_type_weight)
 
             if (guessed := self.current_guessed_parameters.get(param_name)) is not None:
+                # We have traced types
                 choices.append(UnionType(tuple(sorted(guessed))))
                 weights.append(test_conf.type_tracing_weight)
+
+            if type4py_types := self.type4py_parameter_types.get(param_name):
+                # We have types from Type4Py
+                choices.append(UnionType(tuple(sorted(type4py_types))))
+                weights.append(test_conf.type4py_weight)
+
             chosen = randomness.choices(choices, weights)[0]
 
             if (
@@ -1135,7 +1147,7 @@ class InferredSignature:
                 ):
                     top_n_guesses.append(typ)
 
-            for item in top_n_guesses + self.type4py_parameter_types.get(
+            for item in top_n_guesses + self.type4py_parameter_types_for_statistics.get(
                 param_name, []
             ):
                 compute_partial_matches_for.append(
@@ -1143,13 +1155,14 @@ class InferredSignature:
                 )
             parameter_types[param_name] = [str(t) for t in top_n_guesses]
             type4py_parameter_types[param_name] = [
-                str(t) for t in self.type4py_parameter_types.get(param_name, [])
+                str(t)
+                for t in self.type4py_parameter_types_for_statistics.get(param_name, [])
             ]
         # Also need to compute for return type(s).
         compute_partial_matches_for.append(
             (self.return_type, self.return_type_for_statistics)
         )
-        for type4py_return_type in self.type4py_return_types:
+        for type4py_return_type in self.type4py_return_types_for_statistics:
             compute_partial_matches_for.append(
                 (type4py_return_type, self.return_type_for_statistics)
             )
@@ -1160,7 +1173,9 @@ class InferredSignature:
 
         return_type = str(self.return_type)
         if not is_constructor:
-            sig_info.type4py_return_types = [str(s) for s in self.type4py_return_types]
+            sig_info.type4py_return_types = [
+                str(s) for s in self.type4py_return_types_for_statistics
+            ]
             if self.return_type != self.original_return_type:
                 sig_info.recorded_return_types = [str(return_type)]
         sig_info.guessed_parameter_types = parameter_types
@@ -1543,10 +1558,12 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         Returns:
             The inference result
         """
+        # pylint:disable=too-many-locals
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
         type4py_parameters: dict[str, list[ProperType]] = {}
+        type4py_parameters_for_statistics: dict[str, list[ProperType]] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
         hints_for_statistics: dict = self.type_hints_provider(method)
@@ -1562,22 +1579,33 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             )
             if type4py_data is not None:
                 # Try to convert up to 10 predicted types
-                type4py_parameters[param_name] = [
+                type4py_parameters_for_statistics[param_name] = [
                     self.try_to_load_type(predicted_type, method.__globals__)
                     for (predicted_type, _) in type4py_data["params_p"].get(
                         param_name, []
                     )[:10]
+                ]
+                type4py_parameters[param_name] = [
+                    typ
+                    for typ in type4py_parameters_for_statistics[param_name]
+                    if typ != ANY
                 ]
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
         return_type_for_statistics: ProperType = self.convert_type_hint(
             hints_for_statistics.get("return"), unsupported=UNSUPPORTED
         )
-        type4py_return_type = []
+        type4py_return_types = []
+        type4py_return_types_for_statistics = []
         if type4py_data is not None and "ret_type_p" in type4py_data:
-            type4py_return_type = [
+            type4py_return_types_for_statistics = [
                 self.try_to_load_type(predicted_type, method.__globals__)
                 for (predicted_type, _) in type4py_data["ret_type_p"][:10]
+            ]
+            # TODO(fk) how to use return type from Type4Py?
+            #  Combine with existing one?
+            type4py_return_types = [
+                typ for typ in type4py_return_types_for_statistics if typ != ANY
             ]
 
         return InferredSignature(
@@ -1588,7 +1616,9 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             parameters_for_statistics=parameters_for_statistics,
             return_type_for_statistics=return_type_for_statistics,
             type4py_parameter_types=type4py_parameters,
-            type4py_return_types=type4py_return_type,
+            type4py_parameter_types_for_statistics=type4py_parameters_for_statistics,
+            type4py_return_types=type4py_return_types,
+            type4py_return_types_for_statistics=type4py_return_types_for_statistics,
         )
 
     _FIND_DOT_SEPARATED_IDENTIFIERS = re.compile(r"[.a-zA-Z0-9_]+\.[a-zA-Z0-9_]+")

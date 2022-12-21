@@ -113,7 +113,7 @@ def query_type4py_api(module_name: str, source_code: str) -> Type4pyData | None:
         return requests.post(
             config.configuration.type_inference.type4py_uri + "api/predict?tc=0&fp=0",
             source_code.encode("utf-8"),
-            timeout=10,
+            timeout=config.configuration.type_inference.type4py_timeout,
         ).json()
     except (requests.JSONDecodeError, requests.RequestException) as error:
         LOGGER.info(f"Failed to fetch Type4Py data for {module_name} ({error})")
