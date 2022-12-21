@@ -217,7 +217,7 @@ def test_seeded_test_case_factory_no_delegation(
 def test_seeded_test_case_factory_with_delegation(
     rand_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
-    rand_mock.side_effect = lambda x: x[2]
+    rand_mock.side_effect = lambda x: x[2]  # pragma: no cover
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster, test_factory, constant_provider

@@ -41,7 +41,7 @@ def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr])
             try:
                 expected_copy.remove(jump_instr)
                 slice_copy.remove(unique_instr)
-            except ValueError:
+            except ValueError:  # pragma: no cover
                 msg = str(unique_instr) + " not in expected slice\n"
                 msg += "Remaining in expected: " + str(expected_copy) + "\n"
                 msg += "Remaining in computed: " + str(slice_copy)
@@ -52,21 +52,25 @@ def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr])
                 try:
                     expected_copy.remove(found_instr)
                     slice_copy.remove(unique_instr)
-                except ValueError:
+                except ValueError:  # pragma: no cover
                     msg = str(found_instr) + " not in expected slice\n"
                     msg += "Remaining in expected: " + str(expected_copy) + "\n"
                     msg += "Remaining in computed: " + str(slice_copy)
                     raise ValueError(msg)
-            else:
+            else:  # pragma: no cover
                 msg = str(unique_instr) + " not in expected slice\n"
                 msg += "Remaining in expected: " + str(expected_copy) + "\n"
                 msg += "Remaining in computed: " + str(slice_copy)
                 raise ValueError(msg)
 
     if len(expected_copy) != 0:
-        raise ValueError("Expected slice has remaining instructions:", expected_copy)
+        raise ValueError(
+            "Expected slice has remaining instructions:", expected_copy
+        )  # pragma: no cover
     if len(slice_copy) != 0:
-        raise ValueError("Real slice has remaining instructions:", slice_copy)
+        raise ValueError(
+            "Real slice has remaining instructions:", slice_copy
+        )  # pragma: no cover
 
     return True
 
@@ -80,15 +84,15 @@ def _contains_name_arg(
                 unique_instr.arg, CodeType
             ):
                 # Instruction is a jump to a basic block
-                return instr
+                return instr  # pragma: no cover
             elif isinstance(unique_instr.arg, tuple) and isinstance(instr.arg, tuple):
-                for elem in unique_instr.arg:
+                for elem in unique_instr.arg:  # pragma: no cover
                     if elem not in instr.arg:
                         break
-                return instr
+                return instr  # pragma: no cover
             elif instr.arg == unique_instr.arg:
                 return instr
-    return None
+    return None  # pragma: no cover
 
 
 def _contains_name_argtype(
@@ -98,7 +102,7 @@ def _contains_name_argtype(
         if instr.name == unique_instr.name:
             if isinstance(instr.arg, type(unique_instr.arg)):
                 return instr
-    return None
+    return None  # pragma: no cover
 
 
 def slice_function_at_return(function: callable) -> list[UniqueInstruction]:

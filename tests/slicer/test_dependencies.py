@@ -186,7 +186,7 @@ def test_data_dependency_5():
 
 def test_simple_control_dependency_1():
     # If condition evaluated to true, with relevant variable foo
-    def func() -> int:
+    def func() -> int:  # pragma: no cover
         foo = 1
         result = 3
 
@@ -234,7 +234,7 @@ def test_simple_control_dependency_1():
 
 def test_simple_control_dependency_2():
     # If condition evaluated to false, with two relevant variables (but no influence on result)
-    def func() -> int:
+    def func() -> int:  # pragma: no cover
         foo = 1
         bar = 2
         result = 3
@@ -270,7 +270,7 @@ def test_simple_control_dependency_2():
 
 def test_simple_control_dependency_3():
     # If-elif-else with elif branch true
-    def func() -> int:
+    def func() -> int:  # pragma: no cover
         foo = 1
         bar = 2
 
@@ -340,7 +340,7 @@ def test_simple_control_dependency_3():
 
 def test_simple_control_dependency_4():
     # If-elif-else with else branch true
-    def func() -> int:
+    def func() -> int:  # pragma: no cover
         foo = 1
         bar = 2
 

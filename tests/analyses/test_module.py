@@ -47,7 +47,7 @@ def parsed_module_complex_dependencies() -> _ModuleParseResult:
 
 @pytest.fixture(scope="module")
 def parsed_module_no_any_annotation() -> _ModuleParseResult:
-    return parse_module("tests.fixtures.cluster.no_any_annotations")
+    return parse_module("tests.fixtures.cluster.no_any_annotations")  # pragma: no cover
 
 
 @pytest.fixture(scope="module")
