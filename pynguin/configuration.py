@@ -383,10 +383,13 @@ class TypeInferenceConfiguration:
     """Get type information from Type4Py."""
 
     type4py_uri: str = "https://type4py.com/"
-    """URI of the type4py server.
+    """URI of the Type4Py server.
     Currently only for the module under test.
     For example: http://localhost:5001/
     See https://github.com/saltudelft/type4py/wiki"""
+
+    type4py_timeout: int = 10
+    """Read timeout when requesting data from the Type4Py API."""
 
 
 @dataclasses.dataclass
@@ -433,6 +436,10 @@ class TestCreationConfiguration:
 
     type_tracing_weight: float = 50
     """Weight to use the type guessed from type tracing as parameter type during
+    test generation. Expects values > 0."""
+
+    type4py_weight: float = 50
+    """Weight to use types inferred from type4py as parameter type during
     test generation. Expects values > 0."""
 
     type_tracing_kept_guesses: int = 5
