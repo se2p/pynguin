@@ -208,7 +208,7 @@ class _ObjectProxyMethods:
     # via a meta class. In that way the properties will always take
     # precedence.
 
-    @property  # type:ignore
+    @property
     def __module__(self):
         return self.__wrapped__.__module__  # type:ignore # pylint:disable=no-member
 
@@ -216,7 +216,7 @@ class _ObjectProxyMethods:
     def __module__(self, value):
         self.__wrapped__.__module__ = value  # type:ignore # pylint:disable=no-member
 
-    @property  # type:ignore
+    @property
     def __doc__(self):
         return self.__wrapped__.__doc__  # type:ignore # pylint:disable=no-member
 

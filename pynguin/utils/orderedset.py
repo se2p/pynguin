@@ -315,7 +315,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             self._items[item] = None
 
 
-class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):
+class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type:ignore
     """A frozen (i.e. immutable) set that retains its order.
     This is safe to use with the V2 engine.
     """

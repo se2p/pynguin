@@ -62,7 +62,7 @@ class ProperType(ABC):
     All subclasses of this class are immutable."""
 
     @abstractmethod
-    def accept(self, visitor: TypeVisitor) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:
         """Accept a type visitor
 
         Args:
@@ -110,7 +110,7 @@ class Instance(ProperType):
     C is a class.
     Args can be empty."""
 
-    def __init__(self, typ: TypeInfo, args: tuple[ProperType, ...] = None):
+    def __init__(self, typ: TypeInfo, args: tuple[ProperType, ...] | None = None):
         assert typ.raw_type is not tuple, "Use TupleType instead!"
         self.type = typ
         if args is None:

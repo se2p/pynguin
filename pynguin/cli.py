@@ -145,7 +145,7 @@ def _setup_logging(
 _DANGER_ENV = "PYNGUIN_DANGER_AWARE"
 
 
-def main(argv: list[str] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Entry point for the CLI of the Pynguin automatic unit test generation framework.
 
     This method behaves like a standard UNIX command-line application, i.e.,

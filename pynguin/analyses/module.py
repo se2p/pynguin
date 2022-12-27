@@ -734,7 +734,7 @@ class ModuleTestCluster(TestCluster):
         ) -> OrderedSet[GenericAccessibleObject]:
             result: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for element in left.items:
-                result.update(element.accept(self))
+                result.update(element.accept(self))  # type:ignore
             return result
 
         def visit_unsupported_type(
@@ -878,9 +878,7 @@ class FilteredModuleTestCluster(TestCluster):
         self.__code_object_id_to_accessible_objects: dict[
             int, GenericCallableAccessibleObject
         ] = {
-            json.loads(acc.callable.__code__.co_consts[0])[  # type: ignore
-                CODE_OBJECT_ID_KEY
-            ]: acc
+            json.loads(acc.callable.__code__.co_consts[0])[CODE_OBJECT_ID_KEY]: acc
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")

@@ -42,7 +42,7 @@ class UniqueInstruction(Instr):
         code_meta: CodeObjectMetaData,
         offset: int,
         arg=UNSET,
-        lineno: int = None,
+        lineno: int | None = None,
         in_slice: bool = False,
     ):
         self.file = file
