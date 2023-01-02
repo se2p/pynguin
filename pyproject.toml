@@ -171,23 +171,6 @@ ignore = ["E999"]
 # E999: Pattern matching currently not supported.
 
 
-# Checks for Google Docstyle
-extend-select = ["D"]
-extend-ignore = [
-    "D203",
-    "D204",
-    "D213",
-    "D215",
-    "D400",
-    "D404",
-    "D406",
-    "D407",
-    "D408",
-    "D409",
-    "D413",
-]
-
-
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
