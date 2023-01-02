@@ -248,7 +248,7 @@ class _Context:
         self.exceptions.clear()
 
     def add_variable(self, variable: str, exception: ast.Name | ast.Tuple) -> None:
-        """Add a variable to the context
+        """Add a variable to the context.
 
         Args:
             variable: The variable
@@ -257,7 +257,7 @@ class _Context:
         self.variables[variable] = self.__get_name_name(exception)
 
     def set_handling(self, attr: ast.Attribute | ast.Name | ast.Tuple) -> None:
-        """Set the handling
+        """Set the handling.
 
         Args:
             attr: An attribute
@@ -265,7 +265,7 @@ class _Context:
         self.handling = self.__get_attr_name(attr)
 
     def remove_variable(self, variable: str) -> None:
-        """Remove a variable from this context
+        """Remove a variable from this context.
 
         Args:
             variable: The variable
@@ -402,7 +402,7 @@ class _YieldVisitor(ast.NodeVisitor):
 
 
 class _ReturnVisitor(ast.NodeVisitor):
-    """A visitor checking for ``return`` nodes"""
+    """A visitor checking for ``return`` nodes."""
 
     def __init__(self) -> None:
         super().__init__()

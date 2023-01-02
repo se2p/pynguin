@@ -41,7 +41,8 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
 class AssertionMinimization(cv.ChromosomeVisitor):
     """Calculates the checked lines of each assertion.
     If an assertion does not cover new lines,
-    it is removed from the resulting test case."""
+    it is removed from the resulting test case.
+    """
 
     _logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
 
     @property
     def remaining_assertions(self) -> OrderedSet[Assertion]:
-        """Provides a set of remaining assertions
+        """Provides a set of remaining assertions.
 
         Returns:
             The remaining assertions
@@ -61,7 +62,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
 
     @property
     def deleted_assertions(self) -> OrderedSet[Assertion]:
-        """Provides a set of deleted assertions
+        """Provides a set of deleted assertions.
 
         Returns:
             The deleted assertions
@@ -125,14 +126,14 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
 
 
 class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
-    """Visitor that keep information on modifications"""
+    """Visitor that keep information on modifications."""
 
     def __init__(self):
         self._deleted_statement_indexes: set[int] = set()
 
     @property
     def deleted_statement_indexes(self) -> set[int]:
-        """Provides a set of deleted statement indexes
+        """Provides a set of deleted statement indexes.
 
         Returns:
             The deleted statement indexes
@@ -164,7 +165,8 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
 
 class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
     """Visits all statements and removes the unused primitives and collections.
-    Has to visit the statements in reverse order."""
+    Has to visit the statements in reverse order.
+    """
 
     def __init__(self):
         self._used_references = set()
@@ -172,7 +174,7 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
 
     @property
     def deleted_statement_indexes(self) -> set[int]:
-        """Provides a set of deleted statement indexes
+        """Provides a set of deleted statement indexes.
 
         Returns:
             The deleted statement indexes

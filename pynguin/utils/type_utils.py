@@ -117,7 +117,7 @@ def is_string(value: Any) -> bool:
 
 
 def is_bytes(value: Any) -> bool:
-    """Check if the given value is a bytes or bytearray
+    """Check if the given value is a bytes or bytearray.
 
     Args:
         value: an arbitrary value
@@ -284,7 +284,7 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
 def given_exception_matches(err, exc) -> bool:
     """This is a naive approach to figure out if an exception matches, similar to
     what CPython does here:
-    https://github.com/python/cpython/blob/ae3c66acb89a6104fcd0eea760f80a0287327cc4/Python/errors.c#L231
+    https://github.com/python/cpython/blob/ae3c66acb89a6104fcd0eea760f80a0287327cc4/Python/errors.c#L231.
 
     Args:
         err: The raised exception

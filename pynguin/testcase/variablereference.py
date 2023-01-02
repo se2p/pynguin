@@ -117,7 +117,7 @@ class Reference(metaclass=ABCMeta):
 
     @abstractmethod
     def get_variable_reference(self) -> VariableReference | None:
-        """Provide the variable reference used in this reference
+        """Provide the variable reference used in this reference.
 
         Returns: The variable reference used here, if any.
         """

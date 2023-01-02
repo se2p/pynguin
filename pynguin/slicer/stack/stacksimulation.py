@@ -79,7 +79,8 @@ class TraceStack:
 
     def push_artificial_stack(self) -> None:
         """Add a frame stack for a non-existing code object id ,
-        signaling, this stack is artificial and not part of the byte code."""
+        signaling, this stack is artificial and not part of the byte code.
+        """
         self.push_stack(code_object_id=-1)
 
     def pop_stack(self) -> None:
@@ -170,7 +171,8 @@ class TraceStack:
 
     def get_attribute_uses(self):
         """Get the attribute uses of the top of the stack,
-        None if frame stacks are empty."""
+        None if frame stacks are empty.
+        """
         return self.frame_stacks[-1].attribute_uses
 
     def set_attribute_uses(self, attribute_uses: set[str]) -> None:

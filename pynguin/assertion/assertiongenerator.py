@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides an assertion generator"""
+"""Provides an assertion generator."""
 from __future__ import annotations
 
 import ast
@@ -44,7 +44,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class AssertionGenerator(cv.ChromosomeVisitor):
     """A simple assertion generator.
-    Creates all regression assertions."""
+    Creates all regression assertions.
+    """
 
     _logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
 @dataclasses.dataclass
 class _MutantInfo:
-    """Collect data about a single mutant"""
+    """Collect data about a single mutant."""
 
     # Number of the mutant.
     mut_num: int
@@ -162,7 +163,7 @@ class _MutationSummary:
     mutant_information: list[_MutantInfo] = dataclasses.field(default_factory=list)
 
     def get_survived(self) -> list[_MutantInfo]:
-        """Get survived Mutants
+        """Get survived Mutants.
 
         Returns:
             The survived mutants
@@ -174,7 +175,7 @@ class _MutationSummary:
         ]
 
     def get_killed(self) -> list[_MutantInfo]:
-        """Get killed Mutants
+        """Get killed Mutants.
 
         Returns:
             The killed mutants
@@ -186,7 +187,7 @@ class _MutationSummary:
         ]
 
     def get_timeout(self) -> list[_MutantInfo]:
-        """Get timed out Mutants
+        """Get timed out Mutants.
 
         Returns:
             The timed out mutants
@@ -194,7 +195,7 @@ class _MutationSummary:
         return [info for info in self.mutant_information if info.timed_out_by]
 
     def get_metrics(self) -> _MutationMetrics:
-        """Provide mutation metrics
+        """Provide mutation metrics.
 
         Returns:
             The mutation metrics.
@@ -213,7 +214,7 @@ class _MutationMetrics:
     num_timeout_mutants: int
 
     def get_score(self) -> float:
-        """Computes the mutation score
+        """Computes the mutation score.
 
         Returns:
             The mutation score
@@ -227,7 +228,6 @@ class _MutationMetrics:
 
 
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
-
     """Uses mutation analysis to filter out less relevant assertions."""
 
     def _create_module_with_instrumentation(

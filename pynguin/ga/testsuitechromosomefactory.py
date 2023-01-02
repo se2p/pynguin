@@ -30,7 +30,7 @@ class TestSuiteChromosomeFactory(
         fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction],
         coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction],
     ):
-        """Instantiates a new factory
+        """Instantiates a new factory.
 
         Args:
             test_case_chromosome_factory: The internal test case chromosome factory,

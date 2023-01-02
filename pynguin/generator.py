@@ -244,7 +244,6 @@ def _setup_and_check() -> tuple[
     Returns:
         An optional tuple of test-case executor and test cluster
     """
-
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
@@ -693,6 +692,7 @@ def _export_chromosome(
         chromosome: the chromosome to export.
         file_name_suffix: Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
+
     Returns:
         The name of the target file
     """

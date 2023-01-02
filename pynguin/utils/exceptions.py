@@ -24,7 +24,7 @@ class ConstructionFailedException(BaseException):
 
 
 class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class"""
+    """A custom exception used to report errors in use of Timer class."""
 
 
 class InstructionNotFoundException(BaseException):
@@ -33,9 +33,11 @@ class InstructionNotFoundException(BaseException):
 
 class TestTimeoutException(BaseException):
     """A custom exception if the execution of a single test took
-    longer than the configured maximum duration."""
+    longer than the configured maximum duration.
+    """
 
 
 class SlicingTimeoutException(BaseException):
     """A custom exception if slicing of a single test took longer
-    than the configured maximum duration."""
+    than the configured maximum duration.
+    """

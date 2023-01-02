@@ -23,7 +23,8 @@ _LOGGER = logging.getLogger(__name__)
 class StatementSlicingObserver(ex.ExecutionObserver):
     """Observer that updates the checked lines of a testcase.
     Observes the execution of a test case and calculates the
-    slices of its statements."""
+    slices of its statements.
+    """
 
     _STORE_INSTRUCTION_OFFSET = 3
 

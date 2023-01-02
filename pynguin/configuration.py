@@ -86,7 +86,8 @@ class AssertionGenerator(str, enum.Enum):
 
 class MutationStrategy(str, enum.Enum):
     """Different strategies for creating mutants when using the MUTATION_ANALYSIS
-    approach for assertion generation."""
+    approach for assertion generation.
+    """
 
     FIRST_ORDER_MUTANTS = "FIRST_ORDER_MUTANTS"
     """Generate first order mutants."""
@@ -123,7 +124,7 @@ class TypeInferenceStrategy(str, enum.Enum):
 
 
 class StatisticsBackend(str, enum.Enum):
-    """The different available statistics backends to write statistics"""
+    """The different available statistics backends to write statistics."""
 
     NONE = "NONE"
     """Do not write any statistics."""
@@ -136,7 +137,7 @@ class StatisticsBackend(str, enum.Enum):
 
 
 class CoverageMetric(str, enum.Enum):
-    """The different available coverage metrics available for optimisation"""
+    """The different available coverage metrics available for optimisation."""
 
     BRANCH = "BRANCH"
     """Calculate how many of the possible branches in the code were executed"""
@@ -544,7 +545,8 @@ class StoppingConfiguration:
     """Configuration related to when Pynguin should stop.
     Note that these are mostly soft-limits rather than hard limits, because
     the search algorithms only check the condition at the start of each algorithm
-    iteration."""
+    iteration.
+    """
 
     maximum_search_time: int = -1
     """Time (in seconds) that can be used for generating tests."""

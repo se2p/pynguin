@@ -20,7 +20,8 @@ if typing.TYPE_CHECKING:
 
 class IterationObserver(so.SearchObserver):
     """Observes the amount of iterations and logs them when the search
-    has finished."""
+    has finished.
+    """
 
     def __init__(self):
         self._iterations = 0

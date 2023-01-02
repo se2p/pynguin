@@ -124,7 +124,9 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
         )
 
     # pylint:disable-next=line-too-long, arguments-renamed
-    def __or__(self: _TAbstractOrderedSet, other: Iterable[T]) -> _TAbstractOrderedSet:  # type: ignore[override]
+    def __or__(  # type: ignore[override]
+        self: _TAbstractOrderedSet, other: Iterable[T]
+    ) -> _TAbstractOrderedSet:
         return self.union(other)
 
     def union(self: _TAbstractOrderedSet, *others: Iterable[T]) -> _TAbstractOrderedSet:
@@ -158,7 +160,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
         self: _TAbstractOrderedSet, *others: Iterable[T]
     ) -> _TAbstractOrderedSet:
         """Returns elements in common between all sets.
-        Order is defined only by the first set
+        Order is defined only by the first set.
 
         Args:
             *others: The iterable to intersect with
@@ -224,7 +226,9 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
         return all(item in self for item in other)
 
     # pylint:disable-next=line-too-long, arguments-renamed
-    def __xor__(self: _TAbstractOrderedSet, other: Iterable[T]) -> _TAbstractOrderedSet:  # type: ignore[override]
+    def __xor__(  # type: ignore[override]
+        self: _TAbstractOrderedSet, other: Iterable[T]
+    ) -> _TAbstractOrderedSet:
         return self.symmetric_difference(other)
 
     def symmetric_difference(

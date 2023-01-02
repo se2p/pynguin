@@ -113,7 +113,7 @@ class TestCase(metaclass=ABCMeta):
 
     @abstractmethod
     def remove(self, position: int) -> None:
-        """Removes a statement a the given position
+        """Removes a statement a the given position.
 
         Args:
             position: The position of the test case to be removed

@@ -35,7 +35,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class AssertionTraceObserver(ex.ExecutionObserver):
     """Observer that creates assertions.
-    Observes the execution of a test case and generates assertions from it."""
+    Observes the execution of a test case and generates assertions from it.
+    """
 
     class AssertionLocalState(threading.local):  # pylint:disable=too-few-public-methods
         """Stores thread-local assertion data."""

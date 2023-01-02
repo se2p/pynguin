@@ -15,7 +15,8 @@ import pynguin.utils.opcodes as op
 
 def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
     """Initialize all unconditional opcode stack effects
-    that are shared between all used python versions of pynguin."""
+    that are shared between all used python versions of pynguin.
+    """
     return {
         # OP NAME: (POP, PUSH)
         op.POP_TOP: (1, 0),

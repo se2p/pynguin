@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides capabilities to export chromosomes"""
+"""Provides capabilities to export chromosomes."""
 
 import ast
 import dataclasses

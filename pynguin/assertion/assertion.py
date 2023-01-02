@@ -95,7 +95,7 @@ class TypeNameAssertion(ReferenceAssertion):
 
     @property
     def module(self) -> str:
-        """Provides the module name
+        """Provides the module name.
 
         Returns:
             The module name
@@ -104,7 +104,7 @@ class TypeNameAssertion(ReferenceAssertion):
 
     @property
     def qualname(self) -> str:
-        """Provides the qualname name
+        """Provides the qualname name.
 
         Returns:
             The qualname

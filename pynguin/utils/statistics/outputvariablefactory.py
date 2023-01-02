@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides abstract factories for output variables"""
+"""Provides abstract factories for output variables."""
 from __future__ import annotations
 
 import time
@@ -24,7 +24,7 @@ T = TypeVar("T", int, float)  # pylint: disable=invalid-name
 
 
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
-    """Factory to create an output variable when given a test suite chromosome"""
+    """Factory to create an output variable when given a test suite chromosome."""
 
     def __init__(self, variable: RuntimeVariable) -> None:
         self._variable = variable
@@ -41,7 +41,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         """
 
     def get_variable(self, individual: chrom.Chromosome) -> sb.OutputVariable[T]:
-        """Provides the output variable
+        """Provides the output variable.
 
         Args:
             individual: The individual
@@ -55,7 +55,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
 
 class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
-    """Creates an output variable that represents a sequence of values"""
+    """Creates an output variable that represents a sequence of values."""
 
     def __init__(self, variable: stat.RuntimeVariable) -> None:
         self._variable = variable
@@ -73,7 +73,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
     @abstractmethod
     def get_value(self, individual: chrom.Chromosome) -> T:
-        """Returns the current value of the variable for the selected individual
+        """Returns the current value of the variable for the selected individual.
 
         Args:
             individual: The individual to query
@@ -83,7 +83,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         """
 
     def update(self, individual: chrom.Chromosome) -> None:
-        """Updates the values for an individual
+        """Updates the values for an individual.
 
         Args:
             individual: The individual
@@ -109,7 +109,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._values.append(value)
 
     def get_variable_names_indices(self) -> list[tuple[int, str]]:
-        """Provides a list of variable names
+        """Provides a list of variable names.
 
         Returns:
             A list of pairs consisting of variable names and their index.
@@ -120,7 +120,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         ]
 
     def get_output_variables(self) -> list[sb.OutputVariable[T]]:
-        """Provides the output variables
+        """Provides the output variables.
 
         Returns:
             A list of output variables
@@ -178,7 +178,9 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
 class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic[T]):
     """Sequence output variable whose value can be set directly, instead of
-    retrieving it from an individual"""
+    retrieving it from an individual
+    .
+    """
 
     def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
         super().__init__(variable)

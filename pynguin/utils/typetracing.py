@@ -151,7 +151,8 @@ class UsageTraceNode:
 
 class DepthDefaultDict(dict[str, UsageTraceNode]):
     """Default dict which automatically creates a UsageTraceNode for each requested
-    and non-existing key."""
+    and non-existing key.
+    """
 
     def __init__(self, depth: int):
         super().__init__()
@@ -270,7 +271,8 @@ def unwrap(obj):
 class ObjectProxy(metaclass=_ObjectProxyMetaType):
     """A proxy for (almost) any Python object.
 
-    Native types implemented in C might be problematic."""
+    Native types implemented in C might be problematic.
+    """
 
     def __init__(
         self,
@@ -718,7 +720,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 @contextlib.contextmanager
 def shim_isinstance():
     """Context manager that temporarily replaces isinstance with a shim.
-    The shim is aware of ObjectProxies
+    The shim is aware of ObjectProxies.
 
     Yields:
         resets the shim

@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides a chromosome visitor"""
+"""Provides a chromosome visitor."""
 
 from abc import ABC, abstractmethod
 

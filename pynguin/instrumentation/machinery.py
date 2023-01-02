@@ -6,7 +6,7 @@
 #
 """
 Provides classes for runtime instrumentation.
-Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py
+Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py.
 """
 from __future__ import annotations
 
@@ -171,7 +171,6 @@ class InstrumentationFinder(MetaPathFinder):
         Returns:
             An optional ModuleSpec
         """
-
         if self._should_instrument(fullname):
             spec: ModuleSpec = self._original_pathfinder.find_spec(
                 fullname, path, target

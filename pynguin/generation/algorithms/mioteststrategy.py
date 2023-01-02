@@ -129,7 +129,6 @@ class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
 
     def evolve(self) -> None:
         """Evolve the current population and replace it with a new one."""
-
         # From the second step on, MIO will decide to either sample a new test at random
         # (probability Pr), or will choose one existing test in the archive (probability
         # 1 - Pr), copy it, and mutate it.

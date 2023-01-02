@@ -68,7 +68,8 @@ class TestCaseChromosome(chrom.Chromosome):
         """The number of mutations.
 
         Returns:
-            the number of mutations."""
+            the number of mutations.
+        """
         # TODO(fk) what to do with this when crossover is used?
         return self._num_mutations
 

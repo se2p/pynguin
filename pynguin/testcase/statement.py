@@ -394,7 +394,8 @@ class AssignmentStatement(Statement):
     possibly nested fields.
 
     For example:
-        foo_0.baz = int_0"""
+    foo_0.baz = int_0
+    """
 
     def __init__(
         self,
@@ -578,7 +579,8 @@ class CollectionStatement(Generic[T], VariableCreatingStatement):
 class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABCMeta):
     """Abstract base class for collections that are not dicts.
     We have to handle dicts in a special way, because mutation can affect either
-    the key or the value of an item."""
+    the key or the value of an item.
+    """
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
         arg_type = cast(Instance, self.ret_val.type).args[0]
@@ -1881,7 +1883,8 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
 
 class EnumPrimitiveStatement(PrimitiveStatement[int]):
     """Primitive Statement that references the value of an enum.
-    We simply store the index of the element in the Enum."""
+    We simply store the index of the element in the Enum.
+    """
 
     def __init__(
         self,
@@ -1901,7 +1904,8 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         the stored index.
 
         Returns:
-            The associated enum value."""
+            The associated enum value.
+        """
         assert self._value is not None
         return self._generic_enum.names[self._value]
 
@@ -1947,7 +1951,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
 
 
 class ClassPrimitiveStatement(PrimitiveStatement[int]):
-    """Primitive Statement that references a class"""
+    """Primitive Statement that references a class."""
 
     def __init__(self, test_case: tc.TestCase, value: int | None = None):
         # TODO(fk) think about type being generic/bound, e.g., type[Foo]

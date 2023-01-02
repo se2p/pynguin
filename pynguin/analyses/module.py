@@ -279,7 +279,7 @@ def parse_module(module_name: str, query_type4py: bool = False) -> _ModuleParseR
 
 
 class TestCluster(abc.ABC):
-    """Interface for a test cluster"""
+    """Interface for a test cluster."""
 
     @property
     @abc.abstractmethod
@@ -342,7 +342,8 @@ class TestCluster(abc.ABC):
     def num_accessible_objects_under_test(self) -> int:
         """Provide the number of accessible objects under test.
 
-        Useful to check whether there is even something to test."""
+        Useful to check whether there is even something to test.
+        """
 
     @abc.abstractmethod
     def get_generators_for(
@@ -917,7 +918,7 @@ class FilteredModuleTestCluster(TestCluster):
         return None
 
     def on_target_covered(self, target: ff.TestCaseFitnessFunction) -> None:
-        """A callback function to get informed by an archive when a target is covered
+        """A callback function to get informed by an archive when a target is covered.
 
         Args:
             target: The newly covered target

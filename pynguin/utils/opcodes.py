@@ -8,7 +8,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-"""Provides enums for opcode numbers of instructions in bytecode"""
+"""Provides enums for opcode numbers of instructions in bytecode."""
 
 POP_TOP = 1
 ROT_TWO = 2

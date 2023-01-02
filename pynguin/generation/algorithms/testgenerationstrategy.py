@@ -78,7 +78,7 @@ class TestGenerationStrategy(
 
     @property
     def executor(self) -> AbstractTestCaseExecutor:
-        """Provides the test-case executor
+        """Provides the test-case executor.
 
         Returns:
             The test-case executor
@@ -323,5 +323,6 @@ class TestGenerationStrategy(
         Averages the progress of all stopping conditions.
 
         Returns:
-            A value in [0,1]."""
+        A value in [0,1].
+        """
         return mean(sc.current_value() / sc.limit() for sc in self._stopping_conditions)

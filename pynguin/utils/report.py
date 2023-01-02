@@ -145,7 +145,7 @@ def get_coverage_report(
     executor: TestCaseExecutor,
     metrics: set[config.CoverageMetric],
 ) -> CoverageReport:
-    """Create a coverage report for the given test suite
+    """Create a coverage report for the given test suite.
 
     Args:
         suite: The suite for which a coverage report should be generated.

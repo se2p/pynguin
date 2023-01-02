@@ -208,7 +208,8 @@ class MIOPopulation:
     @property
     def counter(self) -> int:
         """How often was a solution sampled from this population since the last
-        improvement in the h-value."""
+        improvement in the h-value.
+        """
         return self._counter
 
     @property
@@ -381,7 +382,6 @@ class MIOArchive(Archive):
 
     def get_solution(self) -> tcc.TestCaseChromosome | None:
         """Get a random solution."""
-
         # Choose one target at random that has not been covered but contains some
         # solutions. In case there is not any non-covered target with at least one
         # solution, either because all targets have been covered or for the non-covered

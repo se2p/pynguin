@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides an abstract base class for chromosomes"""
+"""Provides an abstract base class for chromosomes."""
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
@@ -14,7 +14,7 @@ import pynguin.ga.computations as ff
 
 
 class Chromosome(metaclass=ABCMeta):
-    """An abstract base class for chromosomes"""
+    """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):
         """
@@ -93,7 +93,7 @@ class Chromosome(metaclass=ABCMeta):
         self._computation_cache.invalidate_cache()
 
     def get_fitness(self) -> float:
-        """Provide a sum of the current fitness values
+        """Provide a sum of the current fitness values.
 
         Returns:
             The sum of the current fitness values
@@ -131,7 +131,7 @@ class Chromosome(metaclass=ABCMeta):
         return self._computation_cache.get_coverage()
 
     def get_coverage_for(self, coverage_function: ff.CoverageFunction) -> float:
-        """Provides the coverage value for a certain coverage function
+        """Provides the coverage value for a certain coverage function.
 
         Args:
             coverage_function: The fitness function whose coverage value shall be

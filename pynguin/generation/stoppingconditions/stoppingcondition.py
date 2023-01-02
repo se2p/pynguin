@@ -50,7 +50,7 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
 
     @abstractmethod
     def is_fulfilled(self) -> bool:
-        """Returns whether the condition is fulfilled, thus the algorithm should stop
+        """Returns whether the condition is fulfilled, thus the algorithm should stop.
 
         Returns:
             True if the condition is fulfilled, False otherwise  # noqa: DAR202

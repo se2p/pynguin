@@ -20,7 +20,7 @@ import pynguin.utils.type_utils as tu
 
 class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
     """An assertion visitor that transforms assertions into AST nodes. Uses pytest for
-    some special assertions constructs, such as float assertions and raised exceptions
+    some special assertions constructs, such as float assertions and raised exceptions.
     """
 
     def __init__(
@@ -87,7 +87,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
 
     def visit_float_assertion(self, assertion: ass.FloatAssertion) -> None:
         """Creates an assertion of form
-        "assert float_0 == pytest.approx(1, rel=0.01, abs=0.01)"
+        "assert float_0 == pytest.approx(1, rel=0.01, abs=0.01)".
 
         Args:
             assertion: the assertion that is visited.
@@ -104,7 +104,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
     def visit_type_name_assertion(self, assertion: ass.TypeNameAssertion) -> None:
         """
         Creates an assertion of form:
-        assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int"
+        assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int".
 
         Args:
             assertion: the assertion that is visited.

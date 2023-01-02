@@ -88,7 +88,7 @@ class _StatisticsTracker:
         self._search_statistics.current_individual(individual)
 
     def set_output_variable(self, variable: sb.OutputVariable) -> None:
-        """Sets an output variable to a value directly
+        """Sets an output variable to a value directly.
 
         Args:
             variable: The variable to be set
@@ -106,7 +106,7 @@ class _StatisticsTracker:
     def set_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
-        """Sets an output variable to a value directly
+        """Sets an output variable to a value directly.
 
         Args:
             variable: The variable to be set
@@ -119,7 +119,7 @@ class _StatisticsTracker:
     def update_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
-        """Updates an output variable with a value directly
+        """Updates an output variable with a value directly.
 
         Args:
             variable: The variable to update
@@ -139,7 +139,7 @@ class _StatisticsTracker:
         return self._search_statistics.output_variables
 
     def write_statistics(self) -> bool:
-        """Write result to disk using selected backend
+        """Write result to disk using selected backend.
 
         Returns:
             True if the writing was successful
@@ -250,7 +250,7 @@ class _SearchStatistics:
             seq_variable_factory.update(individual)
 
     def set_output_variable(self, variable: sb.OutputVariable) -> None:
-        """Sets an output variable to a value directly
+        """Sets an output variable to a value directly.
 
         Args:
             variable: The variable to be set
@@ -263,7 +263,7 @@ class _SearchStatistics:
             self._output_variables[variable.name] = variable
 
     def update_output_variable(self, variable: sb.OutputVariable) -> None:
-        """Updates an output variable with a new value
+        """Updates an output variable with a new value.
 
         Args:
             variable: The variable to update
@@ -277,7 +277,7 @@ class _SearchStatistics:
     def set_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
-        """Sets an output variable to a value directly
+        """Sets an output variable to a value directly.
 
         Args:
             variable: The variable to be set
@@ -288,7 +288,7 @@ class _SearchStatistics:
     def update_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
     ) -> None:
-        """Updates an output variable with a new value
+        """Updates an output variable with a new value.
 
         Args:
             variable: The variable to update
@@ -347,7 +347,7 @@ class _SearchStatistics:
         return output_variables_map
 
     def write_statistics(self) -> bool:
-        """Write result to disk using selected backend
+        """Write result to disk using selected backend.
 
         Returns:
             True if the writing was successful

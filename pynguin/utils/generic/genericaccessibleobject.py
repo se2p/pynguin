@@ -149,7 +149,8 @@ class GenericEnum(GenericAccessibleObject):
         """All names that this enum has.
 
         Returns:
-            All possible values of this enum."""
+        All possible values of this enum.
+        """
         return self._names
 
     def is_enum(self) -> bool:
@@ -205,7 +206,8 @@ class GenericCallableAccessibleObject(
 
     @property
     def raised_exceptions(self) -> set[str]:
-        """Provides the set of exceptions that is expected to be raised by this callable
+        """Provides the set of exceptions that is expected to be raised by this
+        callable.
 
         Returns:
             The set of exceptions that is expected to be raised by this callable

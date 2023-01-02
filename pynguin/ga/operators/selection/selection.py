@@ -59,7 +59,7 @@ class SelectionFunction(Generic[T]):
 
     @maximize.setter
     def maximize(self, new_value: bool) -> None:
-        """Sets whether this is a maximising fitness function
+        """Sets whether this is a maximising fitness function.
 
         Args:
             new_value: The new value

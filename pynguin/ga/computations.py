@@ -196,7 +196,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         self, exclude_code: set[int], exclude_true: set[int], exclude_false: set[int]
     ) -> None:
         """Restrict this fitness function, i.e., which branches/code objects it
-        considers
+        considers.
 
         Args:
             exclude_code: Ids of the code objects that should not be considered.
@@ -264,7 +264,8 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
 class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on lines included in the backward
-    slice of each statement of a test suite."""
+    slice of each statement of a test suite.
+    """
 
     def compute_fitness(self, individual) -> float:
         results = self._run_test_suite_chromosome(individual)
@@ -571,7 +572,7 @@ class ComputationCache:
         self._coverage_cache.clear()
 
     def get_fitness(self) -> float:
-        """Provide a sum of the current fitness values
+        """Provide a sum of the current fitness values.
 
         Returns:
             The sum of the current fitness values
@@ -631,7 +632,7 @@ class ComputationCache:
         return statistics.mean(self._coverage_cache.values())
 
     def get_coverage_for(self, coverage_function: CoverageFunction) -> float:
-        """Provides the coverage value for a certain coverage function
+        """Provides the coverage value for a certain coverage function.
 
         Args:
             coverage_function: The fitness function whose coverage value shall be
@@ -845,7 +846,6 @@ def compute_branch_coverage(
     Returns:
         The computed coverage value
     """
-
     covered = len(
         trace.executed_code_objects.intersection(
             subject_properties.branch_less_code_objects

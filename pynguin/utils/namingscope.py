@@ -59,7 +59,7 @@ class AbstractNamingScope:
 
     @abstractmethod
     def __iter__(self):
-        """Iterate the objects and the associated names"""
+        """Iterate the objects and the associated names."""
 
 
 class NamingScope(AbstractNamingScope):

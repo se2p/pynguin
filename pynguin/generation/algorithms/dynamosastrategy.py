@@ -195,7 +195,8 @@ class _BranchFitnessGraph:
     Arranges the fitness functions for all branches according to their control
     dependencies in the CDG. Each node represents a fitness function. A directed edge
     (u -> v) states that fitness function v should be added for consideration
-    only when fitness function u has been covered."""
+    only when fitness function u has been covered.
+    """
 
     def __init__(
         self,
@@ -260,7 +261,8 @@ class _BranchFitnessGraph:
     @property
     def root_branches(self) -> OrderedSet[bg.BranchCoverageTestFitness]:
         """Return the root branches, i.e., the fitness functions that have
-        no preconditions."""
+        no preconditions.
+        """
         return OrderedSet(self._root_branches)
 
     @staticmethod

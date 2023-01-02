@@ -19,21 +19,21 @@ import pynguin.configuration as config
 # Try to add some type information to model a response from Type4Py.
 # Full layout here: https://github.com/saltudelft/type4py/wiki/Using-Type4Py-Rest-API
 class Type4pyData(typing.TypedDict):
-    """Model Type4Py Response"""
+    """Model Type4Py Response."""
 
     error: str
     response: Type4pyResponse
 
 
 class Type4pyResponse(typing.TypedDict):
-    """Model Type4Py Response"""
+    """Model Type4Py Response."""
 
     classes: list[Type4pyClassData]
     funcs: list[Type4pyFunctionData]
 
 
 class Type4pyClassData(typing.TypedDict):
-    """Model Type4Py Response"""
+    """Model Type4Py Response."""
 
     funcs: list[Type4pyFunctionData]
     name: str
@@ -41,7 +41,7 @@ class Type4pyClassData(typing.TypedDict):
 
 
 class Type4pyFunctionData(typing.TypedDict):
-    """Model Type4Py Response"""
+    """Model Type4Py Response."""
 
     name: str
     q_name: str

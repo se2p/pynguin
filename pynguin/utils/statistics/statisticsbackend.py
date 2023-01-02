@@ -70,7 +70,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
 
 # pylint: disable=too-few-public-methods
 class ConsoleStatisticsBackend(AbstractStatisticsBackend):
-    """Simple dummy backend that just outputs all output variables to the console"""
+    """Simple dummy backend that just outputs all output variables to the console."""
 
     def write_data(self, data: dict[str, OutputVariable]) -> None:
         for key, value in data.items():

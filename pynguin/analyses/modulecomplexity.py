@@ -141,7 +141,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         self.tail = None
 
     def reset(self):
-        """Reset the current graph and tail element"""
+        """Reset the current graph and tail element."""
         self.graph = None
         self.tail = None
 
@@ -298,7 +298,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
 
     # pylint: disable=invalid-name
     def visitWith(self, node: ast.With | ast.AsyncWith) -> None:
-        """Visits a with-block AST node
+        """Visits a with-block AST node.
 
         Args:
             node: the with-block AST node

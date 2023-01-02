@@ -51,7 +51,8 @@ if TYPE_CHECKING:
 @dataclass
 class SlicingCriterion:
     """Slicing criterion data class holding the instruction
-    and position in the trace to slice for."""
+    and position in the trace to slice for.
+    """
 
     unique_instr: UniqueInstruction
     trace_position: int
@@ -60,7 +61,8 @@ class SlicingCriterion:
 @dataclass
 class SlicingContext:  # pylint: disable=too-many-instance-attributes
     """Data class storing all defined and used variables as well as instructions
-    used at one point during the slicing."""
+    used at one point during the slicing.
+    """
 
     # Instructions included in the slice
     instr_in_slice: list[UniqueInstruction] = field(default_factory=list)
@@ -86,7 +88,8 @@ class SlicingContext:  # pylint: disable=too-many-instance-attributes
 @dataclass
 class SlicingState:  # pylint: disable=too-many-instance-attributes
     """Holds the configuration and state of the dynamic slicing process
-    for each analysed instruction."""
+    for each analysed instruction.
+    """
 
     basic_block_id: int
     code_object_id: int
@@ -537,7 +540,6 @@ class DynamicSlicer:
             A tuple with either False and an empty set or True and a set containing all
             explicit attribute creation uses.
         """
-
         complete_cover = False
         partial_cover = False
         attribute_creation_uses = set()
@@ -828,7 +830,8 @@ class DynamicSlicer:
 # pylint:disable=too-few-public-methods
 class AssertionSlicer:
     """Holds all logic of slicing traced assertions to generate the
-    dynamic slice produced by a test."""
+    dynamic slice produced by a test.
+    """
 
     def __init__(
         self,
@@ -874,7 +877,7 @@ class AssertionSlicer:
     def slice_assertion(
         self, assertion: ExecutedAssertion, trace: ExecutionTrace
     ) -> list[UniqueInstruction]:
-        """Calculate the dynamic slice for an assertion inside a test case
+        """Calculate the dynamic slice for an assertion inside a test case.
 
         Args:
             assertion: The assertion, for which to calculate the slice.
@@ -883,7 +886,6 @@ class AssertionSlicer:
         Returns:
             The list of executed instructions contained in the slice of the assertion.
         """
-
         slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
         slicer = DynamicSlicer(self._known_code_objects)
         return slicer.slice(trace, slicing_criterion)

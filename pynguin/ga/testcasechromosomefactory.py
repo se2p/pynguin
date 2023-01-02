@@ -26,7 +26,8 @@ class TestCaseChromosomeFactory(
     cf.ChromosomeFactory[tcc.TestCaseChromosome]
 ):  # pylint:disable=too-few-public-methods.
     """A factory that creates test case chromosomes using the given test case factory.
-    Also add the given fitness functions to the newly created test case chromosome."""
+    Also add the given fitness functions to the newly created test case chromosome.
+    """
 
     def __init__(
         self,
@@ -61,7 +62,8 @@ class ArchiveReuseTestCaseChromosomeFactory(
     cf.ChromosomeFactory[tcc.TestCaseChromosome]
 ):  # pylint:disable=too-few-public-methods.
     """Provides test case chromosomes from an archive with some probability,
-    otherwise delegates to wrapped chromosome factory."""
+    otherwise delegates to wrapped chromosome factory.
+    """
 
     def __init__(
         self,

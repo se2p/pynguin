@@ -11,7 +11,7 @@ class Mirror(dict):
     """A dictionary that returns each key as its value.
     e.g.
     mirror = Mirror()
-    assert mirror[5] == 5
+    assert mirror[5] == 5.
     """
 
     def __missing__(self, item):

@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-"""Provides classes for providing and collecting constants"""
+"""Provides classes for providing and collecting constants."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ class ConstantPool:
         }
 
     def add_constant(self, constant: ConstantTypes) -> None:
-        """Add new constant value
+        """Add new constant value.
 
         Args:
             constant: The constant to add
@@ -51,7 +51,7 @@ class ConstantPool:
         self._constants[type(constant)].add(constant)
 
     def remove_constant(self, value: ConstantTypes) -> None:
-        """Remove the given constant
+        """Remove the given constant.
 
         Args:
             value: the constant to remove
@@ -72,7 +72,7 @@ class ConstantPool:
         return len(self._constants[tp_]) > 0
 
     def get_constant_for(self, tp_: type[T]) -> T:
-        """Get a random value from the constant pool
+        """Get a random value from the constant pool.
 
         Args:
             tp_: The type to retrieve
@@ -83,7 +83,7 @@ class ConstantPool:
         return typing.cast(T, randomness.choice(tuple(self._constants[tp_])))
 
     def get_all_constants_for(self, tp_: type[T]) -> OrderedSet[T]:
-        """Get all values from the constant pool
+        """Get all values from the constant pool.
 
         Args:
             tp_: The type to retrieve
@@ -99,7 +99,8 @@ class ConstantPool:
 
 class RestrictedConstantPool(ConstantPool):
     """A constant pool that is restricted in its size.
-    If the size limit is reached, the oldest values are purged."""
+    If the size limit is reached, the oldest values are purged.
+    """
 
     def __init__(self, max_size: int = 50):
         """Create a new restricted constant pool with the given max number of constants
@@ -120,7 +121,7 @@ class RestrictedConstantPool(ConstantPool):
 
 
 class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
-    """Provides constants"""
+    """Provides constants."""
 
     @abc.abstractmethod
     def get_constant_for(self, tp_: type[T]) -> T | None:
@@ -135,7 +136,7 @@ class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
 
 
 class EmptyConstantProvider(ConstantProvider):  # pylint:disable=too-few-public-methods
-    """Empty provider"""
+    """Empty provider."""
 
     def get_constant_for(self, tp_: type[T]) -> T | None:
         return None
@@ -149,7 +150,7 @@ class DelegatingConstantProvider(
     def __init__(
         self, pool: ConstantPool, delegate: ConstantProvider, probability: float
     ):
-        """Create a new provider
+        """Create a new provider.
 
         Args:
             pool: The pool of constants to use
@@ -180,7 +181,7 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         probability: float,
         max_constant_length: int,
     ):
-        """Create a new dynamic constant provider
+        """Create a new dynamic constant provider.
 
         Args:
             pool: The pool of constants to use
@@ -297,7 +298,7 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
 
 # pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
-    """AST visitor that collects constants"""
+    """AST visitor that collects constants."""
 
     def __init__(self) -> None:
         self._pool = ConstantPool()

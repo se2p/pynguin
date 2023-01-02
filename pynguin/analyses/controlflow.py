@@ -156,7 +156,7 @@ class ProgramGraph(Generic[N]):
         self._graph = nx.DiGraph()
 
     def add_node(self, node: N, **attr: Any) -> None:
-        """Add a node to the graph
+        """Add a node to the graph.
 
         Args:
             node: The node
@@ -165,7 +165,7 @@ class ProgramGraph(Generic[N]):
         self._graph.add_node(node, **attr)
 
     def add_edge(self, start: N, end: N, **attr: Any) -> None:
-        """Add an edge between two nodes to the graph
+        """Add an edge between two nodes to the graph.
 
         Args:
             start: The start node of the edge
@@ -543,7 +543,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
 
     @property
     def cyclomatic_complexity(self) -> int:
-        """Calculates McCabe's cyclomatic complexity for this control-flow graph
+        """Calculates McCabe's cyclomatic complexity for this control-flow graph.
 
         Returns:
             McCabe's cyclocmatic complexity number
@@ -552,7 +552,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
 
     @property
     def diameter(self) -> int:
-        """Computes the diameter of the graph
+        """Computes the diameter of the graph.
 
         Returns:
             The diameter of the graph

@@ -74,7 +74,7 @@ class UniqueInstruction(Instr):
 
     @in_slice.setter
     def in_slice(self, in_slice) -> None:
-        """Sets whether the instruction is inside the slice
+        """Sets whether the instruction is inside the slice.
 
         Args:
             in_slice: whether the instruction is inside the slice
@@ -164,7 +164,8 @@ class LastInstrState:  # pylint: disable=too-many-instance-attributes
 @dataclass
 class ExecutionFlowBuilderState:  # pylint: disable=too-many-instance-attributes
     """Holds the configuration and state of the execution flow builder
-    while determining the last instruction executed."""
+    while determining the last instruction executed.
+    """
 
     bb_id: int
     co_id: int
