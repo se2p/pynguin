@@ -167,8 +167,8 @@ line-length = 88
 
 select = ["E", "F", "W"]
 
-# E999: Pattern matching currently not supported.
 ignore = ["E999"]
+# E999: Pattern matching currently not supported.
 
 
 # Checks for Google Docstyle
