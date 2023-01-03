@@ -117,8 +117,7 @@ To start developing, follow these steps:
 2. Change to the `pynguin` folder: `cd pynguin`
 3. Create a virtual environment and install dependencies using `poetry`: `poetry install`
 4. Make your changes
-5. Run `poetry shell` to switch to the virtual environment in your current shell
-6. Run `make check` to verify that your changes pass all checks
+5. Run `make check` to verify that your changes pass all checks
 
    Please see the [`poetry` documentation](https://python-poetry.org/docs/) for more information on this tool.
 
@@ -147,10 +146,8 @@ Contributors:
 ### Development using PyCharm.
 
 If you want to use the PyCharm IDE you have to set up a few things:
-1. Import pynguin into PyCharm.
-2. Let the poetry support configure a virtual environment.
-
-   If you use a PyCharm version before `2021.3`, you have to install the poetry support as a [plugin](https://plugins.jetbrains.com/plugin/14307-poetry).
+1. Import `pynguin` into PyCharm.
+2. Let PyCharm configure configure a virtual environment using `poetry`.
 3. Set the default test runner to `pytest`
 4. Set the DocString format to `Google`
 
