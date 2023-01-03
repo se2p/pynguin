@@ -40,8 +40,8 @@ jobs:
       - name: Check typing with mypy
         run: poetry run mypy pynguin
 
-      - name: Linting with flake8
-        run: poetry run flake8 .
+      - name: Linting with ruff
+        run: poetry run ruff pynguin
 
       - name: Linting with pylint
         run: poetry run pylint pynguin
