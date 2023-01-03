@@ -54,7 +54,6 @@ typing_inspect = "^0.8.0"
 asciitree = "^0.3.3"
 libcst = "^0.4.9"
 requests = "^2.28.1"
-ruff = "^0.0.206"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7.4"
@@ -70,6 +69,7 @@ pyupgrade = "^3.3.1"
 safety = "^2.3.5"
 types-requests = "^2.28.11.7"
 requests-mock = "^1.10.0"
+ruff = "^0.0.208"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.3.0"
