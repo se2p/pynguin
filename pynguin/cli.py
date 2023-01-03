@@ -161,14 +161,13 @@ def main(argv: list[str] | None = None) -> int:
         success, all non-zero exit codes indicate errors.
     """
     if _DANGER_ENV not in os.environ:
-        # pylint: disable=print-function
-        print(
+        print(  # noqa: T201
             f"""Environment variable '{_DANGER_ENV}' not set.
 Aborting to avoid harming your system.
 Please refer to the documentation
 (https://pynguin.readthedocs.io/en/latest/user/quickstart.html)
 to see why this happens and what you must do to prevent it."""
-        )
+        )  
         return -1
 
     if argv is None:

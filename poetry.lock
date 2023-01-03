@@ -1037,21 +1037,6 @@ spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
 
 [[package]]
-name = "pylint-print"
-version = "1.0.0"
-description = "Print function checker for PyLint"
-category = "dev"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "pylint-print-1.0.0.tar.gz", hash = "sha256:7c7f0124deb470467559fd40043231fb02bf1248d9e066a18f86418a1e7afb1c"},
-    {file = "pylint_print-1.0.0-py3-none-any.whl", hash = "sha256:3655f6a5473f6d50f874d599b18db46ff7fd590b951cf2004c80c2190dad75ad"},
-]
-
-[package.dependencies]
-pylint = "*"
-
-[[package]]
 name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -1935,4 +1920,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <3.11"
-content-hash = "cd92b39abf6f7f95c3721dba5a381c4c51f6602097dc4356992045a8aaae78cc"
+content-hash = "b330301999f6c2421494d41bc8ddae01ba1083d0a6f14ec30c94ee079321f176"
