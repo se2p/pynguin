@@ -167,7 +167,7 @@ Aborting to avoid harming your system.
 Please refer to the documentation
 (https://pynguin.readthedocs.io/en/latest/user/quickstart.html)
 to see why this happens and what you must do to prevent it."""
-        )  
+        )
         return -1
 
     if argv is None:
