@@ -125,9 +125,9 @@ mypy:
 pylint:
 	poetry run pylint pynguin
 
-.PHONY: flake8
-flake8:
-	poetry run flake8 .
+.PHONY: ruff
+ruff:
+	poetry run ruff pynguin
 
 .PHONY: isort
 isort:
@@ -145,7 +145,7 @@ update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
-check: update-docs-requirements isort black mypy flake8 pylint darglint test
+check: update-docs-requirements isort black mypy ruff pylint darglint test
 
 .PHONY: lint
 lint: test check-safety check-style
@@ -172,6 +172,7 @@ clean_build:
 	rm -rf .hypothesis
 	rm -rf .mypy_cache
 	rm -rf .pytest_cache
+	rm -rf .ruff_cache
 	rm -rf cov_html
 	rm -rf dist
 	rm -rf docs/_build
