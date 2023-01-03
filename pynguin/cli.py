@@ -161,8 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         success, all non-zero exit codes indicate errors.
     """
     if _DANGER_ENV not in os.environ:
-        # pylint: disable=print-function
-        print(
+        print(  # noqa: T201
             f"""Environment variable '{_DANGER_ENV}' not set.
 Aborting to avoid harming your system.
 Please refer to the documentation

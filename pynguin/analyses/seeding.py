@@ -278,6 +278,7 @@ def create_variable_references_from_call_args(
     # constructors because it is filled by the runtime.
     # TODO(fk) also consider @classmethod, because their first argument is the class,
     #  which is also filled by the runtime.
+
     shift_by = 1 if gen_callable.is_method() or gen_callable.is_constructor() else 0
 
     # Handle positional arguments.

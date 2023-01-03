@@ -1037,21 +1037,6 @@ spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
 
 [[package]]
-name = "pylint-print"
-version = "1.0.0"
-description = "Print function checker for PyLint"
-category = "dev"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "pylint-print-1.0.0.tar.gz", hash = "sha256:7c7f0124deb470467559fd40043231fb02bf1248d9e066a18f86418a1e7afb1c"},
-    {file = "pylint_print-1.0.0-py3-none-any.whl", hash = "sha256:3655f6a5473f6d50f874d599b18db46ff7fd590b951cf2004c80c2190dad75ad"},
-]
-
-[package.dependencies]
-pylint = "*"
-
-[[package]]
 name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -1332,6 +1317,7 @@ files = [
     {file = "ruamel.yaml.clib-0.2.7-cp310-cp310-win_amd64.whl", hash = "sha256:d000f258cf42fec2b1bbf2863c61d7b8918d31ffee905da62dede869254d3b8a"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:045e0626baf1c52e5527bd5db361bc83180faaba2ff586e763d3d5982a876a9e"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_12_6_arm64.whl", hash = "sha256:721bc4ba4525f53f6a611ec0967bdcee61b31df5a56801281027a3a6d1c2daf5"},
+    {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:41d0f1fa4c6830176eef5b276af04c89320ea616655d01327d5ce65e50575c94"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:4b3a93bb9bc662fc1f99c5c3ea8e623d8b23ad22f861eb6fce9377ac07ad6072"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-macosx_12_0_arm64.whl", hash = "sha256:a234a20ae07e8469da311e182e70ef6b199d0fbeb6c6cc2901204dd87fb867e8"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-manylinux2014_aarch64.whl", hash = "sha256:15910ef4f3e537eea7fe45f8a5d19997479940d9196f357152a09031c5be59f3"},
@@ -1357,6 +1343,32 @@ files = [
     {file = "ruamel.yaml.clib-0.2.7-cp39-cp39-win32.whl", hash = "sha256:d5e51e2901ec2366b79f16c2299a03e74ba4531ddcfacc1416639c557aef0ad8"},
     {file = "ruamel.yaml.clib-0.2.7-cp39-cp39-win_amd64.whl", hash = "sha256:184faeaec61dbaa3cace407cffc5819f7b977e75360e8d5ca19461cd851a5fc5"},
     {file = "ruamel.yaml.clib-0.2.7.tar.gz", hash = "sha256:1f08fd5a2bea9c4180db71678e850b995d2a5f4537be0e94557668cf0f5f9497"},
+]
+
+[[package]]
+name = "ruff"
+version = "0.0.208"
+description = "An extremely fast Python linter, written in Rust."
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "ruff-0.0.208-py3-none-macosx_10_7_x86_64.whl", hash = "sha256:f92e3274179b21a1ee0c0a325019fba6bb40fd2afe352769484a33ab728210d1"},
+    {file = "ruff-0.0.208-py3-none-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl", hash = "sha256:f4443c2d5c84080cb81fda6b0f664e82f76a94eac31c43641d1c84d072bff6d9"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2b236503d70b41ac199f129a212b364ae136fb751c5a2de7d2d6b0d8c1bdc552"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:2e6bf7964f5b5a281f3659c99e0e2ac9addc009b32796bbd00dce5aa32223735"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:630474add3dac9a7b83cdd0c57c56d2b4e4e5342fd17d5d8247beca9590d1627"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:724df293576046ce239d8c588d5f60c55e0ec87acd746b218a91c0cc01b41c55"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:3d8d35819d2e8bd6d23ecb67cd920248f54417f41c6ca7591ad9313b698552e3"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:265bb9f56e470be17e0fb420b35dd9979f027da4d0e4cf333e2f8f277707fd18"},
+    {file = "ruff-0.0.208-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ebcd4954f15ecb32b322b818869a6a44ea443dc168c167a6cd5894af50402097"},
+    {file = "ruff-0.0.208-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:332b10fd2929c0589aeda57bd83cbdebb9e2013af89f03128fe039c278882ae3"},
+    {file = "ruff-0.0.208-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:32bd51039c98fdf4a9ca4019f16681415f4b28ef048d7c0685f7ca83536c4b67"},
+    {file = "ruff-0.0.208-py3-none-musllinux_1_2_i686.whl", hash = "sha256:f1299878c786c24d8f1e1431e97458e9980ad3de2ca1b648887728cd8fd40286"},
+    {file = "ruff-0.0.208-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:c7789881188b04c0a4ec54f0256f767a6417a4d59d7d6ff7215bd7c66c2adb71"},
+    {file = "ruff-0.0.208-py3-none-win32.whl", hash = "sha256:1c1e4338dc625ba90611cf2a9006259d0fc0e384d4ea69e7dcc430674d737d3a"},
+    {file = "ruff-0.0.208-py3-none-win_amd64.whl", hash = "sha256:aee299efeefb812e7ec9b2a78378b174a22a5943c049d68f9d56e78fbc65e82f"},
+    {file = "ruff-0.0.208.tar.gz", hash = "sha256:53f7d269ddd7de7449339d49a365e69ab15e3a648c41148ba8b5983797786526"},
 ]
 
 [[package]]
@@ -1908,4 +1920,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <3.11"
-content-hash = "0fc6f5a417e30330ba3021e4e621689e3a8d6847349c405cd4522a811c95ea85"
+content-hash = "b330301999f6c2421494d41bc8ddae01ba1083d0a6f14ec30c94ee079321f176"

@@ -64,11 +64,11 @@ isort = {extras = ["pyproject"], version = "^5.11.4"}
 mypy = "^0.991"
 pre-commit = "^2.21.0"
 pylint = "^2.15.9"
-pylint-print = "^1.0.0"
 pyupgrade = "^3.3.1"
 safety = "^2.3.5"
 types-requests = "^2.28.11.7"
 requests-mock = "^1.10.0"
+ruff = "^0.0.208"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.3.0"
@@ -159,3 +159,47 @@ python_classes = ''
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff]
+line-length = 88
+
+select = ["E", "F", "W", "T20"]
+
+ignore = ["E999"]
+# E999: Pattern matching currently not supported.
+
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+per-file-ignores = {}
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.10.
+target-version = "py310"
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
