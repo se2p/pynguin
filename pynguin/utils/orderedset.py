@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -34,19 +34,8 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import itertools
-from typing import (
-    AbstractSet,
-    Any,
-    Hashable,
-    Iterable,
-    Iterator,
-    MutableSet,
-    Sequence,
-    Set,
-    TypeVar,
-    cast,
-    overload,
-)
+from collections.abc import Hashable, Iterable, Iterator, MutableSet, Sequence
+from typing import AbstractSet, Any, TypeVar, cast, overload
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -311,7 +300,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             other: The other set.
         """
         items_to_add = [item for item in other if item not in self]
-        items_to_remove = cast(Set[T], set(other))
+        items_to_remove = cast(set[T], set(other))
         self._items = {
             item: None for item in self._items.keys() if item not in items_to_remove
         }

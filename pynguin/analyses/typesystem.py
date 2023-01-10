@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -311,14 +311,12 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
     def visit_union_type(self, left: UnionType) -> ProperType | None:
         # pylint:disable=missing-function-docstring
         matches: tuple[ProperType, ...] = tuple(
-            (
-                elem
-                for elem in (
-                    _is_partial_type_match(left_elem, self.right)
-                    for left_elem in left.items
-                )
-                if elem
+            elem
+            for elem in (
+                _is_partial_type_match(left_elem, self.right)
+                for left_elem in left.items
             )
+            if elem
         )
         if matches:
             return UnionType(matches)
@@ -343,14 +341,11 @@ def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | 
     """
     if isinstance(right, UnionType):
         matches: tuple[ProperType, ...] = tuple(
-            (
-                elem
-                for elem in (
-                    _is_partial_type_match(left, right_elem)
-                    for right_elem in right.items
-                )
-                if elem is not None
+            elem
+            for elem in (
+                _is_partial_type_match(left, right_elem) for right_elem in right.items
             )
+            if elem is not None
         )
         if matches:
             flattened: set[ProperType] = set()

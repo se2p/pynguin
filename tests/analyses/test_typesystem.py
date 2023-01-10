@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2022 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -185,7 +185,7 @@ A = TypeVar("A")
             list[int],
             Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
         ),
-        (List[int], Instance(TypeInfo(list), (Instance(TypeInfo(int)),))),
+        (list[int], Instance(TypeInfo(list), (Instance(TypeInfo(int)),))),
         (
             set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
@@ -194,7 +194,7 @@ A = TypeVar("A")
             set,
             Instance(TypeInfo(set), (AnyType(),)),
         ),
-        (Set[int], Instance(TypeInfo(set), (Instance(TypeInfo(int)),))),
+        (set[int], Instance(TypeInfo(set), (Instance(TypeInfo(int)),))),
         (
             set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
@@ -257,10 +257,10 @@ A = TypeVar("A")
         ),
         (A, AnyType()),
         (
-            List,
+            list,
             Instance(TypeInfo(list), (AnyType(),)),
         ),
-        (Tuple, TupleType((AnyType(),), unknown_size=True)),
+        (tuple, TupleType((AnyType(),), unknown_size=True)),
     ],
 )
 def test_convert_type_hints(hint, expected):
@@ -569,9 +569,9 @@ def test_get_type_outside_of(outside_of, expected_types):
     test_cluster = generate_test_cluster("tests.fixtures.types.outside")
     tps = test_cluster.type_system
     outside_set = OrderedSet(tps.find_type_info(t) for t in outside_of)
-    assert set(tps.get_type_outside_of(outside_set)) == set(
+    assert set(tps.get_type_outside_of(outside_set)) == {
         tps.find_type_info(t) for t in expected_types
-    )
+    }
 
 
 @pytest.mark.parametrize(
