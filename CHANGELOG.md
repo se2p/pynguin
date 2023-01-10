@@ -11,6 +11,16 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.28.0
+
+- Fix distance computations for `<=` and always convert values to `float`.
+- Improve method blacklist for module analysis.
+- Improve type handling.
+- Allow Pynguin to run on itself.  This can be achieved by the `pynguin_self.py` script
+  from the `utils` package.
+- Improve warning in documentation that Pynguin actually executes the code under test.
+- Various refactorings and improvements.
+
 ## Pynguin 0.27.0
 
 - Write Pynguin version number to Cobertura XML report
