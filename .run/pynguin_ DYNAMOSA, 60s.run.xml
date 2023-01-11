@@ -17,12 +17,12 @@
       <env name="PYNGUIN_DANGER_AWARE" value="" />
     </envs>
     <option name="SDK_HOME" value="" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/pynguin" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/pynguin" />
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pynguin/__main__.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/pynguin/__main__.py" />
     <option name="PARAMETERS" value="--algorithm DYNAMOSA --project-path $PROJECT_DIR$/docs/source/_static --output-path /tmp/pynguin-results --module-name queue_example --maximum_search_time 60 --seed 42 --statistics-backend CONSOLE -v" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="true" />
